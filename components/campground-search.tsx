@@ -107,7 +107,7 @@ export function CampgroundSearch() {
         property_id: propertyId,
         check_in_date: format(date.from, "yyyy-MM-dd"),
         check_out_date: format(date.to, "yyyy-MM-dd"),
-        number_of_guests: guests,
+        num_adults: guests,
         site_type: siteTypeFilter === "all" ? undefined : siteTypeFilter,
         amenities: Object.keys(selectedAmenities).filter(key => selectedAmenities[key]),
       })

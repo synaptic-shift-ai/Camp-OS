@@ -42,7 +42,7 @@ export function ScrollAnimation({
 
   // Define animation variants
   const getVariants = () => {
-    const variants: { hidden: Record<string, any>; visible: Record<string, any> } = {
+    const variants: { hidden: Variant; visible: Variant } = {
       hidden: {},
       visible: {},
     }

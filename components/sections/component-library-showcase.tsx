@@ -315,7 +315,7 @@ export function ComponentLibraryShowcase() {
                         total={100}
                         status="info"
                         showFraction
-                        variant="gradient"
+                        variant="glass"
                         progressColor="bg-blue-500"
                         icon={<BookOpen className="h-6 w-6" />}
                         className="border-glow-green"

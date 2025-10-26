@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { Check, Tent, Users, CalendarIcon, Lock, ArrowLeft, Home, TreePine, Sparkles } from "lucide-react"
+import { Check, Tent, Users, CalendarIcon, Lock, ArrowLeft, Home, TreePine, Sparkles, Circle, MapPin } from "lucide-react"
 import Link from "next/link"
 
 import { cn } from "@/lib/utils"
@@ -29,6 +29,8 @@ const siteTypeIcons: Record<SiteType, React.ReactNode> = {
   tent: <Tent className="h-4 w-4" />,
   cabin: <TreePine className="h-4 w-4" />,
   glamping: <Sparkles className="h-4 w-4" />,
+  yurt: <Circle className="h-4 w-4" />,
+  other: <MapPin className="h-4 w-4" />,
 }
 
 const siteTypeColors: Record<SiteType, string> = {
@@ -36,6 +38,8 @@ const siteTypeColors: Record<SiteType, string> = {
   tent: "bg-green-500/10 text-green-500 border-green-500/20",
   cabin: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   glamping: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  yurt: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  other: "bg-gray-500/10 text-gray-500 border-gray-500/20",
 }
 
 const US_STATES = [

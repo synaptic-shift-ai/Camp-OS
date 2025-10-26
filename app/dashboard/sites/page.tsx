@@ -15,9 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Filter, MoreVertical, Plus, Search, Tent, Home, TreePine } from "lucide-react"
-
-type SiteType = 'rv' | 'tent' | 'cabin' | 'glamping';
+import { Filter, MoreVertical, Plus, Search, Tent, Home, TreePine, Sparkles, Circle, MapPin } from "lucide-react"
+import type { SiteType } from "@/lib/booking/types"
 type SiteStatus = 'available' | 'occupied' | 'maintenance' | 'unavailable';
 
 interface Site {
@@ -75,10 +74,12 @@ const sites: Site[] = [
 ]
 
 const siteTypeIcons: Record<SiteType, LucideIcon> = {
-  rv: Tent,
-  tent: TreePine,
-  cabin: Home,
-  glamping: Home,
+  rv: Home,
+  tent: Tent,
+  cabin: TreePine,
+  glamping: Sparkles,
+  yurt: Circle,
+  other: MapPin,
 }
 
 const statusColors: Record<SiteStatus, string> = {

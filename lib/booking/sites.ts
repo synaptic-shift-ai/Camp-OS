@@ -11,9 +11,9 @@ import type { Site, AvailableSite, BookingResult } from './types'
  * Get site details by ID
  *
  * @param siteId - Site ID to fetch
- * @returns Site details or error
+ * @returns Site details in UI-friendly format or error
  */
-export async function getSiteById(siteId: string): Promise<BookingResult<Site>> {
+export async function getSiteById(siteId: string): Promise<BookingResult<AvailableSite>> {
   const supabase = createServiceRoleClient()
 
   const { data: site, error } = await supabase
@@ -32,9 +32,21 @@ export async function getSiteById(siteId: string): Promise<BookingResult<Site>> 
     }
   }
 
+  // Transform to AvailableSite format
+  const availableSite: AvailableSite = {
+    id: site.id,
+    name: site.site_name || `Site ${site.site_number}`,
+    site_number: site.site_number,
+    site_type: site.site_type,
+    max_occupancy: site.max_occupancy,
+    base_price_per_night: site.base_price,
+    amenities: {}, // TODO: Convert amenities array to object
+    image_url: site.images?.[0],
+  }
+
   return {
     success: true,
-    data: site as Site,
+    data: availableSite,
   }
 }
 

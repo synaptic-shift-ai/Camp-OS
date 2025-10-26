@@ -44,7 +44,8 @@ export {
   // Reservations
   createReservation,
   getReservationByConfirmation,
-  getPropertyReservations,
+  // TODO: Implement getPropertyReservations for operator dashboard
+  // getPropertyReservations,
   // Helpers
   generateConfirmationNumber,
   validateDateRange,

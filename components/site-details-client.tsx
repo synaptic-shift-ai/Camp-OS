@@ -41,7 +41,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { getSiteById, checkSiteAvailability, calculateReservationPrice, getSimilarSites } from "@/lib/booking/api"
-import type { Site, SiteType, AvailableSite, PriceBreakdown } from "@/lib/booking/types"
+import type { SiteType, AvailableSite, PriceBreakdown } from "@/lib/booking/types"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const siteTypeIcons: Record<SiteType, React.ReactNode> = {
@@ -74,7 +74,7 @@ const amenityConfig: Record<string, { icon: React.ReactNode; label: string }> = 
 }
 
 export function SiteDetailsClient({ siteId }: { siteId: string }) {
-  const [site, setSite] = useState<Site | null>(null)
+  const [site, setSite] = useState<AvailableSite | null>(null)
   const [similarSites, setSimilarSites] = useState<AvailableSite[]>([])
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -125,7 +125,7 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
       try {
         const [availabilityResult, pricingResult] = await Promise.all([
           checkSiteAvailability(siteId, format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd")),
-          calculateReservationPrice(siteId, format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd"), guests),
+          calculateReservationPrice(siteId, format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd"), { num_adults: guests }),
         ])
 
         if (availabilityResult.success) {
@@ -332,6 +332,7 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
+                {/* TODO: Add description to AvailableSite type
                 <Card className="glass">
                   <CardHeader>
                     <CardTitle>Description</CardTitle>
@@ -340,6 +341,7 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
                     <p className="text-muted-foreground leading-relaxed">{site.description}</p>
                   </CardContent>
                 </Card>
+                */}
 
                 <Card className="glass">
                   <CardHeader>

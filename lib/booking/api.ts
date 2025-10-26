@@ -5,6 +5,8 @@
  * UI components should import and call these functions.
  */
 
+import type { BookingResult } from './types'
+
 // Re-export availability functions from availability module
 export { checkSiteAvailability, searchAvailableSites } from './availability'
 

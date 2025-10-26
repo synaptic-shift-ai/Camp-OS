@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import type { LucideIcon } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,22 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Filter, MoreVertical, Plus, Search, Tent, Home, TreePine } from "lucide-react"
 
-// Types
-type SiteType = 'rv' | 'tent' | 'cabin' | 'glamping';
-type SiteStatus = 'available' | 'occupied' | 'maintenance' | 'unavailable';
-
-interface Site {
-  id: string;
-  number: string;
-  name: string;
-  type: SiteType;
-  maxOccupancy: number;
-  basePrice: number;
-  hookups: string[];
-  status: SiteStatus;
-}
-
-const sites: Site[] = [
+const sites = [
   {
     id: "1",
     number: "15",
@@ -75,14 +59,14 @@ const sites: Site[] = [
   },
 ]
 
-const siteTypeIcons: Record<SiteType, LucideIcon> = {
+const siteTypeIcons = {
   rv: Tent,
   tent: TreePine,
   cabin: Home,
   glamping: Home,
 }
 
-const statusColors: Record<SiteStatus, string> = {
+const statusColors = {
   available: "bg-green-500/10 text-green-500 border-green-500/20",
   occupied: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   maintenance: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",

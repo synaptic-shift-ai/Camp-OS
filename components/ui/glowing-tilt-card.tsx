@@ -6,9 +6,7 @@ import { useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-interface GlowingTiltCardProps {
-  children?: React.ReactNode
-  className?: string
+interface GlowingTiltCardProps extends React.HTMLAttributes<HTMLDivElement> {
   tiltAmount?: number
   glareOpacity?: number
   perspective?: number
@@ -20,6 +18,7 @@ export function GlowingTiltCard({
   tiltAmount = 10,
   glareOpacity = 0.2,
   perspective = 1000,
+  ...props
 }: GlowingTiltCardProps) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const [glarePosition, setGlarePosition] = useState({ x: 0, y: 0 })
@@ -64,11 +63,12 @@ export function GlowingTiltCard({
         boxShadow: isHovered ? "0 20px 30px rgba(0, 0, 0, 0.2)" : "0 10px 20px rgba(0, 0, 0, 0.1)",
       }}
       transition={{
-        type: "spring" as const,
+        type: "spring",
         stiffness: 300,
         damping: 20,
         duration: 0.3,
       }}
+      {...props}
     >
       <div
         className="pointer-events-none absolute inset-0 z-10 rounded-xl transition-opacity duration-300"

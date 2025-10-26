@@ -110,7 +110,6 @@ export type Database = {
       payments: {
         Row: {
           amount: number
-          amount_cents: number
           created_at: string | null
           id: string
           notes: string | null
@@ -124,7 +123,6 @@ export type Database = {
         }
         Insert: {
           amount: number
-          amount_cents: number
           created_at?: string | null
           id?: string
           notes?: string | null
@@ -138,7 +136,6 @@ export type Database = {
         }
         Update: {
           amount?: number
-          amount_cents?: number
           created_at?: string | null
           id?: string
           notes?: string | null
@@ -294,8 +291,7 @@ export type Database = {
           num_children: number | null
           num_pets: number | null
           num_vehicles: number | null
-          paid_amount: number | null
-          paid_amount_cents: number
+          paid_amount: number
           payment_status: string | null
           property_id: string | null
           site_id: string | null
@@ -303,7 +299,6 @@ export type Database = {
           special_requests: string | null
           status: string | null
           total_amount: number
-          total_amount_cents: number
           updated_at: string | null
           vehicle_info: Json | null
         }
@@ -320,8 +315,7 @@ export type Database = {
           num_children?: number | null
           num_pets?: number | null
           num_vehicles?: number | null
-          paid_amount?: number | null
-          paid_amount_cents: number
+          paid_amount: number
           payment_status?: string | null
           property_id?: string | null
           site_id?: string | null
@@ -329,7 +323,6 @@ export type Database = {
           special_requests?: string | null
           status?: string | null
           total_amount: number
-          total_amount_cents: number
           updated_at?: string | null
           vehicle_info?: Json | null
         }
@@ -346,8 +339,7 @@ export type Database = {
           num_children?: number | null
           num_pets?: number | null
           num_vehicles?: number | null
-          paid_amount?: number | null
-          paid_amount_cents?: number
+          paid_amount?: number
           payment_status?: string | null
           property_id?: string | null
           site_id?: string | null
@@ -355,7 +347,6 @@ export type Database = {
           special_requests?: string | null
           status?: string | null
           total_amount?: number
-          total_amount_cents?: number
           updated_at?: string | null
           vehicle_info?: Json | null
         }
@@ -387,7 +378,6 @@ export type Database = {
         Row: {
           amenities: Json | null
           base_price: number
-          base_price_cents: number
           created_at: string | null
           description: string | null
           hookups: Json | null
@@ -404,12 +394,10 @@ export type Database = {
           status: string | null
           updated_at: string | null
           weekend_price: number | null
-          weekend_price_cents: number | null
         }
         Insert: {
           amenities?: Json | null
           base_price: number
-          base_price_cents: number
           created_at?: string | null
           description?: string | null
           hookups?: Json | null
@@ -426,12 +414,10 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           weekend_price?: number | null
-          weekend_price_cents?: number | null
         }
         Update: {
           amenities?: Json | null
           base_price?: number
-          base_price_cents?: number
           created_at?: string | null
           description?: string | null
           hookups?: Json | null
@@ -448,7 +434,6 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           weekend_price?: number | null
-          weekend_price_cents?: number | null
         }
         Relationships: [
           {

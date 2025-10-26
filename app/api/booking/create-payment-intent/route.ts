@@ -14,7 +14,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { Database } from '@/contracts/db'
-import { readMoneyDualMode } from '@/compat/money'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
@@ -63,12 +62,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Phase 2b: Dual-read from old DECIMAL and new BIGINT cents columns
-    // Prefers new cents column, falls back to old dollars column
-    const amountInCents = readMoneyDualMode(
-      typedReservation.total_amount,       // old DECIMAL column (dollars)
-      typedReservation.total_amount_cents  // new BIGINT column (cents)
-    )
+    // Phase 2c: Direct read from BIGINT column (already in cents)
+    const amountInCents = typedReservation.total_amount
 
     // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({

@@ -39,16 +39,29 @@ export type PaymentMethod =
   | 'other'
 
 // ============================================================================
-// Money Type (temporary - will be MoneyCents after Phase 2)
+// Money Type (Phase 2c Complete: Now using integer cents)
 // ============================================================================
 
 /**
- * Money amount in dollars (TEMPORARY)
- * After Phase 2 migration, this will become MoneyCents (integer cents)
+ * Money amount in integer cents (BIGINT in database)
  *
- * For now, use src/compat/money.ts for conversions
+ * Phase 2c Migration Complete:
+ * - All money fields stored as BIGINT in database
+ * - All calculations done in integer cents
+ * - Stripe integration uses cents directly
+ *
+ * @example
+ * const price: MoneyCents = 4599 // $45.99
+ * const free: MoneyCents = 0     // $0.00
  */
-export type MoneyAmount = number
+declare const MoneyCentsBrand: unique symbol
+export type MoneyCents = number & { readonly [MoneyCentsBrand]: typeof MoneyCentsBrand }
+
+/**
+ * @deprecated Use MoneyCents instead. This alias maintained for backward compatibility.
+ * Will be removed in Phase 3.
+ */
+export type MoneyAmount = MoneyCents
 
 // ============================================================================
 // DTOs - UI-facing shapes

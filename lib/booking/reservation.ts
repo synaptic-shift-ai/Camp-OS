@@ -13,7 +13,6 @@ import { validateDateRange, generateConfirmationNumber } from './api'
 import { checkSiteAvailability } from './availability'
 import { calculateReservationPrice } from './pricing'
 import { createOrGetGuest } from './guest'
-import { toStripeCents } from '@/compat/money'
 import type { CreateReservationInput, Reservation, BookingResult } from './types'
 
 /**
@@ -113,11 +112,9 @@ export async function createReservation(
     num_pets: input.num_pets || 0,
     num_vehicles: input.num_vehicles || 1,
     vehicle_info: input.vehicle_info || [],
-    // Phase 2b: Dual-write to old DECIMAL and new BIGINT cents columns
+    // Phase 2c: Write directly to BIGINT columns (already in cents)
     total_amount: pricing.total,
-    total_amount_cents: toStripeCents(pricing.total),
-    paid_amount: 0.0,
-    paid_amount_cents: 0,
+    paid_amount: 0,
     status: 'pending' as const,
     payment_status: 'unpaid' as const,
     special_requests: input.special_requests || null,
@@ -226,9 +223,8 @@ export async function confirmReservationPayment(
     .update({
       status: 'confirmed',
       payment_status: 'paid',
-      // Phase 2b: Dual-write to old DECIMAL and new BIGINT cents columns
+      // Phase 2c: Write directly to BIGINT column (already in cents)
       paid_amount: paymentDetails.amount,
-      paid_amount_cents: toStripeCents(paymentDetails.amount),
     })
     .eq('id', reservationId)
     .select('*')
@@ -248,9 +244,8 @@ export async function confirmReservationPayment(
   await supabase.from('payments').insert({
     property_id: reservation.property_id,
     reservation_id: reservationId,
-    // Phase 2b: Dual-write to old DECIMAL and new BIGINT cents columns
+    // Phase 2c: Write directly to BIGINT column (already in cents)
     amount: paymentDetails.amount,
-    amount_cents: toStripeCents(paymentDetails.amount),
     payment_method: 'credit_card',
     payment_status: 'completed',
     stripe_payment_id: paymentDetails.stripe_payment_id,

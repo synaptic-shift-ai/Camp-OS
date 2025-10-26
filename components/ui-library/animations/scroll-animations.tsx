@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect, type ReactNode } from "react"
-import { motion, useAnimation, useScroll, useTransform, type Variant } from "framer-motion"
+import { motion, useAnimation, useScroll, useTransform } from "framer-motion"
 import { useInView } from "react-intersection-observer"
 import { cn } from "@/lib/utils"
 
@@ -42,7 +42,7 @@ export function ScrollAnimation({
 
   // Define animation variants
   const getVariants = () => {
-    const variants: { hidden: Variant; visible: Variant } = {
+    const variants: { hidden: Record<string, any>; visible: Record<string, any> } = {
       hidden: {},
       visible: {},
     }

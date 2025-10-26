@@ -142,7 +142,7 @@ export function ComponentLibraryShowcase() {
                         title="Need Help?"
                         description="Our support team is ready to assist you with any questions."
                         primaryAction={{ text: "Contact Support" }}
-                        variant="glass"
+                        variant="gradient"
                         alignment="right"
                         buttonVariant="magnetic"
                         icon={<Lightbulb className="h-6 w-6" />}
@@ -315,7 +315,7 @@ export function ComponentLibraryShowcase() {
                         total={100}
                         status="info"
                         showFraction
-                        variant="glass"
+                        variant="gradient"
                         progressColor="bg-blue-500"
                         icon={<BookOpen className="h-6 w-6" />}
                         className="border-glow-green"

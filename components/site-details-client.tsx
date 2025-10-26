@@ -525,7 +525,7 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={date?.from}
+                        {...(date?.from && { defaultMonth: date.from })}
                         selected={date}
                         onSelect={setDate}
                         numberOfMonths={2}

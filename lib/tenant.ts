@@ -32,7 +32,7 @@ export async function getTenantInfo(): Promise<TenantInfo> {
 
   // For production domains (subdomain.camp-os.com)
   if (parts.length >= 3) {
-    const subdomain = parts[0]
+    const subdomain = parts[0]!
     // Exclude 'www' as a subdomain
     if (subdomain !== "www") {
       return {

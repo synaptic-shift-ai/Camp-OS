@@ -45,7 +45,7 @@ function countWeekendNights(checkIn: string, checkOut: string): number {
   // Iterate through each night
   const current = new Date(start)
   while (current < end) {
-    if (isWeekendNight(current.toISOString().split('T')[0])) {
+    if (isWeekendNight(current.toISOString().split('T')[0]!)) {
       weekendNights++
     }
     current.setDate(current.getDate() + 1)

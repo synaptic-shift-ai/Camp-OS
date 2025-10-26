@@ -341,7 +341,7 @@ describe('searchAvailableSites', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.sites.length).toBe(1)
-      expect(result.data.sites[0].site_type).toBe('rv')
+      expect(result.data.sites[0]!.site_type).toBe('rv')
     }
   })
 
@@ -358,7 +358,7 @@ describe('searchAvailableSites', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.sites.length).toBe(1)
-      expect(result.data.sites[0].max_occupancy).toBeGreaterThanOrEqual(5)
+      expect(result.data.sites[0]!.max_occupancy).toBeGreaterThanOrEqual(5)
     }
   })
 
@@ -388,7 +388,7 @@ describe('searchAvailableSites', () => {
     await supabase.from('reservations').insert({
       id: testUUID(),
       property_id: testData.property_id,
-      site_id: testData.sites[0].id,
+      site_id: testData.sites[0]!.id,
       guest_id: testData.guest_id,
       confirmation_number: `TEST-${Date.now()}`,
       check_in_date,
@@ -413,7 +413,7 @@ describe('searchAvailableSites', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.sites.length).toBe(2) // Should exclude the booked site
-      expect(result.data.sites.some((site) => site.id === testData.sites[0].id)).toBe(false)
+      expect(result.data.sites.some((site) => site.id === testData.sites[0]!.id)).toBe(false)
     }
   })
 

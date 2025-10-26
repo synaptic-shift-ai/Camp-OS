@@ -220,7 +220,7 @@ export function CampgroundSearch() {
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={date?.from}
+                        {...(date?.from && { defaultMonth: date.from })}
                         selected={date}
                         onSelect={setDate}
                         numberOfMonths={2}

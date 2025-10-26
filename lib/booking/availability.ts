@@ -74,7 +74,7 @@ function convertToAvailableSite(site: Site): AvailableSite {
     max_occupancy: site.max_occupancy,
     base_price_per_night: site.base_price,
     amenities: convertAmenities(site.amenities),
-    image_url: site.images.length > 0 ? site.images[0] : undefined,
+    ...(site.images.length > 0 && { image_url: site.images[0] }),
   }
 }
 

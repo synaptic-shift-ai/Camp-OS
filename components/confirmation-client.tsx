@@ -114,7 +114,7 @@ export function ConfirmationClient() {
   const handleAddToCalendar = () => {
     if (!checkoutData.checkInDate || !checkoutData.checkOutDate || !checkoutData.site) return
 
-    const formatICSDate = (date: string) => {
+    const formatICSDate = (date: string | Date) => {
       return new Date(date).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z"
     }
 

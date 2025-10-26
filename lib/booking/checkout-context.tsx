@@ -1,16 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import type { Site, PriceBreakdown, CreateGuestInput } from "./types"
-
-interface CheckoutData {
-  site: Site | null
-  checkInDate: string | null
-  checkOutDate: string | null
-  numberOfGuests: number
-  priceBreakdown: PriceBreakdown | null
-  guestInfo: CreateGuestInput | null
-}
+import type { CheckoutData } from "./types"
 
 interface CheckoutContextType {
   checkoutData: CheckoutData
@@ -20,14 +11,7 @@ interface CheckoutContextType {
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(undefined)
 
-const initialCheckoutData: CheckoutData = {
-  site: null,
-  checkInDate: null,
-  checkOutDate: null,
-  numberOfGuests: 2,
-  priceBreakdown: null,
-  guestInfo: null,
-}
+const initialCheckoutData: CheckoutData = {}
 
 export function CheckoutProvider({ children }: { children: ReactNode }) {
   const [checkoutData, setCheckoutDataState] = useState<CheckoutData>(initialCheckoutData)

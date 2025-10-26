@@ -13,7 +13,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import type { Reservation } from '@/lib/booking/types'
+import type { Database } from '@/contracts/db'
+import { readMoneyDualMode } from '@/compat/money'
+
+type Reservation = Database['public']['Tables']['reservations']['Row']
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -60,8 +63,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate amount in cents (Stripe requires smallest currency unit)
-    const amountInCents = Math.round(typedReservation.total_amount * 100)
+    // Phase 2b: Dual-read from old DECIMAL and new BIGINT cents columns
+    // Prefers new cents column, falls back to old dollars column
+    const amountInCents = readMoneyDualMode(
+      typedReservation.total_amount,       // old DECIMAL column (dollars)
+      typedReservation.total_amount_cents  // new BIGINT column (cents)
+    )
 
     // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({

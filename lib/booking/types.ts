@@ -2,7 +2,8 @@
  * Booking System Type Definitions
  *
  * These types define the contract between the UI layer and the booking engine.
- * Use these when building UI components with v0 or manually.
+ * Types match the database schema exactly for type safety.
+ * UI-friendly helper types are provided for conversion (e.g., AvailableSite).
  */
 
 // ============================================================================
@@ -10,17 +11,18 @@
 // ============================================================================
 
 /**
- * Types of campsites available
+ * Types of campsites available (matches DB CHECK constraint)
  */
-export type SiteType = 'rv' | 'tent' | 'cabin' | 'glamping'
+export type SiteType = 'tent' | 'rv' | 'cabin' | 'glamping' | 'yurt' | 'other'
 
 /**
- * Current operational status of a site
+ * Current operational status of a site (matches DB CHECK constraint)
  */
-export type SiteStatus = 'available' | 'occupied' | 'maintenance' | 'unavailable'
+export type SiteStatus = 'available' | 'unavailable' | 'maintenance'
 
 /**
  * Amenities that can be associated with a site
+ * Used for UI display - DB stores amenities as string[]
  */
 export interface SiteAmenities {
   electric?: boolean
@@ -35,36 +37,45 @@ export interface SiteAmenities {
 }
 
 /**
- * Complete site information
+ * Complete site information (matches DB sites table)
  */
 export interface Site {
   id: string
   property_id: string
-  name: string
   site_number: string
+  site_name: string | null // DB allows null
   site_type: SiteType
-  status: SiteStatus
   max_occupancy: number
-  base_price_per_night: number
-  amenities: SiteAmenities
-  description?: string
-  image_url?: string
+  max_vehicles: number
+  size_sqft: number | null
+  hookups: string[] // JSONB array in DB
+  amenities: string[] // JSONB array in DB
+  base_price: number // DB column: base_price
+  weekend_price: number | null
+  status: SiteStatus
+  description: string | null
+  images: string[] // JSONB array in DB
+  location_map: Record<string, any> | null // JSONB object in DB
+  allow_pets: boolean
+  pet_fee: number | null
+  ada_accessible: boolean
   created_at: string
   updated_at: string
 }
 
 /**
- * Simplified site info for availability search results
+ * UI-friendly site info for availability search results
+ * Converts DB schema to UI-friendly names and formats
  */
 export interface AvailableSite {
   id: string
-  name: string
+  name: string // Derived from site_name || `Site ${site_number}`
   site_number: string
   site_type: SiteType
   max_occupancy: number
-  base_price_per_night: number
-  amenities: SiteAmenities
-  image_url?: string
+  base_price_per_night: number // Converted from base_price
+  amenities: SiteAmenities // Converted from string[]
+  image_url?: string // First image from images[]
 }
 
 // ============================================================================
@@ -72,22 +83,26 @@ export interface AvailableSite {
 // ============================================================================
 
 /**
- * Guest information for reservation
+ * Guest information for reservation (matches DB guests table)
  */
 export interface Guest {
   id: string
   property_id: string
+  user_id: string | null // Link to authenticated user if exists
   first_name: string
   last_name: string
   email: string
-  phone: string
-  address?: string
-  city?: string
-  state?: string
-  zip_code?: string
-  country?: string
-  notes?: string
+  phone: string | null // DB allows null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
+  country: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  notes: string | null
   created_at: string
+  updated_at: string
 }
 
 /**
@@ -103,6 +118,8 @@ export interface CreateGuestInput {
   state?: string
   zip_code?: string
   country?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
 }
 
 // ============================================================================
@@ -110,7 +127,7 @@ export interface CreateGuestInput {
 // ============================================================================
 
 /**
- * Lifecycle status of a reservation
+ * Lifecycle status of a reservation (matches DB CHECK constraint)
  */
 export type ReservationStatus =
   | 'pending'      // Payment not yet completed
@@ -118,9 +135,15 @@ export type ReservationStatus =
   | 'checked_in'   // Guest has checked in
   | 'checked_out'  // Guest has checked out
   | 'cancelled'    // Reservation cancelled
+  | 'no_show'      // Guest did not arrive
 
 /**
- * Complete reservation record
+ * Payment status for reservation (matches DB CHECK constraint)
+ */
+export type ReservationPaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded'
+
+/**
+ * Complete reservation record (matches DB reservations table)
  */
 export interface Reservation {
   id: string
@@ -130,17 +153,26 @@ export interface Reservation {
   confirmation_number: string
   check_in_date: string // ISO 8601 date string
   check_out_date: string // ISO 8601 date string
-  number_of_guests: number
+  num_adults: number
+  num_children: number
+  num_pets: number
+  num_vehicles: number
+  vehicle_info: Array<Record<string, any>> // JSONB array in DB
   total_amount: number
+  paid_amount: number
   status: ReservationStatus
-  special_requests?: string
+  payment_status: ReservationPaymentStatus
+  special_requests: string | null
+  source: string // 'online', 'phone', 'walkin', etc.
+  notes: string | null
+  cancelled_at: string | null
   created_at: string
   updated_at: string
 
   // Joined data (when queried with relations)
   site?: Site
   guest?: Guest
-  payment?: Payment
+  payments?: Payment[] // Can have multiple payments
 }
 
 /**
@@ -152,8 +184,13 @@ export interface CreateReservationInput {
   guest: CreateGuestInput | { guest_id: string } // Either new guest or existing guest ID
   check_in_date: string // YYYY-MM-DD format
   check_out_date: string // YYYY-MM-DD format
-  number_of_guests: number
+  num_adults: number
+  num_children?: number
+  num_pets?: number
+  num_vehicles?: number
+  vehicle_info?: Array<Record<string, any>>
   special_requests?: string
+  source?: string
 }
 
 // ============================================================================
@@ -161,17 +198,23 @@ export interface CreateReservationInput {
 // ============================================================================
 
 /**
- * Payment status
+ * Payment status (matches DB CHECK constraint)
  */
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
 
 /**
- * Payment method
+ * Payment method (matches DB CHECK constraint)
  */
-export type PaymentMethod = 'card' | 'cash' | 'check' | 'other'
+export type PaymentMethod =
+  | 'credit_card'
+  | 'debit_card'
+  | 'cash'
+  | 'check'
+  | 'bank_transfer'
+  | 'other'
 
 /**
- * Payment record
+ * Payment record (matches DB payments table)
  */
 export interface Payment {
   id: string
@@ -180,10 +223,11 @@ export interface Payment {
   amount: number
   payment_method: PaymentMethod
   payment_status: PaymentStatus
-  stripe_payment_intent_id?: string
-  transaction_date: string
-  notes?: string
+  stripe_payment_id: string | null // Renamed from stripe_payment_intent_id
+  processed_at: string | null // When payment was processed
+  notes: string | null
   created_at: string
+  updated_at: string
 }
 
 // ============================================================================
@@ -198,10 +242,11 @@ export interface PriceBreakdown {
   number_of_nights: number
   subtotal: number // base_price_per_night × number_of_nights
 
-  // Future fees (not implemented in Phase 1A)
+  // Additional fees
   cleaning_fee?: number
   pet_fee?: number
   extra_guest_fee?: number
+  weekend_surcharge?: number
 
   total: number
 }
@@ -217,9 +262,11 @@ export interface AvailabilitySearchParams {
   property_id: string
   check_in_date: string // YYYY-MM-DD
   check_out_date: string // YYYY-MM-DD
-  number_of_guests?: number
+  num_adults?: number
+  num_children?: number
+  num_pets?: number
   site_type?: SiteType
-  amenities?: Partial<SiteAmenities> // Filter by required amenities
+  amenities?: string[] // Match against DB amenities array
 }
 
 /**
@@ -230,6 +277,41 @@ export interface AvailabilitySearchResult {
   check_in_date: string
   check_out_date: string
   total_nights: number
+}
+
+// ============================================================================
+// Checkout Context Types
+// ============================================================================
+
+/**
+ * Data stored in checkout context during booking flow
+ */
+export interface CheckoutData {
+  // Site selection
+  site?: AvailableSite
+  checkInDate?: Date
+  checkOutDate?: Date
+
+  // Guest info
+  guestInfo?: CreateGuestInput
+
+  // Additional details
+  numAdults?: number
+  numChildren?: number
+  numPets?: number
+  numVehicles?: number
+  vehicleInfo?: Array<Record<string, any>>
+  specialRequests?: string
+
+  // Pricing
+  priceBreakdown?: PriceBreakdown
+
+  // Payment
+  stripePaymentIntentId?: string
+
+  // Confirmation
+  confirmationNumber?: string
+  reservationId?: string
 }
 
 // ============================================================================

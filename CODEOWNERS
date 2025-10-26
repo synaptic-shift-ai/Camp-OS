@@ -1,0 +1,13 @@
+# Code Owners for CampOS
+#
+# These owners will be requested for review when changes are made to the matching paths
+
+# Contracts require tech lead review (prevents accidental breaking changes)
+/src/contracts/** @your-github-username
+
+# Database migrations require careful review
+/scripts/*.sql @your-github-username
+
+# Payment-related code requires security review
+/app/api/booking/create-payment-intent/** @your-github-username
+/app/api/webhooks/stripe/** @your-github-username

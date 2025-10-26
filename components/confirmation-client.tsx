@@ -320,7 +320,7 @@ END:VCALENDAR`
                 <Users className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">
-                    {checkoutData.numberOfGuests} {checkoutData.numberOfGuests === 1 ? "Guest" : "Guests"}
+                    {((checkoutData.numAdults || 0) + (checkoutData.numChildren || 0))} {((checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)) === 1 ? "Guest" : "Guests"}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {checkoutData.priceBreakdown?.number_of_nights}{" "}

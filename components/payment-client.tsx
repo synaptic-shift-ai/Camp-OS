@@ -256,7 +256,7 @@ export function PaymentClient() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Guests</span>
-                    <span className="font-medium">{checkoutData.numberOfGuests}</span>
+                    <span className="font-medium">{(checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Nights</span>

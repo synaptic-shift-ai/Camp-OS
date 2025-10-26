@@ -17,8 +17,24 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Filter, MoreVertical, Plus, Search } from "lucide-react"
 
+// Types
+type ReservationStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
+
+interface Reservation {
+  id: string;
+  confirmationNumber: string;
+  guestName: string;
+  site: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  guests: number;
+  amount: number;
+  status: ReservationStatus;
+}
+
 // Mock data
-const reservations = [
+const reservations: Reservation[] = [
   {
     id: "1",
     confirmationNumber: "CAMP-2024-001",
@@ -69,7 +85,7 @@ const reservations = [
   },
 ]
 
-const statusColors = {
+const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   confirmed: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   checked_in: "bg-green-500/10 text-green-500 border-green-500/20",

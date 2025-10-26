@@ -91,7 +91,11 @@ export function ConfirmationClient() {
     if (checkoutData.site) {
       setIsLoadingSimilar(true)
       getSimilarSites(checkoutData.site.id, 3)
-        .then(setSimilarSites)
+        .then((result) => {
+          if (result.success) {
+            setSimilarSites(result.data)
+          }
+        })
         .catch((err) => console.error("[v0] Failed to load similar sites:", err))
         .finally(() => setIsLoadingSimilar(false))
     }

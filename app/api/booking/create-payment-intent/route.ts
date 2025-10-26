@@ -14,6 +14,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { Database } from '@/contracts/db'
+import {
+  CreatePaymentIntentRequestSchema,
+  CreatePaymentIntentResponseSchema,
+} from '@/contracts/schemas'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
@@ -25,15 +29,17 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { reservation_id, property_id } = body
 
-    // Validate required fields
-    if (!reservation_id || !property_id) {
+    // Phase 3: Zod validation
+    const parsed = CreatePaymentIntentRequestSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Missing required fields: reservation_id, property_id' },
+        { error: 'Invalid request', details: parsed.error.format() },
         { status: 400 }
       )
     }
+
+    const { reservation_id, property_id } = parsed.data
 
     const supabase = createServiceRoleClient()
 
@@ -91,11 +97,13 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', reservation_id)
 
-    // Return client_secret for frontend
-    return NextResponse.json({
+    // Phase 3: Validate output
+    const response = CreatePaymentIntentResponseSchema.parse({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
     })
+
+    return NextResponse.json(response)
   } catch (error: any) {
     console.error('Error creating PaymentIntent:', error)
     return NextResponse.json(

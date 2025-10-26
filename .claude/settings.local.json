@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "mcp__playwright__playwright_screenshot",
+      "mcp__playwright__playwright_navigate",
+      "mcp__playwright__playwright_close",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

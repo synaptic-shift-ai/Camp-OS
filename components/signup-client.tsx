@@ -241,7 +241,7 @@ export function SignupClient() {
 
             <p className="text-sm text-center text-gray-400">
               Already have an account?{" "}
-              <Link href="/signin" className="text-red-500 hover:text-red-400 transition-colors">
+              <Link href="/login" className="text-red-500 hover:text-red-400 transition-colors">
                 Sign in
               </Link>
             </p>

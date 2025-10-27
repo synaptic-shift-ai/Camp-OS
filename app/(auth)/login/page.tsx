@@ -37,6 +37,25 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
+        // Check if user has completed onboarding
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
+          const { data: property } = await supabase
+            .from('properties')
+            .select('id, onboarding_completed')
+            .eq('owner_id', user.id)
+            .single()
+
+          // If no property or onboarding not completed, redirect to onboarding
+          if (!property || !property.onboarding_completed) {
+            router.push("/onboarding")
+            router.refresh()
+            return
+          }
+        }
+
+        // User has completed onboarding, go to dashboard
         router.push("/dashboard")
         router.refresh()
       }

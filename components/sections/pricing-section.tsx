@@ -5,58 +5,85 @@ import { Button } from "@/components/ui/button"
 import { Check } from "lucide-react"
 import { AnimatedGradientBorder } from "@/components/ui/animated-gradient-border"
 import { motion } from "framer-motion"
+import Link from "next/link"
 
 export function PricingSection() {
   const plans = [
     {
       name: "Starter",
-      description: "Perfect for small campgrounds and seasonal operations.",
-      price: "$99",
+      slug: "starter",
+      description: "Perfect for small campgrounds and seasonal operations",
+      price: "$199",
       duration: "per month",
       features: [
         "Up to 50 sites",
+        "250 bookings/month included",
         "Online booking portal",
         "Basic site map",
         "Payment processing",
         "Email support",
         "Mobile app access",
       ],
-      cta: "Start Free Trial",
+      cta: "Get Started",
       popular: false,
     },
     {
-      name: "Professional",
-      description: "Ideal for growing RV parks and glamping sites.",
-      price: "$199",
+      name: "Growth",
+      slug: "growth",
+      description: "Ideal for growing RV parks and glamping sites",
+      price: "$399",
       duration: "per month",
       features: [
         "Up to 150 sites",
+        "750 bookings/month included",
         "Online booking portal",
         "Interactive site maps",
         "Payment processing",
-        "Guest management CRM",
-        "Analytics & reporting",
+        "Portfolio pooling",
+        "Advanced analytics",
         "Priority support",
         "Custom branding",
       ],
-      cta: "Start Free Trial",
+      cta: "Get Started",
       popular: true,
     },
     {
+      name: "Pro",
+      slug: "pro",
+      description: "For large properties and serious operators",
+      price: "$799",
+      duration: "per month",
+      features: [
+        "Up to 400 sites",
+        "1,800 bookings/month included",
+        "Online booking portal",
+        "Advanced site maps",
+        "Payment processing",
+        "Portfolio pooling",
+        "Advanced analytics",
+        "Advanced integrations",
+        "Priority support",
+        "Dedicated account manager",
+      ],
+      cta: "Get Started",
+      popular: false,
+    },
+    {
       name: "Enterprise",
-      description: "For large properties and multi-location operators.",
+      slug: "enterprise",
+      description: "For multi-property operators and complex operations",
       price: "Custom",
       duration: "contact sales",
       features: [
         "Unlimited sites",
-        "Online booking portal",
-        "Advanced site maps",
-        "Payment processing",
-        "Guest management CRM",
-        "Advanced analytics",
+        "Custom booking quotas",
         "Multi-property support",
+        "White-glove onboarding",
         "API access",
-        "Dedicated account manager",
+        "Custom integrations",
+        "24/7 support",
+        "Dedicated CSM",
+        "SLA guarantees",
       ],
       cta: "Contact Sales",
       popular: false,
@@ -73,14 +100,14 @@ export function PricingSection() {
                 Simple, Transparent Pricing
               </h2>
               <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400 opacity-70">
-                Choose the plan that fits your property size. All plans include a 14-day free trial with no credit card
-                required.
+                Choose the plan that fits your property size. Get started today and modernize your campground
+                operations.
               </p>
             </div>
           </div>
         </ScrollReveal>
 
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 py-12 md:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan, index) => (
             <ScrollReveal key={index} delay={index * 0.1}>
               <Card className={`h-full flex flex-col glassmorphic-card ${plan.popular ? "border-glow-red" : ""}`}>
@@ -107,19 +134,29 @@ export function PricingSection() {
                     ))}
                   </ul>
 
-                  {plan.popular ? (
+                  {plan.slug === "enterprise" ? (
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <Link href="mailto:sales@campos.com?subject=Enterprise%20Plan%20Inquiry" className="w-full">
+                        <Button className="w-full neumorphic-button">{plan.cta}</Button>
+                      </Link>
+                    </motion.div>
+                  ) : plan.popular ? (
                     <AnimatedGradientBorder
                       colors={["#dc2626", "#4b5563", "#dc2626", "#4b5563"]}
                       borderWidth={1}
                       duration={8}
                     >
-                      <Button className="w-full bg-background border-0 text-foreground hover:text-white">
-                        {plan.cta}
-                      </Button>
+                      <Link href={`/signup?plan=${plan.slug}`} className="w-full">
+                        <Button className="w-full bg-background border-0 text-foreground hover:text-white">
+                          {plan.cta}
+                        </Button>
+                      </Link>
                     </AnimatedGradientBorder>
                   ) : (
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                      <Button className="w-full neumorphic-button">{plan.cta}</Button>
+                      <Link href={`/signup?plan=${plan.slug}`} className="w-full">
+                        <Button className="w-full neumorphic-button">{plan.cta}</Button>
+                      </Link>
                     </motion.div>
                   )}
                 </CardContent>

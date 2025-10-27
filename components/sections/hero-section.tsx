@@ -65,8 +65,8 @@ export function HeroSection() {
                   gradientTo="to-red-700"
                   asChild
                 >
-                  <Link href="#components" className="flex items-center">
-                    Start Free Trial
+                  <Link href="/signup" className="flex items-center">
+                    Get Started
                     <motion.span
                       className="ml-2 inline-block"
                       animate={{ x: [0, 4, 0] }}

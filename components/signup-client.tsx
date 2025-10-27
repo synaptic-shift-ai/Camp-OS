@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -35,6 +35,7 @@ export function SignupClient() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkingVerification, setCheckingVerification] = useState(false)
 
   const {
     register,
@@ -46,6 +47,30 @@ export function SignupClient() {
   })
 
   const email = watch("email")
+
+  // Poll for email verification completion
+  useEffect(() => {
+    if (!showSuccess) return
+
+    const checkVerification = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user && user.email_confirmed_at) {
+        // Email is verified! Redirect to onboarding
+        setCheckingVerification(true)
+        router.push("/onboarding")
+      }
+    }
+
+    // Check immediately
+    checkVerification()
+
+    // Then poll every 3 seconds
+    const interval = setInterval(checkVerification, 3000)
+
+    // Cleanup on unmount
+    return () => clearInterval(interval)
+  }, [showSuccess, supabase, router])
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
@@ -92,22 +117,50 @@ export function SignupClient() {
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-zinc-900 rounded-lg p-8 text-center border border-zinc-800">
           <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            {checkingVerification ? (
+              <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            )}
           </div>
-          <h1 className="text-2xl font-bold mb-2 text-white">Check Your Email</h1>
+          <h1 className="text-2xl font-bold mb-2 text-white">
+            {checkingVerification ? "Verification Complete!" : "Check Your Email"}
+          </h1>
           <p className="text-gray-400 mb-6">
-            We've sent a verification link to <span className="font-medium text-white">{email}</span>
+            {checkingVerification ? (
+              "Redirecting to onboarding..."
+            ) : (
+              <>
+                We've sent a verification link to <span className="font-medium text-white">{email}</span>
+              </>
+            )}
           </p>
-          <p className="text-sm text-gray-400 mb-6">
-            Click the link in the email to verify your account and complete setup.
-          </p>
-          <Button
-            variant="outline"
-            className="w-full bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
-            onClick={() => setShowSuccess(false)}
-          >
-            Back to Signup
-          </Button>
+          {!checkingVerification && (
+            <>
+              <p className="text-sm text-gray-400 mb-6">
+                Click the link in the email to verify your account. We'll automatically continue once verified.
+              </p>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                <span className="text-xs text-gray-500">Checking for verification...</span>
+              </div>
+              <div className="space-y-3">
+                <Button
+                  className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium"
+                  onClick={() => router.push("/onboarding")}
+                >
+                  Already Verified? Continue
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
+                  onClick={() => setShowSuccess(false)}
+                >
+                  Back to Signup
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     )

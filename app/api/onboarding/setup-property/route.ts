@@ -47,14 +47,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Phone number must be at least 10 characters" }, { status: 400 })
     }
 
-    // Check if user already has a property
-    const { data: existingProperty } = await supabase
+    // Check if user already has a property (get most recent one)
+    const supabaseServiceRole = createServiceRoleClient()
+    const { data: existingProperties } = await supabaseServiceRole
       .from("properties")
       .select("id")
       .eq("owner_id", user.id)
-      .single()
+      .order("created_at", { ascending: false })
+      .limit(1)
 
-    const supabaseServiceRole = createServiceRoleClient()
+    const existingProperty = existingProperties?.[0]
 
     let property
 

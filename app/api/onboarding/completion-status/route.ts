@@ -16,13 +16,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 })
     }
 
-    // Get the user's property with relevant fields (use service role to bypass RLS)
+    // Get the user's most recent property (use service role to bypass RLS)
     const supabaseServiceRole = createServiceRoleClient()
-    const { data: property, error: propertyError } = await supabaseServiceRole
+    const { data: properties, error: propertyError } = await supabaseServiceRole
       .from("properties")
       .select("id, name, city, state, booking_page_slug, stripe_account_id")
       .eq("owner_id", user.id)
-      .single()
+      .order("created_at", { ascending: false })
+      .limit(1)
+
+    const property = properties?.[0]
 
     if (propertyError || !property) {
       return NextResponse.json({ error: "No property found" }, { status: 404 })

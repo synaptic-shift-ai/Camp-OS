@@ -1,9 +1,6 @@
-"use client"
-
-import { useState } from "react"
+import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -14,75 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Filter, MoreVertical, Plus, Search } from "lucide-react"
-
-type ReservationStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
-
-interface Reservation {
-  id: string;
-  confirmationNumber: string;
-  guestName: string;
-  site: string;
-  checkIn: string;
-  checkOut: string;
-  nights: number;
-  guests: number;
-  amount: number;
-  status: ReservationStatus;
-}
-
-// Mock data
-const reservations: Reservation[] = [
-  {
-    id: "1",
-    confirmationNumber: "CAMP-2024-001",
-    guestName: "John Smith",
-    site: "Site 15",
-    checkIn: "2024-01-15",
-    checkOut: "2024-01-18",
-    nights: 3,
-    guests: 4,
-    amount: 450,
-    status: "confirmed",
-  },
-  {
-    id: "2",
-    confirmationNumber: "CAMP-2024-002",
-    guestName: "Sarah Johnson",
-    site: "Site 8",
-    checkIn: "2024-01-16",
-    checkOut: "2024-01-20",
-    nights: 4,
-    guests: 2,
-    amount: 600,
-    status: "checked_in",
-  },
-  {
-    id: "3",
-    confirmationNumber: "CAMP-2024-003",
-    guestName: "Mike Davis",
-    site: "Cabin 3",
-    checkIn: "2024-01-14",
-    checkOut: "2024-01-17",
-    nights: 3,
-    guests: 6,
-    amount: 750,
-    status: "checked_out",
-  },
-  {
-    id: "4",
-    confirmationNumber: "CAMP-2024-004",
-    guestName: "Emily Brown",
-    site: "Site 22",
-    checkIn: "2024-01-20",
-    checkOut: "2024-01-23",
-    nights: 3,
-    guests: 3,
-    amount: 420,
-    status: "pending",
-  },
-]
+import {Plus, MoreVertical } from "lucide-react"
+import { getReservations } from "@/lib/dashboard/queries"
+import type { ReservationStatus } from "@/src/contracts/booking"
+import { createClient } from "@/lib/supabase/server"
 
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -90,11 +22,134 @@ const statusColors: Record<ReservationStatus, string> = {
   checked_in: "bg-green-500/10 text-green-500 border-green-500/20",
   checked_out: "bg-gray-500/10 text-gray-500 border-gray-500/20",
   cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
+  no_show: "bg-orange-500/10 text-orange-500 border-orange-500/20",
 }
 
-export default function ReservationsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
+/**
+ * Format money from integer cents to dollar display
+ */
+function formatMoney(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(cents / 100)
+}
 
+/**
+ * Format date for display
+ */
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+/**
+ * Get the current user's property ID
+ * MVP: Assumes user has access to one property
+ */
+async function getCurrentPropertyId(): Promise<string | null> {
+  const supabase = await createClient()
+
+  // Get the currently authenticated user
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  // Get the first property owned by this user
+  const { data: property } = await supabase
+    .from('properties')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single()
+
+  return property?.id || null
+}
+
+async function ReservationsTable() {
+  const propertyId = await getCurrentPropertyId()
+
+  if (!propertyId) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No property found. Please contact support.</p>
+      </div>
+    )
+  }
+
+  // Fetch all reservations for this property
+  const { data: reservations, total } = await getReservations(propertyId, {}, 1, 100)
+
+  if (reservations.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No reservations yet. Create your first booking!</p>
+      </div>
+    )
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Confirmation</TableHead>
+          <TableHead>Guest</TableHead>
+          <TableHead>Site</TableHead>
+          <TableHead>Check-in</TableHead>
+          <TableHead>Check-out</TableHead>
+          <TableHead>Nights</TableHead>
+          <TableHead>Guests</TableHead>
+          <TableHead>Amount</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="w-[50px]"></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {reservations.map((reservation) => (
+          <TableRow key={reservation.id}>
+            <TableCell className="font-medium">{reservation.confirmationNumber}</TableCell>
+            <TableCell>{reservation.guestName}</TableCell>
+            <TableCell>{reservation.siteName}</TableCell>
+            <TableCell>{formatDate(reservation.checkIn)}</TableCell>
+            <TableCell>{formatDate(reservation.checkOut)}</TableCell>
+            <TableCell>{reservation.numNights}</TableCell>
+            <TableCell>{reservation.numAdults + reservation.numChildren}</TableCell>
+            <TableCell>{formatMoney(reservation.totalAmount)}</TableCell>
+            <TableCell>
+              <Badge variant="outline" className={statusColors[reservation.status]}>
+                {reservation.status.replace("_", " ")}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>View Details</DropdownMenuItem>
+                  <DropdownMenuItem>Edit Reservation</DropdownMenuItem>
+                  <DropdownMenuItem>Send Confirmation</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive">Cancel Reservation</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
+export default async function ReservationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -108,135 +163,25 @@ export default function ReservationsPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="current">Current</TabsTrigger>
-          <TabsTrigger value="past">Past</TabsTrigger>
-        </TabsList>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>All Reservations</CardTitle>
-                <CardDescription>View and manage your property reservations</CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search reservations..."
-                    className="pl-8 w-[250px]"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon">
-                  <Calendar className="h-4 w-4" />
-                </Button>
-              </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>All Reservations</CardTitle>
+              <CardDescription>View and manage your property reservations</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            <TabsContent value="all" className="m-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Confirmation</TableHead>
-                    <TableHead>Guest</TableHead>
-                    <TableHead>Site</TableHead>
-                    <TableHead>Check-in</TableHead>
-                    <TableHead>Check-out</TableHead>
-                    <TableHead>Nights</TableHead>
-                    <TableHead>Guests</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reservations.map((reservation) => (
-                    <TableRow key={reservation.id}>
-                      <TableCell className="font-medium">{reservation.confirmationNumber}</TableCell>
-                      <TableCell>{reservation.guestName}</TableCell>
-                      <TableCell>{reservation.site}</TableCell>
-                      <TableCell>{new Date(reservation.checkIn).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(reservation.checkOut).toLocaleDateString()}</TableCell>
-                      <TableCell>{reservation.nights}</TableCell>
-                      <TableCell>{reservation.guests}</TableCell>
-                      <TableCell>${reservation.amount}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={statusColors[reservation.status]}>
-                          {reservation.status.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Reservation</DropdownMenuItem>
-                            <DropdownMenuItem>Send Confirmation</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">Cancel Reservation</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </CardContent>
-        </Card>
-      </Tabs>
-
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Reservations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">156</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Arriving Today</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Departing Today</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">5</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Current Occupancy</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">42/60</div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading reservations...</p>
+            </div>
+          }>
+            <ReservationsTable />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   )
 }

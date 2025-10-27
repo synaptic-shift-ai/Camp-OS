@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,8 +16,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 })
     }
 
-    // Get the user's property with relevant fields
-    const { data: property, error: propertyError } = await supabase
+    // Get the user's property with relevant fields (use service role to bypass RLS)
+    const supabaseServiceRole = createServiceRoleClient()
+    const { data: property, error: propertyError } = await supabaseServiceRole
       .from("properties")
       .select("id, name, city, state, booking_page_slug, stripe_account_id")
       .eq("owner_id", user.id)
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all sites for this property
-    const { data: sites, error: sitesError } = await supabase
+    const { data: sites, error: sitesError } = await supabaseServiceRole
       .from("sites")
       .select("site_type")
       .eq("property_id", property.id)

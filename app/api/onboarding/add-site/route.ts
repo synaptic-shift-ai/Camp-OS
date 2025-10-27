@@ -16,14 +16,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 })
     }
 
-    // Get the user's property ID
-    const { data: property, error: propertyError } = await supabase
+    // Get the user's property ID (use service role to bypass RLS)
+    const supabaseServiceRole = createServiceRoleClient()
+    const { data: property, error: propertyError } = await supabaseServiceRole
       .from("properties")
       .select("id, onboarding_completed")
       .eq("owner_id", user.id)
       .single()
 
     if (propertyError || !property) {
+      console.error("[Onboarding] Failed to fetch property:", propertyError)
       return NextResponse.json({ error: "No property found. Please complete property setup first." }, { status: 404 })
     }
 
@@ -57,8 +59,6 @@ export async function POST(request: NextRequest) {
 
     // Prepare hookups (default to all false if not provided)
     const hookups = body.hookups || { water: false, electric: false, sewer: false }
-
-    const supabaseServiceRole = createServiceRoleClient()
 
     // Create the site
     const { data: site, error } = await supabaseServiceRole

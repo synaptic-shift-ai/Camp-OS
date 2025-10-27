@@ -15,26 +15,39 @@ export function StripeConnectClient() {
   const router = useRouter()
   const [connecting, setConnecting] = useState(false)
 
-  const handleStripeConnect = async () => {
+  const handleStripeConnect = () => {
     setConnecting(true)
 
     try {
-      // For demo purposes, simulate the Stripe Connect flow
-      // In production, you would redirect to Stripe OAuth:
-      // const clientId = process.env.NEXT_PUBLIC_STRIPE_CLIENT_ID
-      // const redirectUri = `${window.location.origin}/api/stripe/connect/authorize`
-      // const state = generateRandomState()
-      // const stripeUrl = `https://connect.stripe.com/oauth/authorize?...`
-      // sessionStorage.setItem('stripe_oauth_state', state)
-      // window.location.href = stripeUrl
+      // Generate random state for CSRF protection
+      const state = Math.random().toString(36).substring(7)
+      sessionStorage.setItem("stripe_oauth_state", state)
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Get Stripe Connect client ID from environment
+      const clientId = process.env.NEXT_PUBLIC_STRIPE_CLIENT_ID
 
-      // Navigate to next step
-      router.push("/onboarding/complete")
+      if (!clientId) {
+        console.error("Missing NEXT_PUBLIC_STRIPE_CLIENT_ID environment variable")
+        alert("Stripe Connect is not configured. Please contact support.")
+        setConnecting(false)
+        return
+      }
+
+      // Build OAuth redirect URI
+      const redirectUri = `${window.location.origin}/api/stripe/connect/authorize`
+
+      // Build Stripe OAuth URL
+      const stripeOAuthUrl = new URL("https://connect.stripe.com/oauth/authorize")
+      stripeOAuthUrl.searchParams.set("client_id", clientId)
+      stripeOAuthUrl.searchParams.set("state", state)
+      stripeOAuthUrl.searchParams.set("redirect_uri", redirectUri)
+      stripeOAuthUrl.searchParams.set("response_type", "code")
+      stripeOAuthUrl.searchParams.set("scope", "read_write")
+
+      // Redirect to Stripe OAuth
+      window.location.href = stripeOAuthUrl.toString()
     } catch (error) {
-      console.error("Error connecting to Stripe:", error)
+      console.error("Error initiating Stripe Connect:", error)
       setConnecting(false)
     }
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { sendCancellationNotice } from '@/lib/email/send'
 
 /**
  * Cancel Reservation API
@@ -35,10 +36,10 @@ export async function POST(
       )
     }
 
-    // Get the user's property ID (MVP: assumes one property per user)
+    // Get the user's property ID and name (MVP: assumes one property per user)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id')
+      .select('id, name')
       .eq('owner_id', user.id)
       .single()
 
@@ -50,6 +51,7 @@ export async function POST(
     }
 
     const propertyId = property.id
+    const propertyName = property.name
 
     // Parse request body (optional cancellation reason)
     let cancellationReason: string | undefined
@@ -60,10 +62,14 @@ export async function POST(
       // Body is optional
     }
 
-    // Fetch the reservation with tenant isolation
+    // Fetch the reservation with guest and site info for email
     const { data: reservation, error: fetchError } = await supabase
       .from('reservations')
-      .select('*')
+      .select(`
+        *,
+        guest:guests(first_name, last_name, email),
+        site:sites(name)
+      `)
       .eq('id', reservationId)
       .eq('property_id', propertyId)
       .single()
@@ -118,7 +124,35 @@ export async function POST(
       )
     }
 
-    // TODO: Send cancellation email to guest (Phase 1C)
+    // Send cancellation email to guest
+    const guest = reservation.guest as any
+    const site = reservation.site as any
+
+    if (guest?.email) {
+      const emailData: any = {
+        guestName: `${guest.first_name} ${guest.last_name}`,
+        guestEmail: guest.email,
+        confirmationNumber: updatedReservation.confirmation_number,
+        propertyName: propertyName,
+        siteName: site?.name || 'Site',
+        checkInDate: reservation.check_in_date,
+        checkOutDate: reservation.check_out_date,
+      }
+
+      // Only add optional fields if they have values
+      if (cancellationReason) {
+        emailData.cancellationReason = cancellationReason
+      }
+      // TODO: Add refund info when Phase 2B (refunds) is implemented
+
+      const emailResult = await sendCancellationNotice(emailData)
+
+      if (!emailResult.success) {
+        console.error('[Cancel Reservation] Failed to send cancellation email:', emailResult.error)
+        // Don't fail the request - cancellation was successful
+      }
+    }
+
     // TODO: Process refund if applicable (Phase 2B)
 
     return NextResponse.json({

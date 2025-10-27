@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createReservation } from '@/lib/booking/reservation'
 import type { CreateReservationInput } from '@/lib/booking/types'
+import { sendBookingConfirmation } from '@/lib/email/send'
 
 /**
  * Manual Reservation Creation API
@@ -55,10 +56,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get the user's property ID (MVP: assumes one property per user)
+    // Get the user's property ID and name (MVP: assumes one property per user)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id')
+      .select('id, name')
       .eq('owner_id', user.id)
       .single()
 
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     const propertyId = property.id
+    const propertyName = property.name
 
     // Parse request body
     const body: ManualReservationRequest = await request.json()
@@ -81,6 +83,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Get site name for email
+    const { data: site } = await supabase
+      .from('sites')
+      .select('name')
+      .eq('id', body.siteId)
+      .eq('property_id', propertyId)
+      .single()
+
+    const siteName = site?.name || 'Site'
 
     if (!body.guest?.firstName || !body.guest?.lastName || !body.guest?.email) {
       return NextResponse.json(
@@ -195,7 +207,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TODO: Send confirmation email to guest (Phase 1C)
+    // Calculate number of nights for email
+    const checkIn = new Date(body.checkInDate)
+    const checkOut = new Date(body.checkOutDate)
+    const numNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Send confirmation email to guest
+    const emailData: any = {
+      guestName: `${body.guest.firstName} ${body.guest.lastName}`,
+      guestEmail: body.guest.email,
+      confirmationNumber: reservation.confirmation_number,
+      propertyName: propertyName,
+      siteName: siteName,
+      checkInDate: body.checkInDate,
+      checkOutDate: body.checkOutDate,
+      numNights: numNights,
+      numAdults: body.numAdults,
+      numChildren: body.numChildren || 0,
+      totalAmount: reservation.total_amount,
+      paidAmount: body.paidAmount || 0,
+      paymentStatus: body.paidAmount && body.paidAmount > 0
+        ? (body.paidAmount >= reservation.total_amount ? 'paid' : 'partial')
+        : 'unpaid',
+    }
+
+    // Only add optional fields if they have values
+    if (body.specialRequests) {
+      emailData.specialRequests = body.specialRequests
+    }
+
+    const emailResult = await sendBookingConfirmation(emailData)
+
+    if (!emailResult.success) {
+      console.error('[Manual Reservation] Failed to send confirmation email:', emailResult.error)
+      // Don't fail the request - reservation was created successfully
+    }
 
     return NextResponse.json({
       success: true,

@@ -85,11 +85,19 @@ export async function POST(request: NextRequest) {
       property = data
     } else {
       // Create new property
+      // Generate URL-friendly slug from property name
+      const slug = body.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 50) // Limit length
+
       const { data, error } = await supabaseServiceRole
         .from("properties")
         .insert({
           owner_id: user.id,
           name: body.name,
+          slug: slug,
           description: body.description || "",
           address: body.address,
           city: body.city,

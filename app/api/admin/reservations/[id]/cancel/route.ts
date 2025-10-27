@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendCancellationNotice } from '@/lib/email/send'
+import { addSentryContext, addTenantContext, captureException } from '@/lib/monitoring/sentry-utils'
 
 /**
  * Cancel Reservation API
@@ -21,6 +22,10 @@ export async function POST(
 ) {
   try {
     const { id: reservationId } = await params
+
+    // Add Sentry context for debugging
+    addSentryContext(request, { reservationId })
+
     const supabase = await createClient()
 
     // Get the authenticated user
@@ -52,6 +57,9 @@ export async function POST(
 
     const propertyId = property.id
     const propertyName = property.name
+
+    // Add tenant context for multi-tenant debugging
+    addTenantContext(propertyId, user.id)
 
     // Parse request body (optional cancellation reason)
     let cancellationReason: string | undefined
@@ -167,6 +175,15 @@ export async function POST(
     })
   } catch (error) {
     console.error('[Cancel Reservation] Unexpected error:', error)
+
+    // Capture exception in Sentry with context
+    if (error instanceof Error) {
+      captureException(error, {
+        level: 'error',
+        tags: { operation: 'cancel_reservation' },
+      })
+    }
+
     return NextResponse.json(
       { error: 'An unexpected error occurred.' },
       { status: 500 }

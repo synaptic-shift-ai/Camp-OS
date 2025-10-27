@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createReservation } from '@/lib/booking/reservation'
 import type { CreateReservationInput } from '@/lib/booking/types'
 import { sendBookingConfirmation } from '@/lib/email/send'
+import { addSentryContext, addTenantContext, captureException } from '@/lib/monitoring/sentry-utils'
 
 /**
  * Manual Reservation Creation API
@@ -41,6 +42,9 @@ interface ManualReservationRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Add Sentry context for debugging
+    addSentryContext(request)
+
     const supabase = await createClient()
 
     // Get the authenticated user
@@ -72,6 +76,9 @@ export async function POST(request: NextRequest) {
 
     const propertyId = property.id
     const propertyName = property.name
+
+    // Add tenant context for multi-tenant debugging
+    addTenantContext(propertyId, user.id)
 
     // Parse request body
     const body: ManualReservationRequest = await request.json()
@@ -260,6 +267,15 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Manual Reservation] Unexpected error:', error)
+
+    // Capture exception in Sentry with context
+    if (error instanceof Error) {
+      captureException(error, {
+        level: 'error',
+        tags: { operation: 'create_manual_reservation' },
+      })
+    }
+
     return NextResponse.json(
       { error: 'An unexpected error occurred.' },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +16,7 @@ import {Plus, MoreVertical } from "lucide-react"
 import { getReservations } from "@/lib/dashboard/queries"
 import type { ReservationStatus } from "@/src/contracts/booking"
 import { createClient } from "@/lib/supabase/server"
+import { CancelReservationDialog } from "@/components/admin/cancel-reservation-dialog"
 
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -138,7 +140,19 @@ async function ReservationsTable() {
                   <DropdownMenuItem>Edit Reservation</DropdownMenuItem>
                   <DropdownMenuItem>Send Confirmation</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">Cancel Reservation</DropdownMenuItem>
+                  <CancelReservationDialog
+                    reservationId={reservation.id}
+                    confirmationNumber={reservation.confirmationNumber}
+                    guestName={reservation.guestName}
+                    trigger={
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        Cancel Reservation
+                      </DropdownMenuItem>
+                    }
+                  />
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
@@ -157,10 +171,12 @@ export default async function ReservationsPage() {
           <h1 className="text-3xl font-heading font-bold tracking-tight">Reservations</h1>
           <p className="text-muted-foreground">Manage all your property bookings</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Reservation
-        </Button>
+        <Link href="/dashboard/reservations/new">
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Reservation
+          </Button>
+        </Link>
       </div>
 
       <Card>

@@ -58,12 +58,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/onboarding/stripe-connect?error=no_account_id", request.url))
     }
 
-    // Get the user's property
-    const { data: property, error: propertyError } = await supabase
+    // Get the user's most recent property (use service role to bypass RLS)
+    const supabaseServiceRole = createServiceRoleClient()
+    const { data: properties, error: propertyError } = await supabaseServiceRole
       .from("properties")
       .select("id")
       .eq("owner_id", user.id)
-      .single()
+      .order("created_at", { ascending: false })
+      .limit(1)
+
+    const property = properties?.[0]
 
     if (propertyError || !property) {
       console.error("[Stripe Connect] No property found for user:", propertyError)
@@ -71,7 +75,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Save the Stripe account ID to the database
-    const supabaseServiceRole = createServiceRoleClient()
     const { error: updateError } = await supabaseServiceRole
       .from("properties")
       .update({

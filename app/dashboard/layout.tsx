@@ -32,6 +32,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { TenantProvider, useTenant } from "@/components/tenant-provider"
+import { PropertyProvider } from "@/components/property-context"
+import { PropertySwitcher } from "@/components/dashboard/property-switcher"
+import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
 
 const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -56,6 +59,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <Building2 className="h-6 w-6 text-primary" />
           <span className="font-heading font-semibold text-lg">CampOS</span>
         </div>
+        <PropertySwitcher />
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
             {navigation.map((item) => {
@@ -173,7 +177,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <TenantProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <PropertyProvider>
+        <SetupCheckGate>
+          <DashboardLayoutContent>{children}</DashboardLayoutContent>
+        </SetupCheckGate>
+      </PropertyProvider>
     </TenantProvider>
   )
 }

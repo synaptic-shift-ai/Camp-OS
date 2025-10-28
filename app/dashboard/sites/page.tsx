@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import type { LucideIcon } from "lucide-react"
+import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-container"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,9 +91,18 @@ const statusColors: Record<SiteStatus, string> = {
   unavailable: "bg-red-500/10 text-red-500 border-red-500/20",
 }
 
-export default function SitesPage() {
+function SitesPageContent() {
+  const searchParams = useSearchParams()
+  const isWizardMode = searchParams.get("wizard") === "true"
+  const propertyId = searchParams.get("propertyId")
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Show wizard if wizard mode is active
+  if (isWizardMode) {
+    return <WizardContainer initialPropertyId={propertyId} />
+  }
+
+  // Normal sites view
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -230,5 +241,13 @@ export default function SitesPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function SitesPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><p className="text-muted-foreground">Loading...</p></div>}>
+      <SitesPageContent />
+    </Suspense>
   )
 }

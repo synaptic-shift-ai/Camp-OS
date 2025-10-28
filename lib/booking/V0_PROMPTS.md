@@ -21,7 +21,8 @@ Create a campground booking search page with the following requirements:
 **Design System:**
 - Use Shadcn/UI components (Card, Button, Input, Calendar, Select)
 - TailwindCSS styling with glassmorphic design elements
-- Match the existing site design: dark theme with red accent colors (red-500 to red-700)
+- Match the existing site design with relevant adaptations for outdoor hospitality
+-dark/ligh mode toggle
 - Responsive layout (mobile-first)
 
 **Page Structure:**
@@ -121,7 +122,7 @@ Create a campground site details and booking page with the following requirement
 **Design System:**
 - Use Shadcn/UI components (Card, Button, Input, Calendar, Tabs, Badge)
 - TailwindCSS with glassmorphic design
-- Dark theme with red accents (red-500 to red-700)
+- Using same theme from booking page
 - Responsive layout
 
 **Page Structure:**

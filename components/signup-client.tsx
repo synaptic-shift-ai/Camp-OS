@@ -48,28 +48,22 @@ export function SignupClient() {
 
   const email = watch("email")
 
-  // Poll for email verification completion
+  // Listen for auth state changes (same-device verification)
   useEffect(() => {
     if (!showSuccess) return
 
-    const checkVerification = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (user && user.email_confirmed_at) {
-        // Email is verified! Redirect to onboarding
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // Email verified and session created on this device - redirect to onboarding
         setCheckingVerification(true)
         router.push("/onboarding")
       }
+    })
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe()
     }
-
-    // Check immediately
-    checkVerification()
-
-    // Then poll every 3 seconds
-    const interval = setInterval(checkVerification, 3000)
-
-    // Cleanup on unmount
-    return () => clearInterval(interval)
   }, [showSuccess, supabase, router])
 
   const onSubmit = async (data: SignupFormData) => {
@@ -138,18 +132,14 @@ export function SignupClient() {
           {!checkingVerification && (
             <>
               <p className="text-sm text-gray-400 mb-6">
-                Click the link in the email to verify your account. We'll automatically continue once verified.
+                Click the link in the email to verify your account and continue setup.
               </p>
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
-                <span className="text-xs text-gray-500">Checking for verification...</span>
-              </div>
               <div className="space-y-3">
                 <Button
                   className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium"
                   onClick={() => router.push("/onboarding")}
                 >
-                  Already Verified? Continue
+                  I've Verified My Email - Continue
                 </Button>
                 <Button
                   variant="outline"

@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies()
     let redirectUrl = new URL('/dashboard', requestUrl.origin)
 
-    // Create supabase client with cookie handling that works in route handlers
+    // Collect cookies to be set during session exchange
+    const cookiesToSet: Array<{ name: string; value: string; options: any }> = []
+
+    // Create supabase client with cookie handling that collects cookies
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -25,10 +28,9 @@ export async function GET(request: NextRequest) {
           getAll() {
             return cookieStore.getAll()
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options)
-            })
+          setAll(cookiesToSet_) {
+            // Collect cookies instead of setting them immediately
+            cookiesToSet.push(...cookiesToSet_)
           },
         },
       }
@@ -40,7 +42,8 @@ export async function GET(request: NextRequest) {
       hasSession: !!sessionData.session,
       hasUser: !!sessionData.user,
       error: error?.message,
-      userId: sessionData.user?.id
+      userId: sessionData.user?.id,
+      cookiesCollected: cookiesToSet.length
     })
 
     if (!error && sessionData.user) {
@@ -57,52 +60,73 @@ export async function GET(request: NextRequest) {
       if (next) {
         redirectUrl = new URL(next, requestUrl.origin)
         console.log('[Auth Callback] Redirecting to next:', next)
-        return NextResponse.redirect(redirectUrl)
+      } else {
+        // PRIORITY 2: Route based on user type and status
+        const userType = user.user_metadata?.user_type
+
+        console.log('[Auth Callback] Checking user type:', userType)
+
+        // Explorers go to resources hub
+        if (userType === 'explorer') {
+          redirectUrl = new URL('/resources', requestUrl.origin)
+          console.log('[Auth Callback] Redirecting explorer to resources')
+        } else {
+          // Buyers - check property and subscription status
+          const { data: property } = await supabase
+            .from('properties')
+            .select('id, onboarding_completed, subscription_status')
+            .eq('owner_id', user.id)
+            .single()
+
+          console.log('[Auth Callback] Property check:', {
+            hasProperty: !!property,
+            onboardingComplete: property?.onboarding_completed,
+            subscriptionStatus: property?.subscription_status
+          })
+
+          // No property = payment not completed, send to plan selection
+          if (!property) {
+            redirectUrl = new URL('/choose-plan', requestUrl.origin)
+            console.log('[Auth Callback] No property - redirecting to plan selection')
+          }
+          // Has property but onboarding incomplete
+          else if (!property.onboarding_completed) {
+            redirectUrl = new URL('/onboarding', requestUrl.origin)
+            console.log('[Auth Callback] Onboarding incomplete - redirecting to onboarding')
+          }
+          // Fully set up - go to dashboard (already set as default)
+          else {
+            console.log('[Auth Callback] Fully set up - redirecting to dashboard')
+          }
+        }
       }
 
-      // PRIORITY 2: Route based on user type and status
-      const userType = user.user_metadata?.user_type
+      // Create the redirect response
+      const response = NextResponse.redirect(redirectUrl)
 
-      console.log('[Auth Callback] Checking user type:', userType)
-
-      // Explorers go to resources hub
-      if (userType === 'explorer') {
-        redirectUrl = new URL('/resources', requestUrl.origin)
-        console.log('[Auth Callback] Redirecting explorer to resources')
-        return NextResponse.redirect(redirectUrl)
-      }
-
-      // Buyers - check property and subscription status
-      const { data: property } = await supabase
-        .from('properties')
-        .select('id, onboarding_completed, subscription_status')
-        .eq('owner_id', user.id)
-        .single()
-
-      console.log('[Auth Callback] Property check:', {
-        hasProperty: !!property,
-        onboardingComplete: property?.onboarding_completed,
-        subscriptionStatus: property?.subscription_status
+      // Now explicitly set all collected cookies on the response
+      cookiesToSet.forEach(({ name, value, options }) => {
+        response.cookies.set(name, value, options)
+        console.log('[Auth Callback] Setting cookie on response:', {
+          name,
+          hasValue: !!value,
+          options
+        })
       })
 
-      // No property = payment not completed, send to plan selection
-      if (!property) {
-        redirectUrl = new URL('/choose-plan', requestUrl.origin)
-        console.log('[Auth Callback] No property - redirecting to plan selection')
-        return NextResponse.redirect(redirectUrl)
-      }
+      console.log('[Auth Callback] Returning redirect with cookies:', {
+        destination: redirectUrl.pathname,
+        cookiesSet: cookiesToSet.length
+      })
 
-      // Has property but onboarding incomplete
-      if (!property.onboarding_completed) {
-        redirectUrl = new URL('/onboarding', requestUrl.origin)
-        console.log('[Auth Callback] Onboarding incomplete - redirecting to onboarding')
-        return NextResponse.redirect(redirectUrl)
-      }
-
-      // Fully set up - go to dashboard
-      console.log('[Auth Callback] Fully set up - redirecting to dashboard')
-      return NextResponse.redirect(redirectUrl)
+      return response
     }
+
+    console.error('[Auth Callback] Exchange failed:', {
+      error: error?.message,
+      hasSessionData: !!sessionData,
+      hasUser: !!sessionData?.user
+    })
   }
 
   // If there's an error or no code, redirect to login with error

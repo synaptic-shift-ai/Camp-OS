@@ -16,6 +16,14 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies()
     let redirectUrl = new URL('/dashboard', requestUrl.origin)
 
+    // Debug: Log all available cookies
+    const allCookies = cookieStore.getAll()
+    console.log('[Auth Callback] Available cookies:', {
+      count: allCookies.length,
+      names: allCookies.map(c => c.name),
+      hasCodeVerifier: allCookies.some(c => c.name.includes('code-verifier'))
+    })
+
     // Collect cookies to be set during session exchange
     const cookiesToSet: Array<{ name: string; value: string; options: any }> = []
 
@@ -26,10 +34,19 @@ export async function GET(request: NextRequest) {
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll()
+            const cookies = cookieStore.getAll()
+            console.log('[Auth Callback] Supabase requesting cookies:', {
+              returned: cookies.length,
+              names: cookies.map(c => c.name)
+            })
+            return cookies
           },
           setAll(cookiesToSet_) {
             // Collect cookies instead of setting them immediately
+            console.log('[Auth Callback] Supabase wants to set cookies:', {
+              count: cookiesToSet_.length,
+              names: cookiesToSet_.map(c => c.name)
+            })
             cookiesToSet.push(...cookiesToSet_)
           },
         },

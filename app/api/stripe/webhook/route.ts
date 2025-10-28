@@ -188,7 +188,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     company_id: company.id,
     event_type: "subscription_created",
     stripe_event_id: session.id,
-    metadata: {
+    event_data: {
       plan_id: planId,
       billing_cycle: billingCycle,
       site_count: siteCount,
@@ -235,7 +235,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     company_id: company.id,
     event_type: "subscription_updated",
     stripe_event_id: subscription.id,
-    metadata: {
+    event_data: {
       status: subscription.status,
     },
   })
@@ -275,7 +275,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     company_id: company.id,
     event_type: "subscription_canceled",
     stripe_event_id: subscription.id,
-    metadata: {
+    event_data: {
       canceled_at: new Date().toISOString(),
     },
   })
@@ -301,7 +301,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     company_id: company.id,
     event_type: "payment_succeeded",
     stripe_event_id: invoice.id,
-    metadata: {
+    event_data: {
       amount: invoice.amount_paid / 100,
       currency: invoice.currency,
     },
@@ -338,7 +338,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     company_id: company.id,
     event_type: "payment_failed",
     stripe_event_id: invoice.id,
-    metadata: {
+    event_data: {
       amount: invoice.amount_due / 100,
       currency: invoice.currency,
       attempt_count: invoice.attempt_count,

@@ -1,5 +1,5 @@
-import { OnboardingClient } from "@/components/onboarding-client"
+import { MultiPropertyOnboardingClient } from "@/components/multi-property-onboarding-client"
 
 export default function OnboardingPage() {
-  return <OnboardingClient />
+  return <MultiPropertyOnboardingClient />
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
 
 export async function POST(
@@ -16,8 +17,11 @@ export async function POST(
     const { id: propertyId } = await params
     const body = await request.json()
 
-    // Verify property ownership
-    const { data: property, error: propertyError } = await supabase
+    // Create service role client to bypass RLS recursion
+    const supabaseAdmin = createServiceRoleClient()
+
+    // Verify property ownership using service role client
+    const { data: property, error: propertyError } = await supabaseAdmin
       .from("properties")
       .select("id, owner_id")
       .eq("id", propertyId)
@@ -61,8 +65,8 @@ export async function POST(
     // Add updated timestamp
     updateData.updated_at = new Date().toISOString()
 
-    // Update property
-    const { data: updatedProperty, error: updateError } = await supabase
+    // Update property using service role client to bypass RLS
+    const { data: updatedProperty, error: updateError } = await supabaseAdmin
       .from("properties")
       .update(updateData)
       .eq("id", propertyId)

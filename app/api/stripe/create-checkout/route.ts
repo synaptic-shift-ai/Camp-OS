@@ -30,19 +30,21 @@ export async function POST(request: NextRequest) {
     // Get the authenticated user
     const supabase = await createClient()
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (authError || !user) {
+      console.error("[Stripe Checkout] Auth error:", authError)
+      return NextResponse.json({ error: "Unauthorized. Please log in again." }, { status: 401 })
     }
 
-    const userEmail = session.user.email
+    const userEmail = user.email
     if (!userEmail) {
       return NextResponse.json({ error: "User email not found" }, { status: 400 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // Calculate the price
     const pricing = calculatePrice(plan, billingCycle as BillingCycle)

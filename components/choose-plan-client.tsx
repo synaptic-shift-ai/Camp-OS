@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Check, ArrowLeft, Loader2, Sparkles } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,13 +23,38 @@ function isPlanRecommended(plan: Plan, siteCount: number): boolean {
 export function ChoosePlanClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const supabase = createClient()
   const siteCount = Number(searchParams.get("sites")) || 0
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
   const recommendedPlan = getRecommendedPlan(siteCount)
   const annualSavings = 10 // percentage
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+        if (authError || !user) {
+          console.error("[Choose Plan] Not authenticated:", authError)
+          setError("You must be logged in to choose a plan. Redirecting to sign up...")
+          setTimeout(() => {
+            router.push('/signup')
+          }, 2000)
+        }
+      } catch (err) {
+        console.error("[Choose Plan] Auth check error:", err)
+      } finally {
+        setIsCheckingAuth(false)
+      }
+    }
+
+    checkAuth()
+  }, [supabase, router])
 
   const handleSelectPlan = async (plan: Plan) => {
     if (plan.isEnterprise) {
@@ -40,11 +66,19 @@ export function ChoosePlanClient() {
     setError(null)
 
     try {
+      // Double-check authentication before proceeding
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      if (authError || !user) {
+        throw new Error("You must be logged in to subscribe. Please sign up again.")
+      }
+
       const response = await fetch("/api/stripe/create-checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "same-origin", // Ensure cookies are sent
         body: JSON.stringify({
           planId: plan.id,
           billingCycle,
@@ -55,6 +89,10 @@ export function ChoosePlanClient() {
       const data = await response.json()
 
       if (!response.ok) {
+        // Handle specific auth errors
+        if (response.status === 401) {
+          throw new Error("Session expired. Please sign up again to continue.")
+        }
         throw new Error(data.error || "Failed to create checkout session")
       }
 
@@ -66,9 +104,29 @@ export function ChoosePlanClient() {
       }
     } catch (err) {
       console.error("Checkout error:", err)
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(errorMessage)
       setLoading(null)
+
+      // If it's an auth error, redirect to signup after showing the error
+      if (errorMessage.includes("logged in") || errorMessage.includes("Session expired")) {
+        setTimeout(() => {
+          router.push('/signup')
+        }, 3000)
+      }
     }
+  }
+
+  // Show loading while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-red-500 mx-auto mb-4" />
+          <p className="text-gray-400">Verifying your session...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

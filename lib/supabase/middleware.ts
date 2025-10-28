@@ -61,14 +61,15 @@ export async function updateSession(request: NextRequest) {
 
   // Check 2: Subscription required (for buyers accessing protected routes)
   if (user && needsSubscription) {
-    const { data: property } = await supabase
-      .from("properties")
-      .select("id, subscription_status, onboarding_completed")
+    // Get user's company with subscription status
+    const { data: company } = await supabase
+      .from("companies")
+      .select("id, subscription_status")
       .eq("owner_id", user.id)
       .single()
 
-    // No property OR no active subscription - redirect to plan selection
-    if (!property || !property.subscription_status || property.subscription_status !== "active") {
+    // No company OR no active subscription - redirect to plan selection
+    if (!company || company.subscription_status !== "active") {
       // Don't redirect if already on payment or plan pages
       if (!pathname.startsWith("/choose-plan") && !pathname.startsWith("/payment")) {
         const url = request.nextUrl.clone()
@@ -78,12 +79,22 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Check 3: Onboarding completion required for dashboard
-    if (property && needsOnboardingComplete && !property.onboarding_completed) {
-      // Redirect to onboarding if not complete
-      if (!pathname.startsWith("/onboarding")) {
-        const url = request.nextUrl.clone()
-        url.pathname = "/onboarding"
-        return NextResponse.redirect(url)
+    if (company && needsOnboardingComplete) {
+      // Check if any properties are incomplete
+      const { data: incompleteProperties } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("company_id", company.id)
+        .eq("onboarding_completed", false)
+        .limit(1)
+
+      // If any properties are incomplete, redirect to onboarding
+      if (incompleteProperties && incompleteProperties.length > 0) {
+        if (!pathname.startsWith("/onboarding")) {
+          const url = request.nextUrl.clone()
+          url.pathname = "/onboarding"
+          return NextResponse.redirect(url)
+        }
       }
     }
   }

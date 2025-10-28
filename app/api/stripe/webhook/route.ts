@@ -185,7 +185,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // Log subscription event
   await supabase.from("subscription_events").insert({
-    property_id: company.id, // Link to company instead of individual property
+    company_id: company.id,
     event_type: "subscription_created",
     stripe_event_id: session.id,
     metadata: {
@@ -232,7 +232,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   // Log event
   await supabase.from("subscription_events").insert({
-    property_id: company.id, // Store company ID here
+    company_id: company.id,
     event_type: "subscription_updated",
     stripe_event_id: subscription.id,
     metadata: {
@@ -272,7 +272,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   // Log event
   await supabase.from("subscription_events").insert({
-    property_id: company.id, // Store company ID here
+    company_id: company.id,
     event_type: "subscription_canceled",
     stripe_event_id: subscription.id,
     metadata: {
@@ -298,7 +298,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   // Log payment event
   await supabase.from("subscription_events").insert({
-    property_id: company.id, // Store company ID here
+    company_id: company.id,
     event_type: "payment_succeeded",
     stripe_event_id: invoice.id,
     metadata: {
@@ -335,7 +335,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   // Log payment failure
   await supabase.from("subscription_events").insert({
-    property_id: company.id, // Store company ID here
+    company_id: company.id,
     event_type: "payment_failed",
     stripe_event_id: invoice.id,
     metadata: {

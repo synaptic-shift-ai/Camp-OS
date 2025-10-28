@@ -17,7 +17,13 @@ export async function POST(request: NextRequest) {
       supabaseCookies: cookies.filter(c => c.name.includes('supabase')).map(c => ({ name: c.name, hasValue: !!c.value }))
     })
 
-    const { planId, billingCycle, siteCount } = await request.json()
+    const { planId, billingCycle, siteCount, companyData } = await request.json()
+
+    console.log('[Stripe Checkout] Received company data:', {
+      hasCompanyData: !!companyData,
+      companyName: companyData?.companyName,
+      propertyCount: companyData?.properties?.length
+    })
 
     // Validate input
     if (!planId || !billingCycle) {
@@ -124,6 +130,8 @@ export async function POST(request: NextRequest) {
         planId,
         billingCycle,
         siteCount: siteCount.toString(),
+        // Store company data as JSON string (Stripe metadata values must be strings)
+        ...(companyData && { companyData: JSON.stringify(companyData) }),
       },
     })
 

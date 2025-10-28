@@ -98,21 +98,30 @@ export function PaymentSuccessClient() {
           </Alert>
         </motion.div>
 
-        {/* Dual-Path CTA Section */}
+        {/* Setup in Progress Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
           className="mb-8"
         >
-          <Button
-            onClick={() => router.push("/onboarding")}
-            className="w-full h-12 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium text-lg mb-3"
-          >
-            Continue to Onboarding
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
-          <p className="text-sm text-center text-gray-400">Or use the email link if you prefer to start later</p>
+          <Card className="bg-emerald-500/10 border-emerald-500/20 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">We're Setting Up Your Properties</h3>
+                <p className="text-gray-300 mb-4">
+                  Your properties are being created based on the information you provided. This usually takes less than a minute.
+                </p>
+                <p className="text-sm text-gray-400">
+                  <strong className="text-white">Check your email</strong> for an onboarding link once setup is complete. You'll receive it at:
+                </p>
+                <p className="font-mono text-emerald-400 mt-2">{email}</p>
+              </div>
+            </div>
+          </Card>
         </motion.div>
 
         {/* What's Next Timeline */}

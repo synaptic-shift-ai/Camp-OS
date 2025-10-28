@@ -92,6 +92,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const planId = session.metadata?.planId
   const billingCycle = session.metadata?.billingCycle
   const siteCount = session.metadata?.siteCount
+  const companyDataRaw = session.metadata?.companyData
 
   if (!userIdRaw || !planId) {
     console.error("Missing required metadata in checkout session")
@@ -101,103 +102,128 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // Type-safe userId after null check
   const userId: string = userIdRaw
 
-  // Get or create property for this user
-  const { data: properties, error: propertiesError } = await supabase
-    .from("properties")
-    .select("id")
-    .eq("owner_id", userId)
-    .limit(1)
-
-  if (propertiesError) {
-    console.error("Error fetching properties:", propertiesError)
-    return
-  }
-
-  let propertyId: string
-
-  const existingProperty = properties?.[0]
-  if (existingProperty) {
-    propertyId = existingProperty.id
-  } else {
-    // Create a default property if none exists
-    const { data: newProperty, error: createError } = await supabase
-      .from("properties")
-      .insert({
-        owner_id: userId,
-        name: "My Campground",
-        slug: `campground-${Date.now()}`,
+  // Parse company data
+  let companyData: { companyName: string; properties: Array<{ name: string; siteCount: number }> } | null = null
+  if (companyDataRaw) {
+    try {
+      companyData = JSON.parse(companyDataRaw)
+      console.log('[Webhook] Parsed company data:', {
+        companyName: companyData?.companyName,
+        propertyCount: companyData?.properties?.length
       })
-      .select("id")
-      .single()
-
-    if (createError || !newProperty) {
-      console.error("Error creating property:", createError)
-      return
+    } catch (err) {
+      console.error('[Webhook] Failed to parse company data:', err)
     }
-
-    propertyId = newProperty.id
   }
 
-  // Update property with subscription details
   const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
 
-  const { error: updateError } = await supabase
-    .from("properties")
-    .update({
+  // Create company record (this is the FIRST database write)
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .insert({
+      owner_id: userId,
+      name: companyData?.companyName || "My Company",
       stripe_customer_id: customerId,
       subscription_id: subscriptionId,
       subscription_status: "active",
       subscription_plan: planId,
+      subscription_created_at: new Date().toISOString(),
       billing_cycle: billingCycle,
-      site_count: siteCount ? parseInt(siteCount) : null,
     })
-    .eq("id", propertyId)
+    .select("id")
+    .single()
 
-  if (updateError) {
-    console.error("Error updating property subscription:", updateError)
+  if (companyError || !company) {
+    console.error("Error creating company:", companyError)
     return
+  }
+
+  console.log('[Webhook] Company created:', company.id)
+
+  // Create property records based on company data
+  if (companyData?.properties && companyData.properties.length > 0) {
+    const propertiesToCreate = companyData.properties.map((prop) => ({
+      owner_id: userId,
+      company_id: company.id,
+      name: prop.name,
+      slug: `${prop.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`,
+      site_count: prop.siteCount,
+      onboarding_completed: false, // User needs to complete onboarding wizard
+    }))
+
+    const { data: createdProperties, error: propertiesError } = await supabase
+      .from("properties")
+      .insert(propertiesToCreate)
+      .select("id, name")
+
+    if (propertiesError) {
+      console.error("Error creating properties:", propertiesError)
+      return
+    }
+
+    console.log('[Webhook] Properties created:', createdProperties?.length)
+  } else {
+    // Fallback: create a single default property
+    const { error: propertyError } = await supabase
+      .from("properties")
+      .insert({
+        owner_id: userId,
+        company_id: company.id,
+        name: "My Campground",
+        slug: `campground-${Date.now()}`,
+        site_count: siteCount ? parseInt(siteCount) : null,
+        onboarding_completed: false,
+      })
+
+    if (propertyError) {
+      console.error("Error creating default property:", propertyError)
+      return
+    }
   }
 
   // Log subscription event
   await supabase.from("subscription_events").insert({
-    property_id: propertyId,
+    property_id: company.id, // Link to company instead of individual property
     event_type: "subscription_created",
     stripe_event_id: session.id,
     metadata: {
       plan_id: planId,
       billing_cycle: billingCycle,
       site_count: siteCount,
+      company_name: companyData?.companyName,
+      properties_count: companyData?.properties?.length || 1,
     },
   })
 
   // Send onboarding email
-  await sendOnboardingEmail(session.customer_details?.email!, planId)
+  await sendOnboardingEmail(session.customer_details?.email!, planId, companyData?.companyName || "My Company")
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string
 
-  // Find property by customer ID
-  const { data: property, error: findError } = await supabase
-    .from("properties")
+  // Find company by customer ID (billing is at company level)
+  const { data: company, error: findError } = await supabase
+    .from("companies")
     .select("id")
     .eq("stripe_customer_id", customerId)
     .single()
 
-  if (findError || !property) {
-    console.error("Property not found for customer:", customerId)
+  if (findError || !company) {
+    console.error("Company not found for customer:", customerId)
     return
   }
 
-  // Update subscription status
+  // Update subscription status at company level
   const { error: updateError } = await supabase
-    .from("properties")
+    .from("companies")
     .update({
       subscription_id: subscription.id,
       subscription_status: subscription.status,
     })
-    .eq("id", property.id)
+    .eq("id", company.id)
 
   if (updateError) {
     console.error("Error updating subscription:", updateError)
@@ -206,7 +232,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   // Log event
   await supabase.from("subscription_events").insert({
-    property_id: property.id,
+    property_id: company.id, // Store company ID here
     event_type: "subscription_updated",
     stripe_event_id: subscription.id,
     metadata: {
@@ -218,25 +244,26 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string
 
-  // Find property by customer ID
-  const { data: property, error: findError } = await supabase
-    .from("properties")
+  // Find company by customer ID (billing is at company level)
+  const { data: company, error: findError } = await supabase
+    .from("companies")
     .select("id")
     .eq("stripe_customer_id", customerId)
     .single()
 
-  if (findError || !property) {
-    console.error("Property not found for customer:", customerId)
+  if (findError || !company) {
+    console.error("Company not found for customer:", customerId)
     return
   }
 
-  // Update subscription status
+  // Update subscription status at company level
   const { error: updateError } = await supabase
-    .from("properties")
+    .from("companies")
     .update({
       subscription_status: "canceled",
+      subscription_canceled_at: new Date().toISOString(),
     })
-    .eq("id", property.id)
+    .eq("id", company.id)
 
   if (updateError) {
     console.error("Error updating subscription:", updateError)
@@ -245,7 +272,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   // Log event
   await supabase.from("subscription_events").insert({
-    property_id: property.id,
+    property_id: company.id, // Store company ID here
     event_type: "subscription_canceled",
     stripe_event_id: subscription.id,
     metadata: {
@@ -257,21 +284,21 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
 
-  // Find property by customer ID
-  const { data: property, error: findError } = await supabase
-    .from("properties")
+  // Find company by customer ID (billing is at company level)
+  const { data: company, error: findError } = await supabase
+    .from("companies")
     .select("id")
     .eq("stripe_customer_id", customerId)
     .single()
 
-  if (findError || !property) {
-    console.error("Property not found for customer:", customerId)
+  if (findError || !company) {
+    console.error("Company not found for customer:", customerId)
     return
   }
 
   // Log payment event
   await supabase.from("subscription_events").insert({
-    property_id: property.id,
+    property_id: company.id, // Store company ID here
     event_type: "payment_succeeded",
     stripe_event_id: invoice.id,
     metadata: {
@@ -284,31 +311,31 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
 
-  // Find property by customer ID
-  const { data: property, error: findError } = await supabase
-    .from("properties")
+  // Find company by customer ID (billing is at company level)
+  const { data: company, error: findError } = await supabase
+    .from("companies")
     .select("id, subscription_status")
     .eq("stripe_customer_id", customerId)
     .single()
 
-  if (findError || !property) {
-    console.error("Property not found for customer:", customerId)
+  if (findError || !company) {
+    console.error("Company not found for customer:", customerId)
     return
   }
 
-  // Update status to past_due if needed
-  if (property.subscription_status !== "past_due") {
+  // Update status to past_due if needed at company level
+  if (company.subscription_status !== "past_due") {
     await supabase
-      .from("properties")
+      .from("companies")
       .update({
         subscription_status: "past_due",
       })
-      .eq("id", property.id)
+      .eq("id", company.id)
   }
 
   // Log payment failure
   await supabase.from("subscription_events").insert({
-    property_id: property.id,
+    property_id: company.id, // Store company ID here
     event_type: "payment_failed",
     stripe_event_id: invoice.id,
     metadata: {
@@ -319,22 +346,23 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   })
 }
 
-async function sendOnboardingEmail(email: string, planId: string) {
+async function sendOnboardingEmail(email: string, planId: string, companyName: string) {
   // TODO: Integrate with Resend or your email service
   // For now, just log that we should send an email
-  console.log(`[Onboarding Email] Should send to ${email} for plan ${planId}`)
+  console.log(`[Onboarding Email] Should send to ${email} for ${companyName} (${planId} plan)`)
 
   // Example with Resend:
   // const resend = new Resend(process.env.RESEND_API_KEY)
   // await resend.emails.send({
   //   from: 'CampOS <onboarding@campos.com>',
   //   to: email,
-  //   subject: 'Welcome to CampOS - Complete Your Setup',
+  //   subject: 'Welcome to CampOS - Your Properties Are Ready',
   //   html: `
-  //     <h1>Welcome to CampOS!</h1>
+  //     <h1>Welcome to CampOS, ${companyName}!</h1>
   //     <p>Thank you for subscribing to the ${planId} plan.</p>
+  //     <p>Your properties have been created and are ready for configuration.</p>
   //     <p>Click the link below to complete your onboarding:</p>
-  //     <a href="${process.env.NEXT_PUBLIC_APP_URL}/onboarding">Complete Setup</a>
+  //     <a href="${process.env.NEXT_PUBLIC_APP_URL}/onboarding">Start Onboarding</a>
   //   `
   // })
 }

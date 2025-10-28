@@ -17,6 +17,7 @@ const propertySchema = z.object({
 })
 
 const companyDetailsSchema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
   propertyCount: z.string().min(1, "Please select number of properties"),
   properties: z.array(propertySchema).min(1, "At least one property is required"),
 })
@@ -38,6 +39,7 @@ export function CompanyDetailsClient() {
   } = useForm<CompanyDetailsFormData>({
     resolver: zodResolver(companyDetailsSchema),
     defaultValues: {
+      companyName: "",
       propertyCount: "",
       properties: [],
     },
@@ -72,13 +74,23 @@ export function CompanyDetailsClient() {
     // Calculate total sites across all properties
     const totalSites = data.properties.reduce((sum, property) => sum + property.siteCount, 0)
 
-    console.log("[v0] Company details submitted:", { ...data, totalSites })
+    console.log("[Company Details] Submitted:", { ...data, totalSites })
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Store company data in localStorage as backup for page refreshes
+    const companyData = {
+      companyName: data.companyName,
+      properties: data.properties,
+      totalSites,
+    }
+    localStorage.setItem('pendingCompanyData', JSON.stringify(companyData))
 
-    // Redirect to choose-plan with total site count
-    router.push(`/choose-plan?sites=${totalSites}`)
+    // Simulate processing
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Pass company data as query params to choose-plan
+    // Encode as base64 to handle special characters
+    const encodedData = btoa(JSON.stringify(companyData))
+    router.push(`/choose-plan?sites=${totalSites}&company=${encodedData}`)
   }
 
   return (
@@ -100,6 +112,21 @@ export function CompanyDetailsClient() {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Company Name */}
+            <div>
+              <Label htmlFor="companyName" className="text-white mb-2 block">
+                Company Name
+              </Label>
+              <Input
+                id="companyName"
+                placeholder="Campgrounds Unlimited, LLC"
+                {...register("companyName")}
+                className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+              />
+              {errors.companyName && <p className="text-sm text-red-400 mt-1">{errors.companyName.message}</p>}
+              <p className="text-xs text-gray-500 mt-1">Legal entity name for billing purposes</p>
+            </div>
+
             {/* Number of Properties Dropdown */}
             <div>
               <Label htmlFor="propertyCount" className="text-white mb-2 block">

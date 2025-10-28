@@ -29,6 +29,19 @@ export function ChoosePlanClient() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Decode company data from query params
+  const companyData = (() => {
+    try {
+      const encoded = searchParams.get("company")
+      if (!encoded) return null
+      const decoded = atob(encoded)
+      return JSON.parse(decoded)
+    } catch (err) {
+      console.error("[Choose Plan] Failed to decode company data:", err)
+      return null
+    }
+  })()
+
   const recommendedPlan = getRecommendedPlan(siteCount)
   const annualSavings = 10 // percentage
 
@@ -52,6 +65,7 @@ export function ChoosePlanClient() {
           planId: plan.id,
           billingCycle,
           siteCount,
+          companyData, // Include company data for Stripe metadata
         }),
       })
 

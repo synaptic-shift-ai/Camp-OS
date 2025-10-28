@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 
 export async function GET() {
   try {
@@ -15,8 +16,20 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Create service role client (bypasses RLS to avoid potential recursion issues)
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+
     // Get user's company
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await supabaseAdmin
       .from("companies")
       .select("id")
       .eq("owner_id", user.id)
@@ -27,7 +40,7 @@ export async function GET() {
     }
 
     // Get all properties for this company
-    const { data: properties, error: propertiesError } = await supabase
+    const { data: properties, error: propertiesError } = await supabaseAdmin
       .from("properties")
       .select("id, name, site_count, onboarding_completed, address, city, state, zip_code, phone, email, description")
       .eq("company_id", company.id)

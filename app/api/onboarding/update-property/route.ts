@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
 const propertyUpdateSchema = z.object({
@@ -36,14 +37,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = propertyUpdateSchema.parse(body)
 
+    // Create service role client (bypasses RLS to avoid recursion)
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+
     // Verify property belongs to user's company
-    const { data: property, error: propertyError } = await supabase
+    const { data: property, error: propertyError } = await supabaseAdmin
       .from("properties")
       .select("id, company_id, companies!inner(owner_id)")
       .eq("id", validatedData.propertyId)
       .single()
 
     if (propertyError || !property) {
+      console.error("Property lookup error:", propertyError)
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
@@ -52,8 +66,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    // Update property
-    const { error: updateError } = await supabase
+    // Update property using service role (bypasses RLS)
+    const { error: updateError } = await supabaseAdmin
       .from("properties")
       .update({
         name: validatedData.name,

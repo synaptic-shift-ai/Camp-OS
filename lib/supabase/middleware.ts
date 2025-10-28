@@ -48,6 +48,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Check 1.5: Email verification required for dashboard (security gate)
+  if (user && pathname.startsWith("/dashboard")) {
+    // Check if email is verified
+    if (!user.email_confirmed_at) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/verify-email"
+      url.searchParams.set("redirect", pathname)
+      return NextResponse.redirect(url)
+    }
+  }
+
   // Check 2: Subscription required (for buyers accessing protected routes)
   if (user && needsSubscription) {
     const { data: property } = await supabase

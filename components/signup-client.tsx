@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Tent, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react"
+import { Tent, Loader2, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,47 +31,24 @@ export function SignupClient() {
   const router = useRouter()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [checkingVerification, setCheckingVerification] = useState(false)
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   })
-
-  const email = watch("email")
-
-  // Listen for auth state changes (same-device verification)
-  useEffect(() => {
-    if (!showSuccess) return
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // Email verified and session created on this device - redirect to company details
-        setCheckingVerification(true)
-        router.push("/company-details")
-      }
-    })
-
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [showSuccess, supabase, router])
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Sign up with Supabase Auth
+      // Sign up with Supabase Auth - immediate session without email confirmation
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -81,7 +58,8 @@ export function SignupClient() {
             full_name: data.fullName,
             company_name: data.companyName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/company-details`,
+          // Still send verification email for security, but don't block funnel
+          emailRedirectTo: `${window.location.origin}/auth/callback?verified=true`,
         },
       })
 
@@ -91,13 +69,18 @@ export function SignupClient() {
         return
       }
 
-      // Check if email confirmation is required
-      if (authData.user && !authData.session) {
-        // Email confirmation required
-        setShowSuccess(true)
-      } else {
-        // Auto-confirmed, redirect to company details
+      // With email confirmation disabled, we always get an immediate session
+      if (authData.session) {
+        console.log('[Signup] Session created:', {
+          userId: authData.user?.id,
+          emailVerified: authData.user?.email_confirmed_at ? true : false
+        })
+
+        // Redirect to company details to continue funnel
         router.push("/company-details")
+      } else {
+        // This shouldn't happen with confirmation disabled, but handle it
+        setError("Failed to create session. Please try again.")
       }
     } catch (err) {
       console.error("Signup error:", err)
@@ -105,56 +88,6 @@ export function SignupClient() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-zinc-900 rounded-lg p-8 text-center border border-zinc-800">
-          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
-            {checkingVerification ? (
-              <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-            ) : (
-              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-            )}
-          </div>
-          <h1 className="text-2xl font-bold mb-2 text-white">
-            {checkingVerification ? "Verification Complete!" : "Check Your Email"}
-          </h1>
-          <p className="text-gray-400 mb-6">
-            {checkingVerification ? (
-              "Redirecting to company details..."
-            ) : (
-              <>
-                We've sent a verification link to <span className="font-medium text-white">{email}</span>
-              </>
-            )}
-          </p>
-          {!checkingVerification && (
-            <>
-              <p className="text-sm text-gray-400 mb-6">
-                Click the link in the email to verify your account and continue setup.
-              </p>
-              <div className="space-y-3">
-                <Button
-                  className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium"
-                  onClick={() => router.push("/company-details")}
-                >
-                  I've Verified My Email - Continue
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
-                  onClick={() => setShowSuccess(false)}
-                >
-                  Back to Signup
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    )
   }
 
   return (

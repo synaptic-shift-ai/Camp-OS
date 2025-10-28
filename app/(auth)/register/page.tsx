@@ -16,10 +16,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [propertyName, setPropertyName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -48,9 +48,10 @@ export default function RegisterPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/resources`,
           data: {
-            property_name: propertyName,
+            user_type: 'explorer',
+            full_name: fullName,
           },
         },
       })
@@ -115,14 +116,14 @@ export default function RegisterPage() {
             <Icons.logo className="h-8 w-8" />
             <span className="font-heading text-2xl">CampOS</span>
           </Link>
-          <h1 className="text-3xl font-heading font-bold text-balance">Start your free trial</h1>
-          <p className="text-muted-foreground mt-2">Join thousands of outdoor hospitality properties</p>
+          <h1 className="text-3xl font-heading font-bold text-balance">Explore CampOS</h1>
+          <p className="text-muted-foreground mt-2">Access demos, resources, and documentation</p>
         </div>
 
         <Card className="glassmorphic-card border-border/50">
           <CardHeader>
-            <CardTitle>Create Account</CardTitle>
-            <CardDescription>Get started with CampOS in minutes</CardDescription>
+            <CardTitle>Create Explorer Account</CardTitle>
+            <CardDescription>No payment required - explore at your own pace</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
@@ -133,13 +134,13 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="propertyName">Property Name</Label>
+                <Label htmlFor="fullName">Full Name</Label>
                 <Input
-                  id="propertyName"
+                  id="fullName"
                   type="text"
-                  placeholder="Pine Valley Campground"
-                  value={propertyName}
-                  onChange={(e) => setPropertyName(e.target.value)}
+                  placeholder="John Smith"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
                   disabled={loading}
                 />
@@ -191,7 +192,7 @@ export default function RegisterPage() {
                     Creating account...
                   </>
                 ) : (
-                  "Create Account"
+                  "Create Explorer Account"
                 )}
               </Button>
             </form>
@@ -201,6 +202,20 @@ export default function RegisterPage() {
               Already have an account?{" "}
               <Link href="/login" className="text-primary hover:underline font-medium">
                 Sign in
+              </Link>
+            </div>
+            <div className="relative w-full">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/50" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+            <div className="text-sm text-center">
+              <p className="text-muted-foreground mb-2">Ready to start managing your campground?</p>
+              <Link href="/signup" className="text-primary hover:underline font-medium">
+                Sign up for a subscription →
               </Link>
             </div>
           </CardFooter>

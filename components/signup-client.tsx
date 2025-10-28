@@ -54,9 +54,9 @@ export function SignupClient() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        // Email verified and session created on this device - redirect to onboarding
+        // Email verified and session created on this device - redirect to company details
         setCheckingVerification(true)
-        router.push("/onboarding")
+        router.push("/company-details")
       }
     })
 
@@ -77,6 +77,7 @@ export function SignupClient() {
         password: data.password,
         options: {
           data: {
+            user_type: 'buyer',
             full_name: data.fullName,
             company_name: data.companyName,
           },
@@ -122,7 +123,7 @@ export function SignupClient() {
           </h1>
           <p className="text-gray-400 mb-6">
             {checkingVerification ? (
-              "Redirecting to onboarding..."
+              "Redirecting to company details..."
             ) : (
               <>
                 We've sent a verification link to <span className="font-medium text-white">{email}</span>
@@ -137,7 +138,7 @@ export function SignupClient() {
               <div className="space-y-3">
                 <Button
                   className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium"
-                  onClick={() => router.push("/onboarding")}
+                  onClick={() => router.push("/company-details")}
                 >
                   I've Verified My Email - Continue
                 </Button>

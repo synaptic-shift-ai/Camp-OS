@@ -37,27 +37,44 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        // Check if user has completed onboarding
+        // Route user based on persona and status
         const { data: { user } } = await supabase.auth.getUser()
 
         if (user) {
+          const userType = user.user_metadata?.user_type
+
+          // Explorers go to resources hub
+          if (userType === 'explorer') {
+            router.push("/resources")
+            router.refresh()
+            return
+          }
+
+          // Buyers - check property and subscription status
           const { data: property } = await supabase
             .from('properties')
-            .select('id, onboarding_completed')
+            .select('id, onboarding_completed, subscription_status')
             .eq('owner_id', user.id)
             .single()
 
-          // If no property or onboarding not completed, redirect to onboarding
-          if (!property || !property.onboarding_completed) {
+          if (!property) {
+            // No property = payment not completed yet
+            router.push("/choose-plan")
+            router.refresh()
+            return
+          }
+
+          if (!property.onboarding_completed) {
+            // Has property but onboarding incomplete
             router.push("/onboarding")
             router.refresh()
             return
           }
-        }
 
-        // User has completed onboarding, go to dashboard
-        router.push("/dashboard")
-        router.refresh()
+          // Fully set up - go to dashboard
+          router.push("/dashboard")
+          router.refresh()
+        }
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.")

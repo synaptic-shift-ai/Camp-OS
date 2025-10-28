@@ -11,26 +11,47 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Successfully authenticated, check if user needs onboarding
+      // Successfully authenticated
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        // Check if user has completed onboarding
+        // PRIORITY 1: Honor 'next' parameter if present (sales funnel/specific flow)
+        const next = requestUrl.searchParams.get('next')
+        if (next) {
+          return NextResponse.redirect(new URL(next, requestUrl.origin))
+        }
+
+        // PRIORITY 2: Route based on user type and status
+        const userType = user.user_metadata?.user_type
+
+        // Explorers go to resources hub
+        if (userType === 'explorer') {
+          return NextResponse.redirect(new URL('/resources', requestUrl.origin))
+        }
+
+        // Buyers - check property and subscription status
         const { data: property } = await supabase
           .from('properties')
-          .select('id, onboarding_completed')
+          .select('id, onboarding_completed, subscription_status')
           .eq('owner_id', user.id)
           .single()
 
-        // If no property or onboarding not completed, redirect to onboarding
-        if (!property || !property.onboarding_completed) {
+        // No property = payment not completed, send to plan selection
+        if (!property) {
+          return NextResponse.redirect(new URL('/choose-plan', requestUrl.origin))
+        }
+
+        // Has property but onboarding incomplete
+        if (!property.onboarding_completed) {
           return NextResponse.redirect(new URL('/onboarding', requestUrl.origin))
         }
+
+        // Fully set up - go to dashboard
+        return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
       }
 
-      // Use custom redirect if provided, otherwise dashboard
-      const next = requestUrl.searchParams.get('next') ?? '/dashboard'
-      return NextResponse.redirect(new URL(next, requestUrl.origin))
+      // Fallback to dashboard if no user (shouldn't happen)
+      return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
     }
   }
 

@@ -6,13 +6,31 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
 
+  console.log('[Auth Callback] Processing callback:', {
+    hasCode: !!code,
+    url: requestUrl.toString()
+  })
+
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
+
+    console.log('[Auth Callback] Exchange result:', {
+      hasSession: !!sessionData.session,
+      hasUser: !!sessionData.user,
+      error: error?.message,
+      userId: sessionData.user?.id
+    })
 
     if (!error) {
       // Successfully authenticated
       const { data: { user } } = await supabase.auth.getUser()
+
+      console.log('[Auth Callback] User retrieved after exchange:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userType: user?.user_metadata?.user_type
+      })
 
       if (user) {
         // PRIORITY 1: Honor 'next' parameter if present (sales funnel/specific flow)

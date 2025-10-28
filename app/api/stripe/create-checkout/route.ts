@@ -9,6 +9,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    // Log incoming request details
+    const cookies = request.cookies.getAll()
+    console.log('[Stripe Checkout] Incoming request:', {
+      hasCookies: cookies.length > 0,
+      cookieNames: cookies.map(c => c.name),
+      supabaseCookies: cookies.filter(c => c.name.includes('supabase')).map(c => ({ name: c.name, hasValue: !!c.value }))
+    })
+
     const { planId, billingCycle, siteCount } = await request.json()
 
     // Validate input

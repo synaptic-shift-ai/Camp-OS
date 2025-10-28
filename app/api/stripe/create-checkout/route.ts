@@ -29,14 +29,33 @@ export async function POST(request: NextRequest) {
 
     // Get the authenticated user
     const supabase = await createClient()
+
+    // First try to get the session to see what we have
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    console.log("[Stripe Checkout] Session check:", {
+      hasSession: !!session,
+      sessionError,
+      userId: session?.user?.id
+    })
+
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser()
 
+    console.log("[Stripe Checkout] User check:", {
+      hasUser: !!user,
+      authError,
+      userId: user?.id,
+      userEmail: user?.email
+    })
+
     if (authError || !user) {
-      console.error("[Stripe Checkout] Auth error:", authError)
-      return NextResponse.json({ error: "Unauthorized. Please log in again." }, { status: 401 })
+      console.error("[Stripe Checkout] Auth failed - returning 401")
+      return NextResponse.json({
+        error: "Unauthorized. Please try signing up again or contact support if this persists.",
+        debug: process.env.NODE_ENV === 'development' ? { authError: authError?.message } : undefined
+      }, { status: 401 })
     }
 
     const userEmail = user.email

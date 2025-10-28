@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -22,7 +22,7 @@ export async function POST(
       )
     }
 
-    const propertyId = params.id
+    const { id: propertyId } = await params
 
     // Verify property ownership
     const { data: property, error: propertyError } = await supabase

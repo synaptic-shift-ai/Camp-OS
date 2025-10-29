@@ -133,12 +133,11 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
 
     // Mark property onboarding as complete
     try {
-      await fetch(`/api/onboarding/update-property`, {
+      await fetch(`/api/onboarding/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId: selectedProperty.id,
-          onboardingCompleted: true,
         }),
       })
 

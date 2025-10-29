@@ -16,26 +16,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 })
     }
 
-    // Get the user's most recent property (use service role to bypass RLS)
+    // Get property_id from query params
+    const searchParams = request.nextUrl.searchParams
+    const propertyId = searchParams.get("property_id")
+
+    // Get the specified property or the user's most recent property (use service role to bypass RLS)
     const supabaseServiceRole = createServiceRoleClient()
-    const { data: properties, error: propertyError } = await supabaseServiceRole
-      .from("properties")
-      .select("id, name, city, state, booking_page_slug, stripe_account_id")
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
+    let property
 
-    const property = properties?.[0]
+    if (propertyId) {
+      const { data, error: propertyError } = await supabaseServiceRole
+        .from("properties")
+        .select("id, name, description, address, city, state, zip_code, phone, email, booking_page_slug, stripe_account_id, stripe_connected_at")
+        .eq("id", propertyId)
+        .eq("owner_id", user.id)
+        .single()
 
-    if (propertyError || !property) {
-      return NextResponse.json({ error: "No property found" }, { status: 404 })
+      if (propertyError || !data) {
+        return NextResponse.json({ error: "Property not found" }, { status: 404 })
+      }
+      property = data
+    } else {
+      const { data: properties, error: propertyError } = await supabaseServiceRole
+        .from("properties")
+        .select("id, name, description, address, city, state, zip_code, phone, email, booking_page_slug, stripe_account_id, stripe_connected_at")
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+
+      property = properties?.[0]
+
+      if (propertyError || !property) {
+        return NextResponse.json({ error: "No property found" }, { status: 404 })
+      }
     }
 
-    // Get all sites for this property
+    // Get all sites for this property with full details
     const { data: sites, error: sitesError } = await supabaseServiceRole
       .from("sites")
-      .select("site_type")
+      .select("id, site_number, site_name, site_type, base_price, status")
       .eq("property_id", property.id)
+      .order("site_number", { ascending: true })
 
     if (sitesError) {
       console.error("[Onboarding] Failed to fetch sites:", sitesError)
@@ -58,17 +79,29 @@ export async function GET(request: NextRequest) {
       .join(", ")
 
     // Generate booking page URL
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000")
     const bookingPageUrl = property.booking_page_slug
-      ? `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001"}/book/${property.booking_page_slug}`
-      : `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001"}/book/${property.id.slice(0, 8)}`
+      ? `${baseUrl}/book/${property.booking_page_slug}`
+      : `${baseUrl}/book/${property.id.slice(0, 8)}`
 
     return NextResponse.json({
-      propertyName: property.name,
-      city: property.city || "",
-      state: property.state || "",
+      property: {
+        id: property.id,
+        name: property.name,
+        description: property.description,
+        address: property.address,
+        city: property.city,
+        state: property.state,
+        zipCode: property.zip_code,
+        phone: property.phone,
+        email: property.email,
+        bookingPageSlug: property.booking_page_slug,
+      },
+      sites: sites || [],
       totalSites: sites?.length || 0,
       siteBreakdown: breakdown || "No sites added",
       stripeConnected: !!property.stripe_account_id,
+      stripeConnectedAt: property.stripe_connected_at,
       bookingPageUrl,
     })
   } catch (error) {

@@ -113,9 +113,9 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // Success - redirect back to wizard review step
+      // Success - redirect to completion summary page
       return NextResponse.redirect(
-        new URL(`/dashboard/sites?step=review_launch&stripe_connected=true&propertyId=${propertyId}`, request.url)
+        new URL(`/onboarding/complete?property_id=${propertyId}&stripe_connected=true`, request.url)
       )
     } catch (error) {
       console.error("Error exchanging Stripe code:", error)

@@ -1,47 +1,80 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Building2,
   Tent,
-  DollarSign,
   CreditCard,
   CheckCircle2,
-  Copy,
-  ArrowRight,
+  Rocket,
   Loader2,
-  BookOpen,
+  MapPin,
+  Phone,
   Mail,
+  Globe,
+  Edit,
+  AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ThemeToggle } from "@/components/theme-toggle"
 
+interface Property {
+  id: string
+  name: string
+  description: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zipCode: string | null
+  phone: string | null
+  email: string | null
+  bookingPageSlug: string | null
+}
+
+interface Site {
+  id: string
+  site_number: string
+  site_name: string | null
+  site_type: string
+  base_price: number
+  status: string
+}
+
 interface CompletionData {
-  propertyName: string
-  city: string
-  state: string
+  property: Property
+  sites: Site[]
   totalSites: number
   siteBreakdown: string
   stripeConnected: boolean
+  stripeConnectedAt: string | null
   bookingPageUrl: string
 }
 
 export function OnboardingCompleteClient() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [completionData, setCompletionData] = useState<CompletionData | null>(null)
-  const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [completing, setCompleting] = useState(false)
+
+  const propertyId = searchParams.get("property_id")
+  const stripeConnected = searchParams.get("stripe_connected") === "true"
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("/api/onboarding/completion-status")
+        const url = propertyId
+          ? `/api/onboarding/completion-status?property_id=${propertyId}`
+          : "/api/onboarding/completion-status"
+
+        const response = await fetch(url)
         const data = await response.json()
         setCompletionData(data)
       } catch (error) {
@@ -51,22 +84,35 @@ export function OnboardingCompleteClient() {
       }
     }
     fetchData()
-  }, [])
+  }, [propertyId])
 
-  async function handleCopyUrl() {
-    if (!completionData) return
+  async function handleCompleteSetup() {
+    if (!completionData?.property.id) return
+
+    setCompleting(true)
+
     try {
-      await navigator.clipboard.writeText(completionData.bookingPageUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.error("Error copying to clipboard:", error)
-    }
-  }
+      // Mark property onboarding as complete
+      const response = await fetch("/api/onboarding/update-property", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId: completionData.property.id,
+          onboardingCompleted: true,
+        }),
+      })
 
-  function handleTestBooking() {
-    if (!completionData) return
-    window.open(completionData.bookingPageUrl, "_blank")
+      if (!response.ok) {
+        throw new Error("Failed to complete setup")
+      }
+
+      // Redirect to dashboard
+      router.push("/dashboard?setup_complete=true")
+    } catch (error) {
+      console.error("Error completing setup:", error)
+      alert("Failed to complete setup. Please try again.")
+      setCompleting(false)
+    }
   }
 
   if (loading) {
@@ -80,20 +126,22 @@ export function OnboardingCompleteClient() {
   if (!completionData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
-        <Card className="glass-strong max-w-md">
+        <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Error Loading Data</CardTitle>
             <CardDescription>Unable to load completion status</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push("/onboarding")} variant="outline" className="w-full">
-              Return to Onboarding
+            <Button onClick={() => router.push("/dashboard/sites")} variant="outline" className="w-full">
+              Return to Setup
             </Button>
           </CardContent>
         </Card>
       </div>
     )
   }
+
+  const { property, sites } = completionData
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -104,203 +152,246 @@ export function OnboardingCompleteClient() {
             <Tent className="h-6 w-6" />
             <span className="font-bold text-xl">CampOS</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
         </div>
       </nav>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-3xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           {/* Hero Section */}
           <div className="text-center space-y-4">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
               <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-500" />
             </div>
-            <h1 className="text-4xl font-bold tracking-tight">🎉 Your Campground is Live!</h1>
+            <h1 className="text-4xl font-bold tracking-tight">Setup Complete!</h1>
             <p className="text-xl text-muted-foreground">
-              Congratulations! {completionData.propertyName} is ready to accept bookings
+              {property.name} is configured and ready to launch
             </p>
           </div>
 
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Step 4 of 4</span>
-              <span className="text-green-600 dark:text-green-500 font-semibold">Complete!</span>
-            </div>
-            <Progress value={100} className="h-2 [&>div]:bg-green-600" />
-          </div>
+          {/* Stripe Success Alert */}
+          {stripeConnected && (
+            <Alert className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-900 dark:text-green-100">
+                Stripe successfully connected! You're ready to accept payments.
+              </AlertDescription>
+            </Alert>
+          )}
 
-          {/* Completion Checklist Card */}
-          <Card className="glass-strong shadow-xl">
+          {/* Setup Summary Header */}
+          <Card>
             <CardHeader>
-              <CardTitle>Setup Complete</CardTitle>
-              <CardDescription>Everything is configured and ready to go</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Setup Summary
+              </CardTitle>
+              <CardDescription>
+                Review everything you've configured for your property
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Property Information */}
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
-                <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">Property Information</h3>
+          </Card>
+
+          {/* Property Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Property Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg">{property.name}</h3>
+                {property.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{property.description}</p>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {property.address && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">Address</p>
+                      <p className="text-sm text-muted-foreground">
+                        {property.address}
+                        <br />
+                        {property.city}, {property.state} {property.zipCode}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                    {completionData.propertyName} • {completionData.city}, {completionData.state}
-                  </p>
+                )}
+
+                <div className="flex items-start gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium">Contact</p>
+                    {property.phone && <p className="text-sm text-muted-foreground">{property.phone}</p>}
+                    {property.email && <p className="text-sm text-muted-foreground">{property.email}</p>}
+                  </div>
                 </div>
               </div>
 
-              {/* Sites Added */}
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
-                <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Tent className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">Sites Added</h3>
+              {property.bookingPageSlug && (
+                <>
+                  <Separator />
+                  <div className="flex items-start gap-3">
+                    <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Booking Page</p>
+                      <a
+                        href={completionData.bookingPageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {completionData.bookingPageUrl}
+                      </a>
+                    </div>
                   </div>
-                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                    {completionData.totalSites} sites ({completionData.siteBreakdown})
-                  </p>
-                </div>
-              </div>
-
-              {/* Pricing Configured */}
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
-                <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">Pricing Configured</h3>
-                  </div>
-                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">All sites have nightly rates set</p>
-                </div>
-              </div>
-
-              {/* Payment Processing */}
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
-                <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">Payment Processing</h3>
-                  </div>
-                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">Stripe connected and ready</p>
-                </div>
-              </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* Next Steps Card */}
-          <Card className="glass-strong shadow-xl">
+          {/* Sites Configuration */}
+          <Card>
             <CardHeader>
-              <CardTitle>What's Next?</CardTitle>
-              <CardDescription>Get started with your new campground booking system</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Tent className="h-5 w-5" />
+                  Sites Configured
+                  <Badge variant="secondary" className="ml-2">
+                    {completionData.totalSites} {completionData.totalSites === 1 ? "site" : "sites"}
+                  </Badge>
+                </CardTitle>
+              </div>
+              <CardDescription>{completionData.siteBreakdown}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Step 1: Share Booking Page */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">1</span>
-                  </div>
-                  <h3 className="font-semibold text-lg">Share Your Booking Page</h3>
+            <CardContent>
+              {sites.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {sites.map((site) => (
+                    <div key={site.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">#{site.site_number}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {site.site_type}
+                        </Badge>
+                      </div>
+                      {site.site_name && (
+                        <p className="text-sm text-muted-foreground">{site.site_name}</p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          ${(site.base_price / 100).toFixed(2)}/night
+                        </span>
+                        <Badge
+                          variant={site.status === "available" ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {site.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="ml-11 space-y-2">
-                  <div className="flex gap-2">
-                    <Input value={completionData.bookingPageUrl} readOnly className="font-mono text-sm bg-muted" />
-                    <Button
-                      onClick={handleCopyUrl}
-                      variant="outline"
-                      size="icon"
-                      className="flex-shrink-0 bg-transparent"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {copied && (
-                    <p className="text-sm text-green-600 dark:text-green-500 flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Copied to clipboard!
+              ) : (
+                <p className="text-sm text-muted-foreground">No sites configured</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment Processing */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Payment Processing
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {completionData.stripeConnected ? (
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500" />
+                  <div>
+                    <p className="font-medium text-green-900 dark:text-green-100">Stripe Connected</p>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Ready to accept credit cards, debit cards, and digital wallets
                     </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 2: Test Booking */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">2</span>
                   </div>
-                  <h3 className="font-semibold text-lg">Create a Test Booking</h3>
                 </div>
-                <div className="ml-11 space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Walk through the booking flow to see how your guests will experience it
-                  </p>
-                  <Button onClick={handleTestBooking} variant="outline" className="w-full sm:w-auto bg-transparent">
-                    Try Test Booking
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Step 3: Dashboard */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">3</span>
-                  </div>
-                  <h3 className="font-semibold text-lg">Explore Your Dashboard</h3>
-                </div>
-                <div className="ml-11 space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Manage reservations, view payments, and track your property performance
-                  </p>
-                  <Button
-                    onClick={() => router.push("/dashboard")}
-                    className="w-full sm:w-auto bg-gradient-to-r from-destructive to-destructive/80 hover:from-destructive/90 hover:to-destructive/70"
-                  >
-                    Go to Dashboard
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              ) : (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Payment processing not set up. You'll need to connect Stripe before accepting bookings.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
 
-          {/* Help & Resources */}
-          <Card className="glass border-muted">
-            <CardContent className="pt-6">
-              <div className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">Need help getting started?</p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button variant="outline" asChild>
-                    <Link href="/docs">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      View Documentation
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <a href="mailto:support@campos.com">
-                      <Mail className="mr-2 h-4 w-4" />
-                      Contact Support
-                    </a>
-                  </Button>
-                </div>
+          {/* Edit Note */}
+          <Alert>
+            <Edit className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Need to make changes?</strong> After completing setup, you can edit any of these
+              settings using the sidebar navigation in your dashboard. Access property settings, manage
+              sites, or update payment information at any time.
+            </AlertDescription>
+          </Alert>
+
+          {/* Complete Setup Button */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-semibold">Ready to Launch?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Complete your setup to access your full dashboard and start managing bookings
+                </p>
               </div>
+
+              <Button
+                onClick={handleCompleteSetup}
+                disabled={completing}
+                size="lg"
+                className="w-full"
+              >
+                {completing ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Completing Setup...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="mr-2 h-5 w-5" />
+                    Complete Setup & Go to Dashboard
+                  </>
+                )}
+              </Button>
+
+              {property.bookingPageSlug && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  asChild
+                >
+                  <a
+                    href={completionData.bookingPageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Globe className="mr-2 h-4 w-4" />
+                    Preview Booking Page
+                  </a>
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>

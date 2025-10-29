@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -180,7 +180,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <PropertyProvider>
       <SetupCheckGate>
         <DashboardLayoutContent>{children}</DashboardLayoutContent>
-        <SetupCompleteToast />
+        <Suspense fallback={null}>
+          <SetupCompleteToast />
+        </Suspense>
       </SetupCheckGate>
     </PropertyProvider>
   )

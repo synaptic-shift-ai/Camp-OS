@@ -18,7 +18,23 @@ import {
   Building2,
 } from "lucide-react"
 
-interface PropertyWithStatus extends Property {
+interface PropertyWithStatus {
+  id: string
+  name: string
+  description: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zipCode: string | null
+  phone: string | null
+  email: string | null
+  bookingPageSlug: string | null
+  stripeConnected: boolean
+  stripeConnectedAt: string | null
+  bookingPageUrl: string
+  sites: any[]
+  totalSites: number
+  siteBreakdown: string
   isConnecting?: boolean
   isDisconnecting?: boolean
 }
@@ -41,7 +57,7 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
   useEffect(() => {
     async function fetchProperties() {
       try {
-        const response = await fetch("/api/dashboard/properties")
+        const response = await fetch("/api/onboarding/completion-status")
         const data = await response.json()
         setProperties(data.properties || [])
       } catch (error) {
@@ -59,7 +75,7 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
       // Reload properties to show updated status
       async function reloadProperties() {
         try {
-          const response = await fetch("/api/dashboard/properties")
+          const response = await fetch("/api/onboarding/completion-status")
           const data = await response.json()
           setProperties(data.properties || [])
         } catch (error) {
@@ -136,7 +152,7 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
       }
 
       // Reload properties to show updated status
-      const reloadResponse = await fetch("/api/dashboard/properties")
+      const reloadResponse = await fetch("/api/onboarding/completion-status")
       const data = await reloadResponse.json()
       setProperties(data.properties || [])
     } catch (error) {
@@ -148,7 +164,7 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
     }
   }
 
-  const connectedCount = properties.filter(p => p.stripe_connected_at).length
+  const connectedCount = properties.filter(p => p.stripeConnected).length
   const totalCount = properties.length
 
   if (loading) {
@@ -279,7 +295,7 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Your Properties</h3>
         {properties.map((prop) => {
-          const isConnected = !!prop.stripe_connected_at
+          const isConnected = prop.stripeConnected
           const isLoading = prop.isConnecting || prop.isDisconnecting
 
           return (

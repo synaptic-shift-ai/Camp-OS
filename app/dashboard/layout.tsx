@@ -34,6 +34,7 @@ import {
 import { PropertyProvider, useProperty } from "@/components/property-context"
 import { PropertySwitcher } from "@/components/dashboard/property-switcher"
 import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
+import { SetupCompleteToast } from "@/components/dashboard/setup-complete-toast"
 
 const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -179,6 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <PropertyProvider>
       <SetupCheckGate>
         <DashboardLayoutContent>{children}</DashboardLayoutContent>
+        <SetupCompleteToast />
       </SetupCheckGate>
     </PropertyProvider>
   )

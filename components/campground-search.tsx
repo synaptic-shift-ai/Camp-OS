@@ -35,8 +35,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { searchAvailableSites } from "@/lib/booking/api"
-import type { SiteType, AvailabilitySearchResult } from "@/lib/booking/types"
+import type { SiteType, AvailabilitySearchResult, BookingResult } from "@/lib/booking/types"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const siteTypeIcons: Record<SiteType, React.ReactNode> = {
@@ -113,14 +112,20 @@ export function CampgroundSearch({
     setError(null)
 
     try {
-      const result = await searchAvailableSites({
-        property_id: propertyId,
-        check_in_date: format(date.from, "yyyy-MM-dd"),
-        check_out_date: format(date.to, "yyyy-MM-dd"),
-        num_adults: guests,
-        ...(siteTypeFilter !== "all" && { site_type: siteTypeFilter }),
-        amenities: Object.keys(selectedAmenities).filter(key => selectedAmenities[key]),
+      const response = await fetch('/api/booking/search-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: propertyId,
+          check_in_date: format(date.from, "yyyy-MM-dd"),
+          check_out_date: format(date.to, "yyyy-MM-dd"),
+          num_adults: guests,
+          ...(siteTypeFilter !== "all" && { site_type: siteTypeFilter }),
+          amenities: Object.keys(selectedAmenities).filter(key => selectedAmenities[key]),
+        }),
       })
+
+      const result: BookingResult<AvailabilitySearchResult> = await response.json()
 
       if (result.success) {
         setSearchResults(result.data)
@@ -138,7 +143,7 @@ export function CampgroundSearch({
         setSearchResults(null)
       }
     } catch (error) {
-      console.error("[v0] Search error:", error)
+      console.error("[Booking] Search error:", error)
       setError("An unexpected error occurred while searching. Please try again.")
       setSearchResults(null)
     } finally {

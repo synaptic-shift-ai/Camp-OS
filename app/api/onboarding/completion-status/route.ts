@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { generateBookingSlug } from "@/lib/booking/slug-utils"
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,12 +45,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch sites" }, { status: 500 })
     }
 
-    // Generate booking page URL helper
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000")
+    // Get base URL from request headers (works in both dev and production)
+    const protocol = request.headers.get("x-forwarded-proto") || "http"
+    const host = request.headers.get("host") || "localhost:3000"
+    const baseUrl = `${protocol}://${host}`
+
     const getBookingUrl = (property: any) => {
       return property.booking_page_slug
         ? `${baseUrl}/book/${property.booking_page_slug}`
         : `${baseUrl}/book/${property.id.slice(0, 8)}`
+    }
+
+    // Generate missing booking slugs for properties that don't have them
+    const propertiesNeedingSlugs = properties.filter(p => !p.booking_page_slug)
+    if (propertiesNeedingSlugs.length > 0) {
+      for (const property of propertiesNeedingSlugs) {
+        const slug = generateBookingSlug(property.name, property.id)
+        await supabaseServiceRole
+          .from("properties")
+          .update({ booking_page_slug: slug, updated_at: new Date().toISOString() })
+          .eq("id", property.id)
+
+        // Update the property object for use in response
+        property.booking_page_slug = slug
+      }
     }
 
     // Build comprehensive property data

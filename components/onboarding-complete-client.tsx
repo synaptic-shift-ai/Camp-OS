@@ -93,24 +93,24 @@ export function OnboardingCompleteClient() {
 
     try {
       // Mark property onboarding as complete
-      const response = await fetch("/api/onboarding/update-property", {
+      const response = await fetch("/api/onboarding/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId: completionData.property.id,
-          onboardingCompleted: true,
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to complete setup")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to complete setup")
       }
 
       // Redirect to dashboard
       router.push("/dashboard?setup_complete=true")
     } catch (error) {
       console.error("Error completing setup:", error)
-      alert("Failed to complete setup. Please try again.")
+      alert(`Failed to complete setup: ${error instanceof Error ? error.message : "Unknown error"}`)
       setCompleting(false)
     }
   }

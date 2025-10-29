@@ -37,6 +37,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   const [workingPropertyId, setWorkingPropertyId] = useState<string | null>(
     initialPropertyId || null
   )
+  const [isCompleting, setIsCompleting] = useState(false)
 
   // Select property on mount
   useEffect(() => {
@@ -82,8 +83,10 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
     }
   }, [selectedProperty])
 
-  // Update URL when step changes
+  // Update URL when step changes (but not during completion)
   useEffect(() => {
+    if (isCompleting) return // Don't update URL during wizard completion
+
     const params = new URLSearchParams(searchParams)
     params.set("wizard", "true")  // Keep wizard mode active
     params.set("step", currentStep)
@@ -91,13 +94,15 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
       params.set("propertyId", workingPropertyId)
     }
     router.replace(`/dashboard/sites?${params.toString()}`, { scroll: false })
-  }, [currentStep, workingPropertyId, router, searchParams])
+  }, [currentStep, workingPropertyId, router, searchParams, isCompleting])
 
   const handleWizardComplete = useCallback(async () => {
     if (!selectedProperty) return
 
     // Mark property onboarding as complete
     try {
+      setIsCompleting(true) // Prevent URL updates during completion
+
       await fetch(`/api/onboarding/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,6 +115,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
       router.push("/dashboard?setup=complete")
     } catch (error) {
       console.error("Failed to complete wizard:", error)
+      setIsCompleting(false) // Reset on error
     }
   }, [selectedProperty, router])
 
@@ -294,26 +300,28 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
         </CardContent>
       </Card>
 
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={handlePrevious}
-          disabled={isFirstStep}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Previous
-        </Button>
+      {/* Navigation Buttons - Hidden on Review & Launch step which has its own Complete button */}
+      {currentStep !== "review_launch" && (
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={isFirstStep}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Previous
+          </Button>
 
-        <div className="text-sm text-muted-foreground">
-          Step {currentStepIndex + 1} of {WIZARD_STEPS.length}
+          <div className="text-sm text-muted-foreground">
+            Step {currentStepIndex + 1} of {WIZARD_STEPS.length}
+          </div>
+
+          <Button onClick={handleStepComplete}>
+            Next
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
         </div>
-
-        <Button onClick={handleStepComplete}>
-          {isLastStep ? "Complete Setup" : "Next"}
-          {!isLastStep && <ArrowRight className="ml-2 h-4 w-4" />}
-        </Button>
-      </div>
+      )}
     </div>
   )
 }

@@ -85,6 +85,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   // Update URL when step changes
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
+    params.set("wizard", "true")  // Keep wizard mode active
     params.set("step", currentStep)
     if (workingPropertyId) {
       params.set("propertyId", workingPropertyId)

@@ -50,11 +50,15 @@ export async function POST(
       [step]: completed,
     }
 
+    // Map 'review_launch' to 'complete' for database constraint
+    // Database only allows: not_started, property_details, sites_setup, dashboard_tour, stripe_connect, complete
+    const dbStep = step === 'review_launch' ? 'complete' : step
+
     const { error: updateError } = await supabaseAdmin
       .from("properties")
       .update({
         wizard_progress: updatedProgress,
-        wizard_step_completed: step,
+        wizard_step_completed: dbStep,
         updated_at: new Date().toISOString(),
       })
       .eq("id", propertyId)

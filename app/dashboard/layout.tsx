@@ -31,8 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { TenantProvider, useTenant } from "@/components/tenant-provider"
-import { PropertyProvider } from "@/components/property-context"
+import { PropertyProvider, useProperty } from "@/components/property-context"
 import { PropertySwitcher } from "@/components/dashboard/property-switcher"
 import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
 
@@ -49,7 +48,8 @@ const navigation = [
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { propertyName, isLoading } = useTenant()
+  const { selectedProperty, isLoading } = useProperty()
+  const propertyName = selectedProperty?.name
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -176,12 +176,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <TenantProvider>
-      <PropertyProvider>
-        <SetupCheckGate>
-          <DashboardLayoutContent>{children}</DashboardLayoutContent>
-        </SetupCheckGate>
-      </PropertyProvider>
-    </TenantProvider>
+    <PropertyProvider>
+      <SetupCheckGate>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </SetupCheckGate>
+    </PropertyProvider>
   )
 }

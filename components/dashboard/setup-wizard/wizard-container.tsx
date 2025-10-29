@@ -93,6 +93,26 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
     router.replace(`/dashboard/sites?${params.toString()}`, { scroll: false })
   }, [currentStep, workingPropertyId, router, searchParams])
 
+  const handleWizardComplete = useCallback(async () => {
+    if (!selectedProperty) return
+
+    // Mark property onboarding as complete
+    try {
+      await fetch(`/api/onboarding/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId: selectedProperty.id,
+        }),
+      })
+
+      // Redirect to dashboard - SetupCheckGate will handle showing setup modal if more properties need setup
+      router.push("/dashboard?setup=complete")
+    } catch (error) {
+      console.error("Failed to complete wizard:", error)
+    }
+  }, [selectedProperty, router])
+
   const handleStepComplete = useCallback(async () => {
     // Mark current step as completed
     const newCompleted = new Set(completedSteps)
@@ -126,27 +146,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
       // Wizard complete for this property
       await handleWizardComplete()
     }
-  }, [currentStep, completedSteps, selectedProperty])
-
-  const handleWizardComplete = async () => {
-    if (!selectedProperty) return
-
-    // Mark property onboarding as complete
-    try {
-      await fetch(`/api/onboarding/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyId: selectedProperty.id,
-        }),
-      })
-
-      // Redirect to dashboard - SetupCheckGate will handle showing setup modal if more properties need setup
-      router.push("/dashboard?setup=complete")
-    } catch (error) {
-      console.error("Failed to complete wizard:", error)
-    }
-  }
+  }, [currentStep, completedSteps, selectedProperty, handleWizardComplete])
 
   const handlePrevious = () => {
     const currentIndex = WIZARD_STEPS.findIndex((s) => s.id === currentStep)

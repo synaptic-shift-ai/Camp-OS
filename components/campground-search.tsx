@@ -66,13 +66,23 @@ const amenityIcons: Record<string, React.ReactNode> = {
   petFriendly: <PawPrint className="h-3.5 w-3.5" />,
 }
 
-export function CampgroundSearch() {
+interface CampgroundSearchProps {
+  propertyId?: string // Pre-selected property ID (for property-specific pages)
+  propertyName?: string // Property name for display
+  hidePropertySelector?: boolean // Hide property selector when on property-specific page
+}
+
+export function CampgroundSearch({
+  propertyId: initialPropertyId,
+  propertyName,
+  hidePropertySelector = false,
+}: CampgroundSearchProps = {}) {
   const [date, setDate] = useState<DateRange | undefined>({
     from: new Date(),
     to: new Date(new Date().setDate(new Date().getDate() + 3)),
   })
   const [guests, setGuests] = useState(2)
-  const [propertyId] = useState("property-1") // Mock property ID
+  const [propertyId, setPropertyId] = useState(initialPropertyId || "property-1") // Mock property ID if not provided
   const [siteTypeFilter, setSiteTypeFilter] = useState<SiteType | "all">("all")
   const [amenitiesOpen, setAmenitiesOpen] = useState(false)
   const [selectedAmenities, setSelectedAmenities] = useState<Record<string, boolean>>({})
@@ -145,51 +155,64 @@ export function CampgroundSearch() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
-      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Tent className="h-6 w-6" />
-            <span className="font-bold text-xl">CampOS</span>
+      {/* Only show nav if not embedded in property page */}
+      {!hidePropertySelector && (
+        <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Tent className="h-6 w-6" />
+              <span className="font-bold text-xl">CampOS</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+              <Button variant="ghost">Sign In</Button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Button variant="ghost">Sign In</Button>
-          </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-destructive/5" />
         <div className="container relative mx-auto px-4 pt-12 pb-8 md:pt-20 md:pb-12">
-          <div className="text-center mb-8 md:mb-12">
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-balance mb-4 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-              Find Your Perfect Campsite
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground text-pretty max-w-2xl mx-auto">
-              Search available sites for your next outdoor adventure
-            </p>
-          </div>
+          {!hidePropertySelector && (
+            <div className="text-center mb-8 md:mb-12">
+              <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-balance mb-4 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+                Find Your Perfect Campsite
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground text-pretty max-w-2xl mx-auto">
+                Search available sites for your next outdoor adventure
+              </p>
+            </div>
+          )}
 
           <Card className="max-w-4xl mx-auto glass-strong shadow-2xl">
             <CardHeader>
-              <CardTitle className="text-2xl">Search Availability</CardTitle>
-              <CardDescription>Find the perfect campsite for your dates and preferences</CardDescription>
+              <CardTitle className="text-2xl">
+                {propertyName ? `Search Available Sites` : `Search Availability`}
+              </CardTitle>
+              <CardDescription>
+                {propertyName
+                  ? `Find the perfect campsite at ${propertyName} for your dates and preferences`
+                  : `Find the perfect campsite for your dates and preferences`}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Property Selector (Mock) */}
-              <div className="space-y-2">
-                <Label htmlFor="property">Campground</Label>
-                <Select defaultValue="property-1">
-                  <SelectTrigger id="property">
-                    <SelectValue placeholder="Select a campground" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="property-1">Pine Valley Campground</SelectItem>
-                    <SelectItem value="property-2">Mountain Ridge Resort</SelectItem>
-                    <SelectItem value="property-3">Lakeside Retreat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Property Selector - Only show if not on property-specific page */}
+              {!hidePropertySelector && (
+                <div className="space-y-2">
+                  <Label htmlFor="property">Campground</Label>
+                  <Select value={propertyId} onValueChange={setPropertyId}>
+                    <SelectTrigger id="property">
+                      <SelectValue placeholder="Select a campground" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="property-1">Pine Valley Campground</SelectItem>
+                      <SelectItem value="property-2">Mountain Ridge Resort</SelectItem>
+                      <SelectItem value="property-3">Lakeside Retreat</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Date Range Picker */}
               <div className="grid gap-4 sm:grid-cols-2">

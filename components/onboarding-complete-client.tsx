@@ -11,10 +11,11 @@ import {
   Loader2,
   MapPin,
   Phone,
-  Mail,
   Globe,
   Edit,
   AlertCircle,
+  TrendingUp,
+  Award,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -25,7 +26,7 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ThemeToggle } from "@/components/theme-toggle"
 
-interface Property {
+interface PropertyData {
   id: string
   name: string
   description: string | null
@@ -36,10 +37,17 @@ interface Property {
   phone: string | null
   email: string | null
   bookingPageSlug: string | null
+  stripeConnected: boolean
+  stripeConnectedAt: string | null
+  bookingPageUrl: string
+  sites: Site[]
+  totalSites: number
+  siteBreakdown: string
 }
 
 interface Site {
   id: string
+  property_id: string
   site_number: string
   site_name: string | null
   site_type: string
@@ -48,13 +56,13 @@ interface Site {
 }
 
 interface CompletionData {
-  property: Property
-  sites: Site[]
-  totalSites: number
-  siteBreakdown: string
-  stripeConnected: boolean
-  stripeConnectedAt: string | null
-  bookingPageUrl: string
+  properties: PropertyData[]
+  summary: {
+    totalProperties: number
+    totalSites: number
+    propertiesWithStripe: number
+    allStripeConnected: boolean
+  }
 }
 
 export function OnboardingCompleteClient() {
@@ -64,17 +72,12 @@ export function OnboardingCompleteClient() {
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
 
-  const propertyId = searchParams.get("property_id")
   const stripeConnected = searchParams.get("stripe_connected") === "true"
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const url = propertyId
-          ? `/api/onboarding/completion-status?property_id=${propertyId}`
-          : "/api/onboarding/completion-status"
-
-        const response = await fetch(url)
+        const response = await fetch("/api/onboarding/completion-status")
         const data = await response.json()
         setCompletionData(data)
       } catch (error) {
@@ -84,27 +87,26 @@ export function OnboardingCompleteClient() {
       }
     }
     fetchData()
-  }, [propertyId])
+  }, [])
 
   async function handleCompleteSetup() {
-    if (!completionData?.property.id) return
+    if (!completionData?.properties || completionData.properties.length === 0) return
 
     setCompleting(true)
 
     try {
-      // Mark property onboarding as complete
-      const response = await fetch("/api/onboarding/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyId: completionData.property.id,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to complete setup")
-      }
+      // Mark all properties as onboarding complete
+      await Promise.all(
+        completionData.properties.map((property) =>
+          fetch("/api/onboarding/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              propertyId: property.id,
+            }),
+          })
+        )
+      )
 
       // Redirect to dashboard
       router.push("/dashboard?setup_complete=true")
@@ -141,7 +143,7 @@ export function OnboardingCompleteClient() {
     )
   }
 
-  const { property, sites } = completionData
+  const { properties, summary } = completionData
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -158,7 +160,7 @@ export function OnboardingCompleteClient() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Hero Section */}
           <div className="text-center space-y-4">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
@@ -166,7 +168,7 @@ export function OnboardingCompleteClient() {
             </div>
             <h1 className="text-4xl font-bold tracking-tight">Setup Complete!</h1>
             <p className="text-xl text-muted-foreground">
-              {property.name} is configured and ready to launch
+              Your {summary.totalProperties === 1 ? "property is" : `${summary.totalProperties} properties are`} configured and ready to launch
             </p>
           </div>
 
@@ -180,161 +182,231 @@ export function OnboardingCompleteClient() {
             </Alert>
           )}
 
-          {/* Setup Summary Header */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Setup Summary
-              </CardTitle>
-              <CardDescription>
-                Review everything you've configured for your property
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          {/* Property Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Property Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-lg">{property.name}</h3>
-                {property.description && (
-                  <p className="text-sm text-muted-foreground mt-1">{property.description}</p>
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {property.address && (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Address</p>
-                      <p className="text-sm text-muted-foreground">
-                        {property.address}
-                        <br />
-                        {property.city}, {property.state} {property.zipCode}
-                      </p>
-                    </div>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Building2 className="h-6 w-6 text-primary" />
                   </div>
-                )}
-
-                <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium">Contact</p>
-                    {property.phone && <p className="text-sm text-muted-foreground">{property.phone}</p>}
-                    {property.email && <p className="text-sm text-muted-foreground">{property.email}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {property.bookingPageSlug && (
-                <>
-                  <Separator />
-                  <div className="flex items-start gap-3">
-                    <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Booking Page</p>
-                      <a
-                        href={completionData.bookingPageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
-                      >
-                        {completionData.bookingPageUrl}
-                      </a>
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Sites Configuration */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Tent className="h-5 w-5" />
-                  Sites Configured
-                  <Badge variant="secondary" className="ml-2">
-                    {completionData.totalSites} {completionData.totalSites === 1 ? "site" : "sites"}
-                  </Badge>
-                </CardTitle>
-              </div>
-              <CardDescription>{completionData.siteBreakdown}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {sites.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {sites.map((site) => (
-                    <div key={site.id} className="border rounded-lg p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">#{site.site_number}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {site.site_type}
-                        </Badge>
-                      </div>
-                      {site.site_name && (
-                        <p className="text-sm text-muted-foreground">{site.site_name}</p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          ${(site.base_price / 100).toFixed(2)}/night
-                        </span>
-                        <Badge
-                          variant={site.status === "available" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {site.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No sites configured</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Payment Processing */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment Processing
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {completionData.stripeConnected ? (
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500" />
-                  <div>
-                    <p className="font-medium text-green-900 dark:text-green-100">Stripe Connected</p>
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      Ready to accept credit cards, debit cards, and digital wallets
+                    <p className="text-3xl font-bold">{summary.totalProperties}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {summary.totalProperties === 1 ? "Property" : "Properties"} Configured
                     </p>
                   </div>
                 </div>
-              ) : (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Payment processing not set up. You'll need to connect Stripe before accepting bookings.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Tent className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold">{summary.totalSites}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Total {summary.totalSites === 1 ? "Site" : "Sites"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                    summary.allStripeConnected
+                      ? "bg-green-100 dark:bg-green-900/20"
+                      : "bg-amber-100 dark:bg-amber-900/20"
+                  }`}>
+                    <CreditCard className={`h-6 w-6 ${
+                      summary.allStripeConnected ? "text-green-600" : "text-amber-600"
+                    }`} />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold">{summary.propertiesWithStripe}/{summary.totalProperties}</p>
+                    <p className="text-sm text-muted-foreground">Payment Ready</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Properties List */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-primary" />
+              <h2 className="text-2xl font-bold">Your Properties</h2>
+            </div>
+
+            {properties.map((property, index) => (
+              <Card key={property.id} className="overflow-hidden">
+                <CardHeader className="bg-muted/50">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-2xl flex items-center gap-3">
+                        {property.name}
+                        {property.stripeConnected && (
+                          <Badge variant="default" className="bg-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Payment Ready
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      {property.description && (
+                        <CardDescription className="mt-2">{property.description}</CardDescription>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="pt-6 space-y-6">
+                  {/* Property Details */}
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Location & Contact
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      {property.address && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="font-medium">Address</p>
+                            <p className="text-muted-foreground">
+                              {property.address}<br />
+                              {property.city}, {property.state} {property.zipCode}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-start gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Contact</p>
+                          {property.phone && <p className="text-muted-foreground">{property.phone}</p>}
+                          {property.email && <p className="text-muted-foreground">{property.email}</p>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {property.bookingPageSlug && (
+                      <>
+                        <Separator className="my-4" />
+                        <div className="flex items-start gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">Booking Page</p>
+                            <a
+                              href={property.bookingPageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {property.bookingPageUrl}
+                            </a>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Sites */}
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Tent className="h-4 w-4" />
+                      Sites ({property.totalSites})
+                      {property.siteBreakdown && (
+                        <span className="text-sm font-normal text-muted-foreground">
+                          — {property.siteBreakdown}
+                        </span>
+                      )}
+                    </h3>
+
+                    {property.sites.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {property.sites.map((site) => (
+                          <div key={site.id} className="border rounded-lg p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">#{site.site_number}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {site.site_type}
+                              </Badge>
+                            </div>
+                            {site.site_name && (
+                              <p className="text-sm text-muted-foreground">{site.site_name}</p>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">
+                                ${(site.base_price / 100).toFixed(2)}/night
+                              </span>
+                              <Badge
+                                variant={site.status === "available" ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {site.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>No sites configured for this property</AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
+                  {/* Payment Status */}
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Payment Processing
+                    </h3>
+                    {property.stripeConnected ? (
+                      <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-green-900 dark:text-green-100">Stripe Connected</p>
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            Ready to accept credit cards, debit cards, and digital wallets
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Payment processing not set up. Connect Stripe to accept bookings.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
+                  {/* Preview Button */}
+                  {property.bookingPageSlug && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      asChild
+                    >
+                      <a href={property.bookingPageUrl} target="_blank" rel="noopener noreferrer">
+                        <Globe className="mr-2 h-4 w-4" />
+                        Preview {property.name} Booking Page
+                      </a>
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
           {/* Edit Note */}
           <Alert>
@@ -350,9 +422,13 @@ export function OnboardingCompleteClient() {
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="pt-6 space-y-4">
               <div className="text-center space-y-2">
-                <h3 className="text-lg font-semibold">Ready to Launch?</h3>
+                <h3 className="text-xl font-semibold flex items-center justify-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Ready to Launch Your Business?
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Complete your setup to access your full dashboard and start managing bookings
+                  Complete your setup to access your full dashboard and start managing bookings for{" "}
+                  {summary.totalProperties === 1 ? "your property" : `all ${summary.totalProperties} properties`}
                 </p>
               </div>
 
@@ -374,24 +450,6 @@ export function OnboardingCompleteClient() {
                   </>
                 )}
               </Button>
-
-              {property.bookingPageSlug && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  asChild
-                >
-                  <a
-                    href={completionData.bookingPageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Globe className="mr-2 h-4 w-4" />
-                    Preview Booking Page
-                  </a>
-                </Button>
-              )}
             </CardContent>
           </Card>
         </div>

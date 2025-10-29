@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
 
 export async function POST(
@@ -24,8 +25,11 @@ export async function POST(
 
     const { id: propertyId } = await params
 
-    // Verify property ownership
-    const { data: property, error: propertyError } = await supabase
+    // Create service role client to bypass RLS recursion
+    const supabaseAdmin = createServiceRoleClient()
+
+    // Verify property ownership using service role client
+    const { data: property, error: propertyError } = await supabaseAdmin
       .from("properties")
       .select("id, owner_id, wizard_progress")
       .eq("id", propertyId)
@@ -46,7 +50,7 @@ export async function POST(
       [step]: completed,
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from("properties")
       .update({
         wizard_progress: updatedProgress,

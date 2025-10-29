@@ -27,37 +27,48 @@ interface Site {
 export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps) {
   const [sites, setSites] = useState<Site[]>([])
   const [isLoadingSites, setIsLoadingSites] = useState(true)
+  const [currentProperty, setCurrentProperty] = useState<Property>(property)
 
-  // Check property completion status
-  const hasBasicInfo = !!(property.address && property.city && property.state)
-  const hasSites = (property.site_count || 0) > 0
-  const hasStripe = !!property.stripe_connected_at
-  const hasBookingSlug = !!property.booking_page_slug
-
-  const readyToLaunch = hasBasicInfo && hasSites && hasStripe
-
-  // Fetch sites for this property
+  // Fetch fresh property data and sites on mount
   useEffect(() => {
-    const fetchSites = async () => {
+    const fetchData = async () => {
       try {
         setIsLoadingSites(true)
-        const response = await fetch(`/api/admin/sites`)
 
-        if (response.ok) {
-          const data = await response.json()
-          // Filter sites for current property
-          const propertySites = data.sites?.filter((site: Site) => site.property_id === property.id) || []
-          setSites(propertySites)
+        // Fetch fresh property data from completion-status to get current Stripe status
+        const propResponse = await fetch(`/api/onboarding/completion-status`)
+        if (propResponse.ok) {
+          const propData = await propResponse.json()
+          // Find current property in the response
+          const updatedProperty = propData.properties?.find((p: any) => p.id === property.id)
+          if (updatedProperty) {
+            // Map the completion-status response to Property format
+            setCurrentProperty({
+              ...property,
+              stripe_connected_at: updatedProperty.stripeConnectedAt,
+              site_count: updatedProperty.totalSites,
+            })
+            // Use sites from completion-status response
+            setSites(updatedProperty.sites || [])
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch sites:", error)
+        console.error("Failed to fetch data:", error)
       } finally {
         setIsLoadingSites(false)
       }
     }
 
-    fetchSites()
-  }, [property.id])
+    fetchData()
+  }, [property.id, property])
+
+  // Check property completion status using fresh data
+  const hasBasicInfo = !!(currentProperty.address && currentProperty.city && currentProperty.state)
+  const hasSites = (currentProperty.site_count || 0) > 0
+  const hasStripe = !!currentProperty.stripe_connected_at
+  const hasBookingSlug = !!currentProperty.booking_page_slug
+
+  const readyToLaunch = hasBasicInfo && hasSites && hasStripe
 
   return (
     <div className="space-y-6">

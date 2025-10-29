@@ -376,7 +376,7 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
         </Button>
 
         <Button onClick={onComplete}>
-          Continue to Dashboard Tour
+          Continue to Review & Launch
         </Button>
       </div>
 

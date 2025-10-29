@@ -141,25 +141,8 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
         }),
       })
 
-      // Refresh properties list
-      await refreshProperties()
-
-      // Check if there are more incomplete properties
-      const remainingIncomplete = incompleteProperties.filter((p) => p.id !== selectedProperty.id)
-
-      if (remainingIncomplete.length > 0) {
-        // Show "continue to next property" modal or auto-switch
-        const nextProperty = remainingIncomplete[0]
-        if (nextProperty) {
-          selectProperty(nextProperty.id)
-          setWorkingPropertyId(nextProperty.id)
-          setCurrentStep("property_details")
-          setCompletedSteps(new Set())
-        }
-      } else {
-        // All properties complete! Redirect to dashboard
-        router.push("/dashboard?setup=complete")
-      }
+      // Redirect to dashboard - SetupCheckGate will handle showing setup modal if more properties need setup
+      router.push("/dashboard?setup=complete")
     } catch (error) {
       console.error("Failed to complete wizard:", error)
     }

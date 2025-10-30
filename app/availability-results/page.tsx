@@ -107,7 +107,7 @@ function AvailabilityResultsContent() {
     return () => {
       mounted = false
     }
-  }, [propertyId, checkIn, checkOut, adults, children, siteTypeFilter, toast])
+  }, [propertyId, checkIn, checkOut, adults, children, siteTypeFilter])
 
   const getSiteIcon = (type: SiteType) => {
     switch (type) {

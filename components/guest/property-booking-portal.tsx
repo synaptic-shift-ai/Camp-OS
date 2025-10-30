@@ -481,13 +481,7 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
               const IconComponent = getSiteTypeIcon(siteType.type)
               return (
                 <Card key={siteType.type} className="overflow-hidden hover:shadow-xl transition-shadow border-2">
-                  <div className="relative h-64">
-                    <Image
-                      src={`/.jpg?key=vi3op&height=250&width=400&query=${siteType.name}`}
-                      alt={siteType.name}
-                      fill
-                      className="object-cover"
-                    />
+                  <div className="relative h-64 bg-gradient-to-br from-green-100 to-green-50">
                     <div className="absolute top-4 left-4">
                       <div className="bg-white/95 p-3 rounded-full shadow-lg">
                         <IconComponent className="h-6 w-6 text-[#2D5A27]" />

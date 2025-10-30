@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import type { AvailableSite, SiteType } from "@/lib/booking/types"
+import { calculatePriceBreakdown } from "@/lib/booking/pricing"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
@@ -162,6 +163,18 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
       return
     }
 
+    // Calculate number of nights
+    const diffTime = checkOutDate.getTime() - checkInDate.getTime()
+    const numberOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    // Calculate price breakdown
+    const priceBreakdown = calculatePriceBreakdown({
+      basePricePerNight: site.base_price_per_night,
+      numberOfNights,
+      siteType: site.site_type,
+      numPets: 0, // TODO: Get from form if needed
+    })
+
     setCheckoutData({
       propertyId: property.id,
       site,
@@ -169,6 +182,7 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
       checkOutDate,
       numAdults: adults,
       numChildren: children,
+      priceBreakdown,
     })
     router.push("/book/checkout")
   }

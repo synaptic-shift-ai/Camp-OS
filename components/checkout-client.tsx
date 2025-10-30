@@ -256,8 +256,8 @@ export function CheckoutClient() {
     }
   }
 
-  // Redirect if missing required data
-  if (!checkoutData.site || !checkoutData.checkInDate || !checkoutData.checkOutDate || !checkoutData.priceBreakdown || !checkoutData.propertyId) {
+  // Redirect if missing required data (priceBreakdown is now calculated before navigation)
+  if (!checkoutData.site || !checkoutData.checkInDate || !checkoutData.checkOutDate || !checkoutData.propertyId || !checkoutData.priceBreakdown) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 flex items-center justify-center">
         <Card className="max-w-md">

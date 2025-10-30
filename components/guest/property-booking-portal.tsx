@@ -127,11 +127,11 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
       const result = await response.json()
 
       if (result.success) {
-        setSearchResults(result.sites || [])
+        setSearchResults(result.data.sites || [])
         setShowResults(true)
         toast({
           title: "Search complete",
-          description: `Found ${result.sites?.length || 0} available sites`,
+          description: `Found ${result.data.sites?.length || 0} available sites`,
         })
       } else {
         toast({

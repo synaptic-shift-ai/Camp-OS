@@ -69,9 +69,12 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
   const [showResults, setShowResults] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const formatTime = (time: string | undefined) => {
+  const formatTime = (time: string | undefined | null) => {
     if (!time) return ""
-    const [hours, minutes] = time.split(":")
+    const parts = time.split(":")
+    const hours = parts[0]
+    const minutes = parts[1]
+    if (!hours || !minutes) return ""
     const hour = Number.parseInt(hours, 10)
     const ampm = hour >= 12 ? "PM" : "AM"
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour

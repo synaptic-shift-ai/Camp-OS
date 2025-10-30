@@ -63,16 +63,50 @@ export function ConfirmationClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { checkoutData, clearCheckoutData } = useCheckout()
-  const [confirmationNumber, setConfirmationNumber] = useState<string>("")
   const [copied, setCopied] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [similarSites, setSimilarSites] = useState<AvailableSite[]>([])
   const [isLoadingSimilar, setIsLoadingSimilar] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [confirmationError, setConfirmationError] = useState<string | null>(null)
 
+  // Get confirmation number from CheckoutContext
+  const confirmationNumber = checkoutData.confirmationNumber || ""
+
+  // Handle payment confirmation when redirected from Stripe
   useEffect(() => {
-    const number = `CAMP-${Date.now().toString().slice(-8)}`
-    setConfirmationNumber(number)
-  }, []) // Empty dependency array - only run once
+    const paymentIntent = searchParams.get("payment_intent")
+
+    // Only confirm if we have a payment intent and haven't confirmed yet
+    if (paymentIntent && checkoutData.reservationId && !isConfirming && confirmationNumber) {
+      setIsConfirming(true)
+
+      fetch("/api/guest/payment/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payment_intent_id: paymentIntent,
+          reservation_id: checkoutData.reservationId,
+        }),
+      })
+        .then((response) => response.json())
+        .then((result) => {
+          if (!result.success) {
+            console.error("[Confirmation] Payment confirmation failed:", result.error)
+            setConfirmationError(result.error?.message || "Failed to confirm payment")
+          } else {
+            console.log("[Confirmation] Payment confirmed successfully")
+          }
+        })
+        .catch((error) => {
+          console.error("[Confirmation] Error confirming payment:", error)
+          setConfirmationError("An error occurred while confirming your payment")
+        })
+        .finally(() => {
+          setIsConfirming(false)
+        })
+    }
+  }, [searchParams, checkoutData.reservationId, isConfirming, confirmationNumber])
 
   useEffect(() => {
     if (!checkoutData.site || !checkoutData.guestInfo) {
@@ -372,17 +406,17 @@ END:VCALENDAR`
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${checkoutData.priceBreakdown?.base_price_per_night} ×{" "}
+                      ${((checkoutData.priceBreakdown?.base_price_per_night || 0) / 100).toFixed(2)} ×{" "}
                       {checkoutData.priceBreakdown?.number_of_nights}{" "}
                       {checkoutData.priceBreakdown?.number_of_nights === 1 ? "night" : "nights"}
                     </span>
-                    <span className="font-medium">${checkoutData.priceBreakdown?.subtotal.toFixed(2)}</span>
+                    <span className="font-medium">${((checkoutData.priceBreakdown?.subtotal || 0) / 100).toFixed(2)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total Paid</span>
                     <span className="text-green-600 dark:text-green-500">
-                      ${checkoutData.priceBreakdown?.total.toFixed(2)}
+                      ${((checkoutData.priceBreakdown?.total || 0) / 100).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -474,7 +508,7 @@ END:VCALENDAR`
                           <span className="mr-1">{siteTypeIcons[site.site_type]}</span>
                           {site.site_type.toUpperCase()}
                         </Badge>
-                        <span className="text-sm font-medium">${site.base_price_per_night}/night</span>
+                        <span className="text-sm font-medium">${(site.base_price_per_night / 100).toFixed(2)}/night</span>
                       </div>
                       <Link href={`/book/${site.id}`}>
                         <Button variant="outline" size="sm" className="w-full bg-transparent">

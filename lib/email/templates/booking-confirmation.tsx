@@ -24,6 +24,12 @@ interface BookingConfirmationEmailProps {
   paidAmount: number // in cents
   paymentStatus: 'paid' | 'unpaid' | 'partial'
   specialRequests?: string
+  propertyPhone?: string
+  propertyEmail?: string
+  propertyAddress?: string
+  checkInTime?: string
+  checkOutTime?: string
+  directions?: string
 }
 
 export function BookingConfirmationEmail({
@@ -40,6 +46,12 @@ export function BookingConfirmationEmail({
   paidAmount,
   paymentStatus,
   specialRequests,
+  propertyPhone,
+  propertyEmail,
+  propertyAddress,
+  checkInTime,
+  checkOutTime,
+  directions,
 }: BookingConfirmationEmailProps) {
   const formatMoney = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -55,6 +67,18 @@ export function BookingConfirmationEmail({
       month: 'long',
       day: 'numeric',
     })
+  }
+
+  const formatTime = (time: string | undefined) => {
+    if (!time) return ''
+    const parts = time.split(':')
+    const hours = parts[0]
+    const minutes = parts[1]
+    if (!hours || !minutes) return ''
+    const hour = parseInt(hours, 10)
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+    return `${displayHour}:${minutes} ${ampm}`
   }
 
   const balanceDue = totalAmount - paidAmount
@@ -161,6 +185,74 @@ export function BookingConfirmationEmail({
               </Text>
             )}
           </Section>
+
+          {(checkInTime || checkOutTime || propertyPhone || propertyEmail || propertyAddress || directions) && (
+            <>
+              <Section style={detailsSection}>
+                <Heading as="h2" style={h2}>
+                  Arrival & Check-In Information
+                </Heading>
+
+                {(checkInTime || checkOutTime) && (
+                  <>
+                    <table style={detailsTable}>
+                      <tbody>
+                        {checkInTime && (
+                          <tr>
+                            <td style={labelCell}>Check-in Time:</td>
+                            <td style={valueCell}>After {formatTime(checkInTime)}</td>
+                          </tr>
+                        )}
+                        {checkOutTime && (
+                          <tr>
+                            <td style={labelCell}>Check-out Time:</td>
+                            <td style={valueCell}>Before {formatTime(checkOutTime)}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                    <Hr style={hr} />
+                  </>
+                )}
+
+                {(propertyPhone || propertyEmail || propertyAddress) && (
+                  <>
+                    <Text style={labelText}>Property Contact:</Text>
+                    <table style={detailsTable}>
+                      <tbody>
+                        {propertyPhone && (
+                          <tr>
+                            <td style={labelCell}>Phone:</td>
+                            <td style={valueCell}>{propertyPhone}</td>
+                          </tr>
+                        )}
+                        {propertyEmail && (
+                          <tr>
+                            <td style={labelCell}>Email:</td>
+                            <td style={valueCell}>{propertyEmail}</td>
+                          </tr>
+                        )}
+                        {propertyAddress && (
+                          <tr>
+                            <td style={labelCell}>Address:</td>
+                            <td style={valueCell}>{propertyAddress}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {directions && (
+                  <>
+                    <Hr style={hr} />
+                    <Text style={labelText}>Directions:</Text>
+                    <Text style={noteText}>{directions}</Text>
+                  </>
+                )}
+              </Section>
+            </>
+          )}
 
           <Hr style={hr} />
 

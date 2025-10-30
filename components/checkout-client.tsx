@@ -22,7 +22,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useCheckout } from "@/lib/booking/checkout-context"
 import type { SiteType } from "@/lib/booking/types"
+import { useToast } from "@/hooks/use-toast"
 
 const siteTypeIcons: Record<SiteType, React.ReactNode> = {
   rv: <Home className="h-4 w-4" />,
@@ -121,30 +123,12 @@ const steps = [
   { id: 4, name: "Confirmation", status: "upcoming" },
 ]
 
-// Mock data - in production this would come from context or URL params
-const mockReservationData = {
-  site: {
-    id: "1",
-    name: "Riverside Retreat",
-    site_number: "A-12",
-    site_type: "rv" as SiteType,
-    base_price_per_night: 45,
-    image_url: "/riverside-campsite-with-rv.jpg",
-  },
-  checkInDate: "2025-06-15",
-  checkOutDate: "2025-06-18",
-  numberOfGuests: 4,
-  priceBreakdown: {
-    base_price_per_night: 45,
-    number_of_nights: 3,
-    subtotal: 135,
-    total: 135,
-  },
-}
-
 export function CheckoutClient() {
   const router = useRouter()
+  const { toast } = useToast()
+  const { checkoutData, setCheckoutData } = useCheckout()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const {
     register,
@@ -177,16 +161,123 @@ export function CheckoutClient() {
 
   const onSubmit = async (data: GuestFormData) => {
     setIsSubmitting(true)
-    console.log("[v0] Guest form submitted:", data)
+    setError(null)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Validate that we have the required checkout data
+      if (!checkoutData.site || !checkoutData.checkInDate || !checkoutData.checkOutDate || !checkoutData.propertyId) {
+        throw new Error("Missing booking information. Please start over from site selection.")
+      }
 
-    // In production, save to context and navigate to payment
-    // router.push('/checkout/payment')
+      // Prepare the API request payload
+      const requestBody = {
+        property_id: checkoutData.propertyId,
+        site_id: checkoutData.site.id,
+        check_in_date: format(checkoutData.checkInDate, "yyyy-MM-dd"),
+        check_out_date: format(checkoutData.checkOutDate, "yyyy-MM-dd"),
+        num_adults: checkoutData.numAdults || 1,
+        num_children: checkoutData.numChildren || 0,
+        num_pets: checkoutData.numPets || 0,
+        num_vehicles: checkoutData.numVehicles || 1,
+        vehicle_info: checkoutData.vehicleInfo || [],
+        special_requests: data.special_requests || undefined,
+        guest: {
+          first_name: data.first_name,
+          last_name: data.last_name,
+          email: data.email,
+          phone: data.phone.replace(/\D/g, ""), // Remove formatting
+          address: data.address || undefined,
+          city: data.city || undefined,
+          state: data.state || undefined,
+          zip_code: data.zip_code || undefined,
+          country: data.country,
+        },
+      }
 
-    setIsSubmitting(false)
+      // Call the reservation creation API
+      const response = await fetch("/api/guest/reservations/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || "Failed to create reservation")
+      }
+
+      // Save reservation details to checkout context
+      const guestInfo: {
+        first_name: string
+        last_name: string
+        email: string
+        phone: string
+        address?: string
+        city?: string
+        state?: string
+        zip_code?: string
+        country: string
+      } = {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        phone: data.phone,
+        country: data.country,
+      }
+
+      // Only include optional fields if they have values
+      if (data.address) guestInfo.address = data.address
+      if (data.city) guestInfo.city = data.city
+      if (data.state) guestInfo.state = data.state
+      if (data.zip_code) guestInfo.zip_code = data.zip_code
+
+      setCheckoutData({
+        reservationId: result.data.reservation_id,
+        confirmationNumber: result.data.confirmation_number,
+        priceBreakdown: result.data.price_breakdown,
+        guestInfo,
+      })
+
+      // Navigate to payment page
+      router.push("/book/payment")
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+
+  // Redirect if missing required data
+  if (!checkoutData.site || !checkoutData.checkInDate || !checkoutData.checkOutDate || !checkoutData.priceBreakdown || !checkoutData.propertyId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Missing Booking Information</CardTitle>
+            <CardDescription>
+              We couldn't find your booking details. Please start over from site selection.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link href="/book">Start New Booking</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
+  }
+
+  const numberOfGuests = (checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
@@ -259,7 +350,7 @@ export function CheckoutClient() {
                 <div className="flex items-center justify-between">
                   <CardTitle>Review Your Reservation</CardTitle>
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/book/${mockReservationData.site.id}`}>Edit</Link>
+                    <Link href="/book">Edit</Link>
                   </Button>
                 </div>
               </CardHeader>
@@ -267,17 +358,17 @@ export function CheckoutClient() {
                 <div className="flex gap-4">
                   <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                     <img
-                      src={mockReservationData.site.image_url || "/placeholder.svg"}
-                      alt={mockReservationData.site.name}
+                      src={checkoutData.site.image_url || "/placeholder.svg"}
+                      alt={checkoutData.site.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{mockReservationData.site.name}</h3>
-                    <p className="text-sm text-muted-foreground mb-2">Site #{mockReservationData.site.site_number}</p>
-                    <Badge className={cn("border", siteTypeColors[mockReservationData.site.site_type])}>
-                      <span className="mr-1">{siteTypeIcons[mockReservationData.site.site_type]}</span>
-                      {mockReservationData.site.site_type.toUpperCase()}
+                    <h3 className="font-semibold text-lg">{checkoutData.site.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-2">Site #{checkoutData.site.site_number}</p>
+                    <Badge className={cn("border", siteTypeColors[checkoutData.site.site_type])}>
+                      <span className="mr-1">{siteTypeIcons[checkoutData.site.site_type]}</span>
+                      {checkoutData.site.site_type.toUpperCase()}
                     </Badge>
                   </div>
                 </div>
@@ -290,7 +381,7 @@ export function CheckoutClient() {
                     <div>
                       <p className="text-sm font-medium">Check-in</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(mockReservationData.checkInDate), "MMM dd, yyyy")}
+                        {format(checkoutData.checkInDate, "MMM dd, yyyy")}
                       </p>
                     </div>
                   </div>
@@ -299,7 +390,7 @@ export function CheckoutClient() {
                     <div>
                       <p className="text-sm font-medium">Check-out</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(mockReservationData.checkOutDate), "MMM dd, yyyy")}
+                        {format(checkoutData.checkOutDate, "MMM dd, yyyy")}
                       </p>
                     </div>
                   </div>
@@ -309,12 +400,11 @@ export function CheckoutClient() {
                   <Users className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">
-                      {mockReservationData.numberOfGuests}{" "}
-                      {mockReservationData.numberOfGuests === 1 ? "Guest" : "Guests"}
+                      {numberOfGuests} {numberOfGuests === 1 ? "Guest" : "Guests"}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {mockReservationData.priceBreakdown.number_of_nights}{" "}
-                      {mockReservationData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
+                      {checkoutData.priceBreakdown.number_of_nights}{" "}
+                      {checkoutData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
                     </p>
                   </div>
                 </div>
@@ -324,15 +414,15 @@ export function CheckoutClient() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${mockReservationData.priceBreakdown.base_price_per_night} ×{" "}
-                      {mockReservationData.priceBreakdown.number_of_nights}{" "}
-                      {mockReservationData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
+                      ${(checkoutData.priceBreakdown.base_price_per_night / 100).toFixed(2)} ×{" "}
+                      {checkoutData.priceBreakdown.number_of_nights}{" "}
+                      {checkoutData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
                     </span>
-                    <span className="font-medium">${mockReservationData.priceBreakdown.subtotal.toFixed(2)}</span>
+                    <span className="font-medium">${(checkoutData.priceBreakdown.subtotal / 100).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>${mockReservationData.priceBreakdown.total.toFixed(2)}</span>
+                    <span>${(checkoutData.priceBreakdown.total / 100).toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -498,8 +588,8 @@ export function CheckoutClient() {
               <CardContent className="space-y-4">
                 {/* Compact Site Info */}
                 <div>
-                  <p className="font-semibold">{mockReservationData.site.name}</p>
-                  <p className="text-sm text-muted-foreground">Site #{mockReservationData.site.site_number}</p>
+                  <p className="font-semibold">{checkoutData.site.name}</p>
+                  <p className="text-sm text-muted-foreground">Site #{checkoutData.site.site_number}</p>
                 </div>
 
                 <Separator />
@@ -508,15 +598,15 @@ export function CheckoutClient() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Check-in</span>
-                    <span className="font-medium">{format(new Date(mockReservationData.checkInDate), "MMM dd")}</span>
+                    <span className="font-medium">{format(checkoutData.checkInDate, "MMM dd")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Check-out</span>
-                    <span className="font-medium">{format(new Date(mockReservationData.checkOutDate), "MMM dd")}</span>
+                    <span className="font-medium">{format(checkoutData.checkOutDate, "MMM dd")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Guests</span>
-                    <span className="font-medium">{mockReservationData.numberOfGuests}</span>
+                    <span className="font-medium">{numberOfGuests}</span>
                   </div>
                 </div>
 
@@ -526,16 +616,16 @@ export function CheckoutClient() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${mockReservationData.priceBreakdown.base_price_per_night} ×{" "}
-                      {mockReservationData.priceBreakdown.number_of_nights}{" "}
-                      {mockReservationData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
+                      ${(checkoutData.priceBreakdown.base_price_per_night / 100).toFixed(2)} ×{" "}
+                      {checkoutData.priceBreakdown.number_of_nights}{" "}
+                      {checkoutData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
                     </span>
-                    <span className="font-medium">${mockReservationData.priceBreakdown.subtotal.toFixed(2)}</span>
+                    <span className="font-medium">${(checkoutData.priceBreakdown.subtotal / 100).toFixed(2)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-xl font-bold">
                     <span>Total</span>
-                    <span>${mockReservationData.priceBreakdown.total.toFixed(2)}</span>
+                    <span>${(checkoutData.priceBreakdown.total / 100).toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -550,7 +640,7 @@ export function CheckoutClient() {
                   {isSubmitting ? "Processing..." : "Continue to Payment"}
                 </Button>
                 <Button variant="outline" size="lg" className="w-full bg-transparent" asChild>
-                  <Link href={`/book/${mockReservationData.site.id}`}>
+                  <Link href="/book">
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back
                   </Link>

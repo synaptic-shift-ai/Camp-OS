@@ -10,7 +10,39 @@
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateDateRange } from './api'
-import type { Site, PriceBreakdown, BookingResult } from './types'
+import type { Site, PriceBreakdown, BookingResult, SiteType } from './types'
+
+/**
+ * Simple synchronous price calculation for guest bookings
+ * Used when we already have the site data and just need to calculate totals
+ */
+export function calculatePriceBreakdown(params: {
+  basePricePerNight: number
+  numberOfNights: number
+  siteType: SiteType
+  numPets?: number | undefined
+}): PriceBreakdown {
+  const { basePricePerNight, numberOfNights, numPets } = params
+
+  const subtotal = basePricePerNight * numberOfNights
+  let total = subtotal
+
+  const breakdown: PriceBreakdown = {
+    base_price_per_night: basePricePerNight,
+    number_of_nights: numberOfNights,
+    subtotal,
+    total,
+  }
+
+  // Add pet fee if applicable (flat $20 per stay for simplicity)
+  if (numPets && numPets > 0) {
+    const petFee = 2000 // $20.00 in cents
+    breakdown.pet_fee = petFee
+    breakdown.total += petFee
+  }
+
+  return breakdown
+}
 
 /**
  * Calculate number of nights between check-in and check-out

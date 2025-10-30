@@ -287,6 +287,9 @@ export interface AvailabilitySearchResult {
  * Data stored in checkout context during booking flow
  */
 export interface CheckoutData {
+  // Property context
+  propertyId?: string
+
   // Site selection
   site?: AvailableSite
   checkInDate?: Date

@@ -38,14 +38,20 @@ const steps = [
 
 export function PaymentClient() {
   const router = useRouter()
-  const { checkoutData } = useCheckout()
+  const { checkoutData, setCheckoutData } = useCheckout()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Redirect if no checkout data
-    if (!checkoutData.site || !checkoutData.guestInfo || !checkoutData.priceBreakdown) {
-      console.log("[v0] Missing checkout data, redirecting to home")
+    // Redirect if no checkout data or no reservation ID
+    if (!checkoutData.site || !checkoutData.guestInfo || !checkoutData.priceBreakdown || !checkoutData.reservationId || !checkoutData.propertyId) {
+      console.error("[Payment] Missing required checkout data", {
+        hassite: !!checkoutData.site,
+        hasGuestInfo: !!checkoutData.guestInfo,
+        hasPriceBreakdown: !!checkoutData.priceBreakdown,
+        hasReservationId: !!checkoutData.reservationId,
+        hasPropertyId: !!checkoutData.propertyId,
+      })
       router.push("/book")
       return
     }
@@ -53,26 +59,36 @@ export function PaymentClient() {
     // Create PaymentIntent
     const createPaymentIntent = async () => {
       try {
-        const response = await fetch("/api/create-payment-intent", {
+        const response = await fetch("/api/booking/create-payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            amount: checkoutData.priceBreakdown!.total,
-            reservationId: `temp-${Date.now()}`, // Temporary ID
+            reservation_id: checkoutData.reservationId,
+            property_id: checkoutData.propertyId,
           }),
         })
 
+        if (!response.ok) {
+          throw new Error(`Failed to create payment intent: ${response.statusText}`)
+        }
+
         const data = await response.json()
         setClientSecret(data.clientSecret)
+
+        // Save payment intent ID to context for confirmation later
+        setCheckoutData({
+          stripePaymentIntentId: data.paymentIntentId,
+        })
       } catch (error) {
-        console.error("[v0] Error creating payment intent:", error)
+        console.error("[Payment] Error creating payment intent:", error)
+        router.push("/book")
       } finally {
         setIsLoading(false)
       }
     }
 
     createPaymentIntent()
-  }, [checkoutData, router])
+  }, [checkoutData, router, setCheckoutData])
 
   if (isLoading || !clientSecret) {
     return (
@@ -272,16 +288,16 @@ export function PaymentClient() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${checkoutData.priceBreakdown?.base_price_per_night} ×{" "}
+                      ${((checkoutData.priceBreakdown?.base_price_per_night || 0) / 100).toFixed(2)} ×{" "}
                       {checkoutData.priceBreakdown?.number_of_nights}{" "}
                       {checkoutData.priceBreakdown?.number_of_nights === 1 ? "night" : "nights"}
                     </span>
-                    <span className="font-medium">${checkoutData.priceBreakdown?.subtotal.toFixed(2)}</span>
+                    <span className="font-medium">${((checkoutData.priceBreakdown?.subtotal || 0) / 100).toFixed(2)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-xl font-bold">
                     <span>Total</span>
-                    <span>${checkoutData.priceBreakdown?.total.toFixed(2)}</span>
+                    <span>${((checkoutData.priceBreakdown?.total || 0) / 100).toFixed(2)}</span>
                   </div>
                 </div>
 

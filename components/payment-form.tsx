@@ -105,7 +105,7 @@ export function PaymentForm() {
             Processing Payment...
           </>
         ) : (
-          <>Complete Booking - ${checkoutData.priceBreakdown?.total.toFixed(2)}</>
+          <>Complete Booking - ${((checkoutData.priceBreakdown?.total || 0) / 100).toFixed(2)}</>
         )}
       </Button>
 

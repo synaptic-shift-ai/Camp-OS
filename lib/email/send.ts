@@ -18,6 +18,13 @@ export interface BookingConfirmationData {
   paidAmount: number
   paymentStatus: 'paid' | 'unpaid' | 'partial'
   specialRequests?: string
+  // Property contact & arrival info
+  propertyPhone?: string
+  propertyEmail?: string
+  propertyAddress?: string
+  checkInTime?: string
+  checkOutTime?: string
+  directions?: string
 }
 
 export interface CancellationData {
@@ -56,6 +63,24 @@ export async function sendBookingConfirmation(data: BookingConfirmationData) {
     // Only add optional fields if they have values
     if (data.specialRequests) {
       emailProps.specialRequests = data.specialRequests
+    }
+    if (data.propertyPhone) {
+      emailProps.propertyPhone = data.propertyPhone
+    }
+    if (data.propertyEmail) {
+      emailProps.propertyEmail = data.propertyEmail
+    }
+    if (data.propertyAddress) {
+      emailProps.propertyAddress = data.propertyAddress
+    }
+    if (data.checkInTime) {
+      emailProps.checkInTime = data.checkInTime
+    }
+    if (data.checkOutTime) {
+      emailProps.checkOutTime = data.checkOutTime
+    }
+    if (data.directions) {
+      emailProps.directions = data.directions
     }
 
     const emailHtml = await render(BookingConfirmationEmail(emailProps))

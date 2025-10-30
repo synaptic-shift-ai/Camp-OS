@@ -114,7 +114,7 @@ export default function GuestInfoPage() {
       })
       router.push(`/book/${slug}`)
     }
-  }, [checkoutData, router, toast])
+  }, [checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, router, slug])
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),

@@ -7,6 +7,7 @@ interface CheckoutContextType {
   checkoutData: CheckoutData
   setCheckoutData: (data: Partial<CheckoutData>) => void
   clearCheckoutData: () => void
+  isHydrated: boolean
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(undefined)
@@ -57,7 +58,18 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
   }, [checkoutData, isHydrated])
 
   const setCheckoutData = (data: Partial<CheckoutData>) => {
-    setCheckoutDataState((prev) => ({ ...prev, ...data }))
+    setCheckoutDataState((prev) => {
+      const newData = { ...prev, ...data }
+
+      // IMMEDIATELY write to sessionStorage (synchronous)
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newData))
+      } catch (error) {
+        console.error("Failed to save checkout data to storage:", error)
+      }
+
+      return newData
+    })
   }
 
   const clearCheckoutData = () => {
@@ -70,7 +82,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <CheckoutContext.Provider value={{ checkoutData, setCheckoutData, clearCheckoutData }}>
+    <CheckoutContext.Provider value={{ checkoutData, setCheckoutData, clearCheckoutData, isHydrated }}>
       {children}
     </CheckoutContext.Provider>
   )

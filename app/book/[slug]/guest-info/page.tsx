@@ -100,12 +100,15 @@ type GuestFormData = z.infer<typeof guestFormSchema>
 export default function GuestInfoPage() {
   const params = useParams()
   const slug = params.slug as string
-  const { checkoutData, setCheckoutData } = useCheckout()
+  const { checkoutData, setCheckoutData, isHydrated } = useCheckout()
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
+    // Don't validate until hydration is complete
+    if (!isHydrated) return
+
     if (!checkoutData.site || !checkoutData.checkInDate || !checkoutData.checkOutDate) {
       toast({
         title: "Missing booking information",
@@ -114,7 +117,7 @@ export default function GuestInfoPage() {
       })
       router.push(`/book/${slug}`)
     }
-  }, [checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, router, slug])
+  }, [isHydrated, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, router, slug])
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),

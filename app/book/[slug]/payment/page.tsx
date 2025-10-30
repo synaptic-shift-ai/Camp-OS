@@ -182,13 +182,16 @@ function PaymentFormInner({ slug }: { slug: string }) {
 export default function PaymentPage() {
   const params = useParams()
   const slug = params.slug as string
-  const { checkoutData, setCheckoutData } = useCheckout()
+  const { checkoutData, setCheckoutData, isHydrated } = useCheckout()
   const router = useRouter()
   const { toast } = useToast()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    // Don't validate until hydration is complete
+    if (!isHydrated) return
+
     if (
       !checkoutData.site ||
       !checkoutData.checkInDate ||
@@ -240,7 +243,7 @@ export default function PaymentPage() {
     }
 
     createPaymentIntent()
-  }, [checkoutData, router, toast, slug, setCheckoutData])
+  }, [isHydrated, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, checkoutData.guestInfo, checkoutData.reservationId, checkoutData.propertyId, router, slug, setCheckoutData])
 
   if (isLoading || !clientSecret) {
     return (

@@ -616,30 +616,30 @@ export default function GuestInfoPage() {
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">
-                        ${priceBreakdown.basePrice} × {priceBreakdown.nights} night
+                        ${((priceBreakdown.basePrice || 0) / 100).toFixed(2)} × {priceBreakdown.nights} night
                         {priceBreakdown.nights !== 1 ? "s" : ""}
                       </span>
-                      <span className="font-medium">${priceBreakdown.subtotal}</span>
+                      <span className="font-medium">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
                     </div>
                     {(priceBreakdown.cleaningFee || 0) > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Cleaning fee</span>
-                        <span className="font-medium">${priceBreakdown.cleaningFee || 0}</span>
+                        <span className="font-medium">${((priceBreakdown.cleaningFee || 0) / 100).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Service fee</span>
-                      <span className="font-medium">${priceBreakdown.serviceFee}</span>
+                      <span className="font-medium">${((priceBreakdown.serviceFee || 0) / 100).toFixed(2)}</span>
                     </div>
-                    {priceBreakdown.taxes > 0 && (
+                    {(priceBreakdown.taxes || 0) > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Taxes ({(DEFAULT_TAX_RATE * 100).toFixed(1)}%)</span>
-                        <span className="font-medium">${priceBreakdown.taxes}</span>
+                        <span className="font-medium">${((priceBreakdown.taxes || 0) / 100).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-lg font-bold border-t pt-2">
                       <span>Total</span>
-                      <span className="text-[#2D5A27]">${priceBreakdown.total}</span>
+                      <span className="text-[#2D5A27]">${((priceBreakdown.total || 0) / 100).toFixed(2)}</span>
                     </div>
                   </div>
 

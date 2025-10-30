@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,15 +47,16 @@ function AvailabilityResultsContent() {
   const children = Number.parseInt(searchParams.get("children") || "0")
   const siteTypeFilter = searchParams.get("siteType") as SiteType | null
 
-  const checkIn = checkInStr ? new Date(checkInStr) : null
-  const checkOut = checkOutStr ? new Date(checkOutStr) : null
+  // Parse dates inside useMemo to avoid recreating on every render
+  const checkIn = useMemo(() => checkInStr ? new Date(checkInStr) : null, [checkInStr])
+  const checkOut = useMemo(() => checkOutStr ? new Date(checkOutStr) : null, [checkOutStr])
   const nights = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0
 
   useEffect(() => {
     let mounted = true
 
     const fetchAvailableSites = async () => {
-      if (!propertyId || !checkIn || !checkOut) {
+      if (!propertyId || !checkInStr || !checkOutStr) {
         setIsLoading(false)
         return
       }
@@ -66,8 +67,8 @@ function AvailabilityResultsContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             property_id: propertyId,
-            check_in_date: format(checkIn, "yyyy-MM-dd"),
-            check_out_date: format(checkOut, "yyyy-MM-dd"),
+            check_in_date: checkInStr,
+            check_out_date: checkOutStr,
             num_adults: adults,
             num_children: children,
             site_type: siteTypeFilter || undefined,
@@ -107,7 +108,7 @@ function AvailabilityResultsContent() {
     return () => {
       mounted = false
     }
-  }, [propertyId, checkIn, checkOut, adults, children, siteTypeFilter])
+  }, [propertyId, checkInStr, checkOutStr, adults, children, siteTypeFilter])
 
   const getSiteIcon = (type: SiteType) => {
     switch (type) {

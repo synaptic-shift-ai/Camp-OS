@@ -238,15 +238,26 @@ export interface Payment {
  * Detailed breakdown of reservation pricing
  */
 export interface PriceBreakdown {
-  base_price_per_night: number
-  number_of_nights: number
+  base_price_per_night?: number
+  basePrice?: number
+  number_of_nights?: number
+  nights?: number
   subtotal: number // base_price_per_night × number_of_nights
 
   // Additional fees
   cleaning_fee?: number
+  cleaningFee?: number
   pet_fee?: number
+  petFee?: number
   extra_guest_fee?: number
+  extraGuestFee?: number
   weekend_surcharge?: number
+  weekendSurcharge?: number
+  service_fee?: number
+  serviceFee?: number
+  tax_rate?: number
+  taxRate?: number
+  taxes?: number
 
   total: number
 }
@@ -336,3 +347,12 @@ export interface BookingError {
 export type BookingResult<T> =
   | { success: true; data: T }
   | { success: false; error: BookingError }
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Default tax rate for bookings (8.5%)
+ */
+export const DEFAULT_TAX_RATE = 0.085

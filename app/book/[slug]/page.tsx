@@ -78,7 +78,7 @@ export default async function PropertyBookingPage({
     amenities: (property.amenities as string[]) || [],
   }
 
-  return <PropertyBookingPortal property={propertyData} />
+  return <PropertyBookingPortal property={propertyData} slug={slug} />
 }
 
 // Generate metadata for SEO

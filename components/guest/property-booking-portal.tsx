@@ -31,9 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useCheckout } from "@/lib/booking/checkout-context"
-import type { AvailableSite, SiteType } from "@/lib/booking/types"
-import { calculatePriceBreakdown } from "@/lib/booking/pricing"
+import type { SiteType } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
@@ -53,11 +51,11 @@ interface PropertyBookingPortalProps {
     cancellation_policy: string | null
     amenities: string[]
   }
+  slug: string
 }
 
-export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) {
+export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalProps) {
   const router = useRouter()
-  const { setCheckoutData } = useCheckout()
   const { toast } = useToast()
 
   const [checkInDate, setCheckInDate] = useState<Date>()
@@ -66,8 +64,6 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
   const [children, setChildren] = useState(0)
   const [selectedSiteType, setSelectedSiteType] = useState<SiteType | ("")>("")
   const [isSearching, setIsSearching] = useState(false)
-  const [searchResults, setSearchResults] = useState<AvailableSite[]>([])
-  const [showResults, setShowResults] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const formatTime = (time: string | undefined | null) => {
@@ -110,81 +106,21 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
       return
     }
 
-    setIsSearching(true)
-    try {
-      const response = await fetch("/api/booking/search-availability", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          property_id: property.id,
-          check_in_date: format(checkInDate, "yyyy-MM-dd"),
-          check_out_date: format(checkOutDate, "yyyy-MM-dd"),
-          num_adults: adults,
-          num_children: children,
-          site_type: selectedSiteType || undefined,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setSearchResults(result.data.sites || [])
-        setShowResults(true)
-        toast({
-          title: "Search complete",
-          description: `Found ${result.data.sites?.length || 0} available sites`,
-        })
-      } else {
-        toast({
-          title: "Search failed",
-          description: result.error || "Unable to search availability",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("[v0] Search availability error:", error)
-      toast({
-        title: "Error",
-        description: "Failed to search availability. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  const handleBookSite = (site: AvailableSite) => {
-    if (!checkInDate || !checkOutDate) {
-      toast({
-        title: "Missing dates",
-        description: "Please select check-in and check-out dates",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Calculate number of nights
-    const diffTime = checkOutDate.getTime() - checkInDate.getTime()
-    const numberOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    // Calculate price breakdown
-    const priceBreakdown = calculatePriceBreakdown({
-      basePricePerNight: site.base_price_per_night,
-      numberOfNights,
-      siteType: site.site_type,
-      numPets: 0, // TODO: Get from form if needed
-    })
-
-    setCheckoutData({
+    // Navigate to availability results page with search params
+    const params = new URLSearchParams({
+      slug: slug,
       propertyId: property.id,
-      site,
-      checkInDate,
-      checkOutDate,
-      numAdults: adults,
-      numChildren: children,
-      priceBreakdown,
+      checkIn: format(checkInDate, "yyyy-MM-dd"),
+      checkOut: format(checkOutDate, "yyyy-MM-dd"),
+      adults: adults.toString(),
+      children: children.toString(),
     })
-    router.push("/book/checkout")
+
+    if (selectedSiteType) {
+      params.append("siteType", selectedSiteType)
+    }
+
+    router.push(`/availability-results?${params.toString()}`)
   }
 
   const getSiteTypeIcon = (type: SiteType) => {
@@ -504,52 +440,6 @@ export function PropertyBookingPortal({ property }: PropertyBookingPortalProps) 
       </section>
 
       {/* Search Results */}
-      {showResults && (
-        <section className="py-8 bg-white">
-          <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold text-[#2D5A27] mb-6">Available Sites ({searchResults.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {searchResults.map((site) => {
-                const IconComponent = getSiteTypeIcon(site.site_type)
-                return (
-                  <Card key={site.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="relative h-48">
-                      <Image
-                        src={site.image_url || "/placeholder.svg?height=200&width=400&query=campsite"}
-                        alt={site.name}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute top-4 left-4">
-                        <div className="bg-white/95 p-2 rounded-full">
-                          <IconComponent className="h-5 w-5 text-[#2D5A27]" />
-                        </div>
-                      </div>
-                      <div className="absolute top-4 right-4">
-                        <Badge className="bg-[#2D5A27] text-white">${site.base_price_per_night}/night</Badge>
-                      </div>
-                    </div>
-                    <CardHeader>
-                      <CardTitle className="text-lg text-[#2D5A27]">{site.name}</CardTitle>
-                      <CardDescription>
-                        Site #{site.site_number} • Sleeps {site.max_occupancy}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button
-                        className="w-full bg-[#2D5A27] hover:bg-[#1e3d1a] text-white"
-                        onClick={() => handleBookSite(site)}
-                      >
-                        Book This Site
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Site Types Section */}
       <section id="sites" className="py-16">

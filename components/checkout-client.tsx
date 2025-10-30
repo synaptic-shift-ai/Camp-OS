@@ -414,9 +414,9 @@ export function CheckoutClient() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${(checkoutData.priceBreakdown.base_price_per_night / 100).toFixed(2)} ×{" "}
-                      {checkoutData.priceBreakdown.number_of_nights}{" "}
-                      {checkoutData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
+                      ${((checkoutData.priceBreakdown.base_price_per_night || 0) / 100).toFixed(2)} ×{" "}
+                      {checkoutData.priceBreakdown.number_of_nights || 0}{" "}
+                      {(checkoutData.priceBreakdown.number_of_nights || 0) === 1 ? "night" : "nights"}
                     </span>
                     <span className="font-medium">${(checkoutData.priceBreakdown.subtotal / 100).toFixed(2)}</span>
                   </div>
@@ -616,9 +616,9 @@ export function CheckoutClient() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${(checkoutData.priceBreakdown.base_price_per_night / 100).toFixed(2)} ×{" "}
-                      {checkoutData.priceBreakdown.number_of_nights}{" "}
-                      {checkoutData.priceBreakdown.number_of_nights === 1 ? "night" : "nights"}
+                      ${((checkoutData.priceBreakdown.base_price_per_night || 0) / 100).toFixed(2)} ×{" "}
+                      {checkoutData.priceBreakdown.number_of_nights || 0}{" "}
+                      {(checkoutData.priceBreakdown.number_of_nights || 0) === 1 ? "night" : "nights"}
                     </span>
                     <span className="font-medium">${(checkoutData.priceBreakdown.subtotal / 100).toFixed(2)}</span>
                   </div>

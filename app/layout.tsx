@@ -4,6 +4,8 @@ import { Inter, Montserrat } from "next/font/google"
 
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/theme-provider"
+import { CheckoutProvider } from "@/lib/booking/checkout-context"
+import { Toaster } from "@/components/ui/toaster"
 
 import "@/app/globals.css"
 
@@ -49,7 +51,10 @@ export default function RootLayout({
         )}
       >
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          {children}
+          <CheckoutProvider>
+            {children}
+            <Toaster />
+          </CheckoutProvider>
         </ThemeProvider>
       </body>
     </html>

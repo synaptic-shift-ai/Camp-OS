@@ -20,11 +20,16 @@ const supabase = createClient(
 )
 
 export async function POST(request: NextRequest) {
+  console.log('[Webhook] ========== STRIPE WEBHOOK RECEIVED ==========')
   const body = await request.text()
   const headersList = await headers()
   const signature = headersList.get("stripe-signature")
 
+  console.log('[Webhook] Has signature:', !!signature)
+  console.log('[Webhook] Webhook secret configured:', !!process.env.STRIPE_WEBHOOK_SECRET)
+
   if (!signature) {
+    console.error('[Webhook] ❌ Missing stripe-signature header')
     return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 })
   }
 
@@ -32,8 +37,11 @@ export async function POST(request: NextRequest) {
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
+    console.log('[Webhook] ✓ Signature verified successfully')
+    console.log('[Webhook] Event type:', event.type)
+    console.log('[Webhook] Event ID:', event.id)
   } catch (err) {
-    console.error("Webhook signature verification failed:", err)
+    console.error('[Webhook] ❌ Signature verification failed:', err)
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
@@ -41,12 +49,15 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
+        console.log('[Webhook] Checkout session mode:', session.mode)
 
         // Only handle subscription checkouts
         if (session.mode !== "subscription") {
+          console.log('[Webhook] ⚠ Skipping non-subscription checkout')
           break
         }
 
+        console.log('[Webhook] Processing subscription checkout...')
         await handleCheckoutSessionCompleted(session)
         break
       }
@@ -88,6 +99,10 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  console.log('[Webhook] ========== CHECKOUT SESSION COMPLETED ==========')
+  console.log('[Webhook] Session ID:', session.id)
+  console.log('[Webhook] Session metadata:', session.metadata)
+
   const userIdRaw = session.metadata?.supabase_user_id
   const planId = session.metadata?.planId
   const billingCycle = session.metadata?.billingCycle
@@ -95,9 +110,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const companyDataRaw = session.metadata?.companyData
 
   if (!userIdRaw || !planId) {
-    console.error("Missing required metadata in checkout session")
+    console.error('[Webhook] ❌ Missing required metadata:', {
+      hasUserId: !!userIdRaw,
+      hasPlanId: !!planId,
+      metadata: session.metadata
+    })
     return
   }
+
+  console.log('[Webhook] ✓ Required metadata present:', { userId: userIdRaw, planId })
 
   // Type-safe userId after null check
   const userId: string = userIdRaw
@@ -107,43 +128,63 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   if (companyDataRaw) {
     try {
       companyData = JSON.parse(companyDataRaw)
-      console.log('[Webhook] Parsed company data:', {
+      console.log('[Webhook] ✓ Parsed company data:', {
         companyName: companyData?.companyName,
-        propertyCount: companyData?.properties?.length
+        propertyCount: companyData?.properties?.length,
+        properties: companyData?.properties
       })
     } catch (err) {
-      console.error('[Webhook] Failed to parse company data:', err)
+      console.error('[Webhook] ❌ Failed to parse company data:', err)
     }
+  } else {
+    console.log('[Webhook] ⚠ No company data in metadata')
   }
 
   const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
 
+  console.log('[Webhook] Stripe IDs:', {
+    customerId,
+    subscriptionId,
+    customerEmail: session.customer_details?.email
+  })
+
   // Create company record (this is the FIRST database write)
+  console.log('[Webhook] Creating company record...')
+  const companyInsertData = {
+    owner_id: userId,
+    name: companyData?.companyName || "My Company",
+    stripe_customer_id: customerId,
+    subscription_id: subscriptionId,
+    subscription_status: "active",
+    subscription_plan: planId,
+    subscription_created_at: new Date().toISOString(),
+    billing_cycle: billingCycle,
+  }
+  console.log('[Webhook] Company insert data:', companyInsertData)
+
   const { data: company, error: companyError } = await supabase
     .from("companies")
-    .insert({
-      owner_id: userId,
-      name: companyData?.companyName || "My Company",
-      stripe_customer_id: customerId,
-      subscription_id: subscriptionId,
-      subscription_status: "active",
-      subscription_plan: planId,
-      subscription_created_at: new Date().toISOString(),
-      billing_cycle: billingCycle,
-    })
+    .insert(companyInsertData)
     .select("id")
     .single()
 
   if (companyError || !company) {
-    console.error("Error creating company:", companyError)
+    console.error('[Webhook] ❌ ERROR creating company:', {
+      error: companyError,
+      code: companyError?.code,
+      message: companyError?.message,
+      details: companyError?.details,
+      hint: companyError?.hint
+    })
     return
   }
 
-  console.log('[Webhook] Company created:', company.id)
+  console.log('[Webhook] ✅ Company created successfully:', company.id)
 
   // Create property records based on company data
   if (companyData?.properties && companyData.properties.length > 0) {
+    console.log('[Webhook] Creating', companyData.properties.length, 'properties...')
     const propertiesToCreate = companyData.properties.map((prop) => ({
       owner_id: userId,
       company_id: company.id,
@@ -153,18 +194,26 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       onboarding_completed: false, // User needs to complete onboarding wizard
     }))
 
+    console.log('[Webhook] Properties to create:', propertiesToCreate)
+
     const { data: createdProperties, error: propertiesError } = await supabase
       .from("properties")
       .insert(propertiesToCreate)
       .select("id, name")
 
     if (propertiesError) {
-      console.error("Error creating properties:", propertiesError)
+      console.error('[Webhook] ❌ Error creating properties:', {
+        error: propertiesError,
+        code: propertiesError?.code,
+        message: propertiesError?.message,
+        details: propertiesError?.details
+      })
       return
     }
 
-    console.log('[Webhook] Properties created:', createdProperties?.length)
+    console.log('[Webhook] ✅ Properties created:', createdProperties?.length, createdProperties)
   } else {
+    console.log('[Webhook] Creating default property...')
     // Fallback: create a single default property
     const { error: propertyError } = await supabase
       .from("properties")
@@ -178,9 +227,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       })
 
     if (propertyError) {
-      console.error("Error creating default property:", propertyError)
+      console.error('[Webhook] ❌ Error creating default property:', {
+        error: propertyError,
+        code: propertyError?.code,
+        message: propertyError?.message
+      })
       return
     }
+
+    console.log('[Webhook] ✅ Default property created')
   }
 
   // Log subscription event

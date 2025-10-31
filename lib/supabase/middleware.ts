@@ -80,20 +80,26 @@ export async function updateSession(request: NextRequest) {
 
     // Check 3: Onboarding completion required for dashboard
     if (company && needsOnboardingComplete) {
-      // Check if any properties are incomplete
-      const { data: incompleteProperties } = await supabase
-        .from("properties")
-        .select("id")
-        .eq("company_id", company.id)
-        .eq("onboarding_completed", false)
-        .limit(1)
+      // IMPORTANT: Allow wizard pages even with incomplete onboarding
+      // The wizard IS the onboarding process
+      const isWizardPage = pathname.startsWith("/dashboard/sites") && request.nextUrl.searchParams.get("wizard") === "true"
 
-      // If any properties are incomplete, redirect to onboarding
-      if (incompleteProperties && incompleteProperties.length > 0) {
-        if (!pathname.startsWith("/onboarding")) {
-          const url = request.nextUrl.clone()
-          url.pathname = "/onboarding"
-          return NextResponse.redirect(url)
+      if (!isWizardPage) {
+        // Check if any properties are incomplete
+        const { data: incompleteProperties } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("company_id", company.id)
+          .eq("onboarding_completed", false)
+          .limit(1)
+
+        // If any properties are incomplete, redirect to onboarding
+        if (incompleteProperties && incompleteProperties.length > 0) {
+          if (!pathname.startsWith("/onboarding")) {
+            const url = request.nextUrl.clone()
+            url.pathname = "/onboarding"
+            return NextResponse.redirect(url)
+          }
         }
       }
     }

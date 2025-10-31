@@ -190,10 +190,27 @@ export default function PaymentPage() {
 
   useEffect(() => {
     // Don't validate until hydration is complete
-    if (!isHydrated) return
+    if (!isHydrated) {
+      console.log('[Payment] Waiting for hydration...')
+      return
+    }
 
     // Don't create payment intent if we already have one
-    if (clientSecret) return
+    if (clientSecret) {
+      console.log('[Payment] Already have client secret, skipping')
+      return
+    }
+
+    console.log('[Payment] Checkout data:', {
+      hasSite: !!checkoutData.site,
+      hasCheckIn: !!checkoutData.checkInDate,
+      hasCheckOut: !!checkoutData.checkOutDate,
+      hasGuestInfo: !!checkoutData.guestInfo,
+      hasReservationId: !!checkoutData.reservationId,
+      hasPropertyId: !!checkoutData.propertyId,
+      reservationId: checkoutData.reservationId,
+      propertyId: checkoutData.propertyId,
+    })
 
     if (
       !checkoutData.site ||
@@ -203,6 +220,7 @@ export default function PaymentPage() {
       !checkoutData.reservationId ||
       !checkoutData.propertyId
     ) {
+      console.error('[Payment] Missing required checkout data')
       toast({
         title: "Missing information",
         description: "Please complete the previous steps first.",
@@ -214,6 +232,11 @@ export default function PaymentPage() {
 
     const createPaymentIntent = async () => {
       try {
+        console.log('[Payment] Creating payment intent with:', {
+          reservation_id: checkoutData.reservationId,
+          property_id: checkoutData.propertyId,
+        })
+
         const response = await fetch("/api/booking/create-payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -223,20 +246,25 @@ export default function PaymentPage() {
           }),
         })
 
+        console.log('[Payment] Response status:', response.status)
+
         if (!response.ok) {
-          throw new Error(`Failed to create payment intent: ${response.statusText}`)
+          const errorData = await response.json()
+          console.error('[Payment] Error response:', errorData)
+          throw new Error(errorData.error || `Failed to create payment intent: ${response.statusText}`)
         }
 
         const data = await response.json()
+        console.log('[Payment] Payment intent created successfully')
         setClientSecret(data.clientSecret)
         setCheckoutData({
           stripePaymentIntentId: data.paymentIntentId,
         })
       } catch (error) {
-        console.error("Error creating payment intent:", error)
+        console.error("[Payment] Error creating payment intent:", error)
         toast({
           title: "Error",
-          description: "Failed to prepare payment. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to prepare payment. Please try again.",
           variant: "destructive",
         })
         router.push(`/book/${slug}/guest-info`)

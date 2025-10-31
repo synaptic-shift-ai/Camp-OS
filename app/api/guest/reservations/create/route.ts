@@ -148,12 +148,73 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
-    // Step 3: Check availability (no overlapping reservations)
+    // Step 3: Check for existing guest by email (need guest_id for next check)
+    // ========================================================================
+
+    // Check if guest exists by email for this property
+    const { data: existingGuestForCheck } = await supabase
+      .from('guests')
+      .select('id')
+      .eq('email', validatedInput.guest.email)
+      .eq('property_id', validatedInput.property_id)
+      .single()
+
+    // ========================================================================
+    // Step 4: Check if this exact reservation already exists (idempotency)
+    // ========================================================================
+
+    if (existingGuestForCheck) {
+      // Check if this guest already has a pending reservation for these exact dates/site
+      const { data: existingReservation } = await supabase
+        .from('reservations')
+        .select('id, confirmation_number, total_amount')
+        .eq('site_id', validatedInput.site_id)
+        .eq('guest_id', existingGuestForCheck.id)
+        .eq('check_in_date', validatedInput.check_in_date)
+        .eq('check_out_date', validatedInput.check_out_date)
+        .eq('status', 'pending')
+        .eq('payment_status', 'unpaid')
+        .single()
+
+      if (existingReservation) {
+        // Return existing reservation instead of creating duplicate
+        console.log('[Guest Reservation] Returning existing pending reservation:', existingReservation.id)
+
+        const checkIn = new Date(validatedInput.check_in_date)
+        const checkOut = new Date(validatedInput.check_out_date)
+        const numberOfNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
+
+        const priceBreakdown = calculatePriceBreakdown({
+          basePricePerNight: site.base_price,
+          numberOfNights,
+          siteType: site.site_type as any,
+          numPets: validatedInput.num_pets,
+        })
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            reservation_id: existingReservation.id,
+            confirmation_number: existingReservation.confirmation_number,
+            total_amount_cents: existingReservation.total_amount,
+            property_id: validatedInput.property_id,
+            site_name: site.site_name || `Site ${site.site_number}`,
+            check_in_date: validatedInput.check_in_date,
+            check_out_date: validatedInput.check_out_date,
+            number_of_nights: numberOfNights,
+            price_breakdown: priceBreakdown,
+          },
+        })
+      }
+    }
+
+    // ========================================================================
+    // Step 5: Check availability (no overlapping confirmed/checked-in reservations)
     // ========================================================================
 
     const { data: existingReservations, error: availError } = await supabase
       .from('reservations')
-      .select('id')
+      .select('id, status, guest_id')
       .eq('site_id', validatedInput.site_id)
       .not('status', 'in', '(cancelled,no_show)')
       .or(`and(check_in_date.lt.${validatedInput.check_out_date},check_out_date.gt.${validatedInput.check_in_date})`)
@@ -169,7 +230,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (existingReservations && existingReservations.length > 0) {
+    // Filter out pending reservations from OTHER guests (allow same guest to continue)
+    const blockingReservations = existingReservations?.filter(res => {
+      // Allow confirmed/checked-in from anyone to block
+      if (res.status === 'confirmed' || res.status === 'checked_in') {
+        return true
+      }
+      // For pending reservations, only block if it's from a DIFFERENT guest
+      if (res.status === 'pending' && existingGuestForCheck && res.guest_id !== existingGuestForCheck.id) {
+        return true
+      }
+      return false
+    }) || []
+
+    if (blockingReservations.length > 0) {
       return NextResponse.json(
         {
           success: false,
@@ -183,7 +257,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
-    // Step 4: Calculate pricing
+    // Step 6: Calculate pricing
     // ========================================================================
 
     const checkIn = new Date(validatedInput.check_in_date)
@@ -208,22 +282,15 @@ export async function POST(request: NextRequest) {
     })
 
     // ========================================================================
-    // Step 5: Create or find guest record
+    // Step 7: Create or update guest record
     // ========================================================================
 
-    // Check if guest exists by email for this property
-    const { data: existingGuest } = await supabase
-      .from('guests')
-      .select('id')
-      .eq('email', validatedInput.guest.email)
-      .eq('property_id', validatedInput.property_id)
-      .single()
-
+    // Reuse the guest lookup we did earlier
     let guestId: string
 
-    if (existingGuest) {
+    if (existingGuestForCheck) {
       // Use existing guest
-      guestId = existingGuest.id
+      guestId = existingGuestForCheck.id
 
       // Update guest info if provided
       await supabase
@@ -278,13 +345,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
-    // Step 6: Generate confirmation number
+    // Step 8: Generate confirmation number
     // ========================================================================
 
     const confirmationNumber = `CAMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
     // ========================================================================
-    // Step 7: Create pending reservation
+    // Step 9: Create pending reservation
     // ========================================================================
 
     const { data: reservation, error: reservationError } = await supabase
@@ -323,7 +390,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
-    // Step 8: Return reservation details for payment
+    // Step 10: Return reservation details for payment
     // ========================================================================
 
     return NextResponse.json({

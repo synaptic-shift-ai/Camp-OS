@@ -40,15 +40,26 @@ export async function GET() {
     }
 
     // Get all properties for this company
+    console.log('[Properties API] Fetching properties for company:', company.id)
     const { data: properties, error: propertiesError } = await supabaseAdmin
       .from("properties")
-      .select("id, name, site_count, onboarding_completed, address, city, state, zip_code, phone, email, description")
+      .select("*")
       .eq("company_id", company.id)
       .order("created_at", { ascending: true })
 
     if (propertiesError) {
-      console.error("Error fetching properties:", propertiesError)
+      console.error("[Properties API] Error fetching properties:", propertiesError)
       return NextResponse.json({ error: "Failed to fetch properties" }, { status: 500 })
+    }
+
+    console.log('[Properties API] Found properties:', properties?.length || 0)
+    if (properties && properties.length > 0) {
+      console.log('[Properties API] Property IDs:', properties.map(p => p.id))
+      console.log('[Properties API] Onboarding status:', properties.map(p => ({
+        id: p.id,
+        name: p.name,
+        onboarding_completed: p.onboarding_completed
+      })))
     }
 
     return NextResponse.json({ properties: properties || [] })

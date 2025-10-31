@@ -370,19 +370,49 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
 
-  // Find company by customer ID (billing is at company level)
-  const { data: company, error: findError } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("stripe_customer_id", customerId)
-    .single()
+  console.log('[Webhook] ========== INVOICE PAYMENT SUCCEEDED ==========')
+  console.log('[Webhook] Customer ID:', customerId)
+  console.log('[Webhook] Invoice ID:', invoice.id)
+  console.log('[Webhook] Amount:', invoice.amount_paid / 100, invoice.currency)
 
-  if (findError || !company) {
-    console.error("Company not found for customer:", customerId)
+  // Find company by customer ID (billing is at company level)
+  // Add retry logic for race condition
+  let company: { id: string } | null = null
+  let attempts = 0
+  const maxAttempts = 3
+
+  while (!company && attempts < maxAttempts) {
+    attempts++
+    console.log(`[Webhook] Attempt ${attempts}/${maxAttempts} to find company...`)
+
+    const { data, error: findError } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("stripe_customer_id", customerId)
+      .single()
+
+    if (data) {
+      company = data
+      console.log('[Webhook] ✓ Company found:', company.id)
+    } else if (attempts < maxAttempts) {
+      console.log('[Webhook] Company not found yet, waiting 500ms before retry...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+    } else {
+      console.error('[Webhook] ❌ Company not found after', maxAttempts, 'attempts:', {
+        customerId,
+        error: findError
+      })
+    }
+  }
+
+  if (!company) {
+    console.error('[Webhook] ⚠️ Skipping payment logging - company should be created by checkout.session.completed')
+    console.error('[Webhook] ⚠️ If this persists, check if checkout.session.completed webhook was received')
     return
   }
 
   // Log payment event
+  console.log('[Webhook] Logging payment event...')
   await supabase.from("subscription_events").insert({
     company_id: company.id,
     event_type: "payment_succeeded",
@@ -392,6 +422,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       currency: invoice.currency,
     },
   })
+
+  console.log('[Webhook] ✅ Payment event logged')
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {

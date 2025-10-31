@@ -259,19 +259,48 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string
 
-  // Find company by customer ID (billing is at company level)
-  const { data: company, error: findError } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("stripe_customer_id", customerId)
-    .single()
+  console.log('[Webhook] ========== SUBSCRIPTION UPDATED ==========')
+  console.log('[Webhook] Customer ID:', customerId)
+  console.log('[Webhook] Subscription ID:', subscription.id)
+  console.log('[Webhook] Status:', subscription.status)
 
-  if (findError || !company) {
-    console.error("Company not found for customer:", customerId)
+  // Find company by customer ID (billing is at company level)
+  // Add retry logic for race condition with checkout.session.completed
+  let company: { id: string } | null = null
+  let attempts = 0
+  const maxAttempts = 3
+
+  while (!company && attempts < maxAttempts) {
+    attempts++
+    console.log(`[Webhook] Attempt ${attempts}/${maxAttempts} to find company...`)
+
+    const { data, error: findError } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("stripe_customer_id", customerId)
+      .single()
+
+    if (data) {
+      company = data
+      console.log('[Webhook] ✓ Company found:', company.id)
+    } else if (attempts < maxAttempts) {
+      console.log('[Webhook] Company not found yet, waiting 500ms before retry...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+    } else {
+      console.error('[Webhook] ❌ Company not found after', maxAttempts, 'attempts:', {
+        customerId,
+        error: findError
+      })
+    }
+  }
+
+  if (!company) {
+    console.error('[Webhook] ⚠️ Skipping subscription update - company will be created by checkout.session.completed')
     return
   }
 
   // Update subscription status at company level
+  console.log('[Webhook] Updating company subscription status...')
   const { error: updateError } = await supabase
     .from("companies")
     .update({
@@ -281,9 +310,11 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     .eq("id", company.id)
 
   if (updateError) {
-    console.error("Error updating subscription:", updateError)
+    console.error('[Webhook] ❌ Error updating subscription:', updateError)
     return
   }
+
+  console.log('[Webhook] ✅ Subscription updated successfully')
 
   // Log event
   await supabase.from("subscription_events").insert({

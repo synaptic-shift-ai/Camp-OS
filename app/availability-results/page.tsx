@@ -53,13 +53,17 @@ function AvailabilityResultsContent() {
   const nights = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0
 
   useEffect(() => {
+    console.log('[Availability] Effect running with params:', { propertyId, checkInStr, checkOutStr, adults, children, siteTypeFilter })
     let mounted = true
 
     const fetchAvailableSites = async () => {
       if (!propertyId || !checkInStr || !checkOutStr) {
+        console.log('[Availability] Missing required params, skipping search')
         setIsLoading(false)
         return
       }
+
+      console.log('[Availability] Starting search...')
 
       try {
         const response = await fetch("/api/booking/search-availability", {

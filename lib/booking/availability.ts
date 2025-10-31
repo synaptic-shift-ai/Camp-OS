@@ -216,7 +216,11 @@ export async function searchAvailableSites(
 
   const { data: allSites, error: siteError } = await query
 
+  console.log('[Availability] Query params:', params)
+  console.log('[Availability] Sites from DB:', allSites?.length || 0)
+
   if (siteError) {
+    console.error('[Availability] Database error:', siteError)
     return {
       success: false,
       error: {
@@ -227,6 +231,7 @@ export async function searchAvailableSites(
   }
 
   if (!allSites || allSites.length === 0) {
+    console.log('[Availability] No sites found in database for property:', params.property_id)
     return {
       success: true,
       data: {
@@ -263,10 +268,16 @@ export async function searchAvailableSites(
   // Get set of occupied site IDs
   const occupiedSiteIds = new Set(overlappingReservations?.map((r) => r.site_id) || [])
 
+  console.log('[Availability] Total sites found:', allSites.length)
+  console.log('[Availability] Occupied sites:', occupiedSiteIds.size)
+  console.log('[Availability] Occupied site IDs:', Array.from(occupiedSiteIds))
+
   // Filter out occupied sites
   const availableSites = allSites
     .filter((site) => !occupiedSiteIds.has(site.id))
     .map((site) => convertToAvailableSite(site as Site))
+
+  console.log('[Availability] Available sites after filtering:', availableSites.length)
 
   return {
     success: true,

@@ -451,9 +451,13 @@ export async function getDashboardStats(
     : 0
 
   // Calculate payment stats
-  const pendingPayments = (payments || [])
-    .filter((p) => p.payment_status === 'pending')
-    .reduce((sum, p) => sum + p.amount, 0) as MoneyCents
+  // Pending payments = sum of unpaid amounts on reservations (total_amount - paid_amount)
+  const pendingPayments = reservations
+    .filter((r) => r.status !== 'cancelled') // Exclude cancelled reservations
+    .reduce((sum, r) => {
+      const unpaidAmount = r.total_amount - (r.paid_amount || 0)
+      return sum + (unpaidAmount > 0 ? unpaidAmount : 0)
+    }, 0) as MoneyCents
 
   const completedPayments = (payments || [])
     .filter((p) => p.payment_status === 'completed')
@@ -472,4 +476,718 @@ export async function getDashboardStats(
     completedPayments,
     cancelledPayments,
   }
+}
+
+// ============================================================================
+// Sites Queries
+// ============================================================================
+
+export interface DashboardSite {
+  id: string
+  siteNumber: string
+  siteName: string | null
+  siteType: string
+  maxOccupancy: number
+  basePrice: MoneyCents
+  status: string
+  hookups: string[]
+  amenities: string[]
+  description: string | null
+  imageUrl: string | null
+  createdAt: string
+}
+
+export interface SiteFilters {
+  status?: string
+  type?: string
+  search?: string
+}
+
+export interface SiteStats {
+  total: number
+  available: number
+  occupied: number
+  maintenance: number
+  unavailable: number
+}
+
+/**
+ * Fetch sites for a property with optional filters
+ */
+export async function getSites(
+  propertyId: string,
+  filters: SiteFilters = {}
+): Promise<{ data: DashboardSite[]; total: number }> {
+  const supabase = await createClient()
+
+  // Build query with tenant isolation
+  let query = supabase
+    .from('sites')
+    .select('*', { count: 'exact' })
+    .eq('property_id', propertyId)
+    .order('site_number', { ascending: true })
+
+  // Apply filters
+  if (filters.status) {
+    query = query.eq('status', filters.status)
+  }
+  if (filters.type) {
+    query = query.eq('site_type', filters.type)
+  }
+  if (filters.search) {
+    query = query.or(
+      `site_number.ilike.%${filters.search}%,site_name.ilike.%${filters.search}%`
+    )
+  }
+
+  const { data, error, count } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch sites: ${error.message}`)
+  }
+
+  // Transform database results to dashboard format
+  const sites: DashboardSite[] = (data || []).map((site) => ({
+    id: site.id,
+    siteNumber: site.site_number,
+    siteName: site.site_name,
+    siteType: site.site_type,
+    maxOccupancy: site.max_occupancy || 0,
+    basePrice: site.base_price as MoneyCents,
+    status: site.status,
+    hookups: (site.hookups as string[]) || [],
+    amenities: (site.amenities as string[]) || [],
+    description: site.description,
+    imageUrl: site.image_url,
+    createdAt: site.created_at!,
+  }))
+
+  return {
+    data: sites,
+    total: count || 0,
+  }
+}
+
+/**
+ * Calculate site statistics for a property
+ */
+export async function getSiteStats(propertyId: string): Promise<SiteStats> {
+  const supabase = await createClient()
+
+  // Fetch all sites for the property
+  const { data: sites, error } = await supabase
+    .from('sites')
+    .select('status')
+    .eq('property_id', propertyId)
+
+  if (error) {
+    throw new Error(`Failed to fetch site stats: ${error.message}`)
+  }
+
+  const total = sites?.length || 0
+  const available = sites?.filter((s) => s.status === 'available').length || 0
+  const occupied = sites?.filter((s) => s.status === 'occupied').length || 0
+  const maintenance = sites?.filter((s) => s.status === 'maintenance').length || 0
+  const unavailable = sites?.filter((s) => s.status === 'unavailable').length || 0
+
+  return {
+    total,
+    available,
+    occupied,
+    maintenance,
+    unavailable,
+  }
+}
+
+/**
+ * =============================================================================
+ * Guests
+ * =============================================================================
+ */
+
+export interface DashboardGuest {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  totalStays: number
+  totalSpent: MoneyCents
+  lastVisit: string | null
+  firstVisit: string | null
+}
+
+export interface GuestFilters {
+  search: string | undefined
+}
+
+export async function getGuests(
+  propertyId: string,
+  filters: GuestFilters = { search: undefined }
+): Promise<{ data: DashboardGuest[]; total: number }> {
+  const supabase = await createClient()
+
+  // Get all reservations for this property to aggregate guest data
+  // Must join with guests table to get guest information
+  let query = supabase
+    .from('reservations')
+    .select(`
+      id,
+      guest_id,
+      check_in_date,
+      total_amount,
+      guests (
+        id,
+        first_name,
+        last_name,
+        email,
+        phone
+      )
+    `)
+    .eq('property_id', propertyId)
+
+  const { data: reservations, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch guest data: ${error.message}`)
+  }
+
+  // Aggregate reservations by guest ID to build guest profiles
+  const guestMap = new Map<string, DashboardGuest>()
+
+  reservations?.forEach((reservation) => {
+    const guest = reservation.guests as unknown as DbGuest
+    if (!guest || !guest.email) return
+
+    const guestId = reservation.guest_id!
+    const existing = guestMap.get(guestId)
+
+    if (existing) {
+      // Update existing guest
+      existing.totalStays += 1
+      existing.totalSpent = (existing.totalSpent + reservation.total_amount) as MoneyCents
+
+      // Update last visit if this reservation is more recent
+      if (
+        reservation.check_in_date &&
+        (!existing.lastVisit || reservation.check_in_date > existing.lastVisit)
+      ) {
+        existing.lastVisit = reservation.check_in_date
+      }
+
+      // Update first visit if this reservation is older
+      if (
+        reservation.check_in_date &&
+        (!existing.firstVisit || reservation.check_in_date < existing.firstVisit)
+      ) {
+        existing.firstVisit = reservation.check_in_date
+      }
+    } else {
+      // Create new guest entry
+      guestMap.set(guestId, {
+        id: guest.id,
+        name: `${guest.first_name} ${guest.last_name}`,
+        email: guest.email,
+        phone: guest.phone,
+        totalStays: 1,
+        totalSpent: reservation.total_amount as MoneyCents,
+        lastVisit: reservation.check_in_date,
+        firstVisit: reservation.check_in_date,
+      })
+    }
+  })
+
+  // Convert map to array and apply filters
+  let guests = Array.from(guestMap.values())
+
+  // Apply search filter
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase()
+    guests = guests.filter(
+      (guest) =>
+        guest.name.toLowerCase().includes(searchLower) ||
+        guest.email.toLowerCase().includes(searchLower) ||
+        (guest.phone && guest.phone.includes(searchLower))
+    )
+  }
+
+  // Sort by total spent (highest first)
+  guests.sort((a, b) => b.totalSpent - a.totalSpent)
+
+  return {
+    data: guests,
+    total: guests.length,
+  }
+}
+
+export async function getGuestStats(propertyId: string): Promise<{
+  totalGuests: number
+  returningGuests: number
+  averageStays: number
+  totalRevenue: MoneyCents
+}> {
+  const { data: guests } = await getGuests(propertyId)
+
+  const totalGuests = guests.length
+  const returningGuests = guests.filter((g) => g.totalStays > 1).length
+  const totalStays = guests.reduce((sum, g) => sum + g.totalStays, 0)
+  const averageStays = totalGuests > 0 ? totalStays / totalGuests : 0
+  const totalRevenue = guests.reduce((sum, g) => sum + g.totalSpent, 0) as MoneyCents
+
+  return {
+    totalGuests,
+    returningGuests,
+    averageStays,
+    totalRevenue,
+  }
+}
+
+// ============================================================================
+// Analytics Queries
+// ============================================================================
+
+export interface RevenueDataPoint {
+  month: string
+  revenue: number
+  bookings: number
+}
+
+export interface TopPerformingSite {
+  siteId: string
+  siteName: string
+  bookings: number
+  revenue: MoneyCents
+}
+
+export interface BookingSource {
+  source: string
+  bookings: number
+  percentage: number
+  revenue: MoneyCents
+}
+
+/**
+ * Get revenue data grouped by month for the last 6 months
+ */
+export async function getRevenueOverTime(
+  propertyId: string,
+  months: number = 6
+): Promise<RevenueDataPoint[]> {
+  const supabase = await createClient()
+
+  // Calculate start date (N months ago)
+  const startDate = new Date()
+  startDate.setMonth(startDate.getMonth() - months)
+  const startDateStr = startDate.toISOString().split('T')[0]
+
+  // Fetch reservations from the last N months
+  const { data: reservations, error } = await supabase
+    .from('reservations')
+    .select('check_in_date, paid_amount, created_at')
+    .eq('property_id', propertyId)
+    .gte('check_in_date', startDateStr)
+    .not('status', 'eq', 'cancelled')
+
+  if (error) {
+    throw new Error(`Failed to fetch revenue data: ${error.message}`)
+  }
+
+  // Group by month
+  const monthlyData = new Map<string, { revenue: number; bookings: number }>()
+
+  reservations?.forEach((reservation) => {
+    const date = new Date(reservation.check_in_date)
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+    const existing = monthlyData.get(monthKey)
+    if (existing) {
+      existing.revenue += reservation.paid_amount
+      existing.bookings += 1
+    } else {
+      monthlyData.set(monthKey, {
+        revenue: reservation.paid_amount,
+        bookings: 1,
+      })
+    }
+  })
+
+  // Convert to array and format month names
+  const result: RevenueDataPoint[] = []
+  for (let i = months - 1; i >= 0; i--) {
+    const date = new Date()
+    date.setMonth(date.getMonth() - i)
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+
+    const data = monthlyData.get(monthKey) || { revenue: 0, bookings: 0 }
+    result.push({
+      month: monthName,
+      revenue: data.revenue / 100, // Convert cents to dollars for chart
+      bookings: data.bookings,
+    })
+  }
+
+  return result
+}
+
+/**
+ * Get top performing sites by revenue
+ */
+export async function getTopPerformingSites(
+  propertyId: string,
+  limit: number = 5
+): Promise<TopPerformingSite[]> {
+  const supabase = await createClient()
+
+  // Fetch reservations with site information
+  const { data: reservations, error } = await supabase
+    .from('reservations')
+    .select(`
+      site_id,
+      total_amount,
+      sites (
+        site_name,
+        site_number
+      )
+    `)
+    .eq('property_id', propertyId)
+    .not('status', 'eq', 'cancelled')
+
+  if (error) {
+    throw new Error(`Failed to fetch top sites: ${error.message}`)
+  }
+
+  // Group by site
+  const siteData = new Map<string, { siteName: string; bookings: number; revenue: number }>()
+
+  reservations?.forEach((reservation) => {
+    const siteId = reservation.site_id!
+    const site = reservation.sites as unknown as DbSite
+    const siteName = site.site_name || `Site ${site.site_number}`
+
+    const existing = siteData.get(siteId)
+    if (existing) {
+      existing.bookings += 1
+      existing.revenue += reservation.total_amount
+    } else {
+      siteData.set(siteId, {
+        siteName,
+        bookings: 1,
+        revenue: reservation.total_amount,
+      })
+    }
+  })
+
+  // Convert to array and sort by revenue
+  const result: TopPerformingSite[] = Array.from(siteData.entries())
+    .map(([siteId, data]) => ({
+      siteId,
+      siteName: data.siteName,
+      bookings: data.bookings,
+      revenue: data.revenue as MoneyCents,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit)
+
+  return result
+}
+
+/**
+ * Get booking sources breakdown
+ */
+export async function getBookingSourcesBreakdown(
+  propertyId: string
+): Promise<BookingSource[]> {
+  const supabase = await createClient()
+
+  // Fetch all reservations with source information
+  const { data: reservations, error } = await supabase
+    .from('reservations')
+    .select('source, total_amount')
+    .eq('property_id', propertyId)
+    .not('status', 'eq', 'cancelled')
+
+  if (error) {
+    throw new Error(`Failed to fetch booking sources: ${error.message}`)
+  }
+
+  // Group by source
+  const sourceData = new Map<string, { bookings: number; revenue: number }>()
+  let totalBookings = 0
+
+  reservations?.forEach((reservation) => {
+    const source = reservation.source || 'Unknown'
+    totalBookings += 1
+
+    const existing = sourceData.get(source)
+    if (existing) {
+      existing.bookings += 1
+      existing.revenue += reservation.total_amount
+    } else {
+      sourceData.set(source, {
+        bookings: 1,
+        revenue: reservation.total_amount,
+      })
+    }
+  })
+
+  // Convert to array with percentages
+  const result: BookingSource[] = Array.from(sourceData.entries())
+    .map(([source, data]) => ({
+      source: source.charAt(0).toUpperCase() + source.slice(1), // Capitalize
+      bookings: data.bookings,
+      percentage: totalBookings > 0 ? Math.round((data.bookings / totalBookings) * 100) : 0,
+      revenue: data.revenue as MoneyCents,
+    }))
+    .sort((a, b) => b.bookings - a.bookings)
+
+  return result
+}
+
+/**
+ * Get revenue breakdown by payment method
+ */
+export async function getRevenueByPaymentMethod(
+  propertyId: string,
+  startDate?: Date
+): Promise<Array<{ method: string; revenue: MoneyCents; count: number }>> {
+  const supabase = await createClient()
+
+  // Build query
+  let query = supabase
+    .from('payments')
+    .select('payment_method, amount')
+    .eq('property_id', propertyId)
+    .eq('payment_status', 'completed')
+
+  if (startDate) {
+    query = query.gte('created_at', startDate.toISOString())
+  }
+
+  const { data: payments, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch payment methods: ${error.message}`)
+  }
+
+  // Group by payment method
+  const methodData = new Map<string, { revenue: number; count: number }>()
+
+  payments?.forEach((payment) => {
+    const method = payment.payment_method || 'Unknown'
+    const existing = methodData.get(method)
+
+    if (existing) {
+      existing.revenue += payment.amount
+      existing.count += 1
+    } else {
+      methodData.set(method, {
+        revenue: payment.amount,
+        count: 1,
+      })
+    }
+  })
+
+  // Convert to array and sort by revenue
+  return Array.from(methodData.entries())
+    .map(([method, data]) => ({
+      method: method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' '),
+      revenue: data.revenue as MoneyCents,
+      count: data.count,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+}
+
+/**
+ * Get revenue breakdown by payment status
+ */
+export async function getRevenueByPaymentStatus(
+  propertyId: string,
+  startDate?: Date
+): Promise<Array<{ status: string; revenue: MoneyCents; count: number }>> {
+  const supabase = await createClient()
+
+  // Build query
+  let query = supabase
+    .from('payments')
+    .select('payment_status, amount')
+    .eq('property_id', propertyId)
+
+  if (startDate) {
+    query = query.gte('created_at', startDate.toISOString())
+  }
+
+  const { data: payments, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch payment status: ${error.message}`)
+  }
+
+  // Group by status
+  const statusData = new Map<string, { revenue: number; count: number }>()
+
+  payments?.forEach((payment) => {
+    const status = payment.payment_status || 'Unknown'
+    const existing = statusData.get(status)
+
+    if (existing) {
+      existing.revenue += payment.amount
+      existing.count += 1
+    } else {
+      statusData.set(status, {
+        revenue: payment.amount,
+        count: 1,
+      })
+    }
+  })
+
+  // Convert to array
+  return Array.from(statusData.entries())
+    .map(([status, data]) => ({
+      status: status.charAt(0).toUpperCase() + status.slice(1),
+      revenue: data.revenue as MoneyCents,
+      count: data.count,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+}
+
+/**
+ * Get average booking value
+ */
+export async function getAverageBookingValue(
+  propertyId: string,
+  startDate?: Date
+): Promise<MoneyCents> {
+  const supabase = await createClient()
+
+  let query = supabase
+    .from('reservations')
+    .select('total_amount')
+    .eq('property_id', propertyId)
+    .not('status', 'eq', 'cancelled')
+
+  if (startDate) {
+    query = query.gte('created_at', startDate.toISOString())
+  }
+
+  const { data: reservations, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch average booking value: ${error.message}`)
+  }
+
+  if (!reservations || reservations.length === 0) {
+    return 0 as MoneyCents
+  }
+
+  const total = reservations.reduce((sum, r) => sum + r.total_amount, 0)
+  return Math.round(total / reservations.length) as MoneyCents
+}
+
+export interface OccupancyMonth {
+  month: string
+  occupancyRate: number
+  bookedNights: number
+  totalNights: number
+  revenue: MoneyCents
+}
+
+/**
+ * Get occupancy breakdown by month
+ */
+export async function getOccupancyByMonth(
+  propertyId: string,
+  months: number = 12
+): Promise<OccupancyMonth[]> {
+  const supabase = await createClient()
+
+  // Get total number of sites
+  const { data: sites } = await supabase
+    .from('sites')
+    .select('id')
+    .eq('property_id', propertyId)
+    .eq('status', 'available')
+
+  const totalSites = sites?.length || 1
+
+  // Calculate start date
+  const startDate = new Date()
+  startDate.setMonth(startDate.getMonth() - months)
+
+  // Fetch reservations
+  const { data: reservations, error } = await supabase
+    .from('reservations')
+    .select('check_in_date, check_out_date, total_amount')
+    .eq('property_id', propertyId)
+    .gte('check_in_date', startDate.toISOString().split('T')[0])
+    .in('status', ['confirmed', 'checked_in', 'checked_out'])
+
+  if (error) {
+    throw new Error(`Failed to fetch occupancy data: ${error.message}`)
+  }
+
+  // Group by month
+  const monthlyData = new Map<
+    string,
+    { bookedNights: number; revenue: number }
+  >()
+
+  reservations?.forEach((reservation) => {
+    const checkIn = new Date(reservation.check_in_date)
+    const checkOut = new Date(reservation.check_out_date)
+    const nights = Math.ceil(
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+    )
+
+    // Assign nights to the check-in month
+    const monthKey = `${checkIn.getFullYear()}-${String(
+      checkIn.getMonth() + 1
+    ).padStart(2, '0')}`
+
+    const existing = monthlyData.get(monthKey)
+    if (existing) {
+      existing.bookedNights += nights
+      existing.revenue += reservation.total_amount
+    } else {
+      monthlyData.set(monthKey, {
+        bookedNights: nights,
+        revenue: reservation.total_amount,
+      })
+    }
+  })
+
+  // Build result for all months (most recent first)
+  const result: OccupancyMonth[] = []
+  for (let i = 0; i < months; i++) {
+    const date = new Date()
+    date.setMonth(date.getMonth() - i)
+    const monthKey = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, '0')}`
+    const monthName = date.toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric',
+    })
+
+    // Calculate days in month
+    const daysInMonth = new Date(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      0
+    ).getDate()
+    const totalNights = daysInMonth * totalSites
+
+    const data = monthlyData.get(monthKey) || { bookedNights: 0, revenue: 0 }
+    const occupancyRate =
+      totalNights > 0 ? (data.bookedNights / totalNights) * 100 : 0
+
+    result.push({
+      month: monthName,
+      occupancyRate: Math.round(occupancyRate * 10) / 10, // Round to 1 decimal
+      bookedNights: data.bookedNights,
+      totalNights,
+      revenue: data.revenue as MoneyCents,
+    })
+  }
+
+  return result
 }

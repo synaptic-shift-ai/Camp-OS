@@ -58,8 +58,7 @@ export function createAuthMiddleware(
 
     // Not authenticated - redirect to login
     if (!authResult.authenticated) {
-      const origin = request.nextUrl?.origin ?? new URL(request.url).origin
-      const url = new URL('/login', origin)
+      const url = new URL('/login', request.nextUrl.origin)
       url.searchParams.set('redirect', pathname)
       return NextResponse.redirect(url)
     }
@@ -93,8 +92,7 @@ export function createEmailVerificationMiddleware(): MiddlewareFunction {
 
     // Email not verified - redirect to verification page
     if (!auth.emailVerified) {
-      const origin = request.nextUrl?.origin ?? new URL(request.url).origin
-      const url = new URL('/verify-email', origin)
+      const url = new URL('/verify-email', request.nextUrl.origin)
       url.searchParams.set('redirect', pathname)
       return NextResponse.redirect(url)
     }
@@ -152,8 +150,7 @@ export function createSubscriptionMiddleware(
 
     // No active subscription - redirect to plan selection
     if (!tenantResult.resolved) {
-      const origin = request.nextUrl?.origin ?? new URL(request.url).origin
-      const url = new URL('/choose-plan', origin)
+      const url = new URL('/choose-plan', request.nextUrl.origin)
       return NextResponse.redirect(url)
     }
 
@@ -217,8 +214,7 @@ export function createOnboardingMiddleware(
 
     // If any properties are incomplete, redirect to onboarding entry point
     if (incompleteProperties && incompleteProperties.length > 0) {
-      const origin = request.nextUrl?.origin ?? new URL(request.url).origin
-      const url = new URL('/onboarding', origin)
+      const url = new URL('/onboarding', request.nextUrl.origin)
       return NextResponse.redirect(url)
     }
 

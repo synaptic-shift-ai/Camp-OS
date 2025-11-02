@@ -6,7 +6,19 @@
       "mcp__playwright__playwright_navigate",
       "mcp__playwright__playwright_close",
       "Bash(npm install:*)",
-      "Bash(gh run list:*)"
+      "Bash(npm run type-check:*)",
+      "Bash(dir:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(node:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npm run verify:startup:*)",
+      "Bash(npm run:*)",
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill /F /PID 507532)"
     ],
     "deny": [],
     "ask": []

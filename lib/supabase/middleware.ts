@@ -1,109 +1,113 @@
-import { createServerClient } from "@supabase/ssr"
-import { NextResponse, type NextRequest } from "next/server"
+/**
+ * Main Middleware Entry Point
+ *
+ * CAM-140: Update Main Middleware with Composition
+ * Parent: CAM-129 - CRITICAL BUG - Middleware hardening
+ *
+ * ARCHITECTURE: Composition-based middleware system
+ *
+ * This middleware uses the composition pattern to execute multiple
+ * middleware functions in a strict order with proper short-circuiting.
+ *
+ * Execution Order:
+ * 1. Initialize request context (session ID, pathname, etc.)
+ * 2. Auth middleware - Verify authentication
+ * 3. Email verification middleware - Security gate for dashboard
+ * 4. Subscription middleware - Verify active subscription and resolve tenant
+ * 5. Onboarding middleware - Check property setup completion
+ *
+ * Short-circuit behavior:
+ * - If any middleware returns NextResponse (redirect/error), execution stops
+ * - If all middleware pass, the modified request continues to the route handler
+ *
+ * CRITICAL: This composition pattern prevents the infinite redirect loops
+ * that occurred during the Oct 30, 2025 investor demo by properly handling
+ * wizard exceptions.
+ *
+ * Following CLAUDE.md:
+ * - C-4: Small, composable, testable functions
+ * - C-6: Use import type for type-only imports
+ * - BP-4: Multi-tenant isolation
+ */
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import { initializeRequest, createSupabaseClient, createInitialResponse } from '@/lib/middleware/init'
+import { composeMiddleware } from '@/lib/middleware/compose'
+import {
+  createAuthMiddleware,
+  createEmailVerificationMiddleware,
+  createSubscriptionMiddleware,
+  createOnboardingMiddleware,
+} from '@/lib/middleware/routing'
+import { RedirectLoopDetector } from '@/lib/middleware/loop-detector'
+import { withErrorHandler } from '@/lib/middleware/error-handler'
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
-        },
-      },
-    },
+/**
+ * Update session and apply route protection middleware (internal implementation)
+ *
+ * This is the core middleware logic wrapped by error handler.
+ * It orchestrates the entire middleware chain using composition.
+ *
+ * @param request - Next.js request object
+ * @returns NextResponse with updated session cookies and redirect if needed
+ */
+async function updateSessionInternal(
+  request: NextRequest
+): Promise<NextResponse> {
+  // Step 1: Create initial response for Supabase cookie management
+  const supabaseResponse = createInitialResponse(request)
+
+  // Step 2: Create Supabase client with cookie management
+  const supabase = createSupabaseClient(request, supabaseResponse)
+
+  // Step 3: Initialize middleware request with context
+  const middlewareRequest = initializeRequest(request)
+
+  // Step 4: Compose middleware functions in execution order
+  const middleware = composeMiddleware(
+    // 1. Auth: Verify authentication and add auth context
+    createAuthMiddleware(supabase),
+
+    // 2. Email Verification: Security gate for dashboard access
+    createEmailVerificationMiddleware(),
+
+    // 3. Subscription: Verify subscription and resolve tenant context
+    createSubscriptionMiddleware(supabase),
+
+    // 4. Onboarding: Check property setup completion (respects wizard exceptions)
+    createOnboardingMiddleware(supabase)
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Step 5: Execute the middleware chain
+  const result = await middleware(middlewareRequest)
 
-  const pathname = request.nextUrl.pathname
-
-  // Define route categories
-  const requiresAuth = ["/dashboard", "/onboarding"]
-  const requiresSubscription = ["/dashboard", "/onboarding"]
-  const requiresOnboarding = ["/dashboard"]
-
-  const needsAuth = requiresAuth.some((route) => pathname.startsWith(route))
-  const needsSubscription = requiresSubscription.some((route) => pathname.startsWith(route))
-  const needsOnboardingComplete = requiresOnboarding.some((route) => pathname.startsWith(route))
-
-  // Check 1: Authentication required
-  if (!user && needsAuth) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/login"
-    url.searchParams.set("redirect", pathname)
-    return NextResponse.redirect(url)
+  // Step 6: Handle the result
+  // If result is NextResponse, middleware returned redirect/error - use it
+  // If result is MiddlewareRequest, all middleware passed - use Supabase response
+  if (
+    result instanceof Response ||
+    (typeof result === 'object' &&
+      result !== null &&
+      'headers' in result &&
+      'status' in result)
+  ) {
+    // Type guard ensures this is NextResponse
+    return result as NextResponse
   }
 
-  // Check 1.5: Email verification required for dashboard (security gate)
-  if (user && pathname.startsWith("/dashboard")) {
-    // Check if email is verified
-    if (!user.email_confirmed_at) {
-      const url = request.nextUrl.clone()
-      url.pathname = "/verify-email"
-      url.searchParams.set("redirect", pathname)
-      return NextResponse.redirect(url)
-    }
-  }
-
-  // Check 2: Subscription required (for buyers accessing protected routes)
-  if (user && needsSubscription) {
-    // Get user's company with subscription status
-    const { data: company } = await supabase
-      .from("companies")
-      .select("id, subscription_status")
-      .eq("owner_id", user.id)
-      .single()
-
-    // No company OR no active subscription - redirect to plan selection
-    if (!company || company.subscription_status !== "active") {
-      // Don't redirect if already on payment or plan pages
-      if (!pathname.startsWith("/choose-plan") && !pathname.startsWith("/payment")) {
-        const url = request.nextUrl.clone()
-        url.pathname = "/choose-plan"
-        return NextResponse.redirect(url)
-      }
-    }
-
-    // Check 3: Onboarding completion required for dashboard
-    if (company && needsOnboardingComplete) {
-      // IMPORTANT: Allow wizard and onboarding pages even with incomplete setup
-      // These pages ARE the onboarding process
-      const isWizardOrOnboarding =
-        request.nextUrl.searchParams.get("wizard") === "true" ||
-        pathname.startsWith("/onboarding")
-
-      if (!isWizardOrOnboarding) {
-        // Check if any properties are incomplete
-        const { data: incompleteProperties } = await supabase
-          .from("properties")
-          .select("id")
-          .eq("company_id", company.id)
-          .eq("onboarding_completed", false)
-          .limit(1)
-
-        // If any properties are incomplete, redirect to onboarding entry point
-        if (incompleteProperties && incompleteProperties.length > 0) {
-          const url = request.nextUrl.clone()
-          url.pathname = "/onboarding"
-          return NextResponse.redirect(url)
-        }
-      }
-    }
-  }
-
+  // All middleware passed - reset redirect counter and return Supabase response
+  RedirectLoopDetector.resetCount(supabaseResponse)
   return supabaseResponse
 }
+
+/**
+ * Update session and apply route protection middleware
+ *
+ * This is the main entry point called by Next.js middleware.
+ * Wrapped with global error handler to prevent crashes.
+ *
+ * @param request - Next.js request object
+ * @returns NextResponse with updated session cookies and redirect if needed
+ */
+export const updateSession = withErrorHandler(updateSessionInternal)

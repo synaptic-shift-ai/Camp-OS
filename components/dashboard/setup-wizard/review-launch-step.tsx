@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
-import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Globe, Mail, Phone, Building2, AlertCircle } from "lucide-react"
+import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Mail, Phone, Building2, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -292,18 +292,6 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
                     <p className="text-sm text-amber-600 dark:text-amber-400">Stripe not connected</p>
                   )}
                 </div>
-
-                {prop.bookingPageSlug && (
-                  <>
-                    <Separator />
-                    <Button variant="outline" className="w-full" asChild>
-                      <a href={prop.bookingPageUrl} target="_blank" rel="noopener noreferrer">
-                        <Globe className="mr-2 h-4 w-4" />
-                        Preview Booking Page
-                      </a>
-                    </Button>
-                  </>
-                )}
               </CardContent>
             </Card>
           )

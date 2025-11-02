@@ -23,6 +23,7 @@ import type { NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { MiddlewareRequest, SessionId } from './types'
 import { createSessionId } from './types'
+import { getRequiredEnv } from './error-handler'
 
 /**
  * Initialize a middleware request from a Next.js request
@@ -72,41 +73,46 @@ export function createSupabaseClient(
   request: NextRequest,
   response: NextResponse
 ): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables')
-  }
-
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        // Read all cookies from request
-        getAll() {
-          return request.cookies.getAll()
-        },
-        // Set cookies in both request and response
-        setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
-          // Update request cookies for downstream middleware
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value)
-          })
-
-          // Update response cookies for client
-          cookiesToSet.forEach(({ name, value, options }) => {
-            if (options) {
-              response.cookies.set(name, value, options)
-            } else {
-              response.cookies.set(name, value)
-            }
-          })
-        },
-      },
-    }
+  // Use safe env getter that throws descriptive errors
+  const supabaseUrl = getRequiredEnv(
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'Supabase URL'
   )
+  const supabaseAnonKey = getRequiredEnv(
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'Supabase Anonymous Key'
+  )
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      // Read all cookies from request
+      getAll() {
+        return request.cookies.getAll()
+      },
+      // Set cookies in both request and response
+      setAll(
+        cookiesToSet: {
+          name: string
+          value: string
+          options?: CookieOptions
+        }[]
+      ) {
+        // Update request cookies for downstream middleware
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value)
+        })
+
+        // Update response cookies for client
+        cookiesToSet.forEach(({ name, value, options }) => {
+          if (options) {
+            response.cookies.set(name, value, options)
+          } else {
+            response.cookies.set(name, value)
+          }
+        })
+      },
+    },
+  })
 
   return supabase
 }

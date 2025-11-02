@@ -53,11 +53,15 @@ async function main() {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Get current user's property
-  log('📋 Finding your property...', colors.blue);
+  // Get property by name (defaults to "Ourdoor Haven")
+  // Can be overridden with SEED_PROPERTY_NAME environment variable
+  const targetPropertyName = process.env.SEED_PROPERTY_NAME || 'Ourdoor Haven';
+
+  log(`📋 Finding property: ${targetPropertyName}...`, colors.blue);
   const { data: properties, error: propError } = await supabase
     .from('properties')
     .select('id, name')
+    .ilike('name', targetPropertyName)
     .limit(1);
 
   if (propError || !properties || properties.length === 0) {

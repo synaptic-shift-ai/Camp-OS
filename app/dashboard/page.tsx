@@ -1,9 +1,10 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, DollarSign, Tent, Users } from "lucide-react"
+import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink } from "lucide-react"
 import { getDashboardStats, getReservations } from "@/lib/dashboard/queries"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type { ReservationStatus } from "@/src/contracts/booking"
 
 const statusColors: Record<ReservationStatus, string> = {
@@ -217,6 +218,93 @@ async function RecentActivity() {
   )
 }
 
+async function BookingPortalCTA() {
+  const propertyId = await getCurrentPropertyId()
+
+  if (!propertyId) {
+    return null
+  }
+
+  const supabase = await createClient()
+
+  // Get property with booking page details
+  const { data: property } = await supabase
+    .from('properties')
+    .select('name, booking_page_slug')
+    .eq('id', propertyId)
+    .single()
+
+  if (!property?.booking_page_slug) {
+    return null
+  }
+
+  const bookingPageUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/book/${property.booking_page_slug}`
+
+  return (
+    <Card className="border-0 bg-gradient-to-br from-red-50 via-rose-50 to-pink-50 dark:from-red-950/20 dark:via-rose-950/20 dark:to-pink-950/20 overflow-hidden">
+      <CardContent className="pt-6 pb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left side - CTA content */}
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                <Globe className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight">Your Booking Portal is Live!</h2>
+            </div>
+            <p className="text-muted-foreground mb-4">
+              Share this link with your guests to start accepting online reservations
+            </p>
+            <div className="flex flex-col gap-3">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-950 rounded-md border border-red-200 dark:border-red-800">
+                <code className="text-sm font-mono text-primary break-all">
+                  {bookingPageUrl}
+                </code>
+              </div>
+              <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                <a href={bookingPageUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-5 w-5" />
+                  Open Booking Portal
+                </a>
+              </Button>
+            </div>
+          </div>
+
+          {/* Right side - Preview window */}
+          <div className="hidden lg:block">
+            <div className="bg-gray-900 rounded-lg overflow-hidden shadow-2xl border border-gray-700">
+              {/* Browser chrome mockup */}
+              <div className="bg-gray-800 px-3 py-2 flex items-center gap-2 border-b border-gray-700">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                </div>
+                <div className="flex-1 mx-2">
+                  <div className="bg-gray-700 rounded px-3 py-1 text-xs text-gray-400 flex items-center gap-2">
+                    <Globe className="h-3 w-3" />
+                    <span className="truncate">{bookingPageUrl}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Preview iframe */}
+              <div className="relative bg-white" style={{ height: '300px' }}>
+                <iframe
+                  src={bookingPageUrl}
+                  className="w-full h-full border-0"
+                  title="Booking Portal Preview"
+                  sandbox="allow-same-origin"
+                />
+                <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-transparent to-gray-900/10" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default async function DashboardPage() {
   return (
     <div className="space-y-6">
@@ -263,6 +351,19 @@ export default async function DashboardPage() {
         }
       >
         <RecentActivity />
+      </Suspense>
+
+      {/* Booking Portal CTA */}
+      <Suspense
+        fallback={
+          <Card>
+            <CardContent className="pt-6">
+              <div className="h-32 bg-muted animate-pulse rounded" />
+            </CardContent>
+          </Card>
+        }
+      >
+        <BookingPortalCTA />
       </Suspense>
     </div>
   )

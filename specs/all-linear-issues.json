@@ -1,0 +1,1701 @@
+[
+  {
+    "id": "066ebf06-4a7d-4ecc-a6e1-8b73756fafe0",
+    "identifier": "CAM-158",
+    "title": "Enable ESLint enforcement in CI pipeline",
+    "description": "## Context\n\nESLint configuration is complete but enforcement is currently disabled in CI to avoid blocking pre-demo work.\n\n## What Needs to be Done\n\n1. **Enable ESLint in CI Workflow** (5 min)\n   * Uncomment lines 42-44 in `.github/workflows/type-safety.yml`\n   * Test with a sample PR\n2. **Fix ESLint Violations** (2-4 hours)\n   * Current violations found in:\n     * TEMP/app/availability-results/page.tsx\n     * TEMP/app/book/checkout/page.tsx\n     * TEMP/app/book/confirmation/page.tsx\n   * Run `npm run lint -- --fix` for auto-fixes\n   * Manually review and fix remaining violations\n3. **Establish Baseline**\n   * Document violation count\n   * Set zero-violation policy for new code\n\n## Resources\n\n* Notion doc: Post-Demo CI/CD Tasks - PRIORITY\n* ESLint config: `eslint.config.mjs`\n* Run locally: `npm run lint`\n\n## Timeline\n\n* Day 1 (Post-Demo): Enable in CI, baseline report\n* Days 2-3: Fix critical violations\n* Days 4-5: Fix remaining violations\n\n## Success Criteria\n\n- [ ] ESLint check enabled in CI\n- [ ] All CI checks pass on main\n- [ ] Test PR passes lint check\n- [ ] Team trained on local linting\n- [ ] Zero violations baseline achieved",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "post-demo"
+        },
+        {
+          "name": "ci/cd"
+        },
+        {
+          "name": "technical-debt"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T21:10:49.458Z",
+    "updatedAt": "2025-11-01T21:10:49.458Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-158/enable-eslint-enforcement-in-ci-pipeline"
+  },
+  {
+    "id": "759460fb-48b4-4e9a-b7ed-1ff8448fdb70",
+    "identifier": "CAM-157",
+    "title": "Create Deployment Checklist & Runbook",
+    "description": "Document deployment steps, verification, rollback procedure.\n\nScope:\n\n* Document pre-deployment steps\n* Create post-deployment verification checklist\n* Add rollback procedure\n\nDEFER TO: Week of Nov 4-8 (post-demo)\n\nAcceptance Criteria:\n\n- [ ] Deployment checklist created\n- [ ] Verification checklist created\n- [ ] Rollback procedure documented",
+    "priority": 4,
+    "priorityLabel": "Low",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "infrastructure"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:57.320Z",
+    "updatedAt": "2025-11-01T19:52:57.320Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-157/create-deployment-checklist-and-runbook"
+  },
+  {
+    "id": "c42145e4-a18b-408f-8cce-a271ac865b2f",
+    "identifier": "CAM-156",
+    "title": "Type Safety: Generate & Apply Supabase Types",
+    "description": "Generate database types, replace any with proper Supabase types.\n\nScope:\n\n* Generate Supabase types from database schema\n* Update API routes to use generated types\n* Replace any with proper types\n\nDEFER TO: Week of Nov 4-8 (post-demo)\n\nAcceptance Criteria:\n\n- [ ] Supabase types generated\n- [ ] API routes use generated types\n- [ ] Zero any in API code\n- [ ] npm run type-check passes",
+    "priority": 3,
+    "priorityLabel": "Medium",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "technical-debt"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:55.848Z",
+    "updatedAt": "2025-11-01T19:52:55.848Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-156/type-safety-generate-and-apply-supabase-types"
+  },
+  {
+    "id": "7f5f7f3a-0814-46cc-9d6c-cf48c843234b",
+    "identifier": "CAM-155",
+    "title": "Error Monitoring: Sentry Integration",
+    "description": "Set up Sentry for production error monitoring and alerting.\n\nScope:\n\n* Install Sentry SDK\n* Configure for Next.js\n* Add error boundaries\n* Test error reporting\n\nDEFER TO: Week of Nov 4-8 (post-demo)\n\nAcceptance Criteria:\n\n- [ ] Sentry SDK installed\n- [ ] Configured for Next.js\n- [ ] Error boundaries added\n- [ ] Test error reporting works",
+    "priority": 3,
+    "priorityLabel": "Medium",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "infrastructure"
+        },
+        {
+          "name": "monitoring"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:42.692Z",
+    "updatedAt": "2025-11-01T19:52:42.692Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-155/error-monitoring-sentry-integration"
+  },
+  {
+    "id": "b26a47bc-09ef-4859-b1ee-9179d8e5647d",
+    "identifier": "CAM-154",
+    "title": "Fix 15 Skipped Tests (Reservation & Pricing)",
+    "description": "Unskip and fix 6 reservation + 9 pricing tests identified in audit.\n\nScope:\n\n* Review skipped tests in codebase\n* Identify why they're skipped\n* Fix tests or remove if obsolete\n* Ensure all tests pass\n\nDEFER TO: Week of Nov 4-8 (post-demo)\n\nAcceptance Criteria:\n\n- [ ] All 6 reservation tests fixed or removed\n- [ ] All 9 pricing tests fixed or removed\n- [ ] npm run test:ci passes 100%",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "technical-debt"
+        },
+        {
+          "name": "backend"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:39.749Z",
+    "updatedAt": "2025-11-01T19:52:39.749Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-154/fix-15-skipped-tests-reservation-and-pricing"
+  },
+  {
+    "id": "619fd23b-13d5-4d1c-b045-effa18817379",
+    "identifier": "CAM-153",
+    "title": "Manual QA: Full User Journey Testing",
+    "description": "Manual testing of all user flows before Sunday demo.\n\nTest Scenarios:\n\n1. Fresh user onboarding (signup → wizard → dashboard)\n2. Returning user (login → dashboard)\n3. Error scenarios (network disconnect → retry)\n4. E2E test passes\n5. No critical bugs\n\nAcceptance Criteria:\n\n- [ ] Scenario 1: Fresh user onboarding tested\n- [ ] Scenario 2: Returning user tested\n- [ ] Scenario 3: Error scenarios tested\n- [ ] E2E test passes\n- [ ] No critical bugs found",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "qa"
+        },
+        {
+          "name": "demo-ready"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:20.066Z",
+    "updatedAt": "2025-11-01T19:52:20.066Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-153/manual-qa-full-user-journey-testing"
+  },
+  {
+    "id": "4030445f-e654-4454-b7fb-1e78deb0277a",
+    "identifier": "CAM-152",
+    "title": "Demo Script & Rehearsal",
+    "description": "Write demo script, rehearse flow, prepare backup plan.\n\nScope:\n\n* Write demo script with talking points\n* Rehearse demo 2-3 times\n* Time demo (should be 15-20 min)\n* Identify risky clicks to avoid\n* Create backup plan (screen recording)\n\nAcceptance Criteria:\n\n- [ ] Demo script written with talking points\n- [ ] Demo rehearsed 2-3 times\n- [ ] Demo timed (15-20 min)\n- [ ] Risky clicks identified and documented\n- [ ] Backup plan ready (screen recording)",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "demo-ready"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:18.528Z",
+    "updatedAt": "2025-11-01T19:52:18.528Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-152/demo-script-and-rehearsal"
+  },
+  {
+    "id": "efe99110-1c18-4851-9e80-d536fecd64d1",
+    "identifier": "CAM-151",
+    "title": "Graceful Error States for Dashboard Components",
+    "description": "Replace infinite spinners with Skeleton loaders, add error states with retry button.\n\nScope:\n\n* Replace spinners with Skeleton component\n* Add error states with user-friendly messages\n* Add Retry button to all error states\n* Apply pattern to: Site list, Stats cards, Recent bookings\n\nAcceptance Criteria:\n\n- [ ] All loading states use Skeleton\n- [ ] All error states show user-friendly message\n- [ ] All error states have Retry button\n- [ ] Pattern applied to all dashboard components",
+    "priority": 3,
+    "priorityLabel": "Medium",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "ui"
+        },
+        {
+          "name": "demo-ready"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "frontend"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:17.046Z",
+    "updatedAt": "2025-11-01T19:52:17.046Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-151/graceful-error-states-for-dashboard-components"
+  },
+  {
+    "id": "9158222e-fbc1-4dfd-ad9a-5c7e78737fd2",
+    "identifier": "CAM-150",
+    "title": "Dashboard Audit & Integration Planning",
+    "description": "Audit current dashboard components, identify mock data, plan minimal DB integration for demo.\n\nScope:\n\n* List all dashboard components using mock data\n* Identify database tables/queries needed\n* Prioritize components by demo visibility\n* Create docs/DASHBOARD_INTEGRATION_PLAN.md\n\nAcceptance Criteria:\n\n- [ ] List all dashboard components with mock data\n- [ ] Identify database tables/queries needed\n- [ ] Prioritize components by demo visibility\n- [ ] Create DASHBOARD_INTEGRATION_PLAN.md",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "In Progress",
+      "type": "started"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "planning"
+        },
+        {
+          "name": "validation-approved"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "documentation"
+        },
+        {
+          "name": "frontend"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:15.564Z",
+    "updatedAt": "2025-11-01T21:51:10.140Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-150/dashboard-audit-and-integration-planning"
+  },
+  {
+    "id": "97edfccd-f746-4304-9d06-9dd07a479e28",
+    "identifier": "CAM-149",
+    "title": "E2E Test: Conversion Pipeline Regression Prevention",
+    "description": "Playwright test covering signup → payment → wizard → dashboard to prevent Oct 30 redirect loop incident.\n\nScope:\n\n* Install Playwright and configure\n* Write test: Plan selection → Stripe checkout → Webhook → Wizard → Dashboard\n* Verify NO redirect loops (URL stable)\n* Test passes locally\n* Uses Stripe test mode (4242... card)\n\nAcceptance Criteria:\n\n- [ ] Playwright installed and configured\n- [ ] Test covers full conversion pipeline\n- [ ] Test verifies NO redirect loops\n- [ ] Test passes locally at least once\n- [ ] Uses Stripe test mode",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "demo-critical"
+        },
+        {
+          "name": "e2e-tests"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:52:13.956Z",
+    "updatedAt": "2025-11-01T22:08:07.376Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-149/e2e-test-conversion-pipeline-regression-prevention"
+  },
+  {
+    "id": "ace4bfbe-27d0-4025-9161-fdb95049fefc",
+    "identifier": "CAM-148",
+    "title": "Dashboard Database Integration for Demo",
+    "description": "Connect dashboard to Supabase to replace mock data. Must show real sites, stats, and bookings by Sunday demo.\n\nScope:\n\n* Site list API endpoint (/api/dashboard/sites)\n* Site list component fetches from API\n* Stats cards API endpoint (/api/dashboard/stats)\n* Stats cards component fetches from API\n* Loading states use Skeleton component\n* Error states show user-friendly messages\n\nAcceptance Criteria:\n\n- [ ] Site list API endpoint created\n- [ ] Site list component fetches from API\n- [ ] Stats cards API endpoint created\n- [ ] Stats cards component fetches from API\n- [ ] Loading states use Skeleton\n- [ ] Error states show messages\n- [ ] Manual test: Wizard → Dashboard shows real data",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "demo-critical"
+        },
+        {
+          "name": "backend"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "frontend"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T19:51:49.526Z",
+    "updatedAt": "2025-11-01T21:34:17.075Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-148/dashboard-database-integration-for-demo"
+  },
+  {
+    "id": "2d88d548-7cea-411e-bed6-fb4e6a5cf205",
+    "identifier": "CAM-147",
+    "title": "Production Deployment & Monitoring Setup",
+    "description": "## Description\n\nDeploy refactored middleware to production with proper monitoring, rollback plan, and observability.\n\n## Acceptance Criteria\n\n- [ ] Rollback plan documented (how to revert to old middleware)\n- [ ] Feature flag created for gradual rollout (if applicable)\n- [ ] Monitoring alerts configured for middleware errors\n- [ ] Logging enhanced for middleware execution (auth, tenant, wizard events)\n- [ ] Error tracking configured (Sentry/equivalent for middleware errors)\n- [ ] Production smoke tests pass after deployment\n- [ ] Runbook created for on-call engineers\n\n## Technical Context\n\n* Environment: Production (Vercel/equivalent)\n* Monitoring: Vercel Analytics, Sentry, custom logging\n* Rollback: Git revert + immediate redeploy\n\n## Deployment Checklist\n\n1. **Pre-Deployment**\n   - [ ] All tests passing (unit, integration, e2e, security)\n   - [ ] `npm run verify:full` passes\n   - [ ] Performance benchmarks reviewed\n   - [ ] Rollback plan reviewed and approved\n   - [ ] Team notified of deployment window\n2. **Deployment**\n   - [ ] Deploy to staging first\n   - [ ] Run smoke tests on staging\n   - [ ] Deploy to production\n   - [ ] Monitor for 30 minutes post-deployment\n3. **Post-Deployment**\n   - [ ] Verify no error spikes in monitoring\n   - [ ] Check auth flow working\n   - [ ] Check wizard flow working\n   - [ ] Check multi-tenant operations working\n   - [ ] Verify no redirect loop incidents\n\n## Monitoring\n\n* Alert on: 401/403 error rate spikes\n* Alert on: Redirect loop detection (>3 redirects)\n* Alert on: Middleware execution time >200ms (p95)\n* Log: Auth events, tenant context resolution, wizard access attempts\n\n## Rollback Triggers\n\n* Auth failure rate >5%\n* Redirect loop incidents >2\n* Critical error rate >1%\n* Response time degradation >50%\n\n## Verification\n\n- [ ] Deployment successful\n- [ ] Monitoring showing healthy metrics\n- [ ] No incidents reported",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "monitoring"
+        },
+        {
+          "name": "phase-5-docs"
+        },
+        {
+          "name": "deployment"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:50:01.914Z",
+    "updatedAt": "2025-11-01T06:22:58.847Z",
+    "estimate": 10,
+    "url": "https://linear.app/campgroundops/issue/CAM-147/production-deployment-and-monitoring-setup"
+  },
+  {
+    "id": "9050c4dd-ab37-48b7-849c-7b133f06ddf5",
+    "identifier": "CAM-146",
+    "title": "Performance Testing & Optimization",
+    "description": "## Description\n\nConduct performance testing of refactored middleware to ensure no regression and identify optimization opportunities.\n\n## Acceptance Criteria\n\n- [ ] Benchmark tests created comparing old vs new middleware performance\n- [ ] Load testing performed (simulate 100 concurrent users)\n- [ ] Middleware execution time measured per layer (auth, tenant, wizard)\n- [ ] Memory usage profiled and compared to baseline\n- [ ] No performance regression detected (≤5% degradation acceptable)\n- [ ] Optimization opportunities identified and documented\n- [ ] Performance report created with metrics and recommendations\n\n## Technical Context\n\n* Tools: Artillery for load testing, Node.js profiler for memory\n* Metrics: Response time (p50, p95, p99), throughput, error rate\n* Scenarios: Login flow, wizard access, dashboard access, multi-tenant operations\n\n## Performance Tests\n\n1. **Baseline Measurement** (before refactor)\n   * Auth middleware execution time\n   * Full request cycle time\n   * Memory consumption\n2. **Refactored Measurement** (after refactor)\n   * Same metrics as baseline\n   * Compare and analyze differences\n3. **Load Testing**\n   * 100 concurrent users\n   * Mix of auth, wizard, dashboard requests\n   * Measure: throughput, latency, error rate\n\n## Deliverables\n\n* Performance test script (`tests/performance/middleware-perf.test.ts`)\n* Load test configuration (Artillery config)\n* Performance report (`docs/performance/middleware-refactor-results.md`)\n\n## Verification\n\n- [ ] No critical performance regressions\n- [ ] Results documented and reviewed",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "performance"
+        },
+        {
+          "name": "phase-5-docs"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:50:01.068Z",
+    "updatedAt": "2025-11-01T21:33:59.654Z",
+    "estimate": 16,
+    "url": "https://linear.app/campgroundops/issue/CAM-146/performance-testing-and-optimization"
+  },
+  {
+    "id": "0a8a3fb9-3458-4674-a44e-8508c3a67c76",
+    "identifier": "CAM-145",
+    "title": "Create Middleware Architecture Documentation",
+    "description": "## Description\n\nWrite comprehensive documentation explaining the refactored middleware architecture, usage patterns, and troubleshooting guides.\n\n## Acceptance Criteria\n\n- [ ] Architecture document created: `docs/architecture/middleware.md`\n- [ ] Execution flow diagram (Mermaid) showing middleware chain\n- [ ] Usage examples for common scenarios\n- [ ] Troubleshooting guide for common issues (redirect loops, auth failures)\n- [ ] Migration guide from old to new middleware patterns\n- [ ] API reference for middleware functions and types\n- [ ] Contributing guidelines for adding new middleware\n\n## Technical Context\n\n* Location: `docs/architecture/middleware.md`\n* Include: Mermaid diagrams, code examples, decision trees\n* Reference: Phase 1 specification and implementation\n\n## Documentation Sections\n\n1. **Overview**: Purpose, goals, principles\n2. **Architecture**: Execution order, composition pattern, type system\n3. **Middleware Reference**:\n   * Auth middleware (purpose, inputs, outputs, behavior)\n   * Tenant middleware\n   * Wizard middleware\n   * Composition utility\n4. **Usage Patterns**: Common scenarios with code examples\n5. **Troubleshooting**: Common issues and solutions\n6. **Migration Guide**: How to update custom middleware\n7. **Testing**: How to test middleware changes\n\n## Verification\n\n- [ ] Documentation reviewed by team member\n- [ ] All code examples tested and verified\n- [ ] Diagrams accurately reflect implementation",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-5-docs"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:50:00.265Z",
+    "updatedAt": "2025-11-01T21:33:46.609Z",
+    "estimate": 12,
+    "url": "https://linear.app/campgroundops/issue/CAM-145/create-middleware-architecture-documentation"
+  },
+  {
+    "id": "92dc98a8-8a2b-484c-942d-1f7cea2babc7",
+    "identifier": "CAM-144",
+    "title": "Security Testing: Tenant Isolation & Auth Bypass",
+    "description": "## Description\n\nCreate security-focused tests ensuring no auth bypass vulnerabilities or tenant data leakage in refactored middleware.\n\n## Acceptance Criteria\n\n- [ ] Security tests created in `tests/security/middleware-security.test.ts`\n- [ ] Test: Unauthenticated user cannot bypass auth to access protected routes\n- [ ] Test: Tenant A cannot access Tenant B's data via middleware manipulation\n- [ ] Test: Session token manipulation detected and rejected\n- [ ] Test: Wizard access control cannot be bypassed\n- [ ] Test: Direct URL access to protected routes properly redirects\n- [ ] All existing tenant isolation tests still pass (16/16)\n- [ ] `npm run test:security` passes with all tests green\n\n## Technical Context\n\n* Follow: [CLAUDE.md](http://CLAUDE.md) T-7, T-12 (multi-tenant security testing)\n* Location: `tests/security/middleware-security.test.ts`\n* Reference: Existing tests in `tests/security/tenant-isolation.test.ts`\n* Tools: Attempt malicious requests, verify proper rejection\n\n## Attack Scenarios to Test\n\n* **Auth Bypass**: Remove auth token, attempt protected route access\n* **Session Hijacking**: Use expired/invalid session token\n* **Tenant Hopping**: Authenticated as Tenant A, try to access Tenant B's /dashboard\n* **Wizard Bypass**: User with completed property tries to POST to wizard endpoints\n* **Direct DB Access**: Verify RLS policies block cross-tenant queries\n* **Parameter Tampering**: Modify tenant_id in request, verify rejection\n\n## Verification\n\n- [ ] All attack scenarios properly blocked\n- [ ] Error messages don't leak sensitive information\n- [ ] Audit logs created for security violations (if implemented)",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-4-testing"
+        },
+        {
+          "name": "security"
+        },
+        {
+          "name": "multi-tenant"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:59.448Z",
+    "updatedAt": "2025-11-01T23:29:08.953Z",
+    "estimate": 16,
+    "url": "https://linear.app/campgroundops/issue/CAM-144/security-testing-tenant-isolation-and-auth-bypass"
+  },
+  {
+    "id": "ae77b8ec-d515-4987-abb4-27bb0cae0a42",
+    "identifier": "CAM-143",
+    "title": "Implement E2E Tests for Critical User Flows",
+    "description": "## Description\n\nCreate Playwright e2e tests validating critical user flows through the middleware system in real browser environment.\n\n## Acceptance Criteria\n\n- [ ] E2E tests created in `tests/e2e/middleware-flows.spec.ts`\n- [ ] Test: Complete signup → wizard → property creation → dashboard flow\n- [ ] Test: Login → existing user → dashboard access (no wizard)\n- [ ] Test: Wizard access attempt with completed property → redirected to dashboard\n- [ ] Test: Logout → login → session restoration\n- [ ] All tests run in headless browser (CI compatible)\n- [ ] `npm run test:e2e` passes with all tests green\n\n## Technical Context\n\n* Tool: Playwright\n* Follow: [CLAUDE.md](http://CLAUDE.md) Testing Best Practices\n* Use: Page Object Model for maintainability\n* Ensure: Tests work in both dev and prod environments\n\n## Test Flows\n\n1. **New User Onboarding**\n   * Navigate to signup\n   * Complete registration\n   * Verify wizard access granted\n   * Complete wizard steps\n   * Verify dashboard access granted\n   * Verify wizard access now denied\n2. **Existing User Login**\n   * Navigate to login\n   * Enter credentials\n   * Verify direct dashboard access\n   * Verify wizard redirect if accessing /wizard\n3. **Session Persistence**\n   * Login\n   * Refresh page\n   * Verify still authenticated\n   * Verify tenant context preserved\n\n## Verification\n\n- [ ] Tests pass in headless mode\n- [ ] No flaky tests (run 3x to verify)\n- [ ] Screenshots captured on failure",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "In Progress",
+      "type": "started"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "e2e-tests"
+        },
+        {
+          "name": "phase-4-testing"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:58.765Z",
+    "updatedAt": "2025-11-01T23:22:22.462Z",
+    "estimate": 20,
+    "url": "https://linear.app/campgroundops/issue/CAM-143/implement-e2e-tests-for-critical-user-flows"
+  },
+  {
+    "id": "3ba2bb3e-50a8-49c4-8bf9-61199994ebfb",
+    "identifier": "CAM-142",
+    "title": "Implement Integration Tests for Middleware Chain",
+    "description": "## Description\n\nCreate integration tests validating the full middleware chain execution with realistic request/response cycles.\n\n## Acceptance Criteria\n\n- [ ] Integration tests created in `tests/integration/middleware.test.ts`\n- [ ] Tests cover auth → tenant → wizard → route flow\n- [ ] Tests validate context propagation between middleware\n- [ ] Tests verify no redirect loops occur\n- [ ] Tests cover multi-tenant scenarios with proper isolation\n- [ ] Tests use test database with proper cleanup\n- [ ] `npm run test:integration` passes with all tests green\n\n## Technical Context\n\n* Follow: [CLAUDE.md](http://CLAUDE.md) T-2, T-4 (prefer integration tests, minimal mocking)\n* Location: `tests/integration/middleware.test.ts`\n* Use: Real Supabase test client (not mocked)\n* Ensure: Test isolation (each test creates/cleans own data)\n\n## Test Scenarios\n\n* New user signup → wizard access allowed\n* Existing user with property → wizard access denied → redirect to dashboard\n* Unauthenticated user → public routes allowed, protected routes redirect to login\n* Authenticated user → tenant context resolved → dashboard access granted\n* Multi-tenant: Tenant A cannot access Tenant B's data\n* Wizard completion → property created → wizard access revoked\n\n## Verification\n\n- [ ] `npm run verify:startup` passes before tests\n- [ ] Tests pass consistently (no flakes)\n- [ ] Test data cleanup verified (no test pollution)",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "In Progress",
+      "type": "started"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "integration-tests"
+        },
+        {
+          "name": "phase-4-testing"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:57.958Z",
+    "updatedAt": "2025-11-01T23:22:17.262Z",
+    "estimate": 28,
+    "url": "https://linear.app/campgroundops/issue/CAM-142/implement-integration-tests-for-middleware-chain"
+  },
+  {
+    "id": "7984fac1-4173-417c-a918-d5e157f2f64e",
+    "identifier": "CAM-141",
+    "title": "Implement Unit Tests for Middleware Functions",
+    "description": "## Description\n\nCreate comprehensive unit tests for each middleware function following TDD approach and [CLAUDE.md](http://CLAUDE.md) guidelines.\n\n## Acceptance Criteria\n\n- [ ] Unit tests created for auth middleware (lib/middleware/auth.test.ts)\n- [ ] Unit tests created for tenant middleware (lib/middleware/tenant.test.ts)\n- [ ] Unit tests created for wizard middleware (lib/middleware/wizard.test.ts)\n- [ ] Unit tests created for composition utility (lib/middleware/compose.test.ts)\n- [ ] All tests use dynamic data generation (no hardcoded IDs/dates)\n- [ ] Test coverage ≥ 90% for all middleware code\n- [ ] `npm run test:unit` passes with all tests green\n\n## Technical Context\n\n* Follow: [CLAUDE.md](http://CLAUDE.md) Testing Best Practices (T-1, T-3, T-6, T-9, T-10, T-11)\n* Use: Vitest with colocated test files\n* Tools: Test utilities from `tests/utils/` for dynamic data\n* Pattern: AAA (Arrange, Act, Assert)\n\n## Test Scenarios (per middleware)\n\n* Happy path (authenticated, authorized user)\n* Unauthenticated user\n* Invalid/expired session\n* Missing tenant context\n* Incomplete wizard state\n* Edge cases from Phase 1 analysis\n\n## Verification\n\n- [ ] `npm run test:coverage` shows ≥90% coverage\n- [ ] All assertions use strong equality (`toEqual`, not `toBeGreaterThan`)\n- [ ] No brittle temporal data",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "unit-tests"
+        },
+        {
+          "name": "phase-4-testing"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:57.126Z",
+    "updatedAt": "2025-11-01T23:16:30.759Z",
+    "estimate": 24,
+    "url": "https://linear.app/campgroundops/issue/CAM-141/implement-unit-tests-for-middleware-functions"
+  },
+  {
+    "id": "166ef857-2e8d-45a2-8d5e-cd4fd332e225",
+    "identifier": "CAM-140",
+    "title": "Update Main Middleware with Composition",
+    "description": "## Description\n\nRefactor main `middleware.ts` to use composition pattern with proper execution order.\n\n## Acceptance Criteria\n\n- [ ] Main middleware uses `composeMiddleware` utility\n- [ ] Execution order: auth → tenant → wizard → route protection\n- [ ] Path matchers properly configured for each middleware\n- [ ] Config export defines middleware scope\n- [ ] No duplicate logic (all logic in individual middleware files)\n- [ ] All existing routes continue to work\n\n## Technical Context\n\n* File: `middleware.ts`\n* Use: Composition pattern from previous task\n* Reference: Phase 1 specification for execution order\n* Ensure: Backward compatibility with existing routes\n\n## Implementation\n\n```typescript\nimport { composeMiddleware } from '@/lib/middleware/compose';\nimport { authMiddleware } from '@/lib/middleware/auth';\nimport { tenantMiddleware } from '@/lib/middleware/tenant';\nimport { wizardMiddleware } from '@/lib/middleware/wizard';\n\nexport default composeMiddleware(\n  authMiddleware,\n  tenantMiddleware,\n  wizardMiddleware\n);\n\nexport const config = {\n  matcher: [\n    '/((?!_next/static|_next/image|favicon.ico).*)',\n  ],\n};\n```\n\n## Verification\n\n- [ ] `npm run verify:startup` passes\n- [ ] All routes accessible as expected\n- [ ] No redirect loops detected",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-3-wizard"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:56.178Z",
+    "updatedAt": "2025-11-01T22:58:02.278Z",
+    "estimate": 12,
+    "url": "https://linear.app/campgroundops/issue/CAM-140/update-main-middleware-with-composition"
+  },
+  {
+    "id": "433554f8-6f9d-4272-ad59-6da02b1d9ae2",
+    "identifier": "CAM-139",
+    "title": "Implement Middleware Composition Pattern",
+    "description": "## Description\n\nCreate composable middleware pattern allowing controlled execution order and preventing circular dependencies.\n\n## Acceptance Criteria\n\n- [ ] Middleware composition utility created (`composeMiddleware`)\n- [ ] Execution order explicitly defined and enforced\n- [ ] Short-circuit mechanism for early returns (redirects, errors)\n- [ ] Context properly passed between middleware layers\n- [ ] Type-safe composition (TypeScript validates middleware chain)\n- [ ] Documentation added for composition pattern usage\n\n## Technical Context\n\n* Create: `lib/middleware/compose.ts`\n* Pattern: Functional composition with async support\n* Inspiration: Express middleware, Redux middleware patterns\n* Ensure: Type safety throughout chain\n\n## Implementation Example\n\n```typescript\nexport function composeMiddleware(...middlewares: Middleware[]): Middleware {\n  return async (req, context) => {\n    for (const middleware of middlewares) {\n      const result = await middleware(req, context);\n      if (result) return result; // Short-circuit on redirect/error\n    }\n    return null;\n  };\n}\n```\n\n## Verification\n\n- [ ] Type-check passes\n- [ ] Unit tests validate composition behavior\n- [ ] Integration tests show correct execution order",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-3-wizard"
+        },
+        {
+          "name": "architecture"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:55.492Z",
+    "updatedAt": "2025-11-01T22:23:44.198Z",
+    "estimate": 16,
+    "url": "https://linear.app/campgroundops/issue/CAM-139/implement-middleware-composition-pattern"
+  },
+  {
+    "id": "e95297c3-6432-4675-9496-80cf0978e77d",
+    "identifier": "CAM-138",
+    "title": "Extract Wizard Access Logic to Dedicated Middleware",
+    "description": "## Description\n\nExtract wizard access logic from main middleware into dedicated, composable wizard middleware eliminating redirect loops.\n\n## Acceptance Criteria\n\n- [ ] Wizard middleware created in `lib/middleware/wizard.ts`\n- [ ] Wizard access logic separated from auth and tenant logic\n- [ ] Redirect logic uses proper Next.js redirect primitives (no manual Response creation)\n- [ ] Wizard state properly checked (property creation status)\n- [ ] No infinite redirect loops (verified with integration tests)\n- [ ] Unit tests pass for all wizard access scenarios\n\n## Technical Context\n\n* Extract from: Current `middleware.ts` wizard logic\n* Reference: Previous fixes in commits c24735a, 184f6fd, 8cdd5ec\n* Patterns: Check property fields, validate wizard completion\n* Follow: Execution order from Phase 1 spec\n\n## Edge Cases to Handle\n\n* New user (no property) → Allow wizard access\n* User with incomplete property → Allow wizard access\n* User with complete property → Block wizard access, redirect to dashboard\n* User accessing wizard while in onboarding flow → Allow\n\n## Verification\n\n- [ ] No redirect loops when accessing /wizard\n- [ ] `npm run verify:startup` passes\n- [ ] Integration tests pass",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "onboarding"
+        },
+        {
+          "name": "phase-3-wizard"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:54.778Z",
+    "updatedAt": "2025-11-01T22:36:43.151Z",
+    "estimate": 18,
+    "url": "https://linear.app/campgroundops/issue/CAM-138/extract-wizard-access-logic-to-dedicated-middleware"
+  },
+  {
+    "id": "62e9d8ad-1c83-4043-8d50-2e8bd7678df3",
+    "identifier": "CAM-137",
+    "title": "Refactor Tenant Middleware with Isolation Guarantees",
+    "description": "## Description\n\nRefactor tenant resolution middleware ensuring multi-tenant data isolation and proper context propagation.\n\n## Acceptance Criteria\n\n- [ ] Tenant context resolution extracted to dedicated middleware\n- [ ] Tenant validation separated from tenant resolution\n- [ ] TenantResolvedRequest type used consistently\n- [ ] Multi-tenant security tests pass (tenant isolation verified)\n- [ ] Integration tests pass for multi-tenant scenarios\n- [ ] No performance degradation (tenant lookup cached appropriately)\n\n## Technical Context\n\n* Location: `lib/middleware/tenant.ts`\n* Follow: [CLAUDE.md](http://CLAUDE.md) multi-tenant requirements (D-2, D-3)\n* Use: TenantId branded type from types task\n* Ensure: RLS policy compatibility\n* Test: Tenant isolation (tests/security/tenant-isolation.test.ts)\n\n## Verification\n\n- [ ] `npm run test:security` passes (16/16 tenant tests)\n- [ ] `npm run verify:startup` passes\n- [ ] No data leakage between tenants (security test validation)",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "dod-verified"
+        },
+        {
+          "name": "security"
+        },
+        {
+          "name": "multi-tenant"
+        },
+        {
+          "name": "phase-2-foundation"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:53.710Z",
+    "updatedAt": "2025-11-01T22:07:16.669Z",
+    "estimate": 20,
+    "url": "https://linear.app/campgroundops/issue/CAM-137/refactor-tenant-middleware-with-isolation-guarantees"
+  },
+  {
+    "id": "fd652fad-7735-4ad9-a37f-4ab84e868bb8",
+    "identifier": "CAM-136",
+    "title": "Refactor Auth Middleware with Proper Separation",
+    "description": "## Description\n\nRefactor authentication middleware to have single responsibility and clear boundaries, eliminating redirect loops.\n\n## Acceptance Criteria\n\n- [ ] Auth middleware only handles authentication verification\n- [ ] No redirect logic within auth middleware (delegated to route handlers)\n- [ ] Auth context properly added to request object\n- [ ] Session validation separated from route protection\n- [ ] Unit tests pass for all auth scenarios (authenticated, unauthenticated, expired session)\n- [ ] Integration tests pass for auth flow\n\n## Technical Context\n\n* Location: `lib/middleware/auth.ts`\n* Follow: Single Responsibility Principle\n* Remove: Redirect logic (move to route middleware)\n* Use: Branded types from previous task\n* Reference: Previous fix in commit 184f6fd\n\n## Verification\n\n- [ ] `npm run verify:startup` passes\n- [ ] `npm run test:integration` passes for auth tests\n- [ ] No circular dependencies detected",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "scrum-master-review"
+        },
+        {
+          "name": "auth"
+        },
+        {
+          "name": "phase-2-foundation"
+        },
+        {
+          "name": "backend"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:52.529Z",
+    "updatedAt": "2025-11-01T21:49:27.731Z",
+    "estimate": 16,
+    "url": "https://linear.app/campgroundops/issue/CAM-136/refactor-auth-middleware-with-proper-separation"
+  },
+  {
+    "id": "6923ad0f-694f-4df3-abc6-de9a24412a19",
+    "identifier": "CAM-135",
+    "title": "Implement Core Middleware Types",
+    "description": "## Description\n\nCreate TypeScript types and interfaces for middleware system ensuring type safety throughout the request/response chain.\n\n## Acceptance Criteria\n\n- [ ] Branded types created for middleware context (MiddlewareContext, AuthContext, TenantContext)\n- [ ] Request/Response type extensions defined\n- [ ] Middleware function signature types created\n- [ ] Type guards implemented for runtime validation\n- [ ] All types exported from `lib/middleware/types.ts`\n- [ ] `npm run type-check` passes with zero errors\n\n## Technical Context\n\n* Follow: [CLAUDE.md](http://CLAUDE.md) C-5 (branded types for domain IDs)\n* Use: `import type` for type-only imports (C-6)\n* Reference: Existing patterns in `database/types.ts`\n* Ensure: Multi-tenant type safety (TenantResolvedRequest pattern)\n\n## Implementation\n\n```typescript\n// lib/middleware/types.ts\nimport type { NextRequest, NextResponse } from 'next/server';\n\nexport type MiddlewareContext = Brand<object, 'MiddlewareContext'>;\nexport type AuthContext = {\n  userId: UserId;\n  sessionId: SessionId;\n  isAuthenticated: boolean;\n};\n// ... additional types\n```",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-2-foundation"
+        },
+        {
+          "name": "backend"
+        },
+        {
+          "name": "typescript"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:51.641Z",
+    "updatedAt": "2025-11-01T21:25:07.761Z",
+    "estimate": 8,
+    "url": "https://linear.app/campgroundops/issue/CAM-135/implement-core-middleware-types"
+  },
+  {
+    "id": "322089c7-3ffb-49de-9e77-0a6ba8ff6950",
+    "identifier": "CAM-134",
+    "title": "Design Test Strategy for Middleware",
+    "description": "## Description\n\nCreate comprehensive testing approach for middleware covering unit tests, integration tests, and e2e scenarios.\n\n## Acceptance Criteria\n\n- [ ] Test plan document created in `tests/middleware/TEST_PLAN.md`\n- [ ] Unit test scenarios defined for each middleware function\n- [ ] Integration test scenarios covering middleware chains\n- [ ] E2E test scenarios for critical user flows (signup, wizard, dashboard)\n- [ ] Test utilities and helpers identified/designed\n- [ ] Mock strategies defined for auth, database, and external dependencies\n\n## Technical Context\n\n* Follow: [CLAUDE.md](http://CLAUDE.md) Testing Best Practices (T-1 through T-11)\n* Use: Vitest for unit/integration, Playwright for e2e\n* Ensure: Dynamic test data generation (no hardcoded dates/IDs)\n* Include: Tenant isolation security tests\n\n## Deliverables\n\n* `tests/middleware/TEST_PLAN.md`\n* Test helper utilities design\n* Mock strategy documentation",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-1-analysis"
+        },
+        {
+          "name": "documentation"
+        },
+        {
+          "name": "testing"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:50.801Z",
+    "updatedAt": "2025-11-01T06:12:43.492Z",
+    "estimate": 12,
+    "url": "https://linear.app/campgroundops/issue/CAM-134/design-test-strategy-for-middleware"
+  },
+  {
+    "id": "754efb91-0e29-4b87-97f5-f026d8f772a9",
+    "identifier": "CAM-133",
+    "title": "Define Middleware Execution Order Specification",
+    "description": "## Description\n\nCreate a formal specification defining the correct order of middleware execution, decision trees, and state management requirements.\n\n## Acceptance Criteria\n\n- [ ] Written specification document in `specs/CAM-129-middleware-spec.md`\n- [ ] Execution order diagram showing auth → tenant → wizard → route logic\n- [ ] Decision trees for each middleware showing all conditional paths\n- [ ] State requirements documented (what each middleware needs/provides)\n- [ ] Edge cases and error handling patterns defined\n\n## Technical Context\n\n* Must prevent: Infinite redirects, race conditions, circular dependencies\n* Must support: Auth verification, tenant context, wizard access, protected routes\n* Reference: [CLAUDE.md](http://CLAUDE.md) multi-tenant security requirements (C-10, T-7)\n* Follow: Middleware best practices from Next.js 15 documentation\n\n## Deliverables\n\n* `specs/CAM-129-middleware-spec.md`\n* Mermaid diagrams embedded in spec\n* Example request flows for common scenarios",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "architecture"
+        },
+        {
+          "name": "phase-1-analysis"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:50.097Z",
+    "updatedAt": "2025-11-01T06:06:11.676Z",
+    "estimate": 20,
+    "url": "https://linear.app/campgroundops/issue/CAM-133/define-middleware-execution-order-specification"
+  },
+  {
+    "id": "110925e3-9d3a-4651-8a7e-6a0927d01941",
+    "identifier": "CAM-132",
+    "title": "Audit Current Middleware Implementation",
+    "description": "## Description\n\nComprehensive analysis of all middleware files to understand current state, identify anti-patterns, and document the redirect loop mechanisms.\n\n## Acceptance Criteria\n\n- [ ] Document all middleware files with their purposes and current logic flow\n- [ ] Identify all redirect patterns and map the circular dependencies\n- [ ] Create visual flowchart showing current middleware execution order\n- [ ] List all race conditions and timing issues discovered\n- [ ] Document all environment-specific behaviors (dev vs prod)\n\n## Technical Context\n\n* Review: `middleware.ts`, `lib/middleware/`, and route-specific middleware\n* Focus on: Wizard access logic, auth flows, subscription checks\n* Reference: Recent fixes in commits c24735a, 184f6fd\n* Tools: Mermaid diagrams for flowcharts\n\n## Files to Review\n\n* `middleware.ts`\n* `lib/middleware/auth.ts`\n* `lib/middleware/tenant.ts`\n* `lib/middleware/wizard.ts`",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "phase-1-analysis"
+        },
+        {
+          "name": "backend"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-129",
+      "title": "CRITICAL BUG - Middleware hardening"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:49:49.252Z",
+    "updatedAt": "2025-11-01T05:54:46.429Z",
+    "estimate": 16,
+    "url": "https://linear.app/campgroundops/issue/CAM-132/audit-current-middleware-implementation"
+  },
+  {
+    "id": "63f08529-0afd-4a82-93b2-165d34db0e0a",
+    "identifier": "CAM-131",
+    "title": "Setup Wizard Stabilization",
+    "description": "## Overview\n\nEpic to track all work required to stabilize the Setup Wizard and ensure reliable onboarding for new campground operators.\n\n## Context\n\nDuring the Oct 30, 2025 investor demo, critical failures occurred in the Setup Wizard that required manual browser refreshes at every step. This epic encompasses both the infrastructure hardening (middleware) and UI functionality fixes needed to prevent future incidents and deliver a production-ready onboarding experience.\n\n## Business Impact\n\n* **Investor Confidence**: Reliable demo experience for funding conversations\n* **User Onboarding**: Smooth conversion from signup to active campground operator\n* **Revenue**: Reduced drop-off during critical payment setup step\n* **Support**: Fewer stuck users requiring manual intervention\n\n## Scope\n\nThis epic includes:\n\n1. **Middleware Hardening** (CAM-129)\n   * Architectural improvements to prevent redirect loops\n   * Explicit state machine for wizard access control\n   * Type-safe route configuration\n   * Comprehensive testing infrastructure\n2. **Wizard Navigation & Skip Functionality** (CAM-130)\n   * Fix navigation buttons (back/previous functionality)\n   * Allow return to skipped steps (e.g., Stripe setup)\n   * Improve UX for guest booking link placement\n   * Ensure no user can become permanently stuck\n\n## Success Criteria\n\n- [ ] Complete wizard flow works end-to-end without manual intervention\n- [ ] Users can navigate freely between all wizard steps\n- [ ] Skipped steps can be completed later (in wizard or dashboard)\n- [ ] Zero redirect loops or infinite loading states\n- [ ] All critical paths covered by E2E tests\n- [ ] Successful investor demo with zero manual workarounds\n- [ ] 7 days of production stability with zero conversion failures\n\n## Timeline\n\n* **CAM-129**: 6.5 weeks (5 phases, can start immediately)\n* **CAM-130**: TBD (faster fix, can develop in parallel)\n* **Target**: Ready for next investor demo\n\n## Dependencies\n\n* Both issues can be developed in parallel\n* Integration testing required after both complete\n* E2E test suite validates complete conversion pipeline\n\n## Related Documentation\n\n* Incident Report: Oct 30, 2025 middleware redirect loop\n* Technical Spec: specs/CAM-129-spec.md\n* PRD: specs/CAM-129-prd.md",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": [
+        {
+          "identifier": "CAM-130",
+          "title": "Setup Wizard - Navigation & Skip Functionality Bugs"
+        },
+        {
+          "identifier": "CAM-129",
+          "title": "CRITICAL BUG - Middleware hardening"
+        }
+      ]
+    },
+    "createdAt": "2025-11-01T04:38:43.608Z",
+    "updatedAt": "2025-11-01T04:38:43.608Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-131/setup-wizard-stabilization"
+  },
+  {
+    "id": "a37408c7-2434-4fbe-a65e-2b6d837b7894",
+    "identifier": "CAM-130",
+    "title": "Setup Wizard - Navigation & Skip Functionality Bugs",
+    "description": "## Problem\n\nMultiple critical navigation and UX issues in the Setup Wizard prevent users from completing onboarding successfully.\n\n## Affected Components\n\n### 1\\. Navigation Buttons (CRITICAL)\n\n* **Issue**: Cannot navigate back to update setup at certain stages\n* **Impact**: Users get stuck at the Launch phase with no way to go back\n* **Expected**: Previous/Back buttons should allow navigation to any prior step\n\n### 2\\. Skip Functionality (CRITICAL)\n\n* **Issue**: Stripe setup can be skipped, but no way to go back and complete it\n* **Impact**: Users who skip Stripe cannot complete payment setup within wizard OR after completing wizard\n* **Expected**:\n  * Option to return to skipped steps within wizard, OR\n  * Clear path to complete skipped setup from dashboard after wizard completes\n\n### 3\\. Guest Booking Link Placement (UX Issue)\n\n* **Issue**: Setup summary screen shows guest-facing booking page link (hard to see)\n* **Impact**: Poor UX, users miss important link\n* **Expected**: Remove link from setup summary, place prominently in Dashboard post-setup\n\n## User Impact\n\n**Severity**: HIGH/CRITICAL\n\n* Blocks wizard completion if user skips required steps\n* Users become stuck with no recovery path\n* Occurred during live investor demo, causing manual browser refresh workarounds\n\n## Technical Context\n\n* **Files**:\n  * `components/dashboard/setup-wizard/wizard-container.tsx`\n  * `components/dashboard/setup-wizard/*-step.tsx` components\n* **Related Issue**: CAM-129 (Middleware Hardening) - separate concern, can develop in parallel\n* **Framework**: React 19 + Shadcn/UI + React Hook Form\n\n## Acceptance Criteria\n\n- [ ] All wizard steps allow navigation back to previous steps\n- [ ] Users can return to skipped steps (e.g., Stripe setup) within wizard\n- [ ] Alternative: Dashboard provides clear path to complete skipped setup items\n- [ ] Users cannot become permanently stuck at any wizard stage\n- [ ] Guest booking link removed from setup summary\n- [ ] Guest booking link added to Dashboard with prominent placement\n- [ ] Navigation works on mobile devices (touch-friendly back buttons)\n- [ ] Keyboard navigation works for accessibility\n\n## Testing Requirements\n\n- [ ] Component unit tests for navigation button handlers\n- [ ] Integration tests for skip → return flow\n- [ ] E2E test: Skip Stripe → Navigate back → Complete Stripe\n- [ ] E2E test: Complete wizard → Verify booking link in Dashboard\n- [ ] Accessibility tests (keyboard navigation, screen reader)\n- [ ] Mobile responsive tests\n\n## Dependencies\n\n* **Blocked by**: None (can start immediately)\n* **Blocks**: None (CAM-129 can proceed independently)\n* **Related**: CAM-129 (middleware routing) - test together after both complete\n\n## Priority Justification\n\nThis issue surfaced during a live investor demo where the Product Owner had to manually refresh the browser at every step to bypass navigation failures. Users who skip Stripe setup become permanently stuck with no recovery path, blocking revenue-critical payment functionality.",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "Todo",
+      "type": "unstarted"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "ui"
+        },
+        {
+          "name": "wizard"
+        },
+        {
+          "name": "high-priority"
+        },
+        {
+          "name": "Bug"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-131",
+      "title": "Setup Wizard Stabilization"
+    },
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T04:36:56.925Z",
+    "updatedAt": "2025-11-01T04:48:31.732Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-130/setup-wizard-navigation-and-skip-functionality-bugs"
+  },
+  {
+    "id": "3fe6efa1-4210-46c9-983e-e10e7fc48ae2",
+    "identifier": "CAM-129",
+    "title": "CRITICAL BUG - Middleware hardening",
+    "description": "[MIDDLEWARE_ARCHITECTURE.md](https://uploads.linear.app/339593d5-350d-440f-a61d-63501f4226f3/fbd9de38-0b2a-4164-a95a-8b339b27f6a8/a4f8d757-ae24-4a2c-911b-2b8f7c3dd463)\n\n[INCIDENT_SUMMARY_2025_10_30.md](https://uploads.linear.app/339593d5-350d-440f-a61d-63501f4226f3/435487fd-a7a9-4748-a5a3-c141e161468d/f712fb52-61ca-4e8e-bd17-3ccaa51799a6)",
+    "priority": 1,
+    "priorityLabel": "Urgent",
+    "state": {
+      "name": "In Progress",
+      "type": "started"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "ready-for-development"
+        },
+        {
+          "name": "in-sprint"
+        },
+        {
+          "name": "critical"
+        },
+        {
+          "name": "Bug"
+        }
+      ]
+    },
+    "parent": {
+      "identifier": "CAM-131",
+      "title": "Setup Wizard Stabilization"
+    },
+    "children": {
+      "nodes": [
+        {
+          "identifier": "CAM-147",
+          "title": "Production Deployment & Monitoring Setup"
+        },
+        {
+          "identifier": "CAM-146",
+          "title": "Performance Testing & Optimization"
+        },
+        {
+          "identifier": "CAM-145",
+          "title": "Create Middleware Architecture Documentation"
+        },
+        {
+          "identifier": "CAM-144",
+          "title": "Security Testing: Tenant Isolation & Auth Bypass"
+        },
+        {
+          "identifier": "CAM-143",
+          "title": "Implement E2E Tests for Critical User Flows"
+        },
+        {
+          "identifier": "CAM-142",
+          "title": "Implement Integration Tests for Middleware Chain"
+        },
+        {
+          "identifier": "CAM-141",
+          "title": "Implement Unit Tests for Middleware Functions"
+        },
+        {
+          "identifier": "CAM-140",
+          "title": "Update Main Middleware with Composition"
+        },
+        {
+          "identifier": "CAM-139",
+          "title": "Implement Middleware Composition Pattern"
+        },
+        {
+          "identifier": "CAM-138",
+          "title": "Extract Wizard Access Logic to Dedicated Middleware"
+        },
+        {
+          "identifier": "CAM-137",
+          "title": "Refactor Tenant Middleware with Isolation Guarantees"
+        },
+        {
+          "identifier": "CAM-136",
+          "title": "Refactor Auth Middleware with Proper Separation"
+        },
+        {
+          "identifier": "CAM-135",
+          "title": "Implement Core Middleware Types"
+        },
+        {
+          "identifier": "CAM-134",
+          "title": "Design Test Strategy for Middleware"
+        },
+        {
+          "identifier": "CAM-133",
+          "title": "Define Middleware Execution Order Specification"
+        },
+        {
+          "identifier": "CAM-132",
+          "title": "Audit Current Middleware Implementation"
+        }
+      ]
+    },
+    "createdAt": "2025-11-01T03:03:40.911Z",
+    "updatedAt": "2025-11-01T21:02:11.764Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-129/critical-bug-middleware-hardening"
+  },
+  {
+    "id": "fd362dbc-32fa-4938-bad4-dcb116ce25b5",
+    "identifier": "CAM-128",
+    "title": "Data Migration Tools",
+    "description": "## Summary\n\nCreate tools for migrating existing campground data from spreadsheets or legacy systems into CampOps platform.\n\n## Features\n\n- [ ] CSV import for sites/campsites\n- [ ] Excel template for bulk data entry\n- [ ] Validation and error reporting\n- [ ] Preview before import\n- [ ] Rollback capability\n- [ ] Import history/audit log\n\n## Supported Data Types\n\n* Sites/campsites (name, type, amenities)\n* Existing bookings (historical data)\n* Customer data (with consent)\n* Pricing rules\n* Availability calendars\n\n## User Interface\n\n- [ ] Upload CSV/Excel file\n- [ ] Column mapping (match their columns to our fields)\n- [ ] Validation results with fix suggestions\n- [ ] Preview imported data\n- [ ] Confirm and import\n- [ ] Success summary with stats\n\n## Technical Requirements\n\n- [ ] CSV parsing library integration\n- [ ] Data validation with Zod\n- [ ] Transaction-based import (all-or-nothing)\n- [ ] Tenant isolation for imported data\n- [ ] Progress tracking for large imports\n\n## Revenue Impact\n\nReduces friction for onboarding existing campgrounds with historical data, enabling faster time-to-revenue.\n\n## Acceptance Criteria\n\n- [ ] CSV import working end-to-end\n- [ ] Validation catches common errors\n- [ ] Preview shows accurate representation\n- [ ] Import completes successfully\n- [ ] Error handling comprehensive\n- [ ] Documentation for data format\n- [ ] Tests added (integration + e2e)",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "revenue-impact"
+        },
+        {
+          "name": "sprint-week-2"
+        },
+        {
+          "name": "backend"
+        },
+        {
+          "name": "frontend"
+        },
+        {
+          "name": "Feature"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:01:25.000Z",
+    "updatedAt": "2025-11-01T01:01:50.026Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-128/data-migration-tools"
+  },
+  {
+    "id": "502601a2-210b-4a36-97f0-91169631a8af",
+    "identifier": "CAM-127",
+    "title": "Setup Flow Polish",
+    "description": "## Summary\n\nPolish the initial setup/onboarding flow for new campground operators to ensure smooth, professional first experience.\n\n## Improvements Needed\n\n- [ ] Welcome screen with clear value proposition\n- [ ] Account creation with email verification\n- [ ] Stripe Connect onboarding integration\n- [ ] Property setup wizard (see [#6](https://linear.app/campgroundops/issue/CAM-126/property-setup-dashboard))\n- [ ] Sample data option for testing\n- [ ] Success confirmation with next steps\n\n## UX Enhancements\n\n- [ ] Loading states and progress indicators\n- [ ] Error handling with helpful messages\n- [ ] Keyboard navigation support\n- [ ] Accessibility (ARIA labels, focus management)\n- [ ] Micro-interactions and animations\n- [ ] Helpful tooltips and guidance\n\n## Technical Improvements\n\n- [ ] Optimize API calls (reduce roundtrips)\n- [ ] Client-side caching for form data\n- [ ] Optimistic UI updates\n- [ ] Form state persistence\n- [ ] Analytics tracking for funnel analysis\n\n## Revenue Impact\n\nImproved onboarding increases conversion rate from signup to active user, directly impacting revenue.\n\n## Acceptance Criteria\n\n- [ ] Setup flow feels professional and polished\n- [ ] No confusing or broken states\n- [ ] Performance is snappy (< 100ms interactions)\n- [ ] Works on mobile devices\n- [ ] Analytics tracking implemented\n- [ ] User testing completed",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "revenue-impact"
+        },
+        {
+          "name": "sprint-week-2"
+        },
+        {
+          "name": "demo-ready"
+        },
+        {
+          "name": "frontend"
+        },
+        {
+          "name": "Feature"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:01:23.000Z",
+    "updatedAt": "2025-11-01T01:01:50.264Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-127/setup-flow-polish"
+  },
+  {
+    "id": "bd1ad3a6-be06-43e1-bef2-abee77771028",
+    "identifier": "CAM-126",
+    "title": "Property Setup Dashboard",
+    "description": "## Summary\n\nCreate comprehensive property setup dashboard for campground operators to configure their property details, amenities, and settings.\n\n## Features\n\n- [ ] Property information form (name, location, contact)\n- [ ] Amenities configuration (pool, wifi, electric hookups, etc.)\n- [ ] Site type management (RV, tent, cabin)\n- [ ] Operating hours and season settings\n- [ ] Property photos upload\n- [ ] Branding/theming customization\n\n## User Experience\n\n* Step-by-step wizard for first-time setup\n* Dashboard view for ongoing management\n* Progress indicator showing completion status\n* Inline validation and helpful tips\n* Mobile-responsive design\n\n## Technical Requirements\n\n- [ ] Form validation with Zod schemas\n- [ ] Image upload with Supabase Storage\n- [ ] Multi-step wizard component\n- [ ] Progress persistence (save draft)\n- [ ] Tenant-scoped data access\n\n## Revenue Impact\n\nEnables campground operators to fully configure their property, directly enabling bookings and revenue generation.\n\n## Acceptance Criteria\n\n- [ ] Dashboard UI implemented\n- [ ] All form fields working\n- [ ] Validation comprehensive\n- [ ] Data persists correctly\n- [ ] Mobile-responsive\n- [ ] Tests added (unit + integration)",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "revenue-impact"
+        },
+        {
+          "name": "sprint-week-2"
+        },
+        {
+          "name": "backend"
+        },
+        {
+          "name": "frontend"
+        },
+        {
+          "name": "Feature"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:01:21.000Z",
+    "updatedAt": "2025-11-01T01:01:40.524Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-126/property-setup-dashboard"
+  },
+  {
+    "id": "e99f6ec1-f228-4583-9549-a665bc315d0c",
+    "identifier": "CAM-125",
+    "title": "Demo Branch Strategy",
+    "description": "## Summary\n\nEstablish branching strategy for demo preparation and investor presentation to ensure stable demo environment.\n\n## Requirements\n\n- [ ] Create `demo` branch from stable `develop`\n- [ ] Document demo branch workflow\n- [ ] Establish demo data seeding process\n- [ ] Create demo reset script\n- [ ] Configure demo environment variables\n\n## Demo Branch Workflow\n\n1. Branch `demo` from `develop` 2 days before presentation\n2. Cherry-pick only demo-ready features\n3. Freeze commits 1 day before demo\n4. Reset demo data before presentation\n5. Merge improvements back to `develop` after demo\n\n## Demo Scripts\n\n* `scripts/demo-setup.sh` - Seed demo data\n* `scripts/demo-reset.sh` - Reset to clean state\n* `scripts/demo-verify.sh` - Verify all features working\n\n## Acceptance Criteria\n\n- [ ] Demo branch created\n- [ ] Demo scripts implemented\n- [ ] Demo data seeded and tested\n- [ ] Workflow documented\n- [ ] Team trained on demo process",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "demo-ready"
+        },
+        {
+          "name": "high-priority"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:00:52.000Z",
+    "updatedAt": "2025-11-01T01:01:10.090Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-125/demo-branch-strategy"
+  },
+  {
+    "id": "93468897-380e-474c-a1dd-444caa1ddbf9",
+    "identifier": "CAM-124",
+    "title": "Branch Protection Rules",
+    "description": "## Summary\n\nConfigure branch protection rules for `main` and `develop` branches to enforce code quality and review process.\n\n## Requirements\n\n### Main Branch Protection\n\n- [ ] Require pull request before merging\n- [ ] Require 1 approval (if team size allows)\n- [ ] Require status checks to pass\n- [ ] Require conversation resolution\n- [ ] No direct commits\n\n### Develop Branch Protection\n\n- [ ] Require pull request before merging\n- [ ] Require status checks to pass\n- [ ] Allow force pushes (for rebasing)\n\n### Status Checks\n\n- [ ] CI must pass (quality-checks)\n- [ ] Unit tests must pass\n- [ ] Integration tests must pass\n- [ ] Build must succeed\n\n## Note\n\nBranch protection requires GitHub Pro or public repository. Document alternative workflow if not available.\n\n## Acceptance Criteria\n\n- [ ] Protection rules configured (or documented alternative)\n- [ ] Team workflow documented in README\n- [ ] Status checks integrated\n- [ ] Process validated with test PR",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "high-priority"
+        },
+        {
+          "name": "enhancement"
+        },
+        {
+          "name": "sprint-week-1"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:00:49.000Z",
+    "updatedAt": "2025-11-01T01:01:10.086Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-124/branch-protection-rules"
+  },
+  {
+    "id": "1b8413b8-d284-44d1-b7f7-21dd3de0190a",
+    "identifier": "CAM-123",
+    "title": "Setup GitHub Project Board",
+    "description": "## Summary\n\nConfigure GitHub Project board for sprint planning and issue tracking across 4-week development cycle.\n\n## Requirements\n\n- [ ] Create project board with sprint columns\n- [ ] Configure automation rules\n- [ ] Add all existing issues to board\n- [ ] Set up sprint views (Week 1-4)\n- [ ] Create board templates for new issues\n\n## Board Structure\n\n**Columns:**\n\n* Backlog\n* Week 1 Sprint\n* Week 2 Sprint\n* Week 3 Sprint\n* Week 4 Sprint\n* In Progress\n* In Review\n* Done\n\n## Automation\n\n* Auto-add new issues to Backlog\n* Move to In Progress when PR created\n* Move to In Review when PR opened\n* Move to Done when PR merged\n\n## Acceptance Criteria\n\n- [ ] Project board created and configured\n- [ ] All issues properly categorized\n- [ ] Automation rules working\n- [ ] Team trained on workflow",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Done",
+      "type": "completed"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "critical"
+        },
+        {
+          "name": "documentation"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:00:32.000Z",
+    "updatedAt": "2025-11-01T01:15:37.979Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-123/setup-github-project-board"
+  },
+  {
+    "id": "9bd21cd3-119c-4e1b-ba47-2864399128be",
+    "identifier": "CAM-122",
+    "title": "Add Smoke Test Script",
+    "description": "## Summary\n\nCreate comprehensive smoke test script to validate critical functionality before commits and deployments.\n\n## Requirements\n\n- [ ] Script tests API server startup\n- [ ] Validates database connectivity\n- [ ] Checks authentication endpoints\n- [ ] Verifies critical API endpoints\n- [ ] Runs in CI/CD pipeline\n- [ ] Can be used as pre-commit hook\n\n## Implementation Details\n\n* Script location: `scripts/pre-commit-smoke-test.sh`\n* Should complete in < 30 seconds\n* Clear pass/fail output\n* Integration with git hooks\n\n## Acceptance Criteria\n\n- [ ] Script created and executable\n- [ ] All critical paths validated\n- [ ] CI integration complete\n- [ ] Documentation updated\n\n## Related Files\n\n* `scripts/pre-commit-smoke-test.sh` (already created, needs enhancement)\n* `.github/workflows/ci.yml`\n* `package.json` (add npm script)",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "backend"
+        },
+        {
+          "name": "enhancement"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "critical"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:00:29.000Z",
+    "updatedAt": "2025-11-01T01:00:50.544Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-122/add-smoke-test-script"
+  },
+  {
+    "id": "52c5c73b-cb6c-4be1-95c1-869269f53fd3",
+    "identifier": "CAM-121",
+    "title": "Regression Testing",
+    "description": "## Summary\n\nComplete regression testing of existing CampOps functionality to identify and fix any broken features before demo.\n\n## Testing Scope\n\n- [ ] User authentication and authorization\n- [ ] Site management (CRUD operations)\n- [ ] Booking creation and management\n- [ ] Payment processing\n- [ ] Multi-tenant isolation\n- [ ] Property setup wizard\n- [ ] Admin dashboard functionality\n\n## Acceptance Criteria\n\n- [ ] All critical user flows documented\n- [ ] Test cases created for each flow\n- [ ] All identified bugs filed as separate issues\n- [ ] Smoke test script validates critical paths\n\n## Impact\n\n* Blocks demo presentation\n* Critical for user confidence\n* Foundation for future development",
+    "priority": 0,
+    "priorityLabel": "No priority",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": [
+        {
+          "name": "demo-blocker"
+        },
+        {
+          "name": "sprint-week-1"
+        },
+        {
+          "name": "critical"
+        },
+        {
+          "name": "needs-testing"
+        },
+        {
+          "name": "Bug"
+        }
+      ]
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-11-01T01:00:12.000Z",
+    "updatedAt": "2025-11-01T01:00:39.907Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-121/regression-testing"
+  },
+  {
+    "id": "e0fab6ff-8a8c-4150-a8a1-f4f50d1196c2",
+    "identifier": "CAM-120",
+    "title": "Ecosystem Integrations - Discovery",
+    "description": "Quickbooks, Google Calendar, Zapier",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:14:40.522Z",
+    "updatedAt": "2025-10-28T22:14:40.522Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-120/ecosystem-integrations-discovery"
+  },
+  {
+    "id": "54e589c2-1771-4b46-a287-b66163b16cd7",
+    "identifier": "CAM-119",
+    "title": "Advanced Operations - White Label",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:13:55.554Z",
+    "updatedAt": "2025-10-28T22:13:55.554Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-119/advanced-operations-white-label"
+  },
+  {
+    "id": "9f20f8cf-bb0e-4c3a-9e1e-30cab60c44cb",
+    "identifier": "CAM-118",
+    "title": "Advanced Operations - API Access",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:13:47.891Z",
+    "updatedAt": "2025-10-28T22:13:47.891Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-118/advanced-operations-api-access"
+  },
+  {
+    "id": "3ba5cd90-229d-456f-ac29-38bbe71decce",
+    "identifier": "CAM-117",
+    "title": "Advanced Operations - Franchise Support",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:13:38.555Z",
+    "updatedAt": "2025-10-28T22:13:38.555Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-117/advanced-operations-franchise-support"
+  },
+  {
+    "id": "62c49527-5937-4dee-a12d-297508b3541b",
+    "identifier": "CAM-116",
+    "title": "Advanced Operations - Multi-property management",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:13:31.146Z",
+    "updatedAt": "2025-10-28T22:13:31.146Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-116/advanced-operations-multi-property-management"
+  },
+  {
+    "id": "f277461e-9361-4d16-9cb3-abbd0af356e4",
+    "identifier": "CAM-115",
+    "title": "Revenue Optimization - Loyalty Program",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:12:49.594Z",
+    "updatedAt": "2025-10-28T22:12:49.594Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-115/revenue-optimization-loyalty-program"
+  },
+  {
+    "id": "0d7f9861-ddb7-4168-a156-1b6dc536432d",
+    "identifier": "CAM-114",
+    "title": "Revenue Optimization - Package Builder",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:12:40.962Z",
+    "updatedAt": "2025-10-28T22:12:40.962Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-114/revenue-optimization-package-builder"
+  },
+  {
+    "id": "618b5b4a-c43e-42d7-8253-ed7610f40d3b",
+    "identifier": "CAM-113",
+    "title": "Revenue Optimization - Upsell Engine",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:12:29.087Z",
+    "updatedAt": "2025-10-28T22:12:29.087Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-113/revenue-optimization-upsell-engine"
+  },
+  {
+    "id": "fe5f31f7-b6dc-46eb-ac21-8f0020bf9098",
+    "identifier": "CAM-112",
+    "title": "Revenue Optimization - Dynamic Pricing",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:12:22.467Z",
+    "updatedAt": "2025-10-28T22:12:22.467Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-112/revenue-optimization-dynamic-pricing"
+  },
+  {
+    "id": "8c928a77-5934-4d0a-8b64-eae4aba9917c",
+    "identifier": "CAM-111",
+    "title": "Mobile Experience - Native Apps",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:12:05.734Z",
+    "updatedAt": "2025-10-28T22:12:05.734Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-111/mobile-experience-native-apps"
+  },
+  {
+    "id": "a3c56952-bf89-4b61-ad97-c2a8d83928c9",
+    "identifier": "CAM-110",
+    "title": "Mobile Experience - Progressive Web App",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:11:59.343Z",
+    "updatedAt": "2025-10-28T22:11:59.343Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-110/mobile-experience-progressive-web-app"
+  },
+  {
+    "id": "8e6ae74a-a33e-483f-8f88-aad542a4df1d",
+    "identifier": "CAM-109",
+    "title": "Mobile Experience - Mobile-Optimized booking",
+    "description": "",
+    "priority": 2,
+    "priorityLabel": "High",
+    "state": {
+      "name": "Backlog",
+      "type": "backlog"
+    },
+    "labels": {
+      "nodes": []
+    },
+    "parent": null,
+    "children": {
+      "nodes": []
+    },
+    "createdAt": "2025-10-28T22:11:49.643Z",
+    "updatedAt": "2025-10-28T22:11:49.643Z",
+    "estimate": null,
+    "url": "https://linear.app/campgroundops/issue/CAM-109/mobile-experience-mobile-optimized-booking"
+  }
+]

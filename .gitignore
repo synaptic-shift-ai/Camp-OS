@@ -31,3 +31,17 @@ next-env.d.ts
 
 # temporary files
 /temp
+.temp*
+
+# test artifacts
+/coverage
+/test-results
+/playwright-report
+
+# ide
+.vscode/
+.idea/
+
+# os
+.DS_Store
+Thumbs.db

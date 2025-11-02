@@ -87,14 +87,16 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   useEffect(() => {
     if (isCompleting) return // Don't update URL during wizard completion
 
-    const params = new URLSearchParams(searchParams)
+    // Build new params based on current state
+    // Note: We intentionally don't use searchParams here to avoid circular dependency
+    const params = new URLSearchParams()
     params.set("wizard", "true")  // Keep wizard mode active
     params.set("step", currentStep)
     if (workingPropertyId) {
       params.set("propertyId", workingPropertyId)
     }
     router.replace(`/dashboard/sites?${params.toString()}`, { scroll: false })
-  }, [currentStep, workingPropertyId, router, searchParams, isCompleting])
+  }, [currentStep, workingPropertyId, router, isCompleting])
 
   const handleWizardComplete = useCallback(async () => {
     if (!selectedProperty) return

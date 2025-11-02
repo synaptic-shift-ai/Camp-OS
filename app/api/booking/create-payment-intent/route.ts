@@ -10,7 +10,7 @@
  * 3. Return client_secret for frontend PaymentElement
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { Database } from '@/contracts/db'

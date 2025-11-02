@@ -25,7 +25,7 @@ export function calculatePriceBreakdown(params: {
   const { basePricePerNight, numberOfNights, numPets } = params
 
   const subtotal = basePricePerNight * numberOfNights
-  let total = subtotal
+  const total = subtotal
 
   const breakdown: PriceBreakdown = {
     base_price_per_night: basePricePerNight,

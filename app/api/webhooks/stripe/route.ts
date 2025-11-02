@@ -11,7 +11,7 @@
  * 4. Update payment_status to paid
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { StripePaymentIntentSucceededSchema } from '@/contracts/schemas'

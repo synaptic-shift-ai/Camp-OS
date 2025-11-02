@@ -628,7 +628,7 @@ export async function getGuests(
 
   // Get all reservations for this property to aggregate guest data
   // Must join with guests table to get guest information
-  let query = supabase
+  const query = supabase
     .from('reservations')
     .select(`
       id,

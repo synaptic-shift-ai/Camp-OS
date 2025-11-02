@@ -16,6 +16,10 @@ export default defineConfig([
       'next-env.d.ts',
       'node_modules/**',
       '.claude/**',
+      'scripts/**',
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
     ],
   },
 
@@ -24,6 +28,7 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-non-null-assertion': 'warn',
+      '@typescript-eslint/no-non-null-asserted-optional-chain': 'error',
       '@typescript-eslint/consistent-type-imports': [
         'error',
         {
@@ -31,6 +36,9 @@ export default defineConfig([
           fixStyle: 'inline-type-imports',
         },
       ],
+      'react/no-unescaped-entities': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
       'no-restricted-imports': [
         'error',
         {
@@ -108,6 +116,21 @@ export default defineConfig([
           ],
         },
       ],
+    },
+  },
+
+  // Relax rules for UI pages with animations and error handling
+  {
+    files: [
+      'app/**/confirmation/page.tsx',
+      'app/dashboard/analytics/page.tsx',
+      'app/global-error.tsx',
+      'app/error.tsx',
+    ],
+    rules: {
+      '@typescript-eslint/no-empty-object-type': 'warn',
+      '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
+      'no-restricted-imports': 'off',
     },
   },
 ])

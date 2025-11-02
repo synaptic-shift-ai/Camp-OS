@@ -5,7 +5,8 @@
       "mcp__playwright__playwright_screenshot",
       "mcp__playwright__playwright_navigate",
       "mcp__playwright__playwright_close",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(gh run list:*)"
     ],
     "deny": [],
     "ask": []

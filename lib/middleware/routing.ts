@@ -73,7 +73,7 @@ export function createAuthMiddleware(
 
     // Special case: Allow /onboarding with magic link token (from email)
     // Users clicking email links won't be authenticated yet
-    if (pathname === '/onboarding' && request.nextUrl.searchParams.has('token')) {
+    if (pathname === '/onboarding' && request.middlewareContext.searchParams.has('token')) {
       logger.debug('Allowing /onboarding with magic link token', { pathname })
       recordDuration('auth-middleware', timer.end(), 'success')
       return request

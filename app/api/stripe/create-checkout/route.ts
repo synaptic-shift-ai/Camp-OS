@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe Checkout Session
+    console.log('[Stripe Checkout] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
+    console.log('[Stripe Checkout] NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL)
     const session_data = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",

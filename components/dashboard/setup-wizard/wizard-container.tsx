@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from "lucide-react"
 import { useProperty, type Property } from "@/components/property-context"
 import { WizardProgressBar, WIZARD_STEPS, type WizardStep } from "./wizard-progress-bar"
@@ -24,7 +24,6 @@ interface WizardContainerProps {
 
 export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { properties, selectedProperty, selectProperty, incompleteProperties, refreshProperties } =
     useProperty()
 

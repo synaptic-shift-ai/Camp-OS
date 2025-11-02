@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 import { resend, getFrom } from "@/lib/email/resend"
+import { randomBytes } from "crypto"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -152,6 +153,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // Create company record (this is the FIRST database write)
   console.log('[Webhook] Creating company record...')
+
+  // Generate secure onboarding token for magic link authentication
+  const onboardingToken = randomBytes(32).toString('hex')
+  const tokenExpiresAt = new Date()
+  tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7) // Token expires in 7 days
+
   const companyInsertData = {
     owner_id: userId,
     name: companyData?.companyName || "My Company",
@@ -161,8 +168,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     subscription_plan: planId,
     subscription_created_at: new Date().toISOString(),
     billing_cycle: billingCycle,
+    onboarding_token: onboardingToken,
+    onboarding_token_expires_at: tokenExpiresAt.toISOString(),
   }
-  console.log('[Webhook] Company insert data:', companyInsertData)
+  console.log('[Webhook] Company insert data:', { ...companyInsertData, onboarding_token: '[REDACTED]' })
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -253,8 +262,13 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     },
   })
 
-  // Send onboarding email
-  await sendOnboardingEmail(session.customer_details?.email!, planId, companyData?.companyName || "My Company")
+  // Send onboarding email with magic link token
+  await sendOnboardingEmail(
+    session.customer_details?.email!,
+    planId,
+    companyData?.companyName || "My Company",
+    onboardingToken
+  )
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -465,12 +479,12 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   })
 }
 
-async function sendOnboardingEmail(email: string, planId: string, companyName: string) {
+async function sendOnboardingEmail(email: string, planId: string, companyName: string, token: string) {
   console.log(`[Onboarding Email] Sending to ${email} for ${companyName} (${planId} plan)`)
 
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const onboardingUrl = `${baseUrl}/onboarding`
+    const onboardingUrl = `${baseUrl}/onboarding?token=${token}`
 
     const { data, error } = await resend.emails.send({
       from: getFrom(),

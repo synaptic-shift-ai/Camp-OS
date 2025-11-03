@@ -101,7 +101,7 @@ export function withErrorHandler(
       logger.critical('Unhandled middleware error', err, {
         pathname: request.nextUrl?.pathname || 'unknown',
         method: request.method,
-        userAgent: request.headers.get('user-agent') || 'unknown',
+        userAgent: request.headers?.get('user-agent') || 'unknown',
       })
 
       // Get error response configuration

@@ -87,8 +87,13 @@ function createMockRequest(pathname: string, searchParams?: Record<string, strin
     })
   }
 
+  // Create proper Headers instance (required by Next.js)
+  const headers = new Headers()
+  headers.set('user-agent', 'test-agent')
+
   return {
     url: url.toString(),
+    method: 'GET',
     nextUrl: {
       pathname,
       searchParams: url.searchParams,
@@ -96,9 +101,11 @@ function createMockRequest(pathname: string, searchParams?: Record<string, strin
       clone: () => ({ pathname, searchParams: url.searchParams }),
     },
     cookies: {
+      get: vi.fn().mockReturnValue(undefined),
       getAll: vi.fn().mockReturnValue([]),
       set: vi.fn(),
     },
+    headers,
   } as unknown as NextRequest
 }
 

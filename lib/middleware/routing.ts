@@ -87,7 +87,8 @@ export function createAuthMiddleware(
 
       // Not authenticated - redirect to login
       if (!authResult.authenticated) {
-        const url = new URL('/login', request.middlewareContext.origin)
+        const origin = request.middlewareContext.origin || 'http://localhost:3000'
+        const url = new URL('/login', origin)
         url.searchParams.set('redirect', pathname)
 
         logger.info('Redirecting unauthenticated user to login', {
@@ -173,7 +174,8 @@ export function createEmailVerificationMiddleware(): MiddlewareFunction {
 
     // Email not verified - redirect to verification page
     if (!auth.emailVerified) {
-      const url = new URL('/verify-email', request.middlewareContext.origin)
+      const origin = request.middlewareContext.origin || 'http://localhost:3000'
+      const url = new URL('/verify-email', origin)
       url.searchParams.set('redirect', pathname)
 
       logger.info('Redirecting user with unverified email', {
@@ -278,7 +280,8 @@ export function createSubscriptionMiddleware(
 
       // No active subscription - redirect to plan selection
       if (!tenantResult.resolved) {
-        const url = new URL('/choose-plan', request.middlewareContext.origin)
+        const origin = request.middlewareContext.origin || 'http://localhost:3000'
+        const url = new URL('/choose-plan', origin)
 
         logger.info('Redirecting user without active subscription', {
           from: pathname,
@@ -408,7 +411,8 @@ export function createOnboardingMiddleware(
 
       // If any properties are incomplete, redirect to onboarding entry point
       if (incompleteProperties && incompleteProperties.length > 0) {
-        const url = new URL('/onboarding', request.middlewareContext.origin)
+        const origin = request.middlewareContext.origin || 'http://localhost:3000'
+        const url = new URL('/onboarding', origin)
 
         logger.info('Redirecting to onboarding - incomplete properties', {
           from: pathname,

@@ -56,6 +56,7 @@ function createMockMiddlewareRequest(
     sessionId: createSessionId(`session-${Date.now()}`),
     pathname,
     searchParams,
+    origin: 'http://localhost:3000',
   }
 
   if (context?.auth) {
@@ -82,8 +83,13 @@ function createMockMiddlewareRequest(
       searchParams,
       origin: 'http://localhost:3000',
     },
+    cookies: {
+      get: vi.fn().mockReturnValue(undefined),
+      getAll: vi.fn().mockReturnValue([]),
+      set: vi.fn(),
+    },
     middlewareContext,
-  } as MiddlewareRequest
+  } as unknown as MiddlewareRequest
 }
 
 /**

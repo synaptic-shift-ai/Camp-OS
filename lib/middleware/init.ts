@@ -41,20 +41,25 @@ export function initializeRequest(request: NextRequest): MiddlewareRequest {
   )
 
   // Extract URL components from request
-  const pathname = request.nextUrl.pathname
-  const searchParams = request.nextUrl.searchParams
-  const origin = request.nextUrl.origin
+  // CRITICAL: request.nextUrl can be undefined in some browsers (Edge) after
+  // Supabase magic link redirects. Provide safe fallbacks.
+  const nextUrl = request.nextUrl || new URL(request.url)
+  const pathname = nextUrl.pathname
+  const searchParams = nextUrl.searchParams
+  const origin = nextUrl.origin
 
-  // Create middleware request with initial context
-  const middlewareRequest: MiddlewareRequest = {
-    ...request,
-    middlewareContext: {
-      sessionId,
-      pathname,
-      searchParams,
-      origin,
-    },
-  } as MiddlewareRequest
+  // CRITICAL: DO NOT spread the request object!
+  // Spreading loses getter properties (cookies, headers, nextUrl) which breaks
+  // both Chrome and Edge. Instead, attach middlewareContext directly to the
+  // original request object.
+  // This cast is safe because TypeScript intersection types allow adding properties.
+  const middlewareRequest = request as MiddlewareRequest
+  middlewareRequest.middlewareContext = {
+    sessionId,
+    pathname,
+    searchParams,
+    origin,
+  }
 
   return middlewareRequest
 }

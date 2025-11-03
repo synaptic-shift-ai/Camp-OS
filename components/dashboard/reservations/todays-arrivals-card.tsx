@@ -160,7 +160,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
                       Site {reservation.site?.site_number}
                     </span>
                     {reservation.checked_in_at && (
-                      <span className="text-green-600 text-xs">
+                      <span className="text-green-600 text-xs" suppressHydrationWarning>
                         Checked in at {formatTime(reservation.checked_in_at)}
                       </span>
                     )}

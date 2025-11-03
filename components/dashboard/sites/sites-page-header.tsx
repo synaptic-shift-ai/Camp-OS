@@ -10,6 +10,7 @@
 import { useState } from 'react'
 import { Plus, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AddSiteDialog } from './add-site-dialog'
 import { BulkUploadDialog } from './bulk-upload-dialog'
 
 interface SitesPageHeaderProps {
@@ -17,13 +18,8 @@ interface SitesPageHeaderProps {
 }
 
 export function SitesPageHeader({ propertyId }: SitesPageHeaderProps) {
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
-
-  const handleAddSite = () => {
-    // TODO: Implement single site add
-    // For now, could navigate to add site page or open add site dialog
-    console.log('Add site clicked')
-  }
 
   return (
     <>
@@ -44,13 +40,27 @@ export function SitesPageHeader({ propertyId }: SitesPageHeaderProps) {
             <Upload className="h-4 w-4" />
             Import Sites
           </Button>
-          <Button className="gap-2" onClick={handleAddSite}>
+          <Button
+            className="gap-2"
+            onClick={() => setIsAddDialogOpen(true)}
+            disabled={!propertyId}
+          >
             <Plus className="h-4 w-4" />
             Add Site
           </Button>
         </div>
       </div>
 
+      {/* Add Site Dialog */}
+      {propertyId && (
+        <AddSiteDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          propertyId={propertyId}
+        />
+      )}
+
+      {/* Bulk Import Dialog */}
       {propertyId && (
         <BulkUploadDialog
           open={isImportDialogOpen}

@@ -234,6 +234,26 @@ export default async function SitesPage({ searchParams }: SitesPageProps) {
     <div className="space-y-6">
       <SitesPageHeader propertyId={currentPropertyId} />
 
+      {/* Site Stats - Always at top */}
+      <Suspense
+        fallback={
+          <div className="grid gap-4 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Loading...</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-8 bg-muted animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        }
+      >
+        <SitesStats />
+      </Suspense>
+
       {/* Sites Grid */}
       <Suspense
         fallback={
@@ -252,26 +272,6 @@ export default async function SitesPage({ searchParams }: SitesPageProps) {
         }
       >
         <SitesList />
-      </Suspense>
-
-      {/* Site Stats */}
-      <Suspense
-        fallback={
-          <div className="grid gap-4 md:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Loading...</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-8 bg-muted animate-pulse rounded" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        }
-      >
-        <SitesStats />
       </Suspense>
     </div>
   )

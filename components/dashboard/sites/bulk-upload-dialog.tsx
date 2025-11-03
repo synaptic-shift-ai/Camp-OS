@@ -149,7 +149,8 @@ export function BulkUploadDialog({
       }
 
       const result = await response.json()
-      const count = Array.isArray(result) ? result.length : 1
+      // Extract count from API response: { success: true, sites: [...], count: N }
+      const count = result.count || result.sites?.length || (Array.isArray(result) ? result.length : 1)
 
       setImportedCount(count)
       setStep('success')

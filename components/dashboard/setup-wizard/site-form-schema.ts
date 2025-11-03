@@ -36,6 +36,21 @@ export const siteFormSchema = z.object({
     waterfront: z.boolean().default(false),
   }),
 
+  // Pet-related fields
+  allow_pets: z.boolean().default(false),
+  pet_fee: z.coerce.number().min(0).optional(), // In dollars, converted to cents for API
+
+  // ADA Accessibility
+  ada_accessible: z.boolean().default(false),
+  accessibility_features: z.object({
+    wheelchair_accessible: z.boolean().default(false),
+    wide_paths: z.boolean().default(false),
+    accessible_table: z.boolean().default(false),
+    accessible_restroom: z.boolean().default(false),
+    handrails: z.boolean().default(false),
+    level_ground: z.boolean().default(false),
+  }).optional(),
+
   // Advanced settings (optional)
   availability_rules: z
     .object({
@@ -73,6 +88,15 @@ export function toApiFormat(data: SiteFormData) {
       .filter(([_, v]) => v)
       .map(([k]) => k),
     availability_rules: data.availability_rules || {},
+    // Pet and ADA fields
+    allow_pets: data.allow_pets,
+    pet_fee: data.pet_fee ? Math.round(data.pet_fee * 100) : null, // Convert dollars to cents
+    ada_accessible: data.ada_accessible,
+    accessibility_features: data.accessibility_features
+      ? Object.entries(data.accessibility_features)
+          .filter(([_, v]) => v)
+          .map(([k]) => k)
+      : [],
   }
 }
 
@@ -113,5 +137,17 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
     hookups: hookupsObj,
     amenities: amenitiesObj,
     availability_rules: site.availability_rules || undefined,
+    // Pet and ADA fields
+    allow_pets: site.allow_pets || false,
+    pet_fee: site.pet_fee ? site.pet_fee / 100 : undefined, // Convert cents to dollars
+    ada_accessible: site.ada_accessible || false,
+    accessibility_features: {
+      wheelchair_accessible: site.accessibility_features?.includes("wheelchair_accessible") || false,
+      wide_paths: site.accessibility_features?.includes("wide_paths") || false,
+      accessible_table: site.accessibility_features?.includes("accessible_table") || false,
+      accessible_restroom: site.accessibility_features?.includes("accessible_restroom") || false,
+      handrails: site.accessibility_features?.includes("handrails") || false,
+      level_ground: site.accessibility_features?.includes("level_ground") || false,
+    },
   }
 }

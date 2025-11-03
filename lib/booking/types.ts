@@ -56,9 +56,10 @@ export interface Site {
   description: string | null
   images: string[] // JSONB array in DB
   location_map: Record<string, any> | null // JSONB object in DB
-  allow_pets: boolean
-  pet_fee: number | null
-  ada_accessible: boolean
+  allow_pets: boolean // Whether pets are allowed at this site
+  pet_fee: number | null // One-time pet fee in cents (NULL if no fee)
+  ada_accessible: boolean // ADA accessibility compliance
+  accessibility_features: string[] // JSONB array of accessibility features
   imported_at?: string | null // Timestamp when site was imported via CSV bulk upload
   imported_by?: string | null // User ID who performed the CSV bulk import
   created_at: string

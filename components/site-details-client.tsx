@@ -82,6 +82,7 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
   // Booking form state
   const [date, setDate] = useState<DateRange | undefined>()
   const [guests, setGuests] = useState(2)
+  const [numPets, setNumPets] = useState(0)
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false)
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
   const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown | null>(null)
@@ -125,7 +126,10 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
       try {
         const [availabilityResult, pricingResult] = await Promise.all([
           checkSiteAvailability(siteId, format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd")),
-          calculateReservationPrice(siteId, format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd"), { num_adults: guests }),
+          calculateReservationPrice(siteId, format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd"), {
+            num_adults: guests,
+            num_pets: numPets
+          }),
         ])
 
         if (availabilityResult.success) {
@@ -142,7 +146,7 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
       }
     }
     checkAndCalculate()
-  }, [date, guests, site, siteId])
+  }, [date, guests, numPets, site, siteId])
 
   const calculateNights = () => {
     if (date?.from && date?.to) {
@@ -579,6 +583,46 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
                   )}
                 </div>
 
+                {/* Number of Pets (only show if pet-friendly) */}
+                {site.amenities.petFriendly && (
+                  <div className="space-y-2">
+                    <Label htmlFor="pets">Number of Pets</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setNumPets(Math.max(0, numPets - 1))}
+                        disabled={numPets <= 0}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        id="pets"
+                        type="number"
+                        min={0}
+                        max={5}
+                        value={numPets}
+                        onChange={(e) => setNumPets(Math.max(0, Math.min(5, Number.parseInt(e.target.value) || 0)))}
+                        className="text-center"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setNumPets(Math.min(5, numPets + 1))}
+                        disabled={numPets >= 5}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <PawPrint className="h-3 w-3" />
+                      {numPets > 0 ? `${numPets} ${numPets === 1 ? 'pet' : 'pets'}` : 'No pets'}
+                    </p>
+                  </div>
+                )}
+
                 {/* Availability Status */}
                 {isCheckingAvailability && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -613,6 +657,45 @@ export function SiteDetailsClient({ siteId }: { siteId: string }) {
                         </span>
                         <span className="font-medium">${priceBreakdown.subtotal.toFixed(2)}</span>
                       </div>
+
+                      {/* Additional Fees */}
+                      {(priceBreakdown.pet_fee || priceBreakdown.petFee) && numPets > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <PawPrint className="h-3 w-3" />
+                            Pet fee ({numPets} {numPets === 1 ? 'pet' : 'pets'})
+                          </span>
+                          <span className="font-medium">
+                            ${((priceBreakdown.pet_fee || priceBreakdown.petFee || 0) / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
+                      {(priceBreakdown.cleaning_fee || priceBreakdown.cleaningFee) && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cleaning fee</span>
+                          <span className="font-medium">
+                            ${((priceBreakdown.cleaning_fee || priceBreakdown.cleaningFee || 0) / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
+                      {(priceBreakdown.service_fee || priceBreakdown.serviceFee) && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Service fee</span>
+                          <span className="font-medium">
+                            ${((priceBreakdown.service_fee || priceBreakdown.serviceFee || 0) / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
+                      {priceBreakdown.taxes && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Taxes</span>
+                          <span className="font-medium">${(priceBreakdown.taxes / 100).toFixed(2)}</span>
+                        </div>
+                      )}
+
                       <Separator />
                       <div className="flex justify-between text-lg font-bold">
                         <span>Total</span>

@@ -62,6 +62,17 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
             lake_view: site.site_amenities?.includes("lake_view") || false,
             waterfront: site.site_amenities?.includes("waterfront") || false,
           },
+          allow_pets: site.allow_pets || false,
+          pet_fee: site.pet_fee ? site.pet_fee / 100 : undefined, // Convert cents to dollars
+          ada_accessible: site.ada_accessible || false,
+          accessibility_features: {
+            wheelchair_accessible: site.accessibility_features?.includes("wheelchair_accessible") || false,
+            wide_paths: site.accessibility_features?.includes("wide_paths") || false,
+            accessible_table: site.accessibility_features?.includes("accessible_table") || false,
+            accessible_restroom: site.accessibility_features?.includes("accessible_restroom") || false,
+            handrails: site.accessibility_features?.includes("handrails") || false,
+            level_ground: site.accessibility_features?.includes("level_ground") || false,
+          },
         }
       : {
           site_number: "",
@@ -86,12 +97,26 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
             lake_view: false,
             waterfront: false,
           },
+          allow_pets: false,
+          pet_fee: undefined,
+          ada_accessible: false,
+          accessibility_features: {
+            wheelchair_accessible: false,
+            wide_paths: false,
+            accessible_table: false,
+            accessible_restroom: false,
+            handrails: false,
+            level_ground: false,
+          },
         },
   })
 
   const siteType = watch("site_type")
   const hookups = watch("hookups")
   const amenities = watch("amenities")
+  const allowPets = watch("allow_pets")
+  const adaAccessible = watch("ada_accessible")
+  const accessibilityFeatures = watch("accessibility_features")
 
   const onSubmit = async (data: SiteFormData) => {
     try {
@@ -465,6 +490,153 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                 Waterfront
               </Label>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pets & Accessibility */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pets & Accessibility</CardTitle>
+          <CardDescription>Pet policies and ADA accessibility features</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Pet Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="allow_pets"
+                checked={allowPets}
+                onCheckedChange={(checked) =>
+                  setValue("allow_pets", checked as boolean)
+                }
+              />
+              <Label htmlFor="allow_pets" className="font-medium cursor-pointer">
+                Allow Pets
+              </Label>
+            </div>
+
+            {allowPets && (
+              <div>
+                <Label htmlFor="pet_fee">Pet Fee (one-time)</Label>
+                <Input
+                  id="pet_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("pet_fee")}
+                  placeholder="15.00"
+                />
+                {errors.pet_fee && (
+                  <p className="text-sm text-destructive mt-1">{errors.pet_fee.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  One-time fee in dollars (optional, leave empty for no fee)
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t pt-4 space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="ada_accessible"
+                checked={adaAccessible}
+                onCheckedChange={(checked) =>
+                  setValue("ada_accessible", checked as boolean)
+                }
+              />
+              <Label htmlFor="ada_accessible" className="font-medium cursor-pointer">
+                ADA Accessible
+              </Label>
+            </div>
+
+            {adaAccessible && accessibilityFeatures && (
+              <div className="ml-6 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Select specific accessibility features available:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accessibility_wheelchair"
+                      checked={accessibilityFeatures.wheelchair_accessible}
+                      onCheckedChange={(checked) =>
+                        setValue("accessibility_features.wheelchair_accessible", checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="accessibility_wheelchair" className="font-normal cursor-pointer">
+                      Wheelchair Accessible
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accessibility_wide_paths"
+                      checked={accessibilityFeatures.wide_paths}
+                      onCheckedChange={(checked) =>
+                        setValue("accessibility_features.wide_paths", checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="accessibility_wide_paths" className="font-normal cursor-pointer">
+                      Wide Paths
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accessibility_table"
+                      checked={accessibilityFeatures.accessible_table}
+                      onCheckedChange={(checked) =>
+                        setValue("accessibility_features.accessible_table", checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="accessibility_table" className="font-normal cursor-pointer">
+                      Accessible Table
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accessibility_restroom"
+                      checked={accessibilityFeatures.accessible_restroom}
+                      onCheckedChange={(checked) =>
+                        setValue("accessibility_features.accessible_restroom", checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="accessibility_restroom" className="font-normal cursor-pointer">
+                      Accessible Restroom
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accessibility_handrails"
+                      checked={accessibilityFeatures.handrails}
+                      onCheckedChange={(checked) =>
+                        setValue("accessibility_features.handrails", checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="accessibility_handrails" className="font-normal cursor-pointer">
+                      Handrails
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="accessibility_level_ground"
+                      checked={accessibilityFeatures.level_ground}
+                      onCheckedChange={(checked) =>
+                        setValue("accessibility_features.level_ground", checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="accessibility_level_ground" className="font-normal cursor-pointer">
+                      Level Ground
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

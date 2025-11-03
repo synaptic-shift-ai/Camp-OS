@@ -122,12 +122,12 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     type: 'json_array',
   },
 
-  // ========== Pet & Accessibility ==========
+  // ========== Pet Policy ==========
   {
     key: 'allow_pets',
     header: 'Allow Pets',
     required: false,
-    description: 'TRUE or FALSE (defaults to FALSE)',
+    description: 'Whether pets are allowed: TRUE or FALSE',
     example: 'TRUE',
     type: 'boolean',
   },
@@ -135,20 +135,30 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     key: 'pet_fee',
     header: 'Pet Fee ($)',
     required: false,
-    description: 'One-time pet fee in dollars',
-    example: '25.00',
+    description: 'One-time pet fee in dollars (optional)',
+    example: '15.00',
     type: 'number',
   },
+
+  // ========== ADA Accessibility ==========
   {
     key: 'ada_accessible',
     header: 'ADA Accessible',
     required: false,
-    description: 'TRUE or FALSE (defaults to FALSE)',
-    example: 'FALSE',
+    description: 'Whether site meets ADA standards: TRUE or FALSE',
+    example: 'TRUE',
     type: 'boolean',
   },
+  {
+    key: 'accessibility_features',
+    header: 'Accessibility Features',
+    required: false,
+    description: 'JSON array of features: ["wheelchair_accessible","wide_paths","accessible_table","accessible_restroom","handrails","level_ground"]',
+    example: '["wheelchair_accessible","wide_paths","level_ground"]',
+    type: 'json_array',
+  },
 
-  // ========== Advanced Features (Optional) ==========
+  // ========== Description ==========
   {
     key: 'description',
     header: 'Description',
@@ -156,22 +166,6 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     description: 'Site description (max 1000 characters)',
     example: 'Spacious RV site with full hookups and lake view',
     type: 'string',
-  },
-  {
-    key: 'accessibility_features',
-    header: 'Accessibility Features',
-    required: false,
-    description: 'JSON array of features: ["wheelchair_accessible","wide_paths","accessible_table"]',
-    example: '["wheelchair_accessible","wide_paths"]',
-    type: 'json_array',
-  },
-  {
-    key: 'seasonal_pricing',
-    header: 'Seasonal Pricing',
-    required: false,
-    description: 'JSON array of seasonal prices: [{"season":"summer","start_date":"2024-06-01","end_date":"2024-08-31","price":75}]',
-    example: '[{"season":"summer","price":75}]',
-    type: 'json_array',
   },
 ] as const
 

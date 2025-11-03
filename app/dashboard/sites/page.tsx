@@ -17,6 +17,7 @@ import { MoreVertical, Plus, Tent, Home, TreePine, Sparkles, Circle, MapPin } fr
 import { getSites, getSiteStats } from "@/lib/dashboard/queries"
 import { createClient } from "@/lib/supabase/server"
 import type { SiteType } from "@/lib/booking/types"
+import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 
 const siteTypeIcons: Record<SiteType, LucideIcon> = {
   rv: Home,
@@ -225,19 +226,13 @@ export default async function SitesPage({ searchParams }: SitesPageProps) {
     return <WizardContainer initialPropertyId={propertyId} />
   }
 
+  // Get current property ID for bulk upload
+  const currentPropertyId = await getCurrentPropertyId()
+
   // Normal sites view
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Sites</h1>
-          <p className="text-muted-foreground">Manage your property sites and units</p>
-        </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Site
-        </Button>
-      </div>
+      <SitesPageHeader propertyId={currentPropertyId} />
 
       {/* Sites Grid */}
       <Suspense

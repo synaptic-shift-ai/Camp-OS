@@ -128,6 +128,9 @@ export async function POST(
       )
     }
 
+    // Detect if this is a bulk CSV import (array with multiple sites)
+    const isBulkImport = Array.isArray(body) && sites.length > 1
+
     // Prepare sites for insertion
     const sitesToInsert = sites.map((site) => ({
       property_id: propertyId,
@@ -140,12 +143,22 @@ export async function POST(
       status: site.status || "available",
       description: site.description || null,
       base_price: site.base_price, // Already in cents from frontend
-      weekend_price_cents: site.weekend_price_cents || null,
+      weekend_price: site.weekend_price || site.weekend_price_cents || null,
       hookups: site.hookups || [],
-      site_amenities: site.site_amenities || [],
-      site_images: site.site_images || [],
-      availability_rules: site.availability_rules || {},
+      amenities: site.site_amenities || site.amenities || [],
+      images: site.site_images || site.images || [],
+      location_map: site.location_map || null,
+      allow_pets: site.allow_pets || false,
+      pet_fee: site.pet_fee || null,
+      ada_accessible: site.ada_accessible || false,
       accessibility_features: site.accessibility_features || [],
+      seasonal_pricing: site.seasonal_pricing || [],
+      availability_rules: site.availability_rules || {},
+      // Add import metadata if this is a bulk import
+      ...(isBulkImport && {
+        imported_at: new Date().toISOString(),
+        imported_by: user.id,
+      }),
     }))
 
     // Insert sites using service role client
@@ -160,6 +173,11 @@ export async function POST(
         { error: "Failed to create sites" },
         { status: 500 }
       )
+    }
+
+    // Log bulk imports for monitoring and debugging
+    if (isBulkImport) {
+      console.log(`Bulk CSV import completed: ${createdSites?.length || 0} sites created for property ${propertyId} by user ${user.id}`)
     }
 
     return NextResponse.json({

@@ -59,6 +59,8 @@ export interface Site {
   allow_pets: boolean
   pet_fee: number | null
   ada_accessible: boolean
+  imported_at?: string | null // Timestamp when site was imported via CSV bulk upload
+  imported_by?: string | null // User ID who performed the CSV bulk import
   created_at: string
   updated_at: string
 }

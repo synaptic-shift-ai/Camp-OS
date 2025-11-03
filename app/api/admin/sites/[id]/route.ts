@@ -3,12 +3,12 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
 
 /**
- * PATCH /api/admin/sites/[siteId]
+ * PATCH /api/admin/sites/[id]
  * Update an existing site
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ siteId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -18,7 +18,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { siteId } = await params
+    const { id: siteId } = await params
     const body = await request.json()
 
     // Create service role client to bypass RLS
@@ -110,7 +110,7 @@ export async function PATCH(
       site: updatedSite,
     })
   } catch (error) {
-    console.error("Error in PATCH /api/admin/sites/[siteId]:", error)
+    console.error("Error in PATCH /api/admin/sites/[id]:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -119,12 +119,12 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/admin/sites/[siteId]
+ * DELETE /api/admin/sites/[id]
  * Delete a site (only if no future reservations)
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ siteId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -134,7 +134,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { siteId } = await params
+    const { id: siteId } = await params
 
     // Create service role client to bypass RLS
     const supabaseAdmin = createServiceRoleClient()
@@ -217,7 +217,7 @@ export async function DELETE(
       message: "Site deleted successfully",
     })
   } catch (error) {
-    console.error("Error in DELETE /api/admin/sites/[siteId]:", error)
+    console.error("Error in DELETE /api/admin/sites/[id]:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

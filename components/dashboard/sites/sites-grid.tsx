@@ -20,8 +20,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { useToast } from '@/hooks/use-toast'
+import { useRouter } from 'next/navigation'
 import { EditSiteDialog } from './edit-site-dialog'
 import { DeleteSiteDialog } from './delete-site-dialog'
+import { SiteDetailsDialog } from './site-details-dialog'
+import { SiteCalendarDialog } from './site-calendar-dialog'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/src/contracts/db'
 
@@ -63,6 +72,11 @@ function formatMoney(cents: number): string {
 export function SitesGrid({ sites }: SitesGridProps) {
   const [editingSite, setEditingSite] = useState<Site | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
+  const [viewingSite, setViewingSite] = useState<Site | null>(null)
+  const [calendarSite, setCalendarSite] = useState<Site | null>(null)
+  const [statusPopoverOpen, setStatusPopoverOpen] = useState<string | null>(null)
+  const { toast } = useToast()
+  const router = useRouter()
 
   const handleEditClick = (site: Site, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -76,8 +90,43 @@ export function SitesGrid({ sites }: SitesGridProps) {
 
   const handleCalendarClick = (site: Site, e: React.MouseEvent) => {
     e.stopPropagation()
-    // TODO: Implement calendar dialog in Phase 2
-    console.log('View calendar for site:', site.site_number)
+    setCalendarSite(site)
+  }
+
+  const handleStatusChange = async (site: Site, newStatus: SiteStatus, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    try {
+      const response = await fetch(`/api/admin/sites/${site.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update status')
+      }
+
+      toast({
+        title: 'Status Updated',
+        description: `Site ${site.site_number} is now ${newStatus}`,
+      })
+
+      setStatusPopoverOpen(null)
+      router.refresh()
+    } catch (err) {
+      console.error('Error updating status:', err)
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to update status',
+        variant: 'destructive',
+      })
+    }
   }
 
   if (sites.length === 0) {
@@ -94,7 +143,11 @@ export function SitesGrid({ sites }: SitesGridProps) {
         {sites.map((site) => {
           const Icon = siteTypeIcons[site.site_type as SiteType] || MapPin
           return (
-            <Card key={site.id} className="relative overflow-hidden">
+            <Card
+              key={site.id}
+              className="relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setViewingSite(site)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -137,9 +190,38 @@ export function SitesGrid({ sites }: SitesGridProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className={statusColors[site.status as SiteStatus]}>
-                    {site.status}
-                  </Badge>
+                  <Popover
+                    open={statusPopoverOpen === site.id}
+                    onOpenChange={(open) => setStatusPopoverOpen(open ? site.id : null)}
+                  >
+                    <PopoverTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className={`${statusColors[site.status as SiteStatus]} cursor-pointer hover:scale-105 transition-transform`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {site.status}
+                      </Badge>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 px-2">
+                          Change Status
+                        </p>
+                        {(['available', 'occupied', 'maintenance', 'housekeeping', 'unavailable'] as SiteStatus[]).map((status) => (
+                          <Button
+                            key={status}
+                            variant="ghost"
+                            size="sm"
+                            className={`w-full justify-start ${statusColors[status]}`}
+                            onClick={(e) => handleStatusChange(site, status, e)}
+                          >
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Badge variant="outline" className="capitalize">
                     {site.site_type}
                   </Badge>
@@ -185,6 +267,24 @@ export function SitesGrid({ sites }: SitesGridProps) {
             site_number: deletingSite.site_number,
             ...(deletingSite.site_name && { site_name: deletingSite.site_name }),
           }}
+        />
+      )}
+
+      {/* Details Dialog */}
+      {viewingSite && (
+        <SiteDetailsDialog
+          open={!!viewingSite}
+          onOpenChange={(open) => !open && setViewingSite(null)}
+          site={viewingSite}
+        />
+      )}
+
+      {/* Calendar Dialog */}
+      {calendarSite && (
+        <SiteCalendarDialog
+          open={!!calendarSite}
+          onOpenChange={(open) => !open && setCalendarSite(null)}
+          site={calendarSite}
         />
       )}
     </>

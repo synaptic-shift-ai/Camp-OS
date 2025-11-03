@@ -17,8 +17,16 @@ export type SiteType = 'tent' | 'rv' | 'cabin' | 'glamping' | 'yurt' | 'other'
 
 /**
  * Current operational status of a site (matches DB CHECK constraint)
+ * Full lifecycle: available → reserved → booked → occupied → housekeeping → available
  */
-export type SiteStatus = 'available' | 'unavailable' | 'maintenance'
+export type SiteStatus =
+  | 'available'     // Ready for booking
+  | 'reserved'      // Reservation placed, pending confirmation
+  | 'booked'        // Confirmed reservation, awaiting check-in
+  | 'occupied'      // Guest currently staying
+  | 'housekeeping'  // Cleaning after checkout
+  | 'maintenance'   // Under repair/maintenance
+  | 'unavailable'   // Blocked or not usable
 
 /**
  * Amenities that can be associated with a site
@@ -141,6 +149,34 @@ export type ReservationStatus =
   | 'no_show'      // Guest did not arrive
 
 /**
+ * Site condition assessment during check-out inspection
+ */
+export type SiteCondition = 'excellent' | 'good' | 'fair' | 'poor'
+
+/**
+ * Equipment status assessment during check-out inspection
+ */
+export type EquipmentStatus = 'all_present' | 'missing_items' | 'damaged'
+
+/**
+ * Cleanliness assessment during check-out inspection
+ */
+export type CleanlinessLevel = 'clean' | 'needs_cleaning' | 'excessive_mess'
+
+/**
+ * Structured damage inspection data collected during check-out
+ */
+export interface DamageInspectionData {
+  site_condition: SiteCondition
+  equipment_status: EquipmentStatus
+  cleanliness: CleanlinessLevel
+  damage_description?: string
+  estimated_repair_cost?: number // In cents
+  inspected_at: string // ISO 8601 timestamp
+  photos?: string[] // URLs to uploaded photos
+}
+
+/**
  * Payment status for reservation (matches DB CHECK constraint)
  */
 export type ReservationPaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded'
@@ -171,6 +207,18 @@ export interface Reservation {
   cancelled_at: string | null
   created_at: string
   updated_at: string
+
+  // Check-in workflow fields
+  checked_in_at: string | null // ISO 8601 timestamp when guest checked in
+  checked_in_by: string | null // User ID of staff who performed check-in
+  balance_paid_at_checkin: number | null // Additional payment collected at check-in (in cents)
+  check_in_notes: string | null // Staff notes from check-in process
+
+  // Check-out workflow fields
+  checked_out_at: string | null // ISO 8601 timestamp when guest checked out
+  checked_out_by: string | null // User ID of staff who performed check-out
+  damage_inspection_data: DamageInspectionData | null // Structured damage inspection results
+  check_out_notes: string | null // Staff notes from check-out process
 
   // Joined data (when queried with relations)
   site?: Site

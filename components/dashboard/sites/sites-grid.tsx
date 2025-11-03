@@ -31,6 +31,7 @@ import { EditSiteDialog } from './edit-site-dialog'
 import { DeleteSiteDialog } from './delete-site-dialog'
 import { SiteDetailsDialog } from './site-details-dialog'
 import { SiteCalendarDialog } from './site-calendar-dialog'
+import { SiteCheckInButton } from './site-check-in-button'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/src/contracts/db'
 
@@ -170,6 +171,7 @@ export function SitesGrid({ sites }: SitesGridProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <SiteCheckInButton siteId={site.id} siteStatus={site.status || 'unavailable'} />
                       <DropdownMenuItem onClick={(e) => handleEditClick(site, e)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Site

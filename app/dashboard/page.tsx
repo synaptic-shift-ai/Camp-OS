@@ -1,10 +1,11 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink } from "lucide-react"
-import { getDashboardStats, getReservations } from "@/lib/dashboard/queries"
+import { getDashboardStats, getReservations, getTodaysArrivals } from "@/lib/dashboard/queries"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { TodaysArrivalsCard } from "@/components/dashboard/reservations/todays-arrivals-card"
 import type { ReservationStatus } from "@/src/contracts/booking"
 
 const statusColors: Record<ReservationStatus, string> = {
@@ -218,6 +219,18 @@ async function RecentActivity() {
   )
 }
 
+async function TodaysArrivals() {
+  const propertyId = await getCurrentPropertyId()
+
+  if (!propertyId) {
+    return null
+  }
+
+  const arrivals = await getTodaysArrivals(propertyId)
+
+  return <TodaysArrivalsCard arrivals={arrivals} />
+}
+
 async function BookingPortalCTA() {
   const propertyId = await getCurrentPropertyId()
 
@@ -331,6 +344,22 @@ export default async function DashboardPage() {
         }
       >
         <DashboardStats />
+      </Suspense>
+
+      {/* Today's Arrivals - Priority Widget */}
+      <Suspense
+        fallback={
+          <Card>
+            <CardHeader>
+              <CardTitle>Loading...</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-32 bg-muted animate-pulse rounded" />
+            </CardContent>
+          </Card>
+        }
+      >
+        <TodaysArrivals />
       </Suspense>
 
       {/* Recent Activity */}

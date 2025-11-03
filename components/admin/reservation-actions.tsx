@@ -12,11 +12,13 @@ import {
 import { MoreVertical } from "lucide-react"
 import { EditReservationDialog } from "./edit-reservation-dialog"
 import { CancelReservationDialog } from "./cancel-reservation-dialog"
+import { CheckInButton } from "./check-in-button"
 
 interface ReservationActionsProps {
   reservationId: string
   confirmationNumber: string
   guestName: string
+  status: string
   checkIn: string
   checkOut: string
   numAdults: number
@@ -28,6 +30,7 @@ export function ReservationActions({
   reservationId,
   confirmationNumber,
   guestName,
+  status,
   checkIn,
   checkOut,
   numAdults,
@@ -44,6 +47,11 @@ export function ReservationActions({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <CheckInButton
+          reservationId={reservationId}
+          status={status}
+          checkInDate={checkIn}
+        />
         <EditReservationDialog
           reservationId={reservationId}
           confirmationNumber={confirmationNumber}

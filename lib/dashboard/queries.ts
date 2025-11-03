@@ -1191,3 +1191,40 @@ export async function getOccupancyByMonth(
 
   return result
 }
+
+// ============================================================================
+// Check-in/Check-out Queries
+// ============================================================================
+
+/**
+ * Get today's arrivals (reservations with check-in date = today)
+ * Returns reservations that need check-in or have already been checked in today
+ */
+export async function getTodaysArrivals(propertyId: string) {
+  const supabase = await createClient()
+
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]!
+
+  const { data, error } = await supabase
+    .from('reservations')
+    .select(
+      `
+      *,
+      guest:guests (*),
+      site:sites (*)
+      `
+    )
+    .eq('property_id', propertyId)
+    .eq('check_in_date', todayStr)
+    .in('status', ['confirmed', 'checked_in']) // Only show confirmed (pending check-in) and checked_in
+    .order('checked_in_at', { ascending: false, nullsFirst: false }) // Show pending first
+
+  if (error) {
+    console.error('Error fetching todays arrivals:', error)
+    return []
+  }
+
+  return data || []
+}

@@ -123,6 +123,7 @@ async function ReservationsTable() {
                 reservationId={reservation.id}
                 confirmationNumber={reservation.confirmationNumber}
                 guestName={reservation.guestName}
+                status={reservation.status}
                 checkIn={reservation.checkIn}
                 checkOut={reservation.checkOut}
                 numAdults={reservation.numAdults}

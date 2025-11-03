@@ -89,6 +89,12 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent
+        await handlePaymentIntentSucceeded(paymentIntent)
+        break
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -560,4 +566,35 @@ async function sendOnboardingEmail(email: string, planId: string, companyName: s
   } catch (error) {
     console.error('[Onboarding Email] ❌ Error:', error)
   }
+}
+
+/**
+ * Handle payment_intent.succeeded webhook event
+ *
+ * Called when a guest completes payment for their campsite reservation.
+ * Creates Stripe Customer, attaches PaymentMethod, updates reservation status.
+ *
+ * Flow:
+ * 1. Extract reservation_id from PaymentIntent metadata
+ * 2. Fetch reservation and guest details
+ * 3. Create Stripe Customer (if guest doesn't have one)
+ * 4. Attach PaymentMethod to Customer
+ * 5. Save stripe_customer_id to guest record
+ * 6. Update reservation: status='confirmed', payment_status='paid'
+ *
+ * TODO: Full implementation in next session
+ */
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  console.log('[Webhook] ========== PAYMENT INTENT SUCCEEDED ==========')
+  console.log('[Webhook] PaymentIntent ID:', paymentIntent.id)
+  console.log('[Webhook] Amount:', paymentIntent.amount)
+  console.log('[Webhook] Metadata:', paymentIntent.metadata)
+
+  // TODO: Implement full handler
+  console.log('[Webhook] ⚠️ handlePaymentIntentSucceeded not yet implemented')
+  console.log('[Webhook] This needs to:')
+  console.log('[Webhook]   1. Create Stripe Customer for guest')
+  console.log('[Webhook]   2. Attach PaymentMethod to Customer')
+  console.log('[Webhook]   3. Save stripe_customer_id to guest record')
+  console.log('[Webhook]   4. Update reservation to confirmed/paid status')
 }

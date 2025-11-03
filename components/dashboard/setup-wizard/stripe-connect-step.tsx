@@ -53,8 +53,14 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
   const stripeConnectedParam = searchParams.get("stripe_connected")
   const errorParam = searchParams.get("error")
 
-  // Fetch all properties for the user
+  // Fetch all properties for the user (only on initial mount)
   useEffect(() => {
+    // Skip if we already have properties loaded
+    if (properties.length > 0) {
+      setLoading(false)
+      return
+    }
+
     async function fetchProperties() {
       try {
         const response = await fetch("/api/onboarding/completion-status")
@@ -67,7 +73,8 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
       }
     }
     fetchProperties()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
 
   // Reload properties after successful connection
   useEffect(() => {

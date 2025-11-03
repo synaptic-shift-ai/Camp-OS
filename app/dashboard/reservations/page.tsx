@@ -4,19 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {Plus, MoreVertical } from "lucide-react"
+import { Plus } from "lucide-react"
 import { getReservations } from "@/lib/dashboard/queries"
 import type { ReservationStatus } from "@/src/contracts/booking"
 import { createClient } from "@/lib/supabase/server"
-import { CancelReservationDialog } from "@/components/admin/cancel-reservation-dialog"
+import { ReservationActions } from "@/components/admin/reservation-actions"
 
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -127,34 +119,16 @@ async function ReservationsTable() {
               </Badge>
             </TableCell>
             <TableCell>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>View Details</DropdownMenuItem>
-                  <DropdownMenuItem>Edit Reservation</DropdownMenuItem>
-                  <DropdownMenuItem>Send Confirmation</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <CancelReservationDialog
-                    reservationId={reservation.id}
-                    confirmationNumber={reservation.confirmationNumber}
-                    guestName={reservation.guestName}
-                    trigger={
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        Cancel Reservation
-                      </DropdownMenuItem>
-                    }
-                  />
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ReservationActions
+                reservationId={reservation.id}
+                confirmationNumber={reservation.confirmationNumber}
+                guestName={reservation.guestName}
+                checkIn={reservation.checkIn}
+                checkOut={reservation.checkOut}
+                numAdults={reservation.numAdults}
+                numChildren={reservation.numChildren}
+                numPets={reservation.numPets}
+              />
             </TableCell>
           </TableRow>
         ))}

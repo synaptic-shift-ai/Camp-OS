@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from "lucide-react"
 import { useProperty, type Property } from "@/components/property-context"
 import { WizardProgressBar, WIZARD_STEPS, type WizardStep } from "./wizard-progress-bar"
@@ -24,15 +24,11 @@ interface WizardContainerProps {
 
 export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { properties, selectedProperty, selectProperty, incompleteProperties, refreshProperties } =
     useProperty()
 
-  // Get initial step from URL or default to first step
-  const urlStep = searchParams.get("step") as WizardStep | null
-  const initialStep = urlStep && WIZARD_STEPS.find((s) => s.id === urlStep) ? urlStep : "property_details"
-
-  const [currentStep, setCurrentStep] = useState<WizardStep>(initialStep)
+  // Use local state for step tracking (no URL sync to avoid navigation issues)
+  const [currentStep, setCurrentStep] = useState<WizardStep>("property_details")
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set())
   const [workingPropertyId, setWorkingPropertyId] = useState<string | null>(
     initialPropertyId || null
@@ -53,48 +49,38 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
     }
   }, [initialPropertyId, incompleteProperties, selectProperty])
 
-  // Load wizard progress from current property
+  // Load wizard progress from current property and determine starting step
   useEffect(() => {
-    if (selectedProperty) {
-      const progress = selectedProperty.wizard_progress || {}
-      const completed = new Set<WizardStep>()
+    if (!selectedProperty) return
 
-      Object.entries(progress).forEach(([step, isComplete]) => {
-        if (isComplete) {
-          completed.add(step as WizardStep)
-        }
-      })
+    const progress = selectedProperty.wizard_progress || {}
+    const completed = new Set<WizardStep>()
 
-      setCompletedSteps(completed)
+    // Build completed steps set
+    Object.entries(progress).forEach(([step, isComplete]) => {
+      if (isComplete) {
+        completed.add(step as WizardStep)
+      }
+    })
 
-      // Set current step based on progress
-      const lastCompletedStep = selectedProperty.wizard_step_completed
-      if (lastCompletedStep && lastCompletedStep !== "not_started" && lastCompletedStep !== "complete") {
-        const currentStepIndex = WIZARD_STEPS.findIndex((s) => s.id === lastCompletedStep)
-        if (currentStepIndex >= 0 && currentStepIndex < WIZARD_STEPS.length - 1) {
-          const nextStep = WIZARD_STEPS[currentStepIndex + 1]
-          if (nextStep) {
-            setCurrentStep(nextStep.id)
-          }
-        } else if (WIZARD_STEPS.some((s) => s.id === lastCompletedStep)) {
-          setCurrentStep(lastCompletedStep as WizardStep)
-        }
+    setCompletedSteps(completed)
+
+    // Find first incomplete step to start on
+    const firstIncompleteStep = WIZARD_STEPS.find((step) => !completed.has(step.id))
+    if (firstIncompleteStep) {
+      setCurrentStep(firstIncompleteStep.id)
+    } else if (completed.size > 0) {
+      // All steps completed - start at last step for review
+      const lastStep = WIZARD_STEPS[WIZARD_STEPS.length - 1]
+      if (lastStep) {
+        setCurrentStep(lastStep.id)
       }
     }
   }, [selectedProperty])
 
-  // Update URL when step changes (but not during completion)
-  useEffect(() => {
-    if (isCompleting) return // Don't update URL during wizard completion
-
-    const params = new URLSearchParams(searchParams)
-    params.set("wizard", "true")  // Keep wizard mode active
-    params.set("step", currentStep)
-    if (workingPropertyId) {
-      params.set("propertyId", workingPropertyId)
-    }
-    router.replace(`/dashboard/sites?${params.toString()}`, { scroll: false })
-  }, [currentStep, workingPropertyId, router, searchParams, isCompleting])
+  // Note: We intentionally don't sync step to URL to avoid navigation issues
+  // The wizard uses local state for step tracking - only ?wizard=true is needed in URL
+  // for middleware exception handling
 
   const handleWizardComplete = useCallback(async () => {
     if (!selectedProperty) return
@@ -156,11 +142,21 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
 
   const handlePrevious = () => {
     const currentIndex = WIZARD_STEPS.findIndex((s) => s.id === currentStep)
-    if (currentIndex > 0) {
-      const prevStep = WIZARD_STEPS[currentIndex - 1]
-      if (prevStep) {
-        setCurrentStep(prevStep.id)
+    if (currentIndex <= 0) return
+
+    // Smart back: skip over completed steps to find last incomplete step
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const step = WIZARD_STEPS[i]
+      if (step && !completedSteps.has(step.id)) {
+        setCurrentStep(step.id)
+        return
       }
+    }
+
+    // If all previous steps are completed, just go back one step
+    const prevStep = WIZARD_STEPS[currentIndex - 1]
+    if (prevStep) {
+      setCurrentStep(prevStep.id)
     }
   }
 

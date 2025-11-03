@@ -1,0 +1,73 @@
+{
+  "id": "fc6de0ee-aa82-4578-af0d-1d6e4654f20f",
+  "identifier": "CAM-78",
+  "title": "Property Setup - CSV upload of property details",
+  "description": "create ability to upload property/site data via dashboard using CSV to populate property details post onboarding",
+  "priority": 1,
+  "priorityLabel": "Urgent",
+  "state": {
+    "name": "Todo",
+    "type": "unstarted"
+  },
+  "team": {
+    "name": "CampgroundOps",
+    "key": "CAM"
+  },
+  "assignee": null,
+  "creator": {
+    "name": "bjstaten@outlook.com",
+    "email": "bjstaten@outlook.com"
+  },
+  "labels": {
+    "nodes": [
+      {
+        "name": "validation-approved",
+        "color": "#4cb782"
+      }
+    ]
+  },
+  "comments": {
+    "nodes": [
+      {
+        "body": "## Technical Validation Complete: APPROVED WITH NOTES ⚠️\n\n**Verdict:** APPROVED WITH NOTES ⚠️\n**Confidence Level:** 75%\n**Validation Date:** 2025-10-31\n**PRD Version:** 2.0 (Revised)\n\n---\n\n## Validation Summary\n\nAll **critical blocking issues** from the first validation have been successfully resolved. The PRD is now technically sound and ready for implementation with important prerequisites.\n\n### ✅ Issues Resolved (V2.0)\n1. **Data Model Terminology** - All `tenant_id` → `property_id` references corrected\n2. **Scope Clarity** - Clear V1/V2 separation, complex features deferred to V2\n3. **Data Integrity** - Unique site number constraint specified\n4. **Row Limit** - Explicit 500-row maximum for V1\n\n### ⚠️ Prerequisites Required Before Implementation\n\n**BLOCKING DEPENDENCIES:**\n\n1. **Database Migration Required** 🔴\n   - Create `20251031000000_add_site_number_unique_constraint.sql`\n   - Add `UNIQUE (property_id, site_number)` constraint\n   - **Must be deployed** before CSV import feature code\n   - Migration script provided in validation report\n\n2. **NPM Dependency Missing** 🟡\n   - Install `papaparse` for CSV parsing\n   - Install `@types/papaparse` (dev dependency)\n   - Not currently in package.json\n\n### 💡 Key Findings\n\n**EXCELLENT CODE REUSE OPPORTUNITY:**\nThe codebase already has a bulk site creation endpoint (`/api/dashboard/properties/[id]/sites`) that:\n- Accepts array of sites ✅\n- Validates duplicates ✅  \n- Checks existing sites ✅\n- Performs transactional bulk insert ✅\n\n**Recommended approach:** CSV import should **wrap this existing endpoint** rather than reimplementing validation logic. This reduces implementation time by ~30%.\n\n### 📊 Revised Estimate\n**18-24 hours** (down from 20-25 hours due to code reuse)\n\nBreakdown:\n- CSV parsing/validation: 5-7 hours\n- UI components (dropzone, preview): 6-8 hours\n- Integration with existing endpoint: 2-3 hours\n- Testing (unit, integration, security, E2E): 5-6 hours\n\n### 🎯 Next Steps\n\n**Before Implementation:**\n1. Create and deploy unique constraint migration (BLOCKING)\n2. Add papaparse to package.json (BLOCKING)\n3. Review validation report in `specs/CAM-78-validation-report.md`\n\n**During Implementation:**\n1. Reuse `/api/dashboard/properties/[id]/sites` endpoint\n2. Follow existing patterns from `site-form-schema.ts`\n3. Implement security tests for property isolation (per CLAUDE.md T-7)\n4. Test transaction rollback (all-or-nothing import)\n\n**Approval Conditions:**\n- ✅ Migration deployed before feature code\n- ✅ papaparse dependency installed\n- ✅ Existing bulk insert endpoint reused\n- ✅ Security tests implemented\n- ✅ Integration tests for atomicity\n\n### 📄 Full Validation Report\nComprehensive 10-page validation report available at:\n`specs/CAM-78-validation-report.md`\n\nIncludes:\n- Architecture alignment analysis\n- Tech stack compatibility review\n- Existing features reuse opportunities\n- 5 technical risks with mitigation strategies\n- Detailed recommendations\n- Approval conditions\n\n**Status:** Ready to proceed to implementation phase after addressing prerequisites.\n\n**Validator:** Technical Feasibility Agent\n**Files Analyzed:** 15 codebase files, 3 existing patterns identified\n**Validation Duration:** 8 minutes",
+        "user": {
+          "name": "bjstaten@outlook.com"
+        },
+        "createdAt": "2025-11-01T03:51:58.913Z"
+      },
+      {
+        "body": "## PRD Revision Completed ✅\n\n**Version 2.0** of the PRD has been completed addressing all validator feedback.\n\n### Critical Issues Fixed\n\n✅ **Data Model Terminology (CRITICAL):**\n- Replaced all `tenant_id` → `property_id` throughout sections 6.2, 7.2, 7.3, 7.4, 8.2, 8.3\n- Updated glossary to deprecate \"tenant\" term in favor of \"property\"\n- Aligned with codebase conventions\n\n✅ **Scope Clarity (HIGH):**\n- Created explicit \"V1 vs V2 Scope\" section (§2)\n- Moved complex features to V2:\n  - Virus scanning (ClamAV)\n  - Email confirmations\n  - Import history audit table\n  - Complex rate limiting (10/hour)\n  - UI-based rollback\n- **Reduced V1 implementation estimate from 45+ hours to 20-25 hours**\n\n✅ **Data Integrity (HIGH):**\n- Added database UNIQUE constraint: `UNIQUE (property_id, site_number)`\n- Added duplicate detection validation logic\n- Added duplicate error examples in API response\n- Added comprehensive duplicate detection test requirements\n\n### Non-Blocking Recommendations Addressed\n\n✅ **Multi-property authorization:** Clarified single-property scope for V1\n✅ **CSV schema alignment:** Noted alignment with existing `siteFormSchema`\n✅ **Explicit row limit:** Set 500-row maximum for V1\n\n### What Changed\n\n**Revision History added** (Section 0) tracking all changes between v1.0 and v2.0\n\n**V1/V2 Scope Section added** (Section 2):\n- Clear checklist of V1 features (core import functionality)\n- Clear list of V2 deferrals (operational excellence features)\n- Rationale explaining why features were deferred\n\n**Database constraints specified** (Section 7.2):\n- SQL migration for UNIQUE constraint\n- Optional import metadata columns\n\n**Validation section added** (Section 14):\n- Documents exactly how each piece of feedback was addressed\n- References specific sections where changes were made\n\n### Document Status\n\n**File:** `specs/CAM-78-property-csv-upload.md`\n**Version:** 2.0\n**Status:** Ready for Re-Validation\n**Label:** Updated to `needs-validation`\n\n### Next Steps\n\n1. Technical validator re-review (estimated complexity now 20-25 hours for V1)\n2. If approved → backend-api-engineer implementation\n3. Implementation will focus on V1 scope only, V2 features tracked separately\n\n**All validator feedback has been comprehensively addressed.**",
+        "user": {
+          "name": "bjstaten@outlook.com"
+        },
+        "createdAt": "2025-11-01T03:38:52.054Z"
+      },
+      {
+        "body": "## Technical Validation Result: NEEDS REVISION 🔴\n\n**Blocking Issues:**\n\n1. **Data Model Terminology Mismatch (CRITICAL)**: PRD uses `tenant_id` but codebase uses `property_id` for site isolation. All references in sections 6.2, 6.3, 6.4 must be updated to use `property_id`.\n\n2. **Scope Ambiguity (HIGH)**: V1 includes complex features without clear V1/V2 distinction:\n   - Virus scanning (ClamAV)\n   - Email confirmations  \n   - Import history audit table\n   - Complex rate limiting (10/hour)\n   - UI-based rollback\n   \n   These add 20+ hours of implementation time and infrastructure dependencies not in codebase. Need explicit V1/V2 scope sections.\n\n3. **Missing Data Integrity Constraints (HIGH)**: No specification for preventing duplicate site numbers per property. Needs database constraint and validation logic.\n\n**Non-Blocking Recommendations:**\n- Clarify multi-property authorization (recommend single property for V1)\n- Align CSV schema with existing `siteFormSchema` validation\n- Set explicit row limit (recommend 500 rows for V1)\n\n**Next Steps:**\n1. Update PRD with `property_id` terminology  \n2. Create V1/V2 scope sections, defer complex features to V2\n3. Add site number uniqueness requirements\n4. Re-submit for validation once revised\n\n**Core Feature Assessment:** Architecturally sound and compatible. With revisions, estimated 20-25 hours implementation for V1 scope.\n\nFull validation report available upon request.",
+        "user": {
+          "name": "bjstaten@outlook.com"
+        },
+        "createdAt": "2025-11-01T03:26:08.206Z"
+      },
+      {
+        "body": "## PRD Completed ✅\n\nComprehensive Product Requirements Document has been created for the CSV upload feature.\n\n**Document Location:** `specs/CAM-78-property-csv-upload.md`\n\n**Key Highlights:**\n- Complete CSV schema with required and optional fields\n- Validation rules and error handling\n- API endpoint design (`POST /api/sites/import`)\n- Security requirements (tenant isolation, input sanitization)\n- Testing requirements (unit, integration, security, E2E)\n- Success metrics (70% adoption, 20% onboarding improvement)\n\n**Next Steps:**\n1. Technical review by backend-api-engineer\n2. UX review by design-engineer  \n3. Security review (tenant isolation validation)\n4. Create implementation tasks and update status to 'Ready for Development'\n\n**PRD Includes:**\n- User personas & stories (single-property, multi-property, legacy migration)\n- Detailed functional & non-functional requirements\n- CSV template with example data\n- Performance targets (100 sites in <10 seconds)\n- Open questions & risk mitigation\n\nReady for sprint planning and task breakdown.",
+        "user": {
+          "name": "bjstaten@outlook.com"
+        },
+        "createdAt": "2025-11-01T02:51:39.316Z"
+      }
+    ]
+  },
+  "parent": null,
+  "children": {
+    "nodes": []
+  },
+  "relations": {
+    "nodes": []
+  },
+  "createdAt": "2025-10-28T22:01:53.490Z",
+  "updatedAt": "2025-11-01T03:51:31.151Z",
+  "dueDate": null,
+  "estimate": null,
+  "url": "https://linear.app/campgroundops/issue/CAM-78/property-setup-csv-upload-of-property-details"
+}

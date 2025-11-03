@@ -21,7 +21,7 @@
  * 6. Return reservation details for payment
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { calculatePriceBreakdown } from '@/lib/booking/pricing'

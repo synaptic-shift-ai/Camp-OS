@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe Checkout Session
+    console.log('[Stripe Checkout] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
+    console.log('[Stripe Checkout] NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL)
     const session_data = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -123,8 +125,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/success?session_id={CHECKOUT_SESSION_ID}&plan=${planId}&billing=${billingCycle}&email=${encodeURIComponent(userEmail)}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/failure?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/success?session_id={CHECKOUT_SESSION_ID}&plan=${planId}&billing=${billingCycle}&email=${encodeURIComponent(userEmail)}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/failure?session_id={CHECKOUT_SESSION_ID}`,
       metadata: {
         supabase_user_id: userId,
         planId,

@@ -2,6 +2,10 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "build": "next build",
     "dev": "next dev",
@@ -10,13 +14,19 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
+    "test:integration": "vitest run tests/integration",
     "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
     "gen:db": "npx supabase gen types typescript --linked > src/contracts/db.ts && echo '✅ Generated database types in src/contracts/db.ts'",
     "check": "npm run type-check && npm run lint",
     "check:full": "npm run gen:db && npm run check && npm run build",
     "prepare": "husky || true",
-    "test:email": "tsx scripts/test-email.ts"
+    "test:email": "tsx scripts/test-email.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "seed:analytics": "node scripts/run-seed-data.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -84,6 +94,8 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.56.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
@@ -91,8 +103,13 @@
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/coverage-v8": "^4.0.6",
     "dotenv": "^16.6.1",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "^16.0.1",
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
     "postcss": "^8.5",

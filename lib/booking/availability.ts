@@ -19,8 +19,12 @@ import type {
 /**
  * Convert DB amenities array to UI-friendly SiteAmenities object
  */
-function convertAmenities(amenitiesArray: string[]): SiteAmenities {
+function convertAmenities(amenitiesArray: string[] | null): SiteAmenities {
   const amenities: SiteAmenities = {}
+
+  if (!amenitiesArray || !Array.isArray(amenitiesArray)) {
+    return amenities
+  }
 
   amenitiesArray.forEach((amenity) => {
     switch (amenity.toLowerCase()) {
@@ -74,7 +78,7 @@ function convertToAvailableSite(site: Site): AvailableSite {
     max_occupancy: site.max_occupancy,
     base_price_per_night: site.base_price,
     amenities: convertAmenities(site.amenities),
-    ...(site.images.length > 0 && { image_url: site.images[0] }),
+    ...(site.images && Array.isArray(site.images) && site.images.length > 0 && { image_url: site.images[0] }),
   }
 }
 

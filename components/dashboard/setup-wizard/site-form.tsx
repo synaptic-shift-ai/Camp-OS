@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Save, X } from "lucide-react"
-import { siteFormSchema, toApiFormat, type SiteFormData } from "./site-form-schema"
+import { siteFormSchema, siteStatuses, toApiFormat, type SiteFormData } from "./site-form-schema"
 
 interface SiteFormProps {
   propertyId: string
@@ -280,9 +280,11 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="unavailable">Unavailable</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  {siteStatuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -118,6 +118,7 @@ export type MiddlewareContext = {
   readonly sessionId: SessionId
   readonly pathname: string
   readonly searchParams: URLSearchParams
+  readonly origin: string
   readonly auth?: AuthContext
   readonly tenant?: TenantContext
   readonly onboarding?: OnboardingContext
@@ -367,7 +368,8 @@ export function isMiddlewareContext(ctx: unknown): ctx is MiddlewareContext {
   if (
     typeof candidate.sessionId !== 'string' ||
     typeof candidate.pathname !== 'string' ||
-    !(candidate.searchParams instanceof URLSearchParams)
+    !(candidate.searchParams instanceof URLSearchParams) ||
+    typeof candidate.origin !== 'string'
   ) {
     return false
   }

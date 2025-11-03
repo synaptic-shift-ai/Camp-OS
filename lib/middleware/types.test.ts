@@ -147,6 +147,7 @@ describe('Type Guards', () => {
         sessionId: createSessionId('session-123'),
         pathname: '/dashboard',
         searchParams: new URLSearchParams(),
+        origin: 'http://localhost:3000',
       }
 
       expect(isMiddlewareContext(validContext)).toBe(true)
@@ -157,6 +158,7 @@ describe('Type Guards', () => {
         sessionId: createSessionId('session-123'),
         pathname: '/dashboard',
         searchParams: new URLSearchParams('wizard=true'),
+        origin: 'http://localhost:3000',
         auth: {
           userId: createUserId('user-123'),
           email: 'test@example.com',

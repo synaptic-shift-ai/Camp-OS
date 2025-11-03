@@ -40,9 +40,10 @@ export function initializeRequest(request: NextRequest): MiddlewareRequest {
     `${Date.now()}-${Math.random().toString(36).substring(7)}`
   )
 
-  // Extract pathname and search params from URL
+  // Extract URL components from request
   const pathname = request.nextUrl.pathname
   const searchParams = request.nextUrl.searchParams
+  const origin = request.nextUrl.origin
 
   // Create middleware request with initial context
   const middlewareRequest: MiddlewareRequest = {
@@ -51,6 +52,7 @@ export function initializeRequest(request: NextRequest): MiddlewareRequest {
       sessionId,
       pathname,
       searchParams,
+      origin,
     },
   } as MiddlewareRequest
 

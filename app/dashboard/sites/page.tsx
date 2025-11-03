@@ -86,8 +86,8 @@ export default async function SitesPage({ searchParams }: SitesPageProps) {
         fallback={
           <div className="space-y-6">
             {/* Stats skeleton */}
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-              {[...Array(6)].map((_, i) => (
+            <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-8">
+              {[...Array(8)].map((_, i) => (
                 <div key={i} className="rounded-lg border bg-card p-4">
                   <div className="h-4 bg-muted animate-pulse rounded mb-2" />
                   <div className="h-8 bg-muted animate-pulse rounded" />

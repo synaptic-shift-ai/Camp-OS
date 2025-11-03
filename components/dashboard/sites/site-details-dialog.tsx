@@ -22,7 +22,7 @@ import { EditSiteDialog } from './edit-site-dialog'
 import type { Database } from '@/src/contracts/db'
 
 type Site = Database['public']['Tables']['sites']['Row']
-type SiteStatus = 'available' | 'occupied' | 'maintenance' | 'housekeeping' | 'unavailable'
+type SiteStatus = 'available' | 'reserved' | 'booked' | 'occupied' | 'housekeeping' | 'maintenance' | 'unavailable'
 
 interface SiteDetailsDialogProps {
   open: boolean
@@ -32,9 +32,11 @@ interface SiteDetailsDialogProps {
 
 const statusColors: Record<SiteStatus, string> = {
   available: "bg-green-500/10 text-green-500 border-green-500/20",
+  reserved: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  booked: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
   occupied: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  maintenance: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   housekeeping: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  maintenance: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   unavailable: "bg-red-500/10 text-red-500 border-red-500/20",
 }
 

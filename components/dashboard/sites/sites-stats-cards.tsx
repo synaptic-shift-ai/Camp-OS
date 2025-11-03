@@ -10,15 +10,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
-export type SiteStatus = 'all' | 'available' | 'occupied' | 'maintenance' | 'housekeeping' | 'unavailable'
+export type SiteStatus = 'all' | 'available' | 'reserved' | 'booked' | 'occupied' | 'housekeeping' | 'maintenance' | 'unavailable'
 
 interface SiteStats {
   total: number
   available: number
+  reserved: number
+  booked: number
   occupied: number
+  housekeeping: number
   maintenance: number
   unavailable: number
-  housekeeping?: number
 }
 
 interface SitesStatsCardsProps {
@@ -30,15 +32,17 @@ interface SitesStatsCardsProps {
 const statusCards = [
   { id: 'all' as const, label: 'Total Sites', key: 'total', color: 'text-foreground' },
   { id: 'available' as const, label: 'Available', key: 'available', color: 'text-green-500' },
+  { id: 'reserved' as const, label: 'Reserved', key: 'reserved', color: 'text-orange-500' },
+  { id: 'booked' as const, label: 'Booked', key: 'booked', color: 'text-cyan-500' },
   { id: 'occupied' as const, label: 'Occupied', key: 'occupied', color: 'text-blue-500' },
-  { id: 'maintenance' as const, label: 'Maintenance', key: 'maintenance', color: 'text-yellow-500' },
   { id: 'housekeeping' as const, label: 'Housekeeping', key: 'housekeeping', color: 'text-purple-500' },
+  { id: 'maintenance' as const, label: 'Maintenance', key: 'maintenance', color: 'text-yellow-500' },
   { id: 'unavailable' as const, label: 'Unavailable', key: 'unavailable', color: 'text-red-500' },
 ]
 
 export function SitesStatsCards({ stats, activeFilter, onFilterChange }: SitesStatsCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+    <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-8">
       {statusCards.map((card) => {
         const count = stats[card.key as keyof SiteStats] || 0
         const isActive = activeFilter === card.id

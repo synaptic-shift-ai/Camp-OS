@@ -43,13 +43,15 @@ const siteTypeIcons: Record<SiteType, LucideIcon> = {
   other: MapPin,
 }
 
-type SiteStatus = 'available' | 'occupied' | 'maintenance' | 'housekeeping' | 'unavailable'
+type SiteStatus = 'available' | 'reserved' | 'booked' | 'occupied' | 'housekeeping' | 'maintenance' | 'unavailable'
 
 const statusColors: Record<SiteStatus, string> = {
   available: "bg-green-500/10 text-green-500 border-green-500/20",
+  reserved: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  booked: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
   occupied: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  maintenance: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   housekeeping: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  maintenance: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   unavailable: "bg-red-500/10 text-red-500 border-red-500/20",
 }
 
@@ -208,7 +210,7 @@ export function SitesGrid({ sites }: SitesGridProps) {
                         <p className="text-xs font-medium text-muted-foreground mb-2 px-2">
                           Change Status
                         </p>
-                        {(['available', 'occupied', 'maintenance', 'housekeeping', 'unavailable'] as SiteStatus[]).map((status) => (
+                        {(['available', 'reserved', 'booked', 'occupied', 'housekeeping', 'maintenance', 'unavailable'] as SiteStatus[]).map((status) => (
                           <Button
                             key={status}
                             variant="ghost"

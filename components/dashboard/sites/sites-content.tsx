@@ -32,9 +32,11 @@ export function SitesContent({ sites }: SitesContentProps) {
     return {
       total: sites.length,
       available: statusCounts.available || 0,
+      reserved: statusCounts.reserved || 0,
+      booked: statusCounts.booked || 0,
       occupied: statusCounts.occupied || 0,
-      maintenance: statusCounts.maintenance || 0,
       housekeeping: statusCounts.housekeeping || 0,
+      maintenance: statusCounts.maintenance || 0,
       unavailable: statusCounts.unavailable || 0,
     }
   }, [sites])

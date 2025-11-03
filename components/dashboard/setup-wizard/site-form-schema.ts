@@ -1,7 +1,7 @@
 import * as z from "zod"
 
 export const siteTypes = ["tent", "rv", "cabin", "glamping", "yurt", "other"] as const
-export const siteStatuses = ["available", "unavailable", "maintenance"] as const
+export const siteStatuses = ["available", "occupied", "maintenance", "housekeeping", "unavailable"] as const
 
 export const siteFormSchema = z.object({
   // Basic Info

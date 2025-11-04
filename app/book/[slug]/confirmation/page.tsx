@@ -11,25 +11,62 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 
+// API response types
+type ConfirmPaymentResponse =
+  | {
+      success: true
+      data: {
+        reservation_id: string
+        confirmation_number: string
+        status: string
+        payment_status: string
+        guest_name: string
+        guest_email: string
+        property_name: string
+        site_name: string
+        check_in_date: string
+        check_out_date: string
+        total_amount_cents: number
+        paid_amount_cents: number
+        email_sent: boolean
+      }
+      message: string
+    }
+  | {
+      success: false
+      error: {
+        code: string
+        message: string
+        details?: unknown
+      }
+    }
+
 export default function ConfirmationPage() {
   const params = useParams()
   const slug = params.slug as string
   const searchParams = useSearchParams()
-  const { checkoutData, clearCheckoutData } = useCheckout()
+  const { checkoutData, clearCheckoutData, isHydrated } = useCheckout()
   const router = useRouter()
   const { toast } = useToast()
   const [showConfetti, setShowConfetti] = useState(true)
   const [showCheckmark, setShowCheckmark] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
+  const [hasAttemptedConfirmation, setHasAttemptedConfirmation] = useState(false)
   const [confirmationError, setConfirmationError] = useState<string | null>(null)
+
+  // Helper to format cents as dollars
+  const formatCurrency = (cents: number) => {
+    return (cents / 100).toFixed(2)
+  }
 
   // Handle payment confirmation when redirected from Stripe
   useEffect(() => {
     const paymentIntent = searchParams.get("payment_intent")
 
-    // Only confirm if we have a payment intent and haven't confirmed yet
-    if (paymentIntent && checkoutData.reservationId && !isConfirming && checkoutData.confirmationNumber) {
+    // Only confirm if we have a payment intent and haven't attempted confirmation yet
+    if (paymentIntent && checkoutData.reservationId && !hasAttemptedConfirmation && checkoutData.confirmationNumber) {
       setIsConfirming(true)
+      setHasAttemptedConfirmation(true) // Prevent infinite loop
 
       fetch("/api/guest/payment/confirm", {
         method: "POST",
@@ -40,13 +77,13 @@ export default function ConfirmationPage() {
         }),
       })
         .then((response) => response.json())
-        .then((result) => {
+        .then((result: ConfirmPaymentResponse) => {
           if (!result.success) {
             console.error("[Confirmation] Payment confirmation failed:", result.error)
-            setConfirmationError(result.error?.message || "Failed to confirm payment")
+            setConfirmationError(result.error.message || "Failed to confirm payment")
             toast({
               title: "Payment confirmation issue",
-              description: result.error?.message || "There was an issue confirming your payment.",
+              description: result.error.message || "There was an issue confirming your payment.",
               variant: "destructive",
             })
           } else {
@@ -66,9 +103,12 @@ export default function ConfirmationPage() {
           setIsConfirming(false)
         })
     }
-  }, [searchParams, checkoutData.reservationId, isConfirming, checkoutData.confirmationNumber, toast])
+  }, [searchParams, checkoutData.reservationId, checkoutData.confirmationNumber, toast, hasAttemptedConfirmation])
 
   useEffect(() => {
+    // Wait for sessionStorage to hydrate before checking
+    if (!isHydrated) return
+
     if (!checkoutData.confirmationNumber) {
       toast({
         title: "No confirmation found",
@@ -77,7 +117,7 @@ export default function ConfirmationPage() {
       })
       router.push(`/book/${slug}`)
     }
-  }, [checkoutData, router, toast, slug])
+  }, [checkoutData, router, toast, slug, isHydrated])
 
   useEffect(() => {
     // Trigger checkmark animation after a brief delay
@@ -276,30 +316,30 @@ export default function ConfirmationPage() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">
-                          ${priceBreakdown.basePrice} × {priceBreakdown.nights} night
+                          ${formatCurrency(priceBreakdown.basePrice || 0)} × {priceBreakdown.nights} night
                           {priceBreakdown.nights !== 1 ? "s" : ""}
                         </span>
-                        <span className="font-medium">${priceBreakdown.subtotal}</span>
+                        <span className="font-medium">${formatCurrency(priceBreakdown.subtotal)}</span>
                       </div>
                       {(priceBreakdown.cleaningFee || 0) > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Cleaning fee</span>
-                          <span className="font-medium">${priceBreakdown.cleaningFee}</span>
+                          <span className="font-medium">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">Service fee</span>
-                        <span className="font-medium">${priceBreakdown.serviceFee}</span>
+                        <span className="font-medium">${formatCurrency(priceBreakdown.serviceFee || 0)}</span>
                       </div>
                       {(priceBreakdown.taxes || 0) > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Taxes ({(DEFAULT_TAX_RATE * 100).toFixed(1)}%)</span>
-                          <span className="font-medium">${priceBreakdown.taxes}</span>
+                          <span className="font-medium">${formatCurrency(priceBreakdown.taxes!)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold border-t pt-2">
                         <span>Total Paid</span>
-                        <span className="text-[#2D5A27]">${priceBreakdown.total}</span>
+                        <span className="text-[#2D5A27]">${formatCurrency(priceBreakdown.total)}</span>
                       </div>
                     </div>
                   </div>

@@ -18,13 +18,9 @@ import {
   CreatePaymentIntentRequestSchema,
   CreatePaymentIntentResponseSchema,
 } from '@/contracts/schemas'
+import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-09-30.clover',
-})
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,18 +67,37 @@ export async function POST(request: NextRequest) {
     // Phase 2c: Direct read from BIGINT column (already in cents)
     const amountInCents = typedReservation.total_amount
 
-    // Create PaymentIntent
+    // Get tenant-specific Stripe client
+    const tenantStripeResult = await getTenantStripeClient(property_id)
+    if (!tenantStripeResult.success) {
+      return NextResponse.json(
+        { error: tenantStripeResult.error },
+        { status: 400 }
+      )
+    }
+
+    const { stripe, stripeAccountId } = tenantStripeResult
+
+    // Create PaymentIntent on PLATFORM account with destination charge pattern
+    // This allows platform's publishable key to work on frontend
+    // Funds are transferred directly to connected account (tenant)
+    // Platform never touches the money (no application fee)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
       automatic_payment_methods: {
         enabled: true,
       },
+      on_behalf_of: stripeAccountId, // Charge appears on connected account's Stripe dashboard
+      transfer_data: {
+        destination: stripeAccountId, // Funds go directly to connected account
+      },
       metadata: {
         reservation_id: reservation_id,
         property_id: property_id,
         confirmation_number: typedReservation.confirmation_number,
         guest_email: typedReservation.guest.email,
+        guest_id: typedReservation.guest_id, // For customer creation in webhook
       },
       description: `Campsite reservation ${typedReservation.confirmation_number}`,
       receipt_email: typedReservation.guest.email,

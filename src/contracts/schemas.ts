@@ -90,6 +90,8 @@ export const StripeWebhookMetadataSchema = z.object({
   reservation_id: z.string().uuid(),
   property_id: z.string().uuid(),
   confirmation_number: z.string(),
+  guest_email: z.string().email(),
+  guest_id: z.string().uuid(),
 })
 
 export const StripePaymentIntentSucceededSchema = z.object({
@@ -98,6 +100,7 @@ export const StripePaymentIntentSucceededSchema = z.object({
   amount: z.number().int().positive(),
   currency: z.string(),
   status: z.literal('succeeded'),
+  payment_method: z.union([z.string(), z.null()]).optional(), // PaymentMethod ID or null
   metadata: StripeWebhookMetadataSchema,
 })
 

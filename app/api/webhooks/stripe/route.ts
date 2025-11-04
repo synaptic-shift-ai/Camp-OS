@@ -7,22 +7,181 @@
  * Flow:
  * 1. Verify webhook signature (security)
  * 2. Parse and validate event data
- * 3. Update reservation status to confirmed
- * 4. Update payment_status to paid
+ * 3. Create Stripe Customer for guest (if not exists)
+ * 4. Attach PaymentMethod to Customer
+ * 5. Update guest with stripe_customer_id
+ * 6. Update reservation status to confirmed
+ * 7. Update payment_status to paid
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { StripePaymentIntentSucceededSchema } from '@/contracts/schemas'
+import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
+import type { Guest } from '@/lib/booking/types'
 
-// Initialize Stripe
+// Initialize platform Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
 })
 
 // Webhook secret for signature verification
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+
+/**
+ * Handle successful payment intent
+ *
+ * This function:
+ * 1. Retrieves the reservation and guest from metadata
+ * 2. Checks if guest already has a Stripe Customer
+ * 3. If not, creates a Stripe Customer on the tenant's account
+ * 4. Retrieves the PaymentMethod from the PaymentIntent
+ * 5. Attaches the PaymentMethod to the Customer
+ * 6. Saves stripe_customer_id to the guest record
+ * 7. Updates reservation: status='confirmed', payment_status='paid', paid_amount=total_amount
+ */
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  // Phase 3: Validate event data with Zod
+  const validationResult = StripePaymentIntentSucceededSchema.safeParse(paymentIntent)
+
+  if (!validationResult.success) {
+    console.error('Invalid payment intent data:', validationResult.error.format())
+    // Log error but don't throw - return to acknowledge receipt
+    return
+  }
+
+  const validated = validationResult.data
+  const { reservation_id, property_id, guest_id } = validated.metadata
+
+  if (!guest_id) {
+    console.error('Missing guest_id in PaymentIntent metadata:', validated.metadata)
+    return
+  }
+
+  const supabase = createServiceRoleClient()
+
+  // Get tenant Stripe client
+  const tenantStripeResult = await getTenantStripeClient(property_id)
+  if (!tenantStripeResult.success) {
+    console.error('Failed to get tenant Stripe client:', tenantStripeResult.error)
+    return
+  }
+
+  const { stripe: tenantStripe, stripeAccountId } = tenantStripeResult
+  const stripeOptions = createTenantRequestOptions(stripeAccountId)
+
+  try {
+    // Fetch guest record
+    const { data: guest, error: guestError } = await supabase
+      .from('guests')
+      .select('*')
+      .eq('id', guest_id)
+      .eq('property_id', property_id) // Tenant isolation
+      .single()
+
+    if (guestError || !guest) {
+      console.error('Guest not found:', guestError)
+      return
+    }
+
+    const typedGuest = guest as Guest
+
+    // For destination charges, Customer and PaymentMethod are on PLATFORM account
+    // We create/retrieve customer on platform and store that ID for future "Card on File" use
+    const platformStripe = tenantStripe // This is the platform Stripe client
+
+    let stripeCustomerId = typedGuest.stripe_customer_id
+
+    // Create Stripe Customer on PLATFORM account if doesn't exist
+    if (!stripeCustomerId) {
+      console.log(`Creating Stripe Customer on platform account for guest ${guest_id}`)
+
+      const customer = await platformStripe.customers.create({
+        email: typedGuest.email,
+        name: `${typedGuest.first_name} ${typedGuest.last_name}`,
+        ...(typedGuest.phone && { phone: typedGuest.phone }),
+        metadata: {
+          guest_id: typedGuest.id,
+          property_id: property_id,
+        },
+      })
+
+      stripeCustomerId = customer.id
+
+      // Save stripe_customer_id to guest record
+      // Note: This will fail if column doesn't exist - user needs to run migration
+      const { error: updateGuestError } = await supabase
+        .from('guests')
+        .update({
+          stripe_customer_id: stripeCustomerId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', guest_id)
+        .eq('property_id', property_id)
+
+      if (updateGuestError) {
+        console.error('Failed to update guest with stripe_customer_id:', updateGuestError)
+        console.error('Run this SQL in Supabase: ALTER TABLE guests ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;')
+        // Continue processing - customer was created, just not saved to DB
+      } else {
+        console.log(`Saved stripe_customer_id ${stripeCustomerId} to guest ${guest_id}`)
+      }
+    }
+
+    // Attach PaymentMethod to Customer on PLATFORM account
+    const paymentMethodId = validated.payment_method
+    if (paymentMethodId && typeof paymentMethodId === 'string') {
+      console.log(`Attaching PaymentMethod ${paymentMethodId} to Customer ${stripeCustomerId}`)
+
+      try {
+        await platformStripe.paymentMethods.attach(
+          paymentMethodId,
+          { customer: stripeCustomerId },
+        )
+
+        // Set as default payment method
+        await platformStripe.customers.update(
+          stripeCustomerId,
+          {
+            invoice_settings: {
+              default_payment_method: paymentMethodId,
+            },
+          },
+        )
+
+        console.log(`PaymentMethod ${paymentMethodId} attached and set as default`)
+      } catch (pmError: any) {
+        console.error('Failed to attach PaymentMethod:', pmError.message)
+        // Continue processing - payment succeeded, just couldn't save card
+      }
+    } else {
+      console.warn('No payment_method found on PaymentIntent - cannot save card')
+    }
+
+    // Update reservation status to confirmed and paid
+    const { error: updateReservationError } = await supabase
+      .from('reservations')
+      .update({
+        status: 'confirmed',
+        payment_status: 'paid',
+        paid_amount: validated.amount, // Amount in cents (BIGINT)
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reservation_id)
+      .eq('property_id', property_id) // Tenant isolation
+
+    if (updateReservationError) {
+      console.error('Failed to update reservation:', updateReservationError)
+      // Don't throw - payment succeeded, customer created, just DB update failed
+    } else {
+      console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100})`)
+    }
+  } catch (error: any) {
+    console.error('Error in handlePaymentIntentSucceeded:', error)
+    // Don't throw - webhook already received, just log the error
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,47 +210,7 @@ export async function POST(request: NextRequest) {
 
     // Handle payment_intent.succeeded event
     if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent
-
-      // Phase 3: Validate event data with Zod
-      const validationResult = StripePaymentIntentSucceededSchema.safeParse(paymentIntent)
-
-      if (!validationResult.success) {
-        console.error('Invalid payment intent data:', validationResult.error.format())
-        // Still return 200 to acknowledge receipt (Stripe will retry otherwise)
-        return NextResponse.json({
-          received: true,
-          warning: 'Invalid event data format'
-        })
-      }
-
-      const validated = validationResult.data
-      const { reservation_id, property_id } = validated.metadata
-
-      const supabase = createServiceRoleClient()
-
-      // Update reservation status
-      const { error: updateError } = await supabase
-        .from('reservations')
-        .update({
-          status: 'confirmed',
-          payment_status: 'paid',
-          paid_amount: validated.amount, // Amount in cents (BIGINT)
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', reservation_id)
-        .eq('property_id', property_id) // Tenant isolation
-
-      if (updateError) {
-        console.error('Failed to update reservation:', updateError)
-        // Still return 200 to prevent retries for DB errors
-        return NextResponse.json({
-          received: true,
-          warning: 'Database update failed',
-        })
-      }
-
-      console.log(`Reservation ${reservation_id} confirmed via webhook`)
+      await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
     }
 
     // Acknowledge receipt of event

@@ -111,6 +111,7 @@ export interface Guest {
   country: string | null
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
+  stripe_customer_id: string | null // Stripe Customer ID for saved payment methods
   notes: string | null
   created_at: string
   updated_at: string

@@ -48,16 +48,30 @@ export async function POST(
     }
 
     // Check property access (owner or staff)
-    const { data: hasAccess } = await supabase
+    // First check if user owns the property
+    const { data: property } = await supabase
       .from('properties')
-      .select('id')
+      .select('owner_id')
       .eq('id', reservation.property_id)
-      .or(
-        `owner_id.eq.${user.id},id.in.(select property_id from property_staff where user_id='${user.id}' and role in ('owner','manager','staff'))`
-      )
       .single()
 
-    if (!hasAccess) {
+    const isOwner = property?.owner_id === user.id
+
+    // If not owner, check if user is staff
+    let isStaff = false
+    if (!isOwner) {
+      const { data: staffRecord } = await supabase
+        .from('property_staff')
+        .select('id')
+        .eq('property_id', reservation.property_id)
+        .eq('user_id', user.id)
+        .in('role', ['owner', 'manager', 'staff'])
+        .single()
+
+      isStaff = !!staffRecord
+    }
+
+    if (!isOwner && !isStaff) {
       return NextResponse.json(
         { error: 'You do not have permission to modify this reservation' },
         { status: 403 }

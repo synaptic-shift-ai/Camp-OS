@@ -243,6 +243,8 @@ export interface CreateReservationInput {
   vehicle_info?: Array<Record<string, any>>
   special_requests?: string
   source?: string
+  booking_type?: BookingType // Type of booking (nightly, weekly, monthly, seasonal, long_term)
+  booking_period?: BookingPeriod // Additional metadata for seasonal/monthly bookings
 }
 
 // ============================================================================
@@ -290,28 +292,58 @@ export interface Payment {
  * Detailed breakdown of reservation pricing
  */
 export interface PriceBreakdown {
+  // Base pricing
   base_price_per_night?: number
   basePrice?: number
   number_of_nights?: number
   nights?: number
-  subtotal: number // base_price_per_night × number_of_nights
+  subtotal: number // base_price_per_night × number_of_nights (before fees and discounts)
 
-  // Additional fees
+  // Rate information
+  rate_type?: 'standard' | 'weekend' | 'weekly' | 'monthly' | 'seasonal' // Which rate was applied
+  discount_applied?: {
+    type: 'weekly' | 'monthly'
+    percentage: number
+    amount_saved: number // In cents
+  }
+
+  // Seasonal pricing info
+  seasonal_pricing_applied?: boolean
+  seasonal_rate?: number // If seasonal pricing was used
+
+  // Fees (in cents)
   cleaning_fee?: number
   cleaningFee?: number
   pet_fee?: number
   petFee?: number
   extra_guest_fee?: number
   extraGuestFee?: number
+  extra_guest_count?: number // Number of guests beyond threshold
   weekend_surcharge?: number
   weekendSurcharge?: number
+  weekend_nights?: number // Number of weekend nights
   service_fee?: number
   serviceFee?: number
+
+  // Taxes
   tax_rate?: number
   taxRate?: number
   taxes?: number
+  tax_name?: string // Display name (e.g., "Sales Tax", "Occupancy Tax")
 
-  total: number
+  // Deposit
+  deposit_required?: boolean
+  deposit_amount?: number
+  deposit_percentage?: number
+  deposit_due_date?: string // ISO date string
+
+  // Totals
+  total_before_tax?: number // Subtotal + fees (before tax)
+  total: number // Final amount including everything
+
+  // Payment breakdown
+  amount_due_now?: number // Deposit or full amount
+  amount_due_later?: number // Remaining balance after deposit
 }
 
 // ============================================================================

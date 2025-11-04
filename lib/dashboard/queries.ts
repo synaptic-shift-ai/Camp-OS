@@ -230,6 +230,7 @@ export async function getReservation(
       paid_amount,
       status,
       payment_status,
+      booking_type,
       created_at,
       guests (
         first_name,
@@ -238,7 +239,8 @@ export async function getReservation(
       ),
       sites (
         site_name,
-        site_number
+        site_number,
+        base_price
       )
     `
     )
@@ -269,6 +271,9 @@ export async function getReservation(
     guestEmail: guest.email,
     siteId: data.site_id!,
     siteName: site.site_name || `Site ${site.site_number}`,
+    siteNumber: site.site_number,
+    pricePerNight: site.base_price as MoneyCents,
+    bookingType: (data.booking_type as any) || 'nightly',
     checkIn: data.check_in_date,
     checkOut: data.check_out_date,
     numNights,

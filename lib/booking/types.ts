@@ -669,7 +669,7 @@ export interface CheckActionRequest {
  * Request to process reservation action
  */
 export interface ProcessActionRequest {
-  action: 'extend' | 'renew' | 'modify' | 'change_site' | 'convert_type'
+  action: 'extend' | 'renew' | 'modify' | 'change_site' | 'convert_type' | 'offer_renewal' | 'decline_renewal'
   params: {
     // For extend
     newCheckOut?: string

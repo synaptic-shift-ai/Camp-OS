@@ -17,10 +17,10 @@ import type { CheckActionRequest } from '@/lib/booking/types'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const reservationId = params.id
+    const { id: reservationId } = await params
     const body: CheckActionRequest = await request.json()
 
     // Authenticate user

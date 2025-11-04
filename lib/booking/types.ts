@@ -653,15 +653,15 @@ export interface CheckActionRequest {
   action: 'extend' | 'renew'
   params: {
     // For extend
-    newCheckOut?: string
-    newCheckIn?: string
-    extendBefore?: number     // nights
-    extendAfter?: number      // nights
+    newCheckOut?: string | undefined
+    newCheckIn?: string | undefined
+    extendBefore?: number | undefined     // nights
+    extendAfter?: number | undefined      // nights
 
     // For renew
-    nextPeriodStart?: string
-    nextPeriodEnd?: string
-    nextPeriod?: BookingPeriod
+    nextPeriodStart?: string | undefined
+    nextPeriodEnd?: string | undefined
+    nextPeriod?: BookingPeriod | undefined
   }
 }
 
@@ -672,20 +672,20 @@ export interface ProcessActionRequest {
   action: 'extend' | 'renew' | 'modify' | 'change_site' | 'convert_type' | 'offer_renewal' | 'decline_renewal'
   params: {
     // For extend
-    newCheckOut?: string
-    newCheckIn?: string
+    newCheckOut?: string | undefined
+    newCheckIn?: string | undefined
 
     // For renew
-    nextPeriod?: BookingPeriod
-    renewalDeadline?: string
-    depositAmount?: number
+    nextPeriod?: BookingPeriod | undefined
+    renewalDeadline?: string | undefined
+    depositAmount?: number | undefined
 
     // For modify
-    changes?: ModificationDetails['changes']
+    changes?: ModificationDetails['changes'] | undefined
 
     // Common
-    sendEmail?: boolean
-    notes?: string
+    sendEmail?: boolean | undefined
+    notes?: string | undefined
   }
 }
 

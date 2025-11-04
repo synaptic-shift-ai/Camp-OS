@@ -27,9 +27,9 @@ interface ReservationActionsProps {
   numChildren: number
   numPets: number
   siteNumber: string
-  siteName?: string
+  siteName?: string | undefined
   pricePerNight: number
-  bookingType?: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term'
+  bookingType?: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term' | undefined
 }
 
 export function ReservationActions({

@@ -42,7 +42,7 @@ interface RenewDialogProps {
   currentCheckOut: string
   bookingType: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term'
   siteNumber: string
-  siteName?: string
+  siteName?: string | undefined
   pricePerNight: number
   trigger?: React.ReactNode
 }

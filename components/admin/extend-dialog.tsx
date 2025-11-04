@@ -35,7 +35,7 @@ interface ExtendDialogProps {
   currentCheckIn: string
   currentCheckOut: string
   siteNumber: string
-  siteName?: string
+  siteName?: string | undefined
   pricePerNight: number
   trigger?: React.ReactNode
 }

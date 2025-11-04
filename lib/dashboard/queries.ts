@@ -634,7 +634,7 @@ export async function getGuests(
       id,
       guest_id,
       check_in_date,
-      total_amount,
+      paid_amount,
       guests (
         id,
         first_name,
@@ -661,10 +661,12 @@ export async function getGuests(
     const guestId = reservation.guest_id!
     const existing = guestMap.get(guestId)
 
+    const paidAmount = reservation.paid_amount || 0
+
     if (existing) {
       // Update existing guest
       existing.totalStays += 1
-      existing.totalSpent = (existing.totalSpent + reservation.total_amount) as MoneyCents
+      existing.totalSpent = (existing.totalSpent + paidAmount) as MoneyCents
 
       // Update last visit if this reservation is more recent
       if (
@@ -689,7 +691,7 @@ export async function getGuests(
         email: guest.email,
         phone: guest.phone,
         totalStays: 1,
-        totalSpent: reservation.total_amount as MoneyCents,
+        totalSpent: paidAmount as MoneyCents,
         lastVisit: reservation.check_in_date,
         firstVisit: reservation.check_in_date,
       })
@@ -843,7 +845,7 @@ export async function getTopPerformingSites(
     .from('reservations')
     .select(`
       site_id,
-      total_amount,
+      paid_amount,
       sites (
         site_name,
         site_number
@@ -863,16 +865,17 @@ export async function getTopPerformingSites(
     const siteId = reservation.site_id!
     const site = reservation.sites as unknown as DbSite
     const siteName = site.site_name || `Site ${site.site_number}`
+    const revenue = reservation.paid_amount || 0
 
     const existing = siteData.get(siteId)
     if (existing) {
       existing.bookings += 1
-      existing.revenue += reservation.total_amount
+      existing.revenue += revenue
     } else {
       siteData.set(siteId, {
         siteName,
         bookings: 1,
-        revenue: reservation.total_amount,
+        revenue: revenue,
       })
     }
   })
@@ -902,7 +905,7 @@ export async function getBookingSourcesBreakdown(
   // Fetch all reservations with source information
   const { data: reservations, error } = await supabase
     .from('reservations')
-    .select('source, total_amount')
+    .select('source, paid_amount')
     .eq('property_id', propertyId)
     .not('status', 'eq', 'cancelled')
 
@@ -916,16 +919,17 @@ export async function getBookingSourcesBreakdown(
 
   reservations?.forEach((reservation) => {
     const source = reservation.source || 'Unknown'
+    const revenue = reservation.paid_amount || 0
     totalBookings += 1
 
     const existing = sourceData.get(source)
     if (existing) {
       existing.bookings += 1
-      existing.revenue += reservation.total_amount
+      existing.revenue += revenue
     } else {
       sourceData.set(source, {
         bookings: 1,
-        revenue: reservation.total_amount,
+        revenue: revenue,
       })
     }
   })
@@ -1116,7 +1120,7 @@ export async function getOccupancyByMonth(
   // Fetch reservations
   const { data: reservations, error } = await supabase
     .from('reservations')
-    .select('check_in_date, check_out_date, total_amount')
+    .select('check_in_date, check_out_date, paid_amount')
     .eq('property_id', propertyId)
     .gte('check_in_date', startDate.toISOString().split('T')[0])
     .in('status', ['confirmed', 'checked_in', 'checked_out'])
@@ -1143,14 +1147,15 @@ export async function getOccupancyByMonth(
       checkIn.getMonth() + 1
     ).padStart(2, '0')}`
 
+    const revenue = reservation.paid_amount || 0
     const existing = monthlyData.get(monthKey)
     if (existing) {
       existing.bookedNights += nights
-      existing.revenue += reservation.total_amount
+      existing.revenue += revenue
     } else {
       monthlyData.set(monthKey, {
         bookedNights: nights,
-        revenue: reservation.total_amount,
+        revenue: revenue,
       })
     }
   })

@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import {
   processExtension,
   processRenewal,
@@ -26,7 +26,7 @@ export async function POST(
     const body: ProcessActionRequest = await request.json()
 
     // Authenticate user
-    const supabase = await createServerClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,

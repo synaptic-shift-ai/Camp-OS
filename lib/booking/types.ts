@@ -409,3 +409,321 @@ export type BookingResult<T> =
  * Default tax rate for bookings (8.5%)
  */
 export const DEFAULT_TAX_RATE = 0.085
+
+// ============================================================================
+// Booking Lifecycle Types (Extensions, Renewals, Modifications)
+// ============================================================================
+
+/**
+ * Type of booking (matches DB CHECK constraint)
+ */
+export type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal' | 'long_term'
+
+/**
+ * Renewal status for seasonal/monthly bookings
+ */
+export type RenewalStatus = 'n/a' | 'eligible' | 'offered' | 'accepted' | 'declined' | 'expired'
+
+/**
+ * Type of action performed on a reservation
+ */
+export type ReservationActionType =
+  | 'created'
+  | 'extended'
+  | 'renewed'
+  | 'modified'
+  | 'cancelled'
+  | 'rebooked'
+  | 'site_changed'
+  | 'type_converted'
+
+/**
+ * Booking period metadata for seasonal/monthly reservations
+ */
+export interface BookingPeriod {
+  season: string          // "Summer 2025", "Winter 2024-2025", "Q1 2025"
+  start_date: string      // ISO date: "2025-05-01"
+  end_date: string        // ISO date: "2025-10-31"
+  description?: string    // Optional additional context
+}
+
+/**
+ * Property-level renewal configuration
+ */
+export interface RenewalSettings {
+  seasonal_renewal_window_days: number    // Days before season end to offer renewal (default: 30)
+  monthly_renewal_window_days: number     // Days before month end (default: 7)
+  renewal_deposit_percentage: number      // Percentage of total for deposit (default: 25)
+  auto_release_on_decline: boolean        // Release site if guest declines (default: true)
+  send_renewal_reminders: boolean         // Automated email reminders (default: true)
+  reminder_days_before: number[]          // Days before deadline to send reminders (default: [7, 14, 21])
+}
+
+/**
+ * Extended reservation with lifecycle fields
+ */
+export interface ReservationWithLifecycle extends Reservation {
+  // Booking type and period
+  booking_type: BookingType
+  booking_period: BookingPeriod | null
+
+  // Relationship tracking
+  parent_reservation_id: string | null    // Previous period if renewal
+  is_extension_of: string | null          // Original reservation if split
+
+  // Original immutable dates
+  original_check_in: string
+  original_check_out: string
+
+  // Modification counters
+  times_extended: number
+  times_modified: number
+
+  // Renewal workflow
+  renewal_status: RenewalStatus
+  renewal_offered_at: string | null
+  renewal_deadline: string | null
+  renewal_notes: string | null
+}
+
+/**
+ * Audit record for reservation actions
+ */
+export interface ReservationAction {
+  id: string
+  reservation_id: string
+  action_type: ReservationActionType
+  action_details: Record<string, any>
+
+  // Who and when
+  performed_by: string | null
+  performed_at: string
+
+  // Financial impact
+  price_change_cents: number
+  payment_id: string | null
+
+  // State snapshots
+  previous_state: Record<string, any> | null
+  new_state: Record<string, any> | null
+
+  notes: string | null
+  created_at: string
+}
+
+/**
+ * Extension action details
+ */
+export interface ExtensionDetails {
+  nights_added: number
+  original_checkout: string
+  new_checkout: string
+  direction: 'before' | 'after'
+  original_checkin?: string
+  new_checkin?: string
+}
+
+/**
+ * Renewal action details
+ */
+export interface RenewalDetails {
+  renewal_type: 'seasonal' | 'monthly' | 'weekly'
+  next_reservation_id: string
+  season?: string
+  deposit_paid: number
+  next_period: BookingPeriod
+}
+
+/**
+ * Modification action details
+ */
+export interface ModificationDetails {
+  changes: {
+    check_in_date?: { from: string; to: string }
+    check_out_date?: { from: string; to: string }
+    site_id?: { from: string; to: string }
+    num_adults?: { from: number; to: number }
+    num_children?: { from: number; to: number }
+  }
+}
+
+/**
+ * Payment installment for multi-step payments
+ */
+export interface PaymentInstallment {
+  id: string
+  reservation_id: string
+  installment_number: number
+  description: string
+  amount_cents: number
+  due_date: string              // ISO date
+  status: 'pending' | 'paid' | 'overdue' | 'waived' | 'cancelled'
+  payment_id: string | null
+  notes: string | null
+  reminder_sent_at: string[]    // Array of ISO timestamps
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================================
+// Availability Checking Types
+// ============================================================================
+
+/**
+ * Availability status result
+ */
+export type AvailabilityStatus = 'fully_available' | 'partially_available' | 'not_available'
+
+/**
+ * Conflict with existing reservation
+ */
+export interface ReservationConflict {
+  type: 'existing_reservation' | 'pending_renewal' | 'maintenance' | 'site_unavailable'
+  reservation?: {
+    id: string
+    confirmation_number: string
+    guest_name: string
+    check_in: string
+    check_out: string
+    status: ReservationStatus
+    payment_status: ReservationPaymentStatus
+    booking_type: BookingType
+  }
+  conflicting_dates: {
+    start: string
+    end: string
+  }
+  message?: string
+}
+
+/**
+ * Alternative site suggestion
+ */
+export interface AlternativeSite {
+  site_id: string
+  site_number: string
+  site_name: string | null
+  site_type: SiteType
+  available_through: string
+  price_per_night: number
+  similarity_score: number      // 0-100, how similar to requested site
+  amenities: string[]
+}
+
+/**
+ * Action recommendation from availability check
+ */
+export interface ActionRecommendation {
+  action: 'extend_full' | 'extend_partial' | 'move_site' | 'renew_same_site' | 'renew_different_site' | 'manual_review'
+  description: string
+  price_change?: number
+  new_site_id?: string
+  requires_approval?: boolean
+}
+
+/**
+ * Date range
+ */
+export interface DateRange {
+  start: string
+  end: string
+}
+
+/**
+ * Availability check result
+ */
+export interface ActionAvailabilityCheck {
+  available: boolean
+  status: AvailabilityStatus
+  conflicts: ReservationConflict[]
+  available_range?: DateRange
+  alternatives: AlternativeSite[]
+  recommendations: ActionRecommendation[]
+  checked_at: string
+}
+
+// ============================================================================
+// API Request/Response Types
+// ============================================================================
+
+/**
+ * Request to check action availability
+ */
+export interface CheckActionRequest {
+  action: 'extend' | 'renew'
+  params: {
+    // For extend
+    newCheckOut?: string
+    newCheckIn?: string
+    extendBefore?: number     // nights
+    extendAfter?: number      // nights
+
+    // For renew
+    nextPeriodStart?: string
+    nextPeriodEnd?: string
+    nextPeriod?: BookingPeriod
+  }
+}
+
+/**
+ * Request to process reservation action
+ */
+export interface ProcessActionRequest {
+  action: 'extend' | 'renew' | 'modify' | 'change_site' | 'convert_type'
+  params: {
+    // For extend
+    newCheckOut?: string
+    newCheckIn?: string
+
+    // For renew
+    nextPeriod?: BookingPeriod
+    renewalDeadline?: string
+    depositAmount?: number
+
+    // For modify
+    changes?: ModificationDetails['changes']
+
+    // Common
+    sendEmail?: boolean
+    notes?: string
+  }
+}
+
+/**
+ * Response from processing action
+ */
+export interface ProcessActionResponse {
+  success: boolean
+  reservation?: ReservationWithLifecycle
+  action?: ReservationAction
+  price_change?: number
+  payment_required?: boolean
+  next_steps?: string[]
+  error?: BookingError
+}
+
+/**
+ * Create seasonal reservation input
+ */
+export interface CreateSeasonalReservationInput {
+  property_id: string
+  site_id: string
+  guest: CreateGuestInput | { guest_id: string }
+  booking_type: 'seasonal' | 'monthly' | 'long_term'
+  booking_period: BookingPeriod
+  check_in_date: string
+  check_out_date: string
+  total_amount: number
+  payment_schedule: Array<{
+    description: string
+    amount: number
+    due_date: string
+  }>
+  num_adults: number
+  num_children?: number
+  num_pets?: number
+  num_vehicles?: number
+  vehicle_info?: Array<Record<string, any>>
+  special_requests?: string
+  notes?: string
+}

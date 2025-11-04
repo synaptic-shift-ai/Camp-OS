@@ -32,6 +32,9 @@ export interface DashboardReservation {
   guestEmail: string
   siteId: string
   siteName: string
+  siteNumber: string
+  pricePerNight: MoneyCents
+  bookingType: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term'
   checkIn: string
   checkOut: string
   numNights: number
@@ -116,6 +119,7 @@ export async function getReservations(
       paid_amount,
       status,
       payment_status,
+      booking_type,
       created_at,
       guests (
         first_name,
@@ -124,7 +128,8 @@ export async function getReservations(
       ),
       sites (
         site_name,
-        site_number
+        site_number,
+        base_price
       )
     `,
       { count: 'exact' }
@@ -176,6 +181,9 @@ export async function getReservations(
       guestEmail: guest.email,
       siteId: reservation.site_id!,
       siteName: site.site_name || `Site ${site.site_number}`,
+      siteNumber: site.site_number,
+      pricePerNight: site.base_price as MoneyCents,
+      bookingType: (reservation.booking_type as any) || 'nightly',
       checkIn: reservation.check_in_date,
       checkOut: reservation.check_out_date,
       numNights,

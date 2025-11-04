@@ -129,6 +129,10 @@ async function ReservationsTable() {
                 numAdults={reservation.numAdults}
                 numChildren={reservation.numChildren}
                 numPets={reservation.numPets}
+                siteNumber={reservation.siteNumber}
+                siteName={reservation.siteName}
+                pricePerNight={reservation.pricePerNight}
+                bookingType={reservation.bookingType}
               />
             </TableCell>
           </TableRow>

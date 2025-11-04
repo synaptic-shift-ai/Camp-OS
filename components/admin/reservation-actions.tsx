@@ -13,6 +13,8 @@ import { MoreVertical } from "lucide-react"
 import { EditReservationDialog } from "./edit-reservation-dialog"
 import { CancelReservationDialog } from "./cancel-reservation-dialog"
 import { CheckInButton } from "./check-in-button"
+import { ExtendDialog } from "./extend-dialog"
+import { RenewDialog } from "./renew-dialog"
 
 interface ReservationActionsProps {
   reservationId: string
@@ -24,6 +26,10 @@ interface ReservationActionsProps {
   numAdults: number
   numChildren: number
   numPets: number
+  siteNumber: string
+  siteName?: string
+  pricePerNight: number
+  bookingType?: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term'
 }
 
 export function ReservationActions({
@@ -36,7 +42,16 @@ export function ReservationActions({
   numAdults,
   numChildren,
   numPets,
+  siteNumber,
+  siteName,
+  pricePerNight,
+  bookingType = 'nightly',
 }: ReservationActionsProps) {
+  // Only show extend/renew for confirmed or checked-in reservations
+  const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
+
+  // Renewals are primarily for seasonal/monthly bookings
+  const showRenew = canExtendOrRenew && ['seasonal', 'monthly', 'long_term'].includes(bookingType)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -67,6 +82,43 @@ export function ReservationActions({
             </DropdownMenuItem>
           }
         />
+        {canExtendOrRenew && (
+          <>
+            <DropdownMenuSeparator />
+            <ExtendDialog
+              reservationId={reservationId}
+              confirmationNumber={confirmationNumber}
+              guestName={guestName}
+              currentCheckIn={checkIn}
+              currentCheckOut={checkOut}
+              siteNumber={siteNumber}
+              siteName={siteName}
+              pricePerNight={pricePerNight}
+              trigger={
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  Extend Stay
+                </DropdownMenuItem>
+              }
+            />
+            {showRenew && (
+              <RenewDialog
+                reservationId={reservationId}
+                confirmationNumber={confirmationNumber}
+                guestName={guestName}
+                currentCheckOut={checkOut}
+                bookingType={bookingType}
+                siteNumber={siteNumber}
+                siteName={siteName}
+                pricePerNight={pricePerNight}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    Renew Reservation
+                  </DropdownMenuItem>
+                }
+              />
+            )}
+          </>
+        )}
         <DropdownMenuSeparator />
         <CancelReservationDialog
           reservationId={reservationId}

@@ -73,7 +73,7 @@ function formatMoney(cents: number): string {
 function addMonths(dateStr: string, months: number): string {
   const date = new Date(dateStr + 'T00:00:00')
   date.setMonth(date.getMonth() + months)
-  return date.toISOString().split('T')[0]
+  return date.toISOString().split('T')[0]!
 }
 
 /**
@@ -84,7 +84,7 @@ function calculateDefaultNextPeriod(currentCheckOut: string, bookingType: string
   const nextDay = new Date(checkOutDate)
   nextDay.setDate(checkOutDate.getDate() + 1)
 
-  const startDate = nextDay.toISOString().split('T')[0]
+  const startDate = nextDay.toISOString().split('T')[0]!
 
   // Default period lengths
   if (bookingType === 'seasonal') {
@@ -107,7 +107,7 @@ function calculateDefaultNextPeriod(currentCheckOut: string, bookingType: string
     end.setDate(end.getDate() + 7)
     return {
       startDate,
-      endDate: end.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0]!,
       season: 'Next Week',
     }
   }
@@ -161,7 +161,7 @@ export function RenewDialog({
       // Default deadline: 30 days from today
       const deadline = new Date()
       deadline.setDate(deadline.getDate() + 30)
-      setRenewalDeadline(deadline.toISOString().split('T')[0])
+      setRenewalDeadline(deadline.toISOString().split('T')[0]!)
 
       setDepositPercent('30')
       setNotes('')

@@ -242,7 +242,7 @@ export function ExtendDialog({
             <Label htmlFor="newCheckIn">
               New Check-in Date
               <span className="ml-2 text-xs text-muted-foreground font-normal">
-                (leave unchanged to extend after only)
+                (select earlier to extend before)
               </span>
             </Label>
             <Input
@@ -251,7 +251,6 @@ export function ExtendDialog({
               value={newCheckIn}
               onChange={(e) => setNewCheckIn(e.target.value)}
               disabled={loading}
-              max={currentCheckOut}
             />
           </div>
 
@@ -260,7 +259,7 @@ export function ExtendDialog({
             <Label htmlFor="newCheckOut">
               New Check-out Date
               <span className="ml-2 text-xs text-muted-foreground font-normal">
-                (leave unchanged to extend before only)
+                (select later to extend after)
               </span>
             </Label>
             <Input
@@ -269,7 +268,6 @@ export function ExtendDialog({
               value={newCheckOut}
               onChange={(e) => setNewCheckOut(e.target.value)}
               disabled={loading}
-              min={currentCheckIn}
             />
           </div>
 

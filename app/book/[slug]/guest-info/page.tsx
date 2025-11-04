@@ -222,6 +222,7 @@ export default function GuestInfoPage() {
         reservationId: result.data.reservation_id,
         confirmationNumber: result.data.confirmation_number,
         priceBreakdown: result.data.price_breakdown,
+        reservedUntil: result.data.reserved_until, // Checkout timer expiration
         guestInfo,
       })
 

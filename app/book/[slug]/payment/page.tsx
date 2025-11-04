@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
+import { CheckoutTimer } from "@/components/checkout-timer"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -388,6 +389,15 @@ export default function PaymentPage() {
             </div>
           </div>
         </div>
+
+        {checkoutData.reservedUntil && (
+          <div className="max-w-4xl mx-auto">
+            <CheckoutTimer
+              reservedUntil={checkoutData.reservedUntil}
+              propertySlug={slug}
+            />
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">

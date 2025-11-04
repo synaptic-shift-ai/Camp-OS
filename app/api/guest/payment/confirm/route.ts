@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
         status: 'confirmed',
         payment_status: 'paid',
         paid_amount: paidAmountCents,
+        reserved_until: null, // Clear checkout timer - payment completed
         notes: `Online payment via Stripe. PaymentIntent: ${validatedInput.payment_intent_id}`,
         updated_at: new Date().toISOString(),
       })
@@ -181,6 +182,24 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       )
+    }
+
+    // ========================================================================
+    // Step 3.5: Update site status to 'booked'
+    // ========================================================================
+
+    const { error: siteUpdateError } = await supabase
+      .from('sites')
+      .update({
+        status: 'booked',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reservation.site_id)
+
+    if (siteUpdateError) {
+      console.error('[Payment Confirm] Site status update error:', siteUpdateError)
+      // Don't fail the payment confirmation - reservation is already confirmed
+      // Site status can be manually corrected if needed
     }
 
     // ========================================================================

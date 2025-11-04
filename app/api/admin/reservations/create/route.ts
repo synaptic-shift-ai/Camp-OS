@@ -214,6 +214,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Update site status to 'reserved' for manual bookings
+    const supabaseServiceRole = createServiceRoleClient()
+    const { error: siteUpdateError } = await supabaseServiceRole
+      .from('sites')
+      .update({
+        status: 'reserved',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', body.siteId)
+      .eq('property_id', propertyId) // Tenant isolation
+
+    if (siteUpdateError) {
+      console.error('[Manual Reservation] Failed to update site status:', siteUpdateError)
+      // Don't fail the whole request - reservation was created successfully
+    }
+
     // Calculate number of nights for email
     const checkIn = new Date(body.checkInDate)
     const checkOut = new Date(body.checkOutDate)

@@ -132,6 +132,31 @@ export async function POST(
       )
     }
 
+    // Check if there are any other active reservations for this site
+    const { data: otherReservations } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('site_id', reservation.site_id)
+      .not('status', 'in', '(cancelled,checked_out)')
+      .neq('id', reservationId) // Exclude the just-cancelled reservation
+
+    // If no other active reservations, restore site to 'available'
+    if (!otherReservations || otherReservations.length === 0) {
+      const { error: siteUpdateError } = await supabase
+        .from('sites')
+        .update({
+          status: 'available',
+          updated_at: now,
+        })
+        .eq('id', reservation.site_id)
+        .eq('property_id', propertyId) // Tenant isolation
+
+      if (siteUpdateError) {
+        console.error('[Cancel Reservation] Failed to update site status:', siteUpdateError)
+        // Don't fail the cancellation - site status can be manually corrected
+      }
+    }
+
     // Send cancellation email to guest
     const guest = reservation.guest as any
     const site = reservation.site as any

@@ -351,8 +351,12 @@ export async function POST(request: NextRequest) {
     const confirmationNumber = `CAMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
     // ========================================================================
-    // Step 9: Create pending reservation
+    // Step 9: Create pending reservation with 15-minute checkout timer
     // ========================================================================
+
+    // Set reservation expiration to 15 minutes from now (airline-style checkout timer)
+    const reservedUntil = new Date()
+    reservedUntil.setMinutes(reservedUntil.getMinutes() + 15)
 
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
@@ -374,8 +378,9 @@ export async function POST(request: NextRequest) {
         payment_status: 'unpaid',
         special_requests: validatedInput.special_requests || null,
         source: 'online',
+        reserved_until: reservedUntil.toISOString(), // 15-minute checkout timer
       })
-      .select('id, confirmation_number, total_amount')
+      .select('id, confirmation_number, total_amount, reserved_until')
       .single()
 
     if (reservationError || !reservation) {
@@ -387,6 +392,23 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       )
+    }
+
+    // ========================================================================
+    // Step 9.5: Update site status to 'reserved' (hold during checkout)
+    // ========================================================================
+
+    const { error: siteUpdateError } = await supabase
+      .from('sites')
+      .update({
+        status: 'reserved',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', validatedInput.site_id)
+
+    if (siteUpdateError) {
+      console.error('[Guest Reservation] Site status update error:', siteUpdateError)
+      // Don't fail reservation creation - site status can be corrected by cleanup job
     }
 
     // ========================================================================
@@ -405,6 +427,7 @@ export async function POST(request: NextRequest) {
         check_out_date: validatedInput.check_out_date,
         number_of_nights: numberOfNights,
         price_breakdown: priceBreakdown,
+        reserved_until: reservation.reserved_until, // Checkout timer expiration
       },
     })
   } catch (error) {

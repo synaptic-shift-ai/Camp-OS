@@ -378,6 +378,7 @@ export interface CheckoutData {
   // Confirmation
   confirmationNumber?: string
   reservationId?: string
+  reservedUntil?: string // Checkout timer expiration (ISO timestamp)
 }
 
 // ============================================================================

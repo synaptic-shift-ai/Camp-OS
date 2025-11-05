@@ -27,13 +27,7 @@
     ],
     "paths": {
       "@/*": [
-        "./*"
-      ],
-      "@/contracts/*": [
-        "./src/contracts/*"
-      ],
-      "@/compat/*": [
-        "./src/compat/*"
+        "./src/*"
       ]
     }
   },

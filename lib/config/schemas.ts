@@ -39,41 +39,42 @@ export const serviceFeeTypeSchema = z.enum(['none', 'percentage', 'flat', 'per_n
 // Deposit Configuration Schema
 // =====================================================
 
-export const depositConfigSchema = z
-  .object({
-    require_deposit: z.boolean({
-      required_error: 'Deposit requirement must be specified',
-    }),
+const depositConfigBaseSchema = z.object({
+  require_deposit: z.boolean({
+    required_error: 'Deposit requirement must be specified',
+  }),
 
-    deposit_type: depositTypeSchema.default('percentage'),
+  deposit_type: depositTypeSchema.default('percentage'),
 
-    deposit_percentage: z
-      .number()
-      .min(0, 'Deposit percentage must be at least 0%')
-      .max(100, 'Deposit percentage cannot exceed 100%')
-      .optional(),
+  deposit_percentage: z
+    .number()
+    .min(0, 'Deposit percentage must be at least 0%')
+    .max(100, 'Deposit percentage cannot exceed 100%')
+    .optional(),
 
-    deposit_amount_cents: z
-      .number()
-      .int('Deposit amount must be a whole number')
-      .min(0, 'Deposit amount cannot be negative')
-      .optional()
-      .nullable(),
+  deposit_amount_cents: z
+    .number()
+    .int('Deposit amount must be a whole number')
+    .min(0, 'Deposit amount cannot be negative')
+    .optional()
+    .nullable(),
 
-    applies_to_booking_types: z
-      .array(bookingTypeSchema)
-      .min(0, 'Must specify at least one booking type')
-      .default(['nightly', 'weekly', 'monthly', 'seasonal', 'long_term']),
+  applies_to_booking_types: z
+    .array(bookingTypeSchema)
+    .min(0, 'Must specify at least one booking type')
+    .default(['nightly', 'weekly', 'monthly', 'seasonal', 'long_term']),
 
-    exempt_if_paid_in_full: z.boolean().default(true),
+  exempt_if_paid_in_full: z.boolean().default(true),
 
-    full_payment_required_days_before: z
-      .number()
-      .int('Days must be a whole number')
-      .min(0, 'Days before cannot be negative')
-      .optional()
-      .nullable(),
-  })
+  full_payment_required_days_before: z
+    .number()
+    .int('Days must be a whole number')
+    .min(0, 'Days before cannot be negative')
+    .optional()
+    .nullable(),
+})
+
+export const depositConfigSchema = depositConfigBaseSchema
   .refine(
     (data) => {
       // If deposit required and type is percentage, percentage must be provided
@@ -167,54 +168,55 @@ export const pricingConfigSchema = z.object({
 // Booking Rules Configuration Schema
 // =====================================================
 
-export const bookingRulesConfigSchema = z
-  .object({
-    min_stay_nights: z
-      .number()
-      .int('Minimum stay must be a whole number')
-      .min(1, 'Minimum stay must be at least 1 night')
-      .max(365, 'Minimum stay cannot exceed 365 nights')
-      .default(1),
+const bookingRulesConfigBaseSchema = z.object({
+  min_stay_nights: z
+    .number()
+    .int('Minimum stay must be a whole number')
+    .min(1, 'Minimum stay must be at least 1 night')
+    .max(365, 'Minimum stay cannot exceed 365 nights')
+    .default(1),
 
-    max_stay_nights: z
-      .number()
-      .int('Maximum stay must be a whole number')
-      .min(1, 'Maximum stay must be at least 1 night')
-      .optional()
-      .nullable(),
+  max_stay_nights: z
+    .number()
+    .int('Maximum stay must be a whole number')
+    .min(1, 'Maximum stay must be at least 1 night')
+    .optional()
+    .nullable(),
 
-    booking_window_days: z
-      .number()
-      .int('Booking window must be a whole number')
-      .min(1, 'Booking window must be at least 1 day')
-      .max(730, 'Booking window cannot exceed 2 years')
-      .default(365),
+  booking_window_days: z
+    .number()
+    .int('Booking window must be a whole number')
+    .min(1, 'Booking window must be at least 1 day')
+    .max(730, 'Booking window cannot exceed 2 years')
+    .default(365),
 
-    advance_notice_days: z
-      .number()
-      .int('Advance notice must be a whole number')
-      .min(0, 'Advance notice cannot be negative')
-      .max(90, 'Advance notice seems unreasonably high')
-      .default(0),
+  advance_notice_days: z
+    .number()
+    .int('Advance notice must be a whole number')
+    .min(0, 'Advance notice cannot be negative')
+    .max(90, 'Advance notice seems unreasonably high')
+    .default(0),
 
-    allowed_checkin_days: z
-      .array(dayOfWeekSchema)
-      .min(1, 'At least one check-in day must be allowed')
-      .default(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
+  allowed_checkin_days: z
+    .array(dayOfWeekSchema)
+    .min(1, 'At least one check-in day must be allowed')
+    .default(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
 
-    allowed_checkout_days: z
-      .array(dayOfWeekSchema)
-      .min(1, 'At least one check-out day must be allowed')
-      .default(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
+  allowed_checkout_days: z
+    .array(dayOfWeekSchema)
+    .min(1, 'At least one check-out day must be allowed')
+    .default(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
 
-    blackout_dates: z
-      .array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'))
-      .default([]),
+  blackout_dates: z
+    .array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'))
+    .default([]),
 
-    same_day_booking_enabled: z.boolean().default(true),
+  same_day_booking_enabled: z.boolean().default(true),
 
-    instant_booking_enabled: z.boolean().default(true),
-  })
+  instant_booking_enabled: z.boolean().default(true),
+})
+
+export const bookingRulesConfigSchema = bookingRulesConfigBaseSchema
   .refine(
     (data) => {
       // If max_stay is set, it must be >= min_stay
@@ -280,7 +282,7 @@ export const rateDiscountsConfigSchema = z
 // Seasonal Pricing Schemas
 // =====================================================
 
-export const seasonalPricingEntrySchema = z.object({
+const seasonalPricingEntryBaseSchema = z.object({
   season: z.string().min(1, 'Season name is required').max(100, 'Season name is too long'),
 
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in YYYY-MM-DD format'),
@@ -294,7 +296,9 @@ export const seasonalPricingEntrySchema = z.object({
     .max(100000000, 'Price seems unreasonably high'),
 
   applies_to_weekends: z.boolean().default(false),
-}).refine(
+})
+
+export const seasonalPricingEntrySchema = seasonalPricingEntryBaseSchema.refine(
   (data) => {
     // End date must be >= start date
     return new Date(data.end_date) >= new Date(data.start_date)
@@ -353,12 +357,12 @@ export const siteSeasonalTemplateApplicationSchema = z.object({
 // Site Configuration Override Schemas
 // =====================================================
 
-// For site overrides, we allow partial configurations
-export const siteDepositOverrideSchema = depositConfigSchema.partial()
+// For site overrides, we allow partial configurations (use base schemas without refine)
+export const siteDepositOverrideSchema = depositConfigBaseSchema.partial()
 
 export const sitePricingOverrideSchema = pricingConfigSchema.partial()
 
-export const siteBookingRulesOverrideSchema = bookingRulesConfigSchema.partial()
+export const siteBookingRulesOverrideSchema = bookingRulesConfigBaseSchema.partial()
 
 // =====================================================
 // Form Schemas (for UI)
@@ -368,7 +372,7 @@ export const siteBookingRulesOverrideSchema = bookingRulesConfigSchema.partial()
  * Deposit Configuration Form Schema
  * Converts dollar amounts to cents for API
  */
-export const depositConfigFormSchema = depositConfigSchema
+export const depositConfigFormSchema = depositConfigBaseSchema
   .omit({ deposit_amount_cents: true })
   .extend({
     deposit_amount_dollars: z
@@ -401,7 +405,7 @@ export const pricingConfigFormSchema = pricingConfigSchema
  * Seasonal Pricing Form Schema
  * Converts cents to dollars for form display
  */
-export const seasonalPricingFormSchema = seasonalPricingEntrySchema
+export const seasonalPricingFormSchema = seasonalPricingEntryBaseSchema
   .omit({ price_cents: true })
   .extend({
     price_dollars: z.number().min(0.01, 'Price must be at least $0.01'),

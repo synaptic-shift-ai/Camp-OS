@@ -615,7 +615,6 @@ export const DEFAULT_DEPOSIT_CONFIG: DepositConfig = {
   require_deposit: false,
   deposit_type: 'percentage',
   deposit_percentage: 25,
-  deposit_amount_cents: undefined,
   applies_to_booking_types: ['nightly', 'weekly', 'monthly', 'seasonal', 'long_term'],
   exempt_if_paid_in_full: true,
   full_payment_required_days_before: null,

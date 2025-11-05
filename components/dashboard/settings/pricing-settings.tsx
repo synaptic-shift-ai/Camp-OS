@@ -51,11 +51,11 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
           tax_rate_percentage: initialConfig.tax_rate * 100,
           tax_name: initialConfig.tax_name,
           service_fee_type: initialConfig.service_fee_type,
-          service_fee_percentage: initialConfig.service_fee_percentage,
-          service_fee_amount_dollars: initialConfig.service_fee_amount_cents
+          service_fee_percentage: initialConfig.service_fee_percentage || 0,
+          service_fee_amount_dollars: initialConfig.service_fee_amount_cents !== null && initialConfig.service_fee_amount_cents !== undefined
             ? initialConfig.service_fee_amount_cents / 100
             : null,
-          default_cleaning_fee_dollars: initialConfig.default_cleaning_fee_cents
+          default_cleaning_fee_dollars: initialConfig.default_cleaning_fee_cents !== null && initialConfig.default_cleaning_fee_cents !== undefined
             ? initialConfig.default_cleaning_fee_cents / 100
             : null,
           extra_guest_fee_enabled: initialConfig.extra_guest_fee_enabled,

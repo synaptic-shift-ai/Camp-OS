@@ -346,7 +346,7 @@ export async function calculateReservationPriceEnhanced(
 
     switch (pricingConfig.service_fee_type) {
       case 'percentage':
-        serviceFee = Math.round((breakdown.total * pricingConfig.service_fee_percentage) / 100)
+        serviceFee = Math.round((breakdown.total * (pricingConfig.service_fee_percentage || 0)) / 100)
         break
       case 'flat':
         serviceFee = pricingConfig.service_fee_amount_cents ?? 0
@@ -371,7 +371,9 @@ export async function calculateReservationPriceEnhanced(
     const taxes = Math.round(breakdown.total_before_tax * pricingConfig.tax_rate)
     breakdown.taxes = taxes
     breakdown.tax_rate = pricingConfig.tax_rate
-    breakdown.tax_name = pricingConfig.tax_name
+    if (pricingConfig.tax_name) {
+      breakdown.tax_name = pricingConfig.tax_name
+    }
     breakdown.total += taxes
   }
 
@@ -405,7 +407,9 @@ export async function calculateReservationPriceEnhanced(
 
     breakdown.deposit_required = true
     breakdown.deposit_amount = depositAmount
-    breakdown.deposit_percentage = depositConfig.deposit_percentage
+    if (depositConfig.deposit_percentage !== undefined) {
+      breakdown.deposit_percentage = depositConfig.deposit_percentage
+    }
 
     // Calculate payment breakdown
     breakdown.amount_due_now = depositAmount
@@ -416,7 +420,10 @@ export async function calculateReservationPriceEnhanced(
       const checkInDateObj = new Date(checkInDate)
       const depositDueDate = new Date(checkInDateObj)
       depositDueDate.setDate(depositDueDate.getDate() - depositConfig.full_payment_required_days_before)
-      breakdown.deposit_due_date = depositDueDate.toISOString().split('T')[0]
+      const dueDateStr = depositDueDate.toISOString().split('T')[0]
+      if (dueDateStr) {
+        breakdown.deposit_due_date = dueDateStr
+      }
     }
   } else {
     // No deposit required - full payment due

@@ -86,7 +86,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
   const toggleBookingType = (type: BookingType) => {
     const current = appliesToBookingTypes
     const updated = current.includes(type)
-      ? current.filter(t => t !== type)
+      ? current.filter((t: BookingType) => t !== type)
       : [...current, type]
     setValue('applies_to_booking_types', updated, { shouldDirty: true })
   }
@@ -100,13 +100,17 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
       const depositConfig: DepositConfig = {
         require_deposit: data.require_deposit,
         deposit_type: data.deposit_type,
-        deposit_percentage: data.deposit_percentage,
-        deposit_amount_cents: data.deposit_amount_dollars
-          ? Math.round(data.deposit_amount_dollars * 100)
-          : undefined,
         applies_to_booking_types: data.applies_to_booking_types,
         exempt_if_paid_in_full: data.exempt_if_paid_in_full,
-        full_payment_required_days_before: data.full_payment_required_days_before,
+        full_payment_required_days_before: data.full_payment_required_days_before === undefined ? null : data.full_payment_required_days_before,
+      }
+
+      if (data.deposit_percentage !== undefined) {
+        depositConfig.deposit_percentage = data.deposit_percentage
+      }
+
+      if (data.deposit_amount_dollars !== undefined && data.deposit_amount_dollars !== null) {
+        depositConfig.deposit_amount_cents = Math.round(data.deposit_amount_dollars * 100)
       }
 
       if (onSave) {

@@ -109,14 +109,20 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
     setSaveMessage(null)
 
     try {
+      // Convert undefined to null for max_stay_nights
+      const bookingRulesConfig: BookingRulesConfig = {
+        ...data,
+        max_stay_nights: data.max_stay_nights === undefined ? null : data.max_stay_nights,
+      }
+
       if (onSave) {
-        await onSave(data)
+        await onSave(bookingRulesConfig)
       } else {
         // Default API call
         const response = await fetch(`/api/properties/${propertyId}/settings`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ booking_rules_config: data }),
+          body: JSON.stringify({ booking_rules_config: bookingRulesConfig }),
         })
 
         if (!response.ok) {

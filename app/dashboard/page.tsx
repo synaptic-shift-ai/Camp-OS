@@ -130,19 +130,22 @@ async function RecentActivity() {
   // Get recent reservations
   const { data: recentReservations } = await getReservations(propertyId, {}, 1, 5)
 
-  // Get upcoming check-ins (reservations with check-in date today or tomorrow)
+  // Get upcoming check-ins for next 7 days (excluding today since it's shown in TodaysArrivalsCard)
   const today = new Date()
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
-  const todayStr = today.toISOString().split('T')[0]!
+  const nextWeek = new Date(today)
+  nextWeek.setDate(nextWeek.getDate() + 7)
+
   const tomorrowStr = tomorrow.toISOString().split('T')[0]!
+  const nextWeekStr = nextWeek.toISOString().split('T')[0]!
 
   const { data: upcomingCheckIns } = await getReservations(
     propertyId,
     {
-      startDate: todayStr,
-      endDate: tomorrowStr,
+      startDate: tomorrowStr,
+      endDate: nextWeekStr,
       status: 'confirmed',
     },
     1,
@@ -161,25 +164,42 @@ async function RecentActivity() {
             <p className="text-sm text-muted-foreground text-center py-4">No reservations yet</p>
           ) : (
             <div className="space-y-4">
-              {recentReservations.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                >
-                  <div>
-                    <p className="font-medium">{reservation.siteName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {reservation.guestName} • {reservation.numNights} nights
-                    </p>
+              {recentReservations.map((reservation) => {
+                const outstandingBalance = reservation.totalAmount - reservation.paidAmount
+                const hasBalance = outstandingBalance > 0
+
+                return (
+                  <div
+                    key={reservation.id}
+                    className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{reservation.guestName}</p>
+                        {hasBalance && (
+                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                            Balance Due
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                      </p>
+                      {hasBalance && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          {formatMoney(outstandingBalance)} balance due
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                      <Badge variant="outline" className={statusColors[reservation.status]}>
+                        {reservation.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                    <Badge variant="outline" className={statusColors[reservation.status]}>
-                      {reservation.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>
@@ -188,29 +208,49 @@ async function RecentActivity() {
       <Card>
         <CardHeader>
           <CardTitle>Upcoming Check-ins</CardTitle>
-          <CardDescription>Guests arriving today and tomorrow</CardDescription>
+          <CardDescription>Next 7 days (excluding today)</CardDescription>
         </CardHeader>
         <CardContent>
           {upcomingCheckIns.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No upcoming check-ins</p>
           ) : (
             <div className="space-y-4">
-              {upcomingCheckIns.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                >
-                  <div>
-                    <p className="font-medium">{reservation.guestName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {reservation.siteName} • {formatDate(reservation.checkIn)}
-                    </p>
+              {upcomingCheckIns.map((reservation) => {
+                const outstandingBalance = reservation.totalAmount - reservation.paidAmount
+                const hasBalance = outstandingBalance > 0
+
+                return (
+                  <div
+                    key={reservation.id}
+                    className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{reservation.guestName}</p>
+                        {hasBalance && (
+                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                            Balance Due
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {reservation.siteName} • Check-in: {formatDate(reservation.checkIn)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                      </p>
+                      {hasBalance && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          {formatMoney(outstandingBalance)} balance due
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Upcoming
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-primary">Check-in</p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

@@ -149,7 +149,7 @@ export async function getReservations(
     query = query.gte('check_in_date', filters.startDate)
   }
   if (filters.endDate) {
-    query = query.lte('check_out_date', filters.endDate)
+    query = query.lte('check_in_date', filters.endDate)
   }
   if (filters.search) {
     query = query.or(

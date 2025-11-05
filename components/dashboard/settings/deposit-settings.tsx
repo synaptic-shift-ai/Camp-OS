@@ -17,6 +17,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,6 +45,7 @@ const BOOKING_TYPES: { value: BookingType; label: string; description: string }[
 ]
 
 export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSettingsProps) {
+  const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -129,6 +131,9 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
       }
 
       setSaveMessage({ type: 'success', text: 'Deposit settings saved successfully!' })
+
+      // Refresh the page data to show updated values
+      router.refresh()
     } catch (error) {
       console.error('Error saving deposit settings:', error)
       setSaveMessage({

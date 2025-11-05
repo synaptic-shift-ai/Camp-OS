@@ -17,6 +17,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +36,7 @@ interface PricingSettingsProps {
 }
 
 export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSettingsProps) {
+  const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -119,6 +121,9 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
       }
 
       setSaveMessage({ type: 'success', text: 'Pricing settings saved successfully!' })
+
+      // Refresh the page data to show updated values
+      router.refresh()
     } catch (error) {
       console.error('Error saving pricing settings:', error)
       setSaveMessage({

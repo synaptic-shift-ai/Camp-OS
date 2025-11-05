@@ -1,222 +1,151 @@
-"use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PricingSettings } from "@/components/dashboard/settings/pricing-settings"
+import { DepositSettings } from "@/components/dashboard/settings/deposit-settings"
+import { BookingRulesSettings } from "@/components/dashboard/settings/booking-rules-settings"
+import { RateDiscountsSettings } from "@/components/dashboard/settings/rate-discounts-settings"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Info } from "lucide-react"
 
-export default function SettingsPage() {
+// Force dynamic rendering to always fetch fresh data
+export const dynamic = 'force-dynamic'
+
+/**
+ * Get the current user's property with all configuration fields
+ */
+async function getCurrentProperty() {
+  const supabase = await createClient()
+
+  // Get the currently authenticated user
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  // Get the property owned by this user with all config fields
+  const { data: property, error } = await supabase
+    .from('properties')
+    .select(`
+      id,
+      name,
+      owner_id,
+      company_id,
+      deposit_config,
+      pricing_config,
+      booking_rules_config,
+      rate_discounts_config
+    `)
+    .eq('owner_id', user.id)
+    .single()
+
+  if (error) {
+    console.error('Error fetching property:', error)
+    return null
+  }
+
+  return property
+}
+
+export default async function SettingsPage() {
+  const property = await getCurrentProperty()
+
+  if (!property) {
+    redirect('/auth/login')
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-heading font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your property settings and preferences</p>
+        <p className="text-muted-foreground">
+          Manage your property settings and preferences
+        </p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="booking">Booking</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Configure your property-wide defaults below. You can override these settings per-site from the Sites page.
+        </AlertDescription>
+      </Alert>
+
+      <Tabs defaultValue="pricing" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          <TabsTrigger value="deposits">Deposits</TabsTrigger>
+          <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
+          <TabsTrigger value="discounts">Discounts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Property Information</CardTitle>
-              <CardDescription>Update your property details and contact information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="property-name">Property Name</Label>
-                  <Input id="property-name" placeholder="Pine Valley Campground" defaultValue="Pine Valley Camp" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="property-type">Property Type</Label>
-                  <Select defaultValue="campground">
-                    <SelectTrigger id="property-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="campground">Campground</SelectItem>
-                      <SelectItem value="rv_park">RV Park</SelectItem>
-                      <SelectItem value="glamping">Glamping</SelectItem>
-                      <SelectItem value="mixed">Mixed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your property..."
-                  defaultValue="A beautiful campground nestled in the mountains"
-                  rows={4}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="contact@property.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" type="tel" placeholder="(555) 123-4567" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input id="address" placeholder="123 Mountain Road" />
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input id="city" placeholder="Pine Valley" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Input id="state" placeholder="CA" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zip">ZIP Code</Label>
-                  <Input id="zip" placeholder="12345" />
-                </div>
-              </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="pricing" className="space-y-4">
+          <PricingSettings
+            propertyId={property.id}
+            initialConfig={property.pricing_config}
+          />
         </TabsContent>
 
-        <TabsContent value="booking" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Settings</CardTitle>
-              <CardDescription>Configure check-in/out times and booking policies</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="check-in">Check-in Time</Label>
-                  <Input id="check-in" type="time" defaultValue="15:00" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="check-out">Check-out Time</Label>
-                  <Input id="check-out" type="time" defaultValue="11:00" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Select defaultValue="america-new-york">
-                  <SelectTrigger id="timezone">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="america-new-york">Eastern Time (ET)</SelectItem>
-                    <SelectItem value="america-chicago">Central Time (CT)</SelectItem>
-                    <SelectItem value="america-denver">Mountain Time (MT)</SelectItem>
-                    <SelectItem value="america-los-angeles">Pacific Time (PT)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Instant Booking</Label>
-                  <p className="text-sm text-muted-foreground">Allow guests to book without approval</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Require Deposit</Label>
-                  <p className="text-sm text-muted-foreground">Require deposit at time of booking</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="deposits" className="space-y-4">
+          <DepositSettings
+            propertyId={property.id}
+            initialConfig={property.deposit_config}
+          />
         </TabsContent>
 
-        <TabsContent value="payments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Settings</CardTitle>
-              <CardDescription>Configure payment methods and processing</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Accept Credit Cards</Label>
-                  <p className="text-sm text-muted-foreground">Process credit card payments via Stripe</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Accept Cash</Label>
-                  <p className="text-sm text-muted-foreground">Allow cash payments on-site</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Accept Checks</Label>
-                  <p className="text-sm text-muted-foreground">Allow check payments</p>
-                </div>
-                <Switch />
-              </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="booking-rules" className="space-y-4">
+          <BookingRulesSettings
+            propertyId={property.id}
+            initialConfig={property.booking_rules_config}
+          />
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Manage how you receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>New Reservations</Label>
-                  <p className="text-sm text-muted-foreground">Get notified when new bookings are made</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Check-in Reminders</Label>
-                  <p className="text-sm text-muted-foreground">Reminders for upcoming check-ins</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Payment Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Get notified about payments</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Marketing Emails</Label>
-                  <p className="text-sm text-muted-foreground">Receive tips and updates</p>
-                </div>
-                <Switch />
-              </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="discounts" className="space-y-4">
+          <RateDiscountsSettings
+            propertyId={property.id}
+            initialConfig={property.rate_discounts_config}
+          />
         </TabsContent>
       </Tabs>
+
+      {/* Coming Soon: Additional Settings */}
+      <Card className="mt-8 border-dashed">
+        <CardHeader>
+          <CardTitle>Additional Settings</CardTitle>
+          <CardDescription>
+            More configuration options coming soon
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-1">General Info</h3>
+              <p className="text-sm text-muted-foreground">
+                Property name, contact details, address
+              </p>
+            </div>
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-1">Check-in/out</h3>
+              <p className="text-sm text-muted-foreground">
+                Check-in times, timezone, instant booking
+              </p>
+            </div>
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-1">Payments</h3>
+              <p className="text-sm text-muted-foreground">
+                Payment methods, Stripe integration
+              </p>
+            </div>
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-1">Notifications</h3>
+              <p className="text-sm text-muted-foreground">
+                Email alerts, booking reminders
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

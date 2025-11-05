@@ -32,12 +32,16 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { AvailableSitesAccordion } from "@/components/dashboard/reservations/available-sites-accordion"
+import { PricingSummary } from "@/components/dashboard/reservations/pricing-summary"
+import type { PricingConfig, RateDiscountsConfig, DepositConfig } from '@/lib/config/types'
 
 // Form validation schema
 const manualBookingSchema = z.object({
   siteId: z.string().min(1, "Please select a site"),
   checkInDate: z.string().min(1, "Check-in date is required"),
   checkOutDate: z.string().min(1, "Check-out date is required"),
+  stayType: z.enum(["nightly", "weekly", "monthly", "seasonal"]).default("nightly"),
   numAdults: z.number().min(1, "At least one adult is required"),
   numChildren: z.number().min(0).optional(),
   numPets: z.number().min(0).optional(),
@@ -99,6 +103,9 @@ export default function NewReservationPage() {
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [totalNights, setTotalNights] = useState(0)
   const [estimatedTotal, setEstimatedTotal] = useState(0)
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
+  const [rateDiscountsConfig, setRateDiscountsConfig] = useState<RateDiscountsConfig | null>(null)
+  const [depositConfig, setDepositConfig] = useState<DepositConfig | null>(null)
 
   const {
     register,
@@ -120,8 +127,10 @@ export default function NewReservationPage() {
   const selectedSiteId = watch("siteId")
   const checkInDate = watch("checkInDate")
   const checkOutDate = watch("checkOutDate")
+  const stayType = watch("stayType")
   const numAdults = watch("numAdults")
   const numChildren = watch("numChildren")
+  const numPets = watch("numPets")
   const paymentMethod = watch("paymentMethod")
 
   // Fetch property ID on mount
@@ -137,7 +146,7 @@ export default function NewReservationPage() {
 
       const { data: property, error: propertyError } = await supabase
         .from('properties')
-        .select('id')
+        .select('id, pricing_config, rate_discounts_config, deposit_config')
         .eq('owner_id', user.id)
         .single()
 
@@ -147,6 +156,9 @@ export default function NewReservationPage() {
       }
 
       setPropertyId(property.id)
+      setPricingConfig(property.pricing_config as PricingConfig | null)
+      setRateDiscountsConfig(property.rate_discounts_config as RateDiscountsConfig | null)
+      setDepositConfig(property.deposit_config as DepositConfig | null)
     }
 
     fetchPropertyId()
@@ -249,6 +261,7 @@ export default function NewReservationPage() {
           siteId: data.siteId,
           checkInDate: data.checkInDate,
           checkOutDate: data.checkOutDate,
+          stayType: data.stayType,
           numAdults: data.numAdults,
           numChildren: data.numChildren,
           numPets: data.numPets,
@@ -323,7 +336,7 @@ export default function NewReservationPage() {
   const selectedSite = availableSites.find(s => s.id === selectedSiteId)
 
   return (
-    <div className="container max-w-6xl py-8">
+    <div className="container max-w-7xl py-8">
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -338,7 +351,10 @@ export default function NewReservationPage() {
         <p className="text-muted-foreground">For phone or walk-in bookings</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Form - Left Column */}
+        <div className="lg:col-span-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Date Selection - Priority #1 for phone bookings */}
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
@@ -374,6 +390,30 @@ export default function NewReservationPage() {
                   <p className="text-sm text-destructive mt-1">{errors.checkOutDate.message}</p>
                 )}
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="stayType">Stay Type</Label>
+              <Select
+                value={watch("stayType")}
+                onValueChange={(value) => setValue("stayType", value as "nightly" | "weekly" | "monthly" | "seasonal")}
+              >
+                <SelectTrigger id="stayType">
+                  <SelectValue placeholder="Select stay type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nightly">Nightly (Standard short-term stay)</SelectItem>
+                  <SelectItem value="weekly">Weekly (7+ days)</SelectItem>
+                  <SelectItem value="monthly">Monthly (30+ days)</SelectItem>
+                  <SelectItem value="seasonal">Seasonal (Multi-month stay)</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.stayType && (
+                <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
+              )}
+              <p className="text-sm text-muted-foreground mt-1">
+                Determines pricing and discount eligibility
+              </p>
             </div>
 
             <div className="grid grid-cols-4 gap-4">
@@ -471,110 +511,11 @@ export default function NewReservationPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {Object.entries(sitesByType).map(([type, sites]) => {
-                  const TypeIcon = siteTypeIcons[type] || Home
-                  return (
-                    <div key={type}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <TypeIcon className="h-5 w-5 text-muted-foreground" />
-                        <h3 className="font-semibold capitalize">
-                          {type === 'rv' ? 'RV' : type} Sites
-                        </h3>
-                        <Badge variant="outline">{sites.length}</Badge>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {sites.map((site) => {
-                          const isSelected = selectedSiteId === site.id
-                          const siteTotal = site.base_price_per_night * totalNights
-
-                          return (
-                            <Card
-                              key={site.id}
-                              className={cn(
-                                "cursor-pointer transition-all hover:shadow-md",
-                                isSelected && "ring-2 ring-primary shadow-lg"
-                              )}
-                              onClick={() => setValue("siteId", site.id)}
-                            >
-                              <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                      {site.name}
-                                      {isSelected && (
-                                        <Check className="h-4 w-4 text-primary" />
-                                      )}
-                                    </CardTitle>
-                                    <CardDescription className="text-xs mt-1">
-                                      Site #{site.site_number}
-                                    </CardDescription>
-                                  </div>
-                                  <Badge variant="secondary" className="ml-2">
-                                    {type === 'rv' ? 'RV' : type.charAt(0).toUpperCase() + type.slice(1)}
-                                  </Badge>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="space-y-3">
-                                <div className="flex items-baseline justify-between">
-                                  <div>
-                                    <div className="text-2xl font-bold">
-                                      {formatMoney(site.base_price_per_night)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">per night</div>
-                                  </div>
-                                  {totalNights > 0 && (
-                                    <div className="text-right">
-                                      <div className="text-lg font-semibold text-primary">
-                                        {formatMoney(siteTotal)}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">
-                                        {totalNights} night{totalNights > 1 ? 's' : ''}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Users className="h-4 w-4" />
-                                  <span>Max {site.max_occupancy} guests</span>
-                                </div>
-
-                                {/* Amenities */}
-                                <div className="flex flex-wrap gap-2">
-                                  {Object.entries(site.amenities)
-                                    .filter(([_, enabled]) => enabled)
-                                    .slice(0, 4)
-                                    .map(([amenity]) => {
-                                      const amenityInfo = amenityIcons[amenity]
-                                      if (!amenityInfo) return null
-                                      const IconComponent = amenityInfo.icon
-                                      return (
-                                        <div
-                                          key={amenity}
-                                          className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded-md"
-                                          title={amenityInfo.label}
-                                        >
-                                          <IconComponent className="h-3 w-3" />
-                                          <span className="hidden sm:inline">{amenityInfo.label}</span>
-                                        </div>
-                                      )
-                                    })}
-                                  {Object.entries(site.amenities).filter(([_, enabled]) => enabled).length > 4 && (
-                                    <div className="text-xs bg-muted px-2 py-1 rounded-md">
-                                      +{Object.entries(site.amenities).filter(([_, enabled]) => enabled).length - 4} more
-                                    </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              <AvailableSitesAccordion
+                sites={availableSites}
+                selectedSiteId={selectedSiteId}
+                onSiteSelect={(siteId) => setValue("siteId", siteId)}
+              />
             )}
 
             {errors.siteId && (
@@ -777,7 +718,24 @@ export default function NewReservationPage() {
             {loading ? "Creating..." : "Create Reservation"}
           </Button>
         </div>
-      </form>
+          </form>
+        </div>
+
+        {/* Pricing Summary - Right Column */}
+        <div className="lg:col-span-1">
+          <PricingSummary
+            selectedSite={selectedSite || null}
+            numNights={totalNights}
+            stayType={stayType || 'nightly'}
+            numAdults={numAdults || 1}
+            numChildren={numChildren || 0}
+            numPets={numPets || 0}
+            pricingConfig={pricingConfig}
+            rateDiscountsConfig={rateDiscountsConfig}
+            depositConfig={depositConfig}
+          />
+        </div>
+      </div>
     </div>
   )
 }

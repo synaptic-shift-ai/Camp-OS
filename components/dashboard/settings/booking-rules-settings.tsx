@@ -17,6 +17,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +47,7 @@ const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
 ]
 
 export function BookingRulesSettings({ initialConfig, propertyId, onSave }: BookingRulesSettingsProps) {
+  const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [newBlackoutDate, setNewBlackoutDate] = useState('')
@@ -131,6 +133,9 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
       }
 
       setSaveMessage({ type: 'success', text: 'Booking rules saved successfully!' })
+
+      // Refresh the page data to show updated values
+      router.refresh()
     } catch (error) {
       console.error('Error saving booking rules:', error)
       setSaveMessage({

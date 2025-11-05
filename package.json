@@ -18,6 +18,8 @@
     "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
     "gen:db": "npx supabase gen types typescript --linked > src/contracts/db.ts && echo '✅ Generated database types in src/contracts/db.ts'",
+    "gen:types": "npm run gen:db",
+    "validate:schemas": "tsx scripts/validate-schemas.ts",
     "check": "npm run type-check && npm run lint",
     "check:full": "npm run gen:db && npm run check && npm run build",
     "prepare": "husky || true",

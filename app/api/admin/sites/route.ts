@@ -1,8 +1,24 @@
+/**
+ * DEPRECATED: /api/admin/sites
+ *
+ * This endpoint is deprecated. Use /api/v1/properties/[propertyId]/sites instead.
+ *
+ * Deprecation Date: 2025-11-05
+ * Sunset Date: 2026-02-05 (90 days)
+ *
+ * Migration Guide: See /api/v1/properties/[propertyId]/sites
+ */
+
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 
+/**
+ * @deprecated Use GET /api/v1/properties/[propertyId]/sites
+ */
 export async function GET() {
+  // Log deprecated endpoint usage for monitoring
+  console.warn('[DEPRECATED] GET /api/admin/sites called. Migrate to /api/v1/properties/[propertyId]/sites')
   try {
     const supabase = await createClient()
 
@@ -87,12 +103,26 @@ export async function GET() {
 
     if (sitesError) {
       console.error("Error fetching sites:", sitesError)
-      return NextResponse.json({ error: "Failed to fetch sites" }, { status: 500 })
+      const response = NextResponse.json({ error: "Failed to fetch sites" }, { status: 500 })
+      response.headers.set('Deprecation', 'true')
+      response.headers.set('Sunset', 'Wed, 05 Feb 2026 00:00:00 GMT')
+      response.headers.set('Link', '</api/v1/properties/[propertyId]/sites>; rel="alternate"')
+      return response
     }
 
-    return NextResponse.json({ sites: sites || [] })
+    const response = NextResponse.json({ sites: sites || [] })
+    // Add deprecation headers
+    response.headers.set('Deprecation', 'true')
+    response.headers.set('Sunset', 'Wed, 05 Feb 2026 00:00:00 GMT')
+    response.headers.set('Link', '</api/v1/properties/[propertyId]/sites>; rel="alternate"')
+    response.headers.set('Warning', '299 - "Deprecated API - Use /api/v1/properties/[propertyId]/sites"')
+    return response
   } catch (error) {
     console.error("Sites API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const response = NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    response.headers.set('Deprecation', 'true')
+    response.headers.set('Sunset', 'Wed, 05 Feb 2026 00:00:00 GMT')
+    response.headers.set('Link', '</api/v1/properties/[propertyId]/sites>; rel="alternate"')
+    return response
   }
 }

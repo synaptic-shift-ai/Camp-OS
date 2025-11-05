@@ -128,6 +128,16 @@ export const TimestampsSchema = z.object({
 })
 
 /**
+ * Helper to create a single entity response schema.
+ *
+ * @example
+ * const PropertyResponseSchema = createSingleResponseSchema(PropertySchema)
+ */
+export function createSingleResponseSchema<T extends z.ZodType>(entitySchema: T) {
+  return createSuccessResponseSchema(entitySchema)
+}
+
+/**
  * Helper to create a list response schema.
  *
  * @example

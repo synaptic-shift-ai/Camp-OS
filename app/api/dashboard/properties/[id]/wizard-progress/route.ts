@@ -1,3 +1,13 @@
+/**
+ * DEPRECATED: Wizard Progress Endpoint
+ *
+ * Deprecation Date: 2025-11-05
+ * Sunset Date: 2026-02-05 (90 days)
+ * Migration Path: Use PATCH /api/v1/properties/{id}/wizard-progress
+ *
+ * This endpoint is DEPRECATED in favor of REST-standard PATCH /api/v1/properties/{id}/wizard-progress
+ */
+
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
@@ -6,6 +16,13 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: propertyId } = await params
+
+  // Log deprecation warning
+  console.warn(`[DEPRECATED] POST /api/dashboard/properties/${propertyId}/wizard-progress called. Migrate to PATCH /api/v1/properties/${propertyId}/wizard-progress`)
+  console.warn('  Sunset Date: 2026-02-05 (90 days from deprecation)')
+  console.warn('  Migration Guide: Use PATCH instead of POST')
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -22,8 +39,6 @@ export async function POST(
         { status: 400 }
       )
     }
-
-    const { id: propertyId } = await params
 
     // Create service role client to bypass RLS recursion
     const supabaseAdmin = createServiceRoleClient()
@@ -71,10 +86,20 @@ export async function POST(
       )
     }
 
-    return NextResponse.json({
+    // Add deprecation headers (following RFC 8594)
+    const response = NextResponse.json({
       success: true,
       progress: updatedProgress,
     })
+    response.headers.set('Deprecation', 'true')
+    response.headers.set('Sunset', 'Wed, 05 Feb 2026 00:00:00 GMT')
+    response.headers.set('Link', `</api/v1/properties/${propertyId}/wizard-progress>; rel="alternate"`)
+    response.headers.set(
+      'Warning',
+      '299 - "Deprecated API - Migrate to PATCH /api/v1/properties/{id}/wizard-progress by 2026-02-05"'
+    )
+
+    return response
   } catch (error) {
     console.error("Error in wizard-progress API:", error)
     return NextResponse.json(

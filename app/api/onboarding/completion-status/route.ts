@@ -1,9 +1,24 @@
+/**
+ * DEPRECATED: Completion Status Endpoint
+ *
+ * Deprecation Date: 2025-11-05
+ * Sunset Date: 2026-02-05 (90 days)
+ * Migration Path: Use GET /api/v1/properties?include=completion_status
+ *
+ * This endpoint is DEPRECATED in favor of /api/v1/properties with include parameter
+ */
+
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { generateBookingSlug } from "@/lib/booking/slug-utils"
 
 export async function GET(request: NextRequest) {
+  // Log deprecation warning
+  console.warn('[DEPRECATED] GET /api/onboarding/completion-status called. Migrate to GET /api/v1/properties?include=completion_status')
+  console.warn('  Sunset Date: 2026-02-05 (90 days from deprecation)')
+  console.warn('  Migration Guide: Use GET /api/v1/properties?include=completion_status')
+
   try {
     const supabase = await createClient()
 
@@ -116,7 +131,8 @@ export async function GET(request: NextRequest) {
     const totalProperties = properties.length
     const propertiesWithStripe = properties.filter(p => p.stripe_account_id).length
 
-    return NextResponse.json({
+    // Add deprecation headers (following RFC 8594)
+    const response = NextResponse.json({
       properties: propertiesData,
       summary: {
         totalProperties,
@@ -125,6 +141,15 @@ export async function GET(request: NextRequest) {
         allStripeConnected: propertiesWithStripe === totalProperties,
       },
     })
+    response.headers.set('Deprecation', 'true')
+    response.headers.set('Sunset', 'Wed, 05 Feb 2026 00:00:00 GMT')
+    response.headers.set('Link', '</api/v1/properties?include=completion_status>; rel="alternate"')
+    response.headers.set(
+      'Warning',
+      '299 - "Deprecated API - Migrate to /api/v1/properties?include=completion_status by 2026-02-05"'
+    )
+
+    return response
   } catch (error) {
     console.error("[Onboarding] Error fetching completion status:", error)
     return NextResponse.json({ error: "Failed to fetch completion status" }, { status: 500 })

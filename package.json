@@ -16,6 +16,8 @@
     "test:run": "vitest run",
     "test:integration": "vitest run tests/integration",
     "test:coverage": "vitest run --coverage",
+    "bench": "vitest bench --run",
+    "bench:watch": "vitest bench",
     "type-check": "tsc --noEmit",
     "gen:db": "npx supabase gen types typescript --linked > src/contracts/db.ts && echo '✅ Generated database types in src/contracts/db.ts'",
     "gen:types": "npm run gen:db",

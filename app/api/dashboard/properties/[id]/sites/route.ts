@@ -1,3 +1,15 @@
+/**
+ * DEPRECATED: Create Sites Endpoint
+ *
+ * Deprecation Date: 2025-11-05
+ * Sunset Date: 2026-02-05 (90 days)
+ * Migration Path: Use POST /api/v1/properties/{id}/sites or POST /api/v1/properties/{id}/sites/bulk
+ *
+ * This endpoint is DEPRECATED in favor of:
+ * - POST /api/v1/properties/{id}/sites (single site)
+ * - POST /api/v1/properties/{id}/sites/bulk (multiple sites)
+ */
+
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
@@ -10,6 +22,13 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: propertyId } = await params
+
+  // Log deprecation warning
+  console.warn(`[DEPRECATED] POST /api/dashboard/properties/${propertyId}/sites called. Migrate to POST /api/v1/properties/${propertyId}/sites`)
+  console.warn('  Sunset Date: 2026-02-05 (90 days from deprecation)')
+  console.warn('  Migration Guide: Use POST /api/v1/properties/{id}/sites or /api/v1/properties/{id}/sites/bulk')
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -18,7 +37,6 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id: propertyId } = await params
     const body = await request.json()
 
     // Create service role client to bypass RLS
@@ -180,11 +198,21 @@ export async function POST(
       console.log(`Bulk CSV import completed: ${createdSites?.length || 0} sites created for property ${propertyId} by user ${user.id}`)
     }
 
-    return NextResponse.json({
+    // Add deprecation headers (following RFC 8594)
+    const response = NextResponse.json({
       success: true,
       sites: createdSites,
       count: createdSites?.length || 0,
     })
+    response.headers.set('Deprecation', 'true')
+    response.headers.set('Sunset', 'Wed, 05 Feb 2026 00:00:00 GMT')
+    response.headers.set('Link', `</api/v1/properties/${propertyId}/sites>; rel="alternate"`)
+    response.headers.set(
+      'Warning',
+      '299 - "Deprecated API - Migrate to POST /api/v1/properties/{id}/sites by 2026-02-05"'
+    )
+
+    return response
   } catch (error) {
     console.error("Error in POST /api/dashboard/properties/[id]/sites:", error)
     return NextResponse.json(

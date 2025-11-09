@@ -430,17 +430,32 @@ describe('SupabaseSiteRepository', () => {
         updated_at: '2025-01-01T00:00:00Z',
       }
 
-      // Mock findById to return existing site (uses .single())
-      mockSupabase.queryBuilder.single.mockResolvedValueOnce({
+      // Mock the chain for findById: from().select().eq().single()
+      // Create a mock single that returns the data
+      const mockSingleForSelect = vi.fn().mockResolvedValueOnce({
         data: mockRow,
         error: null,
       })
 
-      // Mock the final .eq() for update to return success
-      mockSupabase.queryBuilder.eq.mockResolvedValueOnce({
+      // Mock eq() for the select chain to return an object with single()
+      const mockEqForSelect = vi.fn().mockReturnValueOnce({
+        single: mockSingleForSelect,
+      })
+
+      // Mock select() to return an object with eq()
+      mockSupabase.queryBuilder.select.mockReturnValueOnce({
+        eq: mockEqForSelect,
+      } as any)
+
+      // Mock the update chain: from().update().eq()
+      const mockEqForUpdate = vi.fn().mockResolvedValueOnce({
         data: null,
         error: null,
       })
+
+      mockSupabase.queryBuilder.update.mockReturnValueOnce({
+        eq: mockEqForUpdate,
+      } as any)
 
       const pricing = Pricing.create(7500, 9000, 'USD')
       const site = Site.create('site-123', 'prop-456', '42', 'Updated Site', SiteType.TENT, pricing)
@@ -448,7 +463,7 @@ describe('SupabaseSiteRepository', () => {
       await repository.save(site)
 
       expect(mockSupabase.queryBuilder.update).toHaveBeenCalled()
-      expect(mockSupabase.queryBuilder.eq).toHaveBeenCalledWith('id', 'site-123')
+      expect(mockEqForUpdate).toHaveBeenCalledWith('id', 'site-123')
     })
 
     it('should throw error on insert failure', async () => {
@@ -490,17 +505,29 @@ describe('SupabaseSiteRepository', () => {
         updated_at: '2025-01-01T00:00:00Z',
       }
 
-      // Mock findById to return existing site (uses .single())
-      mockSupabase.queryBuilder.single.mockResolvedValueOnce({
+      // Mock the chain for findById: from().select().eq().single()
+      const mockSingleForSelect = vi.fn().mockResolvedValueOnce({
         data: mockRow,
         error: null,
       })
 
-      // Mock the final .eq() for update to return error
-      mockSupabase.queryBuilder.eq.mockResolvedValueOnce({
+      const mockEqForSelect = vi.fn().mockReturnValueOnce({
+        single: mockSingleForSelect,
+      })
+
+      mockSupabase.queryBuilder.select.mockReturnValueOnce({
+        eq: mockEqForSelect,
+      } as any)
+
+      // Mock the update chain to return error
+      const mockEqForUpdate = vi.fn().mockResolvedValueOnce({
         data: null,
         error: { message: 'Update failed' },
       })
+
+      mockSupabase.queryBuilder.update.mockReturnValueOnce({
+        eq: mockEqForUpdate,
+      } as any)
 
       const pricing = Pricing.create(7500, 9000, 'USD')
       const site = Site.create('site-123', 'prop-456', '42', 'Updated Site', SiteType.TENT, pricing)

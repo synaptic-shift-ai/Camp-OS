@@ -55,9 +55,10 @@ import { toSiteDTO, toSiteDTOs } from '@/modules/SiteManagement/application/DTOs
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { propertyId: string } }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
+    const { propertyId } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -109,7 +110,7 @@ export async function GET(
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
-      .eq('id', params.propertyId)
+      .eq('id', propertyId)
       .single()
 
     if (propertyError || !property) {
@@ -139,7 +140,7 @@ export async function GET(
     const queryHandler = new ListSitesQueryHandler(repository)
 
     const result = await queryHandler.execute({
-      propertyId: params.propertyId,
+      propertyId,
       filters: {
         status: validatedQuery.status,
         siteType: validatedQuery.siteType,
@@ -189,9 +190,10 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { propertyId: string } }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
+    const { propertyId } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -226,7 +228,7 @@ export async function POST(
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
-      .eq('id', params.propertyId)
+      .eq('id', propertyId)
       .single()
 
     if (propertyError || !property) {
@@ -257,7 +259,7 @@ export async function POST(
     const commandHandler = new CreateSiteCommand(repository, eventBus)
 
     const site = await commandHandler.execute({
-      propertyId: params.propertyId,
+      propertyId,
       siteNumber: validatedRequest.siteNumber,
       siteName: validatedRequest.siteName || null,
       siteType: validatedRequest.siteType,

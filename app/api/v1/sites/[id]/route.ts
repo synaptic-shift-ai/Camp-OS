@@ -35,9 +35,10 @@ import { toSiteDTO } from '@/modules/SiteManagement/application/DTOs/SiteDTO'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -57,7 +58,7 @@ export async function GET(
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const queryHandler = new GetSiteQuery(repository)
 
-    const site = await queryHandler.execute(params.id)
+    const site = await queryHandler.execute(id)
 
     if (!site) {
       return NextResponse.json(
@@ -116,9 +117,10 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -152,7 +154,7 @@ export async function PATCH(
     // First, get the site to verify access
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const getSiteQuery = new GetSiteQuery(repository)
-    const existingSite = await getSiteQuery.execute(params.id)
+    const existingSite = await getSiteQuery.execute(id)
 
     if (!existingSite) {
       return NextResponse.json(
@@ -194,7 +196,7 @@ export async function PATCH(
     const commandHandler = new UpdateSiteCommand(repository, eventBus)
 
     const updatedSite = await commandHandler.execute({
-      siteId: params.id,
+      siteId: id,
       updates: {
         siteName: validatedRequest.siteName,
         siteType: validatedRequest.siteType,
@@ -240,9 +242,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -261,7 +264,7 @@ export async function DELETE(
     // First, get the site to verify access
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const getSiteQuery = new GetSiteQuery(repository)
-    const existingSite = await getSiteQuery.execute(params.id)
+    const existingSite = await getSiteQuery.execute(id)
 
     if (!existingSite) {
       return NextResponse.json(
@@ -299,11 +302,11 @@ export async function DELETE(
     }
 
     // Delete (soft delete via repository)
-    await repository.delete(params.id)
+    await repository.delete(id)
 
     return NextResponse.json(
       success({
-        id: params.id,
+        id,
         deleted: true,
       })
     )

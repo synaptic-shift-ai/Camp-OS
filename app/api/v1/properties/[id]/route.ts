@@ -30,9 +30,10 @@ import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySe
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -66,7 +67,7 @@ export async function GET(
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
 
-    const property = await queryHandler.execute({ id: params.id })
+    const property = await queryHandler.execute({ id })
 
     if (!property) {
       return NextResponse.json(
@@ -105,9 +106,10 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -140,7 +142,7 @@ export async function PATCH(
     // Verify property exists and belongs to company
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
-    const existingProperty = await queryHandler.execute({ id: params.id })
+    const existingProperty = await queryHandler.execute({ id })
 
     if (!existingProperty) {
       return NextResponse.json(
@@ -181,7 +183,7 @@ export async function PATCH(
     const commandHandler = new UpdatePropertyCommandHandler(repository)
 
     const property = await commandHandler.execute({
-      id: params.id,
+      id,
       name: validatedRequest.name,
       description: validatedRequest.description,
       propertyType: validatedRequest.propertyType,
@@ -229,9 +231,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -264,7 +267,7 @@ export async function DELETE(
     // Verify property exists and belongs to company
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
-    const property = await queryHandler.execute({ id: params.id })
+    const property = await queryHandler.execute({ id })
 
     if (!property) {
       return NextResponse.json(
@@ -282,9 +285,9 @@ export async function DELETE(
     }
 
     // Soft delete (sets status to INACTIVE)
-    await repository.delete(params.id)
+    await repository.delete(id)
 
-    return NextResponse.json(success({ deleted: true, id: params.id }))
+    return NextResponse.json(success({ deleted: true, id }))
   } catch (err: any) {
     console.error('[Properties API v1] DELETE error:', err)
     return NextResponse.json(

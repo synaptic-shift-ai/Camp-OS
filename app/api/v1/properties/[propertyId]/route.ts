@@ -24,16 +24,16 @@ import { toPropertyDTO } from '@/modules/PropertyManagement/application/DTOs/Pro
 import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
 
 /**
- * GET /api/v1/properties/[id]
+ * GET /api/v1/properties/[propertyId]
  *
  * Get a single property by ID.
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { id } = await params
+    const { propertyId: id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -100,16 +100,16 @@ export async function GET(
 }
 
 /**
- * PATCH /api/v1/properties/[id]
+ * PATCH /api/v1/properties/[propertyId]
  *
  * Update a property.
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { id } = await params
+    const { propertyId: id } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -225,16 +225,16 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/v1/properties/[id]
+ * DELETE /api/v1/properties/[propertyId]
  *
  * Delete (soft delete) a property.
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { id } = await params
+    const { propertyId: id } = await params
     const supabase = await createClient()
 
     // Authenticate user

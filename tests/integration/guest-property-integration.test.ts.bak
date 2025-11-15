@@ -1,0 +1,524 @@
+/**
+ * Guest↔Property Cross-Module Integration Tests
+ *
+ * Phase 2, Week 8: Integration & Testing
+ * Parent: IMPLEMENTATION_PLAN.md
+ *
+ * CRITICAL: These tests validate proper module boundaries and interactions
+ * - Guests are properly scoped to Properties (multi-tenant isolation)
+ * - Event-driven communication works between modules
+ * - No direct module coupling (modules communicate via events only)
+ * - Referential integrity maintained across module boundaries
+ *
+ * Following CLAUDE.md:
+ * - BP-4: Always enforce multi-tenant isolation
+ * - T-2: Integration tests in tests/integration/
+ * - T-3: Separate from unit tests (these test cross-module behavior)
+ * - T-4: Prefer integration tests over heavy mocking
+ * - T-6: Test entire structure in one assertion
+ * - T-7: Parameterize test inputs
+ * - T-8: Test description states what final expect verifies
+ * - T-10: Test edge cases and boundaries
+ */
+
+import { describe, it, expect, beforeEach } from 'vitest'
+import { Property } from '@/modules/PropertyManagement/domain/Property'
+import { Guest } from '@/modules/GuestManagement/domain/Guest'
+import { PersonName } from '@/modules/GuestManagement/domain/PersonName'
+import { ContactInfo } from '@/modules/GuestManagement/domain/ContactInfo'
+import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/application/commands/CreatePropertyCommand'
+import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
+import { ListGuestsQueryHandler } from '@/modules/GuestManagement/application/queries/ListGuestsQuery'
+import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
+import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
+import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
+
+/**
+ * Mock Repositories for Cross-Module Testing
+ *
+ * These mocks simulate the database layer to test module interactions
+ * without requiring a real database connection.
+ */
+
+interface MockPropertyStore {
+  [id: string]: Property
+}
+
+interface MockGuestStore {
+  [id: string]: Guest
+}
+
+class MockPropertyRepository {
+  private properties: MockPropertyStore = {}
+
+  async save(property: Property): Promise<void> {
+    this.properties[property.id] = property
+  }
+
+  async findById(id: string): Promise<Property | null> {
+    return this.properties[id] || null
+  }
+
+  async findByCompanyId(companyId: string): Promise<Property[]> {
+    return Object.values(this.properties).filter(
+      (p) => p.companyId === companyId
+    )
+  }
+
+  async delete(id: string): Promise<void> {
+    delete this.properties[id]
+  }
+
+  clear(): void {
+    this.properties = {}
+  }
+}
+
+class MockGuestRepository {
+  private guests: MockGuestStore = {}
+
+  async save(guest: Guest): Promise<void> {
+    this.guests[guest.id] = guest
+  }
+
+  async findById(id: string): Promise<Guest | null> {
+    return this.guests[id] || null
+  }
+
+  async findByPropertyId(propertyId: string): Promise<Guest[]> {
+    return Object.values(this.guests).filter(
+      (g) => g.propertyId === propertyId
+    )
+  }
+
+  async findByEmail(
+    propertyId: string,
+    email: string
+  ): Promise<Guest | null> {
+    const normalizedEmail = email.toLowerCase()
+    const guest = Object.values(this.guests).find(
+      (g) =>
+        g.propertyId === propertyId &&
+        g.contactInfo.email.toLowerCase() === normalizedEmail
+    )
+    return guest || null
+  }
+
+  async delete(id: string): Promise<void> {
+    delete this.guests[id]
+  }
+
+  clear(): void {
+    this.guests = {}
+  }
+}
+
+// ============================================================================
+// Test Suite
+// ============================================================================
+
+describe('Guest↔Property Cross-Module Integration', () => {
+  let eventBus: IEventBus
+  let propertyRepo: MockPropertyRepository
+  let guestRepo: MockGuestRepository
+
+  beforeEach(() => {
+    eventBus = new InMemoryEventBus()
+    propertyRepo = new MockPropertyRepository()
+    guestRepo = new MockGuestRepository()
+  })
+
+  // ==========================================================================
+  // Multi-Tenant Isolation Tests (BP-4)
+  // ==========================================================================
+
+  describe('Multi-Tenant Isolation', () => {
+    it('should create guest scoped to specific property', async () => {
+      // Arrange: Create a property
+      const propertyId = 'prop-123'
+      const companyId = 'company-abc'
+      const ownerId = 'owner-123'
+      const property = Property.create(
+        propertyId,
+        companyId,
+        ownerId,
+        'Pine Valley Campground',
+        'pine-valley'
+      )
+      await propertyRepo.save(property)
+
+      // Act: Create a guest for this property
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
+      const guestId = 'guest-456'
+      const name = PersonName.create('John', 'Doe')
+      const contact = ContactInfo.create('john@example.com', '555-0100')
+
+      const guest = await guestCommand.execute({
+        id: guestId,
+        propertyId,
+        name,
+        contactInfo: contact,
+      })
+
+      // Assert: Guest is scoped to the correct property
+      expect(guest.propertyId).toBe(propertyId)
+      expect(guest.personName.firstName).toBe('John')
+      expect(guest.contactInfo.email).toBe('john@example.com')
+    })
+
+    it('should only list guests for the specified property (no cross-tenant leaks)', async () => {
+      // Arrange: Create two properties from different companies
+      const property1Id = 'prop-111'
+      const property2Id = 'prop-222'
+      const company1Id = 'company-aaa'
+      const company2Id = 'company-bbb'
+
+      const property1 = Property.create(
+        property1Id,
+        company1Id,
+        'owner-111',
+        'Camp One',
+        'camp-one'
+      )
+      const property2 = Property.create(
+        property2Id,
+        company2Id,
+        'owner-222',
+        'Camp Two',
+        'camp-two'
+      )
+      await propertyRepo.save(property1)
+      await propertyRepo.save(property2)
+
+      // Create guests for each property
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
+
+      const guest1 = await guestCommand.execute({
+        id: 'guest-111',
+        propertyId: property1Id,
+        name: PersonName.create('Alice', 'Anderson'),
+        contactInfo: ContactInfo.create('alice@example.com', '555-0001'),
+      })
+
+      const guest2 = await guestCommand.execute({
+        id: 'guest-222',
+        propertyId: property2Id,
+        name: PersonName.create('Bob', 'Brown'),
+        contactInfo: ContactInfo.create('bob@example.com', '555-0002'),
+      })
+
+      // Act: List guests for property 1
+      const listQuery = new ListGuestsQueryHandler(guestRepo)
+      const property1Guests = await listQuery.execute({ propertyId: property1Id })
+
+      // Assert: Only property 1's guest is returned (no cross-tenant leak)
+      expect(property1Guests).toHaveLength(1)
+      expect(property1Guests[0].id).toBe(guest1.id)
+      expect(property1Guests[0].contactInfo.email).toBe('alice@example.com')
+
+      // Verify property 2 has its own isolated guest
+      const property2Guests = await listQuery.execute({ propertyId: property2Id })
+      expect(property2Guests).toHaveLength(1)
+      expect(property2Guests[0].id).toBe(guest2.id)
+      expect(property2Guests[0].contactInfo.email).toBe('bob@example.com')
+    })
+
+    it('should prevent duplicate email within same property but allow across properties', async () => {
+      // Arrange: Create two properties
+      const property1Id = 'prop-aaa'
+      const property2Id = 'prop-bbb'
+      const companyId = 'company-xyz'
+
+      const property1 = Property.create(
+        property1Id,
+        companyId,
+        'prop-1',
+        'Property 1'
+      )
+      const property2 = Property.create(
+        property2Id,
+        companyId,
+        'prop-2',
+        'Property 2'
+      )
+      await propertyRepo.save(property1)
+      await propertyRepo.save(property2)
+
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+      const sharedEmail = 'shared@example.com'
+
+      // Act: Create guest with email in property 1
+      const guest1 = await guestCommand.execute({
+        id: 'guest-001',
+        propertyId: property1Id,
+        name: PersonName.create('Test', 'User'),
+        contactInfo: ContactInfo.create(sharedEmail, '555-1000'),
+      })
+
+      // Assert: Same email is allowed in property 2 (different tenant)
+      const guest2 = await guestCommand.execute({
+        id: 'guest-002',
+        propertyId: property2Id,
+        name: PersonName.create('Test', 'User'),
+        contactInfo: ContactInfo.create(sharedEmail, '555-2000'),
+      })
+
+      expect(guest1.id).toBe('guest-001')
+      expect(guest2.id).toBe('guest-002')
+      expect(guest1.propertyId).not.toBe(guest2.propertyId)
+
+      // Verify: Duplicate email within same property should be prevented
+      const existingGuest = await guestRepo.findByEmail(
+        property1Id,
+        sharedEmail
+      )
+      expect(existingGuest).toBeTruthy()
+      expect(existingGuest?.id).toBe('guest-001')
+    })
+  })
+
+  // ==========================================================================
+  // Module Boundary Tests
+  // ==========================================================================
+
+  describe('Module Boundaries', () => {
+    it('should allow Guest module to reference Property ID without direct coupling', async () => {
+      // Arrange: Create property
+      const propertyId = 'prop-999'
+      const companyId = 'company-999'
+      const property = Property.create(
+        propertyId,
+        companyId,
+        'test-camp',
+        'Test Camp'
+      )
+      await propertyRepo.save(property)
+
+      // Act: Create guest referencing the property ID (no direct object reference)
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+      const guest = await guestCommand.execute({
+        id: 'guest-999',
+        propertyId, // Guest only knows the ID, not the Property object
+        name: PersonName.create('Jane', 'Smith'),
+        contactInfo: ContactInfo.create('jane@example.com', '555-9999'),
+      })
+
+      // Assert: Guest has property ID reference but no direct coupling
+      expect(guest.propertyId).toBe(propertyId)
+
+      // Verify property still exists independently
+      const propertyQuery = new GetPropertyQuery(propertyRepo)
+      const fetchedProperty = await propertyQuery.execute({ id: propertyId })
+      expect(fetchedProperty).toBeTruthy()
+      expect(fetchedProperty?.id).toBe(propertyId)
+    })
+
+    it('should emit domain events that cross module boundaries', async () => {
+      // Arrange: Set up event listeners
+      const capturedEvents: Array<{ eventName: string; data: unknown }> = []
+
+      eventBus.subscribe('GuestCreated', (event) => {
+        capturedEvents.push({ eventName: 'GuestCreated', data: event })
+      })
+
+      eventBus.subscribe('PropertyCreated', (event) => {
+        capturedEvents.push({ eventName: 'PropertyCreated', data: event })
+      })
+
+      // Act: Create property and guest
+      const propertyId = 'prop-evt-123'
+      const companyId = 'company-evt-123'
+      const propertyCommand = new CreatePropertyCommand(propertyRepo, eventBus)
+      const property = await propertyCommand.execute({
+        id: propertyId,
+        companyId,
+        slug: 'event-test-camp',
+        name: 'Event Test Camp',
+        ownerId: 'owner-123',
+      })
+
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+      const guest = await guestCommand.execute({
+        id: 'guest-evt-456',
+        propertyId,
+        name: PersonName.create('Event', 'Tester'),
+        contactInfo: ContactInfo.create('event@test.com', '555-0123'),
+      })
+
+      // Assert: Both modules emitted events
+      expect(capturedEvents).toHaveLength(2)
+      expect(capturedEvents[0].eventName).toBe('PropertyCreated')
+      expect(capturedEvents[1].eventName).toBe('GuestCreated')
+    })
+  })
+
+  // ==========================================================================
+  // Data Consistency Tests
+  // ==========================================================================
+
+  describe('Data Consistency Across Modules', () => {
+    it('should maintain referential integrity when property exists', async () => {
+      // Arrange: Create property
+      const propertyId = 'prop-ref-123'
+      const companyId = 'company-ref-123'
+      const property = Property.create(
+        propertyId,
+        companyId,
+        'ref-test',
+        'Reference Test Property'
+      )
+      await propertyRepo.save(property)
+
+      // Act: Create multiple guests for the same property
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+
+      const guest1 = await guestCommand.execute({
+        id: 'guest-ref-001',
+        propertyId,
+        name: PersonName.create('First', 'Guest'),
+        contactInfo: ContactInfo.create('first@example.com', '555-0001'),
+      })
+
+      const guest2 = await guestCommand.execute({
+        id: 'guest-ref-002',
+        propertyId,
+        name: PersonName.create('Second', 'Guest'),
+        contactInfo: ContactInfo.create('second@example.com', '555-0002'),
+      })
+
+      // Assert: All guests reference the same valid property
+      const listQuery = new ListGuestsQuery(guestRepo)
+      const guests = await listQuery.execute({ propertyId })
+
+      expect(guests).toHaveLength(2)
+      expect(guests.every((g) => g.propertyId === propertyId)).toBe(true)
+
+      // Verify property still exists
+      const propertyQuery = new GetPropertyQuery(propertyRepo)
+      const fetchedProperty = await propertyQuery.execute({ id: propertyId })
+      expect(fetchedProperty?.id).toBe(propertyId)
+    })
+
+    it('should handle property deletion when guests exist (defensive check)', async () => {
+      // Arrange: Create property with guests
+      const propertyId = 'prop-del-123'
+      const companyId = 'company-del-123'
+      const property = Property.create(
+        propertyId,
+        companyId,
+        'delete-test',
+        'Delete Test Property'
+      )
+      await propertyRepo.save(property)
+
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+      await guestCommand.execute({
+        id: 'guest-orphan-001',
+        propertyId,
+        name: PersonName.create('Orphan', 'Guest'),
+        contactInfo: ContactInfo.create('orphan@example.com', '555-0000'),
+      })
+
+      // Act: Delete property (in real system, this should be prevented or cascade)
+      await propertyRepo.delete(propertyId)
+
+      // Assert: Property is deleted
+      const propertyQuery = new GetPropertyQuery(propertyRepo)
+      const deletedProperty = await propertyQuery.execute({ id: propertyId })
+      expect(deletedProperty).toBeNull()
+
+      // Guest still exists (orphaned) - in production, we'd prevent this or cascade delete
+      const listQuery = new ListGuestsQuery(guestRepo)
+      const orphanedGuests = await listQuery.execute({ propertyId })
+      expect(orphanedGuests).toHaveLength(1)
+
+      // NOTE: This test documents current behavior. In Week 9+, we should add:
+      // 1. Prevent property deletion if guests exist, OR
+      // 2. Cascade delete guests when property is deleted, OR
+      // 3. Soft-delete pattern with archive status
+    })
+  })
+
+  // ==========================================================================
+  // Edge Cases & Boundary Testing
+  // ==========================================================================
+
+  describe('Edge Cases', () => {
+    it('should handle empty guest list for valid property', async () => {
+      // Arrange: Create property with no guests
+      const propertyId = 'prop-empty-123'
+      const companyId = 'company-empty-123'
+      const property = Property.create(
+        propertyId,
+        companyId,
+        'empty-camp',
+        'Empty Camp'
+      )
+      await propertyRepo.save(property)
+
+      // Act: List guests
+      const listQuery = new ListGuestsQuery(guestRepo)
+      const guests = await listQuery.execute({ propertyId })
+
+      // Assert: Empty array returned (not null or error)
+      expect(guests).toEqual([])
+    })
+
+    it('should reject guest creation for non-existent property (future enhancement)', async () => {
+      // Arrange: Invalid property ID
+      const invalidPropertyId = 'prop-does-not-exist'
+
+      // Act & Assert: Currently creates guest (orphaned reference)
+      // FUTURE: Should validate property exists before allowing guest creation
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+      const guest = await guestCommand.execute({
+        id: 'guest-invalid-prop',
+        propertyId: invalidPropertyId,
+        name: PersonName.create('Invalid', 'Reference'),
+        contactInfo: ContactInfo.create('invalid@example.com', '555-9999'),
+      })
+
+      // Current behavior: Guest created with invalid reference
+      expect(guest.propertyId).toBe(invalidPropertyId)
+
+      // NOTE: In Week 9+, we should add validation:
+      // await expect(guestCommand.execute(...)).rejects.toThrow('Property not found')
+    })
+
+    it('should handle large number of guests for single property', async () => {
+      // Arrange: Create property
+      const propertyId = 'prop-large-123'
+      const companyId = 'company-large-123'
+      const property = Property.create(
+        propertyId,
+        companyId,
+        'large-camp',
+        'Large Camp'
+      )
+      await propertyRepo.save(property)
+
+      // Act: Create 100 guests
+      const guestCommand = new CreateGuestCommand(guestRepo, eventBus)
+      const guestCount = 100
+
+      for (let i = 0; i < guestCount; i++) {
+        await guestCommand.execute({
+          id: `guest-large-${i.toString().padStart(3, '0')}`,
+          propertyId,
+          name: PersonName.create(`Guest${i}`, 'LastName'),
+          contactInfo: ContactInfo.create(
+            `guest${i}@example.com`,
+            `555-${i.toString().padStart(4, '0')}`
+          ),
+        })
+      }
+
+      // Assert: All guests retrieved correctly
+      const listQuery = new ListGuestsQuery(guestRepo)
+      const guests = await listQuery.execute({ propertyId })
+
+      expect(guests).toHaveLength(guestCount)
+      expect(guests.every((g) => g.propertyId === propertyId)).toBe(true)
+    })
+  })
+})

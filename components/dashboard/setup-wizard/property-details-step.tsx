@@ -107,9 +107,9 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       setSaving(true)
       setError(null)
 
-      // Save property details
-      const response = await fetch(`/api/dashboard/properties/${property.id}/update-details`, {
-        method: "POST",
+      // Save property details - Migrated to v1 API (Phase 4, Week 13-14)
+      const response = await fetch(`/api/v1/properties/${property.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
@@ -117,8 +117,10 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
         }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to save property details")
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || "Failed to save property details")
       }
 
       // Mark step as complete and continue

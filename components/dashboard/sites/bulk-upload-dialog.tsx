@@ -134,8 +134,8 @@ export function BulkUploadDialog({
     setStep('importing')
 
     try {
-      // Call API to import sites
-      const response = await fetch(`/api/dashboard/properties/${propertyId}/sites`, {
+      // Call API to import sites - Migrated to v1 API (Phase 4, Week 13-14)
+      const response = await fetch(`/api/v1/properties/${propertyId}/sites/bulk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -143,14 +143,14 @@ export function BulkUploadDialog({
         body: JSON.stringify(parseResult.data),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Import failed' }))
-        throw new Error(errorData.error || 'Import failed')
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || 'Import failed')
       }
 
-      const result = await response.json()
-      // Extract count from API response: { success: true, sites: [...], count: N }
-      const count = result.count || result.sites?.length || (Array.isArray(result) ? result.length : 1)
+      // v1 API bulk response: { success: true, data: { sites: [...], count: N } }
+      const count = result.data?.count || result.data?.sites?.length || 0
 
       setImportedCount(count)
       setStep('success')

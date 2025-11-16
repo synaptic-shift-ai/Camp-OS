@@ -73,25 +73,32 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const fetchProperties = useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/onboarding/properties")
+      // Migrated to v1 API (Phase 4, Week 13-14)
+      const response = await fetch("/api/v1/properties")
 
       if (response.ok) {
-        const data = await response.json()
-        setProperties(data.properties || [])
+        const result = await response.json()
 
-        // Auto-select property
-        if (data.properties && data.properties.length > 0) {
-          // Try to restore from localStorage
-          const savedPropertyId = localStorage.getItem(SELECTED_PROPERTY_KEY)
-          const savedPropertyExists = data.properties.some((p: Property) => p.id === savedPropertyId)
+        // v1 API uses standard response envelope: { success: true, data: [...] }
+        if (result.success && result.data) {
+          setProperties(result.data)
 
-          if (savedPropertyId && savedPropertyExists) {
-            setSelectedPropertyId(savedPropertyId)
-          } else {
-            // Select first property by default
-            setSelectedPropertyId(data.properties[0].id)
-            localStorage.setItem(SELECTED_PROPERTY_KEY, data.properties[0].id)
+          // Auto-select property
+          if (result.data.length > 0) {
+            // Try to restore from localStorage
+            const savedPropertyId = localStorage.getItem(SELECTED_PROPERTY_KEY)
+            const savedPropertyExists = result.data.some((p: Property) => p.id === savedPropertyId)
+
+            if (savedPropertyId && savedPropertyExists) {
+              setSelectedPropertyId(savedPropertyId)
+            } else {
+              // Select first property by default
+              setSelectedPropertyId(result.data[0].id)
+              localStorage.setItem(SELECTED_PROPERTY_KEY, result.data[0].id)
+            }
           }
+        } else {
+          console.error("Failed to fetch properties: unexpected response format", result)
         }
       } else {
         console.error("Failed to fetch properties:", response.statusText)

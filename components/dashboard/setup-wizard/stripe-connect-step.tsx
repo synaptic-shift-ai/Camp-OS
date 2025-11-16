@@ -63,9 +63,10 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
 
     async function fetchProperties() {
       try {
-        const response = await fetch("/api/onboarding/completion-status")
-        const data = await response.json()
-        setProperties(data.properties || [])
+        // Migrated to v1 API (Phase 4, Week 13-14)
+        const response = await fetch("/api/v1/properties")
+        const result = await response.json()
+        setProperties(result.success ? result.data : [])
       } catch (error) {
         console.error("Error fetching properties:", error)
       } finally {
@@ -82,9 +83,10 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
       // Reload properties to show updated status
       async function reloadProperties() {
         try {
-          const response = await fetch("/api/onboarding/completion-status")
-          const data = await response.json()
-          setProperties(data.properties || [])
+          // Migrated to v1 API (Phase 4, Week 13-14)
+          const response = await fetch("/api/v1/properties")
+          const result = await response.json()
+          setProperties(result.success ? result.data : [])
         } catch (error) {
           console.error("Error reloading properties:", error)
         }
@@ -150,18 +152,21 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
     ))
 
     try {
-      const response = await fetch(`/api/dashboard/properties/${propertyId}/stripe-disconnect`, {
-        method: "POST",
+      // Migrated to v1 API (Phase 4, Week 13-14)
+      const response = await fetch(`/api/v1/properties/${propertyId}/stripe-account`, {
+        method: "DELETE",
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to disconnect Stripe")
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || "Failed to disconnect Stripe")
       }
 
       // Reload properties to show updated status
-      const reloadResponse = await fetch("/api/onboarding/completion-status")
-      const data = await reloadResponse.json()
-      setProperties(data.properties || [])
+      const reloadResponse = await fetch("/api/v1/properties")
+      const reloadResult = await reloadResponse.json()
+      setProperties(reloadResult.success ? reloadResult.data : [])
     } catch (error) {
       console.error("Error disconnecting Stripe:", error)
       alert("Failed to disconnect Stripe. Please try again.")

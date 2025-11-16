@@ -89,13 +89,17 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
     try {
       setIsCompleting(true) // Prevent URL updates during completion
 
-      await fetch(`/api/onboarding/complete`, {
+      // Migrated to v1 API (Phase 4, Week 13-14)
+      const response = await fetch(`/api/v1/properties/${selectedProperty.id}/complete-onboarding`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyId: selectedProperty.id,
-        }),
       })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error?.message || "Failed to complete onboarding")
+      }
 
       // Redirect to dashboard - SetupCheckGate will handle showing setup modal if more properties need setup
       router.push("/dashboard?setup=complete")
@@ -114,8 +118,9 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
     // Save progress to backend
     if (selectedProperty) {
       try {
-        await fetch(`/api/dashboard/properties/${selectedProperty.id}/wizard-progress`, {
-          method: "POST",
+        // Migrated to v1 API (Phase 4, Week 13-14)
+        await fetch(`/api/v1/properties/${selectedProperty.id}/wizard-progress`, {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             step: currentStep,

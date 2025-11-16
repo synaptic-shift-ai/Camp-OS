@@ -141,20 +141,20 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
         const result = await response.json()
         onSave(result.site)
       } else {
-        // Create new site
-        const response = await fetch(`/api/dashboard/properties/${propertyId}/sites`, {
+        // Create new site - Migrated to v1 API (Phase 4, Week 13-14)
+        const response = await fetch(`/api/v1/properties/${propertyId}/sites`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(apiData),
         })
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to create site")
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error?.message || "Failed to create site")
         }
 
-        const result = await response.json()
-        onSave(result.sites[0])
+        onSave(result.data)
       }
     } catch (err) {
       console.error("Error saving site:", err)

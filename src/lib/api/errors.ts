@@ -314,6 +314,64 @@ export const ErrorCodes = {
     message: 'Request timeout',
     status: 408,
   },
+
+  // ============================================================
+  // Generic/Legacy Errors (for backward compatibility)
+  // ============================================================
+  RESOURCE_NOT_FOUND: {
+    code: 'RESOURCE_NOT_FOUND',
+    message: 'Resource not found',
+    status: 404,
+  },
+  VALIDATION_ERROR: {
+    code: 'VALIDATION_ERROR',
+    message: 'Validation error',
+    status: 400,
+  },
+  INTERNAL_ERROR: {
+    code: 'INTERNAL_ERROR',
+    message: 'Internal server error',
+    status: 500,
+  },
+
+  // ============================================================
+  // Additional Error Codes (v1 API compatibility)
+  // ============================================================
+  VALIDATION_001: {
+    code: 'VAL_001',
+    message: 'Request validation failed',
+    status: 400,
+  },
+  VALIDATION_002: {
+    code: 'VAL_002',
+    message: 'Invalid field value',
+    status: 400,
+  },
+  VALIDATION_003: {
+    code: 'VAL_003',
+    message: 'Constraint violation',
+    status: 400,
+  },
+  RESOURCE_001: {
+    code: 'RES_001',
+    message: 'Resource not found',
+    status: 404,
+  },
+  RESOURCE_004: {
+    code: 'RES_004',
+    message: 'Resource conflict',
+    status: 409,
+  },
+  SERVER_001: {
+    code: 'SYS_001',
+    message: 'Internal server error',
+    status: 500,
+  },
+  DUPLICATE_RESOURCE: {
+    code: 'DUP_001',
+    message: 'Resource already exists',
+    status: 409,
+  },
 } as const
 
 /**
@@ -346,22 +404,43 @@ export function getErrorByCode(
  *
  * @example
  * ```typescript
+ * import { createErrorResponse } from '@/lib/api/errors'
+ *
  * if (!site) {
- *   return fromErrorCode('SITE_001', request)
+ *   return NextResponse.json(
+ *     createErrorResponse(ErrorCodes.SITE_001, request),
+ *     { status: ErrorCodes.SITE_001.status }
+ *   )
  * }
  * ```
+ */
+export function createErrorResponse(
+  errorDef: ErrorCodeDefinition,
+  request?: any,
+  details?: unknown
+) {
+  return {
+    success: false,
+    error: {
+      code: errorDef.code,
+      message: errorDef.message,
+      ...(details && { details }),
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      version: '1.0',
+      requestId: request?.headers?.get('x-request-id') || crypto.randomUUID(),
+    },
+  }
+}
+
+/**
+ * @deprecated Use createErrorResponse instead
  */
 export function fromErrorCode(
   errorCode: ErrorCode,
   request?: any,
   details?: unknown
 ) {
-  const err = ErrorCodes[errorCode]
-  // Note: This would import from response.ts in real usage
-  // For now, returning the error definition
-  return {
-    ...err,
-    details,
-    requestId: request?.headers?.get('x-request-id'),
-  }
+  return createErrorResponse(ErrorCodes[errorCode], request, details)
 }

@@ -11,7 +11,7 @@ import { resolve } from 'path'
 
 config({ path: resolve(process.cwd(), '.env.local') })
 
-import { sendBookingConfirmation } from '../lib/email/send'
+import { sendBookingConfirmation } from '../src/lib/email/send'
 
 const testEmail = process.argv[2]
 

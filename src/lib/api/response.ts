@@ -117,29 +117,60 @@ export function success<T>(
 /**
  * Create an error API response
  *
- * @param code - Error code (e.g., 'SITE_001', 'AUTH_002')
- * @param message - Human-readable error message
- * @param status - HTTP status code
- * @param request - The Next.js request (optional)
- * @param details - Additional error details (optional)
- * @param version - API version (defaults to '1.0')
+ * Supports both ErrorCodeDefinition objects and individual parameters for backward compatibility.
+ *
+ * @param codeOrDef - Error code string OR ErrorCodeDefinition object
+ * @param messageOrRequest - Message string OR NextRequest (when using ErrorCodeDefinition)
+ * @param statusOrDetails - HTTP status OR details object (when using ErrorCodeDefinition)
+ * @param requestOrVersion - NextRequest OR version string
+ * @param detailsOrUndefined - Additional error details
+ * @param versionOrUndefined - API version
  * @returns NextResponse with standard error envelope
  *
  * @example
  * ```typescript
- * if (!site) {
- *   return error('SITE_001', 'Site not found', 404, request)
- * }
+ * // New style with ErrorCodeDefinition
+ * return error(ErrorCodes.SITE_001, request)
+ *
+ * // Old style with individual params
+ * return error('SITE_001', 'Site not found', 404, request)
  * ```
  */
 export function error(
-  code: string,
-  message: string,
-  status: number,
-  request?: NextRequest,
-  details?: unknown,
-  version: string = '1.0'
+  codeOrDef: string | { code: string; message: string; status: number },
+  messageOrRequest?: string | NextRequest,
+  statusOrDetails?: number | unknown,
+  requestOrVersion?: NextRequest | string,
+  detailsOrUndefined?: unknown,
+  versionOrUndefined?: string
 ): NextResponse<ApiErrorResponse> {
+  // Determine if first param is ErrorCodeDefinition
+  const isErrorCodeDef = typeof codeOrDef === 'object' && 'code' in codeOrDef
+
+  let code: string
+  let message: string
+  let status: number
+  let request: NextRequest | undefined
+  let details: unknown
+  let version: string
+
+  if (isErrorCodeDef) {
+    // New style: error(ErrorCodes.XXX, request?, details?)
+    code = codeOrDef.code
+    message = codeOrDef.message
+    status = codeOrDef.status
+    request = typeof messageOrRequest === 'object' ? messageOrRequest : undefined
+    details = statusOrDetails
+    version = typeof requestOrVersion === 'string' ? requestOrVersion : '1.0'
+  } else {
+    // Old style: error(code, message, status, request?, details?, version?)
+    code = codeOrDef
+    message = messageOrRequest as string
+    status = statusOrDetails as number
+    request = requestOrVersion as NextRequest | undefined
+    details = detailsOrUndefined
+    version = versionOrUndefined || '1.0'
+  }
   const requestId = request?.headers.get('x-request-id') || randomUUID()
 
   const errorObj: { code: string; message: string; details?: unknown } = {

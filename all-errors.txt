@@ -1,0 +1,6 @@
+Type error: Argument of type '{ guestId: string; email: string | undefined; phone: string | undefined; address: { city: string; state: string; zipCode: string; country: string; street: string; } | undefined; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; notes: string | undefined; }' is not assignable to parameter of type 'UpdateGuestInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'email' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+
+[0m [90m 172 |[39m     [36mconst[39m commandHandler [33m=[39m [36mnew[39m [33mUpdateGuestCommandHandler[39m(repository[33m,[39m eventBus)

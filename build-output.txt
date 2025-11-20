@@ -1,0 +1,36 @@
+
+> my-v0-project@0.1.0 build
+> next build
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of E:\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * E:\Projects\Camp-OS-refactor\Camp-OS\package-lock.json
+
+   ▲ Next.js 16.0.0 (Turbopack)
+   - Experiments (use with caution):
+     · clientTraceMetadata
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 7.0s
+   Running next.config.js provided runAfterProductionCompile ...
+ ✓ Completed runAfterProductionCompile in 360ms
+   Running TypeScript ...
+Failed to compile.
+
+./src/app/api/v1/financial/invoices/route.ts:98:50
+Type error: Argument of type '{ invoiceId: string; propertyId: any; propertyCode: any; reservationId: string; lineItems: { description: string; quantity: number; unitPriceCents: number; }[]; taxRate: number; dueDate: Date; isInstallment: boolean; installmentNumber: number | undefined; installmentTotal: number | undefined; }' is not assignable to parameter of type 'GenerateInvoiceDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'installmentNumber' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+
+[0m [90m  96 |[39m     [36mconst[39m invoiceId [33m=[39m crypto[33m.[39mrandomUUID()
+ [90m  97 |[39m
+[31m[1m>[22m[39m[90m  98 |[39m     [36mconst[39m invoice [33m=[39m [36mawait[39m commandHandler[33m.[39mexecute({
+ [90m     |[39m                                                  [31m[1m^[22m[39m
+ [90m  99 |[39m       invoiceId[33m,[39m
+ [90m 100 |[39m       propertyId[33m:[39m reservation[33m.[39mproperty_id[33m,[39m
+ [90m 101 |[39m       propertyCode[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

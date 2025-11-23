@@ -55,12 +55,12 @@ export class UpdateSiteCommandHandler {
 
     // Update images if provided
     if (dto.images !== undefined) {
-      site.updateImages(dto.images)
+      site.updateImages(dto.images ?? [])
     }
 
     // Update location map if provided
     if (dto.locationMap !== undefined) {
-      site.updateLocationMap(dto.locationMap)
+      site.updateLocationMap(dto.locationMap ?? {})
     }
 
     // Save

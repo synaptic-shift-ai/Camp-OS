@@ -134,8 +134,8 @@ export class DateRange extends ValueObject<DateRangeProps> {
    */
   toStrings(): { checkIn: string; checkOut: string } {
     return {
-      checkIn: this.checkIn.toISOString().split('T')[0],
-      checkOut: this.checkOut.toISOString().split('T')[0],
+      checkIn: this.checkIn.toISOString().split('T')[0] || '',
+      checkOut: this.checkOut.toISOString().split('T')[0] || '',
     }
   }
 

@@ -65,8 +65,36 @@ class MockPropertyRepository implements IPropertyRepository {
     )
   }
 
+  async findByCompanyIdWithFilters(
+    companyId: string,
+    filters: {
+      status?: PropertyStatus | undefined
+      onboardingComplete?: boolean | undefined
+      limit?: number | undefined
+      offset?: number | undefined
+    }
+  ): Promise<{ properties: Property[]; total: number }> {
+    const properties = Array.from(this.properties.values()).filter(
+      (p) => p.companyId === companyId
+    );
+    return { properties, total: properties.length };
+  }
+
+  async findByOwnerId(ownerId: string): Promise<Property | null> {
+    return (
+      Array.from(this.properties.values()).find((p) => p.ownerId === ownerId) ||
+      null
+    );
+  }
+
   async existsBySlug(slug: string): Promise<boolean> {
     return Array.from(this.properties.values()).some((p) => p.slug === slug)
+  }
+
+  async slugExistsForOtherProperty(slug: string, excludePropertyId: string): Promise<boolean> {
+    return Array.from(this.properties.values()).some(
+      (p) => p.slug === slug && p.id !== excludePropertyId
+    );
   }
 
   async delete(id: string): Promise<void> {
@@ -108,6 +136,23 @@ class MockGuestRepository implements IGuestRepository {
     return guest || null
   }
 
+  async findByStripeCustomerId(customerId: string): Promise<Guest | null> {
+    return (
+      Array.from(this.guests.values()).find(
+        (g) => g.stripeCustomerId === customerId
+      ) || null
+    );
+  }
+
+  async exists(propertyId: string, email: string): Promise<boolean> {
+    const normalizedEmail = email.toLowerCase();
+    return Array.from(this.guests.values()).some(
+      (g) =>
+        g.propertyId === propertyId &&
+        g.contact.email.toLowerCase() === normalizedEmail
+    );
+  }
+
   async delete(id: string): Promise<void> {
     this.guests.delete(id)
   }
@@ -128,7 +173,7 @@ class MockSiteRepository implements ISiteRepository {
     return this.sites.get(id) || null
   }
 
-  async findByPropertyIdAndSiteNumber(
+  async findBySiteNumber(
     propertyId: string,
     siteNumber: string
   ): Promise<Site | null> {
@@ -139,14 +184,20 @@ class MockSiteRepository implements ISiteRepository {
     )
   }
 
+  async findByPropertyId(propertyId: string): Promise<Site[]> {
+    return Array.from(this.sites.values()).filter(
+      (s) => s.propertyId === propertyId
+    );
+  }
+
   async findByPropertyIdWithFilters(
     propertyId: string,
-    filters?: {
-      status?: SiteStatus
-      siteType?: string
-      availableOnly?: boolean
-      limit?: number
-      offset?: number
+    filters: {
+      status?: SiteStatus | undefined
+      siteType?: string | undefined
+      availableOnly?: boolean | undefined
+      limit?: number | undefined
+      offset?: number | undefined
     }
   ): Promise<{ sites: Site[]; total: number }> {
     let sites = Array.from(this.sites.values()).filter(
@@ -178,11 +229,17 @@ class MockSiteRepository implements ISiteRepository {
     return { sites, total }
   }
 
+  async findAvailableSites(propertyId: string): Promise<Site[]> {
+    return Array.from(this.sites.values()).filter(
+      (s) => s.propertyId === propertyId && s.status === SiteStatus.AVAILABLE
+    );
+  }
+
   async delete(id: string): Promise<void> {
     this.sites.delete(id)
   }
 
-  async siteNumberExists(
+  async existsBySiteNumber(
     propertyId: string,
     siteNumber: string
   ): Promise<boolean> {
@@ -447,7 +504,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
         property.id,
         'Z1',
         'Independent Site',
-        SiteType.RV_PARTIAL_HOOKUP,
+        SiteType.RV,
         Pricing.create(65, 75, 'USD')
       )
       await siteRepo.save(site)

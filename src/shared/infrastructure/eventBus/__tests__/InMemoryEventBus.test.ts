@@ -73,7 +73,6 @@ describe('InMemoryEventBus', () => {
     it('should support async handlers', async () => {
       const handler = vi.fn(async (event: TestEvent) => {
         await new Promise((resolve) => setTimeout(resolve, 10))
-        return event.message.toUpperCase()
       })
 
       eventBus.subscribe(TestEvent, handler)

@@ -58,7 +58,7 @@ export async function GET(
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const queryHandler = new GetSiteQuery(repository)
 
-    const site = await queryHandler.execute(id)
+    const site = await queryHandler.execute({ siteId: id })
 
     if (!site) {
       return NextResponse.json(
@@ -154,7 +154,7 @@ export async function PATCH(
     // First, get the site to verify access
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const getSiteQuery = new GetSiteQuery(repository)
-    const existingSite = await getSiteQuery.execute(id)
+    const existingSite = await getSiteQuery.execute({ siteId: id })
 
     if (!existingSite) {
       return NextResponse.json(
@@ -263,7 +263,7 @@ export async function DELETE(
     // First, get the site to verify access
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const getSiteQuery = new GetSiteQuery(repository)
-    const existingSite = await getSiteQuery.execute(id)
+    const existingSite = await getSiteQuery.execute({ siteId: id })
 
     if (!existingSite) {
       return NextResponse.json(

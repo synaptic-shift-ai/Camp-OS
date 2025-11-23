@@ -65,8 +65,36 @@ class MockPropertyRepository implements IPropertyRepository {
     )
   }
 
+  async findByCompanyIdWithFilters(
+    companyId: string,
+    filters: {
+      status?: PropertyStatus | undefined
+      onboardingComplete?: boolean | undefined
+      limit?: number | undefined
+      offset?: number | undefined
+    }
+  ): Promise<{ properties: Property[]; total: number }> {
+    const properties = Array.from(this.properties.values()).filter(
+      (p) => p.companyId === companyId
+    );
+    return { properties, total: properties.length };
+  }
+
+  async findByOwnerId(ownerId: string): Promise<Property | null> {
+    return (
+      Array.from(this.properties.values()).find((p) => p.ownerId === ownerId) ||
+      null
+    );
+  }
+
   async existsBySlug(slug: string): Promise<boolean> {
     return Array.from(this.properties.values()).some((p) => p.slug === slug)
+  }
+
+  async slugExistsForOtherProperty(slug: string, excludePropertyId: string): Promise<boolean> {
+    return Array.from(this.properties.values()).some(
+      (p) => p.slug === slug && p.id !== excludePropertyId
+    );
   }
 
   async delete(id: string): Promise<void> {
@@ -106,6 +134,23 @@ class MockGuestRepository implements IGuestRepository {
         g.contact.email.toLowerCase() === normalizedEmail
     )
     return guest || null
+  }
+
+  async findByStripeCustomerId(customerId: string): Promise<Guest | null> {
+    return (
+      Array.from(this.guests.values()).find(
+        (g) => g.stripeCustomerId === customerId
+      ) || null
+    );
+  }
+
+  async exists(propertyId: string, email: string): Promise<boolean> {
+    const normalizedEmail = email.toLowerCase();
+    return Array.from(this.guests.values()).some(
+      (g) =>
+        g.propertyId === propertyId &&
+        g.contact.email.toLowerCase() === normalizedEmail
+    );
   }
 
   async delete(id: string): Promise<void> {

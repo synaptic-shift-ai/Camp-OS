@@ -12,8 +12,8 @@ export class SecurityDepositDeducted extends DomainEvent {
     public readonly amountCents: number,
     public readonly reason: string,
     public readonly deductedBy: string,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

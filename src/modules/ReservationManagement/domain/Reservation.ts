@@ -51,11 +51,11 @@ interface ReservationProps {
   guestCount: GuestCount
   pricing: ReservationPricing
   status: ReservationStatus
-  specialRequests?: string
-  notes?: string
-  cancelledAt?: Date
-  checkedInAt?: Date
-  checkedOutAt?: Date
+  specialRequests?: string | undefined
+  notes?: string | undefined
+  cancelledAt?: Date | undefined
+  checkedInAt?: Date | undefined
+  checkedOutAt?: Date | undefined
   source: string // 'online', 'phone', 'walk-in', etc.
 }
 

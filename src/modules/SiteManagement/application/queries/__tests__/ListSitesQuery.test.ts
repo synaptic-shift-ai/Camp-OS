@@ -107,7 +107,7 @@ describe('ListSitesQuery', () => {
 
     // Seed test data
     const site1 = Site.create('site-1', 'prop-1', '1', 'Tent Site 1', SiteType.TENT, pricing)
-    const site2 = Site.create('site-2', 'prop-1', '2', 'RV Site 1', SiteType.RV_FULL_HOOKUP, pricing)
+    const site2 = Site.create('site-2', 'prop-1', '2', 'RV Site 1', SiteType.RV, pricing)
     const site3 = Site.create('site-3', 'prop-1', '3', 'Cabin 1', SiteType.CABIN, pricing)
     const site4 = Site.create('site-4', 'prop-2', '4', 'Tent Site 2', SiteType.TENT, pricing)
 
@@ -201,11 +201,11 @@ describe('ListSitesQuery', () => {
     it('should filter by RV_FULL_HOOKUP type', async () => {
       const result = await handler.execute({
         propertyId: 'prop-1',
-        siteType: SiteType.RV_FULL_HOOKUP,
+        siteType: SiteType.RV,
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].siteType).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(result.sites[0].siteType).toBe(SiteType.RV)
     })
 
     it('should filter by CABIN type', async () => {
@@ -435,12 +435,12 @@ describe('ListSitesQuery', () => {
     it('should get available RV sites for booking UI', async () => {
       const result = await handler.execute({
         propertyId: 'prop-1',
-        siteType: SiteType.RV_FULL_HOOKUP,
+        siteType: SiteType.RV,
         availableOnly: true,
       })
 
       // Should return only available RV sites
-      expect(result.sites.every((s) => s.siteType === SiteType.RV_FULL_HOOKUP)).toBe(true)
+      expect(result.sites.every((s) => s.siteType === SiteType.RV)).toBe(true)
       expect(result.sites.every((s) => s.isAvailableForBooking())).toBe(true)
     })
 

@@ -27,7 +27,7 @@ describe('Site Aggregate', () => {
         'prop-456',
         '42',
         'Lakeside Paradise',
-        SiteType.RV_FULL_HOOKUP,
+        SiteType.RV,
         pricing
       )
 
@@ -35,7 +35,7 @@ describe('Site Aggregate', () => {
       expect(site.propertyId).toBe('prop-456')
       expect(site.siteNumber).toBe('42')
       expect(site.siteName).toBe('Lakeside Paradise')
-      expect(site.siteType).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(site.siteType).toBe(SiteType.RV)
       expect(site.status).toBe(SiteStatus.AVAILABLE)
     })
 
@@ -102,7 +102,7 @@ describe('Site Aggregate', () => {
     })
 
     it('should accept optional fields', () => {
-      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV_FULL_HOOKUP, pricing, {
+      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV, pricing, {
         description: 'Beautiful site',
         maxOccupancy: 6,
         maxVehicles: 2,
@@ -294,7 +294,7 @@ describe('Site Aggregate', () => {
     let site: Site
 
     beforeEach(() => {
-      site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV_FULL_HOOKUP, pricing, {
+      site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV, pricing, {
         maxOccupancy: 6,
         maxVehicles: 2,
       })
@@ -341,7 +341,7 @@ describe('Site Aggregate', () => {
 
   describe('toPersistence', () => {
     it('should convert to database format', () => {
-      const site = Site.create('site-123', 'prop-456', '42', 'Test Site', SiteType.RV_FULL_HOOKUP, pricing, {
+      const site = Site.create('site-123', 'prop-456', '42', 'Test Site', SiteType.RV, pricing, {
         description: 'Beautiful site',
         maxOccupancy: 6,
         maxVehicles: 2,
@@ -354,7 +354,7 @@ describe('Site Aggregate', () => {
       expect(persistence.property_id).toBe('prop-456')
       expect(persistence.site_number).toBe('42')
       expect(persistence.site_name).toBe('Test Site')
-      expect(persistence.site_type).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(persistence.site_type).toBe(SiteType.RV)
       expect(persistence.base_price).toBe(7500)
       expect(persistence.weekend_price).toBe(9000)
       expect(persistence.max_occupancy).toBe(6)
@@ -372,7 +372,7 @@ describe('Site Aggregate', () => {
         'prop-456',
         '42',
         'Test Site',
-        SiteType.RV_FULL_HOOKUP,
+        SiteType.RV,
         pricing,
         6,
         2,

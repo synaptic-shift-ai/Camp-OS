@@ -16,8 +16,8 @@ export class TransactionRecorded extends DomainEvent {
     public readonly type: TransactionType,
     public readonly amountCents: number,
     public readonly paymentMethod: PaymentMethod,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

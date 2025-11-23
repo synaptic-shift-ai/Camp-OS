@@ -14,11 +14,16 @@ import { SiteType, parseSiteType } from '../domain/SiteType'
 import { Pricing } from '../domain/Pricing'
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+import { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type SiteRow = Database['public']['Tables']['sites']['Row']
 
 export class SupabaseSiteRepository implements ISiteRepository {
-  constructor(private readonly supabase: SupabaseClient<Database>) {}
+  private readonly supabase: SupabaseClient<Database>
+
+  constructor(client: SupabaseClient<Database> | SupabaseContext) {
+    this.supabase = client instanceof SupabaseContext ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<Site | null> {
     const { data, error } = await this.supabase

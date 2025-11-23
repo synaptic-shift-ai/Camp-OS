@@ -45,10 +45,10 @@ export interface IPropertyRepository {
   findByCompanyIdWithFilters(
     companyId: string,
     filters: {
-      status?: PropertyStatus
-      onboardingComplete?: boolean
-      limit?: number
-      offset?: number
+      status?: PropertyStatus | undefined
+      onboardingComplete?: boolean | undefined
+      limit?: number | undefined
+      offset?: number | undefined
     }
   ): Promise<{ properties: Property[]; total: number }>
 

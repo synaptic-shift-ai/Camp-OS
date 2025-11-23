@@ -12,8 +12,8 @@ export class SecurityDepositHeld extends DomainEvent {
     public readonly reservationId: string,
     public readonly amountCents: number,
     public readonly stripePaymentIntentId: string | null,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

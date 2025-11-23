@@ -19,7 +19,7 @@ export class StripeCustomerLinked extends DomainEvent {
   public readonly stripeCustomerId: string
 
   constructor(props: StripeCustomerLinkedProps) {
-    super(props.linkedAt)
+    super()
     this.guestId = props.guestId
     this.propertyId = props.propertyId
     this.stripeCustomerId = props.stripeCustomerId

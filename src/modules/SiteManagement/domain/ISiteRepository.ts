@@ -45,11 +45,11 @@ export interface ISiteRepository {
   findByPropertyIdWithFilters(
     propertyId: string,
     filters: {
-      status?: SiteStatus
-      siteType?: string
-      availableOnly?: boolean
-      limit?: number
-      offset?: number
+      status?: SiteStatus | undefined
+      siteType?: string | undefined
+      availableOnly?: boolean | undefined
+      limit?: number | undefined
+      offset?: number | undefined
     }
   ): Promise<{ sites: Site[]; total: number }>
 

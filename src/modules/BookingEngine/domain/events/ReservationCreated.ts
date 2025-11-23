@@ -15,9 +15,8 @@ export class ReservationCreated extends DomainEvent {
     public readonly confirmationNumber: string,
     public readonly checkInDate: Date,
     public readonly checkOutDate: Date,
-    public readonly totalAmountCents: number,
-    occurredAt: Date = new Date()
+    public readonly totalAmountCents: number
   ) {
-    super(occurredAt)
+    super()
   }
 }

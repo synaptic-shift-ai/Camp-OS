@@ -11,9 +11,8 @@ export class GuestCheckedOut extends DomainEvent {
     public readonly reservationId: string,
     public readonly confirmationNumber: string,
     public readonly checkedOutBy: string, // Staff user ID
-    public readonly hasDamages: boolean,
-    occurredAt: Date = new Date()
+    public readonly hasDamages: boolean
   ) {
-    super(occurredAt)
+    super()
   }
 }

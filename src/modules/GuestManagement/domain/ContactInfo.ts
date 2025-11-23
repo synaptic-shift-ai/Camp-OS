@@ -11,8 +11,8 @@ import { ValueObject } from '@/shared/domain/ValueObject'
 interface ContactInfoProps {
   email: string
   phone: string
-  emergencyContactName?: string
-  emergencyContactPhone?: string
+  emergencyContactName?: string | undefined
+  emergencyContactPhone?: string | undefined
 }
 
 export class ContactInfo extends ValueObject<ContactInfoProps> {

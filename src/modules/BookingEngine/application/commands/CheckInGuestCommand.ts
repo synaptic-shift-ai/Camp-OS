@@ -12,8 +12,8 @@ import { getEventBus } from '@/shared/infrastructure/eventBus'
 export type CheckInGuestDto = {
   reservationId: string
   staffUserId: string
-  balancePaidCents?: number
-  notes?: string | null
+  balancePaidCents?: number | undefined
+  notes?: string | null | undefined
 }
 
 export class CheckInGuestCommandHandler {

@@ -17,7 +17,7 @@
  *   propertyId: 'prop-456',
  *   siteNumber: '42',
  *   siteName: 'Lakeside Paradise',
- *   siteType: SiteType.RV_FULL_HOOKUP,
+ *   siteType: SiteType.RV,
  *   pricing: Pricing.create(75, 90, 'USD'),
  *   maxOccupancy: 6,
  *   status: SiteStatus.AVAILABLE
@@ -79,15 +79,15 @@ export class Site extends AggregateRoot<string> {
     siteType: SiteType,
     pricing: Pricing,
     options: {
-      description?: string | null
-      maxOccupancy?: number | null
-      maxVehicles?: number | null
-      sizeSqft?: number | null
-      status?: SiteStatus
-      amenities?: string[] | null
-      hookups?: string[] | null
-      images?: string[] | null
-      locationMap?: Record<string, any> | null
+      description?: string | null | undefined
+      maxOccupancy?: number | null | undefined
+      maxVehicles?: number | null | undefined
+      sizeSqft?: number | null | undefined
+      status?: SiteStatus | undefined
+      amenities?: string[] | null | undefined
+      hookups?: string[] | null | undefined
+      images?: string[] | null | undefined
+      locationMap?: Record<string, any> | null | undefined
     } = {}
   ): Site {
     // Validate required fields
@@ -256,13 +256,13 @@ export class Site extends AggregateRoot<string> {
    * Update site details
    */
   updateDetails(updates: {
-    siteName?: string | null
-    description?: string | null
-    maxOccupancy?: number | null
-    maxVehicles?: number | null
-    sizeSqft?: number | null
-    amenities?: string[] | null
-    hookups?: string[] | null
+    siteName?: string | null | undefined
+    description?: string | null | undefined
+    maxOccupancy?: number | null | undefined
+    maxVehicles?: number | null | undefined
+    sizeSqft?: number | null | undefined
+    amenities?: string[] | null | undefined
+    hookups?: string[] | null | undefined
   }): void {
     // Validate capacity updates
     if (updates.maxOccupancy !== undefined && updates.maxOccupancy !== null && updates.maxOccupancy < 1) {

@@ -11,8 +11,8 @@ export class SecurityDepositReleased extends DomainEvent {
     public readonly depositId: string,
     public readonly releasedAmountCents: number,
     public readonly deductionsCents: number,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

@@ -12,8 +12,8 @@ export class RefundProcessed extends DomainEvent {
     public readonly originalTransactionId: string | null,
     public readonly amountCents: number,
     public readonly stripeRefundId: string | null,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

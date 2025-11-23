@@ -24,11 +24,11 @@ export interface CreateGuestInput {
     state: string
     zipCode: string
     country: string
-  }
-  emergencyContactName?: string
-  emergencyContactPhone?: string
-  userId?: string
-  notes?: string
+  } | undefined
+  emergencyContactName?: string | undefined
+  emergencyContactPhone?: string | undefined
+  userId?: string | undefined
+  notes?: string | undefined
 }
 
 export class CreateGuestCommandHandler {

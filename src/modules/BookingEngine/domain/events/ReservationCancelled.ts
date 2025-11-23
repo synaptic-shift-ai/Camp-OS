@@ -11,9 +11,8 @@ export class ReservationCancelled extends DomainEvent {
     public readonly reservationId: string,
     public readonly confirmationNumber: string,
     public readonly reason: string | null,
-    public readonly refundAmountCents: number,
-    occurredAt: Date = new Date()
+    public readonly refundAmountCents: number
   ) {
-    super(occurredAt)
+    super()
   }
 }

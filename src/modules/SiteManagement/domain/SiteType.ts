@@ -2,26 +2,24 @@
  * SiteType Enum
  *
  * Defines the types of campsites available.
+ * IMPORTANT: Must match database schema exactly (src/contracts/db.ts)
+ * Database constraint: 'tent' | 'rv' | 'cabin' | 'glamping' | 'yurt' | 'other'
  */
 export enum SiteType {
   TENT = 'tent',
-  RV_NO_HOOKUP = 'rv_no_hookup',
-  RV_WATER_ELECTRIC = 'rv_water_electric',
-  RV_FULL_HOOKUP = 'rv_full_hookup',
+  RV = 'rv',
   CABIN = 'cabin',
   GLAMPING = 'glamping',
-  GROUP = 'group',
+  YURT = 'yurt',
   OTHER = 'other',
 }
 
 export const SiteTypeLabels: Record<SiteType, string> = {
   [SiteType.TENT]: 'Tent Site',
-  [SiteType.RV_NO_HOOKUP]: 'RV Site (No Hookups)',
-  [SiteType.RV_WATER_ELECTRIC]: 'RV Site (Water & Electric)',
-  [SiteType.RV_FULL_HOOKUP]: 'RV Site (Full Hookups)',
+  [SiteType.RV]: 'RV Site',
   [SiteType.CABIN]: 'Cabin',
   [SiteType.GLAMPING]: 'Glamping',
-  [SiteType.GROUP]: 'Group Site',
+  [SiteType.YURT]: 'Yurt',
   [SiteType.OTHER]: 'Other',
 }
 

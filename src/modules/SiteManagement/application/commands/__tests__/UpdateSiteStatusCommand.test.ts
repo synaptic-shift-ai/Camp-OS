@@ -81,7 +81,7 @@ describe('UpdateSiteStatusCommand', () => {
 
     // Create site in AVAILABLE status
     const pricing = Pricing.create(7500, 9000, 'USD')
-    site = Site.create('site-123', 'prop-456', '42', 'Test Site', SiteType.RV_FULL_HOOKUP, pricing)
+    site = Site.create('site-123', 'prop-456', '42', 'Test Site', SiteType.RV, pricing)
     site.clearDomainEvents()
     repository.seedSite(site)
   })

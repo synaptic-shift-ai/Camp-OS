@@ -73,7 +73,7 @@ describe('GetSiteQuery', () => {
     it('should return site when found', async () => {
       // Seed a site
       const pricing = Pricing.create(7500, 9000, 'USD')
-      const site = Site.create('site-123', 'prop-456', '42', 'Test Site', SiteType.RV_FULL_HOOKUP, pricing)
+      const site = Site.create('site-123', 'prop-456', '42', 'Test Site', SiteType.RV, pricing)
       repository.seedSite(site)
 
       const result = await handler.execute({ siteId: 'site-123' })
@@ -93,7 +93,7 @@ describe('GetSiteQuery', () => {
 
     it('should return site with all properties', async () => {
       const pricing = Pricing.create(7500, 9000, 'USD')
-      const site = Site.create('site-123', 'prop-456', '42', 'Full Site', SiteType.RV_FULL_HOOKUP, pricing, {
+      const site = Site.create('site-123', 'prop-456', '42', 'Full Site', SiteType.RV, pricing, {
         description: 'Beautiful lakeside site',
         maxOccupancy: 6,
         maxVehicles: 2,
@@ -147,7 +147,7 @@ describe('GetSiteQuery', () => {
 
       // Seed multiple sites
       const site1 = Site.create('site-1', 'prop-456', '1', 'Site 1', SiteType.TENT, pricing)
-      const site2 = Site.create('site-2', 'prop-456', '2', 'Site 2', SiteType.RV_FULL_HOOKUP, pricing)
+      const site2 = Site.create('site-2', 'prop-456', '2', 'Site 2', SiteType.RV, pricing)
       const site3 = Site.create('site-3', 'prop-456', '3', 'Site 3', SiteType.CABIN, pricing)
 
       repository.seedSite(site1)
@@ -160,7 +160,7 @@ describe('GetSiteQuery', () => {
       expect(result).not.toBeNull()
       expect(result?.id).toBe('site-2')
       expect(result?.siteName).toBe('Site 2')
-      expect(result?.siteType).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(result?.siteType).toBe(SiteType.RV)
     })
 
     it('should return null for non-existent site among many', async () => {
@@ -192,12 +192,12 @@ describe('GetSiteQuery', () => {
 
     it('should return RV site with full hookup', async () => {
       const pricing = Pricing.create(7500, 9000, 'USD')
-      const site = Site.create('site-123', 'prop-456', '42', 'RV Site', SiteType.RV_FULL_HOOKUP, pricing)
+      const site = Site.create('site-123', 'prop-456', '42', 'RV Site', SiteType.RV, pricing)
       repository.seedSite(site)
 
       const result = await handler.execute({ siteId: 'site-123' })
 
-      expect(result?.siteType).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(result?.siteType).toBe(SiteType.RV)
     })
 
     it('should return cabin site', async () => {
@@ -275,7 +275,7 @@ describe('GetSiteQuery', () => {
   describe('business logic', () => {
     it('should return site with availability status', async () => {
       const pricing = Pricing.create(7500, 9000, 'USD')
-      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV_FULL_HOOKUP, pricing)
+      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV, pricing)
       repository.seedSite(site)
 
       const result = await handler.execute({ siteId: 'site-123' })
@@ -285,7 +285,7 @@ describe('GetSiteQuery', () => {
 
     it('should return site that is not available for booking', async () => {
       const pricing = Pricing.create(7500, 9000, 'USD')
-      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV_FULL_HOOKUP, pricing)
+      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV, pricing)
       site.markAsOccupied()
       repository.seedSite(site)
 
@@ -296,7 +296,7 @@ describe('GetSiteQuery', () => {
 
     it('should return site with capacity check capability', async () => {
       const pricing = Pricing.create(7500, 9000, 'USD')
-      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV_FULL_HOOKUP, pricing, {
+      const site = Site.create('site-123', 'prop-456', '42', 'Test', SiteType.RV, pricing, {
         maxOccupancy: 6,
         maxVehicles: 2,
       })

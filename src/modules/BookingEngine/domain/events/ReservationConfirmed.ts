@@ -9,9 +9,8 @@ import { DomainEvent } from '@/shared/domain/DomainEvent'
 export class ReservationConfirmed extends DomainEvent {
   constructor(
     public readonly reservationId: string,
-    public readonly confirmationNumber: string,
-    occurredAt: Date = new Date()
+    public readonly confirmationNumber: string
   ) {
-    super(occurredAt)
+    super()
   }
 }

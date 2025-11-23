@@ -8,13 +8,13 @@ import type { Reservation, ReservationStatus } from '../../domain/Reservation'
 
 export type ListReservationsDto = {
   propertyId: string
-  status?: ReservationStatus
-  guestId?: string
-  siteId?: string
-  checkInFrom?: Date
-  checkInTo?: Date
-  limit?: number
-  offset?: number
+  status?: ReservationStatus | undefined
+  guestId?: string | undefined
+  siteId?: string | undefined
+  checkInFrom?: Date | undefined
+  checkInTo?: Date | undefined
+  limit?: number | undefined
+  offset?: number | undefined
 }
 
 export type ListReservationsResult = {

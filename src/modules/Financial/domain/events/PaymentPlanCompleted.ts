@@ -10,8 +10,8 @@ export class PaymentPlanCompleted extends DomainEvent {
   constructor(
     public readonly paymentPlanId: string,
     public readonly completedAt: Date,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

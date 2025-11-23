@@ -12,8 +12,8 @@ export class PaymentPlanCreated extends DomainEvent {
     public readonly reservationId: string,
     public readonly numberOfInstallments: number,
     public readonly totalAmountCents: number,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

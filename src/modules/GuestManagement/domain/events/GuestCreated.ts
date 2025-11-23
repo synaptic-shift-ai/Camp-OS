@@ -21,7 +21,7 @@ export class GuestCreated extends DomainEvent {
   public readonly fullName: string
 
   constructor(props: GuestCreatedProps) {
-    super(props.createdAt)
+    super()
     this.guestId = props.guestId
     this.propertyId = props.propertyId
     this.email = props.email

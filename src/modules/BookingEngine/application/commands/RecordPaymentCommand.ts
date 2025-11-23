@@ -13,7 +13,7 @@ export type RecordPaymentDto = {
   reservationId: string
   amountCents: number
   paymentMethod: string
-  stripePaymentIntentId?: string | null
+  stripePaymentIntentId?: string | null | undefined
 }
 
 export class RecordPaymentCommandHandler {

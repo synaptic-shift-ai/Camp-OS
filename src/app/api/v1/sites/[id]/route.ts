@@ -192,8 +192,7 @@ export async function PATCH(
     }
 
     // Execute command using application layer
-    const eventBus = new InMemoryEventBus()
-    const commandHandler = new UpdateSiteCommand(repository, eventBus)
+    const commandHandler = new UpdateSiteCommand(repository)
 
     const updatedSite = await commandHandler.execute({
       siteId: id,

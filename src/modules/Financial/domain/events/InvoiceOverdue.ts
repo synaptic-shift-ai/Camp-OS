@@ -12,8 +12,8 @@ export class InvoiceOverdue extends DomainEvent {
     public readonly invoiceNumber: string,
     public readonly balanceCents: number,
     public readonly daysPastDue: number,
-    occurredAt: Date = new Date()
+    
   ) {
-    super(occurredAt)
+    super()
   }
 }

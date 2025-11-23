@@ -138,9 +138,8 @@ export async function POST(
     }
 
     // Execute commands using application layer
-    const eventBus = new InMemoryEventBus()
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
-    const commandHandler = new CreateSiteCommand(repository, eventBus)
+    const commandHandler = new CreateSiteCommand(repository)
 
     const createdSites = []
     const errors: Array<{ siteNumber: string; error: string }> = []

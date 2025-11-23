@@ -12,9 +12,8 @@ export class PaymentReceived extends DomainEvent {
     public readonly confirmationNumber: string,
     public readonly amountCents: number,
     public readonly paymentMethod: string,
-    public readonly stripePaymentIntentId: string | null,
-    occurredAt: Date = new Date()
+    public readonly stripePaymentIntentId: string | null
   ) {
-    super(occurredAt)
+    super()
   }
 }

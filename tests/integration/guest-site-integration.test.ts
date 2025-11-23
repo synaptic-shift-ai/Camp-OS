@@ -287,7 +287,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
         property1.id,
         'A1',
         'Alpha Site 1',
-        SiteType.RV_FULL_HOOKUP,
+        SiteType.RV,
         Pricing.create(75, 90, 'USD')
       )
       await siteRepo.save(site1)
@@ -499,7 +499,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
         property.id,
         'R1',
         'Reservation Site 1',
-        SiteType.RV_FULL_HOOKUP,
+        SiteType.RV,
         Pricing.create(80, 95, 'USD')
       )
       await siteRepo.save(site)
@@ -631,7 +631,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
           property.id,
           `L${i}`,
           `Large Site ${i}`,
-          i % 2 === 0 ? SiteType.RV_FULL_HOOKUP : SiteType.TENT,
+          i % 2 === 0 ? SiteType.RV : SiteType.TENT,
           Pricing.create(50 + i, 60 + i, 'USD')
         )
         await siteRepo.save(site)
@@ -688,7 +688,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
         property.id,
         'A2',
         'Occupied Site',
-        SiteType.RV_FULL_HOOKUP,
+        SiteType.RV,
         Pricing.create(70, 85, 'USD')
       )
       occupiedSite.markAsOccupied()

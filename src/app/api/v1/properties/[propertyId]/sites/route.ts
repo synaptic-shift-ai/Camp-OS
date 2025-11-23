@@ -254,9 +254,8 @@ export async function POST(
     }
 
     // Execute command using application layer
-    const eventBus = new InMemoryEventBus()
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
-    const commandHandler = new CreateSiteCommand(repository, eventBus)
+    const commandHandler = new CreateSiteCommand(repository)
 
     const site = await commandHandler.execute({
       propertyId,

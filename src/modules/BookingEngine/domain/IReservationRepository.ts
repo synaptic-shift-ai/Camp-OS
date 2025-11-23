@@ -33,13 +33,13 @@ export interface IReservationRepository {
   findByPropertyIdWithFilters(
     propertyId: string,
     filters: {
-      status?: ReservationStatus
-      guestId?: string
-      siteId?: string
-      checkInFrom?: Date
-      checkInTo?: Date
-      limit?: number
-      offset?: number
+      status?: ReservationStatus | undefined
+      guestId?: string | undefined
+      siteId?: string | undefined
+      checkInFrom?: Date | undefined
+      checkInTo?: Date | undefined
+      limit?: number | undefined
+      offset?: number | undefined
     }
   ): Promise<{ reservations: Reservation[]; total: number }>
 

@@ -1,0 +1,19 @@
+
+> my-v0-project@0.1.0 type-check
+> tsc --noEmit
+
+src/contracts/db.ts(1,1): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(1,6): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(1,9): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(1,17): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(1,21): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(2,1): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(2,14): error TS1146: Declaration expected.
+src/contracts/db.ts(3,1): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(3,4): error TS1434: Unexpected keyword or identifier.
+src/contracts/db.ts(3,20): error TS1005: ':' expected.
+npm notice
+npm notice New patch version of npm available! 11.6.2 -> 11.6.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.3
+npm notice To update run: npm install -g npm@11.6.3
+npm notice

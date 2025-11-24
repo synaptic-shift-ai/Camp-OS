@@ -84,7 +84,7 @@ export class ConfirmationNumber extends ValueObject<ConfirmationNumberProps> {
   /**
    * Convert to string (for display)
    */
-  toString(): string {
+  override toString(): string {
     return this.value
   }
 }

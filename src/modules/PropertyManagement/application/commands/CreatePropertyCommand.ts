@@ -16,19 +16,19 @@ export type CreatePropertyDto = {
   ownerId: string | null
   name: string
   slug: string
-  description?: string | null
-  propertyType?: PropertyType | null
-  address?: string | null
-  city?: string | null
-  state?: string | null
-  zipCode?: string | null
-  country?: string | null
-  phone?: string | null
-  email?: string | null
-  subdomain?: string | null
-  bookingPageSlug?: string | null
-  settings?: PropertySettings
-  amenities?: string[] | null
+  description?: string | null | undefined
+  propertyType?: PropertyType | null | undefined
+  address?: string | null | undefined
+  city?: string | null | undefined
+  state?: string | null | undefined
+  zipCode?: string | null | undefined
+  country?: string | null | undefined
+  phone?: string | null | undefined
+  email?: string | null | undefined
+  subdomain?: string | null | undefined
+  bookingPageSlug?: string | null | undefined
+  settings?: PropertySettings | undefined
+  amenities?: string[] | null | undefined
 }
 
 export class CreatePropertyCommandHandler {
@@ -50,19 +50,19 @@ export class CreatePropertyCommandHandler {
       dto.name,
       dto.slug,
       {
-        description: dto.description,
-        propertyType: dto.propertyType,
-        address: dto.address,
-        city: dto.city,
-        state: dto.state,
-        zipCode: dto.zipCode,
-        country: dto.country,
-        phone: dto.phone,
-        email: dto.email,
-        subdomain: dto.subdomain,
-        bookingPageSlug: dto.bookingPageSlug,
-        settings: dto.settings,
-        amenities: dto.amenities,
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.propertyType !== undefined && { propertyType: dto.propertyType }),
+        ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.city !== undefined && { city: dto.city }),
+        ...(dto.state !== undefined && { state: dto.state }),
+        ...(dto.zipCode !== undefined && { zipCode: dto.zipCode }),
+        ...(dto.country !== undefined && { country: dto.country }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.email !== undefined && { email: dto.email }),
+        ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
+        ...(dto.bookingPageSlug !== undefined && { bookingPageSlug: dto.bookingPageSlug }),
+        ...(dto.settings !== undefined && { settings: dto.settings }),
+        ...(dto.amenities !== undefined && { amenities: dto.amenities }),
       }
     )
 

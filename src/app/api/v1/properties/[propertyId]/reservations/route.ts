@@ -104,7 +104,7 @@ export async function POST(
       checkOut: new Date(validatedRequest.checkOut),
       occupancy: validatedRequest.occupancy,
       totalAmountCents: validatedRequest.totalAmountCents,
-      specialRequests: validatedRequest.specialRequests,
+      specialRequests: validatedRequest.specialRequests ?? null,
       source: validatedRequest.source,
     })
 
@@ -224,12 +224,12 @@ export async function GET(
 
     const result = await queryHandler.execute({
       propertyId,
-      status: queryParams.status as any,
-      guestId: queryParams.guestId,
-      siteId: queryParams.siteId,
-      checkInFrom: queryParams.checkInFrom ? new Date(queryParams.checkInFrom) : undefined,
-      checkInTo: queryParams.checkInTo ? new Date(queryParams.checkInTo) : undefined,
-      limit: queryParams.limit,
+      ...(queryParams.status !== undefined && { status: queryParams.status as any }),
+      ...(queryParams.guestId !== undefined && { guestId: queryParams.guestId }),
+      ...(queryParams.siteId !== undefined && { siteId: queryParams.siteId }),
+      ...(queryParams.checkInFrom !== undefined && { checkInFrom: new Date(queryParams.checkInFrom) }),
+      ...(queryParams.checkInTo !== undefined && { checkInTo: new Date(queryParams.checkInTo) }),
+      ...(queryParams.limit !== undefined && { limit: queryParams.limit }),
       offset: queryParams.offset,
     })
 

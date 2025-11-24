@@ -11,20 +11,20 @@ import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type UpdatePropertyDto = {
   id: string
-  name?: string
-  description?: string | null
-  propertyType?: PropertyType | null
-  phone?: string | null
-  email?: string | null
-  address?: string | null
-  city?: string | null
-  state?: string | null
-  zipCode?: string | null
-  country?: string | null
-  subdomain?: string | null
-  bookingPageSlug?: string | null
-  settings?: PropertySettings
-  amenities?: string[] | null
+  name?: string | undefined
+  description?: string | null | undefined
+  propertyType?: PropertyType | null | undefined
+  phone?: string | null | undefined
+  email?: string | null | undefined
+  address?: string | null | undefined
+  city?: string | null | undefined
+  state?: string | null | undefined
+  zipCode?: string | null | undefined
+  country?: string | null | undefined
+  subdomain?: string | null | undefined
+  bookingPageSlug?: string | null | undefined
+  settings?: PropertySettings | undefined
+  amenities?: string[] | null | undefined
 }
 
 export class UpdatePropertyCommandHandler {
@@ -47,11 +47,11 @@ export class UpdatePropertyCommandHandler {
       dto.email !== undefined
     ) {
       property.updateDetails({
-        name: dto.name,
-        description: dto.description,
-        propertyType: dto.propertyType,
-        phone: dto.phone,
-        email: dto.email,
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.propertyType !== undefined && { propertyType: dto.propertyType }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.email !== undefined && { email: dto.email }),
       })
     }
 
@@ -64,19 +64,19 @@ export class UpdatePropertyCommandHandler {
       dto.country !== undefined
     ) {
       property.updateLocation({
-        address: dto.address,
-        city: dto.city,
-        state: dto.state,
-        zipCode: dto.zipCode,
-        country: dto.country,
+        ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.city !== undefined && { city: dto.city }),
+        ...(dto.state !== undefined && { state: dto.state }),
+        ...(dto.zipCode !== undefined && { zipCode: dto.zipCode }),
+        ...(dto.country !== undefined && { country: dto.country }),
       })
     }
 
     // Update branding
     if (dto.subdomain !== undefined || dto.bookingPageSlug !== undefined) {
       property.updateBranding({
-        subdomain: dto.subdomain,
-        bookingPageSlug: dto.bookingPageSlug,
+        ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
+        ...(dto.bookingPageSlug !== undefined && { bookingPageSlug: dto.bookingPageSlug }),
       })
     }
 

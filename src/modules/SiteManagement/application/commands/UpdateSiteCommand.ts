@@ -35,13 +35,13 @@ export class UpdateSiteCommandHandler {
 
     // Update details
     site.updateDetails({
-      siteName: dto.siteName,
-      description: dto.description,
-      maxOccupancy: dto.maxOccupancy,
-      maxVehicles: dto.maxVehicles,
-      sizeSqft: dto.sizeSqft,
-      amenities: dto.amenities,
-      hookups: dto.hookups,
+      ...(dto.siteName !== undefined && { siteName: dto.siteName }),
+      ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.maxOccupancy !== undefined && { maxOccupancy: dto.maxOccupancy }),
+      ...(dto.maxVehicles !== undefined && { maxVehicles: dto.maxVehicles }),
+      ...(dto.sizeSqft !== undefined && { sizeSqft: dto.sizeSqft }),
+      ...(dto.amenities !== undefined && { amenities: dto.amenities }),
+      ...(dto.hookups !== undefined && { hookups: dto.hookups }),
     })
 
     // Update pricing if provided (allow partial updates)

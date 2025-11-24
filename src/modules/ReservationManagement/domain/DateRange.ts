@@ -250,7 +250,7 @@ export class DateRange extends ValueObject<DateRangeProps> {
   /**
    * Format date range as a string
    */
-  public toString(): string {
+  public override toString(): string {
     return `${this.checkIn.toISOString().split('T')[0]} to ${
       this.checkOut.toISOString().split('T')[0]
     } (${this.nights} night${this.nights === 1 ? '' : 's'})`

@@ -14,11 +14,17 @@ import { SiteType, parseSiteType } from '../domain/SiteType'
 import { Pricing } from '../domain/Pricing'
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type SiteRow = Database['public']['Tables']['sites']['Row']
 
 export class SupabaseSiteRepository implements ISiteRepository {
-  constructor(private readonly supabase: SupabaseClient<Database>) {}
+  private readonly supabase: SupabaseClient<Database>
+
+  constructor(client: SupabaseClient<Database> | SupabaseContext) {
+    // Normalize to raw client (D-1: Support both SupabaseClient and SupabaseContext)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<Site | null> {
     const { data, error } = await this.supabase
@@ -191,7 +197,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
     // Create pricing value object
     const pricing = Pricing.create(
       row.base_price || 0,
-      row.weekend_price || row.base_price || 0,
+      row.weekend_price_cents || row.base_price || 0,
       'USD'
     )
 

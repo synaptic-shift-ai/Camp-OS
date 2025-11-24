@@ -10,8 +10,7 @@ export class InvoicePaid extends DomainEvent {
   constructor(
     public readonly invoiceId: string,
     public readonly paidAt: Date,
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

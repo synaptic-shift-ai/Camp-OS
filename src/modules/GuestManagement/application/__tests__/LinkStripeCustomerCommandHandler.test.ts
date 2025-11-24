@@ -35,6 +35,9 @@ describe('LinkStripeCustomerCommandHandler', () => {
       publish: vi.fn(),
       publishAll: vi.fn(),
       subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      clearSubscribers: vi.fn(),
+      getSubscriberCount: vi.fn(),
     }
 
     // Create existing guest WITHOUT Stripe customer

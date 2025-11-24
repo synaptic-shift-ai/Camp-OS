@@ -49,7 +49,7 @@ export class ProcessRefundCommandHandler {
 
     // Publish domain events
     const eventBus = getEventBus()
-    await eventBus.publishAll(refund.getDomainEvents())
+    await eventBus.publishAll([...refund.getDomainEvents()])
     refund.clearDomainEvents()
 
     return refund

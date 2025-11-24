@@ -114,8 +114,8 @@ export async function GET(request: NextRequest) {
 
     const result = await queryHandler.execute({
       companyId: company.id,
-      status: validatedQuery.status,
-      onboardingComplete: validatedQuery.onboarding_complete,
+      ...(validatedQuery.status !== undefined && { status: validatedQuery.status }),
+      ...(validatedQuery.onboarding_complete !== undefined && { onboardingComplete: validatedQuery.onboarding_complete }),
       limit,
       offset,
     })
@@ -218,19 +218,19 @@ export async function POST(request: NextRequest) {
       ownerId: user.id,
       name: validatedRequest.name,
       slug: validatedRequest.slug,
-      description: validatedRequest.description,
-      propertyType: validatedRequest.propertyType,
-      address: validatedRequest.address,
-      city: validatedRequest.city,
-      state: validatedRequest.state,
-      zipCode: validatedRequest.zipCode,
-      country: validatedRequest.country,
-      phone: validatedRequest.phone,
-      email: validatedRequest.email,
-      subdomain: validatedRequest.subdomain,
-      bookingPageSlug: validatedRequest.bookingPageSlug,
-      settings,
-      amenities: validatedRequest.amenities,
+      ...(validatedRequest.description !== undefined && { description: validatedRequest.description }),
+      ...(validatedRequest.propertyType !== undefined && { propertyType: validatedRequest.propertyType }),
+      ...(validatedRequest.address !== undefined && { address: validatedRequest.address }),
+      ...(validatedRequest.city !== undefined && { city: validatedRequest.city }),
+      ...(validatedRequest.state !== undefined && { state: validatedRequest.state }),
+      ...(validatedRequest.zipCode !== undefined && { zipCode: validatedRequest.zipCode }),
+      ...(validatedRequest.country !== undefined && { country: validatedRequest.country }),
+      ...(validatedRequest.phone !== undefined && { phone: validatedRequest.phone }),
+      ...(validatedRequest.email !== undefined && { email: validatedRequest.email }),
+      ...(validatedRequest.subdomain !== undefined && { subdomain: validatedRequest.subdomain }),
+      ...(validatedRequest.bookingPageSlug !== undefined && { bookingPageSlug: validatedRequest.bookingPageSlug }),
+      ...(settings !== undefined && { settings }),
+      ...(validatedRequest.amenities !== undefined && { amenities: validatedRequest.amenities }),
     })
 
     // Convert to DTO

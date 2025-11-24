@@ -227,9 +227,8 @@ export async function POST(
     const createData: CreateGuestRequest = validatedRequest.data
 
     // Execute command using application layer
-    const eventBus = new InMemoryEventBus()
     const repository = new SupabaseGuestRepository(supabase)
-    const commandHandler = new CreateGuestCommandHandler(repository, eventBus)
+    const commandHandler = new CreateGuestCommandHandler(repository)
 
     const guest = await commandHandler.execute({
       propertyId: propertyId,
@@ -237,11 +236,11 @@ export async function POST(
       lastName: createData.lastName,
       email: createData.email,
       phone: createData.phone,
-      address: createData.address,
-      emergencyContactName: createData.emergencyContactName,
-      emergencyContactPhone: createData.emergencyContactPhone,
-      userId: createData.userId,
-      notes: createData.notes,
+      ...(createData.address !== undefined && { address: createData.address }),
+      ...(createData.emergencyContactName !== undefined && { emergencyContactName: createData.emergencyContactName }),
+      ...(createData.emergencyContactPhone !== undefined && { emergencyContactPhone: createData.emergencyContactPhone }),
+      ...(createData.userId !== undefined && { userId: createData.userId }),
+      ...(createData.notes !== undefined && { notes: createData.notes }),
     })
 
     // Convert to DTO

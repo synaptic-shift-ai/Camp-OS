@@ -246,7 +246,7 @@ export class GuestCount extends ValueObject<GuestCountProps> {
   /**
    * Format guest count as a summary string
    */
-  public toString(): string {
+  public override toString(): string {
     const parts: string[] = []
 
     parts.push(`${this.props.adults} adult${this.props.adults === 1 ? '' : 's'}`)

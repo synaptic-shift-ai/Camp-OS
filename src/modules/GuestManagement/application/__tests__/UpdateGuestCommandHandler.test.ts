@@ -36,6 +36,9 @@ describe('UpdateGuestCommandHandler', () => {
       publish: vi.fn(),
       publishAll: vi.fn(),
       subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      clearSubscribers: vi.fn(),
+      getSubscriberCount: vi.fn(),
     }
 
     // Create existing guest for tests

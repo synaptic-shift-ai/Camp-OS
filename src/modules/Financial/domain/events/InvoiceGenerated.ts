@@ -13,8 +13,7 @@ export class InvoiceGenerated extends DomainEvent {
     public readonly reservationId: string,
     public readonly totalCents: number,
     public readonly dueDate: Date,
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

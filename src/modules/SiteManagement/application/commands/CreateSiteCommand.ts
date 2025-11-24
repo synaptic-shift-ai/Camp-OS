@@ -58,15 +58,15 @@ export class CreateSiteCommandHandler {
       dto.siteType,
       pricing,
       {
-        description: dto.description,
-        maxOccupancy: dto.maxOccupancy,
-        maxVehicles: dto.maxVehicles,
-        sizeSqft: dto.sizeSqft,
-        status: dto.status,
-        amenities: dto.amenities,
-        hookups: dto.hookups,
-        images: dto.images,
-        locationMap: dto.locationMap,
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.maxOccupancy !== undefined && { maxOccupancy: dto.maxOccupancy }),
+        ...(dto.maxVehicles !== undefined && { maxVehicles: dto.maxVehicles }),
+        ...(dto.sizeSqft !== undefined && { sizeSqft: dto.sizeSqft }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.amenities !== undefined && { amenities: dto.amenities }),
+        ...(dto.hookups !== undefined && { hookups: dto.hookups }),
+        ...(dto.images !== undefined && { images: dto.images }),
+        ...(dto.locationMap !== undefined && { locationMap: dto.locationMap }),
       }
     )
 

@@ -168,17 +168,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const updateData: UpdateGuestRequest = validatedRequest.data
 
     // Execute command using application layer
-    const eventBus = new InMemoryEventBus()
-    const commandHandler = new UpdateGuestCommandHandler(repository, eventBus)
+    const commandHandler = new UpdateGuestCommandHandler(repository)
 
     const guest = await commandHandler.execute({
       guestId: id,
-      email: updateData.email,
-      phone: updateData.phone ?? undefined,
-      address: updateData.address ?? undefined,
-      emergencyContactName: updateData.emergencyContactName ?? undefined,
-      emergencyContactPhone: updateData.emergencyContactPhone ?? undefined,
-      notes: updateData.notes ?? undefined,
+      ...(updateData.email !== undefined && { email: updateData.email }),
+      ...(updateData.phone !== undefined && { phone: updateData.phone }),
+      ...(updateData.address !== undefined && { address: updateData.address }),
+      ...(updateData.emergencyContactName !== undefined && updateData.emergencyContactName !== null && { emergencyContactName: updateData.emergencyContactName }),
+      ...(updateData.emergencyContactPhone !== undefined && updateData.emergencyContactPhone !== null && { emergencyContactPhone: updateData.emergencyContactPhone }),
+      ...(updateData.notes !== undefined && updateData.notes !== null && { notes: updateData.notes }),
     })
 
     // Convert to DTO

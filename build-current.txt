@@ -1,0 +1,36 @@
+
+> my-v0-project@0.1.0 build
+> next build
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of E:\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * E:\Projects\Camp-OS-refactor\Camp-OS\package-lock.json
+
+   ▲ Next.js 16.0.0 (Turbopack)
+   - Experiments (use with caution):
+     · clientTraceMetadata
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.5s
+   Running next.config.js provided runAfterProductionCompile ...
+ ✓ Completed runAfterProductionCompile in 399ms
+   Running TypeScript ...
+Failed to compile.
+
+./src/app/api/v1/guests/[id]/route.ts:174:48
+Type error: Argument of type '{ guestId: string; email: string | undefined; phone: string | undefined; address: { city: string; state: string; zipCode: string; country: string; street: string; } | undefined; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; notes: string | undefined; }' is not assignable to parameter of type 'UpdateGuestInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'email' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+
+[0m [90m 172 |[39m     [36mconst[39m commandHandler [33m=[39m [36mnew[39m [33mUpdateGuestCommandHandler[39m(repository[33m,[39m eventBus)
+ [90m 173 |[39m
+[31m[1m>[22m[39m[90m 174 |[39m     [36mconst[39m guest [33m=[39m [36mawait[39m commandHandler[33m.[39mexecute({
+ [90m     |[39m                                                [31m[1m^[22m[39m
+ [90m 175 |[39m       guestId[33m:[39m id[33m,[39m
+ [90m 176 |[39m       email[33m:[39m updateData[33m.[39memail[33m,[39m
+ [90m 177 |[39m       phone[33m:[39m updateData[33m.[39mphone [33m?[39m[33m?[39m undefined[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

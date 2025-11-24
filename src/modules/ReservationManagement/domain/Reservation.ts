@@ -106,7 +106,7 @@ export class Reservation extends AggregateRoot<ReservationId> {
       pricing,
       status: ReservationStatus.PENDING,
       source,
-      specialRequests,
+      ...(specialRequests !== undefined && { specialRequests }),
     })
 
     // Raise domain event

@@ -17,7 +17,7 @@
  *   propertyId: 'prop-456',
  *   siteNumber: '42',
  *   siteName: 'Lakeside Paradise',
- *   siteType: SiteType.RV_FULL_HOOKUP,
+ *   siteType: SiteType.RV,
  *   pricing: Pricing.create(75, 90, 'USD'),
  *   maxOccupancy: 6,
  *   status: SiteStatus.AVAILABLE

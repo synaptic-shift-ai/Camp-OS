@@ -20,13 +20,19 @@ import { Reservation, type ReservationStatus } from '../domain/Reservation'
 import type { DateRange } from '../domain/value-objects/DateRange'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type ReservationRow = Database['public']['Tables']['reservations']['Row']
 
 export class SupabaseReservationRepository implements IReservationRepository {
+  private readonly supabase: SupabaseClient<Database> | ReturnType<SupabaseClient<Database>['from']>
+
   constructor(
-    private readonly supabase: SupabaseClient<Database> | ReturnType<SupabaseClient<Database>['from']>
-  ) {}
+    client: SupabaseClient<Database> | SupabaseContext | ReturnType<SupabaseClient<Database>['from']>
+  ) {
+    // Normalize to raw client (D-1: Support SupabaseClient, SupabaseContext, and transaction objects)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<Reservation | null> {
     const { data, error } = await this.getClient()

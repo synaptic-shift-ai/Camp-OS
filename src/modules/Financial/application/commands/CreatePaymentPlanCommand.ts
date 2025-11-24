@@ -42,7 +42,7 @@ export class CreatePaymentPlanCommandHandler {
 
     // Publish domain events
     const eventBus = getEventBus()
-    await eventBus.publishAll(plan.getDomainEvents())
+    await eventBus.publishAll([...plan.getDomainEvents()])
     plan.clearDomainEvents()
 
     return plan

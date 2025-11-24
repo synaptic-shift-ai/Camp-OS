@@ -299,7 +299,7 @@ export class ReservationPricing extends ValueObject<ReservationPricingProps> {
   /**
    * Format pricing as a summary string
    */
-  public toString(): string {
+  public override toString(): string {
     const formatCents = (cents: number) => `$${(cents / 100).toFixed(2)}`
 
     return `Total: ${formatCents(this.totalAmount)} (Base: ${formatCents(

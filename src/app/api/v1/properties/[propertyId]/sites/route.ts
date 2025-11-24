@@ -139,36 +139,33 @@ export async function GET(
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const queryHandler = new ListSitesQueryHandler(repository)
 
+    // Calculate limit and offset from page and per_page
+    const page = validatedQuery.page || 1
+    const perPage = validatedQuery.per_page || 20
+    const offset = (page - 1) * perPage
+
     const result = await queryHandler.execute({
       propertyId,
-      filters: {
-        status: validatedQuery.status,
-        siteType: validatedQuery.siteType,
-        minPrice: validatedQuery.minPrice,
-        maxPrice: validatedQuery.maxPrice,
-        minOccupancy: validatedQuery.minOccupancy,
-      },
-      pagination: {
-        page: validatedQuery.page,
-        perPage: validatedQuery.per_page,
-      },
-      sorting: {
-        sortBy: validatedQuery.sort_by,
-        sortOrder: validatedQuery.sort_order,
-      },
+      ...(validatedQuery.status !== undefined && { status: validatedQuery.status }),
+      ...(validatedQuery.siteType !== undefined && { siteType: validatedQuery.siteType }),
+      ...(perPage !== undefined && { limit: perPage }),
+      ...(offset !== undefined && { offset: offset }),
     })
 
     // Convert domain entities to DTOs
     const siteDTOs = toSiteDTOs(result.sites)
 
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(result.total / perPage)
+
     return NextResponse.json(
       success({
         items: siteDTOs,
         pagination: {
-          page: result.pagination.page,
-          per_page: result.pagination.perPage,
-          total: result.pagination.total,
-          total_pages: result.pagination.totalPages,
+          page: page,
+          per_page: perPage,
+          total: result.total,
+          total_pages: totalPages,
         },
       })
     )
@@ -254,9 +251,8 @@ export async function POST(
     }
 
     // Execute command using application layer
-    const eventBus = new InMemoryEventBus()
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
-    const commandHandler = new CreateSiteCommand(repository, eventBus)
+    const commandHandler = new CreateSiteCommand(repository)
 
     const site = await commandHandler.execute({
       propertyId,

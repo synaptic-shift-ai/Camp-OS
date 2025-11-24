@@ -36,7 +36,7 @@ interface CreateGuestProps {
   notes: string | null
 }
 
-export class Guest extends AggregateRoot {
+export class Guest extends AggregateRoot<string> {
   private readonly _propertyId: string
   private _userId: string | null
   private _name: PersonName
@@ -44,11 +44,9 @@ export class Guest extends AggregateRoot {
   private _address: Address | null
   private _stripeCustomerId: string | null
   private _notes: string | null
-  private readonly _createdAt: Date
-  private _updatedAt: Date
 
   private constructor(id: string, props: GuestProps) {
-    super(id)
+    super(id, props.createdAt, props.updatedAt)
     this._propertyId = props.propertyId
     this._userId = props.userId
     this._name = props.name
@@ -110,20 +108,6 @@ export class Guest extends AggregateRoot {
   }
 
   /**
-   * When the guest was created
-   */
-  get createdAt(): Date {
-    return this._createdAt
-  }
-
-  /**
-   * When the guest was last updated
-   */
-  get updatedAt(): Date {
-    return this._updatedAt
-  }
-
-  /**
    * Factory method to create a new Guest
    *
    * @param props - Guest properties
@@ -165,14 +149,14 @@ export class Guest extends AggregateRoot {
    */
   public updateContactInfo(contact: ContactInfo): void {
     this._contact = contact
-    this._updatedAt = new Date()
+    this.touch()
 
     this.addDomainEvent(
       new GuestUpdated({
         guestId: this.id,
         propertyId: this.propertyId,
         updatedFields: ['contact'],
-        updatedAt: this._updatedAt,
+        updatedAt: this.updatedAt,
       })
     )
   }
@@ -184,14 +168,14 @@ export class Guest extends AggregateRoot {
    */
   public updateAddress(address: Address | null): void {
     this._address = address
-    this._updatedAt = new Date()
+    this.touch()
 
     this.addDomainEvent(
       new GuestUpdated({
         guestId: this.id,
         propertyId: this.propertyId,
         updatedFields: ['address'],
-        updatedAt: this._updatedAt,
+        updatedAt: this.updatedAt,
       })
     )
   }
@@ -208,14 +192,14 @@ export class Guest extends AggregateRoot {
     }
 
     this._stripeCustomerId = customerId
-    this._updatedAt = new Date()
+    this.touch()
 
     this.addDomainEvent(
       new StripeCustomerLinked({
         guestId: this.id,
         propertyId: this.propertyId,
         stripeCustomerId: customerId,
-        linkedAt: this._updatedAt,
+        linkedAt: this.updatedAt,
       })
     )
   }
@@ -225,14 +209,14 @@ export class Guest extends AggregateRoot {
    */
   public unlinkStripeCustomer(): void {
     this._stripeCustomerId = null
-    this._updatedAt = new Date()
+    this.touch()
 
     this.addDomainEvent(
       new GuestUpdated({
         guestId: this.id,
         propertyId: this.propertyId,
         updatedFields: ['stripeCustomerId'],
-        updatedAt: this._updatedAt,
+        updatedAt: this.updatedAt,
       })
     )
   }
@@ -244,14 +228,14 @@ export class Guest extends AggregateRoot {
    */
   public addNotes(notes: string): void {
     this._notes = notes
-    this._updatedAt = new Date()
+    this.touch()
 
     this.addDomainEvent(
       new GuestUpdated({
         guestId: this.id,
         propertyId: this.propertyId,
         updatedFields: ['notes'],
-        updatedAt: this._updatedAt,
+        updatedAt: this.updatedAt,
       })
     )
   }
@@ -368,8 +352,8 @@ export class Guest extends AggregateRoot {
       emergency_contact_phone: this._contact.emergencyContactPhone || null,
       stripe_customer_id: this._stripeCustomerId,
       notes: this._notes,
-      created_at: this._createdAt.toISOString(),
-      updated_at: this._updatedAt.toISOString(),
+      created_at: this.createdAt.toISOString(),
+      updated_at: this.updatedAt.toISOString(),
     }
   }
 }

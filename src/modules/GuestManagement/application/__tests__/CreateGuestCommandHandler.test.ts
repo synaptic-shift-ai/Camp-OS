@@ -32,6 +32,9 @@ describe('CreateGuestCommandHandler', () => {
       publish: vi.fn(),
       publishAll: vi.fn(),
       subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      clearSubscribers: vi.fn(),
+      getSubscriberCount: vi.fn(),
     }
 
     handler = new CreateGuestCommandHandler(mockRepository, mockEventBus)

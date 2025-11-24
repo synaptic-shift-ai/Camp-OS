@@ -107,7 +107,7 @@ export async function POST(
       reservationId,
       staffUserId: user.id, // Current authenticated user is performing check-out
       hasDamages: validatedRequest.hasDamages,
-      notes: validatedRequest.notes,
+      notes: validatedRequest.notes ?? null,
     })
 
     // Convert to DTO

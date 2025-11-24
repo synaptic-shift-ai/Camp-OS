@@ -38,7 +38,7 @@ export class RecordPaymentCommandHandler {
 
     // Publish domain events
     const eventBus = getEventBus()
-    await eventBus.publishAll(reservation.getDomainEvents())
+    await eventBus.publishAll([...reservation.getDomainEvents()])
     reservation.clearDomainEvents()
 
     return reservation

@@ -10,8 +10,7 @@ export class ReservationConfirmed extends DomainEvent {
   constructor(
     public readonly reservationId: string,
     public readonly confirmationNumber: string,
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

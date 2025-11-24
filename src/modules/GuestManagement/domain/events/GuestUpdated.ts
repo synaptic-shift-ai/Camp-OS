@@ -19,7 +19,7 @@ export class GuestUpdated extends DomainEvent {
   public readonly updatedFields: string[]
 
   constructor(props: GuestUpdatedProps) {
-    super(props.updatedAt)
+    super()
     this.guestId = props.guestId
     this.propertyId = props.propertyId
     this.updatedFields = props.updatedFields

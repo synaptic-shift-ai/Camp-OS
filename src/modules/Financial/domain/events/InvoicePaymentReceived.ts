@@ -12,8 +12,7 @@ export class InvoicePaymentReceived extends DomainEvent {
     public readonly transactionId: string,
     public readonly amountCents: number,
     public readonly newBalanceCents: number,
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

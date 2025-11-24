@@ -88,7 +88,7 @@ export class GenerateInvoiceCommandHandler {
 
     // Publish domain events
     const eventBus = getEventBus()
-    await eventBus.publishAll(invoice.getDomainEvents())
+    await eventBus.publishAll([...invoice.getDomainEvents()])
     invoice.clearDomainEvents()
 
     return invoice

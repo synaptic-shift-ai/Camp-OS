@@ -105,7 +105,7 @@ export async function POST(
 
     const reservation = await commandHandler.execute({
       reservationId,
-      reason: validatedRequest.reason,
+      reason: validatedRequest.reason ?? null,
       refundAmountCents: validatedRequest.refundAmountCents,
     })
 

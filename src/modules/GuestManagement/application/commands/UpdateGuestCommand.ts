@@ -41,17 +41,18 @@ export class UpdateGuestCommandHandler {
 
     // Update contact info if provided
     if (input.email || input.phone) {
+      const emergencyContactName = input.emergencyContactName !== undefined
+        ? input.emergencyContactName
+        : guest.contact.emergencyContactName
+      const emergencyContactPhone = input.emergencyContactPhone !== undefined
+        ? input.emergencyContactPhone
+        : guest.contact.emergencyContactPhone
+
       const contact = ContactInfo.create({
         email: input.email || guest.contact.email,
         phone: input.phone || guest.contact.phone,
-        emergencyContactName:
-          input.emergencyContactName !== undefined
-            ? input.emergencyContactName
-            : guest.contact.emergencyContactName,
-        emergencyContactPhone:
-          input.emergencyContactPhone !== undefined
-            ? input.emergencyContactPhone
-            : guest.contact.emergencyContactPhone,
+        ...(emergencyContactName !== undefined && { emergencyContactName }),
+        ...(emergencyContactPhone !== undefined && { emergencyContactPhone }),
       })
       guest.updateContactInfo(contact)
     }
@@ -79,7 +80,7 @@ export class UpdateGuestCommandHandler {
     await this.repository.save(guest)
 
     // Publish domain events
-    await this.eventBus.publishAll(guest.getDomainEvents())
+    await this.eventBus.publishAll([...guest.getDomainEvents()])
     guest.clearDomainEvents()
 
     return guest

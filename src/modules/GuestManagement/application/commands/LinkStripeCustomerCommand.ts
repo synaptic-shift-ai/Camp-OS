@@ -33,7 +33,7 @@ export class LinkStripeCustomerCommandHandler {
     await this.repository.save(guest)
 
     // Publish domain events
-    await this.eventBus.publishAll(guest.getDomainEvents())
+    await this.eventBus.publishAll([...guest.getDomainEvents()])
     guest.clearDomainEvents()
   }
 }

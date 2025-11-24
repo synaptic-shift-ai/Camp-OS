@@ -68,7 +68,7 @@ export class InvoiceLineItem extends ValueObject<InvoiceLineItemProps> {
   /**
    * Convert to plain object for persistence
    */
-  toJSON(): Record<string, any> {
+  override toJSON(): Record<string, any> {
     return {
       description: this.description,
       quantity: this.quantity,

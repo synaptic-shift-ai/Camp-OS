@@ -21,6 +21,7 @@ import { ContactInfo } from '../domain/ContactInfo'
 import { Address } from '../domain/Address'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type GuestRow = {
   id: string
@@ -44,7 +45,12 @@ type GuestRow = {
 }
 
 export class SupabaseGuestRepository implements IGuestRepository {
-  constructor(private readonly supabase: SupabaseClient<Database>) {}
+  private readonly supabase: SupabaseClient<Database>
+
+  constructor(client: SupabaseClient<Database> | SupabaseContext) {
+    // Normalize to raw client (D-1: Support both SupabaseClient and SupabaseContext)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(guestId: string): Promise<Guest | null> {
     const { data, error } = await this.supabase
@@ -157,8 +163,8 @@ export class SupabaseGuestRepository implements IGuestRepository {
     const contact = ContactInfo.create({
       email: row.email,
       phone: row.phone || '',
-      emergencyContactName: row.emergency_contact_name || undefined,
-      emergencyContactPhone: row.emergency_contact_phone || undefined,
+      ...(row.emergency_contact_name && { emergencyContactName: row.emergency_contact_name }),
+      ...(row.emergency_contact_phone && { emergencyContactPhone: row.emergency_contact_phone }),
     })
 
     // Address requires all fields or none

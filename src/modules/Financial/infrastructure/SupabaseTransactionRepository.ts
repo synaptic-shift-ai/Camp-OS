@@ -11,9 +11,16 @@ import type {
   TransactionFilters,
 } from '../domain/repositories/ITransactionRepository'
 import { Transaction } from '../domain/aggregates/Transaction'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
+import type { Database } from '@/contracts/db'
 
 export class SupabaseTransactionRepository implements ITransactionRepository {
-  constructor(private readonly supabase: SupabaseClient) {}
+  private readonly supabase: SupabaseClient<Database>
+
+  constructor(client: SupabaseClient<Database> | SupabaseContext) {
+    // Normalize to raw client (D-1: Support both SupabaseClient and SupabaseContext)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<Transaction | null> {
     const { data, error } = await this.supabase

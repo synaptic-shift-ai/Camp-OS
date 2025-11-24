@@ -21,13 +21,19 @@ import { PropertyStatus } from '../domain/PropertyStatus'
 import { PropertySettings } from '../domain/PropertySettings'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type PropertyRow = Database['public']['Tables']['properties']['Row']
 
 export class SupabasePropertyRepository implements IPropertyRepository {
+  private readonly supabase: SupabaseClient<Database> | ReturnType<SupabaseClient<Database>['from']>
+
   constructor(
-    private readonly supabase: SupabaseClient<Database> | ReturnType<SupabaseClient<Database>['from']>
-  ) {}
+    client: SupabaseClient<Database> | SupabaseContext | ReturnType<SupabaseClient<Database>['from']>
+  ) {
+    // Normalize to raw client (D-1: Support SupabaseClient, SupabaseContext, and transaction objects)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<Property | null> {
     const { data, error } = await this.getClient()

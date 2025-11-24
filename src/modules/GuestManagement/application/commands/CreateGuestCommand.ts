@@ -47,8 +47,8 @@ export class CreateGuestCommandHandler {
     const contact = ContactInfo.create({
       email: input.email,
       phone: input.phone,
-      emergencyContactName: input.emergencyContactName,
-      emergencyContactPhone: input.emergencyContactPhone,
+      ...(input.emergencyContactName !== undefined && { emergencyContactName: input.emergencyContactName }),
+      ...(input.emergencyContactPhone !== undefined && { emergencyContactPhone: input.emergencyContactPhone }),
     })
 
     const address = input.address
@@ -92,7 +92,7 @@ export class CreateGuestCommandHandler {
     await this.repository.save(guest)
 
     // Publish domain events
-    await this.eventBus.publishAll(guest.getDomainEvents())
+    await this.eventBus.publishAll([...guest.getDomainEvents()])
     guest.clearDomainEvents()
 
     return guest

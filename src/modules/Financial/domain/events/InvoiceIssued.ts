@@ -11,8 +11,7 @@ export class InvoiceIssued extends DomainEvent {
     public readonly invoiceId: string,
     public readonly invoiceNumber: string,
     public readonly issuedAt: Date,
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

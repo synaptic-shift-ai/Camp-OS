@@ -9,9 +9,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { IPaymentPlanRepository } from '../domain/repositories/IPaymentPlanRepository'
 import { PaymentPlan } from '../domain/aggregates/PaymentPlan'
 import { PaymentPlanStatus } from '../domain/value-objects/PaymentPlanStatus'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
+import type { Database } from '@/contracts/db'
 
 export class SupabasePaymentPlanRepository implements IPaymentPlanRepository {
-  constructor(private readonly supabase: SupabaseClient) {}
+  private readonly supabase: SupabaseClient<Database>
+
+  constructor(client: SupabaseClient<Database> | SupabaseContext) {
+    // Normalize to raw client (D-1: Support both SupabaseClient and SupabaseContext)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<PaymentPlan | null> {
     const { data, error } = await this.supabase

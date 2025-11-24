@@ -33,7 +33,7 @@ export class ReleaseSecurityDepositCommandHandler {
 
     // Publish domain events
     const eventBus = getEventBus()
-    await eventBus.publishAll(deposit.getDomainEvents())
+    await eventBus.publishAll([...deposit.getDomainEvents()])
     deposit.clearDomainEvents()
 
     return deposit

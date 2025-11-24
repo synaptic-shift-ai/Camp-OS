@@ -106,8 +106,8 @@ export class ContactInfo extends ValueObject<ContactInfoProps> {
     return new ContactInfo({
       email,
       phone,
-      emergencyContactName,
-      emergencyContactPhone,
+      ...(emergencyContactName !== undefined && { emergencyContactName }),
+      ...(emergencyContactPhone !== undefined && { emergencyContactPhone }),
     })
   }
 

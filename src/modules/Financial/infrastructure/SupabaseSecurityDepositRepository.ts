@@ -9,9 +9,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ISecurityDepositRepository } from '../domain/repositories/ISecurityDepositRepository'
 import { SecurityDeposit } from '../domain/aggregates/SecurityDeposit'
 import { DepositStatus } from '../domain/value-objects/DepositStatus'
+import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
+import type { Database } from '@/contracts/db'
 
 export class SupabaseSecurityDepositRepository implements ISecurityDepositRepository {
-  constructor(private readonly supabase: SupabaseClient) {}
+  private readonly supabase: SupabaseClient<Database>
+
+  constructor(client: SupabaseClient<Database> | SupabaseContext) {
+    // Normalize to raw client (D-1: Support both SupabaseClient and SupabaseContext)
+    this.supabase = 'getRawClient' in client ? client.getRawClient() : client
+  }
 
   async findById(id: string): Promise<SecurityDeposit | null> {
     const { data, error } = await this.supabase

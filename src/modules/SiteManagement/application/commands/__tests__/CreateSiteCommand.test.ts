@@ -91,7 +91,7 @@ describe('CreateSiteCommand', () => {
         propertyId: 'prop-456',
         siteNumber: '42',
         siteName: 'Lakeside Paradise',
-        siteType: SiteType.RV_FULL_HOOKUP,
+        siteType: SiteType.RV,
         basePrice: 7500,
         weekendPrice: 9000,
       })
@@ -100,7 +100,7 @@ describe('CreateSiteCommand', () => {
       expect(result.propertyId).toBe('prop-456')
       expect(result.siteNumber).toBe('42')
       expect(result.siteName).toBe('Lakeside Paradise')
-      expect(result.siteType).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(result.siteType).toBe(SiteType.RV)
       expect(result.pricing.basePrice).toBe(7500)
       expect(result.pricing.weekendPrice).toBe(9000)
     })
@@ -143,7 +143,7 @@ describe('CreateSiteCommand', () => {
         propertyId: 'prop-456',
         siteNumber: '42',
         siteName: 'Test Site',
-        siteType: SiteType.RV_FULL_HOOKUP,
+        siteType: SiteType.RV,
         basePrice: 7500,
         weekendPrice: 9000,
         description: 'Beautiful site with lake view',
@@ -374,13 +374,13 @@ describe('CreateSiteCommand', () => {
         propertyId: 'prop-456',
         siteNumber: '42',
         siteName: 'RV Site',
-        siteType: SiteType.RV_FULL_HOOKUP,
+        siteType: SiteType.RV,
         basePrice: 7500,
         weekendPrice: 9000,
         hookups: ['water', 'electric', 'sewer'],
       })
 
-      expect(result.siteType).toBe(SiteType.RV_FULL_HOOKUP)
+      expect(result.siteType).toBe(SiteType.RV)
       expect(result.hookups).toContain('water')
       expect(result.hookups).toContain('electric')
       expect(result.hookups).toContain('sewer')

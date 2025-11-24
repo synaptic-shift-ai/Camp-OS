@@ -12,8 +12,7 @@ export class GuestCheckedIn extends DomainEvent {
     public readonly confirmationNumber: string,
     public readonly checkedInBy: string, // Staff user ID
     public readonly balancePaidCents: number, // Additional payment at check-in
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

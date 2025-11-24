@@ -93,8 +93,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { stripeCustomerId }: LinkStripeCustomerRequest = validatedRequest.data
 
     // Execute command using application layer
-    const eventBus = new InMemoryEventBus()
-    const commandHandler = new LinkStripeCustomerCommandHandler(repository, eventBus)
+    const commandHandler = new LinkStripeCustomerCommandHandler(repository)
 
     await commandHandler.execute({
       guestId: id,

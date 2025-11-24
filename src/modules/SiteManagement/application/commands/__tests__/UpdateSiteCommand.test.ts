@@ -86,7 +86,7 @@ describe('UpdateSiteCommand', () => {
       'prop-456',
       '42',
       'Original Site',
-      SiteType.RV_FULL_HOOKUP,
+      SiteType.RV,
       pricing,
       {
         description: 'Original description',

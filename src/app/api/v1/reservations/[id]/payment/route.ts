@@ -107,7 +107,7 @@ export async function POST(
       reservationId,
       amountCents: validatedRequest.amountCents,
       paymentMethod: validatedRequest.paymentMethod,
-      stripePaymentIntentId: validatedRequest.stripePaymentIntentId,
+      stripePaymentIntentId: validatedRequest.stripePaymentIntentId ?? null,
     })
 
     // Convert to DTO

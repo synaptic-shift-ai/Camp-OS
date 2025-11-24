@@ -9,11 +9,11 @@ import { SiteStatus } from '../../domain/SiteStatus'
 
 export type ListSitesDto = {
   propertyId: string
-  status?: SiteStatus
-  siteType?: string
-  availableOnly?: boolean
-  limit?: number
-  offset?: number
+  status?: SiteStatus | undefined
+  siteType?: string | undefined
+  availableOnly?: boolean | undefined
+  limit?: number | undefined
+  offset?: number | undefined
 }
 
 export type ListSitesResult = {
@@ -26,11 +26,11 @@ export class ListSitesQueryHandler {
 
   async execute(dto: ListSitesDto): Promise<ListSitesResult> {
     return await this.repository.findByPropertyIdWithFilters(dto.propertyId, {
-      status: dto.status,
-      siteType: dto.siteType,
-      availableOnly: dto.availableOnly,
-      limit: dto.limit,
-      offset: dto.offset,
+      ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.siteType !== undefined && { siteType: dto.siteType }),
+      ...(dto.availableOnly !== undefined && { availableOnly: dto.availableOnly }),
+      ...(dto.limit !== undefined && { limit: dto.limit }),
+      ...(dto.offset !== undefined && { offset: dto.offset }),
     })
   }
 }

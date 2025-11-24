@@ -11,8 +11,7 @@ export class TransactionCompleted extends DomainEvent {
     public readonly transactionId: string,
     public readonly stripePaymentIntentId: string | null,
     public readonly processedAt: Date,
-    occurredAt: Date = new Date()
   ) {
-    super(occurredAt)
+    super()
   }
 }

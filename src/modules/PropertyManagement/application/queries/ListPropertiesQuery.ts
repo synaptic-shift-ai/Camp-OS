@@ -9,10 +9,10 @@ import type { PropertyStatus } from '../../domain/PropertyStatus'
 
 export type ListPropertiesDto = {
   companyId: string
-  status?: PropertyStatus
-  onboardingComplete?: boolean
-  limit?: number
-  offset?: number
+  status?: PropertyStatus | undefined
+  onboardingComplete?: boolean | undefined
+  limit?: number | undefined
+  offset?: number | undefined
 }
 
 export type ListPropertiesResult = {
@@ -29,10 +29,10 @@ export class ListPropertiesQueryHandler {
     const { properties, total } = await this.repository.findByCompanyIdWithFilters(
       dto.companyId,
       {
-        status: dto.status,
-        onboardingComplete: dto.onboardingComplete,
-        limit: dto.limit,
-        offset: dto.offset,
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.onboardingComplete !== undefined && { onboardingComplete: dto.onboardingComplete }),
+        ...(dto.limit !== undefined && { limit: dto.limit }),
+        ...(dto.offset !== undefined && { offset: dto.offset }),
       }
     )
 

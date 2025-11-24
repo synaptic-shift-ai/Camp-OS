@@ -21,13 +21,13 @@ export type CreateReservationDto = {
   checkOut: Date
   occupancy: {
     numAdults: number
-    numChildren?: number
-    numPets?: number
-    numVehicles?: number
+    numChildren?: number | undefined
+    numPets?: number | undefined
+    numVehicles?: number | undefined
   }
   totalAmountCents: number
-  specialRequests?: string | null
-  source?: string
+  specialRequests?: string | null | undefined
+  source?: string | undefined
 }
 
 export class CreateReservationCommandHandler {

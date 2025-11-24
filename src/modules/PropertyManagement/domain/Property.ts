@@ -102,19 +102,19 @@ export class Property extends AggregateRoot<string> {
     name: string,
     slug: string,
     options: {
-      description?: string | null
-      propertyType?: PropertyType | null
-      address?: string | null
-      city?: string | null
-      state?: string | null
-      zipCode?: string | null
-      country?: string | null
-      phone?: string | null
-      email?: string | null
-      subdomain?: string | null
-      bookingPageSlug?: string | null
-      settings?: PropertySettings
-      amenities?: string[] | null
+      description?: string | null | undefined
+      propertyType?: PropertyType | null | undefined
+      address?: string | null | undefined
+      city?: string | null | undefined
+      state?: string | null | undefined
+      zipCode?: string | null | undefined
+      country?: string | null | undefined
+      phone?: string | null | undefined
+      email?: string | null | undefined
+      subdomain?: string | null | undefined
+      bookingPageSlug?: string | null | undefined
+      settings?: PropertySettings | undefined
+      amenities?: string[] | null | undefined
     } = {}
   ): Property {
     // Validate required fields
@@ -364,11 +364,11 @@ export class Property extends AggregateRoot<string> {
    * Update basic property details
    */
   updateDetails(updates: {
-    name?: string
-    description?: string | null
-    propertyType?: PropertyType | null
-    phone?: string | null
-    email?: string | null
+    name?: string | undefined
+    description?: string | null | undefined
+    propertyType?: PropertyType | null | undefined
+    phone?: string | null | undefined
+    email?: string | null | undefined
   }): void {
     // Validate name
     if (updates.name !== undefined) {
@@ -408,11 +408,11 @@ export class Property extends AggregateRoot<string> {
    * Update property location
    */
   updateLocation(location: {
-    address?: string | null
-    city?: string | null
-    state?: string | null
-    zipCode?: string | null
-    country?: string | null
+    address?: string | null | undefined
+    city?: string | null | undefined
+    state?: string | null | undefined
+    zipCode?: string | null | undefined
+    country?: string | null | undefined
   }): void {
     if (location.address !== undefined) {
       this.props.address = location.address
@@ -458,8 +458,8 @@ export class Property extends AggregateRoot<string> {
    * Update branding
    */
   updateBranding(updates: {
-    subdomain?: string | null
-    bookingPageSlug?: string | null
+    subdomain?: string | null | undefined
+    bookingPageSlug?: string | null | undefined
   }): void {
     if (updates.subdomain !== undefined) {
       this.props.subdomain = updates.subdomain

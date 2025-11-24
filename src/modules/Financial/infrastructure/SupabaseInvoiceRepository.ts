@@ -128,6 +128,9 @@ export class SupabaseInvoiceRepository implements IInvoiceRepository {
 
     // Parse the last invoice number to get the sequence
     const lastInvoiceNumber = data[0].invoice_number
+    if (!lastInvoiceNumber) {
+      throw new Error('Found invoice with no invoice number, cannot determine sequence.')
+    }
     const parsed = InvoiceNumber.parse(lastInvoiceNumber)
 
     return parsed.sequence + 1

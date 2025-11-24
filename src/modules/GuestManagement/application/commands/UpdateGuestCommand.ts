@@ -12,18 +12,18 @@ import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface UpdateGuestInput {
   guestId: string
-  email?: string
-  phone?: string
-  emergencyContactName?: string
-  emergencyContactPhone?: string
+  email?: string | undefined
+  phone?: string | undefined
+  emergencyContactName?: string | undefined
+  emergencyContactPhone?: string | undefined
   address?: {
     street: string
     city: string
     state: string
     zipCode: string
     country: string
-  } | null
-  notes?: string
+  } | null | undefined
+  notes?: string | undefined
 }
 
 export class UpdateGuestCommandHandler {

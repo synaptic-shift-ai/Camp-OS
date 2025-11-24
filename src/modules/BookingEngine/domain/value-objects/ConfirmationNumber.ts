@@ -71,14 +71,14 @@ export class ConfirmationNumber extends ValueObject<ConfirmationNumberProps> {
    * Get the prefix part (first 3 letters)
    */
   get prefix(): string {
-    return this.value.split('-')[0]
+    return this.value.split('-')[0] || ''
   }
 
   /**
    * Get the number part (last 6 digits)
    */
   get number(): string {
-    return this.value.split('-')[1]
+    return this.value.split('-')[1] || ''
   }
 
   /**

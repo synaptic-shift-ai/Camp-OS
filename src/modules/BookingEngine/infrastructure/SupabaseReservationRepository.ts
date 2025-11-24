@@ -207,7 +207,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       // Update
       const { error } = await this.getClient()
         .from('reservations')
-        .update(persistence)
+        .update(persistence as Partial<ReservationRow>)
         .eq('id', reservation.id)
 
       if (error) {
@@ -217,7 +217,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       // Insert
       const { error } = await this.getClient()
         .from('reservations')
-        .insert(persistence)
+        .insert(persistence as ReservationRow)
 
       if (error) {
         throw new Error(`Failed to create reservation: ${error.message}`)
@@ -230,7 +230,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
     // Hard delete would break referential integrity with payments, logs, etc.
     const { error } = await this.getClient()
       .from('reservations')
-      .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+      .update({ status: 'cancelled', cancelled_at: new Date().toISOString() } as Partial<ReservationRow>)
       .eq('id', id)
 
     if (error) {
@@ -278,10 +278,10 @@ export class SupabaseReservationRepository implements IReservationRepository {
    * Get the Supabase client (handles both direct client and transaction builder)
    * D-1: Support both SupabaseClient and SupabaseClient['from']
    */
-  private getClient(): SupabaseClient<Database> {
+  private getClient(): any {
     // If it's already a client, return it
     if ('from' in this.supabase) {
-      return this.supabase as SupabaseClient<Database>
+      return this.supabase
     }
 
     // If it's a query builder from a transaction, we can't easily extract the client

@@ -2,6 +2,8 @@
  * SiteType Enum
  *
  * Defines the types of campsites available.
+ * IMPORTANT: Must match database schema exactly (src/contracts/db.ts)
+ * Database constraint: 'tent' | 'rv' | 'cabin' | 'glamping' | 'yurt' | 'other'
  */
 export enum SiteType {
   TENT = 'tent',

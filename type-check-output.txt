@@ -1,0 +1,312 @@
+
+> my-v0-project@0.1.0 type-check
+> tsc --noEmit
+
+app/api/v1/sites/[id]/availability/route.ts(12,10): error TS2724: '"@/lib/api/errors"' has no exported member named 'ERROR_CODES'. Did you mean 'ErrorCodes'?
+src/app/api/v1/guests/[id]/route.ts(174,48): error TS2379: Argument of type '{ guestId: string; email: string | undefined; phone: string | undefined; address: { city: string; state: string; zipCode: string; country: string; street: string; } | undefined; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; notes: string | undefined; }' is not assignable to parameter of type 'UpdateGuestInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'email' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/app/api/v1/properties/[propertyId]/guests/route.ts(113,65): error TS2345: Argument of type 'GuestDTO' is not assignable to parameter of type 'Guest'.
+  Type 'GuestDTO' is missing the following properties from type 'Guest': _propertyId, _userId, _name, _contact, and 16 more.
+src/app/api/v1/properties/[propertyId]/guests/route.ts(234,48): error TS2379: Argument of type '{ propertyId: string; firstName: string; lastName: string; email: string; phone: string; address: { city: string; state: string; zipCode: string; country: string; street: string; } | undefined; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; userId: string | undefined; notes: str...' is not assignable to parameter of type 'CreateGuestInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'address' are incompatible.
+    Type '{ city: string; state: string; zipCode: string; country: string; street: string; } | undefined' is not assignable to type '{ street: string; city: string; state: string; zipCode: string; country: string; }'.
+      Type 'undefined' is not assignable to type '{ street: string; city: string; state: string; zipCode: string; country: string; }'.
+src/app/api/v1/properties/[propertyId]/reservations/route.ts(99,54): error TS2379: Argument of type '{ propertyId: string; siteId: string; guestId: string; checkIn: Date; checkOut: Date; occupancy: { numAdults: number; numChildren: number; numPets: number; numVehicles: number; }; totalAmountCents: number; specialRequests: string | ... 1 more ... | undefined; source: string; }' is not assignable to parameter of type 'CreateReservationDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'specialRequests' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/app/api/v1/properties/[propertyId]/reservations/route.ts(225,47): error TS2379: Argument of type '{ propertyId: string; status: any; guestId: string | undefined; siteId: string | undefined; checkInFrom: Date | undefined; checkInTo: Date | undefined; limit: number; offset: number; }' is not assignable to parameter of type 'ListReservationsDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'guestId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/app/api/v1/properties/[propertyId]/route.ts(189,7): error TS2412: Type '"glamping" | "mixed" | "campground" | "rv_park" | "cabin_resort" | null | undefined' is not assignable to type 'PropertyType | null | undefined' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+src/app/api/v1/properties/[propertyId]/sites/bulk/route.ts(142,51): error TS2345: Argument of type 'SupabaseContext' is not assignable to parameter of type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>'.
+  Type 'SupabaseContext' is missing the following properties from type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>': supabaseUrl, supabaseKey, auth, realtime, and 21 more.
+src/app/api/v1/properties/[propertyId]/sites/bulk/route.ts(143,62): error TS2554: Expected 1 arguments, but got 2.
+src/app/api/v1/properties/[propertyId]/sites/bulk/route.ts(155,11): error TS2322: Type '"other" | "tent" | "rv" | "cabin" | "glamping" | "yurt"' is not assignable to type 'SiteType'.
+  Type '"other"' is not assignable to type 'SiteType'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(139,51): error TS2345: Argument of type 'SupabaseContext' is not assignable to parameter of type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>'.
+  Type 'SupabaseContext' is missing the following properties from type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>': supabaseUrl, supabaseKey, auth, realtime, and 21 more.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(144,7): error TS2353: Object literal may only specify known properties, and 'filters' does not exist in type 'ListSitesDto'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(168,24): error TS2339: Property 'pagination' does not exist on type 'ListSitesResult'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(169,28): error TS2339: Property 'pagination' does not exist on type 'ListSitesResult'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(170,25): error TS2339: Property 'pagination' does not exist on type 'ListSitesResult'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(171,31): error TS2339: Property 'pagination' does not exist on type 'ListSitesResult'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(258,51): error TS2345: Argument of type 'SupabaseContext' is not assignable to parameter of type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>'.
+  Type 'SupabaseContext' is missing the following properties from type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>': supabaseUrl, supabaseKey, auth, realtime, and 21 more.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(259,62): error TS2554: Expected 1 arguments, but got 2.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(265,7): error TS2322: Type '"other" | "tent" | "rv" | "cabin" | "glamping" | "yurt"' is not assignable to type 'SiteType'.
+  Type '"other"' is not assignable to type 'SiteType'.
+src/app/api/v1/properties/route.ts(42,30): error TS7016: Could not find a declaration file for module 'uuid'. '/Users/willstaten/Projects/Camp-OS-refactor/node_modules/uuid/dist/esm-browser/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/uuid` if it exists or add a new declaration (.d.ts) file containing `declare module 'uuid';`
+src/app/api/v1/properties/route.ts(117,7): error TS2412: Type '"active" | "draft" | "inactive" | "closed" | undefined' is not assignable to type 'PropertyStatus | undefined' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+src/app/api/v1/properties/route.ts(222,7): error TS2412: Type '"glamping" | "mixed" | "campground" | "rv_park" | "cabin_resort" | undefined' is not assignable to type 'PropertyType | null | undefined' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+src/app/api/v1/reservations/[id]/cancel/route.ts(106,54): error TS2379: Argument of type '{ reservationId: string; reason: string | null | undefined; refundAmountCents: number; }' is not assignable to parameter of type 'CancelReservationDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'reason' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/app/api/v1/reservations/[id]/check-in/route.ts(106,54): error TS2379: Argument of type '{ reservationId: string; staffUserId: string; balancePaidCents: number; notes: string | null | undefined; }' is not assignable to parameter of type 'CheckInGuestDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'notes' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/app/api/v1/reservations/[id]/check-out/route.ts(106,54): error TS2379: Argument of type '{ reservationId: string; staffUserId: string; hasDamages: boolean; notes: string | null | undefined; }' is not assignable to parameter of type 'CheckOutGuestDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'notes' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/app/api/v1/reservations/[id]/payment/route.ts(106,54): error TS2379: Argument of type '{ reservationId: string; amountCents: number; paymentMethod: "stripe" | "credit_card" | "debit_card" | "cash" | "check" | "bank_transfer" | "other"; stripePaymentIntentId: string | null | undefined; }' is not assignable to parameter of type 'RecordPaymentDto' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'stripePaymentIntentId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/app/api/v1/sites/[id]/route.ts(58,51): error TS2345: Argument of type 'SupabaseContext' is not assignable to parameter of type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>'.
+  Type 'SupabaseContext' is missing the following properties from type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>': supabaseUrl, supabaseKey, auth, realtime, and 21 more.
+src/app/api/v1/sites/[id]/route.ts(61,45): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GetSiteDto'.
+src/app/api/v1/sites/[id]/route.ts(155,51): error TS2345: Argument of type 'SupabaseContext' is not assignable to parameter of type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>'.
+  Type 'SupabaseContext' is missing the following properties from type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>': supabaseUrl, supabaseKey, auth, realtime, and 21 more.
+src/app/api/v1/sites/[id]/route.ts(157,53): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GetSiteDto'.
+src/app/api/v1/sites/[id]/route.ts(196,62): error TS2554: Expected 1 arguments, but got 2.
+src/app/api/v1/sites/[id]/route.ts(200,7): error TS2353: Object literal may only specify known properties, and 'updates' does not exist in type 'UpdateSiteDto'.
+src/app/api/v1/sites/[id]/route.ts(265,51): error TS2345: Argument of type 'SupabaseContext' is not assignable to parameter of type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>'.
+  Type 'SupabaseContext' is missing the following properties from type 'SupabaseClient<Database, "public", "public", never, { PostgrestVersion: "12"; }>': supabaseUrl, supabaseKey, auth, realtime, and 21 more.
+src/app/api/v1/sites/[id]/route.ts(267,53): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GetSiteDto'.
+src/components/dashboard/sites/site-details-dialog.tsx(124,64): error TS2339: Property 'weekend_price' does not exist on type '{ id: string; property_id: string; site_number: string; site_name: string | null; site_type: "other" | "tent" | "rv" | "cabin" | "glamping" | "yurt"; description: string | null; max_occupancy: number; ... 18 more ...; updated_at: string; }'.
+src/components/dashboard/sites/sites-grid.tsx(240,64): error TS2345: Argument of type 'number | null' is not assignable to parameter of type 'number'.
+  Type 'null' is not assignable to type 'number'.
+src/lib/api/errors.ts(427,7): error TS2698: Spread types may only be created from object types.
+src/modules/BookingEngine/application/commands/CancelReservationCommand.ts(40,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/BookingEngine/application/commands/CheckInGuestCommand.ts(43,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/BookingEngine/application/commands/CheckOutGuestCommand.ts(37,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/BookingEngine/application/commands/ConfirmReservationCommand.ts(34,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/BookingEngine/application/commands/CreateReservationCommand.ts(76,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/BookingEngine/application/commands/RecordPaymentCommand.ts(41,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/BookingEngine/application/queries/ListReservationsQuery.ts(29,78): error TS2379: Argument of type '{ status: ReservationStatus | undefined; guestId: string | undefined; siteId: string | undefined; checkInFrom: Date | undefined; checkInTo: Date | undefined; limit: number; offset: number; }' is not assignable to parameter of type '{ status?: ReservationStatus; guestId?: string; siteId?: string; checkInFrom?: Date; checkInTo?: Date; limit?: number; offset?: number; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'status' are incompatible.
+    Type 'ReservationStatus | undefined' is not assignable to type 'ReservationStatus'.
+      Type 'undefined' is not assignable to type 'ReservationStatus'.
+src/modules/BookingEngine/domain/events/GuestCheckedIn.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/BookingEngine/domain/events/GuestCheckedOut.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/BookingEngine/domain/events/PaymentReceived.ts(18,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/BookingEngine/domain/events/ReservationCancelled.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/BookingEngine/domain/events/ReservationConfirmed.ts(15,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/BookingEngine/domain/events/ReservationCreated.ts(21,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/BookingEngine/domain/Reservation.test.ts(79,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(122,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(176,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(190,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(222,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(291,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(353,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/value-objects/ConfirmationNumber.ts(74,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/BookingEngine/domain/value-objects/ConfirmationNumber.ts(81,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/BookingEngine/domain/value-objects/ConfirmationNumber.ts(87,3): error TS4114: This member must have an 'override' modifier because it overrides a member in the base class 'ValueObject<ConfirmationNumberProps>'.
+src/modules/BookingEngine/domain/value-objects/DateRange.ts(137,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/BookingEngine/domain/value-objects/DateRange.ts(138,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(204,17): error TS2345: Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(214,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "reservations", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "reservations", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(227,15): error TS2345: Argument of type '{ status: string; cancelled_at: string; }' is not assignable to parameter of type 'never'.
+src/modules/Financial/application/commands/CreatePaymentPlanCommand.ts(45,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/Financial/application/commands/GenerateInvoiceCommand.ts(91,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/Financial/application/commands/HoldSecurityDepositCommand.ts(43,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/Financial/application/commands/ProcessRefundCommand.ts(52,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/Financial/application/commands/RecordPaymentCommand.ts(68,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/Financial/application/commands/ReleaseSecurityDepositCommand.ts(36,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/Financial/domain/aggregates/SecurityDeposit.test.ts(95,14): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/domain/aggregates/SecurityDeposit.test.ts(96,14): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/domain/aggregates/SecurityDeposit.test.ts(97,14): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/domain/events/InvoiceCancelled.ts(16,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/InvoiceGenerated.ts(18,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/InvoiceIssued.ts(16,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/InvoiceOverdue.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/InvoicePaid.ts(15,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/InvoicePaymentReceived.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/PaymentPlanCompleted.ts(15,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/PaymentPlanCreated.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/RefundProcessed.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/SecurityDepositDeducted.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/SecurityDepositHeld.ts(17,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/SecurityDepositReleased.ts(16,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/TransactionCompleted.ts(16,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/TransactionFailed.ts(15,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/events/TransactionRecorded.ts(21,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/Financial/domain/value-objects/InvoiceLineItem.ts(71,3): error TS2416: Property 'toJSON' in type 'InvoiceLineItem' is not assignable to the same property in base type 'ValueObject<InvoiceLineItemProps>'.
+  Type '() => Record<string, any>' is not assignable to type '() => InvoiceLineItemProps'.
+    Type 'Record<string, any>' is missing the following properties from type 'InvoiceLineItemProps': description, quantity, unitPrice
+src/modules/Financial/domain/value-objects/InvoiceLineItem.ts(71,3): error TS4114: This member must have an 'override' modifier because it overrides a member in the base class 'ValueObject<InvoiceLineItemProps>'.
+src/modules/Financial/domain/value-objects/InvoiceNumber.ts(67,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/Financial/domain/value-objects/InvoiceNumber.ts(69,32): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/Financial/domain/value-objects/InvoiceNumber.ts(69,46): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/Financial/infrastructure/SupabaseInvoiceRepository.ts(123,31): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/CreateGuestCommandHandler.test.ts(31,5): error TS2739: Type '{ publish: Mock<Procedure>; publishAll: Mock<Procedure>; subscribe: Mock<Procedure>; }' is missing the following properties from type 'IEventBus': unsubscribe, clearSubscribers, getSubscriberCount
+src/modules/GuestManagement/application/__tests__/LinkStripeCustomerCommandHandler.test.ts(34,5): error TS2739: Type '{ publish: Mock<Procedure>; publishAll: Mock<Procedure>; subscribe: Mock<Procedure>; }' is missing the following properties from type 'IEventBus': unsubscribe, clearSubscribers, getSubscriberCount
+src/modules/GuestManagement/application/__tests__/LinkStripeCustomerCommandHandler.test.ts(136,26): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(202,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(203,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(204,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(205,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(266,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(267,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(268,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(269,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(270,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(271,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/UpdateGuestCommandHandler.test.ts(35,5): error TS2739: Type '{ publish: Mock<Procedure>; publishAll: Mock<Procedure>; subscribe: Mock<Procedure>; }' is missing the following properties from type 'IEventBus': unsubscribe, clearSubscribers, getSubscriberCount
+src/modules/GuestManagement/application/__tests__/UpdateGuestCommandHandler.test.ts(286,26): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/commands/CreateGuestCommand.ts(47,40): error TS2379: Argument of type '{ email: string; phone: string; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; }' is not assignable to parameter of type 'ContactInfoProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'emergencyContactName' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/GuestManagement/application/commands/CreateGuestCommand.ts(95,42): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/commands/CreateGuestCommand.ts(96,11): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/commands/LinkStripeCustomerCommand.ts(36,42): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/commands/LinkStripeCustomerCommand.ts(37,11): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/commands/UpdateGuestCommand.ts(44,42): error TS2379: Argument of type '{ email: string; phone: string; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; }' is not assignable to parameter of type 'ContactInfoProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'emergencyContactName' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/GuestManagement/application/commands/UpdateGuestCommand.ts(82,42): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/commands/UpdateGuestCommand.ts(83,11): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/application/DTOs/GuestDTO.ts(49,17): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(43,20): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(111,28): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(139,13): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(166,13): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(175,28): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(255,13): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(267,28): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(310,13): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(315,28): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(381,13): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(384,28): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(427,13): error TS2339: Property 'clearDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/__tests__/Guest.test.ts(430,28): error TS2339: Property 'getDomainEvents' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/ContactInfo.ts(106,28): error TS2379: Argument of type '{ email: string; phone: string; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; }' is not assignable to parameter of type 'ContactInfoProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'emergencyContactName' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/GuestManagement/domain/events/GuestCreated.ts(24,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/GuestManagement/domain/events/GuestUpdated.ts(22,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/GuestManagement/domain/events/StripeCustomerLinked.ts(22,11): error TS2554: Expected 0 arguments, but got 1.
+src/modules/GuestManagement/domain/Guest.ts(39,28): error TS2314: Generic type 'AggregateRoot<TId>' requires 1 type argument(s).
+src/modules/GuestManagement/domain/Guest.ts(148,11): error TS2339: Property 'addDomainEvent' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(170,10): error TS2339: Property 'addDomainEvent' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(172,23): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(189,10): error TS2339: Property 'addDomainEvent' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(191,23): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(213,10): error TS2339: Property 'addDomainEvent' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(215,23): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(230,10): error TS2339: Property 'addDomainEvent' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(232,23): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(249,10): error TS2339: Property 'addDomainEvent' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(251,23): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/domain/Guest.ts(355,16): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(116,22): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(274,14): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(274,24): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(275,14): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(275,24): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(587,22): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(121,48): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(127,17): error TS2345: Argument of type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(128,25): error TS2339: Property 'id' does not exist on type 'Guest'.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(135,67): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "guests", never, "POST">', gave the following error.
+    Argument of type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "guests", never, "POST">', gave the following error.
+    Argument of type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is not assignable to parameter of type 'never[]'.
+      Type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(157,40): error TS2379: Argument of type '{ email: string; phone: string; emergencyContactName: string | undefined; emergencyContactPhone: string | undefined; }' is not assignable to parameter of type 'ContactInfoProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'emergencyContactName' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/PropertyManagement/application/commands/CreatePropertyCommand.ts(52,7): error TS2379: Argument of type '{ description: string | null | undefined; propertyType: PropertyType | null | undefined; address: string | null | undefined; city: string | null | undefined; state: string | ... 1 more ... | undefined; ... 7 more ...; amenities: string[] | ... 1 more ... | undefined; }' is not assignable to parameter of type '{ description?: string | null; propertyType?: PropertyType | null; address?: string | null; city?: string | null; state?: string | null; zipCode?: string | null; country?: string | null; ... 5 more ...; amenities?: string[] | null; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'description' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/modules/PropertyManagement/application/commands/CreatePropertyCommand.ts(74,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/PropertyManagement/application/commands/UpdatePropertyCommand.ts(49,30): error TS2379: Argument of type '{ name: string | undefined; description: string | null | undefined; propertyType: PropertyType | null | undefined; phone: string | null | undefined; email: string | null | undefined; }' is not assignable to parameter of type '{ name?: string; description?: string | null; propertyType?: PropertyType | null; phone?: string | null; email?: string | null; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'name' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/PropertyManagement/application/commands/UpdatePropertyCommand.ts(66,31): error TS2379: Argument of type '{ address: string | null | undefined; city: string | null | undefined; state: string | null | undefined; zipCode: string | null | undefined; country: string | null | undefined; }' is not assignable to parameter of type '{ address?: string | null; city?: string | null; state?: string | null; zipCode?: string | null; country?: string | null; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'address' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/modules/PropertyManagement/application/commands/UpdatePropertyCommand.ts(77,31): error TS2379: Argument of type '{ subdomain: string | null | undefined; bookingPageSlug: string | null | undefined; }' is not assignable to parameter of type '{ subdomain?: string | null; bookingPageSlug?: string | null; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'subdomain' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/modules/PropertyManagement/application/commands/UpdatePropertyCommand.ts(90,32): error TS2345: Argument of type 'string[] | null' is not assignable to parameter of type 'string[]'.
+  Type 'null' is not assignable to type 'string[]'.
+src/modules/PropertyManagement/application/commands/UpdatePropertyCommand.ts(98,31): error TS2345: Argument of type 'readonly DomainEvent[]' is not assignable to parameter of type 'DomainEvent[]'.
+  The type 'readonly DomainEvent[]' is 'readonly' and cannot be assigned to the mutable type 'DomainEvent[]'.
+src/modules/PropertyManagement/application/queries/ListPropertiesQuery.ts(31,7): error TS2379: Argument of type '{ status: PropertyStatus | undefined; onboardingComplete: boolean | undefined; limit: number | undefined; offset: number | undefined; }' is not assignable to parameter of type '{ status?: PropertyStatus; onboardingComplete?: boolean; limit?: number; offset?: number; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'status' are incompatible.
+    Type 'PropertyStatus | undefined' is not assignable to type 'PropertyStatus'.
+      Type 'undefined' is not assignable to type 'PropertyStatus'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(52,5): error TS2353: Object literal may only specify known properties, and 'owner_id' does not exist in type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(89,5): error TS2353: Object literal may only specify known properties, and 'owner_id' does not exist in type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(172,7): error TS2353: Object literal may only specify known properties, and 'currency' does not exist in type 'Partial<PropertySettingsProps>'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(191,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(197,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(206,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(215,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(224,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(277,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(284,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(295,9): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(356,9): error TS2353: Object literal may only specify known properties, and 'currency' does not exist in type 'Partial<PropertySettingsProps>'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(145,17): error TS2345: Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(155,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "properties", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "properties", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(168,15): error TS2345: Argument of type '{ status: PropertyStatus; }' is not assignable to parameter of type 'never'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(237,11): error TS2339: Property 'settings' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(241,41): error TS2339: Property 'amenities' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(241,58): error TS2339: Property 'amenities' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(246,11): error TS2339: Property 'owner_id' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(252,7): error TS2345: Argument of type 'Json' is not assignable to parameter of type 'string | null'.
+  Type 'number' is not assignable to type 'string'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(253,11): error TS2339: Property 'city' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(254,11): error TS2339: Property 'state' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(255,11): error TS2339: Property 'zip_code' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(256,11): error TS2339: Property 'country' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(259,11): error TS2339: Property 'subdomain' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(260,11): error TS2339: Property 'booking_page_slug' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(264,11): error TS2551: Property 'onboarding_completed_at' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'. Did you mean 'onboarding_completed'?
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(264,50): error TS2551: Property 'onboarding_completed_at' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'. Did you mean 'onboarding_completed'?
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(97,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(213,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(290,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(556,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(608,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/DateRange.ts(253,10): error TS4114: This member must have an 'override' modifier because it overrides a member in the base class 'ValueObject<DateRangeProps>'.
+src/modules/ReservationManagement/domain/GuestCount.ts(249,10): error TS4114: This member must have an 'override' modifier because it overrides a member in the base class 'ValueObject<GuestCountProps>'.

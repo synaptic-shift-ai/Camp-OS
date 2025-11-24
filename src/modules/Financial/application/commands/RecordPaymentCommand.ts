@@ -17,11 +17,11 @@ export interface RecordPaymentDto {
   transactionId: string
   propertyId: string
   reservationId: string
-  invoiceId?: string | null
+  invoiceId?: string | null | undefined
   amountCents: number
   paymentMethod: PaymentMethod
-  stripePaymentIntentId?: string | null
-  notes?: string | null
+  stripePaymentIntentId?: string | null | undefined
+  notes?: string | null | undefined
   createdBy: string
 }
 

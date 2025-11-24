@@ -64,6 +64,9 @@ export class InvoiceNumber extends ValueObject<InvoiceNumberProps> {
     }
 
     const [, propertyCode, year, sequenceStr] = match
+    if (!propertyCode || !year) {
+        throw new Error('Invalid invoice number format. Could not parse components.')
+    }
     const sequence = parseInt(sequenceStr, 10)
 
     return new InvoiceNumber({ propertyCode, year, sequence })

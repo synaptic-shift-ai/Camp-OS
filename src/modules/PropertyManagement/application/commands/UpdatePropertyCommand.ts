@@ -87,7 +87,7 @@ export class UpdatePropertyCommandHandler {
 
     // Update amenities
     if (dto.amenities !== undefined) {
-      property.updateAmenities(dto.amenities)
+      property.updateAmenities(dto.amenities ?? [])
     }
 
     // Save to database

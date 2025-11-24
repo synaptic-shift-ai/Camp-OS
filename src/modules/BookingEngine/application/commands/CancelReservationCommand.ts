@@ -11,7 +11,7 @@ import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type CancelReservationDto = {
   reservationId: string
-  reason?: string | null
+  reason?: string | null | undefined
   refundAmountCents: number
 }
 

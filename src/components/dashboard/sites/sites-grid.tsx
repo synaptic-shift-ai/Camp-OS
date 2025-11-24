@@ -237,7 +237,7 @@ export function SitesGrid({ sites }: SitesGridProps) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Base Price</span>
-                    <span className="font-medium">{formatMoney(site.base_price)}/night</span>
+                    <span className="font-medium">{formatMoney(site.base_price ?? 0)}/night</span>
                   </div>
                   {site.hookups && Array.isArray(site.hookups) && site.hookups.length > 0 && (
                     <div className="flex justify-between">

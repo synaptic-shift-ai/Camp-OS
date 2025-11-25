@@ -6,8 +6,8 @@
  * Creates tables for Financial module following DDD patterns.
  *
  * Tables:
+ * - financial_invoices: Billing documents (created first - referenced by others)
  * - financial_transactions: All money movements
- * - financial_invoices: Billing documents
  * - financial_payment_plans: Installment schedules
  * - financial_security_deposits: Security deposit tracking
  *
@@ -15,60 +15,7 @@
  */
 
 -- ============================================================================
--- Create financial_transactions table
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS financial_transactions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-  reservation_id UUID REFERENCES reservations(id) ON DELETE SET NULL,
-  invoice_id UUID REFERENCES financial_invoices(id) ON DELETE SET NULL,
-
-  -- Transaction details
-  type VARCHAR(50) NOT NULL,
-  amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
-  currency VARCHAR(3) DEFAULT 'USD' NOT NULL,
-
-  -- Payment method
-  payment_method VARCHAR(50) NOT NULL,
-  stripe_payment_intent_id VARCHAR(255),
-  stripe_refund_id VARCHAR(255),
-
-  -- Status
-  status VARCHAR(20) NOT NULL DEFAULT 'pending',
-  processed_at TIMESTAMP WITH TIME ZONE,
-  failure_reason TEXT,
-  notes TEXT,
-
-  -- Reconciliation
-  reconciled_at TIMESTAMP WITH TIME ZONE,
-  reconciled_by UUID REFERENCES auth.users(id),
-
-  -- Audit
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  created_by UUID NOT NULL REFERENCES auth.users(id),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-
-  -- Constraints
-  CONSTRAINT valid_transaction_type CHECK (
-    type IN ('payment', 'refund', 'deposit', 'deposit_release', 'deposit_deduction', 'expense', 'platform_fee', 'payout')
-  ),
-  CONSTRAINT valid_transaction_status CHECK (
-    status IN ('pending', 'completed', 'failed', 'cancelled')
-  )
-);
-
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_property ON financial_transactions(property_id);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_reservation ON financial_transactions(reservation_id);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_invoice ON financial_transactions(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_type ON financial_transactions(type);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_status ON financial_transactions(status);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_created_at ON financial_transactions(created_at);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_processed_at ON financial_transactions(processed_at);
-
--- ============================================================================
--- Create financial_invoices table
+-- Create financial_invoices table FIRST (referenced by financial_transactions)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS financial_invoices (
@@ -129,6 +76,59 @@ CREATE INDEX IF NOT EXISTS idx_financial_invoices_number ON financial_invoices(i
 CREATE INDEX IF NOT EXISTS idx_financial_invoices_status ON financial_invoices(status);
 CREATE INDEX IF NOT EXISTS idx_financial_invoices_due_date ON financial_invoices(due_date);
 CREATE INDEX IF NOT EXISTS idx_financial_invoices_created_at ON financial_invoices(created_at);
+
+-- ============================================================================
+-- Create financial_transactions table (now financial_invoices exists)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS financial_transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  reservation_id UUID REFERENCES reservations(id) ON DELETE SET NULL,
+  invoice_id UUID REFERENCES financial_invoices(id) ON DELETE SET NULL,
+
+  -- Transaction details
+  type VARCHAR(50) NOT NULL,
+  amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
+  currency VARCHAR(3) DEFAULT 'USD' NOT NULL,
+
+  -- Payment method
+  payment_method VARCHAR(50) NOT NULL,
+  stripe_payment_intent_id VARCHAR(255),
+  stripe_refund_id VARCHAR(255),
+
+  -- Status
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  processed_at TIMESTAMP WITH TIME ZONE,
+  failure_reason TEXT,
+  notes TEXT,
+
+  -- Reconciliation
+  reconciled_at TIMESTAMP WITH TIME ZONE,
+  reconciled_by UUID REFERENCES auth.users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  created_by UUID NOT NULL REFERENCES auth.users(id),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+
+  -- Constraints
+  CONSTRAINT valid_transaction_type CHECK (
+    type IN ('payment', 'refund', 'deposit', 'deposit_release', 'deposit_deduction', 'expense', 'platform_fee', 'payout')
+  ),
+  CONSTRAINT valid_transaction_status CHECK (
+    status IN ('pending', 'completed', 'failed', 'cancelled')
+  )
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_property ON financial_transactions(property_id);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_reservation ON financial_transactions(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_invoice ON financial_transactions(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_type ON financial_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_status ON financial_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_created_at ON financial_transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_processed_at ON financial_transactions(processed_at);
 
 -- ============================================================================
 -- Create financial_payment_plans table
@@ -356,27 +356,6 @@ CREATE POLICY "Users can update deposits for their properties"
       )
     )
   );
-
--- ============================================================================
--- Add foreign key constraint for invoices (circular dependency)
--- ============================================================================
-
--- Add the foreign key constraint for financial_transactions.invoice_id
--- (had to wait until financial_invoices table was created)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'financial_transactions_invoice_id_fkey'
-    AND table_name = 'financial_transactions'
-  ) THEN
-    ALTER TABLE financial_transactions
-      ADD CONSTRAINT financial_transactions_invoice_id_fkey
-      FOREIGN KEY (invoice_id)
-      REFERENCES financial_invoices(id)
-      ON DELETE SET NULL;
-  END IF;
-END $$;
 
 -- ============================================================================
 -- Comments for documentation

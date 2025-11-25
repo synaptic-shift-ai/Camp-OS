@@ -1,3 +1,4 @@
+-- NOTE: Made idempotent for branch creation support
 -- Migration: Finalize Money Migration - Drop old DECIMAL columns and rename BIGINT columns
 -- Phase 2c: Money Migration Final Step
 --
@@ -31,19 +32,40 @@ ALTER TABLE reservations DROP COLUMN IF EXISTS paid_amount CASCADE;
 ALTER TABLE payments DROP COLUMN IF EXISTS amount CASCADE;
 
 -- ============================================================================
--- Step 2: Rename *_cents columns to original names
+-- Step 2: Rename *_cents columns to original names (idempotent)
 -- ============================================================================
 
--- Sites table
-ALTER TABLE sites RENAME COLUMN base_price_cents TO base_price;
-ALTER TABLE sites RENAME COLUMN weekend_price_cents TO weekend_price;
+-- Sites table - only rename if the old column still exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sites' AND column_name = 'base_price_cents') THEN
+    ALTER TABLE sites RENAME COLUMN base_price_cents TO base_price;
+  END IF;
 
--- Reservations table
-ALTER TABLE reservations RENAME COLUMN total_amount_cents TO total_amount;
-ALTER TABLE reservations RENAME COLUMN paid_amount_cents TO paid_amount;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sites' AND column_name = 'weekend_price_cents') THEN
+    ALTER TABLE sites RENAME COLUMN weekend_price_cents TO weekend_price;
+  END IF;
+END $$;
 
--- Payments table
-ALTER TABLE payments RENAME COLUMN amount_cents TO amount;
+-- Reservations table - only rename if the old column still exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'total_amount_cents') THEN
+    ALTER TABLE reservations RENAME COLUMN total_amount_cents TO total_amount;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'paid_amount_cents') THEN
+    ALTER TABLE reservations RENAME COLUMN paid_amount_cents TO paid_amount;
+  END IF;
+END $$;
+
+-- Payments table - only rename if the old column still exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'amount_cents') THEN
+    ALTER TABLE payments RENAME COLUMN amount_cents TO amount;
+  END IF;
+END $$;
 
 COMMIT;
 

@@ -1,4 +1,5 @@
 -- Migration: Add 'reserved' and 'booked' to site status CHECK constraint
+-- NOTE: Made idempotent for branch creation support
 -- Description: Updates the sites.status CHECK constraint to include the full
 --              booking lifecycle: available → reserved → booked → occupied → housekeeping
 -- Author: System
@@ -14,20 +15,25 @@ ALTER TABLE sites
 DROP CONSTRAINT IF EXISTS sites_status_valid;
 
 -- ============================================================================
--- Step 2: Add updated CHECK constraint with all 7 status values
+-- Step 2: Add updated CHECK constraint with all 7 status values (idempotent)
 -- ============================================================================
 
-ALTER TABLE sites
-ADD CONSTRAINT sites_status_valid
-CHECK (status IN (
-  'available',    -- Ready for booking
-  'reserved',     -- Reservation placed, pending confirmation
-  'booked',       -- Confirmed reservation, awaiting check-in
-  'occupied',     -- Guest currently staying
-  'housekeeping', -- Cleaning after checkout
-  'maintenance',  -- Under repair/maintenance
-  'unavailable'   -- Blocked or not usable
-));
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sites_status_valid') THEN
+    ALTER TABLE sites
+    ADD CONSTRAINT sites_status_valid
+    CHECK (status IN (
+      'available',    -- Ready for booking
+      'reserved',     -- Reservation placed, pending confirmation
+      'booked',       -- Confirmed reservation, awaiting check-in
+      'occupied',     -- Guest currently staying
+      'housekeeping', -- Cleaning after checkout
+      'maintenance',  -- Under repair/maintenance
+      'unavailable'   -- Blocked or not usable
+    ));
+  END IF;
+END $$;
 
 -- ============================================================================
 -- Step 3: Update documentation

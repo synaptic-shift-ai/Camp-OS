@@ -1,4 +1,5 @@
 -- Booking Lifecycle & Extension System
+-- NOTE: Made idempotent for branch creation support
 -- Adds support for extensions, renewals, modifications across all booking types
 -- Part 1: Core tables and reservation enhancements
 
@@ -33,10 +34,10 @@ CREATE TABLE IF NOT EXISTS reservation_actions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes for performance
-CREATE INDEX idx_reservation_actions_reservation ON reservation_actions(reservation_id);
-CREATE INDEX idx_reservation_actions_type ON reservation_actions(action_type);
-CREATE INDEX idx_reservation_actions_performed_at ON reservation_actions(performed_at DESC);
+-- Indexes for performance (idempotent)
+CREATE INDEX IF NOT EXISTS idx_reservation_actions_reservation ON reservation_actions(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_reservation_actions_type ON reservation_actions(action_type);
+CREATE INDEX IF NOT EXISTS idx_reservation_actions_performed_at ON reservation_actions(performed_at DESC);
 
 -- Comments for documentation
 COMMENT ON TABLE reservation_actions IS 'Audit trail for all reservation modifications (extensions, renewals, date changes)';
@@ -75,10 +76,10 @@ CREATE TABLE IF NOT EXISTS payment_installments (
   CONSTRAINT unique_reservation_installment UNIQUE(reservation_id, installment_number)
 );
 
--- Indexes
-CREATE INDEX idx_payment_installments_reservation ON payment_installments(reservation_id);
-CREATE INDEX idx_payment_installments_due_date ON payment_installments(due_date, status);
-CREATE INDEX idx_payment_installments_status ON payment_installments(status);
+-- Indexes (idempotent)
+CREATE INDEX IF NOT EXISTS idx_payment_installments_reservation ON payment_installments(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_payment_installments_due_date ON payment_installments(due_date, status);
+CREATE INDEX IF NOT EXISTS idx_payment_installments_status ON payment_installments(status);
 
 -- Comments
 COMMENT ON TABLE payment_installments IS 'Multi-step payment schedules for long-term bookings and renewals';
@@ -156,7 +157,7 @@ ADD COLUMN IF NOT EXISTS renewal_settings JSONB DEFAULT '{
 COMMENT ON COLUMN properties.renewal_settings IS 'Property-level renewal configuration for seasonal/monthly bookings';
 
 -- ============================================================================
--- 5. Trigger to Set Original Dates on Insert
+-- 5. Trigger to Set Original Dates on Insert (idempotent)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION set_original_dates()
@@ -172,13 +173,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Drop and recreate trigger (idempotent)
+DROP TRIGGER IF EXISTS trigger_set_original_dates ON reservations;
 CREATE TRIGGER trigger_set_original_dates
   BEFORE INSERT ON reservations
   FOR EACH ROW
   EXECUTE FUNCTION set_original_dates();
 
 -- ============================================================================
--- 6. RLS Policies for New Tables
+-- 6. RLS Policies for New Tables (idempotent)
 -- ============================================================================
 
 -- Enable RLS
@@ -186,6 +189,7 @@ ALTER TABLE reservation_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_installments ENABLE ROW LEVEL SECURITY;
 
 -- Reservation Actions: Users can view/modify actions for their property's reservations
+DROP POLICY IF EXISTS "Users can view reservation actions for their properties" ON reservation_actions;
 CREATE POLICY "Users can view reservation actions for their properties"
   ON reservation_actions FOR SELECT
   USING (
@@ -198,6 +202,7 @@ CREATE POLICY "Users can view reservation actions for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can create reservation actions for their properties" ON reservation_actions;
 CREATE POLICY "Users can create reservation actions for their properties"
   ON reservation_actions FOR INSERT
   WITH CHECK (
@@ -211,6 +216,7 @@ CREATE POLICY "Users can create reservation actions for their properties"
   );
 
 -- Payment Installments: Same pattern as reservation actions
+DROP POLICY IF EXISTS "Users can view payment installments for their properties" ON payment_installments;
 CREATE POLICY "Users can view payment installments for their properties"
   ON payment_installments FOR SELECT
   USING (
@@ -223,6 +229,7 @@ CREATE POLICY "Users can view payment installments for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can manage payment installments for their properties" ON payment_installments;
 CREATE POLICY "Users can manage payment installments for their properties"
   ON payment_installments FOR ALL
   USING (

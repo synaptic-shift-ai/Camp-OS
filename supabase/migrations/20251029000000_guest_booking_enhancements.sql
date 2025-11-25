@@ -1,4 +1,5 @@
 -- Guest Booking Enhancements
+-- NOTE: Made idempotent for branch creation support (uses DROP POLICY IF EXISTS, CREATE INDEX IF NOT EXISTS)
 -- Adds indexes and RLS policies for public guest booking functionality
 --
 -- This migration enables:

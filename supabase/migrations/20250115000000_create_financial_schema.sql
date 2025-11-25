@@ -1,3 +1,4 @@
+-- NOTE: Made idempotent for branch creation support
 /**
  * Financial Module Database Migration
  *
@@ -58,13 +59,13 @@ CREATE TABLE IF NOT EXISTS financial_transactions (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_financial_transactions_property ON financial_transactions(property_id);
-CREATE INDEX idx_financial_transactions_reservation ON financial_transactions(reservation_id);
-CREATE INDEX idx_financial_transactions_invoice ON financial_transactions(invoice_id);
-CREATE INDEX idx_financial_transactions_type ON financial_transactions(type);
-CREATE INDEX idx_financial_transactions_status ON financial_transactions(status);
-CREATE INDEX idx_financial_transactions_created_at ON financial_transactions(created_at);
-CREATE INDEX idx_financial_transactions_processed_at ON financial_transactions(processed_at);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_property ON financial_transactions(property_id);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_reservation ON financial_transactions(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_invoice ON financial_transactions(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_type ON financial_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_status ON financial_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_created_at ON financial_transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_processed_at ON financial_transactions(processed_at);
 
 -- ============================================================================
 -- Create financial_invoices table
@@ -122,12 +123,12 @@ CREATE TABLE IF NOT EXISTS financial_invoices (
 );
 
 -- Indexes
-CREATE INDEX idx_financial_invoices_property ON financial_invoices(property_id);
-CREATE INDEX idx_financial_invoices_reservation ON financial_invoices(reservation_id);
-CREATE INDEX idx_financial_invoices_number ON financial_invoices(invoice_number);
-CREATE INDEX idx_financial_invoices_status ON financial_invoices(status);
-CREATE INDEX idx_financial_invoices_due_date ON financial_invoices(due_date);
-CREATE INDEX idx_financial_invoices_created_at ON financial_invoices(created_at);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_property ON financial_invoices(property_id);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_reservation ON financial_invoices(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_number ON financial_invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_status ON financial_invoices(status);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_due_date ON financial_invoices(due_date);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_created_at ON financial_invoices(created_at);
 
 -- ============================================================================
 -- Create financial_payment_plans table
@@ -162,9 +163,9 @@ CREATE TABLE IF NOT EXISTS financial_payment_plans (
 );
 
 -- Indexes
-CREATE INDEX idx_financial_payment_plans_property ON financial_payment_plans(property_id);
-CREATE INDEX idx_financial_payment_plans_reservation ON financial_payment_plans(reservation_id);
-CREATE INDEX idx_financial_payment_plans_status ON financial_payment_plans(status);
+CREATE INDEX IF NOT EXISTS idx_financial_payment_plans_property ON financial_payment_plans(property_id);
+CREATE INDEX IF NOT EXISTS idx_financial_payment_plans_reservation ON financial_payment_plans(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_financial_payment_plans_status ON financial_payment_plans(status);
 
 -- ============================================================================
 -- Create financial_security_deposits table
@@ -206,9 +207,9 @@ CREATE TABLE IF NOT EXISTS financial_security_deposits (
 );
 
 -- Indexes
-CREATE INDEX idx_financial_security_deposits_property ON financial_security_deposits(property_id);
-CREATE INDEX idx_financial_security_deposits_reservation ON financial_security_deposits(reservation_id);
-CREATE INDEX idx_financial_security_deposits_status ON financial_security_deposits(status);
+CREATE INDEX IF NOT EXISTS idx_financial_security_deposits_property ON financial_security_deposits(property_id);
+CREATE INDEX IF NOT EXISTS idx_financial_security_deposits_reservation ON financial_security_deposits(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_financial_security_deposits_status ON financial_security_deposits(status);
 
 -- ============================================================================
 -- Row-Level Security (RLS) Policies
@@ -221,6 +222,7 @@ ALTER TABLE financial_payment_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financial_security_deposits ENABLE ROW LEVEL SECURITY;
 
 -- financial_transactions policies
+DROP POLICY IF EXISTS "Users can view transactions for their properties" ON financial_transactions;
 CREATE POLICY "Users can view transactions for their properties"
   ON financial_transactions FOR SELECT
   USING (
@@ -231,6 +233,7 @@ CREATE POLICY "Users can view transactions for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert transactions for their properties" ON financial_transactions;
 CREATE POLICY "Users can insert transactions for their properties"
   ON financial_transactions FOR INSERT
   WITH CHECK (
@@ -241,6 +244,7 @@ CREATE POLICY "Users can insert transactions for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update transactions for their properties" ON financial_transactions;
 CREATE POLICY "Users can update transactions for their properties"
   ON financial_transactions FOR UPDATE
   USING (
@@ -252,6 +256,7 @@ CREATE POLICY "Users can update transactions for their properties"
   );
 
 -- financial_invoices policies
+DROP POLICY IF EXISTS "Users can view invoices for their properties" ON financial_invoices;
 CREATE POLICY "Users can view invoices for their properties"
   ON financial_invoices FOR SELECT
   USING (
@@ -262,6 +267,7 @@ CREATE POLICY "Users can view invoices for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert invoices for their properties" ON financial_invoices;
 CREATE POLICY "Users can insert invoices for their properties"
   ON financial_invoices FOR INSERT
   WITH CHECK (
@@ -272,6 +278,7 @@ CREATE POLICY "Users can insert invoices for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update invoices for their properties" ON financial_invoices;
 CREATE POLICY "Users can update invoices for their properties"
   ON financial_invoices FOR UPDATE
   USING (
@@ -283,6 +290,7 @@ CREATE POLICY "Users can update invoices for their properties"
   );
 
 -- financial_payment_plans policies
+DROP POLICY IF EXISTS "Users can view payment plans for their properties" ON financial_payment_plans;
 CREATE POLICY "Users can view payment plans for their properties"
   ON financial_payment_plans FOR SELECT
   USING (
@@ -293,6 +301,7 @@ CREATE POLICY "Users can view payment plans for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert payment plans for their properties" ON financial_payment_plans;
 CREATE POLICY "Users can insert payment plans for their properties"
   ON financial_payment_plans FOR INSERT
   WITH CHECK (
@@ -303,6 +312,7 @@ CREATE POLICY "Users can insert payment plans for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update payment plans for their properties" ON financial_payment_plans;
 CREATE POLICY "Users can update payment plans for their properties"
   ON financial_payment_plans FOR UPDATE
   USING (
@@ -314,6 +324,7 @@ CREATE POLICY "Users can update payment plans for their properties"
   );
 
 -- financial_security_deposits policies
+DROP POLICY IF EXISTS "Users can view deposits for their properties" ON financial_security_deposits;
 CREATE POLICY "Users can view deposits for their properties"
   ON financial_security_deposits FOR SELECT
   USING (
@@ -324,6 +335,7 @@ CREATE POLICY "Users can view deposits for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert deposits for their properties" ON financial_security_deposits;
 CREATE POLICY "Users can insert deposits for their properties"
   ON financial_security_deposits FOR INSERT
   WITH CHECK (
@@ -334,6 +346,7 @@ CREATE POLICY "Users can insert deposits for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update deposits for their properties" ON financial_security_deposits;
 CREATE POLICY "Users can update deposits for their properties"
   ON financial_security_deposits FOR UPDATE
   USING (
@@ -350,14 +363,20 @@ CREATE POLICY "Users can update deposits for their properties"
 
 -- Add the foreign key constraint for financial_transactions.invoice_id
 -- (had to wait until financial_invoices table was created)
-ALTER TABLE financial_transactions
-  DROP CONSTRAINT IF EXISTS financial_transactions_invoice_id_fkey;
-
-ALTER TABLE financial_transactions
-  ADD CONSTRAINT financial_transactions_invoice_id_fkey
-  FOREIGN KEY (invoice_id)
-  REFERENCES financial_invoices(id)
-  ON DELETE SET NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'financial_transactions_invoice_id_fkey'
+    AND table_name = 'financial_transactions'
+  ) THEN
+    ALTER TABLE financial_transactions
+      ADD CONSTRAINT financial_transactions_invoice_id_fkey
+      FOREIGN KEY (invoice_id)
+      REFERENCES financial_invoices(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- Comments for documentation

@@ -1,4 +1,5 @@
 -- Migration: Add Module Licenses Table
+-- NOTE: Made idempotent for branch creation support
 -- Description: Tracks which premium modules are licensed for each company
 -- Created: 2025-11-05
 -- Phase: Phase 0, Week 2 - API Standards & Database Enhancements
@@ -38,7 +39,8 @@ COMMENT ON COLUMN public.module_licenses.expires_at IS 'Expiration date (NULL fo
 -- Enable Row Level Security
 ALTER TABLE public.module_licenses ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Service role full access
+-- RLS Policy: Service role full access (idempotent)
+DROP POLICY IF EXISTS "Service role full access on module_licenses" ON public.module_licenses;
 CREATE POLICY "Service role full access on module_licenses"
 ON public.module_licenses
 FOR ALL
@@ -46,7 +48,8 @@ TO service_role
 USING (true)
 WITH CHECK (true);
 
--- RLS Policy: Users can read their company's licenses
+-- RLS Policy: Users can read their company's licenses (idempotent)
+DROP POLICY IF EXISTS "Users can read their company licenses" ON public.module_licenses;
 CREATE POLICY "Users can read their company licenses"
 ON public.module_licenses
 FOR SELECT
@@ -72,7 +75,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to update updated_at on modification
+-- Trigger to update updated_at on modification (idempotent)
+DROP TRIGGER IF EXISTS trigger_update_module_licenses_updated_at ON public.module_licenses;
 CREATE TRIGGER trigger_update_module_licenses_updated_at
 BEFORE UPDATE ON public.module_licenses
 FOR EACH ROW

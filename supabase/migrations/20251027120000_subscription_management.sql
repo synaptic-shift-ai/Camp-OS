@@ -1,4 +1,5 @@
 -- Add subscription fields to properties table
+-- NOTE: Made idempotent for branch creation support
 ALTER TABLE properties
 ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE,
 ADD COLUMN IF NOT EXISTS subscription_id TEXT UNIQUE,
@@ -30,6 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_subscription_events_type ON subscription_events(e
 -- RLS policies for subscription_events
 ALTER TABLE subscription_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own subscription events" ON subscription_events;
 CREATE POLICY "Users can view their own subscription events"
   ON subscription_events FOR SELECT
   USING (

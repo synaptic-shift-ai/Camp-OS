@@ -1,4 +1,5 @@
 -- Site Configuration Enhancements
+-- NOTE: Made idempotent for branch creation support
 -- Adds amenities, images, advanced pricing, and availability rules for comprehensive site setup
 
 -- Add advanced pricing columns
@@ -27,9 +28,13 @@ ADD COLUMN IF NOT EXISTS size_sqft INTEGER;
 CREATE INDEX IF NOT EXISTS idx_sites_property_status ON sites(property_id, status);
 CREATE INDEX IF NOT EXISTS idx_sites_type ON sites(site_type);
 
--- Add check constraint for weekend pricing
-ALTER TABLE sites
-ADD CONSTRAINT chk_weekend_price_positive CHECK (weekend_price_cents IS NULL OR weekend_price_cents > 0);
+-- Add check constraint for weekend pricing (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_weekend_price_positive') THEN
+    ALTER TABLE sites ADD CONSTRAINT chk_weekend_price_positive CHECK (weekend_price_cents IS NULL OR weekend_price_cents > 0);
+  END IF;
+END $$;
 
 -- Add comments for documentation
 COMMENT ON COLUMN sites.weekend_price_cents IS 'Weekend nightly rate in cents (Friday-Saturday)';

@@ -1,4 +1,5 @@
 -- Add onboarding tracking columns to properties
+-- NOTE: Made idempotent for branch creation support
 ALTER TABLE properties
 ADD COLUMN IF NOT EXISTS stripe_account_id TEXT,
 ADD COLUMN IF NOT EXISTS stripe_connected_at TIMESTAMPTZ,

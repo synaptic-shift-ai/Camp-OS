@@ -1,4 +1,5 @@
 -- Properly Fix RLS Infinite Recursion
+-- NOTE: Made idempotent for branch creation support
 -- Strategy: Create ONE-WAY dependencies only (no circular references)
 --
 -- Dependency Flow (allowed):

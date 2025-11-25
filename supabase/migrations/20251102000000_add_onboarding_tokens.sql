@@ -1,4 +1,5 @@
 -- Add onboarding token columns to companies table for magic link authentication
+-- NOTE: Made idempotent for branch creation support
 -- This allows users to be automatically authenticated when clicking email onboarding links
 
 ALTER TABLE companies

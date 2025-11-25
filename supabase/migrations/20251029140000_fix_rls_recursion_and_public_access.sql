@@ -1,14 +1,16 @@
 -- Fix RLS Policy Infinite Recursion and Add Public Access for Guest Booking
+-- NOTE: Made idempotent for branch creation support
 -- This migration:
 -- 1. Fixes circular reference in property_staff RLS policies
 -- 2. Adds public read access for guest booking portal (properties and sites)
 
 -- ============================================================================
--- PART 1: Fix Property Staff Circular Reference
+-- PART 1: Fix Property Staff Circular Reference (idempotent)
 -- ============================================================================
 
 -- Drop problematic recursive policy
 DROP POLICY IF EXISTS "Users can view staff of their properties" ON property_staff;
+DROP POLICY IF EXISTS "Property owners can view staff" ON property_staff;
 
 -- Recreate without circular reference - only property owners can view staff
 CREATE POLICY "Property owners can view staff"
@@ -19,6 +21,8 @@ CREATE POLICY "Property owners can view staff"
 
 -- Also fix the properties policy to break the cycle
 DROP POLICY IF EXISTS "Users can view their own properties" ON properties;
+DROP POLICY IF EXISTS "Property owners can view their properties" ON properties;
+DROP POLICY IF EXISTS "Property staff can view assigned properties" ON properties;
 
 -- Split into two simpler policies without circular dependency
 CREATE POLICY "Property owners can view their properties"
@@ -36,10 +40,11 @@ CREATE POLICY "Property staff can view assigned properties"
     );
 
 -- ============================================================================
--- PART 2: Add Public Access for Guest Booking Portal
+-- PART 2: Add Public Access for Guest Booking Portal (idempotent)
 -- ============================================================================
 
 -- Allow anonymous users to view properties that have booking enabled
+DROP POLICY IF EXISTS "Public can view bookable properties" ON properties;
 CREATE POLICY "Public can view bookable properties"
     ON properties FOR SELECT
     TO anon
@@ -50,6 +55,7 @@ CREATE POLICY "Public can view bookable properties"
     );
 
 -- Allow anonymous users to view available sites for bookable properties
+DROP POLICY IF EXISTS "Public can view available sites for booking" ON sites;
 CREATE POLICY "Public can view available sites for booking"
     ON sites FOR SELECT
     TO anon
@@ -64,18 +70,21 @@ CREATE POLICY "Public can view available sites for booking"
     );
 
 -- Allow anonymous users to create guest records (for new bookings)
+DROP POLICY IF EXISTS "Public can create guest records" ON guests;
 CREATE POLICY "Public can create guest records"
     ON guests FOR INSERT
     TO anon
     WITH CHECK (true);
 
 -- Allow anonymous users to view their own guest record (by session)
+DROP POLICY IF EXISTS "Public can view their own guest info" ON guests;
 CREATE POLICY "Public can view their own guest info"
     ON guests FOR SELECT
     TO anon
     USING (true);  -- TODO: Restrict this further with session-based checks
 
 -- Allow anonymous users to create reservations (for new bookings)
+DROP POLICY IF EXISTS "Public can create reservations" ON reservations;
 CREATE POLICY "Public can create reservations"
     ON reservations FOR INSERT
     TO anon
@@ -90,12 +99,14 @@ CREATE POLICY "Public can create reservations"
     );
 
 -- Allow anonymous users to view reservations (only their own via confirmation number)
+DROP POLICY IF EXISTS "Public can view reservations by confirmation number" ON reservations;
 CREATE POLICY "Public can view reservations by confirmation number"
     ON reservations FOR SELECT
     TO anon
     USING (true);  -- TODO: Add confirmation_number filter in application layer
 
 -- Allow anonymous users to update reservation status (for payment confirmation)
+DROP POLICY IF EXISTS "Public can update reservation payment status" ON reservations;
 CREATE POLICY "Public can update reservation payment status"
     ON reservations FOR UPDATE
     TO anon
@@ -103,6 +114,7 @@ CREATE POLICY "Public can update reservation payment status"
     WITH CHECK (true);
 
 -- Allow anonymous users to create payment records
+DROP POLICY IF EXISTS "Public can create payment records" ON payments;
 CREATE POLICY "Public can create payment records"
     ON payments FOR INSERT
     TO anon

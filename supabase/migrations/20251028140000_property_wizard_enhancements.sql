@@ -1,4 +1,5 @@
 -- Property Wizard Enhancements
+-- NOTE: Made idempotent for branch creation support
 -- Adds wizard progress tracking, property images, and additional configuration fields
 
 -- Add wizard tracking columns

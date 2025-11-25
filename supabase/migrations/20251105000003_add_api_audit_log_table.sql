@@ -1,4 +1,5 @@
 -- Migration: Add API Audit Log Table
+-- NOTE: Made idempotent for branch creation support
 -- Description: Tracks all API requests for security, debugging, and analytics
 -- Created: 2025-11-05
 -- Phase: Phase 0, Week 2 - API Standards & Database Enhancements
@@ -79,7 +80,8 @@ COMMENT ON COLUMN public.api_audit_log.duration_ms IS 'Request duration in milli
 -- Enable Row Level Security
 ALTER TABLE public.api_audit_log ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Service role full access (for middleware to write)
+-- RLS Policy: Service role full access (for middleware to write) (idempotent)
+DROP POLICY IF EXISTS "Service role full access on api_audit_log" ON public.api_audit_log;
 CREATE POLICY "Service role full access on api_audit_log"
 ON public.api_audit_log
 FOR ALL
@@ -87,8 +89,9 @@ TO service_role
 USING (true)
 WITH CHECK (true);
 
--- RLS Policy: Admins can read logs for their properties
+-- RLS Policy: Admins can read logs for their properties (idempotent)
 -- (In the future, add role-based access)
+DROP POLICY IF EXISTS "Property owners can read their api logs" ON public.api_audit_log;
 CREATE POLICY "Property owners can read their api logs"
 ON public.api_audit_log
 FOR SELECT

@@ -1,4 +1,5 @@
 -- Booking Page Configuration
+-- NOTE: Made idempotent for branch creation support
 -- Adds booking page customization fields for property-specific booking portals
 
 -- Add booking page operational fields

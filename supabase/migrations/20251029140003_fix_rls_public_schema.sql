@@ -1,4 +1,5 @@
 -- Final Fix for RLS Infinite Recursion using SECURITY DEFINER Functions
+-- NOTE: Made idempotent for branch creation support (uses CREATE OR REPLACE, DROP POLICY IF EXISTS)
 -- (Using public schema instead of auth schema)
 --
 -- Problem: Circular dependency between properties and property_staff RLS policies

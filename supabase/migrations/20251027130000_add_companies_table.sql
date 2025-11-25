@@ -1,4 +1,5 @@
 -- Create companies table for multi-property management
+-- NOTE: Made idempotent for branch creation support
 -- Companies represent the legal entity that owns/manages properties and handles billing
 CREATE TABLE IF NOT EXISTS companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -23,27 +24,31 @@ CREATE TABLE IF NOT EXISTS companies (
 ALTER TABLE properties
 ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
 
--- Indexes for performance
+-- Indexes for performance (idempotent)
 CREATE INDEX IF NOT EXISTS idx_companies_owner ON companies(owner_id);
 CREATE INDEX IF NOT EXISTS idx_companies_stripe_customer ON companies(stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_companies_subscription ON companies(subscription_id) WHERE subscription_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_properties_company ON properties(company_id);
 
--- RLS policies for companies table
+-- RLS policies for companies table (idempotent)
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own companies" ON companies;
 CREATE POLICY "Users can view their own companies"
   ON companies FOR SELECT
   USING (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert their own companies" ON companies;
 CREATE POLICY "Users can insert their own companies"
   ON companies FOR INSERT
   WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their own companies" ON companies;
 CREATE POLICY "Users can update their own companies"
   ON companies FOR UPDATE
   USING (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their own companies" ON companies;
 CREATE POLICY "Users can delete their own companies"
   ON companies FOR DELETE
   USING (owner_id = auth.uid());
@@ -51,6 +56,7 @@ CREATE POLICY "Users can delete their own companies"
 -- Update existing RLS policy for properties to include company relationship
 -- Users can view properties they own OR properties belonging to their companies
 DROP POLICY IF EXISTS "Users can view their own properties" ON properties;
+DROP POLICY IF EXISTS "Users can view their properties" ON properties;
 
 CREATE POLICY "Users can view their properties"
   ON properties FOR SELECT

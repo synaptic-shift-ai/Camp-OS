@@ -1,4 +1,5 @@
 -- Migration: Add Reserved and Booked Site Statuses
+-- NOTE: Made idempotent for branch creation support
 --
 -- Purpose: Expand site status values to include pre-check-in states:
 --          - reserved: Reservation created, awaiting confirmation or payment
@@ -18,20 +19,25 @@ ALTER TABLE sites
 DROP CONSTRAINT IF EXISTS sites_status_valid;
 
 -- ============================================================================
--- Step 2: Add new CHECK constraint with all 7 statuses
+-- Step 2: Add new CHECK constraint with all 7 statuses (idempotent)
 -- ============================================================================
 
-ALTER TABLE sites
-ADD CONSTRAINT sites_status_valid
-CHECK (status IN (
-  'available',
-  'reserved',
-  'booked',
-  'occupied',
-  'housekeeping',
-  'maintenance',
-  'unavailable'
-));
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sites_status_valid') THEN
+    ALTER TABLE sites
+    ADD CONSTRAINT sites_status_valid
+    CHECK (status IN (
+      'available',
+      'reserved',
+      'booked',
+      'occupied',
+      'housekeeping',
+      'maintenance',
+      'unavailable'
+    ));
+  END IF;
+END $$;
 
 -- ============================================================================
 -- Step 3: Update documentation

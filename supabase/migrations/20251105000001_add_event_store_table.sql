@@ -1,4 +1,5 @@
 -- Migration: Add Event Store Table
+-- NOTE: Made idempotent for branch creation support
 -- Description: Stores domain events for event sourcing and audit trail
 -- Created: 2025-11-05
 -- Phase: Phase 0, Week 2 - API Standards & Database Enhancements
@@ -44,7 +45,8 @@ COMMENT ON COLUMN public.event_store.occurred_at IS 'When the event occurred in 
 -- Enable Row Level Security
 ALTER TABLE public.event_store ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Service role can do anything (for EventBus to write)
+-- RLS Policy: Service role can do anything (for EventBus to write) (idempotent)
+DROP POLICY IF EXISTS "Service role full access on event_store" ON public.event_store;
 CREATE POLICY "Service role full access on event_store"
 ON public.event_store
 FOR ALL
@@ -52,8 +54,9 @@ TO service_role
 USING (true)
 WITH CHECK (true);
 
--- RLS Policy: Authenticated users can read their company's events
+-- RLS Policy: Authenticated users can read their company's events (idempotent)
 -- (We'll refine this once we add company_id to events)
+DROP POLICY IF EXISTS "Users can read event_store" ON public.event_store;
 CREATE POLICY "Users can read event_store"
 ON public.event_store
 FOR SELECT

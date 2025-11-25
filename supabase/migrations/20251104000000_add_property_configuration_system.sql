@@ -1,5 +1,6 @@
 -- =====================================================
 -- Property Configuration System Migration
+-- NOTE: Made idempotent for branch creation support
 -- =====================================================
 -- This migration adds comprehensive configuration options for property owners
 -- to customize pricing, deposits, booking rules, and fees at both property
@@ -174,12 +175,16 @@ COMMENT ON COLUMN sites.monthly_rate_cents IS
   If set, this flat monthly rate is used instead of calculating from nightly rate.
   Example: 3500 = $35/night monthly rate (even if regular rate is $75/night)';
 
--- Add constraints for new columns
-ALTER TABLE sites
-ADD CONSTRAINT chk_weekly_rate_positive
-  CHECK (weekly_rate_cents IS NULL OR weekly_rate_cents > 0),
-ADD CONSTRAINT chk_monthly_rate_positive
-  CHECK (monthly_rate_cents IS NULL OR monthly_rate_cents > 0);
+-- Add constraints for new columns (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_weekly_rate_positive') THEN
+    ALTER TABLE sites ADD CONSTRAINT chk_weekly_rate_positive CHECK (weekly_rate_cents IS NULL OR weekly_rate_cents > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_monthly_rate_positive') THEN
+    ALTER TABLE sites ADD CONSTRAINT chk_monthly_rate_positive CHECK (monthly_rate_cents IS NULL OR monthly_rate_cents > 0);
+  END IF;
+END $$;
 
 -- =====================================================
 -- PART 3: Seasonal Pricing Templates Table
@@ -231,9 +236,9 @@ COMMENT ON COLUMN seasonal_pricing_templates.recurring_annually IS
   'If true, template automatically applies every year (e.g., Summer 2025, Summer 2026).
   System uses month/day from start_date and end_date and applies to current/future years.';
 
--- Create index for efficient template lookups
-CREATE INDEX idx_seasonal_templates_property ON seasonal_pricing_templates(property_id);
-CREATE INDEX idx_seasonal_templates_dates ON seasonal_pricing_templates(property_id, start_date, end_date);
+-- Create index for efficient template lookups (idempotent)
+CREATE INDEX IF NOT EXISTS idx_seasonal_templates_property ON seasonal_pricing_templates(property_id);
+CREATE INDEX IF NOT EXISTS idx_seasonal_templates_dates ON seasonal_pricing_templates(property_id, start_date, end_date);
 
 -- Create template application tracking table
 -- Tracks which sites have which templates applied
@@ -259,9 +264,9 @@ COMMENT ON TABLE site_seasonal_template_applications IS
   Allows bulk template application while supporting per-site price overrides.
   Site can have multiple templates (e.g., Summer Peak + Holiday Premium).';
 
--- Create indexes for efficient lookups
-CREATE INDEX idx_template_applications_site ON site_seasonal_template_applications(site_id);
-CREATE INDEX idx_template_applications_template ON site_seasonal_template_applications(template_id);
+-- Create indexes for efficient lookups (idempotent)
+CREATE INDEX IF NOT EXISTS idx_template_applications_site ON site_seasonal_template_applications(site_id);
+CREATE INDEX IF NOT EXISTS idx_template_applications_template ON site_seasonal_template_applications(template_id);
 
 -- =====================================================
 -- PART 4: Update Existing Data with Sensible Defaults
@@ -308,7 +313,8 @@ WHERE
 ALTER TABLE seasonal_pricing_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE site_seasonal_template_applications ENABLE ROW LEVEL SECURITY;
 
--- Seasonal Pricing Templates Policies
+-- Seasonal Pricing Templates Policies (idempotent)
+DROP POLICY IF EXISTS "Users can view their property templates" ON seasonal_pricing_templates;
 CREATE POLICY "Users can view their property templates"
   ON seasonal_pricing_templates FOR SELECT
   USING (
@@ -320,6 +326,7 @@ CREATE POLICY "Users can view their property templates"
     )
   );
 
+DROP POLICY IF EXISTS "Users can create templates for their properties" ON seasonal_pricing_templates;
 CREATE POLICY "Users can create templates for their properties"
   ON seasonal_pricing_templates FOR INSERT
   WITH CHECK (
@@ -328,6 +335,7 @@ CREATE POLICY "Users can create templates for their properties"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update their property templates" ON seasonal_pricing_templates;
 CREATE POLICY "Users can update their property templates"
   ON seasonal_pricing_templates FOR UPDATE
   USING (
@@ -336,6 +344,7 @@ CREATE POLICY "Users can update their property templates"
     )
   );
 
+DROP POLICY IF EXISTS "Users can delete their property templates" ON seasonal_pricing_templates;
 CREATE POLICY "Users can delete their property templates"
   ON seasonal_pricing_templates FOR DELETE
   USING (
@@ -344,7 +353,8 @@ CREATE POLICY "Users can delete their property templates"
     )
   );
 
--- Site Template Applications Policies
+-- Site Template Applications Policies (idempotent)
+DROP POLICY IF EXISTS "Users can view their site template applications" ON site_seasonal_template_applications;
 CREATE POLICY "Users can view their site template applications"
   ON site_seasonal_template_applications FOR SELECT
   USING (
@@ -356,6 +366,7 @@ CREATE POLICY "Users can view their site template applications"
     )
   );
 
+DROP POLICY IF EXISTS "Users can create template applications for their sites" ON site_seasonal_template_applications;
 CREATE POLICY "Users can create template applications for their sites"
   ON site_seasonal_template_applications FOR INSERT
   WITH CHECK (
@@ -366,6 +377,7 @@ CREATE POLICY "Users can create template applications for their sites"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update their site template applications" ON site_seasonal_template_applications;
 CREATE POLICY "Users can update their site template applications"
   ON site_seasonal_template_applications FOR UPDATE
   USING (
@@ -376,6 +388,7 @@ CREATE POLICY "Users can update their site template applications"
     )
   );
 
+DROP POLICY IF EXISTS "Users can delete their site template applications" ON site_seasonal_template_applications;
 CREATE POLICY "Users can delete their site template applications"
   ON site_seasonal_template_applications FOR DELETE
   USING (

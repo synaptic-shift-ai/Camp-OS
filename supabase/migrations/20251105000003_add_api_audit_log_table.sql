@@ -98,7 +98,13 @@ FOR SELECT
 TO authenticated
 USING (
     property_id IN (
-        SELECT id FROM public.properties
+        SELECT p.id FROM public.properties p
+        JOIN public.companies c ON p.company_id = c.id
+        WHERE c.owner_id = auth.uid()
+    )
+    OR
+    property_id IN (
+        SELECT property_id FROM public.property_staff
         WHERE user_id = auth.uid()
     )
 );

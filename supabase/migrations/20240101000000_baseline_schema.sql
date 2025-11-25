@@ -1,4 +1,5 @@
 -- Baseline schema migration
+-- NOTE: Made fully idempotent for Supabase branch support
 -- This migration creates all existing tables to establish a baseline for the database
 -- Generated from production schema on 2025-11-24
 
@@ -8,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================================
 -- COMPANIES (no dependencies)
 -- ============================================================================
-CREATE TABLE companies (
+CREATE TABLE IF NOT EXISTS companies (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name text NOT NULL,
     owner_id uuid NOT NULL,
@@ -30,7 +31,7 @@ CREATE TABLE companies (
 -- ============================================================================
 -- PROPERTIES (depends on: companies)
 -- ============================================================================
-CREATE TABLE properties (
+CREATE TABLE IF NOT EXISTS properties (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     name character varying NOT NULL,
     slug character varying NOT NULL,
@@ -93,14 +94,21 @@ CREATE TABLE properties (
     rate_discounts_config jsonb DEFAULT '{"weekly_minimum_nights": 7, "monthly_minimum_nights": 28, "weekly_discount_enabled": false, "monthly_discount_enabled": false, "weekly_discount_percentage": 0, "monthly_discount_percentage": 0}'::jsonb,
     confirmation_number_config jsonb DEFAULT '{"format": "{property_code}{separator}{year}{separator}{sequence}", "separator": "-", "year_format": "full", "property_code": "CAMP", "sequence_length": 5}'::jsonb,
     confirmation_number_sequence integer DEFAULT 0,
-    PRIMARY KEY (id),
-    CONSTRAINT properties_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id)
+    PRIMARY KEY (id)
 );
+
+-- Add FK constraint separately (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'properties_company_id_fkey') THEN
+    ALTER TABLE properties ADD CONSTRAINT properties_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- SITES (depends on: properties)
 -- ============================================================================
-CREATE TABLE sites (
+CREATE TABLE IF NOT EXISTS sites (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     property_id uuid,
     site_number character varying NOT NULL,
@@ -135,14 +143,20 @@ CREATE TABLE sites (
     pricing_override jsonb,
     weekly_rate_cents integer,
     monthly_rate_cents integer,
-    PRIMARY KEY (id),
-    CONSTRAINT sites_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sites_property_id_fkey') THEN
+    ALTER TABLE sites ADD CONSTRAINT sites_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- GUESTS (depends on: properties)
 -- ============================================================================
-CREATE TABLE guests (
+CREATE TABLE IF NOT EXISTS guests (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     property_id uuid,
     user_id uuid,
@@ -161,14 +175,20 @@ CREATE TABLE guests (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     stripe_customer_id text,
-    PRIMARY KEY (id),
-    CONSTRAINT guests_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'guests_property_id_fkey') THEN
+    ALTER TABLE guests ADD CONSTRAINT guests_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- RESERVATIONS (depends on: properties, sites, guests)
 -- ============================================================================
-CREATE TABLE reservations (
+CREATE TABLE IF NOT EXISTS reservations (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     property_id uuid,
     site_id uuid,
@@ -214,18 +234,32 @@ CREATE TABLE reservations (
     renewal_notes text,
     equipment_type character varying,
     equipment_length integer,
-    PRIMARY KEY (id),
-    CONSTRAINT reservations_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id),
-    CONSTRAINT reservations_site_id_fkey FOREIGN KEY (site_id) REFERENCES sites(id),
-    CONSTRAINT reservations_guest_id_fkey FOREIGN KEY (guest_id) REFERENCES guests(id),
-    CONSTRAINT reservations_parent_reservation_id_fkey FOREIGN KEY (parent_reservation_id) REFERENCES reservations(id),
-    CONSTRAINT reservations_is_extension_of_fkey FOREIGN KEY (is_extension_of) REFERENCES reservations(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservations_property_id_fkey') THEN
+    ALTER TABLE reservations ADD CONSTRAINT reservations_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservations_site_id_fkey') THEN
+    ALTER TABLE reservations ADD CONSTRAINT reservations_site_id_fkey FOREIGN KEY (site_id) REFERENCES sites(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservations_guest_id_fkey') THEN
+    ALTER TABLE reservations ADD CONSTRAINT reservations_guest_id_fkey FOREIGN KEY (guest_id) REFERENCES guests(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservations_parent_reservation_id_fkey') THEN
+    ALTER TABLE reservations ADD CONSTRAINT reservations_parent_reservation_id_fkey FOREIGN KEY (parent_reservation_id) REFERENCES reservations(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservations_is_extension_of_fkey') THEN
+    ALTER TABLE reservations ADD CONSTRAINT reservations_is_extension_of_fkey FOREIGN KEY (is_extension_of) REFERENCES reservations(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PAYMENTS (depends on: properties, reservations)
 -- ============================================================================
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     property_id uuid,
     reservation_id uuid,
@@ -237,15 +271,23 @@ CREATE TABLE payments (
     processed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
     amount bigint NOT NULL,
-    PRIMARY KEY (id),
-    CONSTRAINT payments_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id),
-    CONSTRAINT payments_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payments_property_id_fkey') THEN
+    ALTER TABLE payments ADD CONSTRAINT payments_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payments_reservation_id_fkey') THEN
+    ALTER TABLE payments ADD CONSTRAINT payments_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PROPERTY_STAFF (depends on: properties)
 -- ============================================================================
-CREATE TABLE property_staff (
+CREATE TABLE IF NOT EXISTS property_staff (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     property_id uuid,
     user_id uuid,
@@ -253,14 +295,20 @@ CREATE TABLE property_staff (
     permissions jsonb DEFAULT '[]'::jsonb,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    PRIMARY KEY (id),
-    CONSTRAINT property_staff_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'property_staff_property_id_fkey') THEN
+    ALTER TABLE property_staff ADD CONSTRAINT property_staff_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- SUBSCRIPTION_EVENTS (depends on: properties, companies)
 -- ============================================================================
-CREATE TABLE subscription_events (
+CREATE TABLE IF NOT EXISTS subscription_events (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     property_id uuid,
     event_type text NOT NULL,
@@ -268,15 +316,23 @@ CREATE TABLE subscription_events (
     event_data jsonb,
     created_at timestamp with time zone DEFAULT now(),
     company_id uuid,
-    PRIMARY KEY (id),
-    CONSTRAINT subscription_events_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id),
-    CONSTRAINT subscription_events_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'subscription_events_property_id_fkey') THEN
+    ALTER TABLE subscription_events ADD CONSTRAINT subscription_events_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'subscription_events_company_id_fkey') THEN
+    ALTER TABLE subscription_events ADD CONSTRAINT subscription_events_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- RESERVATION_ACTIONS (depends on: reservations, payments)
 -- ============================================================================
-CREATE TABLE reservation_actions (
+CREATE TABLE IF NOT EXISTS reservation_actions (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     reservation_id uuid NOT NULL,
     action_type character varying NOT NULL,
@@ -289,15 +345,23 @@ CREATE TABLE reservation_actions (
     new_state jsonb,
     notes text,
     created_at timestamp with time zone DEFAULT now(),
-    PRIMARY KEY (id),
-    CONSTRAINT reservation_actions_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id),
-    CONSTRAINT reservation_actions_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES payments(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservation_actions_reservation_id_fkey') THEN
+    ALTER TABLE reservation_actions ADD CONSTRAINT reservation_actions_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reservation_actions_payment_id_fkey') THEN
+    ALTER TABLE reservation_actions ADD CONSTRAINT reservation_actions_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES payments(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PAYMENT_INSTALLMENTS (depends on: reservations, payments)
 -- ============================================================================
-CREATE TABLE payment_installments (
+CREATE TABLE IF NOT EXISTS payment_installments (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     reservation_id uuid NOT NULL,
     installment_number integer NOT NULL,
@@ -310,15 +374,23 @@ CREATE TABLE payment_installments (
     reminder_sent_at timestamp with time zone[],
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    PRIMARY KEY (id),
-    CONSTRAINT payment_installments_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id),
-    CONSTRAINT payment_installments_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES payments(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_installments_reservation_id_fkey') THEN
+    ALTER TABLE payment_installments ADD CONSTRAINT payment_installments_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_installments_payment_id_fkey') THEN
+    ALTER TABLE payment_installments ADD CONSTRAINT payment_installments_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES payments(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- SEASONAL_PRICING_TEMPLATES (depends on: properties)
 -- ============================================================================
-CREATE TABLE seasonal_pricing_templates (
+CREATE TABLE IF NOT EXISTS seasonal_pricing_templates (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     property_id uuid NOT NULL,
     name character varying NOT NULL,
@@ -331,21 +403,35 @@ CREATE TABLE seasonal_pricing_templates (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
-    PRIMARY KEY (id),
-    CONSTRAINT seasonal_pricing_templates_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'seasonal_pricing_templates_property_id_fkey') THEN
+    ALTER TABLE seasonal_pricing_templates ADD CONSTRAINT seasonal_pricing_templates_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- SITE_SEASONAL_TEMPLATE_APPLICATIONS (depends on: sites, seasonal_pricing_templates)
 -- ============================================================================
-CREATE TABLE site_seasonal_template_applications (
+CREATE TABLE IF NOT EXISTS site_seasonal_template_applications (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     site_id uuid NOT NULL,
     template_id uuid NOT NULL,
     price_override_cents integer,
     applied_at timestamp with time zone DEFAULT now(),
     applied_by uuid,
-    PRIMARY KEY (id),
-    CONSTRAINT site_seasonal_template_applications_site_id_fkey FOREIGN KEY (site_id) REFERENCES sites(id),
-    CONSTRAINT site_seasonal_template_applications_template_id_fkey FOREIGN KEY (template_id) REFERENCES seasonal_pricing_templates(id)
+    PRIMARY KEY (id)
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_seasonal_template_applications_site_id_fkey') THEN
+    ALTER TABLE site_seasonal_template_applications ADD CONSTRAINT site_seasonal_template_applications_site_id_fkey FOREIGN KEY (site_id) REFERENCES sites(id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_seasonal_template_applications_template_id_fkey') THEN
+    ALTER TABLE site_seasonal_template_applications ADD CONSTRAINT site_seasonal_template_applications_template_id_fkey FOREIGN KEY (template_id) REFERENCES seasonal_pricing_templates(id);
+  END IF;
+END $$;

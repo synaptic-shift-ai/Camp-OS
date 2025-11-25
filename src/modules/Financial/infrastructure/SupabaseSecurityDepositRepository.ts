@@ -12,6 +12,8 @@ import { DepositStatus } from '../domain/value-objects/DepositStatus'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 
+type SecurityDepositInsert = Database['public']['Tables']['financial_security_deposits']['Insert']
+
 export class SupabaseSecurityDepositRepository implements ISecurityDepositRepository {
   private readonly supabase: SupabaseClient<Database>
 
@@ -68,7 +70,7 @@ export class SupabaseSecurityDepositRepository implements ISecurityDepositReposi
 
     const { error } = await this.supabase
       .from('financial_security_deposits')
-      .upsert(persistence, { onConflict: 'id' })
+      .upsert(persistence as SecurityDepositInsert, { onConflict: 'id' })
 
     if (error) {
       throw new Error(`Failed to save security deposit: ${error.message}`)

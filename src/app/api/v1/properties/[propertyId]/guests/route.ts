@@ -109,8 +109,8 @@ export async function GET(
       propertyId: propertyId,
     })
 
-    // Convert to DTOs
-    const guestDTOs = guests.map((guest) => GuestDTO.fromDomain(guest))
+    // Query handler already returns DTOs
+    const guestDTOs = guests
 
     // Apply client-side filtering if needed
     let filteredGuests = guestDTOs
@@ -228,7 +228,7 @@ export async function POST(
 
     // Execute command using application layer
     const repository = new SupabaseGuestRepository(supabase)
-    const commandHandler = new CreateGuestCommandHandler(repository)
+    const commandHandler = new CreateGuestCommandHandler(repository, new InMemoryEventBus())
 
     const guest = await commandHandler.execute({
       propertyId: propertyId,

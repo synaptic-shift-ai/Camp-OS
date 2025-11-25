@@ -92,9 +92,9 @@ describe('SecurityDeposit', () => {
 
       expect(deposit.totalDeductions.amountInCents).toBe(10000)
       expect(deposit.deductions).toHaveLength(1)
-      expect(deposit.deductions[0].amountCents).toBe(10000)
-      expect(deposit.deductions[0].reason).toBe('Broken window')
-      expect(deposit.deductions[0].deductedBy).toBe(validUserId)
+      expect(deposit.deductions[0]!.amountCents).toBe(10000)
+      expect(deposit.deductions[0]!.reason).toBe('Broken window')
+      expect(deposit.deductions[0]!.deductedBy).toBe(validUserId)
     })
 
     test('should publish SecurityDepositDeducted event', () => {

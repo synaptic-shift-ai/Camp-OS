@@ -14,6 +14,8 @@ import { SiteType, parseSiteType } from '../domain/SiteType'
 import { Pricing } from '../domain/Pricing'
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+
+type SiteInsert = Database['public']['Tables']['sites']['Insert']
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type SiteRow = Database['public']['Tables']['sites']['Row']
@@ -155,7 +157,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       }
     } else {
       // Insert
-      const { error } = await this.supabase.from('sites').insert(persistence)
+      const { error } = await this.supabase.from('sites').insert(persistence as SiteInsert)
 
       if (error) {
         throw new Error(`Failed to create site: ${error.message}`)

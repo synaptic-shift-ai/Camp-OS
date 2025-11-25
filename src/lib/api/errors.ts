@@ -424,7 +424,7 @@ export function createErrorResponse(
     error: {
       code: errorDef.code,
       message: errorDef.message,
-      ...(details && { details }),
+      ...(details ? { details } : {}),
     },
     meta: {
       timestamp: new Date().toISOString(),

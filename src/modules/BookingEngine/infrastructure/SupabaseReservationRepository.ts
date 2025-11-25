@@ -73,7 +73,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       return []
     }
 
-    return data.map((row) => Reservation.fromPersistence(row))
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
   async findByPropertyIdWithFilters(
@@ -131,7 +131,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
     }
 
     return {
-      reservations: data.map((row) => Reservation.fromPersistence(row)),
+      reservations: data.map((row: ReservationRow) => Reservation.fromPersistence(row)),
       total: count || 0,
     }
   }
@@ -147,7 +147,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       return []
     }
 
-    return data.map((row) => Reservation.fromPersistence(row))
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
   async findBySiteId(siteId: string): Promise<Reservation[]> {
@@ -161,7 +161,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       return []
     }
 
-    return data.map((row) => Reservation.fromPersistence(row))
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
   async findBySiteIdAndDateRange(siteId: string, dateRange: DateRange): Promise<Reservation[]> {
@@ -189,7 +189,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       return []
     }
 
-    return data.map((row) => Reservation.fromPersistence(row))
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
   async existsForSiteInDateRange(siteId: string, dateRange: DateRange): Promise<boolean> {
@@ -256,7 +256,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       return []
     }
 
-    return data.map((row) => Reservation.fromPersistence(row))
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
   async findActive(propertyId: string): Promise<Reservation[]> {
@@ -271,7 +271,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       return []
     }
 
-    return data.map((row) => Reservation.fromPersistence(row))
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
   /**

@@ -14,6 +14,8 @@ import { Transaction } from '../domain/aggregates/Transaction'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 
+type TransactionInsert = Database['public']['Tables']['financial_transactions']['Insert']
+
 export class SupabaseTransactionRepository implements ITransactionRepository {
   private readonly supabase: SupabaseClient<Database>
 
@@ -115,7 +117,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
 
     const { error } = await this.supabase
       .from('financial_transactions')
-      .upsert(persistence, { onConflict: 'id' })
+      .upsert(persistence as TransactionInsert, { onConflict: 'id' })
 
     if (error) {
       throw new Error(`Failed to save transaction: ${error.message}`)

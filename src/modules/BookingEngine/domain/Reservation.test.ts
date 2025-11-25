@@ -76,7 +76,7 @@ describe('Reservation', () => {
       const reservation = createTestReservation(propertyId, siteId, guestId)
 
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('ReservationCreated')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('ReservationCreated')
     })
 
     test('should set source to online by default', () => {
@@ -119,7 +119,7 @@ describe('Reservation', () => {
       expect(reservation.paidAmount.dollars).toBe(150)
       expect(reservation.paymentStatus).toBe(PaymentStatus.PARTIAL)
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('PaymentReceived')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('PaymentReceived')
     })
 
     test('should accept full payment', () => {
@@ -173,7 +173,7 @@ describe('Reservation', () => {
       reservation.receivePayment(MoneyAmount.fromDollars(150), 'credit_card', 'pi_123')
 
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('PaymentReceived')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('PaymentReceived')
     })
   })
 
@@ -187,7 +187,7 @@ describe('Reservation', () => {
 
       expect(reservation.status).toBe(ReservationStatus.CONFIRMED)
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('ReservationConfirmed')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('ReservationConfirmed')
     })
 
     test('should reject confirming non-pending reservation', () => {
@@ -219,7 +219,7 @@ describe('Reservation', () => {
       expect(reservation.paymentStatus).toBe(PaymentStatus.REFUNDED)
       expect(reservation.cancelledAt).toBeInstanceOf(Date)
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('ReservationCancelled')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('ReservationCancelled')
     })
 
     test('should cancel confirmed reservation', () => {
@@ -288,7 +288,7 @@ describe('Reservation', () => {
       expect(reservation.status).toBe(ReservationStatus.CHECKED_IN)
       expect(reservation.checkedInAt).toBeInstanceOf(Date)
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('GuestCheckedIn')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('GuestCheckedIn')
       expect(reservation.isActive()).toBe(true)
     })
 
@@ -350,7 +350,7 @@ describe('Reservation', () => {
       expect(reservation.status).toBe(ReservationStatus.CHECKED_OUT)
       expect(reservation.checkedOutAt).toBeInstanceOf(Date)
       expect(reservation.domainEvents).toHaveLength(1)
-      expect(reservation.domainEvents[0].constructor.name).toBe('GuestCheckedOut')
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('GuestCheckedOut')
       expect(reservation.isActive()).toBe(false)
     })
 

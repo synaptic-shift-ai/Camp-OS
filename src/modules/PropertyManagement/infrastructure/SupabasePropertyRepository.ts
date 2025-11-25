@@ -21,6 +21,8 @@ import { PropertyStatus } from '../domain/PropertyStatus'
 import { PropertySettings } from '../domain/PropertySettings'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
+
+type PropertyInsert = Database['public']['Tables']['properties']['Insert']
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 
 type PropertyRow = Database['public']['Tables']['properties']['Row']
@@ -158,7 +160,7 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       // Insert
       const { error } = await this.getClient()
         .from('properties')
-        .insert(persistence)
+        .insert(persistence as PropertyInsert)
 
       if (error) {
         throw new Error(`Failed to create property: ${error.message}`)
@@ -244,7 +246,7 @@ export class SupabasePropertyRepository implements IPropertyRepository {
     )
 
     // Parse amenities
-    const amenities = Array.isArray(row.amenities) ? row.amenities : null
+    const amenities = Array.isArray(row.amenities) ? (row.amenities as string[]) : null
 
     return Property.fromPersistence(
       row.id,
@@ -270,8 +272,8 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       row.onboarding_completed_at ? new Date(row.onboarding_completed_at) : null,
       row.stripe_account_id,
       row.stripe_connected_at ? new Date(row.stripe_connected_at) : null,
-      new Date(row.created_at),
-      new Date(row.updated_at)
+      new Date(row.created_at || new Date()),
+      new Date(row.updated_at || new Date())
     )
   }
 

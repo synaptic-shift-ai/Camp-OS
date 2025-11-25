@@ -13,6 +13,8 @@ import { InvoiceStatus } from '../domain/value-objects/InvoiceStatus'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 
+type InvoiceInsert = Database['public']['Tables']['financial_invoices']['Insert']
+
 export class SupabaseInvoiceRepository implements IInvoiceRepository {
   private readonly supabase: SupabaseClient<Database>
 
@@ -101,7 +103,7 @@ export class SupabaseInvoiceRepository implements IInvoiceRepository {
 
     const { error } = await this.supabase
       .from('financial_invoices')
-      .upsert(persistence, { onConflict: 'id' })
+      .upsert(persistence as InvoiceInsert, { onConflict: 'id' })
 
     if (error) {
       throw new Error(`Failed to save invoice: ${error.message}`)
@@ -127,7 +129,7 @@ export class SupabaseInvoiceRepository implements IInvoiceRepository {
     }
 
     // Parse the last invoice number to get the sequence
-    const lastInvoiceNumber = data[0].invoice_number
+    const lastInvoiceNumber = data[0]!.invoice_number
     if (!lastInvoiceNumber) {
       throw new Error('Found invoice with no invoice number, cannot determine sequence.')
     }

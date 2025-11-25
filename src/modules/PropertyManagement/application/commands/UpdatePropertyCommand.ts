@@ -13,7 +13,8 @@ export type UpdatePropertyDto = {
   id: string
   name?: string | undefined
   description?: string | null | undefined
-  propertyType?: PropertyType | null | undefined
+  // Accept string literals from Zod validation or enum values
+  propertyType?: PropertyType | 'campground' | 'rv_park' | 'glamping' | 'cabin_resort' | 'mixed' | null | undefined
   phone?: string | null | undefined
   email?: string | null | undefined
   address?: string | null | undefined
@@ -49,7 +50,7 @@ export class UpdatePropertyCommandHandler {
       property.updateDetails({
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.propertyType !== undefined && { propertyType: dto.propertyType }),
+        ...(dto.propertyType !== undefined && { propertyType: dto.propertyType as PropertyType | null }),
         ...(dto.phone !== undefined && { phone: dto.phone }),
         ...(dto.email !== undefined && { email: dto.email }),
       })

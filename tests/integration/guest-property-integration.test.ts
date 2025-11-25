@@ -34,6 +34,7 @@ import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEvent
 import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { IPropertyRepository } from '@/modules/PropertyManagement/domain/IPropertyRepository'
 import type { IGuestRepository } from '@/modules/GuestManagement/domain/IGuestRepository'
+import { PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
 
 /**
  * Mock Repositories for Cross-Module Testing
@@ -253,16 +254,16 @@ describe('Guest↔Property Cross-Module Integration', () => {
 
       // Assert: Only property 1's guest is returned (no cross-tenant leak)
       expect(property1Guests).toHaveLength(1)
-      expect(property1Guests[0].id).toBe(guest1.id)
-      expect(property1Guests[0].email).toBe('alice@example.com')
+      expect(property1Guests[0]!.id).toBe(guest1.id)
+      expect(property1Guests[0]!.email).toBe('alice@example.com')
 
       // Verify property 2 has its own isolated guest
       const property2Guests = await listQuery.execute({
         propertyId: property2.id,
       })
       expect(property2Guests).toHaveLength(1)
-      expect(property2Guests[0].id).toBe(guest2.id)
-      expect(property2Guests[0].email).toBe('bob@example.com')
+      expect(property2Guests[0]!.id).toBe(guest2.id)
+      expect(property2Guests[0]!.email).toBe('bob@example.com')
     })
 
     it('should prevent duplicate email within same property but allow across properties', async () => {

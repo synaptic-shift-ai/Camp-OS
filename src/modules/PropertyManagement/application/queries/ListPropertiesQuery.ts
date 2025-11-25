@@ -9,7 +9,8 @@ import type { PropertyStatus } from '../../domain/PropertyStatus'
 
 export type ListPropertiesDto = {
   companyId: string
-  status?: PropertyStatus | undefined
+  // Accept string literals from Zod validation or enum values
+  status?: PropertyStatus | 'draft' | 'active' | 'inactive' | 'closed' | undefined
   onboardingComplete?: boolean | undefined
   limit?: number | undefined
   offset?: number | undefined
@@ -29,7 +30,7 @@ export class ListPropertiesQueryHandler {
     const { properties, total } = await this.repository.findByCompanyIdWithFilters(
       dto.companyId,
       {
-        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.status !== undefined && { status: dto.status as PropertyStatus }),
         ...(dto.onboardingComplete !== undefined && { onboardingComplete: dto.onboardingComplete }),
         ...(dto.limit !== undefined && { limit: dto.limit }),
         ...(dto.offset !== undefined && { offset: dto.offset }),

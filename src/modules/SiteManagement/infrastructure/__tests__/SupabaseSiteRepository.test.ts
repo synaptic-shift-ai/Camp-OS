@@ -234,8 +234,8 @@ describe('SupabaseSiteRepository', () => {
       const result = await repository.findByPropertyId('prop-456')
 
       expect(result).toHaveLength(2)
-      expect(result[0].id).toBe('site-1')
-      expect(result[1].id).toBe('site-2')
+      expect(result[0]!.id).toBe('site-1')
+      expect(result[1]!.id).toBe('site-2')
       expect(mockSupabase.queryBuilder.eq).toHaveBeenCalledWith('property_id', 'prop-456')
       expect(mockSupabase.queryBuilder.order).toHaveBeenCalledWith('site_number', { ascending: true })
     })

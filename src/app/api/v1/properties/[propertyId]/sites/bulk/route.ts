@@ -148,6 +148,7 @@ export async function POST(
     for (const siteRequest of validatedRequest) {
       try {
         const site = await commandHandler.execute({
+          id: crypto.randomUUID(),
           propertyId,
           siteNumber: siteRequest.siteNumber,
           siteName: siteRequest.siteName || null,

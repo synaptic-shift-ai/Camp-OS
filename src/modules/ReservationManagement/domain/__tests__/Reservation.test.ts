@@ -94,7 +94,7 @@ describe('Reservation', () => {
 
       const events = reservation.getDomainEvents()
       expect(events).toHaveLength(1)
-      expect(events[0].eventType).toBe('ReservationCreatedEvent')
+      expect(events[0]!.eventType).toBe('ReservationCreatedEvent')
       expect((events[0] as any).reservationId).toBe(reservation.id)
       expect((events[0] as any).totalGuests).toBe(3) // 2 adults + 1 child
       expect((events[0] as any).totalAmount).toBe(11000)
@@ -210,7 +210,7 @@ describe('Reservation', () => {
 
       const events = reservation.getDomainEvents()
       expect(events).toHaveLength(1)
-      expect(events[0].eventType).toBe('ReservationConfirmedEvent')
+      expect(events[0]!.eventType).toBe('ReservationConfirmedEvent')
       expect((events[0] as any).confirmationNumber).toBe(reservation.confirmationNumber)
     })
 
@@ -287,7 +287,7 @@ describe('Reservation', () => {
       reservation.cancel()
 
       const events = reservation.getDomainEvents()
-      expect(events[0].eventType).toBe('ReservationCancelledEvent')
+      expect(events[0]!.eventType).toBe('ReservationCancelledEvent')
       expect((events[0] as any).previousStatus).toBe(ReservationStatus.CONFIRMED)
       expect((events[0] as any).refundAmount).toBe(11000) // Net payment
     })
@@ -553,7 +553,7 @@ describe('Reservation', () => {
       reservation.issueRefund(3000)
 
       const events = reservation.getDomainEvents()
-      expect(events[0].eventType).toBe('RefundIssuedEvent')
+      expect(events[0]!.eventType).toBe('RefundIssuedEvent')
       expect((events[0] as any).amount).toBe(3000)
       expect((events[0] as any).remainingBalance).toBe(3000)
     })
@@ -605,7 +605,7 @@ describe('Reservation', () => {
       reservation.modifyDates(newDateRange, newPricing)
 
       const events = reservation.getDomainEvents()
-      expect(events[0].eventType).toBe('ReservationModifiedEvent')
+      expect(events[0]!.eventType).toBe('ReservationModifiedEvent')
       expect((events[0] as any).modificationType).toBe('dates')
     })
 

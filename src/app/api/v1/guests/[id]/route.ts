@@ -168,7 +168,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const updateData: UpdateGuestRequest = validatedRequest.data
 
     // Execute command using application layer
-    const commandHandler = new UpdateGuestCommandHandler(repository)
+    const commandHandler = new UpdateGuestCommandHandler(repository, new InMemoryEventBus())
 
     const guest = await commandHandler.execute({
       guestId: id,

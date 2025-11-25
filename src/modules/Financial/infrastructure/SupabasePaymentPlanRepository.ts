@@ -12,6 +12,8 @@ import { PaymentPlanStatus } from '../domain/value-objects/PaymentPlanStatus'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 
+type PaymentPlanInsert = Database['public']['Tables']['financial_payment_plans']['Insert']
+
 export class SupabasePaymentPlanRepository implements IPaymentPlanRepository {
   private readonly supabase: SupabaseClient<Database>
 
@@ -68,7 +70,7 @@ export class SupabasePaymentPlanRepository implements IPaymentPlanRepository {
 
     const { error } = await this.supabase
       .from('financial_payment_plans')
-      .upsert(persistence, { onConflict: 'id' })
+      .upsert(persistence as PaymentPlanInsert, { onConflict: 'id' })
 
     if (error) {
       throw new Error(`Failed to save payment plan: ${error.message}`)

@@ -360,7 +360,7 @@ describe('Properties API Contract', () => {
 
       expect(result).toEqual(validResponse)
       expect(result.properties).toHaveLength(1)
-      expect(result.properties[0].id).toBe('123e4567-e89b-12d3-a456-426614174000')
+      expect(result.properties[0]!.id).toBe('123e4567-e89b-12d3-a456-426614174000')
     })
 
     it('should throw ZodError for invalid response', () => {

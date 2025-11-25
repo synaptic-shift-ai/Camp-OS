@@ -188,13 +188,11 @@ describe('PropertyRepository Mapping Performance', () => {
   describe('toDomain() - Database Row → Domain Entity', () => {
     bench('map minimal property (simple case)', () => {
       const row = createMinimalPropertyRow()
-      // @ts-expect-error - accessing private method for benchmarking
       repository['toDomain'](row)
     })
 
     bench('map complex property (all fields)', () => {
       const row = createComplexPropertyRow()
-      // @ts-expect-error - accessing private method for benchmarking
       repository['toDomain'](row)
     })
 
@@ -203,7 +201,6 @@ describe('PropertyRepository Mapping Performance', () => {
         ...createMinimalPropertyRow(),
         id: `prop-bench-${i}`,
       }))
-      // @ts-expect-error - accessing private method for benchmarking
       rows.forEach((row) => repository['toDomain'](row))
     })
 
@@ -212,7 +209,6 @@ describe('PropertyRepository Mapping Performance', () => {
         ...createMinimalPropertyRow(),
         id: `prop-bench-${i}`,
       }))
-      // @ts-expect-error - accessing private method for benchmarking
       rows.forEach((row) => repository['toDomain'](row))
     })
 
@@ -221,7 +217,6 @@ describe('PropertyRepository Mapping Performance', () => {
         ...createComplexPropertyRow(),
         id: `prop-bench-complex-${i}`,
       }))
-      // @ts-expect-error - accessing private method for benchmarking
       rows.forEach((row) => repository['toDomain'](row))
     })
   })
@@ -274,14 +269,12 @@ describe('PropertyRepository Mapping Performance', () => {
   describe('Round-trip Performance - DB → Domain → DB', () => {
     bench('round-trip minimal property', () => {
       const row = createMinimalPropertyRow()
-      // @ts-expect-error - accessing private method for benchmarking
       const property = repository['toDomain'](row)
       property.toPersistence()
     })
 
     bench('round-trip complex property', () => {
       const row = createComplexPropertyRow()
-      // @ts-expect-error - accessing private method for benchmarking
       const property = repository['toDomain'](row)
       property.toPersistence()
     })
@@ -292,7 +285,6 @@ describe('PropertyRepository Mapping Performance', () => {
         id: `prop-bench-rt-${i}`,
       }))
       rows.forEach((row) => {
-        // @ts-expect-error - accessing private method for benchmarking
         const property = repository['toDomain'](row)
         property.toPersistence()
       })

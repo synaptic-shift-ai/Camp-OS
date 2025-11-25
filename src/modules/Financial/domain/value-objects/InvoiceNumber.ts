@@ -64,7 +64,7 @@ export class InvoiceNumber extends ValueObject<InvoiceNumberProps> {
     }
 
     const [, propertyCode, year, sequenceStr] = match
-    if (!propertyCode || !year) {
+    if (!propertyCode || !year || !sequenceStr) {
         throw new Error('Invalid invoice number format. Could not parse components.')
     }
     const sequence = parseInt(sequenceStr, 10)

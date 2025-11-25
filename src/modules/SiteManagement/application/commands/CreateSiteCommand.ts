@@ -4,7 +4,7 @@
  * Command to create a new site.
  * Validates business rules and delegates to Site aggregate.
  */
-import { ISiteRepository } from '../../domain/ISiteRepository'
+import type { ISiteRepository } from '../../domain/ISiteRepository'
 import { Site } from '../../domain/Site'
 import { SiteType } from '../../domain/SiteType'
 import { SiteStatus } from '../../domain/SiteStatus'
@@ -16,14 +16,15 @@ export type CreateSiteDto = {
   propertyId: string
   siteNumber: string
   siteName: string | null
-  siteType: SiteType
+  // Accept string literals from Zod validation or enum values
+  siteType: SiteType | 'tent' | 'rv' | 'cabin' | 'glamping' | 'yurt' | 'other'
   description?: string | null
   basePrice: number // in cents
   weekendPrice: number // in cents
   maxOccupancy?: number | null
   maxVehicles?: number | null
   sizeSqft?: number | null
-  status?: SiteStatus
+  status?: SiteStatus | 'available' | 'occupied' | 'reserved' | 'needs_housekeeping' | 'out_of_service' | 'booked'
   amenities?: string[] | null
   hookups?: string[] | null
   images?: string[] | null
@@ -55,14 +56,14 @@ export class CreateSiteCommandHandler {
       dto.propertyId,
       dto.siteNumber,
       dto.siteName,
-      dto.siteType,
+      dto.siteType as SiteType,
       pricing,
       {
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.maxOccupancy !== undefined && { maxOccupancy: dto.maxOccupancy }),
         ...(dto.maxVehicles !== undefined && { maxVehicles: dto.maxVehicles }),
         ...(dto.sizeSqft !== undefined && { sizeSqft: dto.sizeSqft }),
-        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.status !== undefined && { status: dto.status as SiteStatus }),
         ...(dto.amenities !== undefined && { amenities: dto.amenities }),
         ...(dto.hookups !== undefined && { hookups: dto.hookups }),
         ...(dto.images !== undefined && { images: dto.images }),

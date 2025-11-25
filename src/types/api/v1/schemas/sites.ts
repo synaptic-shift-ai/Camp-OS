@@ -40,8 +40,10 @@ export const SiteTypeSchema = z.enum([
 export const SiteStatusSchema = z.enum([
   'available',
   'occupied',
-  'maintenance',
-  'unavailable',
+  'reserved',
+  'needs_housekeeping',
+  'out_of_service',
+  'booked',
 ])
 
 // ============================================================================

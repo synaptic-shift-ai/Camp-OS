@@ -54,8 +54,6 @@ export class Guest extends AggregateRoot<string> {
     this._address = props.address
     this._stripeCustomerId = props.stripeCustomerId
     this._notes = props.notes
-    this._createdAt = props.createdAt
-    this._updatedAt = props.updatedAt
   }
 
   /**

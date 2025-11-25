@@ -255,6 +255,7 @@ export async function POST(
     const commandHandler = new CreateSiteCommand(repository)
 
     const site = await commandHandler.execute({
+      id: crypto.randomUUID(),
       propertyId,
       siteNumber: validatedRequest.siteNumber,
       siteName: validatedRequest.siteName || null,

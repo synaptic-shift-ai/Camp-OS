@@ -139,7 +139,7 @@ describe('ListSitesQuery', () => {
       const result = await handler.execute({ propertyId: 'prop-2' })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].id).toBe('site-4')
+      expect(result.sites[0]!.id).toBe('site-4')
     })
   })
 
@@ -151,7 +151,7 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].status).toBe(SiteStatus.AVAILABLE)
+      expect(result.sites[0]!.status).toBe(SiteStatus.AVAILABLE)
     })
 
     it('should filter by OCCUPIED status', async () => {
@@ -161,8 +161,8 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].status).toBe(SiteStatus.OCCUPIED)
-      expect(result.sites[0].id).toBe('site-2')
+      expect(result.sites[0]!.status).toBe(SiteStatus.OCCUPIED)
+      expect(result.sites[0]!.id).toBe('site-2')
     })
 
     it('should filter by OUT_OF_SERVICE status', async () => {
@@ -172,8 +172,8 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].status).toBe(SiteStatus.OUT_OF_SERVICE)
-      expect(result.sites[0].id).toBe('site-3')
+      expect(result.sites[0]!.status).toBe(SiteStatus.OUT_OF_SERVICE)
+      expect(result.sites[0]!.id).toBe('site-3')
     })
 
     it('should return empty array if no sites match status', async () => {
@@ -195,7 +195,7 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].siteType).toBe(SiteType.TENT)
+      expect(result.sites[0]!.siteType).toBe(SiteType.TENT)
     })
 
     it('should filter by RV_FULL_HOOKUP type', async () => {
@@ -205,7 +205,7 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].siteType).toBe(SiteType.RV)
+      expect(result.sites[0]!.siteType).toBe(SiteType.RV)
     })
 
     it('should filter by CABIN type', async () => {
@@ -215,7 +215,7 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].siteType).toBe(SiteType.CABIN)
+      expect(result.sites[0]!.siteType).toBe(SiteType.CABIN)
     })
   })
 
@@ -260,8 +260,8 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].status).toBe(SiteStatus.AVAILABLE)
-      expect(result.sites[0].siteType).toBe(SiteType.TENT)
+      expect(result.sites[0]!.status).toBe(SiteStatus.AVAILABLE)
+      expect(result.sites[0]!.siteType).toBe(SiteType.TENT)
     })
 
     it('should filter by type and availability', async () => {

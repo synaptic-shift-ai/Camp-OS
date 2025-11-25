@@ -36,6 +36,7 @@ import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEvent
 import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { IPropertyRepository } from '@/modules/PropertyManagement/domain/IPropertyRepository'
 import type { IGuestRepository } from '@/modules/GuestManagement/domain/IGuestRepository'
+import { PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
 import type { ISiteRepository } from '@/modules/SiteManagement/domain/ISiteRepository'
 
 /**
@@ -389,10 +390,10 @@ describe('Guest↔Site Cross-Module Integration', () => {
 
       // Assert: Only property 1's data is returned (no cross-tenant leak)
       expect(property1Sites.sites).toHaveLength(1)
-      expect(property1Sites.sites[0].id).toBe(site1.id)
+      expect(property1Sites.sites[0]!.id).toBe(site1.id)
 
       expect(property1Guests).toHaveLength(1)
-      expect(property1Guests[0].id).toBe(guest1.id)
+      expect(property1Guests[0]!.id).toBe(guest1.id)
 
       // Verify property 2 isolation
       const property2Sites = await sitesQuery.execute({
@@ -403,10 +404,10 @@ describe('Guest↔Site Cross-Module Integration', () => {
       })
 
       expect(property2Sites.sites).toHaveLength(1)
-      expect(property2Sites.sites[0].id).toBe(site2.id)
+      expect(property2Sites.sites[0]!.id).toBe(site2.id)
 
       expect(property2Guests).toHaveLength(1)
-      expect(property2Guests[0].id).toBe(guest2.id)
+      expect(property2Guests[0]!.id).toBe(guest2.id)
     })
   })
 
@@ -773,7 +774,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
 
       // Assert: Site filter works, guest query unaffected
       expect(availableSites.sites).toHaveLength(1)
-      expect(availableSites.sites[0].status).toBe(SiteStatus.AVAILABLE)
+      expect(availableSites.sites[0]!.status).toBe(SiteStatus.AVAILABLE)
       expect(guests).toHaveLength(1) // All guests returned regardless of site filters
     })
   })

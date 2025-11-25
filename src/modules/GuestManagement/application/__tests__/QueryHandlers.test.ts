@@ -199,10 +199,10 @@ describe('ListGuestsQueryHandler', () => {
     const result = await handler.execute(input)
 
     expect(result).toHaveLength(2)
-    expect(result[0].id).toBe('guest-1')
-    expect(result[0].firstName).toBe('John')
-    expect(result[1].id).toBe('guest-2')
-    expect(result[1].firstName).toBe('Jane')
+    expect(result[0]!.id).toBe('guest-1')
+    expect(result[0]!.firstName).toBe('John')
+    expect(result[1]!.id).toBe('guest-2')
+    expect(result[1]!.firstName).toBe('Jane')
   })
 
   test('should return empty array when no guests found', async () => {
@@ -262,7 +262,7 @@ describe('ListGuestsQueryHandler', () => {
     const result = await handler.execute(input)
 
     expect(result).toHaveLength(1)
-    const dto = result[0]
+    const dto = result[0]!
     expect(dto.id).toBe('guest-1')
     expect(dto.fullName).toBe('John Doe')
     expect(dto.hasStripeCustomer).toBe(true)

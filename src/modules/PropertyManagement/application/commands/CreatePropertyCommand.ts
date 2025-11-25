@@ -17,7 +17,8 @@ export type CreatePropertyDto = {
   name: string
   slug: string
   description?: string | null | undefined
-  propertyType?: PropertyType | null | undefined
+  // Accept string literals from Zod validation or enum values
+  propertyType?: PropertyType | 'campground' | 'rv_park' | 'glamping' | 'cabin_resort' | 'mixed' | null | undefined
   address?: string | null | undefined
   city?: string | null | undefined
   state?: string | null | undefined
@@ -51,7 +52,7 @@ export class CreatePropertyCommandHandler {
       dto.slug,
       {
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.propertyType !== undefined && { propertyType: dto.propertyType }),
+        ...(dto.propertyType !== undefined && { propertyType: dto.propertyType as PropertyType | null }),
         ...(dto.address !== undefined && { address: dto.address }),
         ...(dto.city !== undefined && { city: dto.city }),
         ...(dto.state !== undefined && { state: dto.state }),

@@ -56,9 +56,9 @@ FOR SELECT
 TO authenticated
 USING (
     company_id IN (
-        SELECT p.company_id
-        FROM public.properties p
-        WHERE p.user_id = auth.uid()
+        SELECT c.id
+        FROM public.companies c
+        WHERE c.owner_id = auth.uid()
     )
 );
 

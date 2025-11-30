@@ -1,0 +1,186 @@
+
+> my-v0-project@0.1.0 type-check
+> tsc --noEmit
+
+src/app/api/v1/guests/[id]/route.ts(171,28): error TS2554: Expected 2 arguments, but got 1.
+src/app/api/v1/guests/[id]/stripe/route.ts(96,28): error TS2554: Expected 2 arguments, but got 1.
+src/app/api/v1/properties/[propertyId]/guests/route.ts(113,65): error TS2345: Argument of type 'GuestDTO' is not assignable to parameter of type 'Guest'.
+  Type 'GuestDTO' is missing the following properties from type 'Guest': _propertyId, _userId, _name, _contact, and 25 more.
+src/app/api/v1/properties/[propertyId]/guests/route.ts(231,28): error TS2554: Expected 2 arguments, but got 1.
+src/app/api/v1/properties/[propertyId]/route.ts(189,7): error TS2322: Type '"campground" | "rv_park" | "glamping" | "cabin_resort" | "mixed" | null | undefined' is not assignable to type 'PropertyType | null | undefined'.
+  Type '"campground"' is not assignable to type 'PropertyType | null | undefined'.
+src/app/api/v1/properties/[propertyId]/sites/bulk/route.ts(154,11): error TS2322: Type '"glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"' is not assignable to type 'SiteType'.
+  Type '"glamping"' is not assignable to type 'SiteType'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(147,47): error TS2345: Argument of type '{ offset?: number; limit?: number; siteType?: "glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"; status?: "available" | "occupied" | "maintenance" | "unavailable"; propertyId: string; }' is not assignable to parameter of type 'ListSitesDto'.
+  Types of property 'status' are incompatible.
+    Type '"available" | "occupied" | "maintenance" | "unavailable"' is not assignable to type 'SiteStatus | undefined'.
+      Type '"available"' is not assignable to type 'SiteStatus | undefined'.
+src/app/api/v1/properties/[propertyId]/sites/route.ts(261,7): error TS2322: Type '"glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"' is not assignable to type 'SiteType'.
+  Type '"glamping"' is not assignable to type 'SiteType'.
+src/app/api/v1/properties/route.ts(42,30): error TS7016: Could not find a declaration file for module 'uuid'. '/Users/willstaten/Projects/Camp-OS-refactor/node_modules/uuid/dist/esm-browser/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/uuid` if it exists or add a new declaration (.d.ts) file containing `declare module 'uuid';`
+src/app/api/v1/properties/route.ts(115,47): error TS2345: Argument of type '{ limit: number; offset: number; onboardingComplete?: boolean; status?: "draft" | "active" | "inactive" | "closed"; companyId: any; }' is not assignable to parameter of type 'ListPropertiesDto'.
+  Types of property 'status' are incompatible.
+    Type '"draft" | "active" | "inactive" | "closed"' is not assignable to type 'PropertyStatus | undefined'.
+      Type '"draft"' is not assignable to type 'PropertyStatus | undefined'.
+src/app/api/v1/properties/route.ts(215,51): error TS2345: Argument of type '{ amenities?: string[]; settings?: PropertySettings; bookingPageSlug?: string; subdomain?: string; email?: string; phone?: string; country?: string; zipCode?: string; state?: string; ... 8 more ...; slug: string; }' is not assignable to parameter of type 'CreatePropertyDto'.
+  Types of property 'propertyType' are incompatible.
+    Type '"campground" | "rv_park" | "glamping" | "cabin_resort" | "mixed"' is not assignable to type 'PropertyType | null | undefined'.
+      Type '"campground"' is not assignable to type 'PropertyType | null | undefined'.
+src/lib/api/errors.ts(427,7): error TS2698: Spread types may only be created from object types.
+src/modules/BookingEngine/domain/Reservation.test.ts(79,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(122,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(176,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(190,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(222,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(291,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/domain/Reservation.test.ts(353,14): error TS2532: Object is possibly 'undefined'.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(76,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(134,31): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(150,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(164,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(192,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(259,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/BookingEngine/infrastructure/SupabaseReservationRepository.ts(274,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/modules/Financial/domain/aggregates/SecurityDeposit.test.ts(95,14): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/domain/aggregates/SecurityDeposit.test.ts(96,14): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/domain/aggregates/SecurityDeposit.test.ts(97,14): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/domain/value-objects/InvoiceLineItem.ts(71,12): error TS2416: Property 'toJSON' in type 'InvoiceLineItem' is not assignable to the same property in base type 'ValueObject<InvoiceLineItemProps>'.
+  Type '() => Record<string, any>' is not assignable to type '() => InvoiceLineItemProps'.
+    Type 'Record<string, any>' is missing the following properties from type 'InvoiceLineItemProps': description, quantity, unitPrice
+src/modules/Financial/domain/value-objects/InvoiceNumber.ts(70,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/Financial/infrastructure/SupabaseInvoiceRepository.ts(104,15): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "financial_invoices", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, ... 5 more ..., "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/Financial/infrastructure/SupabaseInvoiceRepository.ts(130,31): error TS2532: Object is possibly 'undefined'.
+src/modules/Financial/infrastructure/SupabasePaymentPlanRepository.ts(71,15): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "financial_payment_plans", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, ... 5 more ..., "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/Financial/infrastructure/SupabaseSecurityDepositRepository.ts(71,15): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "financial_security_deposits", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, ... 5 more ..., "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/Financial/infrastructure/SupabaseTransactionRepository.ts(118,15): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "financial_transactions", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, ... 5 more ..., "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(202,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(203,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(204,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(205,12): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(266,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(267,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(268,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(269,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(270,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/application/__tests__/QueryHandlers.test.ts(271,12): error TS18048: 'dto' is possibly 'undefined'.
+src/modules/GuestManagement/domain/Guest.ts(57,10): error TS2540: Cannot assign to '_createdAt' because it is a read-only property.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(274,14): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/infrastructure/__tests__/SupabaseGuestRepository.test.ts(275,14): error TS2532: Object is possibly 'undefined'.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(133,17): error TS2345: Argument of type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/modules/GuestManagement/infrastructure/SupabaseGuestRepository.ts(141,67): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "guests", never, "POST">', gave the following error.
+    Argument of type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "guests", never, "POST">', gave the following error.
+    Argument of type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is not assignable to parameter of type 'never[]'.
+      Type '{ id: string; property_id: string; user_id: string | null; first_name: string; last_name: string; email: string; phone: string; address: string | null; city: string | null; state: string | null; ... 7 more ...; updated_at: string; }' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(52,5): error TS2353: Object literal may only specify known properties, and 'owner_id' does not exist in type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(89,5): error TS2353: Object literal may only specify known properties, and 'owner_id' does not exist in type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(172,7): error TS2353: Object literal may only specify known properties, and 'currency' does not exist in type 'Partial<PropertySettingsProps>'.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(191,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(197,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(206,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(215,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(224,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(277,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(284,7): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(295,9): error TS2578: Unused '@ts-expect-error' directive.
+src/modules/PropertyManagement/infrastructure/__benchmarks__/SupabasePropertyRepository.bench.ts(356,9): error TS2353: Object literal may only specify known properties, and 'currency' does not exist in type 'Partial<PropertySettingsProps>'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(151,17): error TS2345: Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(161,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "properties", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "properties", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(174,15): error TS2345: Argument of type '{ status: PropertyStatus; }' is not assignable to parameter of type 'never'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(243,11): error TS2339: Property 'settings' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(247,41): error TS2339: Property 'amenities' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(247,58): error TS2339: Property 'amenities' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(252,11): error TS2339: Property 'owner_id' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(258,7): error TS2345: Argument of type 'Json' is not assignable to parameter of type 'string | null'.
+  Type 'number' is not assignable to type 'string'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(259,11): error TS2339: Property 'city' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(260,11): error TS2339: Property 'state' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(261,11): error TS2339: Property 'zip_code' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(262,11): error TS2339: Property 'country' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(265,11): error TS2339: Property 'subdomain' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(266,11): error TS2339: Property 'booking_page_slug' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'.
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(270,11): error TS2551: Property 'onboarding_completed_at' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'. Did you mean 'onboarding_completed'?
+src/modules/PropertyManagement/infrastructure/SupabasePropertyRepository.ts(270,50): error TS2551: Property 'onboarding_completed_at' does not exist on type '{ id: string; company_id: string; name: string; slug: string; property_type: string | null; description: string | null; address: Json; phone: string | null; email: string | null; website: string | null; ... 9 more ...; updated_at: string; }'. Did you mean 'onboarding_completed'?
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(97,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(213,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(290,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(556,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/__tests__/Reservation.test.ts(608,14): error TS2532: Object is possibly 'undefined'.
+src/modules/ReservationManagement/domain/Reservation.ts(145,18): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(142,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(154,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(164,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(165,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(175,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(176,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(198,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(208,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(218,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(230,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(263,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(264,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(429,21): error TS18048: 'site' is possibly 'undefined'.
+src/modules/SiteManagement/application/queries/__tests__/ListSitesQuery.test.ts(430,21): error TS18048: 'site' is possibly 'undefined'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(72,9): error TS2353: Object literal may only specify known properties, and 'weekend_price' does not exist in type '{ id: string; property_id: string; site_number: string; site_name: string | null; site_type: "glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"; description: string | null; max_occupancy: number; ... 18 more ...; updated_at: string; }'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(147,9): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(196,11): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(216,11): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(237,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(238,14): error TS2532: Object is possibly 'undefined'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(276,7): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(421,9): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(496,9): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(600,9): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(634,9): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/__tests__/SupabaseSiteRepository.test.ts(666,9): error TS2322: Type 'null' is not assignable to type 'number'.
+src/modules/SiteManagement/infrastructure/SupabaseSiteRepository.ts(150,17): error TS2345: Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+src/modules/SiteManagement/infrastructure/SupabaseSiteRepository.ts(158,66): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated"; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sites", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sites", never, "POST">', gave the following error.
+    Argument of type 'Record<string, any>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, any>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/modules/SiteManagement/infrastructure/SupabaseSiteRepository.ts(207,44): error TS2339: Property 'images' does not exist on type '{ id: string; property_id: string; site_number: string; site_name: string | null; site_type: "glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"; description: string | null; max_occupancy: number; ... 18 more ...; updated_at: string; }'.
+src/modules/SiteManagement/infrastructure/SupabaseSiteRepository.ts(208,50): error TS2339: Property 'location_map' does not exist on type '{ id: string; property_id: string; site_number: string; site_name: string | null; site_type: "glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"; description: string | null; max_occupancy: number; ... 18 more ...; updated_at: string; }'.
+src/modules/SiteManagement/infrastructure/SupabaseSiteRepository.ts(219,11): error TS2339: Property 'max_vehicles' does not exist on type '{ id: string; property_id: string; site_number: string; site_name: string | null; site_type: "glamping" | "tent" | "rv" | "cabin" | "yurt" | "other"; description: string | null; max_occupancy: number; ... 18 more ...; updated_at: string; }'.
+src/shared/infrastructure/eventBus/__tests__/InMemoryEventBus.test.ts(227,58): error TS2554: Expected 1 arguments, but got 0.
+tests/integration/guest-property-integration.test.ts(71,16): error TS2304: Cannot find name 'PropertyStatus'.
+tests/integration/guest-property-integration.test.ts(256,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-property-integration.test.ts(257,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-property-integration.test.ts(264,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-property-integration.test.ts(265,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-site-integration.test.ts(71,16): error TS2304: Cannot find name 'PropertyStatus'.
+tests/integration/guest-site-integration.test.ts(392,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-site-integration.test.ts(395,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-site-integration.test.ts(406,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-site-integration.test.ts(409,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/guest-site-integration.test.ts(776,14): error TS2532: Object is possibly 'undefined'.
+tests/integration/properties-api.test.ts(363,14): error TS2532: Object is possibly 'undefined'.

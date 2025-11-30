@@ -11,6 +11,50 @@ import type { Database } from '@/contracts/db'
 
 type SiteRow = Database['public']['Tables']['sites']['Row']
 
+/**
+ * Create a complete mock SiteRow with all required fields
+ */
+function createMockSiteRow(overrides: Partial<SiteRow> = {}): SiteRow {
+  return {
+    id: 'site-123',
+    property_id: 'prop-456',
+    site_number: '42',
+    site_name: 'Test Site',
+    site_type: SiteType.RV,
+    status: SiteStatus.AVAILABLE,
+    base_price: 7500,
+    weekend_price: 9000,
+    max_occupancy: 6,
+    max_vehicles: 2,
+    size_sqft: 1000,
+    description: 'Test description',
+    amenities: ['picnic_table'],
+    hookups: ['water', 'electric'],
+    images: ['img1.jpg'],
+    location_map: { lat: 40.7, lng: -74.0 },
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+    // Additional required fields from db schema
+    accessibility_features: null,
+    ada_accessible: false,
+    allow_pets: true,
+    availability_rules: null,
+    booking_rules_override: null,
+    deposit_override: null,
+    imported_at: null,
+    imported_by: null,
+    monthly_rate_cents: null,
+    pet_fee: null,
+    pricing_override: null,
+    seasonal_pricing: null,
+    site_amenities: null,
+    site_images: null,
+    weekend_price_cents: null,
+    weekly_rate_cents: null,
+    ...overrides,
+  }
+}
+
 // Mock Supabase client
 function createMockSupabaseClient() {
   const mockData: SiteRow[] = []
@@ -61,26 +105,7 @@ describe('SupabaseSiteRepository', () => {
 
   describe('findById', () => {
     it('should return site when found', async () => {
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
-        site_name: 'Test Site',
-        site_type: SiteType.RV,
-        status: SiteStatus.AVAILABLE,
-        base_price: 7500,
-        weekend_price: 9000,
-        max_occupancy: 6,
-        max_vehicles: 2,
-        size_sqft: 1000,
-        description: 'Test description',
-        amenities: ['picnic_table'],
-        hookups: ['water', 'electric'],
-        images: ['img1.jpg'],
-        location_map: { lat: 40.7, lng: -74.0 },
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      const mockRow = createMockSiteRow()
 
       mockSupabase.queryBuilder.single.mockResolvedValue({
         data: mockRow,
@@ -135,13 +160,8 @@ describe('SupabaseSiteRepository', () => {
 
   describe('findBySiteNumber', () => {
     it('should return site when found by property and site number', async () => {
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
-        site_name: 'Test Site',
+      const mockRow = createMockSiteRow({
         site_type: SiteType.TENT,
-        status: SiteStatus.AVAILABLE,
         base_price: 5000,
         weekend_price: 6000,
         max_occupancy: null,
@@ -152,9 +172,7 @@ describe('SupabaseSiteRepository', () => {
         hookups: null,
         images: null,
         location_map: null,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      })
 
       mockSupabase.queryBuilder.single.mockResolvedValue({
         data: mockRow,
@@ -184,46 +202,24 @@ describe('SupabaseSiteRepository', () => {
   describe('findByPropertyId', () => {
     it('should return all sites for a property', async () => {
       const mockRows: SiteRow[] = [
-        {
+        createMockSiteRow({
           id: 'site-1',
-          property_id: 'prop-456',
           site_number: '1',
           site_name: 'Site 1',
           site_type: SiteType.TENT,
           status: SiteStatus.AVAILABLE,
           base_price: 5000,
           weekend_price: 6000,
-          max_occupancy: null,
-          max_vehicles: null,
-          size_sqft: null,
-          description: null,
-          amenities: null,
-          hookups: null,
-          images: null,
-          location_map: null,
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:00:00Z',
-        },
-        {
+        }),
+        createMockSiteRow({
           id: 'site-2',
-          property_id: 'prop-456',
           site_number: '2',
           site_name: 'Site 2',
           site_type: SiteType.RV,
           status: SiteStatus.OCCUPIED,
           base_price: 7500,
           weekend_price: 9000,
-          max_occupancy: null,
-          max_vehicles: null,
-          size_sqft: null,
-          description: null,
-          amenities: null,
-          hookups: null,
-          images: null,
-          location_map: null,
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:00:00Z',
-        },
+        }),
       ]
 
       mockSupabase.queryBuilder.order.mockResolvedValue({
@@ -264,30 +260,17 @@ describe('SupabaseSiteRepository', () => {
   })
 
   describe('findByPropertyIdWithFilters', () => {
-    const createMockRow = (overrides: Partial<SiteRow> = {}): SiteRow => ({
-      id: 'site-123',
-      property_id: 'prop-456',
-      site_number: '42',
-      site_name: 'Test Site',
-      site_type: SiteType.TENT,
-      status: SiteStatus.AVAILABLE,
-      base_price: 5000,
-      weekend_price: 6000,
-      max_occupancy: null,
-      max_vehicles: null,
-      size_sqft: null,
-      description: null,
-      amenities: null,
-      hookups: null,
-      images: null,
-      location_map: null,
-      created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z',
-      ...overrides,
-    })
+    // Use the global createMockSiteRow helper for filter tests
+    const createFilterMockRow = (overrides: Partial<SiteRow> = {}): SiteRow =>
+      createMockSiteRow({
+        site_type: SiteType.TENT,
+        base_price: 5000,
+        weekend_price: 6000,
+        ...overrides,
+      })
 
     it('should filter by status', async () => {
-      const mockRows = [createMockRow({ status: SiteStatus.AVAILABLE })]
+      const mockRows = [createFilterMockRow({ status: SiteStatus.AVAILABLE })]
 
       mockSupabase.queryBuilder.order.mockResolvedValue({
         data: mockRows,
@@ -305,7 +288,7 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should filter by site type', async () => {
-      const mockRows = [createMockRow({ site_type: SiteType.TENT })]
+      const mockRows = [createFilterMockRow({ site_type: SiteType.TENT })]
 
       mockSupabase.queryBuilder.order.mockResolvedValue({
         data: mockRows,
@@ -321,7 +304,7 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should filter by availableOnly', async () => {
-      const mockRows = [createMockRow({ status: SiteStatus.AVAILABLE })]
+      const mockRows = [createFilterMockRow({ status: SiteStatus.AVAILABLE })]
 
       mockSupabase.queryBuilder.order.mockResolvedValue({
         data: mockRows,
@@ -338,7 +321,7 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should apply pagination with limit', async () => {
-      const mockRows = [createMockRow()]
+      const mockRows = [createFilterMockRow()]
 
       mockSupabase.queryBuilder.order.mockResolvedValue({
         data: mockRows,
@@ -355,7 +338,7 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should apply pagination with limit and offset', async () => {
-      const mockRows = [createMockRow()]
+      const mockRows = [createFilterMockRow()]
 
       mockSupabase.queryBuilder.order.mockResolvedValue({
         data: mockRows,
@@ -409,26 +392,12 @@ describe('SupabaseSiteRepository', () => {
 
     it('should update existing site', async () => {
       // Mock findById to return existing site
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
+      const mockRow = createMockSiteRow({
         site_name: 'Existing Site',
         site_type: SiteType.TENT,
-        status: SiteStatus.AVAILABLE,
         base_price: 5000,
         weekend_price: 6000,
-        max_occupancy: null,
-        max_vehicles: null,
-        size_sqft: null,
-        description: null,
-        amenities: null,
-        hookups: null,
-        images: null,
-        location_map: null,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      })
 
       // Mock the chain for findById: from().select().eq().single()
       // Create a mock single that returns the data
@@ -484,26 +453,11 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should throw error on update failure', async () => {
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
-        site_name: 'Test Site',
+      const mockRow = createMockSiteRow({
         site_type: SiteType.TENT,
-        status: SiteStatus.AVAILABLE,
         base_price: 5000,
         weekend_price: 6000,
-        max_occupancy: null,
-        max_vehicles: null,
-        size_sqft: null,
-        description: null,
-        amenities: null,
-        hookups: null,
-        images: null,
-        location_map: null,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      })
 
       // Mock the chain for findById: from().select().eq().single()
       const mockSingleForSelect = vi.fn().mockResolvedValueOnce({
@@ -588,26 +542,11 @@ describe('SupabaseSiteRepository', () => {
 
   describe('data mapping', () => {
     it('should parse JSON arrays correctly', async () => {
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
-        site_name: 'Test Site',
-        site_type: SiteType.RV,
-        status: SiteStatus.AVAILABLE,
-        base_price: 7500,
-        weekend_price: 9000,
-        max_occupancy: null,
-        max_vehicles: null,
-        size_sqft: null,
-        description: null,
+      const mockRow = createMockSiteRow({
         amenities: ['picnic_table', 'fire_ring'],
         hookups: ['water', 'electric'],
         images: ['img1.jpg', 'img2.jpg'],
-        location_map: null,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      })
 
       mockSupabase.queryBuilder.single.mockResolvedValue({
         data: mockRow,
@@ -622,26 +561,15 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should parse JSON objects correctly', async () => {
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
-        site_name: 'Test Site',
+      const mockRow = createMockSiteRow({
         site_type: SiteType.TENT,
-        status: SiteStatus.AVAILABLE,
         base_price: 5000,
         weekend_price: 6000,
-        max_occupancy: null,
-        max_vehicles: null,
-        size_sqft: null,
-        description: null,
         amenities: null,
         hookups: null,
         images: null,
         location_map: { lat: 40.7128, lng: -74.006 },
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      })
 
       mockSupabase.queryBuilder.single.mockResolvedValue({
         data: mockRow,
@@ -654,13 +582,8 @@ describe('SupabaseSiteRepository', () => {
     })
 
     it('should handle null JSON fields', async () => {
-      const mockRow: SiteRow = {
-        id: 'site-123',
-        property_id: 'prop-456',
-        site_number: '42',
-        site_name: 'Test Site',
+      const mockRow = createMockSiteRow({
         site_type: SiteType.TENT,
-        status: SiteStatus.AVAILABLE,
         base_price: 5000,
         weekend_price: 6000,
         max_occupancy: null,
@@ -671,9 +594,7 @@ describe('SupabaseSiteRepository', () => {
         hookups: null,
         images: null,
         location_map: null,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
+      })
 
       mockSupabase.queryBuilder.single.mockResolvedValue({
         data: mockRow,

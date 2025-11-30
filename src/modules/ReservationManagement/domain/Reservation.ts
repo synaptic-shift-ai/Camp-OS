@@ -142,7 +142,9 @@ export class Reservation extends AggregateRoot<ReservationId> {
    * Format: RES-YYYYMMDD-XXXX (e.g., RES-20251108-A1B2)
    */
   private static generateConfirmationNumber(): ConfirmationNumber {
-    const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
+    const isoDate = new Date().toISOString()
+    const datePart = isoDate.split('T')[0] ?? isoDate.substring(0, 10)
+    const date = datePart.replace(/-/g, '')
     const random = Math.random().toString(36).substring(2, 6).toUpperCase()
     return `RES-${date}-${random}`
   }

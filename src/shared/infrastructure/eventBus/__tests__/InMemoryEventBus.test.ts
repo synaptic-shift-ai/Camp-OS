@@ -224,7 +224,7 @@ describe('InMemoryEventBus', () => {
     })
 
     it('should log errors to console', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation()
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       const errorHandler = vi.fn(() => {
         throw new Error('Test error')

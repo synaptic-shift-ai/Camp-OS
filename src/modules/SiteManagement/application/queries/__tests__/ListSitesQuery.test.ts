@@ -227,7 +227,7 @@ describe('ListSitesQuery', () => {
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0].isAvailableForBooking()).toBe(true)
+      expect(result.sites[0]?.isAvailableForBooking()).toBe(true)
     })
 
     it('should exclude occupied sites when availableOnly is true', async () => {
@@ -426,8 +426,9 @@ describe('ListSitesQuery', () => {
       const result = await handler.execute({ propertyId: 'prop-1' })
 
       const site = result.sites[0]
-      expect(typeof site.isAvailableForBooking).toBe('function')
-      expect(typeof site.canAccommodate).toBe('function')
+      expect(site).toBeDefined()
+      expect(typeof site?.isAvailableForBooking).toBe('function')
+      expect(typeof site?.canAccommodate).toBe('function')
     })
   })
 

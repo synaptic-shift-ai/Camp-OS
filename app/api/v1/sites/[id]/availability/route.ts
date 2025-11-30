@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
-import { ERROR_CODES } from '@/lib/api/errors'
+import { ErrorCodes } from '@/lib/api/errors'
 import { CheckAvailabilityQuerySchema } from '@/types/api/v1/schemas/reservations'
 import { CheckSiteAvailabilityQueryHandler } from '@/modules/BookingEngine/application/queries/CheckSiteAvailabilityQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
@@ -40,7 +40,7 @@ export async function GET(
       CheckAvailabilityQuerySchema.parse(queryParams)
     } catch (validationError: any) {
       return NextResponse.json(
-        error(ERROR_CODES.VALIDATION_ERROR, 'Invalid query parameters', {
+        error(ErrorCodes.VALIDATION_ERROR, 'Invalid query parameters', {
           errors: validationError.errors,
         }),
         { status: 400 }
@@ -56,7 +56,7 @@ export async function GET(
 
     if (siteError || !site) {
       return NextResponse.json(
-        error(ERROR_CODES.RESOURCE_NOT_FOUND, 'Site not found'),
+        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Site not found'),
         { status: 404 }
       )
     }
@@ -91,13 +91,13 @@ export async function GET(
     // Handle domain validation errors
     if (err.message.includes('date')) {
       return NextResponse.json(
-        error(ERROR_CODES.VALIDATION_ERROR, err.message),
+        error(ErrorCodes.VALIDATION_ERROR, err.message),
         { status: 400 }
       )
     }
 
     return NextResponse.json(
-      error(ERROR_CODES.INTERNAL_ERROR, 'Failed to check availability', {
+      error(ErrorCodes.INTERNAL_ERROR, 'Failed to check availability', {
         message: err.message,
       }),
       { status: 500 }

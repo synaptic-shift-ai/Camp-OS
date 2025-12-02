@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
+import { MotionDiv } from "@/components/ui/motion-wrapper"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,7 +71,7 @@ export default function RegisterPage() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 px-4">
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
@@ -98,14 +98,14 @@ export default function RegisterPage() {
               </Button>
             </CardFooter>
           </Card>
-        </motion.div>
+        </MotionDiv>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 px-4 py-12">
-      <motion.div
+      <MotionDiv
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -231,7 +231,7 @@ export default function RegisterPage() {
             Privacy Policy
           </Link>
         </p>
-      </motion.div>
+      </MotionDiv>
     </div>
   )
 }

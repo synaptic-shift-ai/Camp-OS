@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
+import { MotionDiv } from "@/components/ui/motion-wrapper"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -85,7 +85,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 px-4">
-      <motion.div
+      <MotionDiv
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -176,7 +176,7 @@ export default function LoginPage() {
             Privacy Policy
           </Link>
         </p>
-      </motion.div>
+      </MotionDiv>
     </div>
   )
 }

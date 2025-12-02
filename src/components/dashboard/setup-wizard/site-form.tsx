@@ -126,20 +126,19 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
       const apiData = toApiFormat(data)
 
       if (isEditMode) {
-        // Update existing site
-        const response = await fetch(`/api/admin/sites/${site.id}`, {
-          method: "PATCH",
+        // Update existing site - Migrated to v1 API
+        const response = await fetch(`/api/v1/sites/${site.id}`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(apiData),
         })
+        const result = await response.json()
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to update site")
+        if (!response.ok || !result.success) {
+          throw new Error(result.error?.message || "Failed to update site")
         }
 
-        const result = await response.json()
-        onSave(result.site)
+        onSave(result.data)
       } else {
         // Create new site - Migrated to v1 API (Phase 4, Week 13-14)
         const response = await fetch(`/api/v1/properties/${propertyId}/sites`, {

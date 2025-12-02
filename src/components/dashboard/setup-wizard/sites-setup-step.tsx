@@ -26,22 +26,20 @@ export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepP
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Fetch existing sites
+  // Fetch existing sites - migrated to v1 API
   const fetchSites = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/admin/sites")
+      const response = await fetch(`/api/v1/properties/${property.id}/sites`)
+      const result = await response.json()
 
       if (!response.ok) {
-        throw new Error("Failed to fetch sites")
+        throw new Error(result.error?.message || "Failed to fetch sites")
       }
 
-      const data = await response.json()
-      // Filter sites for current property
-      const propertySites = data.sites?.filter(
-        (site: any) => site.property_id === property.id
-      ) || []
-      setSites(propertySites)
+      // v1 API returns { success: true, data: { items: [...] } }
+      const items = result.success && result.data?.items ? result.data.items : []
+      setSites(items)
     } catch (err) {
       console.error("Error fetching sites:", err)
       setError(err instanceof Error ? err.message : "Failed to load sites")
@@ -67,13 +65,14 @@ export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepP
   const handleDeleteSite = async (siteId: string) => {
     try {
       setDeleting(true)
-      const response = await fetch(`/api/admin/sites/${siteId}`, {
+      // Migrated to v1 API
+      const response = await fetch(`/api/v1/sites/${siteId}`, {
         method: "DELETE",
       })
+      const result = await response.json()
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to delete site")
+        throw new Error(result.error?.message || "Failed to delete site")
       }
 
       toast({

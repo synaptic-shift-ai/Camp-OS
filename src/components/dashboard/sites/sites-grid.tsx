@@ -100,8 +100,9 @@ export function SitesGrid({ sites }: SitesGridProps) {
     e.stopPropagation()
 
     try {
-      const response = await fetch(`/api/admin/sites/${site.id}`, {
-        method: 'PATCH',
+      // Migrated to v1 API
+      const response = await fetch(`/api/v1/sites/${site.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -109,10 +110,10 @@ export function SitesGrid({ sites }: SitesGridProps) {
           status: newStatus,
         }),
       })
+      const result = await response.json()
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update status')
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || 'Failed to update status')
       }
 
       toast({

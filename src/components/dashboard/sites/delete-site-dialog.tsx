@@ -44,13 +44,14 @@ export function DeleteSiteDialog({ open, onOpenChange, site }: DeleteSiteDialogP
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/sites/${site.id}`, {
+      // Migrated to v1 API
+      const response = await fetch(`/api/v1/sites/${site.id}`, {
         method: 'DELETE',
       })
+      const result = await response.json()
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete site')
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || 'Failed to delete site')
       }
 
       toast({

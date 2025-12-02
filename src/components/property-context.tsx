@@ -85,35 +85,51 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
       // Migrated to v1 API (Phase 4, Week 13-14)
       const response = await fetch("/api/v1/properties")
+      const result = await response.json()
 
-      if (response.ok) {
-        const result = await response.json()
-
-        // v1 API uses standard response envelope: { success: true, data: { items: [...], pagination: {...} } }
-        const items = result.success && result.data?.items ? result.data.items : []
-
-        if (result.success && items.length >= 0) {
-          setProperties(items)
-
-          // Auto-select property
-          if (items.length > 0) {
-            // Try to restore from localStorage (safe after hydration)
-            const savedPropertyId = localStorage.getItem(SELECTED_PROPERTY_KEY)
-            const savedPropertyExists = items.some((p: Property) => p.id === savedPropertyId)
-
-            if (savedPropertyId && savedPropertyExists) {
-              setSelectedPropertyId(savedPropertyId)
-            } else {
-              // Select first property by default
-              setSelectedPropertyId(items[0].id)
-              localStorage.setItem(SELECTED_PROPERTY_KEY, items[0].id)
-            }
-          }
-        } else {
-          console.error("Failed to fetch properties: unexpected response format", result)
+      // Handle both success and error responses gracefully
+      // New users may get 404 "Company not found" which is expected
+      if (!response.ok) {
+        // 404 is expected for new users - just set empty properties
+        if (response.status === 404) {
+          setProperties([])
+          return
         }
-      } else {
-        console.error("Failed to fetch properties:", response.statusText)
+        console.error("Failed to fetch properties:", response.status, result)
+        return
+      }
+
+      // v1 API returns: { success: true, data: { items: [...], pagination: {...} } }
+      // Handle both array and object data formats for compatibility
+      let items: Property[] = []
+      if (result.success && result.data) {
+        if (Array.isArray(result.data)) {
+          // Direct array format
+          items = result.data
+        } else if (Array.isArray(result.data.items)) {
+          // Paginated format with items array
+          items = result.data.items
+        }
+      }
+
+      setProperties(items)
+
+      // Auto-select property
+      if (items.length > 0) {
+        // Try to restore from localStorage (safe after hydration)
+        const savedPropertyId = localStorage.getItem(SELECTED_PROPERTY_KEY)
+        const savedPropertyExists = items.some((p: Property) => p.id === savedPropertyId)
+
+        if (savedPropertyId && savedPropertyExists) {
+          setSelectedPropertyId(savedPropertyId)
+        } else {
+          // Select first property by default
+          const firstProperty = items[0]
+          if (firstProperty) {
+            setSelectedPropertyId(firstProperty.id)
+            localStorage.setItem(SELECTED_PROPERTY_KEY, firstProperty.id)
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching properties:", error)

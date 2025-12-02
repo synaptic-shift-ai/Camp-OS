@@ -63,8 +63,7 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // During SSR and initial hydration, render children without conditional wrapper
-  // to prevent hydration mismatch. After hydration, show banner if needed.
+  // Show banner only after hydration - but always render same DOM structure
   const shouldShowBanner = isHydrated && hasIncompleteSetup
 
   return (
@@ -79,23 +78,18 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Dashboard Content with Limited Access Indicator */}
-      {shouldShowBanner ? (
-        <div className="relative">
-          {/* Banner at top of dashboard */}
+      {/* Banner rendered separately - no wrapper around children */}
+      {shouldShowBanner && (
+        <div className="mb-4">
           <LimitedDashboardBanner
             incompleteCount={incompleteProperties.length}
             onCompleteSetup={handleCompleteSetup}
           />
-
-          {/* Dashboard content - still accessible but with banner */}
-          <div className="mt-4">
-            {children}
-          </div>
         </div>
-      ) : (
-        children
       )}
+
+      {/* Children always rendered the same way - no conditional wrapper */}
+      {children}
     </>
   )
 }

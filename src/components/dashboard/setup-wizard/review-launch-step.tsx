@@ -57,13 +57,19 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
   const [completionData, setCompletionData] = useState<CompletionData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch all properties data on mount
+  // Fetch completion status - migrated to v1 API
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("/api/onboarding/completion-status")
-        const data = await response.json()
-        setCompletionData(data)
+        const response = await fetch(`/api/v1/properties/${property.id}/completion-status`)
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error?.message || "Failed to fetch completion status")
+        }
+
+        // v1 API returns { success: true, data: { properties: [...], summary: {...} } }
+        setCompletionData(result.data)
       } catch (error) {
         console.error("Error fetching completion data:", error)
       } finally {
@@ -71,7 +77,7 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
       }
     }
     fetchData()
-  }, [])
+  }, [property.id])
 
   if (loading) {
     return (

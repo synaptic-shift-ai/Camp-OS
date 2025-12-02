@@ -54,7 +54,7 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
 
   const handleCompleteSetup = () => {
     // Navigate to wizard with current property or first incomplete
-    const targetProperty = selectedProperty && !selectedProperty.onboarding_completed
+    const targetProperty = selectedProperty && !selectedProperty.onboardingCompleted
       ? selectedProperty
       : incompleteProperties[0]
 

@@ -53,7 +53,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   useEffect(() => {
     if (!selectedProperty) return
 
-    const progress = selectedProperty.wizard_progress || {}
+    const progress = selectedProperty.wizard_progress ?? {}
     const completed = new Set<WizardStep>()
 
     // Build completed steps set
@@ -235,15 +235,15 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
                     className="relative"
                   >
                     <span className="flex items-center gap-2">
-                      {property.onboarding_completed ? (
+                      {property.onboardingCompleted ? (
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                       ) : (
                         <Circle className="h-4 w-4" />
                       )}
                       <span className="truncate">{property.name}</span>
-                      {property.site_count !== undefined && property.site_count > 0 && (
+                      {property.siteCount !== undefined && property.siteCount > 0 && (
                         <Badge variant="outline" className="ml-1">
-                          {property.site_count}
+                          {property.siteCount}
                         </Badge>
                       )}
                     </span>

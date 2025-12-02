@@ -3,37 +3,50 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 
+// Property interface matching v1 API PropertyDTO (camelCase)
 export interface Property {
   id: string
   name: string
   slug: string
-  company_id: string | null
-  owner_id: string
+  companyId: string
+  ownerId: string | null
   email: string | null
   phone: string | null
   address: string | null
   city: string | null
   state: string | null
-  zip_code: string | null
+  zipCode: string | null
   description: string | null
-  onboarding_completed: boolean
-  onboarding_completed_at: string | null
-  wizard_step_completed: string
-  wizard_progress: Record<string, boolean>
-  site_count?: number
-  stripe_connected_at: string | null
-  booking_page_slug: string | null
-  hero_image_url: string | null
-  gallery_images: unknown[]
-  timezone: string | null
-  check_in_time: string | null
-  check_out_time: string | null
-  check_in_instructions: string | null
-  check_out_instructions: string | null
-  cancellation_policy: string | null
-  house_rules: string | null
-  created_at: string
-  updated_at: string
+  // Onboarding fields (v1 API format)
+  onboardingCompleted: boolean
+  onboardingCompletedAt: string | null
+  onboardingStatus: string
+  // Stripe fields
+  stripeConnected: boolean
+  stripeConnectedAt: string | null
+  stripeAccountId: string | null
+  // Booking
+  bookingPageSlug: string | null
+  canAcceptBookings: boolean
+  // Settings
+  settings: {
+    checkInTime: string | null
+    checkOutTime: string | null
+    timezone: string | null
+    cancellationPolicy: string | null
+    minStayNights: number | null
+    maxStayNights: number | null
+    bookingLeadTimeDays: number | null
+    customRules: string | null
+  }
+  amenities: string[] | null
+  // Timestamps
+  createdAt: string
+  updatedAt: string
+  // Optional site count (not always present in API response)
+  siteCount?: number
+  // Legacy compatibility - mapped from v1 response
+  wizard_progress?: Record<string, boolean>
 }
 
 interface PropertyContextType {
@@ -153,7 +166,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
   // Computed values
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId) || null
-  const incompleteProperties = properties.filter((p) => !p.onboarding_completed)
+  const incompleteProperties = properties.filter((p) => !p.onboardingCompleted)
   const hasIncompleteSetup = incompleteProperties.length > 0
 
   const value: PropertyContextType = {

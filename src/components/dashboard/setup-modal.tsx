@@ -22,7 +22,7 @@ interface SetupModalProps {
 
 export function SetupModal({ open, onStartSetup, onDismiss, properties }: SetupModalProps) {
   const totalProperties = properties.length
-  const totalSites = properties.reduce((sum, p) => sum + (p.site_count || 0), 0)
+  const totalSites = properties.reduce((sum, p) => sum + (p.siteCount || 0), 0)
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onDismiss()}>
@@ -63,7 +63,7 @@ export function SetupModal({ open, onStartSetup, onDismiss, properties }: SetupM
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="h-3.5 w-3.5" />
                     <span className="text-xs">
-                      {property.site_count || 0} {property.site_count === 1 ? "site" : "sites"}
+                      {property.siteCount || 0} {property.siteCount === 1 ? "site" : "sites"}
                     </span>
                   </div>
                 </div>

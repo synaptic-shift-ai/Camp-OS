@@ -33,16 +33,16 @@ export function PropertySwitcher() {
             <SelectItem key={property.id} value={property.id}>
               <div className="flex items-center justify-between w-full gap-3">
                 <div className="flex items-center gap-2">
-                  {property.onboarding_completed ? (
+                  {property.onboardingCompleted ? (
                     <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                   ) : (
                     <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   )}
                   <span className="truncate">{property.name}</span>
                 </div>
-                {property.site_count !== undefined && property.site_count > 0 && (
+                {property.siteCount !== undefined && property.siteCount > 0 && (
                   <Badge variant="outline" className="ml-auto flex-shrink-0">
-                    {property.site_count} {property.site_count === 1 ? "site" : "sites"}
+                    {property.siteCount} {property.siteCount === 1 ? "site" : "sites"}
                   </Badge>
                 )}
               </div>

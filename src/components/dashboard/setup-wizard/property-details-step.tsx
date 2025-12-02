@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ImageUpload } from "@/components/ui/image-upload"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building2, Loader2, Save } from "lucide-react"
@@ -19,17 +18,15 @@ const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
-  zip_code: z.string().min(5, "ZIP code is required"),
+  zipCode: z.string().min(5, "ZIP code is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number is required").optional().or(z.literal("")),
   description: z.string().optional(),
   timezone: z.string().default("America/New_York"),
-  check_in_time: z.string().default("15:00"),
-  check_out_time: z.string().default("11:00"),
-  check_in_instructions: z.string().optional(),
-  check_out_instructions: z.string().optional(),
-  cancellation_policy: z.string().optional(),
-  house_rules: z.string().optional(),
+  checkInTime: z.string().default("15:00"),
+  checkOutTime: z.string().default("11:00"),
+  cancellationPolicy: z.string().optional(),
+  customRules: z.string().optional(),
 })
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
@@ -51,7 +48,6 @@ const US_TIMEZONES = [
 ]
 
 export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDetailsStepProps) {
-  const [heroImage, setHeroImage] = useState<string | null>(property.hero_image_url || null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -67,40 +63,19 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       address: property.address || "",
       city: property.city || "",
       state: property.state || "",
-      zip_code: property.zip_code || "",
+      zipCode: property.zipCode || "",
       email: property.email || "",
       phone: property.phone || "",
       description: property.description || "",
-      timezone: property.timezone || "America/New_York",
-      check_in_time: property.check_in_time || "15:00",
-      check_out_time: property.check_out_time || "11:00",
-      check_in_instructions: property.check_in_instructions || "",
-      check_out_instructions: property.check_out_instructions || "",
-      cancellation_policy: property.cancellation_policy || "",
-      house_rules: property.house_rules || "",
+      timezone: property.settings?.timezone || "America/New_York",
+      checkInTime: property.settings?.checkInTime || "15:00",
+      checkOutTime: property.settings?.checkOutTime || "11:00",
+      cancellationPolicy: property.settings?.cancellationPolicy || "",
+      customRules: property.settings?.customRules || "",
     },
   })
 
   const timezone = watch("timezone")
-
-  const handleImageUpload = async (file: File): Promise<string> => {
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("propertyId", property.id)
-    formData.append("imageType", "hero")
-
-    const response = await fetch("/api/upload/property-image", {
-      method: "POST",
-      body: formData,
-    })
-
-    if (!response.ok) {
-      throw new Error("Failed to upload image")
-    }
-
-    const data = await response.json()
-    return data.url
-  }
 
   const onSubmit = async (data: PropertyDetailsFormData) => {
     try {
@@ -108,12 +83,25 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       setError(null)
 
       // Save property details - Migrated to v1 API (Phase 4, Week 13-14)
+      // Map form data to v1 API format with nested settings
       const response = await fetch(`/api/v1/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...data,
-          hero_image_url: heroImage,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          zipCode: data.zipCode,
+          email: data.email || null,
+          phone: data.phone || null,
+          description: data.description || null,
+          settings: {
+            timezone: data.timezone,
+            checkInTime: data.checkInTime,
+            checkOutTime: data.checkOutTime,
+            cancellationPolicy: data.cancellationPolicy || null,
+            customRules: data.customRules || null,
+          },
         }),
       })
 
@@ -153,22 +141,6 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
         </Alert>
       )}
 
-      {/* Hero Image */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Property Image</CardTitle>
-          <CardDescription>Upload a hero image for your property listing</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ImageUpload
-            value={heroImage}
-            onChange={setHeroImage}
-            onUpload={handleImageUpload}
-            placeholder="Upload property hero image"
-          />
-        </CardContent>
-      </Card>
-
       {/* Location Information */}
       <Card>
         <CardHeader>
@@ -206,10 +178,10 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
             </div>
 
             <div>
-              <Label htmlFor="zip_code">ZIP Code *</Label>
-              <Input id="zip_code" {...register("zip_code")} placeholder="12345" />
-              {errors.zip_code && (
-                <p className="text-sm text-destructive mt-1">{errors.zip_code.message}</p>
+              <Label htmlFor="zipCode">ZIP Code *</Label>
+              <Input id="zipCode" {...register("zipCode")} placeholder="12345" />
+              {errors.zipCode && (
+                <p className="text-sm text-destructive mt-1">{errors.zipCode.message}</p>
               )}
             </div>
           </div>
@@ -282,13 +254,13 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
             </div>
 
             <div>
-              <Label htmlFor="check_in_time">Check-in Time</Label>
-              <Input id="check_in_time" type="time" {...register("check_in_time")} />
+              <Label htmlFor="checkInTime">Check-in Time</Label>
+              <Input id="checkInTime" type="time" {...register("checkInTime")} />
             </div>
 
             <div>
-              <Label htmlFor="check_out_time">Check-out Time</Label>
-              <Input id="check_out_time" type="time" {...register("check_out_time")} />
+              <Label htmlFor="checkOutTime">Check-out Time</Label>
+              <Input id="checkOutTime" type="time" {...register("checkOutTime")} />
             </div>
           </div>
         </CardContent>
@@ -297,45 +269,25 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       {/* Policies */}
       <Card>
         <CardHeader>
-          <CardTitle>Policies & Instructions</CardTitle>
+          <CardTitle>Policies & Rules</CardTitle>
           <CardDescription>Guest guidelines and property rules</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="check_in_instructions">Check-in Instructions</Label>
+            <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
             <Textarea
-              id="check_in_instructions"
-              {...register("check_in_instructions")}
-              placeholder="Instructions for guests when they arrive..."
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="check_out_instructions">Check-out Instructions</Label>
-            <Textarea
-              id="check_out_instructions"
-              {...register("check_out_instructions")}
-              placeholder="Instructions for guests when they depart..."
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="cancellation_policy">Cancellation Policy</Label>
-            <Textarea
-              id="cancellation_policy"
-              {...register("cancellation_policy")}
+              id="cancellationPolicy"
+              {...register("cancellationPolicy")}
               placeholder="Your cancellation and refund policy..."
               rows={3}
             />
           </div>
 
           <div>
-            <Label htmlFor="house_rules">House Rules</Label>
+            <Label htmlFor="customRules">Property Rules</Label>
             <Textarea
-              id="house_rules"
-              {...register("house_rules")}
+              id="customRules"
+              {...register("customRules")}
               placeholder="Property rules and regulations..."
               rows={3}
             />

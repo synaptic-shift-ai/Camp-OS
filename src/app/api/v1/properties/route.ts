@@ -128,27 +128,22 @@ export async function GET(request: NextRequest) {
     const hasNextPage = validatedQuery.page < totalPages
     const hasPreviousPage = validatedQuery.page > 1
 
-    return NextResponse.json(
-      success({
-        items: propertyDTOs,
-        pagination: {
-          page: validatedQuery.page,
-          per_page: limit,
-          total: result.total,
-          total_pages: totalPages,
-          has_next_page: hasNextPage,
-          has_previous_page: hasPreviousPage,
-        },
-      })
-    )
+    return success({
+      items: propertyDTOs,
+      pagination: {
+        page: validatedQuery.page,
+        per_page: limit,
+        total: result.total,
+        total_pages: totalPages,
+        has_next_page: hasNextPage,
+        has_previous_page: hasPreviousPage,
+      },
+    })
   } catch (err: any) {
     console.error('[Properties API v1] GET error:', err)
-    return NextResponse.json(
-      error(ErrorCodes.INTERNAL_ERROR, 'Failed to fetch properties', {
-        message: err.message,
-      }),
-      { status: 500 }
-    )
+    return error(ErrorCodes.INTERNAL_ERROR, undefined, {
+      message: err.message,
+    })
   }
 }
 

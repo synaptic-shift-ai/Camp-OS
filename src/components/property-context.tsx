@@ -89,22 +89,24 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const result = await response.json()
 
-        // v1 API uses standard response envelope: { success: true, data: [...] }
-        if (result.success && result.data) {
-          setProperties(result.data)
+        // v1 API uses standard response envelope: { success: true, data: { items: [...], pagination: {...} } }
+        const items = result.success && result.data?.items ? result.data.items : []
+
+        if (result.success && items.length >= 0) {
+          setProperties(items)
 
           // Auto-select property
-          if (result.data.length > 0) {
+          if (items.length > 0) {
             // Try to restore from localStorage (safe after hydration)
             const savedPropertyId = localStorage.getItem(SELECTED_PROPERTY_KEY)
-            const savedPropertyExists = result.data.some((p: Property) => p.id === savedPropertyId)
+            const savedPropertyExists = items.some((p: Property) => p.id === savedPropertyId)
 
             if (savedPropertyId && savedPropertyExists) {
               setSelectedPropertyId(savedPropertyId)
             } else {
               // Select first property by default
-              setSelectedPropertyId(result.data[0].id)
-              localStorage.setItem(SELECTED_PROPERTY_KEY, result.data[0].id)
+              setSelectedPropertyId(items[0].id)
+              localStorage.setItem(SELECTED_PROPERTY_KEY, items[0].id)
             }
           }
         } else {

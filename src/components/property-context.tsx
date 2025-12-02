@@ -28,7 +28,7 @@ export interface Property {
   // Booking
   bookingPageSlug: string | null
   canAcceptBookings: boolean
-  // Settings
+  // Settings (may be null from API)
   settings: {
     checkInTime: string | null
     checkOutTime: string | null
@@ -38,7 +38,7 @@ export interface Property {
     maxStayNights: number | null
     bookingLeadTimeDays: number | null
     customRules: string | null
-  }
+  } | null
   amenities: string[] | null
   // Timestamps
   createdAt: string
@@ -123,6 +123,13 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
           // Paginated format with items array
           items = result.data.items
         }
+      }
+
+      // Debug: Log what we received
+      if (items.length === 0) {
+        console.warn("[PropertyContext] No properties found in API response:", result)
+      } else {
+        console.log("[PropertyContext] Loaded", items.length, "properties")
       }
 
       setProperties(items)

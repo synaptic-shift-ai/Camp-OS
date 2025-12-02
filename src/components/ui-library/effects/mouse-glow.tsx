@@ -30,12 +30,18 @@ export function MouseGlow({
   zIndex = -1,
   disabled = false,
 }: MouseGlowProps) {
+  const [isHydrated, setIsHydrated] = useState(false)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isVisible, setIsVisible] = useState(false)
   const controls = useAnimation()
   const glowRef = useRef<HTMLDivElement>(null)
   const lastMousePosition = useRef({ x: 0, y: 0 })
   const animationFrameId = useRef<number | null>(null)
+
+  // Hydration guard - only render after client mount
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   useEffect(() => {
     if (disabled) {
@@ -89,6 +95,11 @@ export function MouseGlow({
       })
     }
   }, [controls, pulseEffect, pulseScale, pulseSpeed, isVisible])
+
+  // Don't render until hydrated to prevent SSR mismatch
+  if (!isHydrated) {
+    return null
+  }
 
   return (
     <AnimatePresence>

@@ -24,7 +24,7 @@ interface WizardContainerProps {
 
 export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   const router = useRouter()
-  const { properties, selectedProperty, selectProperty, incompleteProperties, refreshProperties } =
+  const { properties, selectedProperty, selectProperty, incompleteProperties, refreshProperties, isLoading } =
     useProperty()
 
   // Use local state for step tracking (no URL sync to avoid navigation issues)
@@ -182,8 +182,21 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   if (!selectedProperty) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <p className="text-muted-foreground">Loading property data...</p>
+          {!isLoading && properties.length === 0 && (
+            <div className="text-sm text-destructive">
+              <p>No properties found. Please check the browser console for errors.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => refreshProperties()}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     )

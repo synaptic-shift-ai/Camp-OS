@@ -12,9 +12,16 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { hasIncompleteSetup, incompleteProperties, isLoading, selectedProperty } = useProperty()
   const [showModal, setShowModal] = useState(false)
+  // Track if we've hydrated to prevent hydration mismatch
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Mark component as hydrated after mount
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   useEffect(() => {
-    if (isLoading) return
+    if (isLoading || !isHydrated) return
 
     // Only show modal if:
     // 1. User has incomplete setup
@@ -25,7 +32,7 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
         setShowModal(true)
       }
     }
-  }, [hasIncompleteSetup, isLoading])
+  }, [hasIncompleteSetup, isLoading, isHydrated])
 
   const handleStartSetup = () => {
     // Mark modal as seen
@@ -56,10 +63,14 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // During SSR and initial hydration, render children without conditional wrapper
+  // to prevent hydration mismatch. After hydration, show banner if needed.
+  const shouldShowBanner = isHydrated && hasIncompleteSetup
+
   return (
     <>
-      {/* Setup Welcome Modal */}
-      {showModal && (
+      {/* Setup Welcome Modal - only render after hydration */}
+      {isHydrated && showModal && (
         <SetupModal
           open={showModal}
           onStartSetup={handleStartSetup}
@@ -69,7 +80,7 @@ export function SetupCheckGate({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Dashboard Content with Limited Access Indicator */}
-      {hasIncompleteSetup ? (
+      {shouldShowBanner ? (
         <div className="relative">
           {/* Banner at top of dashboard */}
           <LimitedDashboardBanner

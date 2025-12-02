@@ -68,9 +68,19 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  // Track hydration state to prevent SSR/client mismatch
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Mark as hydrated on mount (client-side only)
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   // Fetch properties from API
   const fetchProperties = useCallback(async () => {
+    // Only fetch after hydration to ensure localStorage is available
+    if (typeof window === "undefined") return
+
     try {
       setIsLoading(true)
       // Migrated to v1 API (Phase 4, Week 13-14)
@@ -85,7 +95,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
           // Auto-select property
           if (result.data.length > 0) {
-            // Try to restore from localStorage
+            // Try to restore from localStorage (safe after hydration)
             const savedPropertyId = localStorage.getItem(SELECTED_PROPERTY_KEY)
             const savedPropertyExists = result.data.some((p: Property) => p.id === savedPropertyId)
 
@@ -110,10 +120,12 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Initial fetch on mount
+  // Initial fetch on mount - wait for hydration
   useEffect(() => {
-    fetchProperties()
-  }, [fetchProperties])
+    if (isHydrated) {
+      fetchProperties()
+    }
+  }, [fetchProperties, isHydrated])
 
   // Handle property selection
   const selectProperty = useCallback((id: string) => {

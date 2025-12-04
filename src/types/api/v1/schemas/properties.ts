@@ -170,8 +170,8 @@ export const UpdatePropertyRequestSchema = z.object({
   subdomain: z.string().max(100).nullable().optional(),
   bookingPageSlug: z.string().max(100).nullable().optional(),
 
-  // Settings
-  settings: PropertySettingsSchema.optional(),
+  // Settings (partial updates allowed - not all fields required)
+  settings: PropertySettingsSchema.partial().optional(),
 
   // Amenities
   amenities: z.array(z.string()).nullable().optional(),

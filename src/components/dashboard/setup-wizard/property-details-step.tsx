@@ -27,6 +27,10 @@ const propertyDetailsSchema = z.object({
   checkOutTime: z.string().default("11:00"),
   cancellationPolicy: z.string().optional(),
   customRules: z.string().optional(),
+  // Booking rules
+  minStayNights: z.coerce.number().int().min(1).default(1),
+  maxStayNights: z.coerce.number().int().min(1).optional().or(z.literal("")),
+  bookingLeadTimeDays: z.coerce.number().int().min(0).default(365),
 })
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
@@ -72,6 +76,9 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       checkOutTime: property.settings?.checkOutTime || "11:00",
       cancellationPolicy: property.settings?.cancellationPolicy || "",
       customRules: property.settings?.customRules || "",
+      minStayNights: property.settings?.minStayNights || 1,
+      maxStayNights: property.settings?.maxStayNights || "",
+      bookingLeadTimeDays: property.settings?.bookingLeadTimeDays || 365,
     },
   })
 
@@ -101,6 +108,9 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
             checkOutTime: data.checkOutTime,
             cancellationPolicy: data.cancellationPolicy || null,
             customRules: data.customRules || null,
+            minStayNights: data.minStayNights || 1,
+            maxStayNights: data.maxStayNights || null,
+            bookingLeadTimeDays: data.bookingLeadTimeDays ?? 365,
           },
         }),
       })
@@ -261,6 +271,58 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
             <div>
               <Label htmlFor="checkOutTime">Check-out Time</Label>
               <Input id="checkOutTime" type="time" {...register("checkOutTime")} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Booking Rules */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking Rules</CardTitle>
+          <CardDescription>Default stay limits and booking window for your property</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="minStayNights">Minimum Stay (nights)</Label>
+              <Input
+                id="minStayNights"
+                type="number"
+                min={1}
+                {...register("minStayNights")}
+              />
+              {errors.minStayNights && (
+                <p className="text-sm text-destructive mt-1">{errors.minStayNights.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="maxStayNights">Maximum Stay (nights)</Label>
+              <Input
+                id="maxStayNights"
+                type="number"
+                min={1}
+                placeholder="No limit"
+                {...register("maxStayNights")}
+              />
+              {errors.maxStayNights && (
+                <p className="text-sm text-destructive mt-1">{errors.maxStayNights.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="bookingLeadTimeDays">Booking Window (days)</Label>
+              <Input
+                id="bookingLeadTimeDays"
+                type="number"
+                min={0}
+                {...register("bookingLeadTimeDays")}
+              />
+              <p className="text-xs text-muted-foreground mt-1">How far in advance guests can book</p>
+              {errors.bookingLeadTimeDays && (
+                <p className="text-sm text-destructive mt-1">{errors.bookingLeadTimeDays.message}</p>
+              )}
             </div>
           </div>
         </CardContent>

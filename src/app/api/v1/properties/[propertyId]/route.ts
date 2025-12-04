@@ -175,8 +175,18 @@ export async function PATCH(
     }
 
     // Parse settings if provided
+    // Convert undefined values to null for PropertySettings compatibility
     const settings = validatedRequest.settings
-      ? PropertySettings.create(validatedRequest.settings)
+      ? PropertySettings.create({
+          checkInTime: validatedRequest.settings.checkInTime ?? null,
+          checkOutTime: validatedRequest.settings.checkOutTime ?? null,
+          timezone: validatedRequest.settings.timezone ?? null,
+          cancellationPolicy: validatedRequest.settings.cancellationPolicy ?? null,
+          minStayNights: validatedRequest.settings.minStayNights ?? null,
+          maxStayNights: validatedRequest.settings.maxStayNights ?? null,
+          bookingLeadTimeDays: validatedRequest.settings.bookingLeadTimeDays ?? null,
+          customRules: validatedRequest.settings.customRules ?? null,
+        })
       : undefined
 
     // Execute command using application layer

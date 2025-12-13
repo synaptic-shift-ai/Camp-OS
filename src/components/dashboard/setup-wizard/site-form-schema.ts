@@ -65,38 +65,33 @@ export const siteFormSchema = z.object({
 export type SiteFormData = z.infer<typeof siteFormSchema>
 
 /**
- * Helper: Convert form data (dollars) to API format (cents)
+ * Helper: Convert form data (dollars) to v1 API format (camelCase, cents)
+ *
+ * v1 API expects camelCase field names matching CreateSiteRequestSchema:
+ * - siteNumber, siteName, siteType, basePrice, weekendPrice
+ * - maxOccupancy, maxVehicles, sizeSqft, amenities, hookups
  */
 export function toApiFormat(data: SiteFormData) {
   return {
-    site_number: data.site_number,
-    site_name: data.site_name || null,
-    site_type: data.site_type,
-    max_occupancy: data.max_occupancy,
-    max_vehicles: data.max_vehicles,
-    size_sqft: data.size_sqft || null,
-    status: data.status,
+    // Basic info (camelCase for v1 API)
+    siteNumber: data.site_number,
+    siteName: data.site_name || null,
+    siteType: data.site_type,
     description: data.description || null,
-    // Convert dollars to cents
-    base_price: Math.round(data.base_price * 100),
-    weekend_price_cents: data.weekend_price ? Math.round(data.weekend_price * 100) : null,
+    // Capacity (camelCase)
+    maxOccupancy: data.max_occupancy,
+    maxVehicles: data.max_vehicles,
+    sizeSqft: data.size_sqft || null,
+    // Convert dollars to cents (camelCase)
+    basePrice: Math.round(data.base_price * 100),
+    weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
     // Convert boolean objects to arrays of keys where value is true
-    site_amenities: Object.entries(data.amenities)
+    amenities: Object.entries(data.amenities)
       .filter(([_, v]) => v)
       .map(([k]) => k),
     hookups: Object.entries(data.hookups)
       .filter(([_, v]) => v)
       .map(([k]) => k),
-    availability_rules: data.availability_rules || {},
-    // Pet and ADA fields
-    allow_pets: data.allow_pets,
-    pet_fee: data.pet_fee ? Math.round(data.pet_fee * 100) : null, // Convert dollars to cents
-    ada_accessible: data.ada_accessible,
-    accessibility_features: data.accessibility_features
-      ? Object.entries(data.accessibility_features)
-          .filter(([_, v]) => v)
-          .map(([k]) => k)
-      : [],
   }
 }
 

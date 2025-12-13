@@ -84,7 +84,14 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
 
   const timezone = watch("timezone")
 
+  // Debug: Log validation errors when form submission fails
+  const onFormError = (formErrors: Record<string, unknown>) => {
+    console.error("[PropertyDetailsStep] Form validation failed:", formErrors)
+    setError("Form validation failed. Please check all required fields.")
+  }
+
   const onSubmit = async (data: PropertyDetailsFormData) => {
+    console.log("[PropertyDetailsStep] Form submitted with data:", data)
     try {
       setSaving(true)
       setError(null)
@@ -132,7 +139,7 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit, onFormError)} className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
           <Building2 className="h-6 w-6 text-primary" />

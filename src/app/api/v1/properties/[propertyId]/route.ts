@@ -44,7 +44,7 @@ export async function GET(
 
     if (authError || !user) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_001, 'Unauthorized'),
+        error(ErrorCodes.AUTH_001),
         { status: 401 }
       )
     }
@@ -120,7 +120,7 @@ export async function PATCH(
 
     if (authError || !user) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_001, 'Unauthorized'),
+        error(ErrorCodes.AUTH_001),
         { status: 401 }
       )
     }
@@ -259,7 +259,7 @@ export async function DELETE(
 
     if (authError || !user) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_001, 'Unauthorized'),
+        error(ErrorCodes.AUTH_001),
         { status: 401 }
       )
     }

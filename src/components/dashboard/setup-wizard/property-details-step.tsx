@@ -92,37 +92,45 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
 
   const onSubmit = async (data: PropertyDetailsFormData) => {
     console.log("[PropertyDetailsStep] Form submitted with data:", data)
+    console.log("[PropertyDetailsStep] Property ID:", property.id)
     try {
       setSaving(true)
       setError(null)
+
+      const requestBody = {
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+        email: data.email || null,
+        phone: data.phone || null,
+        description: data.description || null,
+        settings: {
+          timezone: data.timezone,
+          checkInTime: data.checkInTime,
+          checkOutTime: data.checkOutTime,
+          cancellationPolicy: data.cancellationPolicy || null,
+          customRules: data.customRules || null,
+          minStayNights: data.minStayNights || 1,
+          maxStayNights: data.maxStayNights || null,
+          bookingLeadTimeDays: data.bookingLeadTimeDays ?? 365,
+        },
+      }
+
+      console.log("[PropertyDetailsStep] Sending PATCH request to:", `/api/v1/properties/${property.id}`)
+      console.log("[PropertyDetailsStep] Request body:", JSON.stringify(requestBody, null, 2))
 
       // Save property details - Migrated to v1 API (Phase 4, Week 13-14)
       // Map form data to v1 API format with nested settings
       const response = await fetch(`/api/v1/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: data.address,
-          city: data.city,
-          state: data.state,
-          zipCode: data.zipCode,
-          email: data.email || null,
-          phone: data.phone || null,
-          description: data.description || null,
-          settings: {
-            timezone: data.timezone,
-            checkInTime: data.checkInTime,
-            checkOutTime: data.checkOutTime,
-            cancellationPolicy: data.cancellationPolicy || null,
-            customRules: data.customRules || null,
-            minStayNights: data.minStayNights || 1,
-            maxStayNights: data.maxStayNights || null,
-            bookingLeadTimeDays: data.bookingLeadTimeDays ?? 365,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       })
 
+      console.log("[PropertyDetailsStep] Response status:", response.status)
       const result = await response.json()
+      console.log("[PropertyDetailsStep] Response body:", result)
 
       if (!response.ok || !result.success) {
         throw new Error(result.error?.message || "Failed to save property details")
@@ -131,7 +139,7 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       // Mark step as complete and continue
       onComplete()
     } catch (err) {
-      console.error("Error saving property details:", err)
+      console.error("[PropertyDetailsStep] Error saving property details:", err)
       setError(err instanceof Error ? err.message : "Failed to save property details")
     } finally {
       setSaving(false)

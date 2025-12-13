@@ -169,12 +169,18 @@ export const UpdatePropertyRequestSchema = z.object({
   // Branding
   subdomain: z.string().max(100).nullable().optional(),
   bookingPageSlug: z.string().max(100).nullable().optional(),
+  heroImageUrl: z.string().max(2000).nullable().optional(),
 
   // Settings (partial updates allowed - not all fields required)
   settings: PropertySettingsSchema.partial().optional(),
 
   // Amenities
   amenities: z.array(z.string()).nullable().optional(),
+
+  // Guest Instructions
+  checkInInstructions: z.string().max(5000).nullable().optional(),
+  checkOutInstructions: z.string().max(5000).nullable().optional(),
+  houseRules: z.string().max(5000).nullable().optional(),
 })
 
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequestSchema>

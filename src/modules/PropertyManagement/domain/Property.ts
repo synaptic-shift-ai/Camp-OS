@@ -66,10 +66,16 @@ export type PropertyProps = {
   // Branding
   subdomain: string | null
   bookingPageSlug: string | null
+  heroImageUrl: string | null
 
   // Settings
   settings: PropertySettings
   amenities: string[] | null
+
+  // Guest Instructions
+  checkInInstructions: string | null
+  checkOutInstructions: string | null
+  houseRules: string | null
 
   // Onboarding
   onboardingStatus: OnboardingStatus
@@ -113,8 +119,12 @@ export class Property extends AggregateRoot<string> {
       email?: string | null | undefined
       subdomain?: string | null | undefined
       bookingPageSlug?: string | null | undefined
+      heroImageUrl?: string | null | undefined
       settings?: PropertySettings | undefined
       amenities?: string[] | null | undefined
+      checkInInstructions?: string | null | undefined
+      checkOutInstructions?: string | null | undefined
+      houseRules?: string | null | undefined
     } = {}
   ): Property {
     // Validate required fields
@@ -164,8 +174,12 @@ export class Property extends AggregateRoot<string> {
         email: options.email || null,
         subdomain: options.subdomain || null,
         bookingPageSlug: options.bookingPageSlug || null,
+        heroImageUrl: options.heroImageUrl || null,
         settings: options.settings || PropertySettings.default(),
         amenities: options.amenities || null,
+        checkInInstructions: options.checkInInstructions || null,
+        checkOutInstructions: options.checkOutInstructions || null,
+        houseRules: options.houseRules || null,
         onboardingStatus: OnboardingStatus.NOT_STARTED,
         onboardingCompletedAt: null,
         stripeConnectInfo: StripeConnectInfo.notConnected(),
@@ -201,8 +215,12 @@ export class Property extends AggregateRoot<string> {
     email: string | null,
     subdomain: string | null,
     bookingPageSlug: string | null,
+    heroImageUrl: string | null,
     settings: PropertySettings,
     amenities: string[] | null,
+    checkInInstructions: string | null,
+    checkOutInstructions: string | null,
+    houseRules: string | null,
     onboardingCompleted: boolean,
     onboardingCompletedAt: Date | null,
     stripeAccountId: string | null,
@@ -238,8 +256,12 @@ export class Property extends AggregateRoot<string> {
         email,
         subdomain,
         bookingPageSlug,
+        heroImageUrl,
         settings,
         amenities,
+        checkInInstructions,
+        checkOutInstructions,
+        houseRules,
         onboardingStatus,
         onboardingCompletedAt,
         stripeConnectInfo,
@@ -317,12 +339,28 @@ export class Property extends AggregateRoot<string> {
     return this.props.bookingPageSlug
   }
 
+  get heroImageUrl(): string | null {
+    return this.props.heroImageUrl
+  }
+
   get settings(): PropertySettings {
     return this.props.settings
   }
 
   get amenities(): string[] | null {
     return this.props.amenities
+  }
+
+  get checkInInstructions(): string | null {
+    return this.props.checkInInstructions
+  }
+
+  get checkOutInstructions(): string | null {
+    return this.props.checkOutInstructions
+  }
+
+  get houseRules(): string | null {
+    return this.props.houseRules
   }
 
   get onboardingStatus(): OnboardingStatus {
@@ -460,12 +498,38 @@ export class Property extends AggregateRoot<string> {
   updateBranding(updates: {
     subdomain?: string | null | undefined
     bookingPageSlug?: string | null | undefined
+    heroImageUrl?: string | null | undefined
   }): void {
     if (updates.subdomain !== undefined) {
       this.props.subdomain = updates.subdomain
     }
     if (updates.bookingPageSlug !== undefined) {
       this.props.bookingPageSlug = updates.bookingPageSlug
+    }
+    if (updates.heroImageUrl !== undefined) {
+      this.props.heroImageUrl = updates.heroImageUrl
+    }
+
+    this.touch()
+    this.addDomainEvent(new PropertyUpdatedEvent(this.id, this.companyId))
+  }
+
+  /**
+   * Update guest instructions
+   */
+  updateGuestInstructions(updates: {
+    checkInInstructions?: string | null | undefined
+    checkOutInstructions?: string | null | undefined
+    houseRules?: string | null | undefined
+  }): void {
+    if (updates.checkInInstructions !== undefined) {
+      this.props.checkInInstructions = updates.checkInInstructions
+    }
+    if (updates.checkOutInstructions !== undefined) {
+      this.props.checkOutInstructions = updates.checkOutInstructions
+    }
+    if (updates.houseRules !== undefined) {
+      this.props.houseRules = updates.houseRules
     }
 
     this.touch()
@@ -617,8 +681,12 @@ export class Property extends AggregateRoot<string> {
       email: this.props.email,
       subdomain: this.props.subdomain,
       booking_page_slug: this.props.bookingPageSlug,
+      hero_image_url: this.props.heroImageUrl,
       settings: this.props.settings.toJson(),
       amenities: this.props.amenities,
+      check_in_instructions: this.props.checkInInstructions,
+      check_out_instructions: this.props.checkOutInstructions,
+      house_rules: this.props.houseRules,
       onboarding_completed: this.isOnboardingComplete(),
       onboarding_completed_at: this.props.onboardingCompletedAt?.toISOString() || null,
       stripe_account_id: this.props.stripeConnectInfo.accountId,

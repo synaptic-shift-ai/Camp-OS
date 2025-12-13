@@ -231,12 +231,16 @@ function createComplexDomainProperty(): Property {
     'complex@mountainview.example.com',
     'complexview',
     'book-now',
+    'https://example.com/hero.jpg', // heroImageUrl
     PropertySettings.create({
       checkInTime: '14:00',
       checkOutTime: '11:00',
       timezone: 'America/Denver',
     }),
     ['WiFi', 'Hot Showers', 'Fire Pits', 'RV Hookups', 'Laundry', 'Store'],
+    'Check in at the main office between 2-6pm', // checkInInstructions
+    'Please leave your site clean and keys in the drop box', // checkOutInstructions
+    'Quiet hours 10pm-7am, no fireworks', // houseRules
     true,
     new Date('2025-01-15T10:30:00Z'),
     'acct_9876543210',

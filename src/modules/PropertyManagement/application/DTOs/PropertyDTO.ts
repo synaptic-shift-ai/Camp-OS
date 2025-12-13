@@ -38,6 +38,7 @@ export type PropertyDTO = {
   // Branding
   subdomain: string | null
   bookingPageSlug: string | null
+  heroImageUrl: string | null
 
   // Settings
   settings: {
@@ -53,6 +54,11 @@ export type PropertyDTO = {
 
   // Amenities
   amenities: string[] | null
+
+  // Guest Instructions
+  checkInInstructions: string | null
+  checkOutInstructions: string | null
+  houseRules: string | null
 
   // Onboarding (CRITICAL - Oct 30 fix)
   onboardingStatus: OnboardingStatus
@@ -108,6 +114,7 @@ export function toPropertyDTO(property: Property): PropertyDTO {
     // Branding
     subdomain: property.subdomain,
     bookingPageSlug: property.bookingPageSlug,
+    heroImageUrl: property.heroImageUrl,
 
     // Settings
     settings: {
@@ -123,6 +130,11 @@ export function toPropertyDTO(property: Property): PropertyDTO {
 
     // Amenities
     amenities: property.amenities,
+
+    // Guest Instructions
+    checkInInstructions: property.checkInInstructions,
+    checkOutInstructions: property.checkOutInstructions,
+    houseRules: property.houseRules,
 
     // Onboarding (CRITICAL - Oct 30 fix)
     onboardingStatus: property.onboardingStatus,

@@ -702,8 +702,12 @@ describe('Property', () => {
         'test@example.com',
         'mountain-view',
         'mountain-view-booking',
+        'https://example.com/hero.jpg', // heroImageUrl
         settings,
         ['wifi', 'showers'],
+        'Check in at the office', // checkInInstructions
+        'Leave keys in drop box', // checkOutInstructions
+        'No loud music after 10pm', // houseRules
         true, // onboarding_completed
         new Date('2025-01-01T12:00:00Z'),
         'acct_123',

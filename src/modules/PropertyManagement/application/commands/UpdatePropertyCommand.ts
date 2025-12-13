@@ -24,8 +24,12 @@ export type UpdatePropertyDto = {
   country?: string | null | undefined
   subdomain?: string | null | undefined
   bookingPageSlug?: string | null | undefined
+  heroImageUrl?: string | null | undefined
   settings?: PropertySettings | undefined
   amenities?: string[] | null | undefined
+  checkInInstructions?: string | null | undefined
+  checkOutInstructions?: string | null | undefined
+  houseRules?: string | null | undefined
 }
 
 export class UpdatePropertyCommandHandler {
@@ -74,10 +78,11 @@ export class UpdatePropertyCommandHandler {
     }
 
     // Update branding
-    if (dto.subdomain !== undefined || dto.bookingPageSlug !== undefined) {
+    if (dto.subdomain !== undefined || dto.bookingPageSlug !== undefined || dto.heroImageUrl !== undefined) {
       property.updateBranding({
         ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
         ...(dto.bookingPageSlug !== undefined && { bookingPageSlug: dto.bookingPageSlug }),
+        ...(dto.heroImageUrl !== undefined && { heroImageUrl: dto.heroImageUrl }),
       })
     }
 
@@ -89,6 +94,15 @@ export class UpdatePropertyCommandHandler {
     // Update amenities
     if (dto.amenities !== undefined) {
       property.updateAmenities(dto.amenities ?? [])
+    }
+
+    // Update guest instructions
+    if (dto.checkInInstructions !== undefined || dto.checkOutInstructions !== undefined || dto.houseRules !== undefined) {
+      property.updateGuestInstructions({
+        ...(dto.checkInInstructions !== undefined && { checkInInstructions: dto.checkInInstructions }),
+        ...(dto.checkOutInstructions !== undefined && { checkOutInstructions: dto.checkOutInstructions }),
+        ...(dto.houseRules !== undefined && { houseRules: dto.houseRules }),
+      })
     }
 
     // Save to database

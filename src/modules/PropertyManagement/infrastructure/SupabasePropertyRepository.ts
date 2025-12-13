@@ -266,8 +266,12 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       row.email,
       row.subdomain,
       row.booking_page_slug,
+      row.hero_image_url,
       settings,
       amenities,
+      row.check_in_instructions,
+      row.check_out_instructions,
+      row.house_rules,
       row.onboarding_completed, // CRITICAL: Must be present
       row.onboarding_completed_at ? new Date(row.onboarding_completed_at) : null,
       row.stripe_account_id,

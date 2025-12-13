@@ -206,8 +206,12 @@ export async function PATCH(
       email: validatedRequest.email,
       subdomain: validatedRequest.subdomain,
       bookingPageSlug: validatedRequest.bookingPageSlug,
+      heroImageUrl: validatedRequest.heroImageUrl,
       settings,
       amenities: validatedRequest.amenities,
+      checkInInstructions: validatedRequest.checkInInstructions,
+      checkOutInstructions: validatedRequest.checkOutInstructions,
+      houseRules: validatedRequest.houseRules,
     })
 
     // Convert to DTO

@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
-import { ErrorCodes } from '@/lib/api/errors'
+import { ErrorCodes, createErrorResponse } from '@/lib/api/errors'
 import {
   CreateSiteRequestSchema,
   ListSitesQuerySchema,
@@ -213,8 +213,10 @@ export async function POST(
     try {
       validatedRequest = CreateSiteRequestSchema.parse(body)
     } catch (validationError: any) {
+      console.error('[v1/sites] Validation error:', JSON.stringify(validationError.errors, null, 2))
+      console.error('[v1/sites] Request body was:', JSON.stringify(body, null, 2))
       return NextResponse.json(
-        error(ErrorCodes.VALIDATION_001, 'Invalid request body', {
+        createErrorResponse(ErrorCodes.VALIDATION_001, request, {
           errors: validationError.errors,
         }),
         { status: 400 }

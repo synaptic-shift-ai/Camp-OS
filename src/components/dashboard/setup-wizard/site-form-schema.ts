@@ -70,18 +70,20 @@ export type SiteFormData = z.infer<typeof siteFormSchema>
  * v1 API expects camelCase field names matching CreateSiteRequestSchema:
  * - siteNumber, siteName, siteType, basePrice, weekendPrice
  * - maxOccupancy, maxVehicles, sizeSqft, amenities, hookups
+ *
+ * NOTE: Optional fields should be undefined (not null) for Zod validation
  */
 export function toApiFormat(data: SiteFormData) {
   return {
     // Basic info (camelCase for v1 API)
     siteNumber: data.site_number,
-    siteName: data.site_name || null,
+    siteName: data.site_name || undefined,
     siteType: data.site_type,
-    description: data.description || null,
+    description: data.description || undefined,
     // Capacity (camelCase)
     maxOccupancy: data.max_occupancy,
     maxVehicles: data.max_vehicles,
-    sizeSqft: data.size_sqft || null,
+    sizeSqft: data.size_sqft || undefined,
     // Convert dollars to cents (camelCase)
     basePrice: Math.round(data.base_price * 100),
     weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,

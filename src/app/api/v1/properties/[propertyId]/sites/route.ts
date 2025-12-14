@@ -273,13 +273,19 @@ export async function POST(
       locationMap: validatedRequest.locationMap || null,
     })
 
-    // Save reservation type override and seasonal rate if provided
+    // Save reservation type override and rate overrides if provided
     const siteExtras: Record<string, any> = {}
     if (validatedRequest.enabledReservationTypesOverride !== undefined) {
       siteExtras.enabled_reservation_types_override = validatedRequest.enabledReservationTypesOverride
     }
     if ((validatedRequest as any).seasonalRateCents !== undefined) {
       siteExtras.seasonal_rate_cents = (validatedRequest as any).seasonalRateCents
+    }
+    if ((validatedRequest as any).weeklyRateCents !== undefined) {
+      siteExtras.weekly_rate_cents = (validatedRequest as any).weeklyRateCents
+    }
+    if ((validatedRequest as any).monthlyRateCents !== undefined) {
+      siteExtras.monthly_rate_cents = (validatedRequest as any).monthlyRateCents
     }
 
     if (Object.keys(siteExtras).length > 0) {

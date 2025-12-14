@@ -18,6 +18,8 @@ export const siteFormSchema = z.object({
   // Pricing (in dollars - will convert to cents for API)
   base_price: z.coerce.number().min(0.01, "Base price must be at least $0.01"),
   weekend_price: z.coerce.number().min(0).optional(),
+  weekly_rate: z.coerce.number().min(0).optional(), // Weekly per-night rate
+  monthly_rate: z.coerce.number().min(0).optional(), // Monthly per-night rate
 
   // Hookups (boolean flags)
   hookups: z.object({
@@ -95,6 +97,8 @@ export function toApiFormat(data: SiteFormData) {
     // Convert dollars to cents (camelCase)
     basePrice: Math.round(data.base_price * 100),
     weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
+    weeklyRateCents: data.weekly_rate ? Math.round(data.weekly_rate * 100) : undefined,
+    monthlyRateCents: data.monthly_rate ? Math.round(data.monthly_rate * 100) : undefined,
     // Convert boolean objects to arrays of keys where value is true
     amenities: Object.entries(data.amenities)
       .filter(([_, v]) => v)
@@ -164,6 +168,12 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
     // Convert cents to dollars
     base_price: basePrice ? basePrice / 100 : 0,
     weekend_price: weekendPrice ? weekendPrice / 100 : undefined,
+    weekly_rate: (site.weeklyRateCents || site.weekly_rate_cents)
+      ? (site.weeklyRateCents || site.weekly_rate_cents) / 100
+      : undefined,
+    monthly_rate: (site.monthlyRateCents || site.monthly_rate_cents)
+      ? (site.monthlyRateCents || site.monthly_rate_cents) / 100
+      : undefined,
     hookups: hookupsObj,
     amenities: amenitiesObj,
     availability_rules: site.availabilityRules || site.availability_rules || undefined,

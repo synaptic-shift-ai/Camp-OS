@@ -297,39 +297,90 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
       <Card>
         <CardHeader>
           <CardTitle>Pricing</CardTitle>
-          <CardDescription>Set nightly rates for this site</CardDescription>
+          <CardDescription>Set rates for each reservation type (per night)</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="base_price">Base Nightly Rate *</Label>
-              <Input
-                id="base_price"
-                type="number"
-                step="0.01"
-                min="0.01"
-                {...register("base_price")}
-                placeholder="45.00"
-              />
-              {errors.base_price && (
-                <p className="text-sm text-destructive mt-1">{errors.base_price.message}</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">Amount in dollars (e.g., 45.00)</p>
-            </div>
+        <CardContent className="space-y-6">
+          {/* Nightly Rates */}
+          <div>
+            <h4 className="text-sm font-medium mb-3">Nightly Rates</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="base_price">Base Rate (per night) *</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="base_price"
+                    type="text"
+                    inputMode="decimal"
+                    className="pl-7"
+                    {...register("base_price")}
+                    placeholder="45.00"
+                  />
+                </div>
+                {errors.base_price && (
+                  <p className="text-sm text-destructive mt-1">{errors.base_price.message}</p>
+                )}
+              </div>
 
-            <div>
-              <Label htmlFor="weekend_price">Weekend Rate (optional)</Label>
-              <Input
-                id="weekend_price"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register("weekend_price")}
-                placeholder="55.00"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Leave empty to use base rate on weekends
-              </p>
+              <div>
+                <Label htmlFor="weekend_price">Weekend Rate (per night)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="weekend_price"
+                    type="text"
+                    inputMode="decimal"
+                    className="pl-7"
+                    {...register("weekend_price")}
+                    placeholder="55.00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Fri & Sat nights. Leave empty to use base rate.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Extended Stay Rates */}
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium mb-3">Extended Stay Rates</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="weekly_rate">Weekly Rate (per night)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="weekly_rate"
+                    type="text"
+                    inputMode="decimal"
+                    className="pl-7"
+                    {...register("weekly_rate")}
+                    placeholder="40.00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  For stays 7+ nights. Leave empty to use base rate.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="monthly_rate">Monthly Rate (per night)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="monthly_rate"
+                    type="text"
+                    inputMode="decimal"
+                    className="pl-7"
+                    {...register("monthly_rate")}
+                    placeholder="35.00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  For stays 28+ nights. Leave empty to use base rate.
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -401,27 +452,23 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
               {enabledReservationTypesOverride?.includes("seasonal") && (
                 <div className="border-t pt-4 space-y-2">
                   <Label htmlFor="seasonal_rate">Seasonal Flat Rate (optional)</Label>
-                  <Input
-                    id="seasonal_rate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    {...register("seasonal_rate")}
-                    placeholder="Use property season rates"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="seasonal_rate"
+                      type="text"
+                      inputMode="decimal"
+                      className="pl-7"
+                      {...register("seasonal_rate")}
+                      placeholder="Use property season rates"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Override the seasonal rate for this site. Leave empty to use property-level seasonal rates.
                   </p>
                 </div>
               )}
 
-              {/* Pricing Info */}
-              <Alert>
-                <AlertDescription className="text-xs">
-                  <strong>Pricing note:</strong> Weekly and monthly rates are calculated from your base nightly rate with discounts applied from property settings.
-                  Go to Settings → Rate Types to configure discounts for longer stays.
-                </AlertDescription>
-              </Alert>
             </div>
           )}
         </CardContent>
@@ -604,19 +651,22 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
             {allowPets && (
               <div>
                 <Label htmlFor="pet_fee">Pet Fee (one-time)</Label>
-                <Input
-                  id="pet_fee"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("pet_fee")}
-                  placeholder="15.00"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="pet_fee"
+                    type="text"
+                    inputMode="decimal"
+                    className="pl-7"
+                    {...register("pet_fee")}
+                    placeholder="15.00"
+                  />
+                </div>
                 {errors.pet_fee && (
                   <p className="text-sm text-destructive mt-1">{errors.pet_fee.message}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  One-time fee in dollars (optional, leave empty for no fee)
+                  One-time fee (optional, leave empty for no fee)
                 </p>
               </div>
             )}

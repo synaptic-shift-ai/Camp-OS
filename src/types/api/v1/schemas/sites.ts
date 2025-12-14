@@ -131,7 +131,9 @@ export const CreateSiteRequestSchema = z.object({
   locationMap: z.record(z.any()).optional(),
   // Reservation type override: null means use property defaults
   enabledReservationTypesOverride: z.array(ReservationTypeSchema).nullable().optional(),
-  // Seasonal rate override in cents
+  // Rate overrides in cents
+  weeklyRateCents: CurrencyAmountSchema.nullable().optional(),
+  monthlyRateCents: CurrencyAmountSchema.nullable().optional(),
   seasonalRateCents: CurrencyAmountSchema.nullable().optional(),
 })
 

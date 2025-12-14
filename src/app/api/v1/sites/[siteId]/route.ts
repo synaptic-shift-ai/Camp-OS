@@ -128,6 +128,22 @@ export async function PUT(
           ? body.seasonal_rate_cents
           : existingSite.seasonal_rate_cents
 
+    // Handle weekly_rate_cents
+    const weeklyRateCents =
+      body.weeklyRateCents !== undefined
+        ? body.weeklyRateCents
+        : body.weekly_rate_cents !== undefined
+          ? body.weekly_rate_cents
+          : existingSite.weekly_rate_cents
+
+    // Handle monthly_rate_cents
+    const monthlyRateCents =
+      body.monthlyRateCents !== undefined
+        ? body.monthlyRateCents
+        : body.monthly_rate_cents !== undefined
+          ? body.monthly_rate_cents
+          : existingSite.monthly_rate_cents
+
     // Update the site
     const { data: updatedSite, error: updateError } = await supabase
       .from('sites')
@@ -138,6 +154,8 @@ export async function PUT(
         description: body.description ?? existingSite.description,
         base_price: body.base_price ?? body.basePrice ?? existingSite.base_price,
         weekend_price_cents: body.weekend_price_cents ?? body.weekendPrice ?? existingSite.weekend_price_cents,
+        weekly_rate_cents: weeklyRateCents,
+        monthly_rate_cents: monthlyRateCents,
         max_occupancy: body.max_occupancy ?? body.maxOccupancy ?? existingSite.max_occupancy,
         max_vehicles: body.max_vehicles ?? body.maxVehicles ?? existingSite.max_vehicles,
         size_sqft: body.size_sqft ?? body.sizeSqft ?? existingSite.size_sqft,

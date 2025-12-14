@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Phase 2c: Direct read from BIGINT column (already in cents)
-    const amountInCents = typedReservation.total_amount_cents
+    const amountInCents = typedReservation.total_amount
 
     // Get tenant-specific Stripe client
     const tenantStripeResult = await getTenantStripeClient(property_id)

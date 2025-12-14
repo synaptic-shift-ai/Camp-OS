@@ -113,7 +113,7 @@ export async function POST(
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)
 
-    return NextResponse.json(success(reservationDTO))
+    return success(reservationDTO)
   } catch (err: any) {
     console.error('[Reservations API v1] Check-out error:', err)
 

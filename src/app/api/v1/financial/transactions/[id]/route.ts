@@ -81,7 +81,7 @@ export async function GET(
     // Convert to DTO
     const transactionDTO = toTransactionDTO(transaction)
 
-    return NextResponse.json(success(transactionDTO))
+    return success(transactionDTO)
   } catch (err: any) {
     console.error('[Financial API v1] Get transaction error:', err)
 

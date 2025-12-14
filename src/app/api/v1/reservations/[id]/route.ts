@@ -85,7 +85,7 @@ export async function GET(
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)
 
-    return NextResponse.json(success(reservationDTO))
+    return success(reservationDTO)
   } catch (err: any) {
     console.error('[Reservations API v1] GET by ID error:', err)
     return NextResponse.json(

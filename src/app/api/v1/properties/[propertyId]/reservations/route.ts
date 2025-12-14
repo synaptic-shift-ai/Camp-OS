@@ -111,7 +111,12 @@ export async function POST(
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)
 
-    return NextResponse.json(success(reservationDTO), { status: 201 })
+    // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
+    const response = success(reservationDTO)
+    return new NextResponse(response.body, {
+      status: 201,
+      headers: response.headers,
+    })
   } catch (err: any) {
     console.error('[Reservations API v1] POST error:', err)
 
@@ -236,14 +241,12 @@ export async function GET(
     // Convert to DTOs
     const reservationsDTO = result.reservations.map(toReservationDTO)
 
-    return NextResponse.json(
-      success({
-        reservations: reservationsDTO,
-        total: result.total,
-        limit: queryParams.limit,
-        offset: queryParams.offset,
-      })
-    )
+    return success({
+      reservations: reservationsDTO,
+      total: result.total,
+      limit: queryParams.limit,
+      offset: queryParams.offset,
+    })
   } catch (err: any) {
     console.error('[Reservations API v1] GET list error:', err)
     return NextResponse.json(

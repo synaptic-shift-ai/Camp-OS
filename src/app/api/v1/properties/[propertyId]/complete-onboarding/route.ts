@@ -89,7 +89,7 @@ export async function POST(
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)
 
-    return NextResponse.json(success(propertyDTO))
+    return success(propertyDTO)
   } catch (err: any) {
     console.error('[Properties API v1] Complete onboarding error:', err)
 

@@ -113,7 +113,12 @@ export async function POST(request: NextRequest) {
     // Convert to DTO
     const invoiceDTO = toInvoiceDTO(invoice)
 
-    return NextResponse.json(success(invoiceDTO), { status: 201 })
+    // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
+    const response = success(invoiceDTO)
+    return new NextResponse(response.body, {
+      status: 201,
+      headers: response.headers,
+    })
   } catch (err: any) {
     console.error('[Financial API v1] Generate invoice error:', err)
 

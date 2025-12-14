@@ -78,7 +78,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       )
     }
 
-    return NextResponse.json(success(guestDTO))
+    return success(guestDTO)
   } catch (err: any) {
     console.error('[Guests API v1] GET by ID error:', err)
 
@@ -183,7 +183,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Convert to DTO
     const guestDTO = GuestDTO.fromDomain(guest)
 
-    return NextResponse.json(success(guestDTO))
+    return success(guestDTO)
   } catch (err: any) {
     console.error('[Guests API v1] PATCH error:', err)
 

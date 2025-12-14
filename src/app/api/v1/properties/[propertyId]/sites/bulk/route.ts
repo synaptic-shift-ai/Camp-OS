@@ -198,7 +198,12 @@ export async function POST(
       `[v1/sites/bulk] Bulk import completed: ${createdSites.length}/${validatedRequest.length} sites created for property ${propertyId} by user ${user.id}`
     )
 
-    return NextResponse.json(success(response), { status: 201 })
+    // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
+    const successResponse = success(response)
+    return new NextResponse(successResponse.body, {
+      status: 201,
+      headers: successResponse.headers,
+    })
   } catch (err: any) {
     console.error('[v1/sites/bulk] Bulk create error:', err)
 

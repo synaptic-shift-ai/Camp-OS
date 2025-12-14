@@ -85,7 +85,7 @@ export async function POST(
     // Convert to DTO
     const depositDTO = toSecurityDepositDTO(deposit)
 
-    return NextResponse.json(success(depositDTO))
+    return success(depositDTO)
   } catch (err: any) {
     console.error('[Financial API v1] Release deposit error:', err)
 

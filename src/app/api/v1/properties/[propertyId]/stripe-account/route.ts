@@ -98,13 +98,11 @@ export async function DELETE(
       )
     }
 
-    return NextResponse.json(
-      success({
-        id,
-        stripe_connected: false,
-        message: 'Stripe account disconnected successfully',
-      })
-    )
+    return success({
+      id,
+      stripe_connected: false,
+      message: 'Stripe account disconnected successfully',
+    })
   } catch (err: any) {
     console.error('[Properties API v1] Stripe disconnect error:', err)
 

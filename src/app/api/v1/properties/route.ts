@@ -231,7 +231,12 @@ export async function POST(request: NextRequest) {
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)
 
-    return NextResponse.json(success(propertyDTO), { status: 201 })
+    // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
+    const response = success(propertyDTO)
+    return new NextResponse(response.body, {
+      status: 201,
+      headers: response.headers,
+    })
   } catch (err: any) {
     console.error('[Properties API v1] POST error:', err)
 

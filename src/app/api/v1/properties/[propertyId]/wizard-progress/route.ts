@@ -133,13 +133,11 @@ export async function PATCH(
       )
     }
 
-    return NextResponse.json(
-      success({
-        id: updatedProperty.id,
-        wizard_progress: updatedProgress,
-        wizard_step_completed: dbStep,
-      })
-    )
+    return success({
+      id: updatedProperty.id,
+      wizard_progress: updatedProgress,
+      wizard_step_completed: dbStep,
+    })
   } catch (err: any) {
     console.error('[Properties API v1] Wizard progress error:', err)
 

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Fetch updated guest
     const updatedGuestDTO = await queryHandler.execute({ guestId: id })
 
-    return NextResponse.json(success(updatedGuestDTO))
+    return success(updatedGuestDTO)
   } catch (err: any) {
     console.error('[Guests API v1] POST Stripe link error:', err)
 

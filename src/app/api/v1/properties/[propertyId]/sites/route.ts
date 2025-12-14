@@ -158,17 +158,15 @@ export async function GET(
     // Calculate pagination metadata
     const totalPages = Math.ceil(result.total / perPage)
 
-    return NextResponse.json(
-      success({
-        items: siteDTOs,
-        pagination: {
-          page: page,
-          per_page: perPage,
-          total: result.total,
-          total_pages: totalPages,
-        },
-      })
-    )
+    return success({
+      items: siteDTOs,
+      pagination: {
+        page: page,
+        per_page: perPage,
+        total: result.total,
+        total_pages: totalPages,
+      },
+    })
   } catch (err: any) {
     console.error('[v1/sites] List sites error:', err)
     return NextResponse.json(
@@ -277,7 +275,12 @@ export async function POST(
     // Convert domain entity to DTO
     const siteDTO = toSiteDTO(site)
 
-    return NextResponse.json(success(siteDTO), { status: 201 })
+    // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
+    const response = success(siteDTO)
+    return new NextResponse(response.body, {
+      status: 201,
+      headers: response.headers,
+    })
   } catch (err: any) {
     console.error('[v1/sites] Create site error:', err)
 

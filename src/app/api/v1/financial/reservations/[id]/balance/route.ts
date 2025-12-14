@@ -84,7 +84,7 @@ export async function GET(
 
     const balance = await queryHandler.execute(reservationId)
 
-    return NextResponse.json(success(balance))
+    return success(balance)
   } catch (err: any) {
     console.error('[Financial API v1] Get reservation balance error:', err)
 

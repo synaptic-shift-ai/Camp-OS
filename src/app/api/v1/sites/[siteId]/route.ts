@@ -58,7 +58,7 @@ export async function GET(
     // Remove nested properties from response
     const { properties, ...siteData } = site
 
-    return NextResponse.json(success(siteData))
+    return success(siteData)
   } catch (err: any) {
     console.error('[v1/sites] GET error:', err)
     return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Internal server error'), { status: 500 })
@@ -139,7 +139,7 @@ export async function PUT(
       return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Failed to update site'), { status: 500 })
     }
 
-    return NextResponse.json(success(updatedSite))
+    return success(updatedSite)
   } catch (err: any) {
     console.error('[v1/sites] PUT error:', err)
     return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Internal server error'), { status: 500 })
@@ -201,7 +201,7 @@ export async function DELETE(
       return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Failed to delete site'), { status: 500 })
     }
 
-    return NextResponse.json(success({ deleted: true, id: siteId }))
+    return success({ deleted: true, id: siteId })
   } catch (err: any) {
     console.error('[v1/sites] DELETE error:', err)
     return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Internal server error'), { status: 500 })

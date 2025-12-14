@@ -81,7 +81,7 @@ export async function GET(
     // Convert to DTO
     const invoiceDTO = toInvoiceDTO(invoice)
 
-    return NextResponse.json(success(invoiceDTO))
+    return success(invoiceDTO)
   } catch (err: any) {
     console.error('[Financial API v1] Get invoice error:', err)
 

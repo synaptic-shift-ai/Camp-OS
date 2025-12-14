@@ -84,7 +84,7 @@ export async function GET(
       })),
     }
 
-    return NextResponse.json(success(response))
+    return success(response)
   } catch (err: any) {
     console.error('[Sites API v1] Check availability error:', err)
 

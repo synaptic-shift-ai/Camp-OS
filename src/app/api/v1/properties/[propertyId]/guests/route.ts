@@ -133,17 +133,15 @@ export async function GET(
     const offset = validatedQuery.data.offset || 0
     const paginatedGuests = filteredGuests.slice(offset, offset + limit)
 
-    return NextResponse.json(
-      success({
-        items: paginatedGuests,
-        pagination: {
-          page: Math.floor(offset / limit) + 1,
-          per_page: limit,
-          total,
-          total_pages: Math.ceil(total / limit),
-        },
-      })
-    )
+    return success({
+      items: paginatedGuests,
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        per_page: limit,
+        total,
+        total_pages: Math.ceil(total / limit),
+      },
+    })
   } catch (err: any) {
     console.error('[Guests API v1] GET error:', err)
     return NextResponse.json(
@@ -246,7 +244,12 @@ export async function POST(
     // Convert to DTO
     const guestDTO = GuestDTO.fromDomain(guest)
 
-    return NextResponse.json(success(guestDTO), { status: 201 })
+    // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
+    const response = success(guestDTO)
+    return new NextResponse(response.body, {
+      status: 201,
+      headers: response.headers,
+    })
   } catch (err: any) {
     console.error('[Guests API v1] POST error:', err)
     return NextResponse.json(

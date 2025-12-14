@@ -87,7 +87,7 @@ export async function GET(
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)
 
-    return NextResponse.json(success(propertyDTO))
+    return success(propertyDTO)
   } catch (err: any) {
     console.error('[Properties API v1] GET by ID error:', err)
     return NextResponse.json(
@@ -217,7 +217,7 @@ export async function PATCH(
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)
 
-    return NextResponse.json(success(propertyDTO))
+    return success(propertyDTO)
   } catch (err: any) {
     console.error('[Properties API v1] PATCH error:', err)
 
@@ -301,7 +301,7 @@ export async function DELETE(
     // Soft delete (sets status to INACTIVE)
     await repository.delete(id)
 
-    return NextResponse.json(success({ deleted: true, id }))
+    return success({ deleted: true, id })
   } catch (err: any) {
     console.error('[Properties API v1] DELETE error:', err)
     return NextResponse.json(

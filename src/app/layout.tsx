@@ -49,6 +49,7 @@ export default function RootLayout({
           fontSans.variable,
           fontHeading.variable,
         )}
+        suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <CheckoutProvider>

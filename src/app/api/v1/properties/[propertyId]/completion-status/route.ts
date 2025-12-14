@@ -127,17 +127,15 @@ export async function GET(
     const totalSites = (sites || []).length
     const propertiesWithStripe = property.stripe_account_id ? 1 : 0
 
-    return NextResponse.json(
-      success({
-        properties: [propertyData],
-        summary: {
-          totalProperties: 1,
-          totalSites: totalSites,
-          propertiesWithStripe: propertiesWithStripe,
-          allStripeConnected: !!property.stripe_account_id,
-        },
-      })
-    )
+    return success({
+      properties: [propertyData],
+      summary: {
+        totalProperties: 1,
+        totalSites: totalSites,
+        propertiesWithStripe: propertiesWithStripe,
+        allStripeConnected: !!property.stripe_account_id,
+      },
+    })
   } catch (err: any) {
     console.error('[v1/completion-status] Error:', err)
     return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Failed to fetch completion status'), { status: 500 })

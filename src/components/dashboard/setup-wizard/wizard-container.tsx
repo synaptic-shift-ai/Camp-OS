@@ -112,13 +112,17 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
         throw new Error(result.error?.message || "Failed to complete onboarding")
       }
 
+      // Refresh properties to update onboardingCompleted status
+      // This ensures SetupCheckGate sees the updated state and hides the banner
+      await refreshProperties()
+
       // Redirect to dashboard - SetupCheckGate will handle showing setup modal if more properties need setup
       router.push("/dashboard?setup=complete")
     } catch (error) {
       console.error("Failed to complete wizard:", error)
       setIsCompleting(false) // Reset on error
     }
-  }, [selectedProperty, router])
+  }, [selectedProperty, router, refreshProperties])
 
   const handleStepComplete = useCallback(async () => {
     // Mark current step as completed

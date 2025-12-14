@@ -18,12 +18,18 @@ import type {
   PropertyWithConfig,
   SiteWithConfig,
   ConfigurationResolution,
+  BookingType,
+  PropertyReservationTypesConfig,
+  SeasonalPeriod,
+  SiteSeasonalRate,
 } from './types'
 import {
   DEFAULT_DEPOSIT_CONFIG,
   DEFAULT_PRICING_CONFIG,
   DEFAULT_BOOKING_RULES_CONFIG,
   DEFAULT_RATE_DISCOUNTS_CONFIG,
+  DEFAULT_RESERVATION_TYPES_CONFIG,
+  DEFAULT_ENABLED_RESERVATION_TYPES,
 } from './types'
 
 // =====================================================
@@ -480,4 +486,149 @@ export function parseBookingRulesFromDB(dbResult: any): BookingRulesConfig {
     same_day_booking_enabled: dbResult.same_day_booking_enabled ?? true,
     instant_booking_enabled: dbResult.instant_booking_enabled ?? true,
   }
+}
+
+// =====================================================
+// Reservation Type Configuration Resolution
+// =====================================================
+
+/**
+ * Resolve enabled reservation types for a site
+ *
+ * Priority order:
+ * 1. Site enabled_reservation_types_override (if set)
+ * 2. Property enabled_reservation_types
+ * 3. System defaults
+ *
+ * @param propertyTypes - Property's enabled reservation types
+ * @param siteOverride - Site's override (optional)
+ * @returns Array of enabled booking types
+ */
+export function resolveEnabledReservationTypes(
+  propertyTypes: BookingType[] | null | undefined,
+  siteOverride: BookingType[] | null | undefined
+): BookingType[] {
+  // Site override takes precedence
+  if (siteOverride && siteOverride.length > 0) {
+    return siteOverride
+  }
+
+  // Use property types if available
+  if (propertyTypes && propertyTypes.length > 0) {
+    return propertyTypes
+  }
+
+  // Fall back to system defaults
+  return DEFAULT_ENABLED_RESERVATION_TYPES
+}
+
+/**
+ * Resolve reservation type configuration for a property
+ *
+ * @param propertyConfig - Property's reservation type configuration
+ * @returns Effective reservation type configuration
+ */
+export function resolveReservationTypesConfig(
+  propertyConfig: PropertyReservationTypesConfig | null | undefined
+): PropertyReservationTypesConfig {
+  if (propertyConfig) {
+    return propertyConfig
+  }
+  return DEFAULT_RESERVATION_TYPES_CONFIG
+}
+
+/**
+ * Get effective seasonal rate for a site
+ *
+ * Priority order:
+ * 1. Site-specific rate from site_seasonal_rates table
+ * 2. Season's base_rate_cents
+ *
+ * @param siteId - Site ID to look up
+ * @param seasonalPeriodId - Seasonal period ID
+ * @param siteSeasonalRates - Array of site-specific rates
+ * @param seasonalPeriod - The seasonal period (for base rate)
+ * @returns Rate in cents
+ */
+export function getSiteEffectiveSeasonalRate(
+  siteId: string,
+  seasonalPeriodId: string,
+  siteSeasonalRates: SiteSeasonalRate[],
+  seasonalPeriod: SeasonalPeriod
+): number {
+  // Look for site-specific rate
+  const siteRate = siteSeasonalRates.find(
+    (r) => r.site_id === siteId && r.seasonal_period_id === seasonalPeriodId
+  )
+
+  // Return site rate if found, otherwise use season base rate
+  return siteRate?.rate_cents ?? seasonalPeriod.base_rate_cents
+}
+
+/**
+ * Check if a site supports a specific reservation type
+ *
+ * @param reservationType - Type to check
+ * @param enabledTypes - Array of enabled types for the site
+ * @returns True if the type is enabled
+ */
+export function isSiteReservationTypeEnabled(
+  reservationType: BookingType,
+  enabledTypes: BookingType[]
+): boolean {
+  return enabledTypes.includes(reservationType)
+}
+
+/**
+ * Parse reservation types config from database JSONB
+ *
+ * @param dbResult - JSONB result from database
+ * @returns Parsed reservation types configuration
+ */
+export function parseReservationTypesConfigFromDB(
+  dbResult: any
+): PropertyReservationTypesConfig {
+  if (!dbResult) return DEFAULT_RESERVATION_TYPES_CONFIG
+
+  return {
+    nightly: {
+      enabled: dbResult.nightly?.enabled ?? true,
+      min_nights: dbResult.nightly?.min_nights ?? 1,
+      max_nights: dbResult.nightly?.max_nights ?? 6,
+    },
+    weekly: {
+      enabled: dbResult.weekly?.enabled ?? true,
+      min_nights: dbResult.weekly?.min_nights ?? 7,
+      max_nights: dbResult.weekly?.max_nights ?? 27,
+    },
+    monthly: {
+      enabled: dbResult.monthly?.enabled ?? true,
+      min_nights: dbResult.monthly?.min_nights ?? 28,
+      max_nights: dbResult.monthly?.max_nights ?? null,
+    },
+    seasonal: {
+      enabled: dbResult.seasonal?.enabled ?? false,
+      min_nights: dbResult.seasonal?.min_nights ?? 1,
+      max_nights: dbResult.seasonal?.max_nights ?? null,
+      flat_rate: true,
+    },
+  }
+}
+
+/**
+ * Parse enabled reservation types from database JSONB array
+ *
+ * @param dbResult - JSONB array from database
+ * @returns Array of enabled booking types
+ */
+export function parseEnabledReservationTypesFromDB(
+  dbResult: any
+): BookingType[] {
+  if (!dbResult || !Array.isArray(dbResult)) {
+    return DEFAULT_ENABLED_RESERVATION_TYPES
+  }
+
+  // Validate and filter to only valid booking types
+  const validTypes: BookingType[] = ['nightly', 'weekly', 'monthly', 'seasonal', 'long_term']
+  return dbResult.filter((type: string) => validTypes.includes(type as BookingType)) as BookingType[]
 }

@@ -10,6 +10,7 @@ const searchParamsSchema = z.object({
   num_children: z.number().int().min(0).optional(),
   site_type: z.enum(['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other']).optional(),
   amenities: z.array(z.string()).optional(),
+  reservation_type: z.enum(['nightly', 'weekly', 'monthly', 'seasonal']).optional(),
 })
 
 export async function POST(request: NextRequest) {

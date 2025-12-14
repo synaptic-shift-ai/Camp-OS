@@ -2,6 +2,7 @@ import * as z from "zod"
 
 export const siteTypes = ["tent", "rv", "cabin", "glamping", "yurt", "other"] as const
 export const siteStatuses = ["available", "reserved", "booked", "occupied", "housekeeping", "maintenance", "unavailable"] as const
+export const reservationTypes = ["nightly", "weekly", "monthly", "seasonal"] as const
 
 export const siteFormSchema = z.object({
   // Basic Info
@@ -60,6 +61,10 @@ export const siteFormSchema = z.object({
       advance_booking_days: z.coerce.number().min(0).optional(),
     })
     .optional(),
+
+  // Reservation type overrides (null = use property defaults)
+  use_property_reservation_types: z.boolean().default(true),
+  enabled_reservation_types_override: z.array(z.enum(reservationTypes)).optional(),
 })
 
 export type SiteFormData = z.infer<typeof siteFormSchema>
@@ -94,6 +99,10 @@ export function toApiFormat(data: SiteFormData) {
     hookups: Object.entries(data.hookups)
       .filter(([_, v]) => v)
       .map(([k]) => k),
+    // Reservation type overrides (null means use property defaults)
+    enabledReservationTypesOverride: data.use_property_reservation_types
+      ? null
+      : data.enabled_reservation_types_override || null,
   }
 }
 
@@ -165,5 +174,13 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
       handrails: site.accessibilityFeatures?.includes("handrails") || site.accessibility_features?.includes("handrails") || false,
       level_ground: site.accessibilityFeatures?.includes("level_ground") || site.accessibility_features?.includes("level_ground") || false,
     },
+    // Reservation type overrides
+    use_property_reservation_types:
+      site.enabledReservationTypesOverride === null ||
+      site.enabledReservationTypesOverride === undefined ||
+      site.enabled_reservation_types_override === null ||
+      site.enabled_reservation_types_override === undefined,
+    enabled_reservation_types_override:
+      site.enabledReservationTypesOverride || site.enabled_reservation_types_override || undefined,
   }
 }

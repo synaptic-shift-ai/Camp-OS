@@ -7,6 +7,12 @@
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateDateRange } from './api'
+import { detectBestReservationType, findMatchingSeasonalPeriod } from './reservation-type-detection'
+import {
+  resolveEnabledReservationTypes,
+  parseReservationTypesConfigFromDB,
+  parseEnabledReservationTypesFromDB,
+} from '@/lib/config/resolution'
 import type {
   Site,
   AvailableSite,
@@ -15,6 +21,7 @@ import type {
   BookingResult,
   SiteAmenities,
 } from './types'
+import type { BookingType, SeasonalPeriod } from '@/lib/config/types'
 
 /**
  * Convert DB amenities array to UI-friendly SiteAmenities object
@@ -181,7 +188,7 @@ export async function checkSiteAvailability(
  * Search for available sites based on dates and filters
  *
  * @param params - Search parameters including dates, property, guests, filters
- * @returns List of available sites with pricing
+ * @returns List of available sites with pricing and reservation type info
  */
 export async function searchAvailableSites(
   params: AvailabilitySearchParams
@@ -194,10 +201,60 @@ export async function searchAvailableSites(
     return dateValidation as BookingResult<AvailabilitySearchResult>
   }
 
+  const totalNights = calculateNights(params.check_in_date, params.check_out_date)
+
+  // Fetch property config for reservation types
+  const { data: property, error: propertyError } = await supabase
+    .from('properties')
+    .select('id, enabled_reservation_types, reservation_type_config')
+    .eq('id', params.property_id)
+    .single()
+
+  if (propertyError || !property) {
+    return {
+      success: false,
+      error: {
+        code: 'PROPERTY_NOT_FOUND',
+        message: 'Property not found',
+      },
+    }
+  }
+
+  // Parse property reservation type config
+  const propertyEnabledTypes = parseEnabledReservationTypesFromDB(property.enabled_reservation_types)
+  const reservationTypeConfig = parseReservationTypesConfigFromDB(property.reservation_type_config)
+
+  // Fetch seasonal periods for the property
+  const { data: seasonalPeriods } = await supabase
+    .from('property_seasonal_periods')
+    .select('*')
+    .eq('property_id', params.property_id)
+
+  const periods: SeasonalPeriod[] = (seasonalPeriods || []).map((p) => ({
+    id: p.id,
+    property_id: p.property_id,
+    name: p.name,
+    start_month: p.start_month,
+    start_day: p.start_day,
+    end_month: p.end_month,
+    end_day: p.end_day,
+    base_rate_cents: p.base_rate_cents,
+    recurring: p.recurring,
+  }))
+
+  // Auto-detect best reservation type
+  const detectedType = detectBestReservationType(
+    totalNights,
+    params.check_in_date,
+    params.check_out_date,
+    reservationTypeConfig,
+    periods
+  )
+
   // Build site query with filters
   let query = supabase
     .from('sites')
-    .select('*')
+    .select('*, enabled_reservation_types_override')
     .eq('property_id', params.property_id)
     .eq('status', 'available')
 
@@ -238,7 +295,13 @@ export async function searchAvailableSites(
         sites: [],
         check_in_date: params.check_in_date,
         check_out_date: params.check_out_date,
-        total_nights: calculateNights(params.check_in_date, params.check_out_date),
+        total_nights: totalNights,
+        suggested_reservation_type: detectedType.type as any,
+        suggested_type_reason: detectedType.reason,
+        available_reservation_types: propertyEnabledTypes.filter(
+          (t): t is 'nightly' | 'weekly' | 'monthly' | 'seasonal' =>
+            ['nightly', 'weekly', 'monthly', 'seasonal'].includes(t)
+        ),
       },
     }
   }
@@ -268,10 +331,21 @@ export async function searchAvailableSites(
   // Get set of occupied site IDs
   const occupiedSiteIds = new Set(overlappingReservations?.map((r) => r.site_id) || [])
 
-  // Filter out occupied sites
-  const availableSites = allSites
-    .filter((site) => !occupiedSiteIds.has(site.id))
-    .map((site) => convertToAvailableSite(site as Site))
+  // Filter out occupied sites and optionally filter by reservation type
+  let filteredSites = allSites.filter((site) => !occupiedSiteIds.has(site.id))
+
+  // If a specific reservation type is requested, filter sites that support it
+  if (params.reservation_type) {
+    filteredSites = filteredSites.filter((site) => {
+      const siteEnabledTypes = resolveEnabledReservationTypes(
+        propertyEnabledTypes,
+        site.enabled_reservation_types_override as BookingType[] | null
+      )
+      return siteEnabledTypes.includes(params.reservation_type!)
+    })
+  }
+
+  const availableSites = filteredSites.map((site) => convertToAvailableSite(site as Site))
 
   return {
     success: true,
@@ -279,7 +353,13 @@ export async function searchAvailableSites(
       sites: availableSites,
       check_in_date: params.check_in_date,
       check_out_date: params.check_out_date,
-      total_nights: calculateNights(params.check_in_date, params.check_out_date),
+      total_nights: totalNights,
+      suggested_reservation_type: detectedType.type as any,
+      suggested_type_reason: detectedType.reason,
+      available_reservation_types: propertyEnabledTypes.filter(
+        (t): t is 'nightly' | 'weekly' | 'monthly' | 'seasonal' =>
+          ['nightly', 'weekly', 'monthly', 'seasonal'].includes(t)
+      ),
     },
   }
 }

@@ -293,6 +293,165 @@ export interface RateDiscountsConfig {
 }
 
 // =====================================================
+// Reservation Type Configuration
+// =====================================================
+
+/**
+ * Reservation Type Configuration
+ *
+ * Configuration for a single reservation type (nightly, weekly, monthly, seasonal).
+ * Defines whether the type is enabled and its night range requirements.
+ *
+ * @example
+ * {
+ *   enabled: true,
+ *   min_nights: 7,
+ *   max_nights: 27
+ * }
+ */
+export interface ReservationTypeConfig {
+  /** Whether this reservation type is enabled */
+  enabled: boolean
+
+  /**
+   * Minimum nights required for this rate type to apply
+   * @example 7 = At least 7 nights for weekly rate
+   */
+  min_nights: number
+
+  /**
+   * Maximum nights for this rate type (null = unlimited)
+   * @example 27 = Up to 27 nights for weekly rate (28+ becomes monthly)
+   */
+  max_nights: number | null
+}
+
+/**
+ * Seasonal Reservation Type Configuration
+ *
+ * Extended configuration for seasonal reservations, which use
+ * flat rates instead of per-night pricing.
+ */
+export interface SeasonalReservationTypeConfig extends ReservationTypeConfig {
+  /** Seasonal reservations use flat rate for entire season */
+  flat_rate: true
+}
+
+/**
+ * Property Reservation Types Configuration
+ *
+ * Complete configuration for all reservation types at the property level.
+ * Controls which types are available and their night thresholds.
+ *
+ * @example
+ * {
+ *   nightly: { enabled: true, min_nights: 1, max_nights: 6 },
+ *   weekly: { enabled: true, min_nights: 7, max_nights: 27 },
+ *   monthly: { enabled: true, min_nights: 28, max_nights: null },
+ *   seasonal: { enabled: false, min_nights: 1, max_nights: null, flat_rate: true }
+ * }
+ */
+export interface PropertyReservationTypesConfig {
+  nightly: ReservationTypeConfig
+  weekly: ReservationTypeConfig
+  monthly: ReservationTypeConfig
+  seasonal: SeasonalReservationTypeConfig
+}
+
+/**
+ * Seasonal Period
+ *
+ * Defines a named season at the property level with date ranges
+ * and a flat rate. Sites can override the rate per season.
+ *
+ * @example
+ * {
+ *   id: "uuid",
+ *   property_id: "uuid",
+ *   name: "Summer Season",
+ *   start_month: 6, start_day: 1,
+ *   end_month: 8, end_day: 31,
+ *   base_rate_cents: 350000,  // $3,500 flat rate for season
+ *   recurring: true
+ * }
+ */
+export interface SeasonalPeriod {
+  id: string
+  property_id: string
+
+  /** Display name for the season (e.g., "Summer Season") */
+  name: string
+
+  /** Start month (1-12) */
+  start_month: number
+
+  /** Start day of month (1-31) */
+  start_day: number
+
+  /** End month (1-12) */
+  end_month: number
+
+  /** End day of month (1-31) */
+  end_day: number
+
+  /**
+   * Flat rate for the entire season in cents (not per-night)
+   * @example 350000 = $3,500 for the entire season
+   */
+  base_rate_cents: number
+
+  /** If true, season repeats every year */
+  recurring: boolean
+
+  created_at?: string
+  updated_at?: string
+}
+
+/**
+ * Site Seasonal Rate
+ *
+ * Per-site rate override for a seasonal period.
+ * If not set for a site, it inherits the season's base_rate_cents.
+ *
+ * @example
+ * {
+ *   id: "uuid",
+ *   site_id: "uuid",
+ *   seasonal_period_id: "uuid",
+ *   rate_cents: 400000  // $4,000 for premium site
+ * }
+ */
+export interface SiteSeasonalRate {
+  id: string
+  site_id: string
+  seasonal_period_id: string
+
+  /**
+   * Site-specific flat rate for this season in cents
+   * @example 400000 = $4,000 for the season (premium site)
+   */
+  rate_cents: number
+
+  created_at?: string
+}
+
+/**
+ * Reservation Type Detection Result
+ *
+ * Result of auto-detecting the best reservation type for a booking.
+ */
+export interface ReservationTypeDetectionResult {
+  /** The detected/recommended reservation type */
+  type: BookingType
+
+  /** Human-readable explanation for the detection */
+  reason: string
+
+  /** If seasonal, the matching seasonal period */
+  seasonal_period?: SeasonalPeriod
+}
+
+// =====================================================
 // Seasonal Pricing
 // =====================================================
 
@@ -662,3 +821,35 @@ export const DEFAULT_RATE_DISCOUNTS_CONFIG: RateDiscountsConfig = {
   monthly_discount_percentage: 0,
   monthly_minimum_nights: 28,
 }
+
+/**
+ * Default Reservation Types Configuration
+ */
+export const DEFAULT_RESERVATION_TYPES_CONFIG: PropertyReservationTypesConfig = {
+  nightly: {
+    enabled: true,
+    min_nights: 1,
+    max_nights: 6,
+  },
+  weekly: {
+    enabled: true,
+    min_nights: 7,
+    max_nights: 27,
+  },
+  monthly: {
+    enabled: true,
+    min_nights: 28,
+    max_nights: null,
+  },
+  seasonal: {
+    enabled: false,
+    min_nights: 1,
+    max_nights: null,
+    flat_rate: true,
+  },
+}
+
+/**
+ * Default Enabled Reservation Types
+ */
+export const DEFAULT_ENABLED_RESERVATION_TYPES: BookingType[] = ['nightly', 'weekly', 'monthly']

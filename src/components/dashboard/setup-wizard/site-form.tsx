@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Save, X } from "lucide-react"
-import { siteFormSchema, siteStatuses, toApiFormat, fromApiFormat, type SiteFormData } from "./site-form-schema"
+import { siteFormSchema, siteStatuses, reservationTypes, toApiFormat, fromApiFormat, type SiteFormData } from "./site-form-schema"
+import { Switch } from "@/components/ui/switch"
 
 interface SiteFormProps {
   propertyId: string
@@ -71,6 +72,8 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
             handrails: false,
             level_ground: false,
           },
+          use_property_reservation_types: true,
+          enabled_reservation_types_override: undefined,
         },
   })
 
@@ -80,6 +83,23 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
   const allowPets = watch("allow_pets")
   const adaAccessible = watch("ada_accessible")
   const accessibilityFeatures = watch("accessibility_features")
+  const usePropertyReservationTypes = watch("use_property_reservation_types")
+  const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
+
+  const toggleReservationType = (type: typeof reservationTypes[number]) => {
+    const current = enabledReservationTypesOverride || []
+    const updated = current.includes(type)
+      ? current.filter(t => t !== type)
+      : [...current, type]
+    setValue("enabled_reservation_types_override", updated.length > 0 ? updated : undefined)
+  }
+
+  const RESERVATION_TYPE_LABELS: Record<typeof reservationTypes[number], { title: string; description: string }> = {
+    nightly: { title: "Nightly", description: "Short stays (1-6 nights)" },
+    weekly: { title: "Weekly", description: "Week-long stays (7-27 nights)" },
+    monthly: { title: "Monthly", description: "Extended stays (28+ nights)" },
+    seasonal: { title: "Seasonal", description: "Fixed date range with flat rate" },
+  }
 
   const onSubmit = async (data: SiteFormData) => {
     try {
@@ -310,6 +330,72 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Reservation Types */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reservation Types</CardTitle>
+          <CardDescription>
+            Configure which reservation types are available for this site
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="font-medium">Use Property Defaults</Label>
+              <p className="text-sm text-muted-foreground">
+                Use the reservation types configured at the property level
+              </p>
+            </div>
+            <Switch
+              checked={usePropertyReservationTypes}
+              onCheckedChange={(checked) => {
+                setValue("use_property_reservation_types", checked)
+                if (checked) {
+                  setValue("enabled_reservation_types_override", undefined)
+                } else {
+                  // Initialize with all types when switching to override
+                  setValue("enabled_reservation_types_override", ["nightly", "weekly", "monthly"])
+                }
+              }}
+            />
+          </div>
+
+          {!usePropertyReservationTypes && (
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-sm font-medium">
+                Select which reservation types this site accepts:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {reservationTypes.map((type) => (
+                  <div key={type} className="flex items-start space-x-3 p-3 border rounded-lg">
+                    <Checkbox
+                      id={`res-type-${type}`}
+                      checked={enabledReservationTypesOverride?.includes(type) || false}
+                      onCheckedChange={() => toggleReservationType(type)}
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor={`res-type-${type}`} className="cursor-pointer font-medium">
+                        {RESERVATION_TYPE_LABELS[type].title}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {RESERVATION_TYPE_LABELS[type].description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {(!enabledReservationTypesOverride || enabledReservationTypesOverride.length === 0) && (
+                <Alert>
+                  <AlertDescription>
+                    Select at least one reservation type for this site.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

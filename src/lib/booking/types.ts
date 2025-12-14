@@ -362,6 +362,8 @@ export interface AvailabilitySearchParams {
   num_pets?: number
   site_type?: SiteType
   amenities?: string[] // Match against DB amenities array
+  /** Filter by reservation type (nightly, weekly, monthly, seasonal) */
+  reservation_type?: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
 }
 
 /**
@@ -372,6 +374,12 @@ export interface AvailabilitySearchResult {
   check_in_date: string
   check_out_date: string
   total_nights: number
+  /** Auto-detected best reservation type based on stay length */
+  suggested_reservation_type?: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+  /** Explanation for why this type was suggested */
+  suggested_type_reason?: string
+  /** Reservation types available at this property */
+  available_reservation_types?: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
 }
 
 // ============================================================================

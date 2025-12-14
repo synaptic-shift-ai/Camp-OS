@@ -63,6 +63,7 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
   const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
   const [selectedSiteType, setSelectedSiteType] = useState<SiteType | ("")>("")
+  const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
   const [isSearching, setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -118,6 +119,10 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
 
     if (selectedSiteType) {
       params.append("siteType", selectedSiteType)
+    }
+
+    if (selectedReservationType) {
+      params.append("reservationType", selectedReservationType)
     }
 
     router.push(`/availability-results?${params.toString()}`)
@@ -291,7 +296,7 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
                 {/* Date Range Picker */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -353,6 +358,26 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
                       <SelectItem value="cabin">Cabins</SelectItem>
                       <SelectItem value="glamping">Glamping</SelectItem>
                       <SelectItem value="yurt">Yurts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Reservation Type Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[#2D5A27]">Rate Type</label>
+                  <Select
+                    value={selectedReservationType}
+                    onValueChange={(value) => setSelectedReservationType(value as "" | "nightly" | "weekly" | "monthly" | "seasonal")}
+                  >
+                    <SelectTrigger className="border-2">
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-detect Best Rate</SelectItem>
+                      <SelectItem value="nightly">Nightly Rate</SelectItem>
+                      <SelectItem value="weekly">Weekly Rate</SelectItem>
+                      <SelectItem value="monthly">Monthly Rate</SelectItem>
+                      <SelectItem value="seasonal">Seasonal Rate</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

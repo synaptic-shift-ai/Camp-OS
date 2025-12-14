@@ -372,8 +372,9 @@ export function ReservationTypeSettings({
                       </span>
                       <Input
                         id={`${type}-rate`}
-                        type="text"
-                        inputMode="decimal"
+                        type="number"
+                        step="0.01"
+                        min="0"
                         className="pl-7"
                         placeholder="Enter rate"
                         value={formatCentsToInput(config[type].rate_cents)}

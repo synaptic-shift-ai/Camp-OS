@@ -394,10 +394,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                           <Input
                             id="base_price"
-                            type="text"
-                            inputMode="decimal"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             className="pl-7 h-9"
-                            {...register("base_price")}
+                            {...register("base_price", { valueAsNumber: true })}
                             placeholder="45.00"
                           />
                         </div>
@@ -411,10 +412,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                           <Input
                             id="weekend_price"
-                            type="text"
-                            inputMode="decimal"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             className="pl-7 h-9"
-                            {...register("weekend_price")}
+                            {...register("weekend_price", { valueAsNumber: true })}
                             placeholder="Optional"
                           />
                         </div>
@@ -446,10 +448,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                           <Input
                             id="weekly_rate"
-                            type="text"
-                            inputMode="decimal"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             className="pl-7 h-9"
-                            {...register("weekly_rate")}
+                            {...register("weekly_rate", { valueAsNumber: true })}
                             placeholder="40.00"
                           />
                         </div>
@@ -482,10 +485,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                           <Input
                             id="monthly_rate"
-                            type="text"
-                            inputMode="decimal"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             className="pl-7 h-9"
-                            {...register("monthly_rate")}
+                            {...register("monthly_rate", { valueAsNumber: true })}
                             placeholder="35.00"
                           />
                         </div>
@@ -518,10 +522,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                           <Input
                             id="seasonal_rate"
-                            type="text"
-                            inputMode="decimal"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             className="pl-7 h-9"
-                            {...register("seasonal_rate")}
+                            {...register("seasonal_rate", { valueAsNumber: true })}
                             placeholder="Use property rate"
                           />
                         </div>
@@ -752,10 +757,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
                     id="pet_fee"
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="0.01"
+                    min="0"
                     className="pl-7"
-                    {...register("pet_fee")}
+                    {...register("pet_fee", { valueAsNumber: true })}
                     placeholder="15.00"
                   />
                 </div>

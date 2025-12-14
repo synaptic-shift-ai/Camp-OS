@@ -7,6 +7,7 @@
  * Reuses the existing SiteForm component from the setup wizard.
  */
 
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SiteForm } from '@/components/dashboard/setup-wizard/site-form'
+import { SiteForm, type PropertyDefaults } from '@/components/dashboard/setup-wizard/site-form'
 import { useToast } from '@/hooks/use-toast'
 
 interface AddSiteDialogProps {
@@ -31,6 +32,38 @@ export function AddSiteDialog({
 }: AddSiteDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
+
+  // Fetch property defaults for reservation types
+  const fetchPropertyDefaults = useCallback(async () => {
+    if (!propertyId) return
+
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/reservation-types`)
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        const config = result.data?.reservation_type_config
+        const enabledTypes = result.data?.enabled_reservation_types
+
+        setPropertyDefaults({
+          enabled_reservation_types: enabledTypes,
+          nightly_rate_cents: config?.nightly?.rate_cents ?? null,
+          weekly_rate_cents: config?.weekly?.rate_cents ?? null,
+          monthly_rate_cents: config?.monthly?.rate_cents ?? null,
+          seasonal_rate_cents: config?.seasonal?.rate_cents ?? null,
+        })
+      }
+    } catch (err) {
+      console.error("Error fetching property defaults:", err)
+    }
+  }, [propertyId])
+
+  useEffect(() => {
+    if (open) {
+      fetchPropertyDefaults()
+    }
+  }, [open, fetchPropertyDefaults])
 
   const handleSave = (site: any) => {
     toast({
@@ -58,6 +91,7 @@ export function AddSiteDialog({
 
         <SiteForm
           propertyId={propertyId}
+          propertyDefaults={propertyDefaults}
           onSave={handleSave}
           onCancel={handleCancel}
         />

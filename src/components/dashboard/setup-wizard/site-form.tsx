@@ -15,14 +15,30 @@ import { Loader2, Save, X } from "lucide-react"
 import { siteFormSchema, siteStatuses, reservationTypes, toApiFormat, fromApiFormat, type SiteFormData } from "./site-form-schema"
 import { Switch } from "@/components/ui/switch"
 
+/**
+ * Property defaults for reservation types and pricing.
+ * Used to pre-fill form when site overrides property defaults.
+ */
+export interface PropertyDefaults {
+  enabled_reservation_types?: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
+  default_reservation_type?: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+  nightly_rate_cents?: number | null
+  weekly_rate_cents?: number | null
+  monthly_rate_cents?: number | null
+  seasonal_rate_cents?: number | null
+  base_price_cents?: number | null  // Fallback base price
+  weekend_price_cents?: number | null
+}
+
 interface SiteFormProps {
   propertyId: string
   site?: any // For edit mode - existing site data
+  propertyDefaults?: PropertyDefaults | undefined // Property-level defaults to pre-fill
   onSave: (site: any) => void
   onCancel: () => void
 }
 
-export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) {
+export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel }: SiteFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isEditMode = !!site
@@ -319,8 +335,28 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                   setValue("enabled_reservation_types_override", undefined)
                   setValue("default_reservation_type", undefined)
                 } else {
-                  // Initialize with nightly when switching to override
-                  setValue("enabled_reservation_types_override", ["nightly"])
+                  // Pre-fill with property defaults when switching to override mode
+                  const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
+                  setValue("enabled_reservation_types_override", defaultTypes)
+                  setValue("default_reservation_type", propertyDefaults?.default_reservation_type)
+
+                  // Pre-fill rates from property defaults (convert cents to dollars)
+                  if (propertyDefaults?.nightly_rate_cents || propertyDefaults?.base_price_cents) {
+                    const baseRate = (propertyDefaults.nightly_rate_cents || propertyDefaults.base_price_cents || 0) / 100
+                    setValue("base_price", baseRate)
+                  }
+                  if (propertyDefaults?.weekend_price_cents) {
+                    setValue("weekend_price", propertyDefaults.weekend_price_cents / 100)
+                  }
+                  if (propertyDefaults?.weekly_rate_cents) {
+                    setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
+                  }
+                  if (propertyDefaults?.monthly_rate_cents) {
+                    setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
+                  }
+                  if (propertyDefaults?.seasonal_rate_cents) {
+                    setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
+                  }
                 }
               }}
             />

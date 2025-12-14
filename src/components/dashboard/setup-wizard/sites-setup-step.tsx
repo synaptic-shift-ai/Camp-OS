@@ -5,7 +5,7 @@ import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tent, Plus, Loader2, CheckCircle } from "lucide-react"
-import { SiteForm } from "./site-form"
+import { SiteForm, type PropertyDefaults } from "./site-form"
 import { ExistingSitesList } from "./existing-sites-list"
 import { useToast } from "@/hooks/use-toast"
 
@@ -24,7 +24,32 @@ export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepP
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
   const { toast } = useToast()
+
+  // Fetch property defaults for reservation types
+  const fetchPropertyDefaults = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/properties/${property.id}/reservation-types`)
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        const config = result.data?.reservation_type_config
+        const enabledTypes = result.data?.enabled_reservation_types
+
+        setPropertyDefaults({
+          enabled_reservation_types: enabledTypes,
+          nightly_rate_cents: config?.nightly?.rate_cents ?? null,
+          weekly_rate_cents: config?.weekly?.rate_cents ?? null,
+          monthly_rate_cents: config?.monthly?.rate_cents ?? null,
+          seasonal_rate_cents: config?.seasonal?.rate_cents ?? null,
+        })
+      }
+    } catch (err) {
+      console.error("Error fetching property defaults:", err)
+      // Don't block the form if defaults can't be fetched
+    }
+  }, [property.id])
 
   // Fetch existing sites - migrated to v1 API
   const fetchSites = useCallback(async () => {
@@ -50,7 +75,8 @@ export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepP
 
   useEffect(() => {
     fetchSites()
-  }, [fetchSites])
+    fetchPropertyDefaults()
+  }, [fetchSites, fetchPropertyDefaults])
 
   const handleAddSiteClick = () => {
     setMode("create")
@@ -209,6 +235,7 @@ export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepP
         <SiteForm
           propertyId={property.id}
           site={editingSite}
+          propertyDefaults={propertyDefaults}
           onSave={handleSiteSaved}
           onCancel={handleCancel}
         />

@@ -294,113 +294,21 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
         </CardContent>
       </Card>
 
-      {/* Pricing */}
+      {/* Pricing & Reservation Types - Combined Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Pricing</CardTitle>
-          <CardDescription>Set rates for each reservation type (per night)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Nightly Rates */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Nightly Rates</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="base_price">Base Rate (per night) *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    id="base_price"
-                    type="text"
-                    inputMode="decimal"
-                    className="pl-7"
-                    {...register("base_price")}
-                    placeholder="45.00"
-                  />
-                </div>
-                {errors.base_price && (
-                  <p className="text-sm text-destructive mt-1">{errors.base_price.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="weekend_price">Weekend Rate (per night)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    id="weekend_price"
-                    type="text"
-                    inputMode="decimal"
-                    className="pl-7"
-                    {...register("weekend_price")}
-                    placeholder="55.00"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Fri & Sat nights. Leave empty to use base rate.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Extended Stay Rates */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">Extended Stay Rates</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="weekly_rate">Weekly Rate (per night)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    id="weekly_rate"
-                    type="text"
-                    inputMode="decimal"
-                    className="pl-7"
-                    {...register("weekly_rate")}
-                    placeholder="40.00"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  For stays 7+ nights. Leave empty to use base rate.
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="monthly_rate">Monthly Rate (per night)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    id="monthly_rate"
-                    type="text"
-                    inputMode="decimal"
-                    className="pl-7"
-                    {...register("monthly_rate")}
-                    placeholder="35.00"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  For stays 28+ nights. Leave empty to use base rate.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reservation Types */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Reservation Types</CardTitle>
+          <CardTitle>Pricing & Reservation Types</CardTitle>
           <CardDescription>
-            Configure which reservation types are available for this site
+            Configure pricing and available reservation types for this site
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+        <CardContent className="space-y-6">
+          {/* Property Defaults Toggle */}
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
             <div className="space-y-0.5">
               <Label className="font-medium">Use Property Defaults</Label>
               <p className="text-sm text-muted-foreground">
-                Use the reservation types configured at the property level
+                Inherit pricing and reservation types from property settings
               </p>
             </div>
             <Switch
@@ -409,40 +317,188 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                 setValue("use_property_reservation_types", checked)
                 if (checked) {
                   setValue("enabled_reservation_types_override", undefined)
+                  setValue("default_reservation_type", undefined)
                 } else {
-                  // Initialize with all types when switching to override
-                  setValue("enabled_reservation_types_override", ["nightly", "weekly", "monthly"])
+                  // Initialize with nightly when switching to override
+                  setValue("enabled_reservation_types_override", ["nightly"])
                 }
               }}
             />
           </div>
 
+          {/* Site-Specific Configuration (only when NOT using property defaults) */}
           {!usePropertyReservationTypes && (
-            <div className="border-t pt-4 space-y-4">
-              <p className="text-sm font-medium">
-                Select which reservation types this site accepts:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {reservationTypes.map((type) => (
-                  <div key={type} className="flex items-start space-x-3 p-3 border rounded-lg">
+            <div className="space-y-6">
+              {/* Reservation Type Selection with Integrated Pricing */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-foreground">
+                  Select reservation types and set rates for this site:
+                </h4>
+
+                {/* Nightly */}
+                <div className={`p-4 border rounded-lg space-y-3 ${enabledReservationTypesOverride?.includes("nightly") ? "border-primary/50 bg-primary/5" : ""}`}>
+                  <div className="flex items-center space-x-3">
                     <Checkbox
-                      id={`res-type-${type}`}
-                      checked={enabledReservationTypesOverride?.includes(type) || false}
-                      onCheckedChange={() => toggleReservationType(type)}
+                      id="res-type-nightly"
+                      checked={enabledReservationTypesOverride?.includes("nightly") || false}
+                      onCheckedChange={() => toggleReservationType("nightly")}
                     />
-                    <div className="space-y-0.5">
-                      <Label htmlFor={`res-type-${type}`} className="cursor-pointer font-medium">
-                        {RESERVATION_TYPE_LABELS[type].title}
+                    <div className="flex-1">
+                      <Label htmlFor="res-type-nightly" className="cursor-pointer font-medium">
+                        Nightly
                       </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {RESERVATION_TYPE_LABELS[type].description}
-                      </p>
+                      <p className="text-xs text-muted-foreground">Short stays (1-6 nights)</p>
                     </div>
                   </div>
-                ))}
+                  {enabledReservationTypesOverride?.includes("nightly") && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 pl-7">
+                      <div>
+                        <Label htmlFor="base_price" className="text-xs">Base Rate (per night) *</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="base_price"
+                            type="text"
+                            inputMode="decimal"
+                            className="pl-7 h-9"
+                            {...register("base_price")}
+                            placeholder="45.00"
+                          />
+                        </div>
+                        {errors.base_price && (
+                          <p className="text-xs text-destructive mt-1">{errors.base_price.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="weekend_price" className="text-xs">Weekend Rate (Fri/Sat)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="weekend_price"
+                            type="text"
+                            inputMode="decimal"
+                            className="pl-7 h-9"
+                            {...register("weekend_price")}
+                            placeholder="Optional"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Weekly */}
+                <div className={`p-4 border rounded-lg space-y-3 ${enabledReservationTypesOverride?.includes("weekly") ? "border-primary/50 bg-primary/5" : ""}`}>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="res-type-weekly"
+                      checked={enabledReservationTypesOverride?.includes("weekly") || false}
+                      onCheckedChange={() => toggleReservationType("weekly")}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="res-type-weekly" className="cursor-pointer font-medium">
+                        Weekly
+                      </Label>
+                      <p className="text-xs text-muted-foreground">Week-long stays (7-27 nights)</p>
+                    </div>
+                  </div>
+                  {enabledReservationTypesOverride?.includes("weekly") && (
+                    <div className="pt-2 pl-7">
+                      <div className="max-w-xs">
+                        <Label htmlFor="weekly_rate" className="text-xs">Weekly Rate (per night)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="weekly_rate"
+                            type="text"
+                            inputMode="decimal"
+                            className="pl-7 h-9"
+                            {...register("weekly_rate")}
+                            placeholder="40.00"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Leave empty to use base rate</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Monthly */}
+                <div className={`p-4 border rounded-lg space-y-3 ${enabledReservationTypesOverride?.includes("monthly") ? "border-primary/50 bg-primary/5" : ""}`}>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="res-type-monthly"
+                      checked={enabledReservationTypesOverride?.includes("monthly") || false}
+                      onCheckedChange={() => toggleReservationType("monthly")}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="res-type-monthly" className="cursor-pointer font-medium">
+                        Monthly
+                      </Label>
+                      <p className="text-xs text-muted-foreground">Extended stays (28+ nights)</p>
+                    </div>
+                  </div>
+                  {enabledReservationTypesOverride?.includes("monthly") && (
+                    <div className="pt-2 pl-7">
+                      <div className="max-w-xs">
+                        <Label htmlFor="monthly_rate" className="text-xs">Monthly Rate (per night)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="monthly_rate"
+                            type="text"
+                            inputMode="decimal"
+                            className="pl-7 h-9"
+                            {...register("monthly_rate")}
+                            placeholder="35.00"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Leave empty to use base rate</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Seasonal */}
+                <div className={`p-4 border rounded-lg space-y-3 ${enabledReservationTypesOverride?.includes("seasonal") ? "border-primary/50 bg-primary/5" : ""}`}>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="res-type-seasonal"
+                      checked={enabledReservationTypesOverride?.includes("seasonal") || false}
+                      onCheckedChange={() => toggleReservationType("seasonal")}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="res-type-seasonal" className="cursor-pointer font-medium">
+                        Seasonal
+                      </Label>
+                      <p className="text-xs text-muted-foreground">Fixed date range with flat rate</p>
+                    </div>
+                  </div>
+                  {enabledReservationTypesOverride?.includes("seasonal") && (
+                    <div className="pt-2 pl-7">
+                      <div className="max-w-xs">
+                        <Label htmlFor="seasonal_rate" className="text-xs">Seasonal Flat Rate</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="seasonal_rate"
+                            type="text"
+                            inputMode="decimal"
+                            className="pl-7 h-9"
+                            {...register("seasonal_rate")}
+                            placeholder="Use property rate"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Leave empty to use property seasonal rates</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Validation Alert */}
               {(!enabledReservationTypesOverride || enabledReservationTypesOverride.length === 0) && (
-                <Alert>
+                <Alert variant="destructive">
                   <AlertDescription>
                     Select at least one reservation type for this site.
                   </AlertDescription>
@@ -450,14 +506,14 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
               )}
 
               {/* Default Reservation Type */}
-              {enabledReservationTypesOverride && enabledReservationTypesOverride.length > 0 && (
-                <div className="border-t pt-4 space-y-2">
+              {enabledReservationTypesOverride && enabledReservationTypesOverride.length > 1 && (
+                <div className="pt-2 space-y-2">
                   <Label htmlFor="default_reservation_type">Default Reservation Type</Label>
                   <Select
                     value={defaultReservationType || "__inherit__"}
                     onValueChange={(value) => setValue("default_reservation_type", value === "__inherit__" ? undefined : value as any)}
                   >
-                    <SelectTrigger id="default_reservation_type">
+                    <SelectTrigger id="default_reservation_type" className="max-w-xs">
                       <SelectValue placeholder="Use property default" />
                     </SelectTrigger>
                     <SelectContent>
@@ -470,32 +526,10 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    The default reservation type suggested for this site
+                    Suggested reservation type when guests book this site
                   </p>
                 </div>
               )}
-
-              {/* Seasonal Rate Override */}
-              {enabledReservationTypesOverride?.includes("seasonal") && (
-                <div className="border-t pt-4 space-y-2">
-                  <Label htmlFor="seasonal_rate">Seasonal Flat Rate (optional)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input
-                      id="seasonal_rate"
-                      type="text"
-                      inputMode="decimal"
-                      className="pl-7"
-                      {...register("seasonal_rate")}
-                      placeholder="Use property season rates"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Override the seasonal rate for this site. Leave empty to use property-level seasonal rates.
-                  </p>
-                </div>
-              )}
-
             </div>
           )}
         </CardContent>

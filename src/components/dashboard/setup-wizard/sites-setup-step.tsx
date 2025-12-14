@@ -97,7 +97,7 @@ export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepP
   const handleSiteSaved = async (savedSite: any) => {
     toast({
       title: mode === "edit" ? "Site updated" : "Site created",
-      description: `Site ${savedSite.site_number} has been saved successfully.`,
+      description: `Site ${savedSite.siteNumber} has been saved successfully.`,
     })
 
     // Refresh sites list

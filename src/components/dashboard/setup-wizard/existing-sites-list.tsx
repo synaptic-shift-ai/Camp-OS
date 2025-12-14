@@ -18,16 +18,20 @@ import { Edit, Trash2, DollarSign, Users, Car } from "lucide-react"
 
 interface Site {
   id: string
-  site_number: string
-  site_name: string | null
-  site_type: string
-  max_occupancy: number
-  max_vehicles: number
-  base_price: number // in cents
-  weekend_price_cents?: number | null
+  siteNumber: string
+  siteName: string | null
+  siteType: string
   status: string
-  hookups: string[]
-  site_amenities: string[]
+  pricing: {
+    basePrice: number // in cents
+    weekendPrice: number // in cents
+  }
+  capacity: {
+    maxOccupancy: number | null
+    maxVehicles: number | null
+  }
+  hookups: string[] | null
+  amenities: string[] | null
 }
 
 interface ExistingSitesListProps {
@@ -94,13 +98,13 @@ export function ExistingSitesList({ sites, onEdit, onDelete }: ExistingSitesList
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-lg">Site {site.site_number}</h4>
-                      <Badge className={getSiteTypeColor(site.site_type)}>
-                        {site.site_type}
+                      <h4 className="font-semibold text-lg">Site {site.siteNumber}</h4>
+                      <Badge className={getSiteTypeColor(site.siteType)}>
+                        {site.siteType}
                       </Badge>
                     </div>
-                    {site.site_name && (
-                      <p className="text-sm text-muted-foreground">{site.site_name}</p>
+                    {site.siteName && (
+                      <p className="text-sm text-muted-foreground">{site.siteName}</p>
                     )}
                   </div>
                   <Badge className={getStatusColor(site.status)} variant="outline">
@@ -112,22 +116,22 @@ export function ExistingSitesList({ sites, onEdit, onDelete }: ExistingSitesList
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{formatPrice(site.base_price)}/night</span>
-                    {site.weekend_price_cents && (
+                    <span className="font-medium">{formatPrice(site.pricing.basePrice)}/night</span>
+                    {site.pricing.weekendPrice > 0 && site.pricing.weekendPrice !== site.pricing.basePrice && (
                       <span className="text-muted-foreground">
-                        ({formatPrice(site.weekend_price_cents)} weekends)
+                        ({formatPrice(site.pricing.weekendPrice)} weekends)
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>Up to {site.max_occupancy} guests</span>
+                    <span>Up to {site.capacity.maxOccupancy ?? 0} guests</span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Car className="h-4 w-4 text-muted-foreground" />
-                    <span>{site.max_vehicles} vehicle{site.max_vehicles !== 1 ? "s" : ""}</span>
+                    <span>{site.capacity.maxVehicles ?? 0} vehicle{(site.capacity.maxVehicles ?? 0) !== 1 ? "s" : ""}</span>
                   </div>
 
                   {/* Hookups */}
@@ -142,16 +146,16 @@ export function ExistingSitesList({ sites, onEdit, onDelete }: ExistingSitesList
                   )}
 
                   {/* Amenities */}
-                  {site.site_amenities && site.site_amenities.length > 0 && (
+                  {site.amenities && site.amenities.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {site.site_amenities.slice(0, 3).map((amenity) => (
+                      {site.amenities.slice(0, 3).map((amenity) => (
                         <Badge key={amenity} variant="outline" className="text-xs">
                           {amenity.replace(/_/g, " ")}
                         </Badge>
                       ))}
-                      {site.site_amenities.length > 3 && (
+                      {site.amenities.length > 3 && (
                         <Badge variant="outline" className="text-xs">
-                          +{site.site_amenities.length - 3} more
+                          +{site.amenities.length - 3} more
                         </Badge>
                       )}
                     </div>
@@ -190,8 +194,8 @@ export function ExistingSitesList({ sites, onEdit, onDelete }: ExistingSitesList
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Site?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete Site {siteToDelete?.site_number}
-              {siteToDelete?.site_name ? ` (${siteToDelete.site_name})` : ""}? This action
+              Are you sure you want to delete Site {siteToDelete?.siteNumber}
+              {siteToDelete?.siteName ? ` (${siteToDelete.siteName})` : ""}? This action
               cannot be undone.
               {siteToDelete && (
                 <div className="mt-2 p-3 bg-muted rounded-md text-sm">

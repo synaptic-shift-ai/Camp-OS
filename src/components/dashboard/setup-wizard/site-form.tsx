@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Save, X } from "lucide-react"
-import { siteFormSchema, siteStatuses, toApiFormat, type SiteFormData } from "./site-form-schema"
+import { siteFormSchema, siteStatuses, toApiFormat, fromApiFormat, type SiteFormData } from "./site-form-schema"
 
 interface SiteFormProps {
   propertyId: string
@@ -26,6 +26,9 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
   const [error, setError] = useState<string | null>(null)
   const isEditMode = !!site
 
+  // Convert API response (camelCase) to form format (snake_case) using shared helper
+  const defaultFormValues = site ? fromApiFormat(site) : undefined
+
   const {
     register,
     handleSubmit,
@@ -34,47 +37,7 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
     watch,
   } = useForm<SiteFormData>({
     resolver: zodResolver(siteFormSchema),
-    defaultValues: site
-      ? {
-          site_number: site.site_number || "",
-          site_name: site.site_name || "",
-          site_type: site.site_type || "tent",
-          max_occupancy: site.max_occupancy || 4,
-          max_vehicles: site.max_vehicles || 1,
-          size_sqft: site.size_sqft || undefined,
-          status: site.status || "available",
-          description: site.description || "",
-          base_price: site.base_price ? site.base_price / 100 : 0, // Convert cents to dollars
-          weekend_price: site.weekend_price_cents
-            ? site.weekend_price_cents / 100
-            : undefined,
-          hookups: {
-            water: site.hookups?.includes("water") || false,
-            electric: site.hookups?.includes("electric") || false,
-            sewer: site.hookups?.includes("sewer") || false,
-          },
-          amenities: {
-            fire_pit: site.site_amenities?.includes("fire_pit") || false,
-            picnic_table: site.site_amenities?.includes("picnic_table") || false,
-            grill: site.site_amenities?.includes("grill") || false,
-            shade: site.site_amenities?.includes("shade") || false,
-            pet_friendly: site.site_amenities?.includes("pet_friendly") || false,
-            lake_view: site.site_amenities?.includes("lake_view") || false,
-            waterfront: site.site_amenities?.includes("waterfront") || false,
-          },
-          allow_pets: site.allow_pets || false,
-          pet_fee: site.pet_fee ? site.pet_fee / 100 : undefined, // Convert cents to dollars
-          ada_accessible: site.ada_accessible || false,
-          accessibility_features: {
-            wheelchair_accessible: site.accessibility_features?.includes("wheelchair_accessible") || false,
-            wide_paths: site.accessibility_features?.includes("wide_paths") || false,
-            accessible_table: site.accessibility_features?.includes("accessible_table") || false,
-            accessible_restroom: site.accessibility_features?.includes("accessible_restroom") || false,
-            handrails: site.accessibility_features?.includes("handrails") || false,
-            level_ground: site.accessibility_features?.includes("level_ground") || false,
-          },
-        }
-      : {
+    defaultValues: defaultFormValues || {
           site_number: "",
           site_name: "",
           site_type: "tent",

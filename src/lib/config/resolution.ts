@@ -595,23 +595,167 @@ export function parseReservationTypesConfigFromDB(
       enabled: dbResult.nightly?.enabled ?? true,
       min_nights: dbResult.nightly?.min_nights ?? 1,
       max_nights: dbResult.nightly?.max_nights ?? 6,
+      rate_cents: dbResult.nightly?.rate_cents ?? null,
     },
     weekly: {
       enabled: dbResult.weekly?.enabled ?? true,
       min_nights: dbResult.weekly?.min_nights ?? 7,
       max_nights: dbResult.weekly?.max_nights ?? 27,
+      rate_cents: dbResult.weekly?.rate_cents ?? null,
     },
     monthly: {
       enabled: dbResult.monthly?.enabled ?? true,
       min_nights: dbResult.monthly?.min_nights ?? 28,
       max_nights: dbResult.monthly?.max_nights ?? null,
+      rate_cents: dbResult.monthly?.rate_cents ?? null,
     },
     seasonal: {
       enabled: dbResult.seasonal?.enabled ?? false,
       min_nights: dbResult.seasonal?.min_nights ?? 1,
       max_nights: dbResult.seasonal?.max_nights ?? null,
       flat_rate: true,
+      rate_cents: dbResult.seasonal?.rate_cents ?? null,
     },
+  }
+}
+
+// =====================================================
+// Reservation Type Rate Resolution
+// =====================================================
+
+/**
+ * Resolve the effective rate for a specific reservation type
+ *
+ * Priority order:
+ * 1. Site-specific rate override for this type (reservation_type_rates_override)
+ * 2. Site's existing rate field (weekly_rate_cents, monthly_rate_cents)
+ * 3. Property's rate for this type (reservation_type_config[type].rate_cents)
+ * 4. Site's base_price as fallback
+ *
+ * @param bookingType - The reservation type to get rate for
+ * @param propertyConfig - Property's reservation type configuration
+ * @param siteRatesOverride - Site's per-type rate overrides (optional)
+ * @param siteFallbackRates - Site's existing rate fields
+ * @returns Effective rate in cents
+ *
+ * @example
+ * const rate = resolveReservationTypeRate(
+ *   'weekly',
+ *   propertyConfig,
+ *   site.reservation_type_rates_override,
+ *   { base_price: 5000, weekly_rate_cents: 4500 }
+ * )
+ */
+export function resolveReservationTypeRate(
+  bookingType: BookingType,
+  propertyConfig: PropertyReservationTypesConfig | null | undefined,
+  siteRatesOverride: Partial<Record<BookingType, number>> | null | undefined,
+  siteFallbackRates: {
+    base_price: number
+    weekly_rate_cents?: number | null
+    monthly_rate_cents?: number | null
+  }
+): number {
+  // 1. Check site-specific rate override for this type
+  if (siteRatesOverride && siteRatesOverride[bookingType] !== undefined) {
+    return siteRatesOverride[bookingType]!
+  }
+
+  // 2. Check site's existing rate fields (for backward compatibility)
+  switch (bookingType) {
+    case 'weekly':
+      if (siteFallbackRates.weekly_rate_cents != null) {
+        return siteFallbackRates.weekly_rate_cents
+      }
+      break
+    case 'monthly':
+      if (siteFallbackRates.monthly_rate_cents != null) {
+        return siteFallbackRates.monthly_rate_cents
+      }
+      break
+  }
+
+  // 3. Check property's rate for this type
+  const effectiveConfig = propertyConfig ?? DEFAULT_RESERVATION_TYPES_CONFIG
+  const typeConfig = effectiveConfig[bookingType as keyof PropertyReservationTypesConfig]
+  if (typeConfig && typeConfig.rate_cents != null) {
+    return typeConfig.rate_cents
+  }
+
+  // 4. Fall back to site's base_price
+  return siteFallbackRates.base_price
+}
+
+/**
+ * Resolve rate information including metadata about where the rate came from
+ *
+ * @param bookingType - The reservation type to get rate for
+ * @param propertyConfig - Property's reservation type configuration
+ * @param siteRatesOverride - Site's per-type rate overrides (optional)
+ * @param siteFallbackRates - Site's existing rate fields
+ * @returns Rate with source information
+ */
+export function resolveReservationTypeRateWithSource(
+  bookingType: BookingType,
+  propertyConfig: PropertyReservationTypesConfig | null | undefined,
+  siteRatesOverride: Partial<Record<BookingType, number>> | null | undefined,
+  siteFallbackRates: {
+    base_price: number
+    weekly_rate_cents?: number | null
+    monthly_rate_cents?: number | null
+  }
+): {
+  rate_cents: number
+  source: 'site_override' | 'site_field' | 'property' | 'base_price'
+  is_overridden: boolean
+} {
+  // 1. Check site-specific rate override for this type
+  if (siteRatesOverride && siteRatesOverride[bookingType] !== undefined) {
+    return {
+      rate_cents: siteRatesOverride[bookingType]!,
+      source: 'site_override',
+      is_overridden: true,
+    }
+  }
+
+  // 2. Check site's existing rate fields
+  switch (bookingType) {
+    case 'weekly':
+      if (siteFallbackRates.weekly_rate_cents != null) {
+        return {
+          rate_cents: siteFallbackRates.weekly_rate_cents,
+          source: 'site_field',
+          is_overridden: true,
+        }
+      }
+      break
+    case 'monthly':
+      if (siteFallbackRates.monthly_rate_cents != null) {
+        return {
+          rate_cents: siteFallbackRates.monthly_rate_cents,
+          source: 'site_field',
+          is_overridden: true,
+        }
+      }
+      break
+  }
+
+  // 3. Check property's rate for this type
+  const effectiveConfig = propertyConfig ?? DEFAULT_RESERVATION_TYPES_CONFIG
+  const typeConfig = effectiveConfig[bookingType as keyof PropertyReservationTypesConfig]
+  if (typeConfig && typeConfig.rate_cents != null) {
+    return {
+      rate_cents: typeConfig.rate_cents,
+      source: 'property',
+      is_overridden: false,
+    }
+  }
+
+  // 4. Fall back to site's base_price
+  return {
+    rate_cents: siteFallbackRates.base_price,
+    source: 'base_price',
+    is_overridden: false,
   }
 }
 

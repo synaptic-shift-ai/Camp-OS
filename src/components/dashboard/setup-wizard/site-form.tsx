@@ -87,6 +87,7 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
   const usePropertyReservationTypes = watch("use_property_reservation_types")
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const seasonalRate = watch("seasonal_rate")
+  const defaultReservationType = watch("default_reservation_type")
 
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
     const current = enabledReservationTypesOverride || []
@@ -446,6 +447,32 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                     Select at least one reservation type for this site.
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Default Reservation Type */}
+              {enabledReservationTypesOverride && enabledReservationTypesOverride.length > 0 && (
+                <div className="border-t pt-4 space-y-2">
+                  <Label htmlFor="default_reservation_type">Default Reservation Type</Label>
+                  <Select
+                    value={defaultReservationType || ""}
+                    onValueChange={(value) => setValue("default_reservation_type", value as any || undefined)}
+                  >
+                    <SelectTrigger id="default_reservation_type">
+                      <SelectValue placeholder="Use property default" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Use property default</SelectItem>
+                      {enabledReservationTypesOverride.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {RESERVATION_TYPE_LABELS[type].title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The default reservation type suggested for this site
+                  </p>
+                </div>
               )}
 
               {/* Seasonal Rate Override */}

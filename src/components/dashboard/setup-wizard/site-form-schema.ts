@@ -67,6 +67,7 @@ export const siteFormSchema = z.object({
   // Reservation type overrides (null = use property defaults)
   use_property_reservation_types: z.boolean().default(true),
   enabled_reservation_types_override: z.array(z.enum(reservationTypes)).optional(),
+  default_reservation_type: z.enum(reservationTypes).optional(),
 
   // Seasonal rate override (in dollars, converted to cents for API)
   seasonal_rate: z.coerce.number().min(0).optional(),
@@ -110,6 +111,8 @@ export function toApiFormat(data: SiteFormData) {
     enabledReservationTypesOverride: data.use_property_reservation_types
       ? null
       : data.enabled_reservation_types_override || null,
+    // Default reservation type for this site
+    defaultReservationType: data.default_reservation_type || undefined,
     // Seasonal rate in cents (null means use property default)
     seasonalRateCents: data.seasonal_rate ? Math.round(data.seasonal_rate * 100) : undefined,
   }
@@ -197,6 +200,9 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
       site.enabled_reservation_types_override === undefined,
     enabled_reservation_types_override:
       site.enabledReservationTypesOverride || site.enabled_reservation_types_override || undefined,
+    // Default reservation type for this site
+    default_reservation_type:
+      site.defaultReservationType || site.default_reservation_type || undefined,
     // Seasonal rate (convert from cents to dollars)
     seasonal_rate: site.seasonalRateCents
       ? site.seasonalRateCents / 100

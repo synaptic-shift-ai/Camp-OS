@@ -28,22 +28,26 @@ const UpdateReservationTypesSchema = z.object({
       enabled: z.boolean(),
       min_nights: z.number().min(1),
       max_nights: z.number().nullable(),
+      rate_cents: z.number().min(0).nullable().optional(),
     }).optional(),
     weekly: z.object({
       enabled: z.boolean(),
       min_nights: z.number().min(1),
       max_nights: z.number().nullable(),
+      rate_cents: z.number().min(0).nullable().optional(),
     }).optional(),
     monthly: z.object({
       enabled: z.boolean(),
       min_nights: z.number().min(1),
       max_nights: z.number().nullable(),
+      rate_cents: z.number().min(0).nullable().optional(),
     }).optional(),
     seasonal: z.object({
       enabled: z.boolean(),
       min_nights: z.number().min(1),
       max_nights: z.number().nullable(),
       flat_rate: z.literal(true),
+      rate_cents: z.number().min(0).nullable().optional(),
     }).optional(),
   }).optional(),
 })

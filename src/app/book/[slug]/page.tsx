@@ -49,7 +49,8 @@ export default async function PropertyBookingPage({
       minimum_stay_nights,
       special_instructions,
       directions,
-      amenities
+      amenities,
+      enabled_reservation_types
     `)
     .eq("booking_page_slug", slug)
     .eq("onboarding_completed", true)
@@ -76,6 +77,7 @@ export default async function PropertyBookingPage({
     email: property.email,
     cancellation_policy: property.cancellation_policy,
     amenities: (property.amenities as string[]) || [],
+    enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
   }
 
   return <PropertyBookingPortal property={propertyData} slug={slug} />

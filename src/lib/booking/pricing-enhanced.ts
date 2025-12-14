@@ -27,9 +27,12 @@ import {
   resolvePricingConfig,
   resolveDepositConfig,
   resolveRateDiscountsConfig,
+  resolveReservationTypeRate,
+  resolveReservationTypesConfig,
   getEffectiveNightlyRate,
   getApplicableDiscountTier,
 } from '@/lib/config/resolution'
+import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
 // =====================================================
 // Helper Functions
@@ -208,20 +211,48 @@ export async function calculateReservationPriceEnhanced(
 
   const rateDiscountsConfig = resolveRateDiscountsConfig(property.rate_discounts_config)
 
+  // Resolve reservation type configuration (for per-type pricing)
+  const reservationTypesConfig = resolveReservationTypesConfig(
+    property.reservation_type_config as PropertyReservationTypesConfig | null
+  )
+
   // Calculate nights
   const totalNights = calculateNights(checkInDate, checkOutDate)
   const weekendNights = countWeekendNights(checkInDate, checkOutDate)
   const weekdayNights = totalNights - weekendNights
 
-  // Determine applicable discount tier
+  // Determine booking type - use explicit type if provided, otherwise detect
+  const effectiveBookingType = options.booking_type || 'nightly'
+  const usePerTypePricing = effectiveBookingType !== 'nightly' && options.booking_type !== undefined
+
+  // Resolve per-type rate if applicable
+  const perTypeRate = usePerTypePricing
+    ? resolveReservationTypeRate(
+        effectiveBookingType,
+        reservationTypesConfig,
+        typedSite.reservation_type_rates_override as Partial<Record<BookingType, number>> | null,
+        {
+          base_price: typedSite.base_price,
+          weekly_rate_cents: typedSite.weekly_rate_cents ?? null,
+          monthly_rate_cents: typedSite.monthly_rate_cents ?? null,
+        }
+      )
+    : null
+
+  // Determine applicable discount tier (for non-per-type pricing)
   const discountTier = getApplicableDiscountTier(rateDiscountsConfig, totalNights)
 
   // Calculate base pricing with seasonal pricing support
   let subtotal = 0
-  let baseRateUsed = typedSite.base_price
+  let baseRateUsed = perTypeRate ?? typedSite.base_price
   let rateType: 'standard' | 'weekend' | 'weekly' | 'monthly' | 'seasonal' = 'standard'
   let seasonalPricingApplied = false
   let weekendSurcharge = 0
+
+  // Set initial rate type based on booking type
+  if (usePerTypePricing) {
+    rateType = effectiveBookingType as 'weekly' | 'monthly' | 'seasonal'
+  }
 
   // Check if we have seasonal pricing to apply
   const seasonalPricing = (typedSite.seasonal_pricing as SeasonalPricingEntry[]) || []
@@ -234,7 +265,7 @@ export async function calculateReservationPriceEnhanced(
     const dateStr = current.toISOString().split('T')[0]!
     const isWeekend = isWeekendNight(dateStr)
 
-    // Check for seasonal pricing first
+    // Check for seasonal pricing first (overrides per-type pricing)
     const seasonalPrice = getSeasonalPrice(dateStr, seasonalPricing, isWeekend)
 
     if (seasonalPrice) {
@@ -242,6 +273,10 @@ export async function calculateReservationPriceEnhanced(
       subtotal += seasonalPrice
       seasonalPricingApplied = true
       rateType = 'seasonal'
+    } else if (usePerTypePricing && perTypeRate !== null) {
+      // Use per-type flat rate for this night
+      subtotal += perTypeRate
+      // Weekend surcharge typically not applied to weekly/monthly rates
     } else {
       // Use standard pricing logic with weekly/monthly discounts
       const effectiveRate = getEffectiveNightlyRate(

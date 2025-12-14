@@ -151,7 +151,7 @@ export function ReservationTypeSettings({
 
   const updateTypeConfig = (
     type: 'nightly' | 'weekly' | 'monthly',
-    field: 'min_nights' | 'max_nights',
+    field: 'min_nights' | 'max_nights' | 'rate_cents',
     value: number | null
   ) => {
     setConfig((prev) => ({
@@ -162,6 +162,17 @@ export function ReservationTypeSettings({
       },
     }))
     setIsDirty(true)
+  }
+
+  const parseDollarsToCents = (dollars: string): number | null => {
+    const parsed = parseFloat(dollars)
+    if (isNaN(parsed) || parsed < 0) return null
+    return Math.round(parsed * 100)
+  }
+
+  const formatCentsToInput = (cents: number | null | undefined): string => {
+    if (cents === null || cents === undefined) return ''
+    return (cents / 100).toFixed(2)
   }
 
   const handleSaveConfig = async () => {
@@ -348,9 +359,35 @@ export function ReservationTypeSettings({
                 />
               </div>
 
-              {/* Min/Max nights config for non-seasonal types */}
+              {/* Configuration for non-seasonal types */}
               {enabledTypes.includes(type) && type !== 'seasonal' && (
-                <div className="grid gap-4 md:grid-cols-2 pl-4 border-l-2 border-muted">
+                <div className="grid gap-4 md:grid-cols-3 pl-4 border-l-2 border-muted">
+                  <div className="space-y-2">
+                    <Label htmlFor={`${type}-rate`}>
+                      {type === 'nightly' ? 'Nightly Rate' : `${RESERVATION_TYPE_LABELS[type].title} Rate (per night)`}
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        id={`${type}-rate`}
+                        type="text"
+                        inputMode="decimal"
+                        className="pl-7"
+                        placeholder="Enter rate"
+                        value={formatCentsToInput(config[type].rate_cents)}
+                        onChange={(e) =>
+                          updateTypeConfig(type, 'rate_cents', parseDollarsToCents(e.target.value))
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {type === 'nightly' && 'Base rate per night for short stays'}
+                      {type === 'weekly' && `Per-night rate for ${config.weekly.min_nights}-${config.weekly.max_nights || '∞'} night stays`}
+                      {type === 'monthly' && `Per-night rate for ${config.monthly.min_nights}+ night stays`}
+                    </p>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor={`${type}-min`}>Minimum Nights</Label>
                     <Input

@@ -300,13 +300,14 @@ export interface RateDiscountsConfig {
  * Reservation Type Configuration
  *
  * Configuration for a single reservation type (nightly, weekly, monthly, seasonal).
- * Defines whether the type is enabled and its night range requirements.
+ * Defines whether the type is enabled, its night range requirements, and the rate.
  *
  * @example
  * {
  *   enabled: true,
  *   min_nights: 7,
- *   max_nights: 27
+ *   max_nights: 27,
+ *   rate_cents: 7500  // $75/night for weekly stays
  * }
  */
 export interface ReservationTypeConfig {
@@ -324,6 +325,12 @@ export interface ReservationTypeConfig {
    * @example 27 = Up to 27 nights for weekly rate (28+ becomes monthly)
    */
   max_nights: number | null
+
+  /**
+   * Per-night rate in cents for this reservation type (null = inherit from site base_price)
+   * @example 7500 = $75.00 per night
+   */
+  rate_cents?: number | null
 }
 
 /**
@@ -331,6 +338,10 @@ export interface ReservationTypeConfig {
  *
  * Extended configuration for seasonal reservations, which use
  * flat rates instead of per-night pricing.
+ *
+ * Note: For seasonal type, `rate_cents` represents a flat rate for the
+ * entire season, not a per-night rate. Actual seasonal rates are typically
+ * managed via SeasonalPeriod records which can have site-specific overrides.
  */
 export interface SeasonalReservationTypeConfig extends ReservationTypeConfig {
   /** Seasonal reservations use flat rate for entire season */
@@ -633,6 +644,14 @@ export interface SiteWithConfig {
   weekly_rate_cents?: number | null
   monthly_rate_cents?: number | null
 
+  // Reservation type overrides
+  /** Override property's enabled reservation types for this site */
+  enabled_reservation_types_override?: BookingType[] | null
+  /** Site's default reservation type (overrides property default) */
+  default_reservation_type?: BookingType | null
+  /** Per-type rate overrides for this site (cents) */
+  reservation_type_rates_override?: Partial<Record<BookingType, number>> | null
+
   // Configuration overrides
   deposit_override?: DepositConfig | null
   pricing_override?: Partial<PricingConfig> | null
@@ -830,22 +849,26 @@ export const DEFAULT_RESERVATION_TYPES_CONFIG: PropertyReservationTypesConfig = 
     enabled: true,
     min_nights: 1,
     max_nights: 6,
+    rate_cents: null,
   },
   weekly: {
     enabled: true,
     min_nights: 7,
     max_nights: 27,
+    rate_cents: null,
   },
   monthly: {
     enabled: true,
     min_nights: 28,
     max_nights: null,
+    rate_cents: null,
   },
   seasonal: {
     enabled: false,
     min_nights: 1,
     max_nights: null,
     flat_rate: true,
+    rate_cents: null,
   },
 }
 

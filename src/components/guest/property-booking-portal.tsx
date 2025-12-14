@@ -35,6 +35,15 @@ import type { SiteType } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
+type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+
+const RESERVATION_TYPE_LABELS: Record<BookingType, string> = {
+  nightly: 'Nightly Rate',
+  weekly: 'Weekly Rate',
+  monthly: 'Monthly Rate',
+  seasonal: 'Seasonal Rate',
+}
+
 interface PropertyBookingPortalProps {
   property: {
     id: string
@@ -50,6 +59,7 @@ interface PropertyBookingPortalProps {
     email: string | null
     cancellation_policy: string | null
     amenities: string[]
+    enabled_reservation_types?: BookingType[]
   }
   slug: string
 }
@@ -66,6 +76,9 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
   const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
   const [isSearching, setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Get available reservation types from property config (default to nightly, weekly, monthly)
+  const availableReservationTypes: BookingType[] = property.enabled_reservation_types || ['nightly', 'weekly', 'monthly']
 
   const formatTime = (time: string | undefined | null) => {
     if (!time) return ""
@@ -297,6 +310,27 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
             </CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+                {/* Reservation Type Filter - FIRST POSITION */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[#2D5A27]">Rate Type</label>
+                  <Select
+                    value={selectedReservationType}
+                    onValueChange={(value) => setSelectedReservationType(value as "" | "nightly" | "weekly" | "monthly" | "seasonal")}
+                  >
+                    <SelectTrigger className="border-2">
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-detect Best Rate</SelectItem>
+                      {availableReservationTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {RESERVATION_TYPE_LABELS[type]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Date Range Picker */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -358,26 +392,6 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
                       <SelectItem value="cabin">Cabins</SelectItem>
                       <SelectItem value="glamping">Glamping</SelectItem>
                       <SelectItem value="yurt">Yurts</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Reservation Type Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#2D5A27]">Rate Type</label>
-                  <Select
-                    value={selectedReservationType}
-                    onValueChange={(value) => setSelectedReservationType(value as "" | "nightly" | "weekly" | "monthly" | "seasonal")}
-                  >
-                    <SelectTrigger className="border-2">
-                      <SelectValue placeholder="Auto-detect" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto-detect Best Rate</SelectItem>
-                      <SelectItem value="nightly">Nightly Rate</SelectItem>
-                      <SelectItem value="weekly">Weekly Rate</SelectItem>
-                      <SelectItem value="monthly">Monthly Rate</SelectItem>
-                      <SelectItem value="seasonal">Seasonal Rate</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

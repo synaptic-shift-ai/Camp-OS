@@ -74,6 +74,7 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
           },
           use_property_reservation_types: true,
           enabled_reservation_types_override: undefined,
+          seasonal_rate: undefined,
         },
   })
 
@@ -85,6 +86,7 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
   const accessibilityFeatures = watch("accessibility_features")
   const usePropertyReservationTypes = watch("use_property_reservation_types")
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
+  const seasonalRate = watch("seasonal_rate")
 
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
     const current = enabledReservationTypesOverride || []
@@ -364,7 +366,7 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
           </div>
 
           {!usePropertyReservationTypes && (
-            <div className="border-t pt-4 space-y-3">
+            <div className="border-t pt-4 space-y-4">
               <p className="text-sm font-medium">
                 Select which reservation types this site accepts:
               </p>
@@ -394,6 +396,32 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* Seasonal Rate Override */}
+              {enabledReservationTypesOverride?.includes("seasonal") && (
+                <div className="border-t pt-4 space-y-2">
+                  <Label htmlFor="seasonal_rate">Seasonal Flat Rate (optional)</Label>
+                  <Input
+                    id="seasonal_rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...register("seasonal_rate")}
+                    placeholder="Use property season rates"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Override the seasonal rate for this site. Leave empty to use property-level seasonal rates.
+                  </p>
+                </div>
+              )}
+
+              {/* Pricing Info */}
+              <Alert>
+                <AlertDescription className="text-xs">
+                  <strong>Pricing note:</strong> Weekly and monthly rates are calculated from your base nightly rate with discounts applied from property settings.
+                  Go to Settings → Rate Types to configure discounts for longer stays.
+                </AlertDescription>
+              </Alert>
             </div>
           )}
         </CardContent>

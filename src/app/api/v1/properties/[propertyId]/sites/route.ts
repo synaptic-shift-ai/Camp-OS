@@ -254,8 +254,9 @@ export async function POST(
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const commandHandler = new CreateSiteCommand(repository)
 
+    const siteId = crypto.randomUUID()
     const site = await commandHandler.execute({
-      id: crypto.randomUUID(),
+      id: siteId,
       propertyId,
       siteNumber: validatedRequest.siteNumber,
       siteName: validatedRequest.siteName || null,
@@ -271,6 +272,22 @@ export async function POST(
       images: validatedRequest.images || null,
       locationMap: validatedRequest.locationMap || null,
     })
+
+    // Save reservation type override and seasonal rate if provided
+    const siteExtras: Record<string, any> = {}
+    if (validatedRequest.enabledReservationTypesOverride !== undefined) {
+      siteExtras.enabled_reservation_types_override = validatedRequest.enabledReservationTypesOverride
+    }
+    if ((validatedRequest as any).seasonalRateCents !== undefined) {
+      siteExtras.seasonal_rate_cents = (validatedRequest as any).seasonalRateCents
+    }
+
+    if (Object.keys(siteExtras).length > 0) {
+      await supabase
+        .from('sites')
+        .update(siteExtras)
+        .eq('id', siteId)
+    }
 
     // Convert domain entity to DTO
     const siteDTO = toSiteDTO(site)

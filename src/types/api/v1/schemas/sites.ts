@@ -37,6 +37,13 @@ export const SiteTypeSchema = z.enum([
   'other',
 ])
 
+export const ReservationTypeSchema = z.enum([
+  'nightly',
+  'weekly',
+  'monthly',
+  'seasonal',
+])
+
 export const SiteStatusSchema = z.enum([
   'available',
   'occupied',
@@ -122,6 +129,10 @@ export const CreateSiteRequestSchema = z.object({
   hookups: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
   locationMap: z.record(z.any()).optional(),
+  // Reservation type override: null means use property defaults
+  enabledReservationTypesOverride: z.array(ReservationTypeSchema).nullable().optional(),
+  // Seasonal rate override in cents
+  seasonalRateCents: CurrencyAmountSchema.nullable().optional(),
 })
 
 export type CreateSiteRequest = z.infer<typeof CreateSiteRequestSchema>

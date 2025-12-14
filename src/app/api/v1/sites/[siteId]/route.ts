@@ -111,6 +111,23 @@ export async function PUT(
 
     const body = await request.json()
 
+    // Handle enabled_reservation_types_override - null means use property defaults
+    // Accept both camelCase and snake_case from client
+    const reservationTypesOverride =
+      body.enabledReservationTypesOverride !== undefined
+        ? body.enabledReservationTypesOverride
+        : body.enabled_reservation_types_override !== undefined
+          ? body.enabled_reservation_types_override
+          : existingSite.enabled_reservation_types_override
+
+    // Handle seasonal_rate_cents - accept camelCase or snake_case
+    const seasonalRateCents =
+      body.seasonalRateCents !== undefined
+        ? body.seasonalRateCents
+        : body.seasonal_rate_cents !== undefined
+          ? body.seasonal_rate_cents
+          : existingSite.seasonal_rate_cents
+
     // Update the site
     const { data: updatedSite, error: updateError } = await supabase
       .from('sites')
@@ -128,6 +145,8 @@ export async function PUT(
         site_amenities: body.site_amenities ?? body.amenities ?? existingSite.site_amenities,
         status: body.status ?? existingSite.status,
         site_images: body.site_images ?? body.images ?? existingSite.site_images,
+        enabled_reservation_types_override: reservationTypesOverride,
+        seasonal_rate_cents: seasonalRateCents,
         updated_at: new Date().toISOString(),
       })
       .eq('id', siteId)

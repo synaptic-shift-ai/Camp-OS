@@ -5,9 +5,12 @@ import { PricingSettings } from "@/components/dashboard/settings/pricing-setting
 import { DepositSettings } from "@/components/dashboard/settings/deposit-settings"
 import { BookingRulesSettings } from "@/components/dashboard/settings/booking-rules-settings"
 import { RateDiscountsSettings } from "@/components/dashboard/settings/rate-discounts-settings"
+import { ReservationTypeSettings } from "@/components/dashboard/settings/reservation-type-settings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Info } from "lucide-react"
+import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
+import type { BookingType, SeasonalPeriod } from "@/lib/config/types"
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'
@@ -36,7 +39,9 @@ async function getCurrentProperty() {
       deposit_config,
       pricing_config,
       booking_rules_config,
-      rate_discounts_config
+      rate_discounts_config,
+      enabled_reservation_types,
+      reservation_type_config
     `)
     .eq('owner_id', user.id)
     .single()
@@ -46,7 +51,17 @@ async function getCurrentProperty() {
     return null
   }
 
-  return property
+  // Fetch seasonal periods for this property
+  const { data: seasonalPeriods } = await supabase
+    .from('property_seasonal_periods')
+    .select('*')
+    .eq('property_id', property.id)
+    .order('start_month', { ascending: true })
+
+  return {
+    ...property,
+    seasonalPeriods: seasonalPeriods || [],
+  }
 }
 
 export default async function SettingsPage() {
@@ -73,8 +88,9 @@ export default async function SettingsPage() {
       </Alert>
 
       <Tabs defaultValue="pricing" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
           <TabsTrigger value="discounts">Discounts</TabsTrigger>
@@ -84,6 +100,15 @@ export default async function SettingsPage() {
           <PricingSettings
             propertyId={property.id}
             initialConfig={property.pricing_config}
+          />
+        </TabsContent>
+
+        <TabsContent value="reservation-types" className="space-y-4">
+          <ReservationTypeSettings
+            propertyId={property.id}
+            initialConfig={parseReservationTypesConfigFromDB(property.reservation_type_config)}
+            initialEnabledTypes={parseEnabledReservationTypesFromDB(property.enabled_reservation_types)}
+            initialSeasonalPeriods={property.seasonalPeriods as SeasonalPeriod[]}
           />
         </TabsContent>
 

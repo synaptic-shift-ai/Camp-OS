@@ -85,7 +85,7 @@ export function SiteHeader() {
               <Link href="/login">Sign in</Link>
             </Button>
             <Button size="sm" className="neumorphic-button-primary" asChild>
-              <Link href="/register">
+              <Link href="/signup">
                 Start Free Trial
                 <motion.div
                   className="ml-1"
@@ -166,7 +166,7 @@ export function SiteHeader() {
                     </Link>
                   </Button>
                   <Button className="w-full neumorphic-button-primary" asChild>
-                    <Link href="/register" onClick={closeMobileMenu}>
+                    <Link href="/signup" onClick={closeMobileMenu}>
                       Start Trial
                     </Link>
                   </Button>

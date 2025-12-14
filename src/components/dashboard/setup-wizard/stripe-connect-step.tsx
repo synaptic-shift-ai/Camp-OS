@@ -66,7 +66,9 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
         // Migrated to v1 API (Phase 4, Week 13-14)
         const response = await fetch("/api/v1/properties")
         const result = await response.json()
-        setProperties(result.success ? result.data : [])
+        // v1 API returns { success: true, data: { items: [...], pagination: {...} } }
+        const items = result.success && result.data?.items ? result.data.items : []
+        setProperties(items)
       } catch (error) {
         console.error("Error fetching properties:", error)
       } finally {
@@ -86,7 +88,9 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
           // Migrated to v1 API (Phase 4, Week 13-14)
           const response = await fetch("/api/v1/properties")
           const result = await response.json()
-          setProperties(result.success ? result.data : [])
+          // v1 API returns { success: true, data: { items: [...], pagination: {...} } }
+          const items = result.success && result.data?.items ? result.data.items : []
+          setProperties(items)
         } catch (error) {
           console.error("Error reloading properties:", error)
         }
@@ -166,7 +170,9 @@ export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnec
       // Reload properties to show updated status
       const reloadResponse = await fetch("/api/v1/properties")
       const reloadResult = await reloadResponse.json()
-      setProperties(reloadResult.success ? reloadResult.data : [])
+      // v1 API returns { success: true, data: { items: [...], pagination: {...} } }
+      const reloadedItems = reloadResult.success && reloadResult.data?.items ? reloadResult.data.items : []
+      setProperties(reloadedItems)
     } catch (error) {
       console.error("Error disconnecting Stripe:", error)
       alert("Failed to disconnect Stripe. Please try again.")

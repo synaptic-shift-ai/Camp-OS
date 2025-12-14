@@ -454,14 +454,14 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
                 <div className="border-t pt-4 space-y-2">
                   <Label htmlFor="default_reservation_type">Default Reservation Type</Label>
                   <Select
-                    value={defaultReservationType || ""}
-                    onValueChange={(value) => setValue("default_reservation_type", value as any || undefined)}
+                    value={defaultReservationType || "__inherit__"}
+                    onValueChange={(value) => setValue("default_reservation_type", value === "__inherit__" ? undefined : value as any)}
                   >
                     <SelectTrigger id="default_reservation_type">
                       <SelectValue placeholder="Use property default" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Use property default</SelectItem>
+                      <SelectItem value="__inherit__">Use property default</SelectItem>
                       {enabledReservationTypesOverride.map((type) => (
                         <SelectItem key={type} value={type}>
                           {RESERVATION_TYPE_LABELS[type].title}

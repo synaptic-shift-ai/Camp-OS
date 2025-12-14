@@ -125,6 +125,10 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
 
       const apiData = toApiFormat(data)
 
+      console.log("[SiteForm] Form data:", data)
+      console.log("[SiteForm] API data:", JSON.stringify(apiData, null, 2))
+      console.log("[SiteForm] Property ID:", propertyId)
+
       if (isEditMode) {
         // Update existing site - Migrated to v1 API
         const response = await fetch(`/api/v1/sites/${site.id}`, {
@@ -141,13 +145,16 @@ export function SiteForm({ propertyId, site, onSave, onCancel }: SiteFormProps) 
         onSave(result.data)
       } else {
         // Create new site - Migrated to v1 API (Phase 4, Week 13-14)
+        console.log("[SiteForm] Creating site at:", `/api/v1/properties/${propertyId}/sites`)
         const response = await fetch(`/api/v1/properties/${propertyId}/sites`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(apiData),
         })
 
+        console.log("[SiteForm] Response status:", response.status)
         const result = await response.json()
+        console.log("[SiteForm] Response body:", JSON.stringify(result, null, 2))
 
         if (!response.ok || !result.success) {
           throw new Error(result.error?.message || "Failed to create site")

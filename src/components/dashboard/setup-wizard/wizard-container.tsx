@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from "lucide-react"
 import { useProperty, type Property } from "@/components/property-context"
 import { WizardProgressBar, WIZARD_STEPS, type WizardStep } from "./wizard-progress-bar"
@@ -24,11 +24,16 @@ interface WizardContainerProps {
 
 export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { properties, selectedProperty, selectProperty, incompleteProperties, refreshProperties, isLoading } =
     useProperty()
 
+  // Check for step parameter from URL (used by Stripe OAuth callback)
+  const stepFromUrl = searchParams.get("step") as WizardStep | null
+  const validStepFromUrl = stepFromUrl && WIZARD_STEPS.some(s => s.id === stepFromUrl) ? stepFromUrl : null
+
   // Use local state for step tracking (no URL sync to avoid navigation issues)
-  const [currentStep, setCurrentStep] = useState<WizardStep>("property_details")
+  const [currentStep, setCurrentStep] = useState<WizardStep>(validStepFromUrl || "property_details")
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set())
   const [workingPropertyId, setWorkingPropertyId] = useState<string | null>(
     initialPropertyId || null
@@ -65,7 +70,13 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
 
     setCompletedSteps(completed)
 
-    // Find first incomplete step to start on
+    // If URL has a valid step parameter (e.g., from Stripe OAuth callback), use it
+    if (validStepFromUrl) {
+      setCurrentStep(validStepFromUrl)
+      return
+    }
+
+    // Otherwise, find first incomplete step to start on
     const firstIncompleteStep = WIZARD_STEPS.find((step) => !completed.has(step.id))
     if (firstIncompleteStep) {
       setCurrentStep(firstIncompleteStep.id)
@@ -76,7 +87,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
         setCurrentStep(lastStep.id)
       }
     }
-  }, [selectedProperty])
+  }, [selectedProperty, validStepFromUrl])
 
   // Note: We intentionally don't sync step to URL to avoid navigation issues
   // The wizard uses local state for step tracking - only ?wizard=true is needed in URL

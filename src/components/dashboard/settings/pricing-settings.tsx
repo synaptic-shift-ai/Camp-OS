@@ -62,8 +62,8 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
             : null,
           extra_guest_fee_enabled: initialConfig.extra_guest_fee_enabled,
           extra_guest_threshold: initialConfig.extra_guest_threshold,
-          extra_guest_fee_dollars: initialConfig.extra_guest_fee_cents / 100,
-          pet_fee_dollars: initialConfig.pet_fee_cents / 100,
+          extra_guest_fee_dollars: (initialConfig.extra_guest_fee_cents ?? 0) / 100,
+          pet_fee_dollars: (initialConfig.pet_fee_cents ?? 0) / 100,
         }
       : {
           tax_rate_percentage: 0,
@@ -88,21 +88,23 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
 
     try {
       // Convert form data to API format (dollars to cents, percentage to decimal)
+      // Keep existing user_defined_fees when saving legacy fields
       const pricingConfig: PricingConfig = {
         tax_rate: data.tax_rate_percentage / 100,
         tax_name: data.tax_name,
-        service_fee_type: data.service_fee_type,
-        service_fee_percentage: data.service_fee_percentage,
+        user_defined_fees: initialConfig?.user_defined_fees ?? [],
+        service_fee_type: data.service_fee_type ?? 'none',
+        service_fee_percentage: data.service_fee_percentage ?? 0,
         service_fee_amount_cents: data.service_fee_amount_dollars
           ? Math.round(data.service_fee_amount_dollars * 100)
           : null,
         default_cleaning_fee_cents: data.default_cleaning_fee_dollars
           ? Math.round(data.default_cleaning_fee_dollars * 100)
           : null,
-        extra_guest_fee_enabled: data.extra_guest_fee_enabled,
-        extra_guest_threshold: data.extra_guest_threshold,
-        extra_guest_fee_cents: Math.round(data.extra_guest_fee_dollars * 100),
-        pet_fee_cents: Math.round(data.pet_fee_dollars * 100),
+        extra_guest_fee_enabled: data.extra_guest_fee_enabled ?? false,
+        extra_guest_threshold: data.extra_guest_threshold ?? 2,
+        extra_guest_fee_cents: Math.round((data.extra_guest_fee_dollars ?? 0) * 100),
+        pet_fee_cents: Math.round((data.pet_fee_dollars ?? 0) * 100),
       }
 
       if (onSave) {
@@ -190,7 +192,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
           <div className="space-y-2">
             <Label htmlFor="service_fee_type">Service Fee Type</Label>
             <Select
-              value={serviceFeeType}
+              value={serviceFeeType ?? 'none'}
               onValueChange={(value) => setValue('service_fee_type', value as any, { shouldDirty: true })}
             >
               <SelectTrigger id="service_fee_type">
@@ -328,7 +330,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
               </p>
             </div>
             <Switch
-              checked={extraGuestFeeEnabled}
+              checked={extraGuestFeeEnabled ?? false}
               onCheckedChange={(checked) => setValue('extra_guest_fee_enabled', checked, { shouldDirty: true })}
             />
           </div>

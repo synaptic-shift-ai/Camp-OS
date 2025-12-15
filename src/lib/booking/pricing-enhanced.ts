@@ -22,6 +22,9 @@ import type {
   SiteWithConfig,
   SeasonalPricingEntry,
   SeasonalPricingTemplate,
+  UserDefinedFee,
+  UserDefinedDiscount,
+  DiscountTriggerType,
 } from '@/lib/config/types'
 import {
   resolvePricingConfig,
@@ -344,56 +347,176 @@ export async function calculateReservationPriceEnhanced(
 
   // ===== ADD FEES =====
 
-  // Cleaning fee
-  const cleaningFee = typedSite.pricing_override?.default_cleaning_fee_cents
-    ?? pricingConfig.default_cleaning_fee_cents
-  if (cleaningFee && cleaningFee > 0) {
-    breakdown.cleaning_fee = cleaningFee
-    breakdown.total += cleaningFee
-  }
-
-  // Pet fee
+  const totalGuests = (options.num_adults || 1) + (options.num_children || 0)
   const numPets = options.num_pets || 0
-  if (numPets > 0 && typedSite.allow_pets) {
-    const petFee = typedSite.pet_fee ?? pricingConfig.pet_fee_cents
-    if (petFee && petFee > 0) {
-      breakdown.pet_fee = petFee
-      breakdown.total += petFee
+
+  // Check if we have user-defined fees (new system)
+  const userDefinedFees = pricingConfig.user_defined_fees || []
+
+  if (userDefinedFees.length > 0) {
+    // Use new user-defined fees system
+    breakdown.user_fees = []
+    let taxableFeesTotal = 0
+
+    for (const fee of userDefinedFees) {
+      if (!fee.enabled) continue
+
+      let feeAmount = 0
+
+      switch (fee.fee_type) {
+        case 'flat_amount':
+          feeAmount = fee.value_cents ?? 0
+          break
+        case 'percentage_of_subtotal':
+          feeAmount = Math.round(breakdown.subtotal * (fee.value_percentage ?? 0) / 100)
+          break
+        case 'percentage_of_total':
+          feeAmount = Math.round(breakdown.total * (fee.value_percentage ?? 0) / 100)
+          break
+        case 'per_night':
+          feeAmount = (fee.value_cents ?? 0) * totalNights
+          break
+        case 'per_guest':
+          feeAmount = (fee.value_cents ?? 0) * totalGuests
+          break
+        case 'per_guest_per_night':
+          feeAmount = (fee.value_cents ?? 0) * totalGuests * totalNights
+          break
+      }
+
+      if (feeAmount > 0) {
+        breakdown.user_fees.push({
+          id: fee.id,
+          title: fee.title,
+          amount: feeAmount,
+          is_taxable: fee.is_taxable,
+        })
+        breakdown.total += feeAmount
+
+        if (fee.is_taxable) {
+          taxableFeesTotal += feeAmount
+        }
+      }
+    }
+  } else {
+    // LEGACY: Use old hard-coded fees system for backward compatibility
+
+    // Cleaning fee
+    const cleaningFee = typedSite.pricing_override?.default_cleaning_fee_cents
+      ?? pricingConfig.default_cleaning_fee_cents
+    if (cleaningFee && cleaningFee > 0) {
+      breakdown.cleaning_fee = cleaningFee
+      breakdown.total += cleaningFee
+    }
+
+    // Pet fee
+    if (numPets > 0 && typedSite.allow_pets) {
+      const petFee = typedSite.pet_fee ?? pricingConfig.pet_fee_cents
+      if (petFee && petFee > 0) {
+        breakdown.pet_fee = petFee
+        breakdown.total += petFee
+      }
+    }
+
+    // Extra guest fee
+    if (pricingConfig.extra_guest_fee_enabled) {
+      const extraGuestThreshold = pricingConfig.extra_guest_threshold ?? 2
+      const extraGuests = Math.max(0, totalGuests - extraGuestThreshold)
+      const extraGuestFeeCents = pricingConfig.extra_guest_fee_cents ?? 0
+
+      if (extraGuests > 0 && extraGuestFeeCents > 0) {
+        const extraGuestFee = extraGuests * extraGuestFeeCents * totalNights
+        breakdown.extra_guest_fee = extraGuestFee
+        breakdown.extra_guest_count = extraGuests
+        breakdown.total += extraGuestFee
+      }
+    }
+
+    // Service fee
+    if (pricingConfig.service_fee_type && pricingConfig.service_fee_type !== 'none') {
+      let serviceFee = 0
+
+      switch (pricingConfig.service_fee_type) {
+        case 'percentage':
+          serviceFee = Math.round((breakdown.total * (pricingConfig.service_fee_percentage || 0)) / 100)
+          break
+        case 'flat':
+          serviceFee = pricingConfig.service_fee_amount_cents ?? 0
+          break
+        case 'per_night':
+          serviceFee = (pricingConfig.service_fee_amount_cents ?? 0) * totalNights
+          break
+      }
+
+      if (serviceFee > 0) {
+        breakdown.service_fee = serviceFee
+        breakdown.total += serviceFee
+      }
     }
   }
 
-  // Extra guest fee
-  if (pricingConfig.extra_guest_fee_enabled) {
-    const totalGuests = (options.num_adults || 1) + (options.num_children || 0)
-    const extraGuests = Math.max(0, totalGuests - pricingConfig.extra_guest_threshold)
+  // ===== APPLY USER-DEFINED DISCOUNTS (auto-triggered) =====
 
-    if (extraGuests > 0 && pricingConfig.extra_guest_fee_cents > 0) {
-      const extraGuestFee = extraGuests * pricingConfig.extra_guest_fee_cents * totalNights
-      breakdown.extra_guest_fee = extraGuestFee
-      breakdown.extra_guest_count = extraGuests
-      breakdown.total += extraGuestFee
-    }
-  }
+  const userDefinedDiscounts = rateDiscountsConfig.user_defined_discounts || []
 
-  // Service fee
-  if (pricingConfig.service_fee_type !== 'none') {
-    let serviceFee = 0
+  if (userDefinedDiscounts.length > 0) {
+    breakdown.user_discounts = []
 
-    switch (pricingConfig.service_fee_type) {
-      case 'percentage':
-        serviceFee = Math.round((breakdown.total * (pricingConfig.service_fee_percentage || 0)) / 100)
-        break
-      case 'flat':
-        serviceFee = pricingConfig.service_fee_amount_cents ?? 0
-        break
-      case 'per_night':
-        serviceFee = (pricingConfig.service_fee_amount_cents ?? 0) * totalNights
-        break
-    }
+    for (const discount of userDefinedDiscounts) {
+      if (!discount.enabled) continue
+      if (discount.trigger_type === 'manual') continue // Skip manual discounts
 
-    if (serviceFee > 0) {
-      breakdown.service_fee = serviceFee
-      breakdown.total += serviceFee
+      // Check if trigger conditions are met
+      let shouldApply = false
+
+      switch (discount.trigger_type) {
+        case 'min_nights':
+          shouldApply = totalNights >= (discount.trigger_conditions?.min_nights ?? 0)
+          break
+        case 'min_guests':
+          shouldApply = totalGuests >= (discount.trigger_conditions?.min_guests ?? 0)
+          break
+        case 'date_range':
+          if (discount.trigger_conditions?.start_date && discount.trigger_conditions?.end_date) {
+            const checkInDateObj = new Date(checkInDate)
+            const rangeStart = new Date(discount.trigger_conditions.start_date)
+            const rangeEnd = new Date(discount.trigger_conditions.end_date)
+            shouldApply = checkInDateObj >= rangeStart && checkInDateObj <= rangeEnd
+          }
+          break
+      }
+
+      if (!shouldApply) continue
+
+      // Calculate discount amount
+      let discountAmount = 0
+
+      switch (discount.discount_type) {
+        case 'flat_amount':
+          discountAmount = discount.value_cents ?? 0
+          break
+        case 'percentage_of_subtotal':
+          discountAmount = Math.round(breakdown.subtotal * (discount.value_percentage ?? 0) / 100)
+          break
+        case 'percentage_of_total':
+          discountAmount = Math.round(breakdown.total * (discount.value_percentage ?? 0) / 100)
+          break
+      }
+
+      // Apply max discount cap if set
+      if (discount.max_discount_cents && discountAmount > discount.max_discount_cents) {
+        discountAmount = discount.max_discount_cents
+      }
+
+      if (discountAmount > 0) {
+        breakdown.user_discounts.push({
+          id: discount.id,
+          title: discount.title,
+          amount: discountAmount,
+          trigger_type: discount.trigger_type,
+        })
+        breakdown.total -= discountAmount
+      }
     }
   }
 

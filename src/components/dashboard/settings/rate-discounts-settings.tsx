@@ -63,13 +63,15 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
     setSaveMessage(null)
 
     try {
+      // Keep existing user_defined_discounts when saving legacy fields
       const rateDiscountsConfig: RateDiscountsConfig = {
-        weekly_discount_enabled: data.weekly_discount_enabled,
-        weekly_discount_percentage: data.weekly_discount_percentage,
-        weekly_minimum_nights: data.weekly_minimum_nights,
-        monthly_discount_enabled: data.monthly_discount_enabled,
-        monthly_discount_percentage: data.monthly_discount_percentage,
-        monthly_minimum_nights: data.monthly_minimum_nights,
+        user_defined_discounts: initialConfig?.user_defined_discounts ?? [],
+        weekly_discount_enabled: data.weekly_discount_enabled ?? false,
+        weekly_discount_percentage: data.weekly_discount_percentage ?? 0,
+        weekly_minimum_nights: data.weekly_minimum_nights ?? 7,
+        monthly_discount_enabled: data.monthly_discount_enabled ?? false,
+        monthly_discount_percentage: data.monthly_discount_percentage ?? 0,
+        monthly_minimum_nights: data.monthly_minimum_nights ?? 28,
       }
 
       if (onSave) {
@@ -122,7 +124,7 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
               </p>
             </div>
             <Switch
-              checked={weeklyEnabled}
+              checked={weeklyEnabled ?? false}
               onCheckedChange={(checked) => setValue('weekly_discount_enabled', checked, { shouldDirty: true })}
             />
           </div>
@@ -199,7 +201,7 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
               </p>
             </div>
             <Switch
-              checked={monthlyEnabled}
+              checked={monthlyEnabled ?? false}
               onCheckedChange={(checked) => setValue('monthly_discount_enabled', checked, { shouldDirty: true })}
             />
           </div>
@@ -259,11 +261,11 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
       </Card>
 
       {/* Validation Warnings */}
-      {weeklyEnabled && monthlyEnabled && monthlyMinNights < weeklyMinNights && (
+      {weeklyEnabled && monthlyEnabled && (monthlyMinNights ?? 28) < (weeklyMinNights ?? 7) && (
         <Alert variant="destructive">
           <AlertDescription>
-            Warning: Monthly minimum nights ({monthlyMinNights}) should be greater than or equal to weekly minimum
-            nights ({weeklyMinNights}) to avoid confusion.
+            Warning: Monthly minimum nights ({monthlyMinNights ?? 28}) should be greater than or equal to weekly minimum
+            nights ({weeklyMinNights ?? 7}) to avoid confusion.
           </AlertDescription>
         </Alert>
       )}

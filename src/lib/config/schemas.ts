@@ -36,6 +36,270 @@ export const depositTypeSchema = z.enum(['percentage', 'flat_amount', 'first_nig
 export const serviceFeeTypeSchema = z.enum(['none', 'percentage', 'flat', 'per_night'])
 
 // =====================================================
+// User-Defined Fee/Discount Type Schemas
+// =====================================================
+
+export const userDefinedFeeTypeSchema = z.enum([
+  'flat_amount',
+  'percentage_of_subtotal',
+  'percentage_of_total',
+  'per_night',
+  'per_guest',
+  'per_guest_per_night',
+])
+
+export const userDefinedDiscountTypeSchema = z.enum([
+  'flat_amount',
+  'percentage_of_subtotal',
+  'percentage_of_total',
+])
+
+export const discountTriggerTypeSchema = z.enum([
+  'manual',
+  'min_nights',
+  'min_guests',
+  'date_range',
+])
+
+// =====================================================
+// User-Defined Fee Schema
+// =====================================================
+
+const userDefinedFeeBaseSchema = z.object({
+  id: z.string().uuid(),
+
+  title: z
+    .string()
+    .min(1, 'Fee title is required')
+    .max(100, 'Fee title is too long'),
+
+  description: z
+    .string()
+    .max(500, 'Description is too long')
+    .optional(),
+
+  fee_type: userDefinedFeeTypeSchema,
+
+  value_cents: z
+    .number()
+    .int('Fee value must be a whole number')
+    .min(0, 'Fee value cannot be negative')
+    .optional(),
+
+  value_percentage: z
+    .number()
+    .min(0, 'Percentage cannot be negative')
+    .max(100, 'Percentage cannot exceed 100%')
+    .optional(),
+
+  is_taxable: z.boolean().default(true),
+
+  display_order: z
+    .number()
+    .int('Display order must be a whole number')
+    .min(0, 'Display order cannot be negative')
+    .default(0),
+
+  enabled: z.boolean().default(true),
+
+  created_at: z.string(),
+})
+
+export const userDefinedFeeSchema = userDefinedFeeBaseSchema
+  .refine(
+    (data) => {
+      // For flat/per-night/per-guest types, value_cents is required
+      const requiresCents = ['flat_amount', 'per_night', 'per_guest', 'per_guest_per_night']
+      if (requiresCents.includes(data.fee_type)) {
+        return data.value_cents !== undefined && data.value_cents >= 0
+      }
+      return true
+    },
+    {
+      message: 'Fee amount is required for this fee type',
+      path: ['value_cents'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For percentage types, value_percentage is required
+      const requiresPercentage = ['percentage_of_subtotal', 'percentage_of_total']
+      if (requiresPercentage.includes(data.fee_type)) {
+        return data.value_percentage !== undefined && data.value_percentage >= 0
+      }
+      return true
+    },
+    {
+      message: 'Percentage value is required for this fee type',
+      path: ['value_percentage'],
+    }
+  )
+
+// =====================================================
+// User-Defined Discount Schema
+// =====================================================
+
+const discountTriggerConditionsSchema = z.object({
+  min_nights: z
+    .number()
+    .int('Minimum nights must be a whole number')
+    .min(1, 'Minimum nights must be at least 1')
+    .optional(),
+
+  min_guests: z
+    .number()
+    .int('Minimum guests must be a whole number')
+    .min(1, 'Minimum guests must be at least 1')
+    .optional(),
+
+  start_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in YYYY-MM-DD format')
+    .optional(),
+
+  end_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in YYYY-MM-DD format')
+    .optional(),
+}).optional()
+
+const userDefinedDiscountBaseSchema = z.object({
+  id: z.string().uuid(),
+
+  title: z
+    .string()
+    .min(1, 'Discount title is required')
+    .max(100, 'Discount title is too long'),
+
+  description: z
+    .string()
+    .max(500, 'Description is too long')
+    .optional(),
+
+  discount_type: userDefinedDiscountTypeSchema,
+
+  value_cents: z
+    .number()
+    .int('Discount value must be a whole number')
+    .min(0, 'Discount value cannot be negative')
+    .optional(),
+
+  value_percentage: z
+    .number()
+    .min(0, 'Percentage cannot be negative')
+    .max(100, 'Percentage cannot exceed 100%')
+    .optional(),
+
+  trigger_type: discountTriggerTypeSchema.default('manual'),
+
+  trigger_conditions: discountTriggerConditionsSchema,
+
+  max_discount_cents: z
+    .number()
+    .int('Max discount must be a whole number')
+    .min(0, 'Max discount cannot be negative')
+    .optional(),
+
+  display_order: z
+    .number()
+    .int('Display order must be a whole number')
+    .min(0, 'Display order cannot be negative')
+    .default(0),
+
+  enabled: z.boolean().default(true),
+
+  created_at: z.string(),
+})
+
+export const userDefinedDiscountSchema = userDefinedDiscountBaseSchema
+  .refine(
+    (data) => {
+      // For flat_amount type, value_cents is required
+      if (data.discount_type === 'flat_amount') {
+        return data.value_cents !== undefined && data.value_cents >= 0
+      }
+      return true
+    },
+    {
+      message: 'Discount amount is required for flat amount type',
+      path: ['value_cents'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For percentage types, value_percentage is required
+      const requiresPercentage = ['percentage_of_subtotal', 'percentage_of_total']
+      if (requiresPercentage.includes(data.discount_type)) {
+        return data.value_percentage !== undefined && data.value_percentage >= 0
+      }
+      return true
+    },
+    {
+      message: 'Percentage value is required for this discount type',
+      path: ['value_percentage'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For min_nights trigger, min_nights condition is required
+      if (data.trigger_type === 'min_nights') {
+        return data.trigger_conditions?.min_nights !== undefined
+      }
+      return true
+    },
+    {
+      message: 'Minimum nights is required for this trigger type',
+      path: ['trigger_conditions', 'min_nights'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For min_guests trigger, min_guests condition is required
+      if (data.trigger_type === 'min_guests') {
+        return data.trigger_conditions?.min_guests !== undefined
+      }
+      return true
+    },
+    {
+      message: 'Minimum guests is required for this trigger type',
+      path: ['trigger_conditions', 'min_guests'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For date_range trigger, both dates are required
+      if (data.trigger_type === 'date_range') {
+        return (
+          data.trigger_conditions?.start_date !== undefined &&
+          data.trigger_conditions?.end_date !== undefined
+        )
+      }
+      return true
+    },
+    {
+      message: 'Start and end dates are required for date range trigger',
+      path: ['trigger_conditions'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For date_range trigger, end date must be >= start date
+      if (
+        data.trigger_type === 'date_range' &&
+        data.trigger_conditions?.start_date &&
+        data.trigger_conditions?.end_date
+      ) {
+        return new Date(data.trigger_conditions.end_date) >= new Date(data.trigger_conditions.start_date)
+      }
+      return true
+    },
+    {
+      message: 'End date must be on or after start date',
+      path: ['trigger_conditions', 'end_date'],
+    }
+  )
+
+// =====================================================
 // Deposit Configuration Schema
 // =====================================================
 
@@ -119,14 +383,19 @@ export const pricingConfigSchema = z.object({
     .max(100, 'Tax name is too long')
     .default('Tax'),
 
-  service_fee_type: serviceFeeTypeSchema.default('none'),
+  // User-defined fees array (new system)
+  user_defined_fees: z
+    .array(userDefinedFeeSchema)
+    .default([]),
+
+  // LEGACY FIELDS (kept for backward compatibility during migration)
+  service_fee_type: serviceFeeTypeSchema.optional(),
 
   service_fee_percentage: z
     .number()
     .min(0, 'Service fee percentage cannot be negative')
     .max(100, 'Service fee percentage cannot exceed 100%')
-    .optional()
-    .default(0),
+    .optional(),
 
   service_fee_amount_cents: z
     .number()
@@ -142,26 +411,26 @@ export const pricingConfigSchema = z.object({
     .optional()
     .nullable(),
 
-  extra_guest_fee_enabled: z.boolean().default(false),
+  extra_guest_fee_enabled: z.boolean().optional(),
 
   extra_guest_threshold: z
     .number()
     .int('Guest threshold must be a whole number')
     .min(1, 'Guest threshold must be at least 1')
     .max(20, 'Guest threshold seems unreasonably high')
-    .default(2),
+    .optional(),
 
   extra_guest_fee_cents: z
     .number()
     .int('Extra guest fee must be a whole number')
     .min(0, 'Extra guest fee cannot be negative')
-    .default(0),
+    .optional(),
 
   pet_fee_cents: z
     .number()
     .int('Pet fee must be a whole number')
     .min(0, 'Pet fee cannot be negative')
-    .default(2000),
+    .optional(),
 })
 
 // =====================================================
@@ -237,40 +506,49 @@ export const bookingRulesConfigSchema = bookingRulesConfigBaseSchema
 
 export const rateDiscountsConfigSchema = z
   .object({
-    weekly_discount_enabled: z.boolean().default(false),
+    // User-defined discounts array (new system)
+    user_defined_discounts: z
+      .array(userDefinedDiscountSchema)
+      .default([]),
+
+    // LEGACY FIELDS (kept for backward compatibility during migration)
+    weekly_discount_enabled: z.boolean().optional(),
 
     weekly_discount_percentage: z
       .number()
       .min(0, 'Discount percentage cannot be negative')
       .max(100, 'Discount percentage cannot exceed 100%')
-      .default(0),
+      .optional(),
 
     weekly_minimum_nights: z
       .number()
       .int('Minimum nights must be a whole number')
       .min(2, 'Weekly minimum must be at least 2 nights')
       .max(14, 'Weekly minimum seems too high')
-      .default(7),
+      .optional(),
 
-    monthly_discount_enabled: z.boolean().default(false),
+    monthly_discount_enabled: z.boolean().optional(),
 
     monthly_discount_percentage: z
       .number()
       .min(0, 'Discount percentage cannot be negative')
       .max(100, 'Discount percentage cannot exceed 100%')
-      .default(0),
+      .optional(),
 
     monthly_minimum_nights: z
       .number()
       .int('Minimum nights must be a whole number')
       .min(7, 'Monthly minimum must be at least 7 nights')
       .max(60, 'Monthly minimum seems too high')
-      .default(28),
+      .optional(),
   })
   .refine(
     (data) => {
-      // Monthly minimum should be > weekly minimum
-      return data.monthly_minimum_nights >= data.weekly_minimum_nights
+      // Monthly minimum should be >= weekly minimum (only if both are set)
+      if (data.monthly_minimum_nights !== undefined && data.weekly_minimum_nights !== undefined) {
+        return data.monthly_minimum_nights >= data.weekly_minimum_nights
+      }
+      return true
     },
     {
       message: 'Monthly minimum nights should be greater than or equal to weekly minimum nights',
@@ -549,6 +827,10 @@ export type RateDiscountsConfigInput = z.infer<typeof rateDiscountsConfigSchema>
 export type SeasonalPricingEntryInput = z.infer<typeof seasonalPricingEntrySchema>
 export type SeasonalPricingTemplateInput = z.infer<typeof seasonalPricingTemplateSchema>
 export type SiteSeasonalTemplateApplicationInput = z.infer<typeof siteSeasonalTemplateApplicationSchema>
+
+// User-defined fee/discount types
+export type UserDefinedFeeInput = z.infer<typeof userDefinedFeeSchema>
+export type UserDefinedDiscountInput = z.infer<typeof userDefinedDiscountSchema>
 
 export type DepositConfigFormInput = z.infer<typeof depositConfigFormSchema>
 export type PricingConfigFormInput = z.infer<typeof pricingConfigFormSchema>

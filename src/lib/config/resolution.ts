@@ -320,11 +320,19 @@ export function getEffectiveNightlyRate(
   numNights: number,
   isWeekend: boolean = false
 ): number {
+  // Get legacy discount settings with defaults
+  const monthlyEnabled = rateDiscounts.monthly_discount_enabled ?? false
+  const monthlyMinNights = rateDiscounts.monthly_minimum_nights ?? 28
+  const monthlyPercentage = rateDiscounts.monthly_discount_percentage ?? 0
+  const weeklyEnabled = rateDiscounts.weekly_discount_enabled ?? false
+  const weeklyMinNights = rateDiscounts.weekly_minimum_nights ?? 7
+  const weeklyPercentage = rateDiscounts.weekly_discount_percentage ?? 0
+
   // Check if monthly rate applies (and site has custom monthly rate)
   if (
     site.monthly_rate_cents &&
-    rateDiscounts.monthly_discount_enabled &&
-    numNights >= rateDiscounts.monthly_minimum_nights
+    monthlyEnabled &&
+    numNights >= monthlyMinNights
   ) {
     return site.monthly_rate_cents
   }
@@ -332,8 +340,8 @@ export function getEffectiveNightlyRate(
   // Check if weekly rate applies (and site has custom weekly rate)
   if (
     site.weekly_rate_cents &&
-    rateDiscounts.weekly_discount_enabled &&
-    numNights >= rateDiscounts.weekly_minimum_nights
+    weeklyEnabled &&
+    numNights >= weeklyMinNights
   ) {
     return site.weekly_rate_cents
   }
@@ -346,22 +354,22 @@ export function getEffectiveNightlyRate(
   // Apply monthly discount percentage if no custom rate
   if (
     !site.monthly_rate_cents &&
-    rateDiscounts.monthly_discount_enabled &&
-    numNights >= rateDiscounts.monthly_minimum_nights &&
-    rateDiscounts.monthly_discount_percentage > 0
+    monthlyEnabled &&
+    numNights >= monthlyMinNights &&
+    monthlyPercentage > 0
   ) {
-    const discountMultiplier = 1 - (rateDiscounts.monthly_discount_percentage / 100)
+    const discountMultiplier = 1 - (monthlyPercentage / 100)
     return Math.round(baseRate * discountMultiplier)
   }
 
   // Apply weekly discount percentage if no custom rate
   if (
     !site.weekly_rate_cents &&
-    rateDiscounts.weekly_discount_enabled &&
-    numNights >= rateDiscounts.weekly_minimum_nights &&
-    rateDiscounts.weekly_discount_percentage > 0
+    weeklyEnabled &&
+    numNights >= weeklyMinNights &&
+    weeklyPercentage > 0
   ) {
-    const discountMultiplier = 1 - (rateDiscounts.weekly_discount_percentage / 100)
+    const discountMultiplier = 1 - (weeklyPercentage / 100)
     return Math.round(baseRate * discountMultiplier)
   }
 
@@ -384,27 +392,35 @@ export function getApplicableDiscountTier(
   discount_percentage: number
   minimum_nights: number
 } {
+  // Get legacy discount settings with defaults
+  const monthlyEnabled = rateDiscounts.monthly_discount_enabled ?? false
+  const monthlyMinNights = rateDiscounts.monthly_minimum_nights ?? 28
+  const monthlyPercentage = rateDiscounts.monthly_discount_percentage ?? 0
+  const weeklyEnabled = rateDiscounts.weekly_discount_enabled ?? false
+  const weeklyMinNights = rateDiscounts.weekly_minimum_nights ?? 7
+  const weeklyPercentage = rateDiscounts.weekly_discount_percentage ?? 0
+
   // Check monthly first (highest tier)
   if (
-    rateDiscounts.monthly_discount_enabled &&
-    numNights >= rateDiscounts.monthly_minimum_nights
+    monthlyEnabled &&
+    numNights >= monthlyMinNights
   ) {
     return {
       tier: 'monthly',
-      discount_percentage: rateDiscounts.monthly_discount_percentage,
-      minimum_nights: rateDiscounts.monthly_minimum_nights,
+      discount_percentage: monthlyPercentage,
+      minimum_nights: monthlyMinNights,
     }
   }
 
   // Check weekly second
   if (
-    rateDiscounts.weekly_discount_enabled &&
-    numNights >= rateDiscounts.weekly_minimum_nights
+    weeklyEnabled &&
+    numNights >= weeklyMinNights
   ) {
     return {
       tier: 'weekly',
-      discount_percentage: rateDiscounts.weekly_discount_percentage,
-      minimum_nights: rateDiscounts.weekly_minimum_nights,
+      discount_percentage: weeklyPercentage,
+      minimum_nights: weeklyMinNights,
     }
   }
 

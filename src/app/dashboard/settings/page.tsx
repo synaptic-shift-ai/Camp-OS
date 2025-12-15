@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PricingSettings } from "@/components/dashboard/settings/pricing-settings"
+import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
 import { DepositSettings } from "@/components/dashboard/settings/deposit-settings"
 import { BookingRulesSettings } from "@/components/dashboard/settings/booking-rules-settings"
-import { RateDiscountsSettings } from "@/components/dashboard/settings/rate-discounts-settings"
+import { DiscountsSettings } from "@/components/dashboard/settings/discounts-settings"
 import { ReservationTypeSettings } from "@/components/dashboard/settings/reservation-type-settings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -87,17 +87,17 @@ export default async function SettingsPage() {
         </AlertDescription>
       </Alert>
 
-      <Tabs defaultValue="pricing" className="space-y-4">
+      <Tabs defaultValue="fees" className="space-y-4">
         <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          <TabsTrigger value="fees">Fees</TabsTrigger>
           <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
           <TabsTrigger value="discounts">Discounts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pricing" className="space-y-4">
-          <PricingSettings
+        <TabsContent value="fees" className="space-y-4">
+          <FeesSettings
             propertyId={property.id}
             initialConfig={property.pricing_config}
           />
@@ -127,7 +127,7 @@ export default async function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="discounts" className="space-y-4">
-          <RateDiscountsSettings
+          <DiscountsSettings
             propertyId={property.id}
             initialConfig={property.rate_discounts_config}
           />

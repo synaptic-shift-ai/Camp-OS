@@ -311,7 +311,23 @@ export interface PriceBreakdown {
   seasonal_pricing_applied?: boolean
   seasonal_rate?: number // If seasonal pricing was used
 
-  // Fees (in cents)
+  // User-defined fees (new system)
+  user_fees?: Array<{
+    id: string
+    title: string
+    amount: number // In cents
+    is_taxable: boolean
+  }>
+
+  // User-defined discounts (new system)
+  user_discounts?: Array<{
+    id: string
+    title: string
+    amount: number // In cents (positive number, subtracted from total)
+    trigger_type: 'manual' | 'min_nights' | 'min_guests' | 'date_range'
+  }>
+
+  // Legacy fees (in cents) - kept for backward compatibility
   cleaning_fee?: number
   cleaningFee?: number
   pet_fee?: number

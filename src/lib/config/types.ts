@@ -30,6 +30,170 @@ export type DepositType = 'percentage' | 'flat_amount' | 'first_night'
 export type ServiceFeeType = 'none' | 'percentage' | 'flat' | 'per_night'
 
 // =====================================================
+// User-Defined Fee Types
+// =====================================================
+
+/**
+ * Fee calculation types for user-defined fees
+ */
+export type UserDefinedFeeType =
+  | 'flat_amount'             // One-time flat fee (e.g., $25 cleaning)
+  | 'percentage_of_subtotal'  // % of base nightly subtotal before fees
+  | 'percentage_of_total'     // % of total including other fees
+  | 'per_night'               // Fee per night (e.g., $10/night resort fee)
+  | 'per_guest'               // Fee per guest total (e.g., $5/guest activity fee)
+  | 'per_guest_per_night'     // Fee per guest per night (e.g., $10/guest/night)
+
+/**
+ * Discount calculation types for user-defined discounts
+ */
+export type UserDefinedDiscountType =
+  | 'flat_amount'             // Fixed dollar off (e.g., $50 off)
+  | 'percentage_of_subtotal'  // % off subtotal before fees
+  | 'percentage_of_total'     // % off total including fees
+
+/**
+ * Trigger types for automatic discount application
+ */
+export type DiscountTriggerType =
+  | 'manual'                  // Staff applies manually or via coupon code
+  | 'min_nights'              // Auto-apply when stay >= X nights
+  | 'min_guests'              // Auto-apply when guests >= X
+  | 'date_range'              // Auto-apply during specific date range
+
+/**
+ * User-Defined Fee Entry
+ *
+ * Represents a single fee that can be configured by property owners.
+ * Replaces hard-coded fees (cleaning, pet, service, extra guest).
+ *
+ * @example
+ * {
+ *   id: "550e8400-e29b-41d4-a716-446655440000",
+ *   title: "Cleaning Fee",
+ *   fee_type: "flat_amount",
+ *   value_cents: 2500,  // $25.00
+ *   is_taxable: true,
+ *   display_order: 1,
+ *   enabled: true
+ * }
+ */
+export interface UserDefinedFee {
+  /** Unique identifier (UUID) */
+  id: string
+
+  /** Display name for the fee (e.g., "Cleaning Fee", "Resort Fee") */
+  title: string
+
+  /** Optional description/tooltip text */
+  description?: string
+
+  /** How the fee is calculated */
+  fee_type: UserDefinedFeeType
+
+  /**
+   * Value in cents for flat/per-night/per-guest types
+   * @example 2500 = $25.00
+   */
+  value_cents?: number
+
+  /**
+   * Percentage value for percentage types (0-100)
+   * @example 5 = 5%
+   */
+  value_percentage?: number
+
+  /** Whether this fee is subject to tax */
+  is_taxable: boolean
+
+  /** Order in which fees are displayed and calculated */
+  display_order: number
+
+  /** Whether the fee is currently active */
+  enabled: boolean
+
+  /** When the fee was created (ISO string) */
+  created_at: string
+}
+
+/**
+ * User-Defined Discount Entry
+ *
+ * Represents a single discount that can be configured by property owners.
+ * Replaces hard-coded weekly/monthly discounts with flexible conditions.
+ *
+ * @example
+ * {
+ *   id: "550e8400-e29b-41d4-a716-446655440001",
+ *   title: "Weekly Stay Discount",
+ *   discount_type: "percentage_of_subtotal",
+ *   value_percentage: 10,  // 10% off
+ *   trigger_type: "min_nights",
+ *   trigger_conditions: { min_nights: 7 },
+ *   enabled: true
+ * }
+ */
+export interface UserDefinedDiscount {
+  /** Unique identifier (UUID) */
+  id: string
+
+  /** Display name for the discount (e.g., "Weekly Stay Discount") */
+  title: string
+
+  /** Optional description/tooltip text */
+  description?: string
+
+  /** How the discount is calculated */
+  discount_type: UserDefinedDiscountType
+
+  /**
+   * Value in cents for flat_amount type
+   * @example 5000 = $50.00 off
+   */
+  value_cents?: number
+
+  /**
+   * Percentage value for percentage types (0-100)
+   * @example 10 = 10% off
+   */
+  value_percentage?: number
+
+  /** When the discount is applied */
+  trigger_type: DiscountTriggerType
+
+  /**
+   * Conditions for automatic triggers
+   * Only used when trigger_type is not 'manual'
+   */
+  trigger_conditions?: {
+    /** Minimum nights for min_nights trigger */
+    min_nights?: number
+    /** Minimum guests for min_guests trigger */
+    min_guests?: number
+    /** Start date for date_range trigger (YYYY-MM-DD) */
+    start_date?: string
+    /** End date for date_range trigger (YYYY-MM-DD) */
+    end_date?: string
+  }
+
+  /**
+   * Optional maximum discount amount in cents
+   * Caps percentage discounts to prevent excessive discounts
+   * @example 10000 = max $100 discount
+   */
+  max_discount_cents?: number
+
+  /** Order in which discounts are displayed */
+  display_order: number
+
+  /** Whether the discount is currently active */
+  enabled: boolean
+
+  /** When the discount was created (ISO string) */
+  created_at: string
+}
+
+// =====================================================
 // Deposit Configuration
 // =====================================================
 
@@ -119,47 +283,70 @@ export interface PricingConfig {
    */
   tax_name: string
 
-  /** Type of service fee to apply */
-  service_fee_type: ServiceFeeType
+  /**
+   * User-defined fees array
+   * Replaces legacy service_fee, cleaning_fee, pet_fee, extra_guest_fee
+   */
+  user_defined_fees: UserDefinedFee[]
+
+  // =====================================================
+  // LEGACY FIELDS (kept for backward compatibility during migration)
+  // These will be removed after data migration is complete
+  // =====================================================
 
   /**
+   * @deprecated Use user_defined_fees instead
+   * Type of service fee to apply
+   */
+  service_fee_type?: ServiceFeeType
+
+  /**
+   * @deprecated Use user_defined_fees instead
    * Service fee as percentage when type is "percentage"
    * @example 5.0 = 5% service fee
    */
   service_fee_percentage?: number
 
   /**
+   * @deprecated Use user_defined_fees instead
    * Service fee amount in cents when type is "flat" or "per_night"
    * @example 500 = $5.00 service fee
    */
   service_fee_amount_cents?: number | null
 
   /**
+   * @deprecated Use user_defined_fees instead
    * Default cleaning fee in cents (can be overridden per site)
    * @example 2500 = $25.00 cleaning fee
    */
   default_cleaning_fee_cents?: number | null
 
-  /** Enable extra guest fees beyond base occupancy */
-  extra_guest_fee_enabled: boolean
+  /**
+   * @deprecated Use user_defined_fees instead
+   * Enable extra guest fees beyond base occupancy
+   */
+  extra_guest_fee_enabled?: boolean
 
   /**
+   * @deprecated Use user_defined_fees instead
    * Number of guests included in base price
    * @example 2 = Base price includes 2 guests, 3rd+ guest incurs extra fee
    */
-  extra_guest_threshold: number
+  extra_guest_threshold?: number
 
   /**
+   * @deprecated Use user_defined_fees instead
    * Fee per additional guest per night in cents
    * @example 1000 = $10.00 per extra guest per night
    */
-  extra_guest_fee_cents: number
+  extra_guest_fee_cents?: number
 
   /**
+   * @deprecated Use user_defined_fees instead
    * Default pet fee in cents (can be overridden per site)
    * @example 2000 = $20.00 pet fee
    */
-  pet_fee_cents: number
+  pet_fee_cents?: number
 }
 
 // =====================================================
@@ -261,35 +448,56 @@ export interface BookingRulesConfig {
  * }
  */
 export interface RateDiscountsConfig {
-  /** Enable weekly rate discount */
-  weekly_discount_enabled: boolean
+  /**
+   * User-defined discounts array
+   * Replaces legacy weekly_discount and monthly_discount
+   */
+  user_defined_discounts: UserDefinedDiscount[]
+
+  // =====================================================
+  // LEGACY FIELDS (kept for backward compatibility during migration)
+  // These will be removed after data migration is complete
+  // =====================================================
 
   /**
+   * @deprecated Use user_defined_discounts instead
+   * Enable weekly rate discount
+   */
+  weekly_discount_enabled?: boolean
+
+  /**
+   * @deprecated Use user_defined_discounts instead
    * Percentage discount for weekly stays (0-100)
    * @example 10 = 10% off for weekly stays
    */
-  weekly_discount_percentage: number
+  weekly_discount_percentage?: number
 
   /**
+   * @deprecated Use user_defined_discounts instead
    * Minimum nights to qualify for weekly rate
    * @default 7
    */
-  weekly_minimum_nights: number
-
-  /** Enable monthly rate discount */
-  monthly_discount_enabled: boolean
+  weekly_minimum_nights?: number
 
   /**
+   * @deprecated Use user_defined_discounts instead
+   * Enable monthly rate discount
+   */
+  monthly_discount_enabled?: boolean
+
+  /**
+   * @deprecated Use user_defined_discounts instead
    * Percentage discount for monthly stays (0-100)
    * @example 25 = 25% off for monthly stays
    */
-  monthly_discount_percentage: number
+  monthly_discount_percentage?: number
 
   /**
+   * @deprecated Use user_defined_discounts instead
    * Minimum nights to qualify for monthly rate
    * @default 28
    */
-  monthly_minimum_nights: number
+  monthly_minimum_nights?: number
 }
 
 // =====================================================
@@ -804,6 +1012,8 @@ export const DEFAULT_DEPOSIT_CONFIG: DepositConfig = {
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
   tax_rate: 0.0,
   tax_name: 'Tax',
+  user_defined_fees: [],
+  // Legacy defaults (for backward compatibility)
   service_fee_type: 'none',
   service_fee_percentage: 0,
   service_fee_amount_cents: null,
@@ -833,6 +1043,8 @@ export const DEFAULT_BOOKING_RULES_CONFIG: BookingRulesConfig = {
  * Default Rate Discounts Configuration
  */
 export const DEFAULT_RATE_DISCOUNTS_CONFIG: RateDiscountsConfig = {
+  user_defined_discounts: [],
+  // Legacy defaults (for backward compatibility)
   weekly_discount_enabled: false,
   weekly_discount_percentage: 0,
   weekly_minimum_nights: 7,

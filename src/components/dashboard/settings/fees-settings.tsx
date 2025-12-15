@@ -54,6 +54,24 @@ const feeFormSchema = z.object({
   value_dollars: z.preprocess(nanToUndefined, z.number().min(0, 'Value must be positive').optional()),
   value_percentage: z.preprocess(nanToUndefined, z.number().min(0).max(100, 'Percentage must be 0-100').optional()),
   is_taxable: z.boolean(),
+}).superRefine((data, ctx) => {
+  // Require value based on fee_type
+  const isPercentage = data.fee_type === 'percentage_of_subtotal' || data.fee_type === 'percentage_of_total'
+  if (isPercentage && (data.value_percentage === undefined || data.value_percentage === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Percentage is required',
+      path: ['value_percentage'],
+    })
+  }
+  const requiresDollars = ['flat_amount', 'per_night', 'per_guest', 'per_guest_per_night']
+  if (requiresDollars.includes(data.fee_type) && (data.value_dollars === undefined || data.value_dollars === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Amount is required',
+      path: ['value_dollars'],
+    })
+  }
 })
 
 type FeeFormInput = z.infer<typeof feeFormSchema>
@@ -323,6 +341,9 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
                         placeholder="5.0"
                         {...feeForm.register('value_percentage', { valueAsNumber: true })}
                       />
+                      {feeForm.formState.errors.value_percentage && (
+                        <p className="text-sm text-destructive">{feeForm.formState.errors.value_percentage.message}</p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -335,6 +356,9 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
                         placeholder="25.00"
                         {...feeForm.register('value_dollars', { valueAsNumber: true })}
                       />
+                      {feeForm.formState.errors.value_dollars && (
+                        <p className="text-sm text-destructive">{feeForm.formState.errors.value_dollars.message}</p>
+                      )}
                     </div>
                   )}
 

@@ -60,11 +60,59 @@ const discountFormSchema = z.object({
   value_dollars: z.preprocess(nanToUndefined, z.number().min(0, 'Value must be positive').optional()),
   value_percentage: z.preprocess(nanToUndefined, z.number().min(0).max(100, 'Percentage must be 0-100').optional()),
   trigger_type: z.enum(['manual', 'min_nights', 'min_guests', 'date_range']),
-  min_nights: z.preprocess(nanToUndefined, z.number().int().min(1).optional()),
-  min_guests: z.preprocess(nanToUndefined, z.number().int().min(1).optional()),
+  min_nights: z.preprocess(nanToUndefined, z.number().int().min(1, 'Minimum nights must be at least 1').optional()),
+  min_guests: z.preprocess(nanToUndefined, z.number().int().min(1, 'Minimum guests must be at least 1').optional()),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   max_discount_dollars: z.preprocess(nanToUndefined, z.number().min(0).optional()),
+}).superRefine((data, ctx) => {
+  // Require value based on discount_type
+  const isPercentage = data.discount_type === 'percentage_of_subtotal' || data.discount_type === 'percentage_of_total'
+  if (isPercentage && (data.value_percentage === undefined || data.value_percentage === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Percentage is required',
+      path: ['value_percentage'],
+    })
+  }
+  if (data.discount_type === 'flat_amount' && (data.value_dollars === undefined || data.value_dollars === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Amount is required',
+      path: ['value_dollars'],
+    })
+  }
+  // Require trigger conditions based on trigger_type
+  if (data.trigger_type === 'min_nights' && (data.min_nights === undefined || data.min_nights === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Minimum nights is required',
+      path: ['min_nights'],
+    })
+  }
+  if (data.trigger_type === 'min_guests' && (data.min_guests === undefined || data.min_guests === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Minimum guests is required',
+      path: ['min_guests'],
+    })
+  }
+  if (data.trigger_type === 'date_range') {
+    if (!data.start_date) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Start date is required',
+        path: ['start_date'],
+      })
+    }
+    if (!data.end_date) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'End date is required',
+        path: ['end_date'],
+      })
+    }
+  }
 })
 
 type DiscountFormInput = z.infer<typeof discountFormSchema>
@@ -349,6 +397,9 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                         placeholder="10.0"
                         {...discountForm.register('value_percentage', { valueAsNumber: true })}
                       />
+                      {discountForm.formState.errors.value_percentage && (
+                        <p className="text-sm text-destructive">{discountForm.formState.errors.value_percentage.message}</p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -361,6 +412,9 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                         placeholder="25.00"
                         {...discountForm.register('value_dollars', { valueAsNumber: true })}
                       />
+                      {discountForm.formState.errors.value_dollars && (
+                        <p className="text-sm text-destructive">{discountForm.formState.errors.value_dollars.message}</p>
+                      )}
                     </div>
                   )}
 
@@ -397,9 +451,13 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                         placeholder="7"
                         {...discountForm.register('min_nights', { valueAsNumber: true })}
                       />
-                      <p className="text-sm text-muted-foreground">
-                        Discount applies when stay is at least this many nights
-                      </p>
+                      {discountForm.formState.errors.min_nights ? (
+                        <p className="text-sm text-destructive">{discountForm.formState.errors.min_nights.message}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Discount applies when stay is at least this many nights
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -413,9 +471,13 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                         placeholder="4"
                         {...discountForm.register('min_guests', { valueAsNumber: true })}
                       />
-                      <p className="text-sm text-muted-foreground">
-                        Discount applies when guest count is at least this many
-                      </p>
+                      {discountForm.formState.errors.min_guests ? (
+                        <p className="text-sm text-destructive">{discountForm.formState.errors.min_guests.message}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Discount applies when guest count is at least this many
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -428,6 +490,9 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                           type="date"
                           {...discountForm.register('start_date')}
                         />
+                        {discountForm.formState.errors.start_date && (
+                          <p className="text-sm text-destructive">{discountForm.formState.errors.start_date.message}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="end_date">End Date</Label>
@@ -436,6 +501,9 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                           type="date"
                           {...discountForm.register('end_date')}
                         />
+                        {discountForm.formState.errors.end_date && (
+                          <p className="text-sm text-destructive">{discountForm.formState.errors.end_date.message}</p>
+                        )}
                       </div>
                     </div>
                   )}

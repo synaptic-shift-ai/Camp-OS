@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DollarSign, Info } from 'lucide-react'
-import type { PricingConfig, RateDiscountsConfig, DepositConfig, UserDefinedFee, UserDefinedDiscount } from '@/lib/config/types'
+import type { PricingConfig, RateDiscountsConfig, DepositConfig, UserDefinedFee, UserDefinedDiscount, BookingType } from '@/lib/config/types'
 
 interface AvailableSite {
   id: string
@@ -26,7 +26,7 @@ interface AvailableSite {
 interface PricingSummaryProps {
   selectedSite: AvailableSite | null
   numNights: number
-  stayType: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+  stayType: BookingType
   numAdults: number
   numChildren: number
   numPets: number
@@ -35,6 +35,10 @@ interface PricingSummaryProps {
   depositConfig: DepositConfig | null
   checkInDate?: string
   checkOutDate?: string
+  /** Manually selected discount IDs (for manual trigger_type discounts) */
+  selectedDiscountIds?: string[]
+  /** Manually selected fee IDs (for manual trigger_type fees) */
+  selectedFeeIds?: string[]
 }
 
 interface CalculatedFee {
@@ -63,6 +67,8 @@ export function PricingSummary({
   depositConfig,
   checkInDate,
   checkOutDate,
+  selectedDiscountIds = [],
+  selectedFeeIds = [],
 }: PricingSummaryProps) {
   // If no site selected or no config, show placeholder
   if (!selectedSite || !pricingConfig || !rateDiscountsConfig) {
@@ -104,6 +110,39 @@ export function PricingSummary({
     // Use new user-defined fees
     for (const fee of userDefinedFees) {
       if (!fee.enabled) continue
+
+      // Check trigger conditions
+      let shouldApply = false
+      const triggerType = fee.trigger_type || 'always' // Default to always for backward compatibility
+
+      switch (triggerType) {
+        case 'always':
+          shouldApply = true
+          break
+        case 'manual':
+          shouldApply = selectedFeeIds.includes(fee.id)
+          break
+        case 'min_nights':
+          shouldApply = numNights >= (fee.trigger_conditions?.min_nights ?? 0)
+          break
+        case 'min_guests':
+          shouldApply = totalGuests >= (fee.trigger_conditions?.min_guests ?? 0)
+          break
+        case 'has_pets':
+          shouldApply = (numPets || 0) > 0
+          break
+        case 'date_range':
+          // Date range check - for now, just skip if no checkInDate
+          if (checkInDate) {
+            const check = new Date(checkInDate)
+            const start = fee.trigger_conditions?.start_date ? new Date(fee.trigger_conditions.start_date) : null
+            const end = fee.trigger_conditions?.end_date ? new Date(fee.trigger_conditions.end_date) : null
+            shouldApply = (!start || check >= start) && (!end || check <= end)
+          }
+          break
+      }
+
+      if (!shouldApply) continue
 
       let feeAmount = 0
       switch (fee.fee_type) {
@@ -220,24 +259,30 @@ export function PricingSummary({
     // Use new user-defined discounts
     for (const discount of userDefinedDiscounts) {
       if (!discount.enabled) continue
-      if (discount.trigger_type === 'manual') continue // Skip manual discounts in auto-calculation
 
       // Check trigger conditions
       let shouldApply = false
-      switch (discount.trigger_type) {
-        case 'min_nights':
-          shouldApply = numNights >= (discount.trigger_conditions?.min_nights ?? 0)
-          break
-        case 'min_guests':
-          shouldApply = totalGuests >= (discount.trigger_conditions?.min_guests ?? 0)
-          break
-        case 'date_range':
-          shouldApply = isDateInRange(
-            checkInDate,
-            discount.trigger_conditions?.start_date,
-            discount.trigger_conditions?.end_date
-          )
-          break
+
+      // Manual discounts are only applied if explicitly selected
+      if (discount.trigger_type === 'manual') {
+        shouldApply = selectedDiscountIds.includes(discount.id)
+      } else {
+        // Auto-triggered discounts
+        switch (discount.trigger_type) {
+          case 'min_nights':
+            shouldApply = numNights >= (discount.trigger_conditions?.min_nights ?? 0)
+            break
+          case 'min_guests':
+            shouldApply = totalGuests >= (discount.trigger_conditions?.min_guests ?? 0)
+            break
+          case 'date_range':
+            shouldApply = isDateInRange(
+              checkInDate,
+              discount.trigger_conditions?.start_date,
+              discount.trigger_conditions?.end_date
+            )
+            break
+        }
       }
 
       if (!shouldApply) continue

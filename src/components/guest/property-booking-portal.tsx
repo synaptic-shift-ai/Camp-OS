@@ -72,6 +72,7 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
   const [checkOutDate, setCheckOutDate] = useState<Date>()
   const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
+  const [pets, setPets] = useState(0)
   const [selectedSiteType, setSelectedSiteType] = useState<SiteType | ("")>("")
   const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
   const [isSearching, setIsSearching] = useState(false)
@@ -128,6 +129,7 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
       checkOut: format(checkOutDate, "yyyy-MM-dd"),
       adults: adults.toString(),
       children: children.toString(),
+      pets: pets.toString(),
     })
 
     if (selectedSiteType) {
@@ -404,9 +406,10 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
                       <Button variant="outline" className="w-full justify-between border-2 bg-transparent">
                         <span>
                           {adults + children} Guest{adults + children !== 1 ? "s" : ""}
+                          {pets > 0 && `, ${pets} Pet${pets !== 1 ? "s" : ""}`}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {adults}A {children > 0 && `${children}C`}
+                          {adults}A {children > 0 && `${children}C`} {pets > 0 && `${pets}P`}
                         </span>
                       </Button>
                     </PopoverTrigger>
@@ -442,6 +445,23 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
                             </Button>
                             <span className="w-8 text-center">{children}</span>
                             <Button size="sm" variant="outline" onClick={() => setChildren(children + 1)}>
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Pets</span>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setPets(Math.max(0, pets - 1))}
+                              disabled={pets <= 0}
+                            >
+                              -
+                            </Button>
+                            <span className="w-8 text-center">{pets}</span>
+                            <Button size="sm" variant="outline" onClick={() => setPets(Math.min(5, pets + 1))} disabled={pets >= 5}>
                               +
                             </Button>
                           </div>

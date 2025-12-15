@@ -34,14 +34,16 @@ import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { AvailableSitesAccordion } from "@/components/dashboard/reservations/available-sites-accordion"
 import { PricingSummary } from "@/components/dashboard/reservations/pricing-summary"
-import type { PricingConfig, RateDiscountsConfig, DepositConfig } from '@/lib/config/types'
+import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType, UserDefinedDiscount, UserDefinedFee } from '@/lib/config/types'
+import { parseEnabledReservationTypesFromDB } from '@/lib/config/resolution'
+import { Checkbox } from '@/components/ui/checkbox'
 
 // Form validation schema
 const manualBookingSchema = z.object({
   siteId: z.string().min(1, "Please select a site"),
   checkInDate: z.string().min(1, "Check-in date is required"),
   checkOutDate: z.string().min(1, "Check-out date is required"),
-  stayType: z.enum(["nightly", "weekly", "monthly", "seasonal"]).default("nightly"),
+  stayType: z.enum(["nightly", "weekly", "monthly", "seasonal", "long_term"]).default("nightly"),
   numAdults: z.number().min(1, "At least one adult is required"),
   numChildren: z.number().min(0).optional(),
   numPets: z.number().min(0).optional(),
@@ -93,6 +95,15 @@ const siteTypeIcons: Record<string, typeof Tent> = {
   other: Home,
 }
 
+// Booking type friendly labels and descriptions
+const BOOKING_TYPE_INFO: Record<BookingType, { label: string; description: string }> = {
+  nightly: { label: 'Nightly', description: 'Standard short-term stay (1-6 nights)' },
+  weekly: { label: 'Weekly', description: '7+ nights with weekly rate' },
+  monthly: { label: 'Monthly', description: '28+ nights with monthly rate' },
+  seasonal: { label: 'Seasonal', description: 'Multi-month seasonal stay' },
+  long_term: { label: 'Long Term', description: 'Extended stay arrangement' },
+}
+
 export default function NewReservationPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -106,6 +117,9 @@ export default function NewReservationPage() {
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
   const [rateDiscountsConfig, setRateDiscountsConfig] = useState<RateDiscountsConfig | null>(null)
   const [depositConfig, setDepositConfig] = useState<DepositConfig | null>(null)
+  const [enabledReservationTypes, setEnabledReservationTypes] = useState<BookingType[]>(['nightly', 'weekly', 'monthly', 'seasonal'])
+  const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
+  const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
 
   const {
     register,
@@ -146,7 +160,7 @@ export default function NewReservationPage() {
 
       const { data: property, error: propertyError } = await supabase
         .from('properties')
-        .select('id, pricing_config, rate_discounts_config, deposit_config')
+        .select('id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types')
         .eq('owner_id', user.id)
         .single()
 
@@ -159,10 +173,19 @@ export default function NewReservationPage() {
       setPricingConfig(property.pricing_config as PricingConfig | null)
       setRateDiscountsConfig(property.rate_discounts_config as RateDiscountsConfig | null)
       setDepositConfig(property.deposit_config as DepositConfig | null)
+
+      // Parse enabled reservation types from property config
+      const parsedEnabledTypes = parseEnabledReservationTypesFromDB(property.enabled_reservation_types)
+      setEnabledReservationTypes(parsedEnabledTypes)
+
+      // Set default stay type to the first enabled type
+      if (parsedEnabledTypes.length > 0) {
+        setValue("stayType", parsedEnabledTypes[0] as BookingType)
+      }
     }
 
     fetchPropertyId()
-  }, [])
+  }, [setValue])
 
   // Check availability when dates or guest count changes
   useEffect(() => {
@@ -360,11 +383,37 @@ export default function NewReservationPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Step 1: Select Dates
+              Step 1: Stay Type & Dates
             </CardTitle>
-            <CardDescription>Enter guest&apos;s desired dates to check availability</CardDescription>
+            <CardDescription>Select the stay type and enter guest&apos;s desired dates</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Stay Type - Moved above dates */}
+            <div>
+              <Label htmlFor="stayType">Stay Type *</Label>
+              <Select
+                value={watch("stayType")}
+                onValueChange={(value) => setValue("stayType", value as BookingType)}
+              >
+                <SelectTrigger id="stayType">
+                  <SelectValue placeholder="Select stay type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {enabledReservationTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {BOOKING_TYPE_INFO[type]?.label || type} ({BOOKING_TYPE_INFO[type]?.description || ''})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.stayType && (
+                <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
+              )}
+              <p className="text-sm text-muted-foreground mt-1">
+                Determines pricing and discount eligibility
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="checkInDate">Check-in Date *</Label>
@@ -390,30 +439,6 @@ export default function NewReservationPage() {
                   <p className="text-sm text-destructive mt-1">{errors.checkOutDate.message}</p>
                 )}
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="stayType">Stay Type</Label>
-              <Select
-                value={watch("stayType")}
-                onValueChange={(value) => setValue("stayType", value as "nightly" | "weekly" | "monthly" | "seasonal")}
-              >
-                <SelectTrigger id="stayType">
-                  <SelectValue placeholder="Select stay type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nightly">Nightly (Standard short-term stay)</SelectItem>
-                  <SelectItem value="weekly">Weekly (7+ days)</SelectItem>
-                  <SelectItem value="monthly">Monthly (30+ days)</SelectItem>
-                  <SelectItem value="seasonal">Seasonal (Multi-month stay)</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.stayType && (
-                <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
-              )}
-              <p className="text-sm text-muted-foreground mt-1">
-                Determines pricing and discount eligibility
-              </p>
             </div>
 
             <div className="grid grid-cols-4 gap-4">
@@ -542,6 +567,108 @@ export default function NewReservationPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Discounts & Additional Charges Selection */}
+        {(rateDiscountsConfig || pricingConfig) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Discounts & Additional Charges</CardTitle>
+              <CardDescription>
+                Select any manual discounts or additional charges to apply
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Manual Discounts */}
+              {rateDiscountsConfig?.user_defined_discounts && rateDiscountsConfig.user_defined_discounts.filter(d => d.enabled && d.trigger_type === 'manual').length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">Available Discounts</Label>
+                  <div className="space-y-2">
+                    {rateDiscountsConfig.user_defined_discounts
+                      .filter(d => d.enabled && d.trigger_type === 'manual')
+                      .map((discount) => (
+                        <div key={discount.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50">
+                          <Checkbox
+                            id={`discount-${discount.id}`}
+                            checked={selectedDiscountIds.includes(discount.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedDiscountIds([...selectedDiscountIds, discount.id])
+                              } else {
+                                setSelectedDiscountIds(selectedDiscountIds.filter(id => id !== discount.id))
+                              }
+                            }}
+                          />
+                          <div className="flex-1">
+                            <label htmlFor={`discount-${discount.id}`} className="font-medium cursor-pointer">
+                              {discount.title}
+                              <span className="ml-2 text-sm text-muted-foreground">
+                                ({discount.discount_type === 'flat_amount'
+                                  ? `$${((discount.value_cents ?? 0) / 100).toFixed(2)} off`
+                                  : `${discount.value_percentage ?? 0}% off`})
+                              </span>
+                            </label>
+                            {discount.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{discount.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Fees (Additional Charges) */}
+              {pricingConfig?.user_defined_fees && pricingConfig.user_defined_fees.filter(f => f.enabled && f.trigger_type === 'manual').length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">Additional Charges</Label>
+                  <div className="space-y-2">
+                    {pricingConfig.user_defined_fees
+                      .filter(f => f.enabled && f.trigger_type === 'manual')
+                      .map((fee) => (
+                        <div key={fee.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50">
+                          <Checkbox
+                            id={`fee-${fee.id}`}
+                            checked={selectedFeeIds.includes(fee.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedFeeIds([...selectedFeeIds, fee.id])
+                              } else {
+                                setSelectedFeeIds(selectedFeeIds.filter(id => id !== fee.id))
+                              }
+                            }}
+                          />
+                          <div className="flex-1">
+                            <label htmlFor={`fee-${fee.id}`} className="font-medium cursor-pointer">
+                              {fee.title}
+                              <span className="ml-2 text-sm text-muted-foreground">
+                                ({fee.fee_type === 'percentage_of_subtotal' || fee.fee_type === 'percentage_of_total'
+                                  ? `${fee.value_percentage ?? 0}%`
+                                  : `$${((fee.value_cents ?? 0) / 100).toFixed(2)}`}
+                                {fee.fee_type === 'per_night' && '/night'}
+                                {fee.fee_type === 'per_guest' && '/guest'}
+                                {fee.fee_type === 'per_guest_per_night' && '/guest/night'})
+                              </span>
+                            </label>
+                            {fee.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{fee.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Show message if no manual discounts/fees available */}
+              {(!rateDiscountsConfig?.user_defined_discounts?.some(d => d.enabled && d.trigger_type === 'manual') &&
+                !pricingConfig?.user_defined_fees?.some(f => f.enabled && f.trigger_type === 'manual')) && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No manual discounts or additional charges configured. Automatic discounts and charges will be applied based on booking details.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Guest Information */}
         <Card>
@@ -733,6 +860,10 @@ export default function NewReservationPage() {
             pricingConfig={pricingConfig}
             rateDiscountsConfig={rateDiscountsConfig}
             depositConfig={depositConfig}
+            checkInDate={checkInDate}
+            checkOutDate={checkOutDate}
+            selectedDiscountIds={selectedDiscountIds}
+            selectedFeeIds={selectedFeeIds}
           />
         </div>
       </div>

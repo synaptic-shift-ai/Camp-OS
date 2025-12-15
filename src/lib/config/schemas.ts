@@ -54,6 +54,15 @@ export const userDefinedDiscountTypeSchema = z.enum([
   'percentage_of_total',
 ])
 
+export const feeTriggerTypeSchema = z.enum([
+  'always',
+  'manual',
+  'min_nights',
+  'min_guests',
+  'has_pets',
+  'date_range',
+])
+
 export const discountTriggerTypeSchema = z.enum([
   'manual',
   'min_nights',
@@ -64,6 +73,30 @@ export const discountTriggerTypeSchema = z.enum([
 // =====================================================
 // User-Defined Fee Schema
 // =====================================================
+
+const feeTriggerConditionsSchema = z.object({
+  min_nights: z
+    .number()
+    .int('Minimum nights must be a whole number')
+    .min(1, 'Minimum nights must be at least 1')
+    .optional(),
+
+  min_guests: z
+    .number()
+    .int('Minimum guests must be a whole number')
+    .min(1, 'Minimum guests must be at least 1')
+    .optional(),
+
+  start_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in YYYY-MM-DD format')
+    .optional(),
+
+  end_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in YYYY-MM-DD format')
+    .optional(),
+}).optional()
 
 const userDefinedFeeBaseSchema = z.object({
   id: z.string().uuid(),
@@ -93,6 +126,10 @@ const userDefinedFeeBaseSchema = z.object({
     .optional(),
 
   is_taxable: z.boolean().default(true),
+
+  trigger_type: feeTriggerTypeSchema.default('always'),
+
+  trigger_conditions: feeTriggerConditionsSchema,
 
   display_order: z
     .number()
@@ -132,6 +169,65 @@ export const userDefinedFeeSchema = userDefinedFeeBaseSchema
     {
       message: 'Percentage value is required for this fee type',
       path: ['value_percentage'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For min_nights trigger, min_nights condition is required
+      if (data.trigger_type === 'min_nights') {
+        return data.trigger_conditions?.min_nights !== undefined
+      }
+      return true
+    },
+    {
+      message: 'Minimum nights is required for this trigger type',
+      path: ['trigger_conditions', 'min_nights'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For min_guests trigger, min_guests condition is required
+      if (data.trigger_type === 'min_guests') {
+        return data.trigger_conditions?.min_guests !== undefined
+      }
+      return true
+    },
+    {
+      message: 'Minimum guests is required for this trigger type',
+      path: ['trigger_conditions', 'min_guests'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For date_range trigger, both dates are required
+      if (data.trigger_type === 'date_range') {
+        return (
+          data.trigger_conditions?.start_date !== undefined &&
+          data.trigger_conditions?.end_date !== undefined
+        )
+      }
+      return true
+    },
+    {
+      message: 'Start and end dates are required for date range trigger',
+      path: ['trigger_conditions'],
+    }
+  )
+  .refine(
+    (data) => {
+      // For date_range trigger, end date must be >= start date
+      if (
+        data.trigger_type === 'date_range' &&
+        data.trigger_conditions?.start_date &&
+        data.trigger_conditions?.end_date
+      ) {
+        return new Date(data.trigger_conditions.end_date) >= new Date(data.trigger_conditions.start_date)
+      }
+      return true
+    },
+    {
+      message: 'End date must be on or after start date',
+      path: ['trigger_conditions', 'end_date'],
     }
   )
 

@@ -53,6 +53,17 @@ export type UserDefinedDiscountType =
   | 'percentage_of_total'     // % off total including fees
 
 /**
+ * Trigger types for automatic fee application (Additional Charges)
+ */
+export type FeeTriggerType =
+  | 'always'                  // Auto-apply to every reservation
+  | 'manual'                  // Staff applies manually (one-time charges)
+  | 'min_nights'              // Auto-apply when stay >= X nights
+  | 'min_guests'              // Auto-apply when guests >= X
+  | 'has_pets'                // Auto-apply when reservation includes pets
+  | 'date_range'              // Auto-apply during specific date range
+
+/**
  * Trigger types for automatic discount application
  */
 export type DiscountTriggerType =
@@ -62,7 +73,7 @@ export type DiscountTriggerType =
   | 'date_range'              // Auto-apply during specific date range
 
 /**
- * User-Defined Fee Entry
+ * User-Defined Fee Entry (Additional Charge)
  *
  * Represents a single fee that can be configured by property owners.
  * Replaces hard-coded fees (cleaning, pet, service, extra guest).
@@ -73,6 +84,7 @@ export type DiscountTriggerType =
  *   title: "Cleaning Fee",
  *   fee_type: "flat_amount",
  *   value_cents: 2500,  // $25.00
+ *   trigger_type: "always",  // Auto-apply to all reservations
  *   is_taxable: true,
  *   display_order: 1,
  *   enabled: true
@@ -105,6 +117,27 @@ export interface UserDefinedFee {
 
   /** Whether this fee is subject to tax */
   is_taxable: boolean
+
+  /**
+   * When the fee is applied
+   * @default 'always'
+   */
+  trigger_type: FeeTriggerType
+
+  /**
+   * Conditions for automatic triggers
+   * Only used when trigger_type is not 'always' or 'manual'
+   */
+  trigger_conditions?: {
+    /** Minimum nights for min_nights trigger */
+    min_nights?: number
+    /** Minimum guests for min_guests trigger */
+    min_guests?: number
+    /** Start date for date_range trigger (YYYY-MM-DD) */
+    start_date?: string
+    /** End date for date_range trigger (YYYY-MM-DD) */
+    end_date?: string
+  }
 
   /** Order in which fees are displayed and calculated */
   display_order: number

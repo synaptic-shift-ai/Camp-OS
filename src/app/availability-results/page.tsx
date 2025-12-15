@@ -45,6 +45,7 @@ function AvailabilityResultsContent() {
   const checkOutStr = searchParams.get("checkOut")
   const adults = Number.parseInt(searchParams.get("adults") || "2")
   const children = Number.parseInt(searchParams.get("children") || "0")
+  const pets = Number.parseInt(searchParams.get("pets") || "0")
   const siteTypeFilter = searchParams.get("siteType") as SiteType | null
 
   // Parse dates inside useMemo to avoid recreating on every render
@@ -151,7 +152,7 @@ function AvailabilityResultsContent() {
       basePricePerNight: site.base_price_per_night,
       numberOfNights: nights,
       siteType: site.site_type,
-      numPets: 0,
+      numPets: pets,
     })
 
     setCheckoutData({
@@ -161,6 +162,7 @@ function AvailabilityResultsContent() {
       checkOutDate: checkOut,
       numAdults: adults,
       numChildren: children,
+      numPets: pets,
       priceBreakdown,
     })
 

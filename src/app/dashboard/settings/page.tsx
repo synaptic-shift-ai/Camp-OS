@@ -89,7 +89,7 @@ export default async function SettingsPage() {
 
       <Tabs defaultValue="fees" className="space-y-4">
         <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="fees">Fees</TabsTrigger>
+          <TabsTrigger value="fees">Additional Charges</TabsTrigger>
           <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>

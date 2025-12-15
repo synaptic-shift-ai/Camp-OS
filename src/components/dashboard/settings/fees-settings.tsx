@@ -43,13 +43,16 @@ const FEE_TYPE_OPTIONS: { value: UserDefinedFeeType; label: string; description:
   { value: 'per_guest_per_night', label: 'Per Guest Per Night', description: 'Fee per guest for each night' },
 ]
 
+// Helper to handle NaN from valueAsNumber (empty inputs return NaN)
+const nanToUndefined = (val: unknown) => (typeof val === 'number' && isNaN(val) ? undefined : val)
+
 // Form schema for adding/editing a fee
 const feeFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
   description: z.string().max(500).optional(),
   fee_type: z.enum(['flat_amount', 'percentage_of_subtotal', 'percentage_of_total', 'per_night', 'per_guest', 'per_guest_per_night']),
-  value_dollars: z.number().min(0, 'Value must be positive').optional(),
-  value_percentage: z.number().min(0).max(100, 'Percentage must be 0-100').optional(),
+  value_dollars: z.preprocess(nanToUndefined, z.number().min(0, 'Value must be positive').optional()),
+  value_percentage: z.preprocess(nanToUndefined, z.number().min(0).max(100, 'Percentage must be 0-100').optional()),
   is_taxable: z.boolean(),
 })
 

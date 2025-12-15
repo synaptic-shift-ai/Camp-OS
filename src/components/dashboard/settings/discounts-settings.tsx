@@ -49,19 +49,22 @@ const TRIGGER_TYPE_OPTIONS: { value: DiscountTriggerType; label: string; descrip
   { value: 'date_range', label: 'Date Range', description: 'Auto-apply during specific dates' },
 ]
 
+// Helper to handle NaN from valueAsNumber (empty inputs return NaN)
+const nanToUndefined = (val: unknown) => (typeof val === 'number' && isNaN(val) ? undefined : val)
+
 // Form schema for adding/editing a discount
 const discountFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
   description: z.string().max(500).optional(),
   discount_type: z.enum(['flat_amount', 'percentage_of_subtotal', 'percentage_of_total']),
-  value_dollars: z.number().min(0, 'Value must be positive').optional(),
-  value_percentage: z.number().min(0).max(100, 'Percentage must be 0-100').optional(),
+  value_dollars: z.preprocess(nanToUndefined, z.number().min(0, 'Value must be positive').optional()),
+  value_percentage: z.preprocess(nanToUndefined, z.number().min(0).max(100, 'Percentage must be 0-100').optional()),
   trigger_type: z.enum(['manual', 'min_nights', 'min_guests', 'date_range']),
-  min_nights: z.number().int().min(1).optional(),
-  min_guests: z.number().int().min(1).optional(),
+  min_nights: z.preprocess(nanToUndefined, z.number().int().min(1).optional()),
+  min_guests: z.preprocess(nanToUndefined, z.number().int().min(1).optional()),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
-  max_discount_dollars: z.number().min(0).optional(),
+  max_discount_dollars: z.preprocess(nanToUndefined, z.number().min(0).optional()),
 })
 
 type DiscountFormInput = z.infer<typeof discountFormSchema>

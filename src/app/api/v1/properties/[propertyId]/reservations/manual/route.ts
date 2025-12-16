@@ -117,11 +117,26 @@ export async function POST(
     const site = siteCheck
 
     // Execute the command
-    const handler = new CreateManualReservationCommandHandler()
-    const result = await handler.execute({
-      ...data,
+    console.log('[Manual Reservation v1] Executing command handler with:', {
+      siteId: data.siteId,
       propertyId,
+      checkInDate: data.checkInDate,
+      checkOutDate: data.checkOutDate,
+      guestEmail: data.guest.email,
     })
+
+    const handler = new CreateManualReservationCommandHandler()
+    let result
+    try {
+      result = await handler.execute({
+        ...data,
+        propertyId,
+      })
+      console.log('[Manual Reservation v1] Command handler succeeded:', { reservationId: result.id })
+    } catch (cmdError) {
+      console.error('[Manual Reservation v1] Command handler failed:', cmdError)
+      throw cmdError
+    }
 
     // Calculate nights for email
     const checkIn = new Date(data.checkInDate)
@@ -182,8 +197,15 @@ export async function POST(
       if (err.message.includes('Missing required')) {
         return error(ErrorCodes.VAL_002, request, { message: err.message })
       }
+      // Return error details for debugging
+      return error(ErrorCodes.SYS_001, request, {
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      })
     }
 
-    return error(ErrorCodes.SYS_001, request)
+    return error(ErrorCodes.SYS_001, request, {
+      message: String(err),
+    })
   }
 }

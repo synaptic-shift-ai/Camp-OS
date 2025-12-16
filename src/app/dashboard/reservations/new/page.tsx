@@ -405,6 +405,14 @@ export default function NewReservationPage() {
       // Update numVehicles count based on actual vehicles added
       const actualNumVehicles = vehiclesData.length > 0 ? vehiclesData.length : (data.numVehicles || 0)
 
+      // Debug: Log what we're sending
+      console.log('[Manual Reservation Form] Submitting with:', {
+        siteId: data.siteId,
+        propertyId,
+        checkInDate: data.checkInDate,
+        checkOutDate: data.checkOutDate,
+      })
+
       // Use v1 API endpoint
       const response = await fetch(`/api/v1/properties/${propertyId}/reservations/manual`, {
         method: "POST",
@@ -456,6 +464,9 @@ export default function NewReservationPage() {
       })
 
       const result = await response.json()
+
+      // Debug: Log the response
+      console.log('[Manual Reservation Form] Response:', { ok: response.ok, status: response.status, result })
 
       if (!response.ok || !result.success) {
         throw new Error(result.error?.message || result.error || "Failed to create reservation")

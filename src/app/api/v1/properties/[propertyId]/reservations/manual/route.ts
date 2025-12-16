@@ -82,19 +82,39 @@ export async function POST(
 
     const data = parsed.data
 
+    // Debug: Log what we're looking for
+    console.log('[Manual Reservation v1] Looking up site:', { siteId: data.siteId, propertyId })
+
     // Get site info for email (use service role to bypass RLS since we've verified property ownership)
     const supabaseServiceRole = createServiceRoleClient()
-    const { data: site, error: siteError } = await supabaseServiceRole
+
+    // First, check if site exists at all (for debugging)
+    const { data: siteCheck, error: siteCheckError } = await supabaseServiceRole
       .from('sites')
-      .select('name')
+      .select('id, name, property_id')
       .eq('id', data.siteId)
-      .eq('property_id', propertyId)
       .single()
 
-    if (siteError || !site) {
-      console.error('[Manual Reservation v1] Site lookup failed:', siteError)
-      return error(ErrorCodes.SITE_001, request, { message: `Site ${data.siteId} not found for property ${propertyId}` })
+    console.log('[Manual Reservation v1] Site lookup result:', { siteCheck, siteCheckError })
+
+    if (siteCheckError || !siteCheck) {
+      console.error('[Manual Reservation v1] Site not found in database:', { siteId: data.siteId, error: siteCheckError })
+      return error(ErrorCodes.SITE_001, request, { message: `Site ${data.siteId} does not exist` })
     }
+
+    // Verify site belongs to the property
+    if (siteCheck.property_id !== propertyId) {
+      console.error('[Manual Reservation v1] Site property mismatch:', {
+        siteId: data.siteId,
+        sitePropertyId: siteCheck.property_id,
+        requestPropertyId: propertyId
+      })
+      return error(ErrorCodes.SITE_001, request, {
+        message: `Site ${data.siteId} does not belong to property ${propertyId}`
+      })
+    }
+
+    const site = siteCheck
 
     // Execute the command
     const handler = new CreateManualReservationCommandHandler()

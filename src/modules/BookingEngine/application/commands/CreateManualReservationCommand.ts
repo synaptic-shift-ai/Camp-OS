@@ -172,7 +172,7 @@ export class CreateManualReservationCommandHandler {
     const paidAmountCents = dto.paidAmountCents || 0
     const paymentStatus = paidAmountCents > 0
       ? (paidAmountCents >= reservation.total_amount ? 'paid' : 'partial')
-      : 'unpaid'
+      : 'pending'
 
     if (paidAmountCents > 0) {
       // Update reservation payment status

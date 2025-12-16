@@ -9,6 +9,7 @@
 
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import {
@@ -81,16 +82,18 @@ export async function POST(
 
     const data = parsed.data
 
-    // Get site info for email
-    const { data: site } = await supabase
+    // Get site info for email (use service role to bypass RLS since we've verified property ownership)
+    const supabaseServiceRole = createServiceRoleClient()
+    const { data: site, error: siteError } = await supabaseServiceRole
       .from('sites')
       .select('name')
       .eq('id', data.siteId)
       .eq('property_id', propertyId)
       .single()
 
-    if (!site) {
-      return error(ErrorCodes.SITE_001, request)
+    if (siteError || !site) {
+      console.error('[Manual Reservation v1] Site lookup failed:', siteError)
+      return error(ErrorCodes.SITE_001, request, { message: `Site ${data.siteId} not found for property ${propertyId}` })
     }
 
     // Execute the command

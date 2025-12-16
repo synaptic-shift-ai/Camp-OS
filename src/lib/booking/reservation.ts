@@ -130,11 +130,15 @@ export async function createReservation(
 
   if (reservationError || !reservation) {
     console.error('Error creating reservation:', reservationError)
+    console.error('Attempted reservation data:', reservationData)
+    const errorDetails = reservationError
+      ? `${reservationError.message} (code: ${reservationError.code}, hint: ${reservationError.hint || 'none'})`
+      : 'Unknown error'
     return {
       success: false,
       error: {
         code: 'DATABASE_ERROR',
-        message: 'Failed to create reservation',
+        message: `Failed to create reservation: ${errorDetails}`,
       },
     }
   }

@@ -6,7 +6,15 @@
  */
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import type { Guest, CreateGuestInput, BookingResult } from './types'
+import type { Guest, CreateGuestInput, BookingResult, SpousePartnerInput } from './types'
+import type { GuestWithSpouse } from './vehicle-types'
+
+/**
+ * Extended guest input with spouse information
+ */
+export interface CreateGuestWithSpouseInput extends CreateGuestInput {
+  spouse_partner?: SpousePartnerInput
+}
 
 /**
  * Simple email validation
@@ -94,7 +102,8 @@ export async function createOrGetGuest(
     }
   }
 
-  // Create new guest
+  // Create new guest (with optional spouse info)
+  const inputWithSpouse = input as CreateGuestWithSpouseInput
   const newGuest = {
     property_id,
     first_name: input.first_name,
@@ -108,6 +117,12 @@ export async function createOrGetGuest(
     country: input.country || null,
     emergency_contact_name: input.emergency_contact_name || null,
     emergency_contact_phone: input.emergency_contact_phone || null,
+    // Spouse fields
+    spouse_first_name: inputWithSpouse.spouse_partner?.first_name || null,
+    spouse_last_name: inputWithSpouse.spouse_partner?.last_name || null,
+    spouse_phone: inputWithSpouse.spouse_partner?.phone || null,
+    spouse_email: inputWithSpouse.spouse_partner?.email || null,
+    spouse_is_alternate_contact: inputWithSpouse.spouse_partner?.is_alternate_contact || false,
   }
 
   const { data: createdGuest, error: createError } = await supabase
@@ -196,5 +211,93 @@ export async function getGuestByEmail(
   return {
     success: true,
     data: guest as Guest,
+  }
+}
+
+/**
+ * Update spouse/partner information for a guest
+ *
+ * @param guest_id - Guest ID to update
+ * @param property_id - Property ID for tenant isolation
+ * @param spouse - Spouse/partner information (null to clear)
+ * @returns Updated guest record with spouse info
+ */
+export async function updateGuestSpouse(
+  guest_id: string,
+  property_id: string,
+  spouse: SpousePartnerInput | null
+): Promise<BookingResult<GuestWithSpouse>> {
+  const supabase = createServiceRoleClient()
+
+  const spouseData = spouse
+    ? {
+        spouse_first_name: spouse.first_name,
+        spouse_last_name: spouse.last_name,
+        spouse_phone: spouse.phone || null,
+        spouse_email: spouse.email || null,
+        spouse_is_alternate_contact: spouse.is_alternate_contact,
+      }
+    : {
+        spouse_first_name: null,
+        spouse_last_name: null,
+        spouse_phone: null,
+        spouse_email: null,
+        spouse_is_alternate_contact: false,
+      }
+
+  const { data, error } = await supabase
+    .from('guests')
+    .update(spouseData)
+    .eq('id', guest_id)
+    .eq('property_id', property_id) // Tenant isolation
+    .select()
+    .single()
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Failed to update spouse information',
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: data as GuestWithSpouse,
+  }
+}
+
+/**
+ * Get guest with spouse information
+ *
+ * @param guest_id - Guest ID to fetch
+ * @returns Guest record with spouse info
+ */
+export async function getGuestWithSpouse(
+  guest_id: string
+): Promise<BookingResult<GuestWithSpouse>> {
+  const supabase = createServiceRoleClient()
+
+  const { data, error } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('id', guest_id)
+    .single()
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: {
+        code: 'GUEST_NOT_FOUND',
+        message: 'Guest not found',
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: data as GuestWithSpouse,
   }
 }

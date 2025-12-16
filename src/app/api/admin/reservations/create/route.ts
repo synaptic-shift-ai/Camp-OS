@@ -2,24 +2,37 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createReservation } from '@/lib/booking/reservation'
-import type { CreateReservationInput } from '@/lib/booking/types'
+import type { CreateVehicleInputData, CreateChildInputData, SpousePartnerInput, EvacuationContactInput } from '@/lib/booking/types'
 import { sendBookingConfirmation } from '@/lib/email/send'
 import { addSentryContext, addTenantContext, captureException } from '@/lib/monitoring/sentry-utils'
+import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
+import { createReservationChildren } from '@/lib/booking/children'
+import { updateGuestSpouse } from '@/lib/booking/guest'
 
 /**
- * Manual Reservation Creation API
+ * @deprecated Use POST /api/v1/properties/[propertyId]/reservations/manual instead.
+ * This endpoint will be removed on 2025-03-01.
+ *
+ * Manual Reservation Creation API (LEGACY)
  *
  * POST /api/admin/reservations/create
  *
  * Creates a manual reservation (for phone/walk-in bookings).
  * Supports cash/check payments (skips Stripe).
  * Enforces multi-tenant isolation.
+ *
+ * Enhanced to support:
+ * - Spouse/Partner information (stored on guest)
+ * - Children information (stored per reservation)
+ * - Vehicle information (stored on guest, linked to reservation)
+ * - Evacuation contact (stored on reservation)
  */
 
 interface ManualReservationRequest {
   siteId: string
   checkInDate: string // YYYY-MM-DD
   checkOutDate: string // YYYY-MM-DD
+  stayType?: 'nightly' | 'weekly' | 'monthly' | 'seasonal' | 'long_term'
   numAdults: number
   numChildren?: number
   numPets?: number
@@ -34,8 +47,22 @@ interface ManualReservationRequest {
     state?: string
     zipCode?: string
   }
-  paymentMethod: 'cash' | 'check' | 'bank_transfer' | 'other'
+  // New: Family information
+  spouse_partner?: SpousePartnerInput
+  children?: CreateChildInputData[]
+  // New: Vehicle information
+  vehicles?: CreateVehicleInputData[]
+  // New: Evacuation contact
+  evacuation_contact?: EvacuationContactInput
+  // Payment
+  paymentMode?: 'cash' | 'check' | 'card' | 'send_link'
+  paymentMethod?: 'cash' | 'check' | 'credit_card' | 'debit_card' | 'bank_transfer' | 'other'
   paidAmount?: number // In cents (optional - can pay later)
+  paymentNotes?: string
+  // Discounts/fees
+  selectedDiscountIds?: string[]
+  selectedFeeIds?: string[]
+  // Notes
   specialRequests?: string
   notes?: string
 }
@@ -156,11 +183,70 @@ export async function POST(request: NextRequest) {
     }
 
     const reservation = result.data
+    const supabaseServiceRole = createServiceRoleClient()
+
+    // Handle spouse/partner information (stored on guest)
+    if (body.spouse_partner && reservation.guest_id) {
+      try {
+        await updateGuestSpouse(reservation.guest_id, propertyId, body.spouse_partner)
+      } catch (spouseError) {
+        console.error('[Manual Reservation] Failed to update spouse info:', spouseError)
+        // Don't fail the whole request - reservation was created successfully
+      }
+    }
+
+    // Handle children information (stored per reservation)
+    if (body.children && body.children.length > 0) {
+      try {
+        await createReservationChildren(reservation.id, propertyId, body.children)
+      } catch (childrenError) {
+        console.error('[Manual Reservation] Failed to create children records:', childrenError)
+        // Don't fail the whole request
+      }
+    }
+
+    // Handle vehicle information (create on guest, link to reservation)
+    if (body.vehicles && body.vehicles.length > 0 && reservation.guest_id) {
+      try {
+        const vehicleResult = await createGuestVehicles(
+          reservation.guest_id,
+          propertyId,
+          body.vehicles
+        )
+        if (vehicleResult.success && vehicleResult.data.length > 0) {
+          const vehicleIds = vehicleResult.data.map((v) => v.id)
+          await linkVehiclesToReservation(reservation.id, vehicleIds)
+        }
+      } catch (vehicleError) {
+        console.error('[Manual Reservation] Failed to create vehicle records:', vehicleError)
+        // Don't fail the whole request
+      }
+    }
+
+    // Handle evacuation contact (stored on reservation)
+    if (body.evacuation_contact) {
+      try {
+        const { error: evacuationError } = await supabaseServiceRole
+          .from('reservations')
+          .update({
+            evacuation_contact_name: body.evacuation_contact.name,
+            evacuation_contact_phone: body.evacuation_contact.phone,
+            evacuation_contact_relationship: body.evacuation_contact.relationship || null,
+          })
+          .eq('id', reservation.id)
+          .eq('property_id', propertyId)
+
+        if (evacuationError) {
+          console.error('[Manual Reservation] Failed to update evacuation contact:', evacuationError)
+        }
+      } catch (evacuationError) {
+        console.error('[Manual Reservation] Failed to update evacuation contact:', evacuationError)
+      }
+    }
 
     // For manual bookings with immediate payment, update status to 'confirmed'
     // and record the payment
     if (body.paidAmount && body.paidAmount > 0) {
-      const supabaseServiceRole = createServiceRoleClient()
 
       // Update reservation to confirmed and paid
       const { error: updateError } = await supabaseServiceRole
@@ -198,7 +284,6 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // No immediate payment - mark as confirmed but unpaid
-      const supabaseServiceRole = createServiceRoleClient()
       const { error: updateError } = await supabaseServiceRole
         .from('reservations')
         .update({
@@ -215,7 +300,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Update site status to 'reserved' for manual bookings
-    const supabaseServiceRole = createServiceRoleClient()
     const { error: siteUpdateError } = await supabaseServiceRole
       .from('sites')
       .update({

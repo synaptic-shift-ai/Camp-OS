@@ -245,6 +245,74 @@ export interface CreateReservationInput {
   source?: string
   booking_type?: BookingType // Type of booking (nightly, weekly, monthly, seasonal, long_term)
   booking_period?: BookingPeriod // Additional metadata for seasonal/monthly bookings
+
+  // Family information (enhanced booking form)
+  spouse_partner?: SpousePartnerInput
+  children?: CreateChildInputData[]
+
+  // Vehicle information (enhanced booking form)
+  vehicles?: CreateVehicleInputData[]
+
+  // Emergency evacuation contact
+  evacuation_contact?: EvacuationContactInput
+
+  // Manual discount/fee selections
+  selected_discount_ids?: string[]
+  selected_fee_ids?: string[]
+
+  // Payment mode for admin bookings
+  payment_mode?: 'cash' | 'check' | 'card' | 'send_link'
+}
+
+/**
+ * Spouse/Partner information for guest profile
+ */
+export interface SpousePartnerInput {
+  first_name: string
+  last_name: string
+  phone?: string
+  email?: string
+  is_alternate_contact: boolean
+}
+
+/**
+ * Child information for reservation
+ */
+export interface CreateChildInputData {
+  first_name: string
+  age?: number
+  date_of_birth?: string // YYYY-MM-DD format
+  special_needs_allergies?: string
+}
+
+/**
+ * Vehicle information for guest profile
+ */
+export interface CreateVehicleInputData {
+  vehicle_type: 'personal' | 'rv' | 'tow_vehicle'
+  make?: string
+  model?: string
+  year?: number
+  color?: string
+  license_plate?: string
+  license_plate_state?: string
+  personal_vehicle_type?: 'car' | 'truck' | 'suv' | 'motorcycle' | 'boat_trailer' | 'other'
+  rv_type?: 'class_a' | 'class_b' | 'class_c' | 'fifth_wheel' | 'travel_trailer' | 'popup' | 'truck_camper' | 'toy_hauler'
+  rv_length_feet?: number
+  rv_width_feet?: number
+  num_slide_outs?: number
+  insurance_company?: string
+  insurance_policy_number?: string
+  is_primary?: boolean
+}
+
+/**
+ * Evacuation contact for emergency scenarios
+ */
+export interface EvacuationContactInput {
+  name: string
+  phone: string
+  relationship?: string
 }
 
 // ============================================================================

@@ -214,3 +214,210 @@ export const SiteAvailabilityResponseSchema = z.object({
 })
 
 export type SiteAvailabilityResponse = z.infer<typeof SiteAvailabilityResponseSchema>
+
+// ============================================================================
+// Manual Reservation Schemas (Phone/Walk-in Bookings)
+// ============================================================================
+
+/**
+ * Spouse/Partner Information Schema
+ */
+export const SpousePartnerInputSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable(),
+  isAlternateContact: z.boolean().default(false),
+})
+
+export type SpousePartnerInput = z.infer<typeof SpousePartnerInputSchema>
+
+/**
+ * Child Information Schema
+ */
+export const ChildInputSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  age: z.number().int().min(0).max(17).optional().nullable(),
+  dateOfBirth: z.string().optional().nullable(),
+  specialNeedsAllergies: z.string().max(1000).optional().nullable(),
+})
+
+export type ChildInput = z.infer<typeof ChildInputSchema>
+
+/**
+ * Personal Vehicle Type Enum
+ */
+export const PersonalVehicleTypeSchema = z.enum([
+  'car', 'truck', 'suv', 'motorcycle', 'boat_trailer', 'other'
+])
+
+/**
+ * RV Type Enum
+ */
+export const RVTypeSchema = z.enum([
+  'class_a', 'class_b', 'class_c', 'fifth_wheel',
+  'travel_trailer', 'popup', 'truck_camper', 'toy_hauler'
+])
+
+/**
+ * Vehicle Record Type Enum
+ */
+export const VehicleRecordTypeSchema = z.enum(['personal', 'rv', 'tow_vehicle'])
+
+/**
+ * Vehicle Input Schema
+ */
+export const VehicleInputSchema = z.object({
+  vehicleType: VehicleRecordTypeSchema,
+  make: z.string().max(100).optional().nullable(),
+  model: z.string().max(100).optional().nullable(),
+  year: z.number().int().min(1900).max(2100).optional().nullable(),
+  color: z.string().max(50).optional().nullable(),
+  licensePlate: z.string().max(20).optional().nullable(),
+  licensePlateState: z.string().max(10).optional().nullable(),
+  personalVehicleType: PersonalVehicleTypeSchema.optional().nullable(),
+  rvType: RVTypeSchema.optional().nullable(),
+  rvLengthFeet: z.number().int().min(10).max(60).optional().nullable(),
+  rvWidthFeet: z.number().int().min(6).max(12).optional().nullable(),
+  numSlideOuts: z.number().int().min(0).max(5).default(0),
+  insuranceCompany: z.string().max(200).optional().nullable(),
+  insurancePolicyNumber: z.string().max(100).optional().nullable(),
+  isPrimary: z.boolean().default(false),
+}).refine((data) => {
+  // RVs must have rv_type and rv_length_feet
+  if (data.vehicleType === 'rv') {
+    return data.rvType !== undefined && data.rvType !== null &&
+           data.rvLengthFeet !== undefined && data.rvLengthFeet !== null
+  }
+  return true
+}, { message: 'RVs require rvType and rvLengthFeet' })
+
+export type VehicleInput = z.infer<typeof VehicleInputSchema>
+
+/**
+ * Evacuation Contact Schema
+ */
+export const EvacuationContactInputSchema = z.object({
+  name: z.string().min(1).max(200),
+  phone: z.string().min(1).max(50),
+  relationship: z.string().max(100).optional().nullable(),
+})
+
+export type EvacuationContactInput = z.infer<typeof EvacuationContactInputSchema>
+
+/**
+ * Payment Mode for Manual Bookings
+ */
+export const PaymentModeSchema = z.enum(['cash', 'check', 'card', 'send_link'])
+
+/**
+ * Guest Input for Manual Reservation
+ */
+export const ManualGuestInputSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  email: z.string().email().max(255),
+  phone: z.string().min(1).max(50),
+  address: z.string().max(200).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  state: z.string().max(100).optional().nullable(),
+  zipCode: z.string().max(20).optional().nullable(),
+})
+
+export type ManualGuestInput = z.infer<typeof ManualGuestInputSchema>
+
+/**
+ * Create Manual Reservation Request
+ * POST /api/v1/properties/[propertyId]/reservations/manual
+ *
+ * For phone/walk-in bookings with family and vehicle information
+ */
+export const CreateManualReservationRequestSchema = z.object({
+  // Core reservation data
+  siteId: z.string().uuid('Site ID must be a valid UUID'),
+  checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Check-in must be YYYY-MM-DD format'),
+  checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Check-out must be YYYY-MM-DD format'),
+  stayType: z.enum(['nightly', 'weekly', 'monthly', 'seasonal', 'long_term']).optional(),
+
+  // Occupancy
+  numAdults: z.number().int().min(1, 'At least 1 adult required').max(20),
+  numChildren: z.number().int().min(0).max(20).optional().default(0),
+  numPets: z.number().int().min(0).max(10).optional().default(0),
+  numVehicles: z.number().int().min(0).max(5).optional().default(1),
+
+  // Guest information (required)
+  guest: ManualGuestInputSchema,
+
+  // Family information (optional)
+  spousePartner: SpousePartnerInputSchema.optional().nullable(),
+  children: z.array(ChildInputSchema).max(10).optional().default([]),
+
+  // Vehicle information (optional)
+  vehicles: z.array(VehicleInputSchema).max(5).optional().default([]),
+
+  // Emergency contact (optional)
+  evacuationContact: EvacuationContactInputSchema.optional().nullable(),
+
+  // Payment
+  paymentMode: PaymentModeSchema.default('cash'),
+  paymentMethod: PaymentMethodSchema.optional(),
+  paidAmountCents: z.number().int().min(0).optional().default(0),
+  paymentNotes: z.string().max(500).optional().nullable(),
+
+  // Discounts and fees
+  selectedDiscountIds: z.array(z.string().uuid()).optional().default([]),
+  selectedFeeIds: z.array(z.string().uuid()).optional().default([]),
+
+  // Notes
+  specialRequests: z.string().max(1000).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+})
+
+export type CreateManualReservationRequest = z.infer<typeof CreateManualReservationRequestSchema>
+
+/**
+ * Manual Reservation Response
+ */
+export const ManualReservationResponseSchema = z.object({
+  id: z.string().uuid(),
+  confirmationNumber: z.string(),
+  guestName: z.string(),
+  checkInDate: z.string(),
+  checkOutDate: z.string(),
+  totalAmountCents: z.number().int(),
+  paidAmountCents: z.number().int(),
+  status: ReservationStatusSchema,
+  paymentStatus: PaymentStatusSchema,
+  childrenCount: z.number().int(),
+  vehiclesCount: z.number().int(),
+  createdAt: z.string().datetime(),
+})
+
+export type ManualReservationResponse = z.infer<typeof ManualReservationResponseSchema>
+
+// ============================================================================
+// Payment Link Schemas
+// ============================================================================
+
+/**
+ * Generate Payment Link Request
+ * POST /api/v1/reservations/[id]/payment-link
+ */
+export const GeneratePaymentLinkRequestSchema = z.object({
+  amountCents: z.number().int().min(1).optional(),
+  sendEmail: z.boolean().default(false),
+})
+
+export type GeneratePaymentLinkRequest = z.infer<typeof GeneratePaymentLinkRequestSchema>
+
+/**
+ * Payment Link Response
+ */
+export const PaymentLinkResponseSchema = z.object({
+  url: z.string().url(),
+  checkoutSessionId: z.string(),
+  amountCents: z.number().int(),
+  expiresAt: z.string().datetime(),
+})
+
+export type PaymentLinkResponse = z.infer<typeof PaymentLinkResponseSchema>

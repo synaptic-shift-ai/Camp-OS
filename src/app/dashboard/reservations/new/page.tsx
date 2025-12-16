@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,26 +28,41 @@ import {
   Tent,
   Home,
   Caravan,
-  Check
+  Check,
+  Car
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { AvailableSitesAccordion } from "@/components/dashboard/reservations/available-sites-accordion"
 import { PricingSummary } from "@/components/dashboard/reservations/pricing-summary"
+import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
+import { ChildrenList } from "@/components/dashboard/reservations/children-list"
+import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-info-step"
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType, UserDefinedDiscount, UserDefinedFee } from '@/lib/config/types'
 import { parseEnabledReservationTypesFromDB } from '@/lib/config/resolution'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  SpousePartnerSchema,
+  CreateChildSchema,
+  CreateVehicleSchema,
+  EvacuationContactSchema,
+} from '@/contracts/schemas'
 
-// Form validation schema
+// Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
+  // Site selection
   siteId: z.string().min(1, "Please select a site"),
   checkInDate: z.string().min(1, "Check-in date is required"),
   checkOutDate: z.string().min(1, "Check-out date is required"),
   stayType: z.enum(["nightly", "weekly", "monthly", "seasonal", "long_term"]).default("nightly"),
+
+  // Occupancy counts
   numAdults: z.number().min(1, "At least one adult is required"),
   numChildren: z.number().min(0).optional(),
   numPets: z.number().min(0).optional(),
   numVehicles: z.number().min(0).optional(),
+
+  // Primary guest information
   guestFirstName: z.string().min(1, "First name is required"),
   guestLastName: z.string().min(1, "Last name is required"),
   guestEmail: z.string().email("Invalid email address"),
@@ -56,8 +71,61 @@ const manualBookingSchema = z.object({
   guestCity: z.string().optional(),
   guestState: z.string().optional(),
   guestZipCode: z.string().optional(),
-  paymentMethod: z.enum(["credit_card", "debit_card", "cash"]),
+
+  // Spouse/Partner (optional)
+  spouse: z.object({
+    first_name: z.string().optional(),
+    last_name: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().optional(),
+    is_alternate_contact: z.boolean().default(false),
+  }).optional(),
+
+  // Children (optional array)
+  children: z.array(z.object({
+    first_name: z.string().min(1, "Child name is required"),
+    age: z.number().min(0).max(17).optional(),
+    date_of_birth: z.string().optional(),
+    special_needs_allergies: z.string().optional(),
+  })).optional(),
+
+  // Vehicles (optional array)
+  vehicles: z.array(z.object({
+    vehicle_type: z.enum(['personal', 'rv', 'tow_vehicle']),
+    make: z.string().optional(),
+    model: z.string().optional(),
+    year: z.number().optional(),
+    color: z.string().optional(),
+    license_plate: z.string().optional(),
+    license_plate_state: z.string().optional(),
+    personal_vehicle_type: z.enum(['car', 'truck', 'suv', 'motorcycle', 'boat_trailer', 'other']).optional(),
+    rv_type: z.enum(['class_a', 'class_b', 'class_c', 'fifth_wheel', 'travel_trailer', 'popup', 'truck_camper', 'toy_hauler']).optional(),
+    rv_length_feet: z.number().optional(),
+    rv_width_feet: z.number().optional(),
+    num_slide_outs: z.number().optional(),
+    insurance_company: z.string().optional(),
+    insurance_policy_number: z.string().optional(),
+    is_primary: z.boolean().optional(),
+  })).optional(),
+
+  // Evacuation contact (optional)
+  evacuationContact: z.object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    relationship: z.string().optional(),
+  }).optional(),
+
+  // Payment
+  paymentMode: z.enum(['cash', 'check', 'card', 'send_link']).default('cash'),
+  paymentMethod: z.enum(["credit_card", "debit_card", "cash", "check"]).optional(),
   paidAmount: z.string().optional(), // Will convert to cents
+  paymentNotes: z.string().optional(),
+
+  // Manual discounts/fees
+  selectedDiscountIds: z.array(z.string()).optional(),
+  selectedFeeIds: z.array(z.string()).optional(),
+
+  // Notes
   specialRequests: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -121,22 +189,39 @@ export default function NewReservationPage() {
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = useForm<ManualBookingFormData>({
+  // Collapsible section states
+  const [spouseOpen, setSpouseOpen] = useState(false)
+  const [childrenOpen, setChildrenOpen] = useState(false)
+
+  const methods = useForm<ManualBookingFormData>({
     resolver: zodResolver(manualBookingSchema),
     defaultValues: {
       numAdults: 1,
       numChildren: 0,
       numPets: 0,
       numVehicles: 0,
-      paymentMethod: "credit_card",
+      paymentMode: "cash",
+      paymentMethod: "cash",
+      spouse: {
+        first_name: '',
+        last_name: '',
+        phone: '',
+        email: '',
+        is_alternate_contact: false,
+      },
+      children: [],
+      vehicles: [],
     },
   })
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    control,
+  } = methods
 
   const selectedSiteId = watch("siteId")
   const checkInDate = watch("checkInDate")
@@ -270,12 +355,58 @@ export default function NewReservationPage() {
       setLoading(true)
       setError(null)
 
+      if (!propertyId) {
+        throw new Error('Property not loaded')
+      }
+
       // Convert paid amount from dollars to cents
       const paidAmountCents = data.paidAmount
         ? Math.round(parseFloat(data.paidAmount) * 100)
-        : undefined
+        : 0
 
-      const response = await fetch("/api/admin/reservations/create", {
+      // Prepare spouse data (only if filled in) - use camelCase for v1 API
+      const spouseData = data.spouse?.first_name && data.spouse?.last_name
+        ? {
+            firstName: data.spouse.first_name,
+            lastName: data.spouse.last_name,
+            phone: data.spouse.phone || null,
+            email: data.spouse.email || null,
+            isAlternateContact: data.spouse.is_alternate_contact || false,
+          }
+        : null
+
+      // Prepare children data (filter out empty entries, convert to camelCase)
+      const childrenData = (data.children?.filter(c => c.first_name) || []).map(c => ({
+        firstName: c.first_name,
+        age: c.age ?? null,
+        dateOfBirth: c.date_of_birth || null,
+        specialNeedsAllergies: c.special_needs_allergies || null,
+      }))
+
+      // Prepare vehicles data (filter out entries without vehicle_type, convert to camelCase)
+      const vehiclesData = (data.vehicles?.filter(v => v.vehicle_type) || []).map(v => ({
+        vehicleType: v.vehicle_type,
+        make: v.make || null,
+        model: v.model || null,
+        year: v.year ?? null,
+        color: v.color || null,
+        licensePlate: v.license_plate || null,
+        licensePlateState: v.license_plate_state || null,
+        personalVehicleType: v.personal_vehicle_type || null,
+        rvType: v.rv_type || null,
+        rvLengthFeet: v.rv_length_feet ?? null,
+        rvWidthFeet: v.rv_width_feet ?? null,
+        numSlideOuts: v.num_slide_outs || 0,
+        insuranceCompany: v.insurance_company || null,
+        insurancePolicyNumber: v.insurance_policy_number || null,
+        isPrimary: v.is_primary || false,
+      }))
+
+      // Update numVehicles count based on actual vehicles added
+      const actualNumVehicles = vehiclesData.length > 0 ? vehiclesData.length : (data.numVehicles || 0)
+
+      // Use v1 API endpoint
+      const response = await fetch(`/api/v1/properties/${propertyId}/reservations/manual`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -286,30 +417,48 @@ export default function NewReservationPage() {
           checkOutDate: data.checkOutDate,
           stayType: data.stayType,
           numAdults: data.numAdults,
-          numChildren: data.numChildren,
+          numChildren: childrenData.length > 0 ? childrenData.length : (data.numChildren || 0),
           numPets: data.numPets,
-          numVehicles: data.numVehicles,
+          numVehicles: actualNumVehicles,
           guest: {
             firstName: data.guestFirstName,
             lastName: data.guestLastName,
             email: data.guestEmail,
             phone: data.guestPhone,
-            address: data.guestAddress,
-            city: data.guestCity,
-            state: data.guestState,
-            zipCode: data.guestZipCode,
+            address: data.guestAddress || null,
+            city: data.guestCity || null,
+            state: data.guestState || null,
+            zipCode: data.guestZipCode || null,
           },
+          // Extended data (camelCase for v1 API)
+          spousePartner: spouseData,
+          children: childrenData,
+          vehicles: vehiclesData,
+          evacuationContact: data.evacuationContact?.name
+            ? {
+                name: data.evacuationContact.name,
+                phone: data.evacuationContact.phone,
+                relationship: data.evacuationContact.relationship || null,
+              }
+            : null,
+          // Payment
+          paymentMode: data.paymentMode,
           paymentMethod: data.paymentMethod,
-          paidAmount: paidAmountCents,
-          specialRequests: data.specialRequests,
-          notes: data.notes,
+          paidAmountCents: paidAmountCents,
+          paymentNotes: data.paymentNotes || null,
+          // Discounts/fees
+          selectedDiscountIds,
+          selectedFeeIds,
+          // Notes
+          specialRequests: data.specialRequests || null,
+          notes: data.notes || null,
         }),
       })
 
       const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create reservation")
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || result.error || "Failed to create reservation")
       }
 
       setSuccess(true)
@@ -377,6 +526,7 @@ export default function NewReservationPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Form - Left Column */}
         <div className="lg:col-span-2">
+          <FormProvider {...methods}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Date Selection - Priority #1 for phone bookings */}
         <Card className="border-primary/20 bg-primary/5">
@@ -673,105 +823,134 @@ export default function NewReservationPage() {
         {/* Guest Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Step 3: Guest Information</CardTitle>
-            <CardDescription>Contact details for the guest</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Step 3: Guest Information
+            </CardTitle>
+            <CardDescription>Contact details for the primary guest and family members</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="guestFirstName">First Name *</Label>
-                <Input
-                  id="guestFirstName"
-                  {...register("guestFirstName")}
-                />
-                {errors.guestFirstName && (
-                  <p className="text-sm text-destructive mt-1">{errors.guestFirstName.message}</p>
-                )}
+          <CardContent className="space-y-6">
+            {/* Primary Guest */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Primary Guest</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="guestFirstName">First Name *</Label>
+                  <Input
+                    id="guestFirstName"
+                    {...register("guestFirstName")}
+                  />
+                  {errors.guestFirstName && (
+                    <p className="text-sm text-destructive mt-1">{errors.guestFirstName.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="guestLastName">Last Name *</Label>
+                  <Input
+                    id="guestLastName"
+                    {...register("guestLastName")}
+                  />
+                  {errors.guestLastName && (
+                    <p className="text-sm text-destructive mt-1">{errors.guestLastName.message}</p>
+                  )}
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="guestEmail">Email *</Label>
+                  <Input
+                    id="guestEmail"
+                    type="email"
+                    {...register("guestEmail")}
+                  />
+                  {errors.guestEmail && (
+                    <p className="text-sm text-destructive mt-1">{errors.guestEmail.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="guestPhone">Phone *</Label>
+                  <Input
+                    id="guestPhone"
+                    type="tel"
+                    {...register("guestPhone")}
+                  />
+                  {errors.guestPhone && (
+                    <p className="text-sm text-destructive mt-1">{errors.guestPhone.message}</p>
+                  )}
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="guestLastName">Last Name *</Label>
+                <Label htmlFor="guestAddress">Address (Optional)</Label>
                 <Input
-                  id="guestLastName"
-                  {...register("guestLastName")}
+                  id="guestAddress"
+                  {...register("guestAddress")}
                 />
-                {errors.guestLastName && (
-                  <p className="text-sm text-destructive mt-1">{errors.guestLastName.message}</p>
-                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="guestCity">City</Label>
+                  <Input
+                    id="guestCity"
+                    {...register("guestCity")}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="guestState">State</Label>
+                  <Input
+                    id="guestState"
+                    {...register("guestState")}
+                    maxLength={2}
+                    placeholder="CA"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="guestZipCode">Zip Code</Label>
+                  <Input
+                    id="guestZipCode"
+                    {...register("guestZipCode")}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="guestEmail">Email *</Label>
-                <Input
-                  id="guestEmail"
-                  type="email"
-                  {...register("guestEmail")}
-                />
-                {errors.guestEmail && (
-                  <p className="text-sm text-destructive mt-1">{errors.guestEmail.message}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="guestPhone">Phone *</Label>
-                <Input
-                  id="guestPhone"
-                  type="tel"
-                  {...register("guestPhone")}
-                />
-                {errors.guestPhone && (
-                  <p className="text-sm text-destructive mt-1">{errors.guestPhone.message}</p>
-                )}
-              </div>
-            </div>
+            {/* Spouse/Partner Section */}
+            <SpousePartnerSection
+              isOpen={spouseOpen}
+              onOpenChange={setSpouseOpen}
+            />
 
-            <div>
-              <Label htmlFor="guestAddress">Address (Optional)</Label>
-              <Input
-                id="guestAddress"
-                {...register("guestAddress")}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="guestCity">City</Label>
-                <Input
-                  id="guestCity"
-                  {...register("guestCity")}
-                />
-              </div>
-              <div>
-                <Label htmlFor="guestState">State</Label>
-                <Input
-                  id="guestState"
-                  {...register("guestState")}
-                  maxLength={2}
-                  placeholder="CA"
-                />
-              </div>
-              <div>
-                <Label htmlFor="guestZipCode">Zip Code</Label>
-                <Input
-                  id="guestZipCode"
-                  {...register("guestZipCode")}
-                />
-              </div>
-            </div>
+            {/* Children Section */}
+            <ChildrenList
+              isOpen={childrenOpen}
+              onOpenChange={setChildrenOpen}
+              maxChildren={10}
+            />
           </CardContent>
         </Card>
+
+        {/* Step 4: Vehicle Information */}
+        <VehicleInfoStep
+          maxVehicles={5}
+          showRVSection={true}
+        />
 
         {/* Payment Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Step 4: Payment Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Step 5: Payment Information
+            </CardTitle>
             <CardDescription>Payment method and amount</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="paymentMethod">Payment Method *</Label>
               <Select
-                value={paymentMethod}
+                value={paymentMethod || ''}
                 onValueChange={(value) => setValue("paymentMethod", value as any)}
               >
                 <SelectTrigger>
@@ -846,6 +1025,7 @@ export default function NewReservationPage() {
           </Button>
         </div>
           </form>
+          </FormProvider>
         </div>
 
         {/* Pricing Summary - Right Column */}

@@ -91,7 +91,7 @@ export async function POST(
     // First, check if site exists at all (for debugging)
     const { data: siteCheck, error: siteCheckError } = await supabaseServiceRole
       .from('sites')
-      .select('id, name, property_id')
+      .select('id, site_name, property_id')
       .eq('id', data.siteId)
       .single()
 
@@ -135,7 +135,7 @@ export async function POST(
       guestEmail: data.guest.email,
       confirmationNumber: result.confirmationNumber,
       propertyName: property.name,
-      siteName: site.name,
+      siteName: site.site_name || `Site ${data.siteId.slice(0, 8)}`,
       checkInDate: data.checkInDate,
       checkOutDate: data.checkOutDate,
       numNights,

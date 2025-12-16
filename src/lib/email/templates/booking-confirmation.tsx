@@ -22,7 +22,7 @@ interface BookingConfirmationEmailProps {
   numChildren: number
   totalAmount: number // in cents
   paidAmount: number // in cents
-  paymentStatus: 'paid' | 'unpaid' | 'partial'
+  paymentStatus: 'paid' | 'pending' | 'partial'
   specialRequests?: string
   propertyPhone?: string
   propertyEmail?: string

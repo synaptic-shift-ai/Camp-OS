@@ -26,7 +26,7 @@ export type ReservationStatus =
   | 'cancelled'
   | 'no_show'
 
-export type ReservationPaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded'
+export type ReservationPaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded'
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
 

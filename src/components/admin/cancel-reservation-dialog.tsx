@@ -42,7 +42,7 @@ export function CancelReservationDialog({
       setError(null)
 
       const response = await fetch(
-        `/api/admin/reservations/${reservationId}/cancel`,
+        `/api/v1/reservations/${reservationId}/cancel`,
         {
           method: "POST",
           headers: {

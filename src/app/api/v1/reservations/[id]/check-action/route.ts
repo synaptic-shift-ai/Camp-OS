@@ -1,14 +1,16 @@
 /**
- * API Endpoint: Check Availability for Reservation Actions
+ * Reservations API v1 - Check Action Availability
  *
- * POST /api/admin/reservations/[id]/check-action
+ * POST /api/v1/reservations/[id]/check-action
  *
  * Checks if a reservation action (extend, renew) is possible given site availability.
  * Returns conflicts, alternatives, and recommendations for the operator.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { success, error } from '@/lib/api/response'
+import { ErrorCodes } from '@/lib/api/errors'
 import {
   checkExtensionAvailability,
   checkRenewalAvailability,
@@ -18,7 +20,7 @@ import type { CheckActionRequest } from '@/lib/booking/types'
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse> {
+) {
   try {
     const { id: reservationId } = await params
     const body: CheckActionRequest = await request.json()
@@ -31,10 +33,10 @@ export async function POST(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return error(ErrorCodes.AUTH_001, request)
     }
 
-    // Verify user has access to this reservation's property
+    // Verify user has access to this reservation's property (BP-4: Multi-tenant isolation)
     const { data: reservation, error: resError } = await supabase
       .from('reservations')
       .select('property_id')
@@ -42,41 +44,27 @@ export async function POST(
       .single()
 
     if (resError || !reservation) {
-      return NextResponse.json(
-        { error: 'Reservation not found' },
-        { status: 404 }
-      )
+      return error(ErrorCodes.RES_001, request)
     }
 
-    // Check property access (owner or staff)
-    // First check if user owns the property
+    // Check property access via company ownership
+    const { data: company } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('owner_id', user.id)
+      .single()
+
     const { data: property } = await supabase
       .from('properties')
-      .select('owner_id')
+      .select('id, company_id, owner_id')
       .eq('id', reservation.property_id)
       .single()
 
     const isOwner = property?.owner_id === user.id
+    const isCompanyOwner = company && property?.company_id === company.id
 
-    // If not owner, check if user is staff
-    let isStaff = false
-    if (!isOwner) {
-      const { data: staffRecord } = await supabase
-        .from('property_staff')
-        .select('id')
-        .eq('property_id', reservation.property_id)
-        .eq('user_id', user.id)
-        .in('role', ['owner', 'manager', 'staff'])
-        .single()
-
-      isStaff = !!staffRecord
-    }
-
-    if (!isOwner && !isStaff) {
-      return NextResponse.json(
-        { error: 'You do not have access to this property' },
-        { status: 403 }
-      )
+    if (!isOwner && !isCompanyOwner) {
+      return error(ErrorCodes.AUTH_002, request)
     }
 
     // Perform availability check based on action type
@@ -86,10 +74,9 @@ export async function POST(
       const { newCheckIn, newCheckOut } = body.params
 
       if (!newCheckIn && !newCheckOut) {
-        return NextResponse.json(
-          { error: 'Must provide newCheckIn or newCheckOut for extension' },
-          { status: 400 }
-        )
+        return error(ErrorCodes.VAL_001, request, {
+          message: 'Must provide newCheckIn or newCheckOut for extension',
+        })
       }
 
       result = await checkExtensionAvailability(
@@ -101,10 +88,9 @@ export async function POST(
       const { nextPeriodStart, nextPeriodEnd } = body.params
 
       if (!nextPeriodStart || !nextPeriodEnd) {
-        return NextResponse.json(
-          { error: 'Must provide nextPeriodStart and nextPeriodEnd for renewal' },
-          { status: 400 }
-        )
+        return error(ErrorCodes.VAL_001, request, {
+          message: 'Must provide nextPeriodStart and nextPeriodEnd for renewal',
+        })
       }
 
       result = await checkRenewalAvailability(
@@ -113,21 +99,16 @@ export async function POST(
         nextPeriodEnd
       )
     } else {
-      return NextResponse.json(
-        { error: `Unknown action type: ${body.action}` },
-        { status: 400 }
-      )
+      return error(ErrorCodes.VAL_001, request, {
+        message: `Unknown action type: ${body.action}`,
+      })
     }
 
-    return NextResponse.json(result)
-  } catch (error) {
-    console.error('[CheckAction] Error:', error)
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return success(result, request)
+  } catch (err) {
+    console.error('[Reservations API v1] Check-action error:', err)
+    return error(ErrorCodes.SYS_001, request, {
+      message: err instanceof Error ? err.message : 'Unknown error',
+    })
   }
 }

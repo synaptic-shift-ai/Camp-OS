@@ -149,7 +149,7 @@ export function ExtendDialog({
         throw new Error('Please change at least one date to extend the reservation')
       }
 
-      const response = await fetch(`/api/admin/reservations/${reservationId}/actions`, {
+      const response = await fetch(`/api/v1/reservations/${reservationId}/actions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

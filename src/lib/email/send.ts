@@ -16,7 +16,7 @@ export interface BookingConfirmationData {
   numChildren: number
   totalAmount: number
   paidAmount: number
-  paymentStatus: 'paid' | 'unpaid' | 'partial'
+  paymentStatus: 'paid' | 'pending' | 'partial'
   specialRequests?: string
   // Property contact & arrival info
   propertyPhone?: string

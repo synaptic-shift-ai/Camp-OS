@@ -305,7 +305,7 @@ export async function processRenewal(
         total_amount: totalAmount,
         paid_amount: 0,
         status: 'pending',
-        payment_status: 'unpaid',
+        payment_status: 'pending',
         source: currentRes.source,
         parent_reservation_id: reservationId,
         renewal_status: 'accepted',

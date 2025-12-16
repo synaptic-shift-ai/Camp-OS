@@ -32,7 +32,7 @@ export function useActionAvailability(
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/reservations/${reservationId}/check-action`, {
+      const response = await fetch(`/api/v1/reservations/${reservationId}/check-action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, params }),

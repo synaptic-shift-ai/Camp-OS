@@ -205,7 +205,7 @@ export class CreateManualReservationCommandHandler {
         .from('reservations')
         .update({
           status: 'confirmed',
-          payment_status: 'unpaid',
+          payment_status: 'pending',
           notes: dto.notes || `Manual booking. Payment method: ${dto.paymentMode} (payment pending)`,
         })
         .eq('id', reservation.id)

@@ -180,7 +180,7 @@ export interface DamageInspectionData {
 /**
  * Payment status for reservation (matches DB CHECK constraint)
  */
-export type ReservationPaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded'
+export type ReservationPaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded'
 
 /**
  * Complete reservation record (matches DB reservations table)

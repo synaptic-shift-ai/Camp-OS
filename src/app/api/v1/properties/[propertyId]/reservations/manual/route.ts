@@ -158,7 +158,7 @@ export async function POST(
       numChildren: data.numChildren || 0,
       totalAmount: result.totalAmountCents,
       paidAmount: result.paidAmountCents,
-      paymentStatus: result.paymentStatus as 'paid' | 'partial' | 'unpaid',
+      paymentStatus: result.paymentStatus as 'paid' | 'partial' | 'pending',
     }
     if (data.specialRequests) emailData.specialRequests = data.specialRequests
 

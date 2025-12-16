@@ -1,14 +1,16 @@
 /**
- * API Endpoint: Process Reservation Actions
+ * Reservations API v1 - Process Reservation Actions
  *
- * POST /api/admin/reservations/[id]/actions
+ * POST /api/v1/reservations/[id]/actions
  *
  * Executes booking lifecycle actions (extend, renew, modify).
  * Validates permissions, checks availability, and processes the action.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { success, error } from '@/lib/api/response'
+import { ErrorCodes } from '@/lib/api/errors'
 import {
   processExtension,
   processRenewal,
@@ -20,7 +22,7 @@ import type { ProcessActionRequest } from '@/lib/booking/types'
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse> {
+) {
   try {
     const { id: reservationId } = await params
     const body: ProcessActionRequest = await request.json()
@@ -33,10 +35,10 @@ export async function POST(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return error(ErrorCodes.AUTH_001, request)
     }
 
-    // Verify user has access to this reservation's property
+    // Verify user has access to this reservation's property (BP-4: Multi-tenant isolation)
     const { data: reservation, error: resError } = await supabase
       .from('reservations')
       .select('property_id')
@@ -44,38 +46,27 @@ export async function POST(
       .single()
 
     if (resError || !reservation) {
-      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+      return error(ErrorCodes.RES_001, request)
     }
 
-    // Check property access (owner or staff)
-    // First check if user owns the property
+    // Check property access via company ownership
+    const { data: company } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('owner_id', user.id)
+      .single()
+
     const { data: property } = await supabase
       .from('properties')
-      .select('owner_id')
+      .select('id, company_id, owner_id')
       .eq('id', reservation.property_id)
       .single()
 
     const isOwner = property?.owner_id === user.id
+    const isCompanyOwner = company && property?.company_id === company.id
 
-    // If not owner, check if user is staff
-    let isStaff = false
-    if (!isOwner) {
-      const { data: staffRecord } = await supabase
-        .from('property_staff')
-        .select('id')
-        .eq('property_id', reservation.property_id)
-        .eq('user_id', user.id)
-        .in('role', ['owner', 'manager', 'staff'])
-        .single()
-
-      isStaff = !!staffRecord
-    }
-
-    if (!isOwner && !isStaff) {
-      return NextResponse.json(
-        { error: 'You do not have permission to modify this reservation' },
-        { status: 403 }
-      )
+    if (!isOwner && !isCompanyOwner) {
+      return error(ErrorCodes.AUTH_002, request)
     }
 
     // Process action based on type
@@ -86,10 +77,9 @@ export async function POST(
         const { newCheckIn, newCheckOut, notes } = body.params
 
         if (!newCheckIn && !newCheckOut) {
-          return NextResponse.json(
-            { error: 'Must provide newCheckIn or newCheckOut for extension' },
-            { status: 400 }
-          )
+          return error(ErrorCodes.VAL_001, request, {
+            message: 'Must provide newCheckIn or newCheckOut for extension',
+          })
         }
 
         result = await processExtension(
@@ -106,13 +96,9 @@ export async function POST(
         const { nextPeriod, renewalDeadline, depositAmount, notes } = body.params
 
         if (!nextPeriod || !renewalDeadline || !depositAmount) {
-          return NextResponse.json(
-            {
-              error:
-                'Must provide nextPeriod, renewalDeadline, and depositAmount for renewal',
-            },
-            { status: 400 }
-          )
+          return error(ErrorCodes.VAL_001, request, {
+            message: 'Must provide nextPeriod, renewalDeadline, and depositAmount for renewal',
+          })
         }
 
         result = await processRenewal(
@@ -130,10 +116,9 @@ export async function POST(
         const { renewalDeadline, notes } = body.params
 
         if (!renewalDeadline) {
-          return NextResponse.json(
-            { error: 'Must provide renewalDeadline' },
-            { status: 400 }
-          )
+          return error(ErrorCodes.VAL_001, request, {
+            message: 'Must provide renewalDeadline',
+          })
         }
 
         result = await offerRenewal(reservationId, renewalDeadline, user.id, notes)
@@ -147,29 +132,23 @@ export async function POST(
       }
 
       default:
-        return NextResponse.json(
-          { error: `Unknown action type: ${body.action}` },
-          { status: 400 }
-        )
+        return error(ErrorCodes.VAL_001, request, {
+          message: `Unknown action type: ${body.action}`,
+        })
     }
 
     // Return result
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error?.message || 'Action failed' },
-        { status: 400 }
-      )
+      return error(ErrorCodes.SYS_001, request, {
+        message: result.error?.message || 'Action failed',
+      })
     }
 
-    return NextResponse.json(result)
-  } catch (error) {
-    console.error('[ProcessAction] Error:', error)
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return success(result, request)
+  } catch (err) {
+    console.error('[Reservations API v1] Actions error:', err)
+    return error(ErrorCodes.SYS_001, request, {
+      message: err instanceof Error ? err.message : 'Unknown error',
+    })
   }
 }

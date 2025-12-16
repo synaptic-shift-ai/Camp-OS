@@ -28,7 +28,7 @@ export const ReservationStatusSchema = z.enum([
   'no_show',
 ])
 
-export const ReservationPaymentStatusSchema = z.enum(['unpaid', 'partial', 'paid', 'refunded'])
+export const ReservationPaymentStatusSchema = z.enum(['pending', 'partial', 'paid', 'refunded'])
 
 export const PaymentStatusSchema = z.enum(['pending', 'completed', 'failed', 'refunded'])
 

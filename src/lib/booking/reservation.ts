@@ -116,7 +116,7 @@ export async function createReservation(
     total_amount: pricing.total,
     paid_amount: 0,
     status: 'pending' as const,
-    payment_status: 'unpaid' as const,
+    payment_status: 'pending' as const,
     special_requests: input.special_requests || null,
     source: input.source || 'online',
     notes: null,

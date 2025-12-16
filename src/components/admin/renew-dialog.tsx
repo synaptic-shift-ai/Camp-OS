@@ -228,7 +228,7 @@ export function RenewDialog({
         throw new Error('Renewal deadline must be before the next period starts')
       }
 
-      const response = await fetch(`/api/admin/reservations/${reservationId}/actions`, {
+      const response = await fetch(`/api/v1/reservations/${reservationId}/actions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

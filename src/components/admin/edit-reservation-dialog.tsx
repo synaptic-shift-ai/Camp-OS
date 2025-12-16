@@ -89,7 +89,7 @@ export function EditReservationDialog({
       }
 
       const response = await fetch(
-        `/api/admin/reservations/${reservationId}/update`,
+        `/api/v1/reservations/${reservationId}/update`,
         {
           method: "PATCH",
           headers: {

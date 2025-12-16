@@ -52,7 +52,7 @@ export function CheckInButton({ reservationId, status, checkInDate }: CheckInBut
 
     try {
       // Fetch full reservation data with guest and site info
-      const response = await fetch(`/api/admin/reservations/${reservationId}`)
+      const response = await fetch(`/api/v1/reservations/${reservationId}`)
 
       if (!response.ok) {
         throw new Error('Failed to fetch reservation details')

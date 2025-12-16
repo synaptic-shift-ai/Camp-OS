@@ -61,7 +61,7 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
         return
       }
 
-      const response = await fetch(`/api/admin/reservations/${reservation.id}/check-in`, {
+      const response = await fetch(`/api/v1/reservations/${reservation.id}/check-in`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

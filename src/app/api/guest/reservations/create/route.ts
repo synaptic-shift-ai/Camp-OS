@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         .eq('check_in_date', validatedInput.check_in_date)
         .eq('check_out_date', validatedInput.check_out_date)
         .eq('status', 'pending')
-        .eq('payment_status', 'unpaid')
+        .eq('payment_status', 'pending')
         .single()
 
       if (existingReservation) {
@@ -375,7 +375,7 @@ export async function POST(request: NextRequest) {
         total_amount: priceBreakdown.total,
         paid_amount: 0,
         status: 'pending', // Must be pending until payment
-        payment_status: 'unpaid',
+        payment_status: 'pending',
         special_requests: validatedInput.special_requests || null,
         source: 'online',
         reserved_until: reservedUntil.toISOString(), // 15-minute checkout timer

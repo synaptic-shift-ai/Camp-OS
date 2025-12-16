@@ -322,12 +322,13 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
           {/* Property Defaults Toggle */}
           <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
             <div className="space-y-0.5">
-              <Label className="font-medium">Use Property Defaults</Label>
+              <Label htmlFor="use_property_reservation_types" className="font-medium">Use Property Defaults</Label>
               <p className="text-sm text-muted-foreground">
                 Inherit pricing and reservation types from property settings
               </p>
             </div>
             <Switch
+              id="use_property_reservation_types"
               checked={usePropertyReservationTypes}
               onCheckedChange={(checked) => {
                 setValue("use_property_reservation_types", checked)

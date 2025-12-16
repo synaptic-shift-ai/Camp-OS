@@ -16,7 +16,8 @@ export const siteFormSchema = z.object({
   description: z.string().max(1000).optional().or(z.literal("")),
 
   // Pricing (in dollars - will convert to cents for API)
-  base_price: z.coerce.number().min(0.01, "Base price must be at least $0.01"),
+  // Base validation: allow 0 at schema level; conditional validation below
+  base_price: z.coerce.number().min(0).default(0),
   weekend_price: z.coerce.number().min(0).optional(),
   weekly_rate: z.coerce.number().min(0).optional(), // Weekly per-night rate
   monthly_rate: z.coerce.number().min(0).optional(), // Monthly per-night rate
@@ -71,6 +72,15 @@ export const siteFormSchema = z.object({
 
   // Seasonal rate override (in dollars, converted to cents for API)
   seasonal_rate: z.coerce.number().min(0).optional(),
+}).refine((data) => {
+  // When NOT using property defaults AND nightly is enabled, base_price must be at least $0.01
+  if (!data.use_property_reservation_types && data.enabled_reservation_types_override?.includes('nightly')) {
+    return data.base_price >= 0.01
+  }
+  return true
+}, {
+  message: "Base price must be at least $0.01 for nightly reservations",
+  path: ["base_price"],
 })
 
 export type SiteFormData = z.infer<typeof siteFormSchema>

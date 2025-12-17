@@ -308,16 +308,10 @@ export async function POST(
     console.error('[v1/sites] Create site error:', err)
 
     // Handle specific business rule violations
-    if (err.message.includes('already exists')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_002, err.message),
-        { status: 409 }
-      )
+    if (err.message?.includes('already exists')) {
+      return error(ErrorCodes.VALIDATION_002, undefined, { message: err.message })
     }
 
-    return NextResponse.json(
-      error(ErrorCodes.SERVER_001, 'Internal server error'),
-      { status: 500 }
-    )
+    return error(ErrorCodes.SERVER_001, undefined, { message: err.message || 'Unknown error' })
   }
 }

@@ -37,6 +37,22 @@ export {
 } from './domain/policies/implementations'
 export type { MinimumDepositPolicyConfig } from './domain/policies/implementations'
 
+// Domain - Services
+export type {
+  IAvailabilityService,
+  SiteAvailabilityResult,
+  MultiSiteAvailabilityResult,
+  AvailabilityCheckOptions,
+  UnavailableReason,
+  IPricingCalculator,
+  PricingInput,
+  PricingBreakdown,
+  PricingOptions,
+  SitePricingConfig,
+  // Note: PriceLineItem is exported from ./domain/policies
+} from './domain/services'
+export { AvailabilityService, PricingCalculator } from './domain/services'
+
 // Application - Commands
 export { CancelReservationCommandHandler } from './application/commands/CancelReservationCommand'
 export { CheckInGuestCommandHandler } from './application/commands/CheckInGuestCommand'

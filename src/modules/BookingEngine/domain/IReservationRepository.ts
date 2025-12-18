@@ -60,6 +60,12 @@ export interface IReservationRepository {
   findBySiteIdAndDateRange(siteId: string, dateRange: DateRange): Promise<Reservation[]>
 
   /**
+   * Find reservations for a property that overlap with a date range
+   * Used for multi-site availability checking
+   */
+  findByPropertyIdAndDateRange(propertyId: string, dateRange: DateRange): Promise<Reservation[]>
+
+  /**
    * Check if a site has any confirmed/active reservations in a date range
    * Used for availability checking
    */

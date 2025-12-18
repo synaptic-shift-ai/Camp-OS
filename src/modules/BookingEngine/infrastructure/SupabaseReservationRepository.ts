@@ -192,6 +192,32 @@ export class SupabaseReservationRepository implements IReservationRepository {
     return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
   }
 
+  async findByPropertyIdAndDateRange(propertyId: string, dateRange: DateRange): Promise<Reservation[]> {
+    /**
+     * Find all reservations for a property that overlap with a date range
+     * Used for multi-site availability checking
+     *
+     * Two date ranges overlap if:
+     * (range1.start < range2.end) AND (range1.end > range2.start)
+     *
+     * Only consider active reservations (not cancelled)
+     */
+    const { data, error } = await this.getClient()
+      .from('reservations')
+      .select('*')
+      .eq('property_id', propertyId) // BP-4: Tenant isolation
+      .lt('check_in_date', dateRange.checkOut.toISOString())
+      .gt('check_out_date', dateRange.checkIn.toISOString())
+      .not('status', 'eq', 'cancelled')
+      .not('status', 'eq', 'no_show')
+
+    if (error || !data) {
+      return []
+    }
+
+    return data.map((row: ReservationRow) => Reservation.fromPersistence(row))
+  }
+
   async existsForSiteInDateRange(siteId: string, dateRange: DateRange): Promise<boolean> {
     const conflictingReservations = await this.findBySiteIdAndDateRange(siteId, dateRange)
     return conflictingReservations.length > 0

@@ -34,11 +34,13 @@ Issues discovered during development. Each will be resolved in its designated ph
 
 **Resolution:** Fixed column names in `toPersistence()`. Added schema validation tests. Removed non-existent columns.
 
-### Issue: Duplicate Booking Modules
+### ~~Issue: Duplicate Booking Modules~~ RESOLVED
 
-**Fix In:** Phase 3A
+**Fixed In:** Phase 3A - December 18, 2025
 
-Both `BookingEngine` and `ReservationManagement` modules exist. Implementation plan specifies merging them.
+~~Both `BookingEngine` and `ReservationManagement` modules exist. Implementation plan specifies merging them.~~
+
+**Resolution:** ReservationManagement deleted (orphaned code with no imports). Enhancement gaps captured in Phase 3A roadmap for fresh implementation in BookingEngine.
 
 ### Issue: Legacy lib/booking Code
 
@@ -360,13 +362,9 @@ src/modules/StaffManagement/
 - [x] Write 22 policy tests covering all implementations
 
 **Remaining Tasks:**
-- [ ] Create new folder structure under BookingEngine (merge ReservationManagement)
-- [ ] Move ReservationManagement value objects to BookingEngine
-- [ ] Move ReservationManagement events to BookingEngine
-- [ ] Update all imports across codebase
-- [ ] Delete ReservationManagement module
-- [ ] Create AvailabilityService domain service
-- [ ] Create PricingCalculator domain service
+- [x] Delete ReservationManagement module (orphaned, no imports, has type errors)
+- [x] Create AvailabilityService domain service (6 tests)
+- [x] Create PricingCalculator domain service (12 tests)
 - [ ] Add ExtendReservationCommand
 - [ ] Add RenewReservationCommand
 - [ ] Add ModifyReservationCommand
@@ -375,7 +373,16 @@ src/modules/StaffManagement/
 - [ ] Update/create API routes for new commands
 - [ ] Write tests for all new commands
 
-**Files Created (Policy Architecture):**
+**Enhancement Gaps (captured from ReservationManagement analysis):**
+These features should be implemented fresh in BookingEngine (not copied from legacy code):
+- [ ] Add `NO_SHOW` status to ReservationStatus enum
+- [ ] Add `modifyDates()` method to Reservation aggregate
+- [ ] Add `modifyGuestCount()` method to Reservation aggregate
+- [ ] Add `ReservationModifiedEvent` domain event
+- [ ] Add refund initiation and tracking (`issueRefund()` method)
+- [ ] Consider `ReservationPricing` value object for base/tax/refund separation (evaluate vs current MoneyAmount approach)
+
+**Files Created (Policy Architecture & Domain Services):**
 ```
 src/modules/BookingEngine/domain/policies/
 ├── IConfirmationPolicy.ts         - Confirmation rule interface
@@ -389,6 +396,16 @@ src/modules/BookingEngine/domain/policies/
 │   └── index.ts
 ├── __tests__/
 │   └── ConfirmationPolicies.test.ts  (22 tests)
+└── index.ts
+
+src/modules/BookingEngine/domain/services/
+├── IAvailabilityService.ts        - Availability check interface
+├── AvailabilityService.ts         - Basic implementation
+├── IPricingCalculator.ts          - Pricing calculation interface
+├── PricingCalculator.ts           - Basic implementation (weekday/weekend, fees)
+├── __tests__/
+│   ├── AvailabilityService.test.ts  (6 tests)
+│   └── PricingCalculator.test.ts    (12 tests)
 └── index.ts
 
 src/modules/BookingEngine/infrastructure/
@@ -637,15 +654,22 @@ From implementation plan:
 **Last Updated:** December 18, 2025
 **Source of Truth:** `docs/implementation-plan-modular-architecture.md`
 
-### Test Summary (as of Phase 3A - policy architecture complete)
+### Test Summary (as of Phase 3A - domain services complete)
 
 | Module | Tests |
 |--------|-------|
 | shared/ (Phase 0-1) | 94 |
 | CompanyManagement (Phase 2A) | 68 |
 | StaffManagement (Phase 2B) | 57 |
-| BookingEngine policies (Phase 3A) | 22 |
-| **Total New Tests** | **241** |
+| BookingEngine (Phase 3A) | 105 |
+| **Total New Tests** | **324** |
+
+BookingEngine breakdown:
+- Reservation aggregate: 54 tests
+- ConfirmationNumber: 11 tests
+- Confirmation policies: 22 tests
+- AvailabilityService: 6 tests
+- PricingCalculator: 12 tests
 
 ### Architecture Note (Phase 3A)
 

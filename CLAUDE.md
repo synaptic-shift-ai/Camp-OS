@@ -318,12 +318,13 @@ export { Supabase{Entity}Repository } from './infrastructure/Supabase{Entity}Rep
 3. If generator unavailable, copy structure from a conforming module exactly
 
 **Existing Modules:**
-- `BookingEngine` - Reservations, availability, check-in/out
+- `BookingEngine` - Reservations, availability, check-in/out, confirmation policies
+- `CompanyManagement` - Company/tenant management, subscriptions
 - `Financial` - Invoices, payments, transactions, security deposits
 - `GuestManagement` - Guest profiles, contact info
 - `PropertyManagement` - Property settings, configuration
 - `SiteManagement` - Campsite definitions, pricing, availability
-- `ReservationManagement` - (TO BE MERGED into BookingEngine)
+- `StaffManagement` - Property staff, roles, permissions (RBAC)
 
 **Reference:** `docs/implementation-plan-modular-architecture.md`
 

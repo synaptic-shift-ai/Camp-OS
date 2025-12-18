@@ -2,6 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## ⚠️ CRITICAL: Customer Testing Phase (Active)
+
+**Status**: First customer actively testing in production
+**Priority**: Stability, quality, and attention to detail
+
+### Non-Negotiable Requirements During This Phase
+
+1. **READ THIS ENTIRE FILE** before making any changes
+2. **NO references to Claude, Anthropic, or AI** in commits, code comments, or user-facing content
+3. **Test every change** before committing - `npm run check` minimum
+4. **No experimental changes** - only implement exactly what's requested
+5. **Verify fixes work** - don't assume, confirm
+6. **Document breaking changes** in commit messages
+
+### Quality Checklist (Before Every Commit)
+- [ ] `npm run type-check` passes
+- [ ] `npm run lint` passes
+- [ ] Changes tested manually in browser
+- [ ] Commit message follows Conventional Commits
+- [ ] NO Claude/Anthropic/AI references in commit
+
+---
+
 ## Project Overview
 
 Camp-OS is a campground management SaaS platform built with Next.js 16, Supabase (PostgreSQL), Stripe, and TypeScript. The application handles reservations, payments, property management, and guest operations for campground owners.
@@ -147,8 +172,17 @@ These rules ensure maintainability, safety, and developer velocity.
   fix(auth): resolve tenant isolation bug
   test(payment): add edge cases for negative amounts
   ```
-- **GH-2 (SHOULD NOT)** Refer to Claude or Anthropic in commit messages
+- **GH-2 (MUST)** ⛔ **NEVER** include ANY of the following in commit messages:
+  - References to Claude, Anthropic, or any AI assistant
+  - "Generated with" footers or signatures
+  - "Co-Authored-By" lines referencing AI
+  - Links to claude.ai or anthropic.com
+  - Emojis like 🤖 that suggest AI generation
+
+  **Why**: This is a customer-facing product. AI attribution in git history is unprofessional.
+
 - **GH-3 (MUST)** Husky pre-commit enforces `npm run type-check`
+- **GH-4 (MUST)** Verify the commit succeeded and review the commit message before considering work complete
 
 ---
 
@@ -472,13 +506,17 @@ Follow Conventional Commits format (GH-1):
 <type>[optional scope]: <description>
 
 [optional body]
-
-[optional footer(s)]
 ```
 
 Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `perf`, `ci`, `build`, `style`
 
-Do NOT refer to Claude or Anthropic in commit message (GH-2).
+⛔ **CRITICAL (GH-2)**: Commit message must NOT contain:
+- Any mention of Claude, Anthropic, AI, or automated generation
+- Co-Authored-By lines referencing AI
+- "Generated with" footers
+- Robot emojis or AI-related links
+
+After committing, verify the commit message with `git log -1` to confirm compliance.
 
 ---
 

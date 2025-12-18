@@ -249,6 +249,84 @@ All API routes enforce **multi-tenant isolation** (BP-4, D-2) and return consist
 - **Row-Level Security (RLS)** policies enforce tenant isolation (D-3)
 - **Service role client** (`lib/supabase/service-role.ts`) used for admin operations that bypass RLS
 
+### Modular Architecture (DDD)
+
+**Location:** `src/modules/`
+
+**M-1 (MUST)** All domain modules MUST follow this exact structure:
+
+```
+src/modules/{ModuleName}/
+├── domain/
+│   ├── {Entity}.ts              # Aggregate root entity
+│   ├── I{Entity}Repository.ts   # Repository interface
+│   ├── events/
+│   │   ├── {Event}Event.ts      # Domain events
+│   │   └── index.ts             # Barrel export
+│   ├── value-objects/
+│   │   └── {ValueObject}.ts     # Value objects
+│   └── __tests__/
+│       └── {Entity}.test.ts     # Domain unit tests
+├── application/
+│   ├── commands/
+│   │   └── {Action}Command.ts   # Write operations
+│   ├── queries/
+│   │   └── {Query}Query.ts      # Read operations
+│   └── DTOs/
+│       └── {Entity}DTO.ts       # Data transfer objects
+├── infrastructure/
+│   ├── Supabase{Entity}Repository.ts  # Repository implementation
+│   └── __tests__/
+│       └── Supabase{Entity}Repository.test.ts
+└── index.ts                     # Barrel export (REQUIRED)
+```
+
+**M-2 (MUST)** Every module MUST have a barrel export (`index.ts`):
+
+```typescript
+// src/modules/{ModuleName}/index.ts
+
+// Domain
+export * from './domain/{Entity}'
+export * from './domain/I{Entity}Repository'
+export * from './domain/events'
+export type * from './domain/value-objects/{ValueObject}'
+
+// Application
+export * from './application/commands/{Action}Command'
+export * from './application/queries/{Query}Query'
+export type * from './application/DTOs/{Entity}DTO'
+
+// Infrastructure (only repository implementations)
+export { Supabase{Entity}Repository } from './infrastructure/Supabase{Entity}Repository'
+```
+
+**M-3 (MUST)** Do NOT create variations of this structure:
+- No `domain/aggregates/` - put aggregates directly in `domain/`
+- No `domain/repositories/` - repository interfaces go in `domain/` root
+- No ad-hoc `__tests__/` placement - tests go in designated locations only
+- No extra folders without updating this spec first
+
+**M-4 (MUST)** Domain persistence methods MUST match database schema exactly:
+- `toPersistence()` output keys must match `src/contracts/db.ts` column names
+- `fromPersistence()` input must handle actual database column names
+- Add schema validation tests for any entity with persistence methods
+
+**M-5 (MUST)** Before creating a new module:
+1. Verify it doesn't duplicate existing module functionality
+2. Use the module generator (when available): `npm run generate:module {ModuleName}`
+3. If generator unavailable, copy structure from a conforming module exactly
+
+**Existing Modules:**
+- `BookingEngine` - Reservations, availability, check-in/out
+- `Financial` - Invoices, payments, transactions, security deposits
+- `GuestManagement` - Guest profiles, contact info
+- `PropertyManagement` - Property settings, configuration
+- `SiteManagement` - Campsite definitions, pricing, availability
+- `ReservationManagement` - (TO BE MERGED into BookingEngine)
+
+**Reference:** `docs/implementation-plan-modular-architecture.md`
+
 ---
 
 ## Test-Driven Development (TDD) Methodology
@@ -434,6 +512,183 @@ When evaluating a test you implemented, verify:
 9. ✅ Strong assertions over weak (T-9)
 10. ✅ Test edge cases, realistic/unexpected input, boundaries (T-10)
 11. ✅ Don't test type-checker conditions (T-11)
+
+---
+
+## Test Effectiveness Requirements (MANDATORY)
+
+**Test count is a vanity metric.** Tests must catch real bugs. Apply these rules to every test suite:
+
+### TE-1 (MUST) Mutation Testing Mindset
+
+For each test, ask: "If I broke the code in an obvious way, would this test fail?"
+
+```typescript
+// ❌ BAD: Test passes even if implementation is wrong
+test('creates reservation', () => {
+  const result = createReservation(input)
+  expect(result).toBeDefined()  // Proves nothing
+})
+
+// ✅ GOOD: Test fails if business logic breaks
+test('creates reservation with correct total from nightly rate × nights', () => {
+  const result = createReservation({
+    nightlyRate: 5000,  // $50.00
+    nights: 3,
+  })
+  expect(result.totalAmount).toBe(15000)  // Would fail if calculation broke
+})
+```
+
+### TE-2 (MUST) Failure Modes Are Not Optional
+
+Every function that can fail MUST have tests for failure cases. Happy path alone is insufficient.
+
+**Required failure tests for domain entities:**
+- Invalid construction (bad inputs to `create()`)
+- Invalid state transitions (e.g., cancel already-cancelled)
+- Boundary violations (amounts < 0, dates in past)
+- Authorization failures (user lacks permission)
+
+```typescript
+describe('Reservation.cancel', () => {
+  test('succeeds for confirmed reservation', () => { /* happy path */ })
+
+  // ✅ REQUIRED: Failure modes
+  test('throws when reservation already cancelled', () => {
+    const reservation = createCancelledReservation()
+    expect(() => reservation.cancel()).toThrow('already cancelled')
+  })
+
+  test('throws when reservation already checked in', () => {
+    const reservation = createCheckedInReservation()
+    expect(() => reservation.cancel()).toThrow('cannot cancel after check-in')
+  })
+})
+```
+
+### TE-3 (MUST) Persistence Round-Trip Verification
+
+Any entity with `toPersistence()` / `fromPersistence()` MUST have a round-trip test:
+
+```typescript
+test('round-trip persistence preserves all data', () => {
+  const original = Reservation.create({ /* all fields */ })
+
+  const persisted = original.toPersistence()
+  const reconstituted = Reservation.fromPersistence(persisted)
+
+  // Verify EVERY field, not just ID
+  expect(reconstituted.id).toBe(original.id)
+  expect(reconstituted.status).toBe(original.status)
+  expect(reconstituted.totalAmount).toBe(original.totalAmount)
+  expect(reconstituted.guestId).toBe(original.guestId)
+  // ... all fields
+})
+```
+
+### TE-4 (MUST) Schema Validation Tests
+
+For any `toPersistence()` method, verify output matches actual database columns:
+
+```typescript
+test('toPersistence output matches database schema', () => {
+  const entity = MyEntity.create({ /* ... */ })
+  const persisted = entity.toPersistence()
+
+  // These are the ACTUAL column names from src/contracts/db.ts
+  expect(persisted).toHaveProperty('id')
+  expect(persisted).toHaveProperty('created_at')
+  expect(persisted).toHaveProperty('property_id')  // Not 'propertyId'
+
+  // Verify NO extra keys that don't exist in schema
+  const validKeys = ['id', 'property_id', 'created_at', /* ... actual columns */]
+  Object.keys(persisted).forEach(key => {
+    expect(validKeys).toContain(key)
+  })
+})
+```
+
+### TE-5 (MUST) Domain Invariants
+
+Test that business rules cannot be violated:
+
+```typescript
+describe('domain invariants', () => {
+  test('reservation total cannot be negative', () => {
+    expect(() => Reservation.create({ totalAmount: -100 }))
+      .toThrow('total amount must be positive')
+  })
+
+  test('check-out date must be after check-in date', () => {
+    expect(() => Reservation.create({
+      checkIn: new Date('2024-01-15'),
+      checkOut: new Date('2024-01-10'),  // Before check-in
+    })).toThrow('check-out must be after check-in')
+  })
+
+  test('cannot add more guests than site capacity', () => {
+    const site = Site.create({ maxOccupancy: 4 })
+    expect(() => site.validateOccupancy(6))
+      .toThrow('exceeds maximum occupancy')
+  })
+})
+```
+
+### TE-6 (MUST) State Transition Coverage
+
+For entities with status/state, test ALL valid transitions AND invalid ones:
+
+```typescript
+describe('reservation state transitions', () => {
+  // Valid transitions
+  test('pending → confirmed (on payment)', () => { /* ... */ })
+  test('confirmed → checked_in (on arrival)', () => { /* ... */ })
+  test('checked_in → checked_out (on departure)', () => { /* ... */ })
+  test('pending → cancelled (before payment)', () => { /* ... */ })
+  test('confirmed → cancelled (with refund)', () => { /* ... */ })
+
+  // ✅ REQUIRED: Invalid transitions
+  test('cannot transition checked_out → checked_in', () => {
+    const reservation = createCheckedOutReservation()
+    expect(() => reservation.checkIn()).toThrow()
+  })
+
+  test('cannot transition cancelled → confirmed', () => {
+    const reservation = createCancelledReservation()
+    expect(() => reservation.confirm()).toThrow()
+  })
+})
+```
+
+### TE-7 (SHOULD) Boundary Value Testing
+
+Test at boundaries, not just arbitrary values:
+
+```typescript
+describe('pricing boundaries', () => {
+  test('minimum stay of 1 night', () => { /* ... */ })
+  test('exactly at minimum stay', () => { /* ... */ })
+  test('below minimum stay throws', () => { /* ... */ })
+
+  test('discount at exactly 7 nights', () => { /* ... */ })
+  test('no discount at 6 nights', () => { /* ... */ })
+
+  test('zero amount handling', () => { /* ... */ })
+  test('maximum integer amount', () => { /* ... */ })
+})
+```
+
+### Test Quality Gate
+
+Before marking any module complete, verify:
+
+- [ ] Every public method has at least one failure mode test
+- [ ] All state transitions tested (valid AND invalid)
+- [ ] Persistence round-trip test exists and checks ALL fields
+- [ ] Schema validation test confirms column names match database
+- [ ] Domain invariants are tested and enforced
+- [ ] No tests that would pass with obviously broken code
 
 ---
 

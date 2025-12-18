@@ -81,6 +81,14 @@ export class MoneyAmount extends ValueObject<MoneyAmountProps> {
   }
 
   /**
+   * Format as USD string (e.g., "$123.45")
+   * Convenience method for policy messages
+   */
+  formatAsDollars(): string {
+    return this.format('$')
+  }
+
+  /**
    * Add another money amount
    */
   add(other: MoneyAmount): MoneyAmount {

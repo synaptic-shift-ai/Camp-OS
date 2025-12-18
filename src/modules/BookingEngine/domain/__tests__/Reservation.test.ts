@@ -198,11 +198,19 @@ describe('Reservation', () => {
       expect(() => reservation.confirm()).toThrow('Can only confirm pending reservations')
     })
 
-    test('should reject confirming without full payment', () => {
+    test('should allow confirming with partial payment (policy-free domain)', () => {
+      // NOTE: Payment validation is now handled by IConfirmationPolicy at the
+      // application layer, not by the domain model. This allows property owners
+      // to configure different payment rules (full, deposit, none).
+      // See: domain/policies/IConfirmationPolicy.ts
       const reservation = createTestReservation(propertyId, siteId, guestId)
       reservation.receivePayment(MoneyAmount.fromDollars(150), 'credit_card') // Partial only
 
-      expect(() => reservation.confirm()).toThrow('Reservation must be fully paid before confirmation')
+      // Domain confirm() succeeds - policy validation happens at application layer
+      reservation.confirm()
+
+      expect(reservation.status).toBe(ReservationStatus.CONFIRMED)
+      expect(reservation.paymentStatus).toBe(PaymentStatus.PARTIAL)
     })
   })
 
@@ -690,6 +698,181 @@ describe('Reservation', () => {
       // Should round to nearest integer
       expect(reservation.totalAmount.amountInCents).toBe(10051)
       expect(reservation.paidAmount.amountInCents).toBe(5025)
+    })
+  })
+
+  // ============================================================================
+  // Schema Validation Tests (TE-4)
+  // ============================================================================
+
+  describe('toPersistence schema validation', () => {
+    // These are the ACTUAL column names from src/contracts/db.ts reservations table
+    const VALID_DB_COLUMNS = [
+      'id',
+      'property_id',
+      'site_id',
+      'guest_id',
+      'confirmation_number',
+      'check_in_date',
+      'check_out_date',
+      'num_adults',
+      'num_children',
+      'num_pets',
+      'num_vehicles',
+      'total_amount',        // NOT total_amount_cents
+      'paid_amount',         // NOT paid_amount_cents
+      'status',
+      'payment_status',
+      'special_requests',
+      'notes',
+      'source',
+      'checked_in_at',
+      'checked_in_by',
+      'balance_paid_at_checkin', // NOT balance_paid_at_check_in_cents
+      'check_in_notes',
+      'checked_out_at',
+      'checked_out_by',
+      'check_out_notes',
+      'cancelled_at',
+      'created_at',
+      'updated_at',
+      // Additional columns that exist in DB but may not be used by this entity:
+      'booking_period',
+      'booking_type',
+      'damage_inspection_data',
+      'equipment_length',
+      'equipment_type',
+      'is_extension_of',
+      'original_check_in',
+      'original_check_out',
+      'parent_reservation_id',
+      'renewal_deadline',
+      'renewal_notes',
+      'renewal_offered_at',
+      'renewal_status',
+      'reserved_until',
+      'times_extended',
+      'times_modified',
+      'vehicle_info',
+    ]
+
+    test('toPersistence outputs only valid database column names', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      const persisted = reservation.toPersistence()
+
+      // Check that all keys in persisted object are valid DB columns
+      const persistedKeys = Object.keys(persisted)
+
+      persistedKeys.forEach((key) => {
+        expect(
+          VALID_DB_COLUMNS,
+          `Column "${key}" does not exist in database schema`
+        ).toContain(key)
+      })
+    })
+
+    test('toPersistence does NOT output _cents suffix columns', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      const persisted = reservation.toPersistence()
+      const persistedKeys = Object.keys(persisted)
+
+      // These column names are WRONG and should NOT appear
+      expect(persistedKeys).not.toContain('total_amount_cents')
+      expect(persistedKeys).not.toContain('paid_amount_cents')
+      expect(persistedKeys).not.toContain('balance_paid_at_check_in_cents')
+      expect(persistedKeys).not.toContain('refund_amount_cents')
+    })
+
+    test('toPersistence does NOT output columns that do not exist', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      const persisted = reservation.toPersistence()
+      const persistedKeys = Object.keys(persisted)
+
+      // These columns do NOT exist in the database
+      expect(persistedKeys).not.toContain('cancellation_reason')
+      expect(persistedKeys).not.toContain('has_damages')
+      expect(persistedKeys).not.toContain('refund_amount')
+    })
+
+    test('toPersistence outputs correct column names for money fields', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(150), 'credit_card')
+
+      const persisted = reservation.toPersistence()
+
+      // Correct column names
+      expect(persisted).toHaveProperty('total_amount')
+      expect(persisted).toHaveProperty('paid_amount')
+      expect(persisted.total_amount).toBe(30000) // $300 in cents
+      expect(persisted.paid_amount).toBe(15000)  // $150 in cents
+    })
+
+    test('toPersistence outputs balance_paid_at_checkin with correct name', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId, 0)
+      reservation.receivePayment(MoneyAmount.fromDollars(200), 'credit_card')
+      reservation.confirm()
+      reservation.checkIn('staff-123', MoneyAmount.fromDollars(100))
+
+      const persisted = reservation.toPersistence()
+
+      expect(persisted).toHaveProperty('balance_paid_at_checkin')
+      expect(persisted.balance_paid_at_checkin).toBe(10000) // $100 in cents
+    })
+  })
+
+  // ============================================================================
+  // Round-Trip Persistence Tests (TE-3)
+  // ============================================================================
+
+  describe('persistence round-trip', () => {
+    test('round-trip preserves all reservation data', () => {
+      // Create a reservation with various states
+      const original = createTestReservation(propertyId, siteId, guestId, 0)
+      original.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      original.confirm()
+      original.checkIn('staff-123', MoneyAmount.zero(), 'Early check-in')
+      original.updateNotes('VIP guest')
+      original.clearDomainEvents()
+
+      // Convert to persistence format
+      const persisted = original.toPersistence()
+
+      // Reconstitute from persistence
+      const reconstituted = Reservation.fromPersistence(persisted)
+
+      // Verify ALL fields match
+      expect(reconstituted.id).toBe(original.id)
+      expect(reconstituted.propertyId).toBe(original.propertyId)
+      expect(reconstituted.siteId).toBe(original.siteId)
+      expect(reconstituted.guestId).toBe(original.guestId)
+      expect(reconstituted.confirmationNumber.value).toBe(original.confirmationNumber.value)
+      expect(reconstituted.checkInDate.toISOString()).toBe(original.checkInDate.toISOString())
+      expect(reconstituted.checkOutDate.toISOString()).toBe(original.checkOutDate.toISOString())
+      expect(reconstituted.nights).toBe(original.nights)
+      expect(reconstituted.occupancy.numAdults).toBe(original.occupancy.numAdults)
+      expect(reconstituted.occupancy.numChildren).toBe(original.occupancy.numChildren)
+      expect(reconstituted.occupancy.numPets).toBe(original.occupancy.numPets)
+      expect(reconstituted.occupancy.numVehicles).toBe(original.occupancy.numVehicles)
+      expect(reconstituted.totalAmount.amountInCents).toBe(original.totalAmount.amountInCents)
+      expect(reconstituted.paidAmount.amountInCents).toBe(original.paidAmount.amountInCents)
+      expect(reconstituted.status).toBe(original.status)
+      expect(reconstituted.paymentStatus).toBe(original.paymentStatus)
+      expect(reconstituted.source).toBe(original.source)
+      expect(reconstituted.notes).toBe(original.notes)
+      expect(reconstituted.checkedInAt).toBeInstanceOf(Date)
+    })
+
+    test('round-trip preserves cancelled reservation data', () => {
+      const original = createTestReservation(propertyId, siteId, guestId)
+      original.receivePayment(MoneyAmount.fromDollars(100), 'credit_card')
+      original.cancel('Guest requested cancellation', MoneyAmount.fromDollars(80))
+      original.clearDomainEvents()
+
+      const persisted = original.toPersistence()
+      const reconstituted = Reservation.fromPersistence(persisted)
+
+      expect(reconstituted.status).toBe(ReservationStatus.CANCELLED)
+      expect(reconstituted.cancelledAt).toBeInstanceOf(Date)
     })
   })
 })

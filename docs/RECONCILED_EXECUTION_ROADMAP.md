@@ -1,10 +1,10 @@
 # CampOps Modular Architecture - Execution Roadmap
 
-**Version:** 5.2
+**Version:** 5.4
 **Created:** December 18, 2025
 **Last Updated:** December 18, 2025
 **Source of Truth:** `docs/implementation-plan-modular-architecture.md`
-**Status:** Phase 0 ✅ | Phase 1 ✅ | Phase 2 Ready
+**Status:** Phase 0 ✅ | Phase 1 ✅ | Phase 2 ✅ | Phase 3A 🔄 In Progress
 
 ---
 
@@ -20,17 +20,19 @@ This document tracks execution of the modular architecture implementation plan. 
 
 Issues discovered during development. Each will be resolved in its designated phase.
 
-### Issue: BookingEngine Persistence Layer Broken
+### ~~Issue: BookingEngine Persistence Layer Broken~~ RESOLVED
 
 **Discovered:** December 18, 2025
+**Fixed In:** Phase 3A - December 18, 2025
 **Location:** `src/modules/BookingEngine/domain/Reservation.ts`
-**Fix In:** Phase 3A (Consolidate BookingEngine + ReservationManagement)
 
-`toPersistence()` writes to non-existent columns:
-- `total_amount_cents` → should be `total_amount`
-- `paid_amount_cents` → should be `paid_amount`
-- `balance_paid_at_check_in_cents` → should be `balance_paid_at_checkin`
-- `refund_amount_cents` → column doesn't exist
+~~`toPersistence()` writes to non-existent columns:~~
+- ~~`total_amount_cents` → should be `total_amount`~~
+- ~~`paid_amount_cents` → should be `paid_amount`~~
+- ~~`balance_paid_at_check_in_cents` → should be `balance_paid_at_checkin`~~
+- ~~`refund_amount_cents` → column doesn't exist~~
+
+**Resolution:** Fixed column names in `toPersistence()`. Added schema validation tests. Removed non-existent columns.
 
 ### Issue: Duplicate Booking Modules
 
@@ -191,71 +193,176 @@ src/shared/infrastructure/eventBus/__tests__/PersistentEventBus.test.ts ✅
 
 ## Phase 2: Missing Core Modules
 
-**Status:** 🔜 READY TO START
+**Status:** ✅ COMPLETE
+**Completed:** December 18, 2025
 **Goal:** Create CompanyManagement and StaffManagement modules
 **Prerequisites:** Phase 0 ✅, Phase 1 ✅
 
-### Phase 2A: CompanyManagement Module
+### Phase 2A: CompanyManagement Module ✅
 
 **Priority:** HIGH - Core SaaS tenant functionality
+**Completed:** December 18, 2025
 
 **Tasks:**
-- [ ] Create directory structure
-- [ ] Implement `Company.ts` aggregate root
-- [ ] Implement value objects: CompanyName, SubscriptionPlan, SubscriptionStatus, BillingCycle, OnboardingToken
-- [ ] Implement domain events (6 events)
-- [ ] Implement `ICompanyRepository.ts`
-- [ ] Implement commands (6 commands)
-- [ ] Implement queries (3 queries)
-- [ ] Implement DTOs
-- [ ] Implement `SupabaseCompanyRepository.ts`
-- [ ] Create API routes under `/api/v1/companies/`
-- [ ] Write unit tests for Company aggregate
-- [ ] Write integration tests for repository
-- [ ] Write API route tests
+- [x] Create directory structure (via generator)
+- [x] Implement `Company.ts` aggregate root
+- [x] Implement value objects: CompanyName, SubscriptionPlan, SubscriptionStatus, BillingCycle, OnboardingToken
+- [x] Implement domain events (6 events)
+- [x] Implement `ICompanyRepository.ts`
+- [x] Implement commands (6 commands)
+- [x] Implement queries (3 queries)
+- [x] Implement DTOs
+- [x] Implement `SupabaseCompanyRepository.ts`
+- [ ] Create API routes under `/api/v1/companies/` (deferred to Phase 4)
+- [x] Write unit tests for Company aggregate (34 tests)
+- [x] Write unit tests for value objects (34 tests)
+- [ ] Write integration tests for repository (deferred to Phase 6)
+- [ ] Write API route tests (deferred to Phase 4)
 
-### Phase 2B: StaffManagement Module
+**Files Created:**
+```
+src/modules/CompanyManagement/
+├── domain/
+│   ├── Company.ts
+│   ├── ICompanyRepository.ts
+│   ├── events/
+│   │   ├── CompanyCreatedEvent.ts
+│   │   ├── CompanyUpdatedEvent.ts
+│   │   ├── SubscriptionActivatedEvent.ts
+│   │   ├── SubscriptionCancelledEvent.ts
+│   │   ├── SubscriptionPlanChangedEvent.ts
+│   │   ├── InviteGeneratedEvent.ts
+│   │   └── index.ts
+│   ├── value-objects/
+│   │   ├── CompanyName.ts
+│   │   ├── SubscriptionPlan.ts
+│   │   ├── SubscriptionStatus.ts
+│   │   ├── BillingCycle.ts
+│   │   ├── OnboardingToken.ts
+│   │   └── index.ts
+│   └── __tests__/
+│       ├── Company.test.ts          (34 tests)
+│       └── value-objects.test.ts    (34 tests)
+├── application/
+│   ├── commands/
+│   │   ├── CreateCompanyCommand.ts
+│   │   ├── UpdateCompanyCommand.ts
+│   │   ├── ActivateSubscriptionCommand.ts
+│   │   ├── CancelSubscriptionCommand.ts
+│   │   ├── ChangePlanCommand.ts
+│   │   └── GenerateInviteCommand.ts
+│   ├── queries/
+│   │   ├── GetCompanyQuery.ts
+│   │   ├── GetCompanyByOwnerQuery.ts
+│   │   └── GetCompanyByTokenQuery.ts
+│   └── DTOs/
+│       └── CompanyDTO.ts
+├── infrastructure/
+│   └── SupabaseCompanyRepository.ts
+└── index.ts
+```
+
+### Phase 2B: StaffManagement Module ✅
 
 **Priority:** HIGH - RBAC functionality
+**Completed:** December 18, 2025
 
 **Tasks:**
-- [ ] Create directory structure
-- [ ] Implement `PropertyStaff.ts` aggregate root
-- [ ] Implement value objects: StaffRole, Permissions
-- [ ] Implement domain events (4 events)
-- [ ] Implement `IPropertyStaffRepository.ts`
-- [ ] Implement commands (4 commands)
-- [ ] Implement queries (3 queries)
-- [ ] Implement DTOs
-- [ ] Implement `SupabasePropertyStaffRepository.ts`
-- [ ] Create API routes under `/api/v1/properties/[propertyId]/staff/`
-- [ ] Write unit tests for PropertyStaff aggregate
-- [ ] Write integration tests for repository
-- [ ] Create permission-checking middleware
+- [x] Create directory structure (via generator)
+- [x] Implement `PropertyStaff.ts` aggregate root
+- [x] Implement value objects: StaffRole, Permissions (21 permission keys)
+- [x] Implement domain events (4 events)
+- [x] Implement `IPropertyStaffRepository.ts`
+- [x] Implement commands (4 commands)
+- [x] Implement queries (3 queries)
+- [x] Implement DTOs
+- [x] Implement `SupabasePropertyStaffRepository.ts`
+- [ ] Create API routes under `/api/v1/properties/[propertyId]/staff/` (deferred to Phase 4)
+- [x] Write unit tests for PropertyStaff aggregate (26 tests)
+- [x] Write unit tests for value objects (31 tests)
+- [ ] Write integration tests for repository (deferred to Phase 6)
+- [ ] Create permission-checking middleware (deferred to Phase 4)
+
+**Files Created:**
+```
+src/modules/StaffManagement/
+├── domain/
+│   ├── PropertyStaff.ts
+│   ├── IPropertyStaffRepository.ts
+│   ├── events/
+│   │   ├── StaffAddedEvent.ts
+│   │   ├── StaffRemovedEvent.ts
+│   │   ├── StaffRoleChangedEvent.ts
+│   │   ├── StaffPermissionsUpdatedEvent.ts
+│   │   └── index.ts
+│   ├── value-objects/
+│   │   ├── StaffRole.ts           (owner|manager|staff|viewer)
+│   │   ├── Permissions.ts         (21 permission keys)
+│   │   └── index.ts
+│   └── __tests__/
+│       ├── PropertyStaff.test.ts  (26 tests)
+│       └── value-objects.test.ts  (31 tests)
+├── application/
+│   ├── commands/
+│   │   ├── AddStaffCommand.ts
+│   │   ├── RemoveStaffCommand.ts
+│   │   ├── UpdateStaffRoleCommand.ts
+│   │   └── UpdateStaffPermissionsCommand.ts
+│   ├── queries/
+│   │   ├── GetPropertyStaffQuery.ts
+│   │   ├── ListPropertyStaffQuery.ts
+│   │   └── GetStaffPermissionsQuery.ts
+│   └── DTOs/
+│       └── PropertyStaffDTO.ts
+├── infrastructure/
+│   └── SupabasePropertyStaffRepository.ts
+└── index.ts
+```
 
 ### Completion Criteria
 
-- [ ] CompanyManagement module passes all tests
-- [ ] StaffManagement module passes all tests
-- [ ] All API routes functional
+- [x] CompanyManagement module passes all tests (68 tests)
+- [x] StaffManagement module passes all tests (57 tests)
+- [x] Type-check passes
+- [x] Lint passes (no errors in new modules)
+- [ ] API routes functional (deferred to Phase 4)
 
 ---
 
 ## Phase 3: Enhance Existing Modules
 
-**Status:** NOT STARTED
+**Status:** 🔄 IN PROGRESS (Phase 3A started)
 **Goal:** Consolidate and complete existing modules
+**Prerequisites:** Phase 0 ✅, Phase 1 ✅, Phase 2 ✅
 
 ### Phase 3A: Consolidate BookingEngine + ReservationManagement
 
-**NOTE:** This is where the persistence layer issue gets fixed.
+**Status:** 🔄 IN PROGRESS
+**Started:** December 18, 2025
 
-**Tasks:**
-- [ ] Create new folder structure under BookingEngine
+**Completed Tasks:**
+- [x] **FIX `toPersistence()` column names** - Fixed all column name mismatches
+- [x] **Add schema validation tests for persistence** - Added tests verifying correct column names
+- [x] **Implement policy-based confirmation architecture** - Decoupled payment rules from domain model
+- [x] Create `IConfirmationPolicy` interface with PolicyResult types
+- [x] Create `IPricingStrategy` interface (for future ML/dynamic pricing)
+- [x] Create `IPriceAdjustment` interface (for future discounts/loyalty)
+- [x] Create `IStrategyProvider` interface (property-level policy resolution)
+- [x] Implement `FullPaymentPolicy` - requires 100% before confirmation
+- [x] Implement `MinimumDepositPolicy` - configurable % deposit (default 25%)
+- [x] Implement `NoPaymentPolicy` - admin/walk-in scenarios
+- [x] Create `DefaultStrategyProvider` in infrastructure
+- [x] Refactor `Reservation.confirm()` to be policy-free
+- [x] Update `ConfirmReservationCommandHandler` to use policies via provider
+- [x] Update API route to use new handler signature
+- [x] Add `remainingBalance` getter to Reservation
+- [x] Add `formatAsDollars()` to MoneyAmount
+- [x] Write 22 policy tests covering all implementations
+
+**Remaining Tasks:**
+- [ ] Create new folder structure under BookingEngine (merge ReservationManagement)
 - [ ] Move ReservationManagement value objects to BookingEngine
 - [ ] Move ReservationManagement events to BookingEngine
-- [ ] **FIX `toPersistence()` column names** (see Known Issues)
-- [ ] **Add schema validation tests for persistence**
 - [ ] Update all imports across codebase
 - [ ] Delete ReservationManagement module
 - [ ] Create AvailabilityService domain service
@@ -267,6 +374,26 @@ src/shared/infrastructure/eventBus/__tests__/PersistentEventBus.test.ts ✅
 - [ ] Add CheckOutGuestCommand (verify existing)
 - [ ] Update/create API routes for new commands
 - [ ] Write tests for all new commands
+
+**Files Created (Policy Architecture):**
+```
+src/modules/BookingEngine/domain/policies/
+├── IConfirmationPolicy.ts         - Confirmation rule interface
+├── IPricingStrategy.ts            - Price calculation interface (future)
+├── IPriceAdjustment.ts            - Price modifier interface (future)
+├── IStrategyProvider.ts           - Property policy resolver interface
+├── implementations/
+│   ├── FullPaymentPolicy.ts       - 100% payment required
+│   ├── MinimumDepositPolicy.ts    - Configurable % deposit
+│   ├── NoPaymentPolicy.ts         - No payment required
+│   └── index.ts
+├── __tests__/
+│   └── ConfirmationPolicies.test.ts  (22 tests)
+└── index.ts
+
+src/modules/BookingEngine/infrastructure/
+└── DefaultStrategyProvider.ts     - Default policy provider
+```
 
 ### Phase 3B: Complete SiteManagement
 
@@ -483,10 +610,10 @@ Per implementation plan Appendix B:
 1. ✅ **Phase 0 - Foundation** - COMPLETE (December 18, 2025)
 2. ✅ **Phase 1 - Shared Kernel** - COMPLETE (December 18, 2025)
 3. Phase 5 - Database Migrations - Do early to have tables ready
-4. 🔜 **Phase 2A - CompanyManagement** - NEXT
-5. Phase 2B - StaffManagement
-6. Phase 3A - BookingEngine Consolidation
-7. Phase 3B-D - Module Enhancements
+4. ✅ **Phase 2A - CompanyManagement** - COMPLETE (December 18, 2025) - 68 tests
+5. ✅ **Phase 2B - StaffManagement** - COMPLETE (December 18, 2025) - 57 tests
+6. 🔄 **Phase 3A - BookingEngine Consolidation** - IN PROGRESS (persistence fixed, policies implemented)
+7. 🔜 Phase 3B-D - Module Enhancements - NEXT
 8. Phase 4 - API Consolidation
 9. Phase 6 - Testing (ongoing)
 10. Phase 7 - Premium Foundation
@@ -506,6 +633,27 @@ From implementation plan:
 
 ---
 
-**Document Status:** IN PROGRESS - Phase 0 & 1 Complete, Phase 2 Ready
+**Document Status:** IN PROGRESS - Phases 0, 1, 2 Complete | Phase 3A In Progress
 **Last Updated:** December 18, 2025
 **Source of Truth:** `docs/implementation-plan-modular-architecture.md`
+
+### Test Summary (as of Phase 3A - policy architecture complete)
+
+| Module | Tests |
+|--------|-------|
+| shared/ (Phase 0-1) | 94 |
+| CompanyManagement (Phase 2A) | 68 |
+| StaffManagement (Phase 2B) | 57 |
+| BookingEngine policies (Phase 3A) | 22 |
+| **Total New Tests** | **241** |
+
+### Architecture Note (Phase 3A)
+
+**Policy-Based Payment Architecture:**
+The BookingEngine now uses a Strategy + Provider pattern for confirmation rules:
+- `IConfirmationPolicy` - Rules for when reservations can be confirmed
+- `IPricingStrategy` - How prices are calculated (future: ML, dynamic pricing)
+- `IPriceAdjustment` - Modifiers like discounts, loyalty (future)
+- `IStrategyProvider` - Resolves which policies to use per property
+
+This architecture allows property owners to customize payment rules without code changes and provides extension points for future features (Booking.com-style payment-based pricing, machine learning dynamic pricing) without requiring refactors.

@@ -9,11 +9,45 @@ export { MoneyAmount } from './domain/value-objects/MoneyAmount'
 export { ConfirmationNumber } from './domain/value-objects/ConfirmationNumber'
 export { OccupancyInfo } from './domain/value-objects/OccupancyInfo'
 
+// Domain - Policies (interfaces)
+export type {
+  IConfirmationPolicy,
+  ConfirmationContext,
+  PolicyResult,
+  ConfirmationDenialCode,
+  IPricingStrategy,
+  PricingContext,
+  PricingResult,
+  PriceLineItem,
+  PaymentIntent,
+  IPriceAdjustment,
+  AdjustmentContext,
+  AdjustmentResult,
+  AdjustmentConfig,
+  IStrategyProvider,
+  IStrategyRegistry,
+  PropertyStrategyConfig,
+} from './domain/policies'
+
+// Domain - Policy Implementations
+export {
+  FullPaymentPolicy,
+  MinimumDepositPolicy,
+  NoPaymentPolicy,
+} from './domain/policies/implementations'
+export type { MinimumDepositPolicyConfig } from './domain/policies/implementations'
+
 // Application - Commands
 export { CancelReservationCommandHandler } from './application/commands/CancelReservationCommand'
 export { CheckInGuestCommandHandler } from './application/commands/CheckInGuestCommand'
 export { CheckOutGuestCommandHandler } from './application/commands/CheckOutGuestCommand'
-export { ConfirmReservationCommandHandler } from './application/commands/ConfirmReservationCommand'
+export {
+  ConfirmReservationCommandHandler,
+  type ConfirmReservationDto,
+  type ConfirmReservationResult,
+  type ConfirmReservationError,
+  type ConfirmReservationOutput,
+} from './application/commands/ConfirmReservationCommand'
 export { CreateManualReservationCommandHandler } from './application/commands/CreateManualReservationCommand'
 export { CreateReservationCommandHandler } from './application/commands/CreateReservationCommand'
 export { RecordPaymentCommandHandler } from './application/commands/RecordPaymentCommand'
@@ -28,3 +62,10 @@ export { toReservationDTO } from './application/DTOs/ReservationDTO'
 
 // Infrastructure
 export { SupabaseReservationRepository } from './infrastructure/SupabaseReservationRepository'
+export {
+  DefaultStrategyProvider,
+  defaultStrategyProvider,
+  ConfirmationPolicyType,
+  DEFAULT_PROPERTY_CONFIG,
+  type ConfirmationPolicyTypeName,
+} from './infrastructure/DefaultStrategyProvider'

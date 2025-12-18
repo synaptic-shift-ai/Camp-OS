@@ -13,12 +13,14 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { ConfirmReservationCommandHandler } from '@/modules/BookingEngine/application/commands/ConfirmReservationCommand'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
+import { DefaultStrategyProvider } from '@/modules/BookingEngine/infrastructure/DefaultStrategyProvider'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 
 /**
  * POST /api/v1/reservations/[id]/confirm
  *
  * Confirm a reservation after payment has been received.
+ * Uses property-configured confirmation policy to validate payment requirements.
  */
 export async function POST(
   request: NextRequest,
@@ -81,38 +83,49 @@ export async function POST(
       )
     }
 
-    // Execute command using application layer
-    const commandHandler = new ConfirmReservationCommandHandler(repository)
+    // Create strategy provider (uses property's configured policies)
+    const strategyProvider = new DefaultStrategyProvider()
 
-    const reservation = await commandHandler.execute({
+    // Execute command using application layer
+    const commandHandler = new ConfirmReservationCommandHandler(repository, strategyProvider)
+
+    const result = await commandHandler.execute({
       reservationId,
+      requestedBy: user.id,
     })
 
+    // Handle result
+    if (!result.success) {
+      const statusCode = result.error.code === 'NOT_FOUND' ? 404
+        : result.error.code === 'INVALID_STATUS' ? 409
+        : result.error.code === 'POLICY_VIOLATION' ? 400
+        : 500
+
+      return NextResponse.json(
+        error(
+          result.error.code === 'POLICY_VIOLATION' ? ErrorCodes.VALIDATION_ERROR : ErrorCodes.INTERNAL_ERROR,
+          result.error.message,
+          {
+            policyType: result.error.policyType,
+            minimumRequired: result.error.minimumRequired,
+          }
+        ),
+        { status: statusCode }
+      )
+    }
+
     // Convert to DTO
-    const reservationDTO = toReservationDTO(reservation)
+    const reservationDTO = toReservationDTO(result.reservation)
 
     return success(reservationDTO)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Reservations API v1] Confirm error:', err)
 
-    // Handle domain validation errors
-    if (err.message.includes('pending')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, err.message),
-        { status: 409 }
-      )
-    }
-
-    if (err.message.includes('fully paid')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, err.message),
-        { status: 400 }
-      )
-    }
+    const message = err instanceof Error ? err.message : 'Unknown error'
 
     return NextResponse.json(
       error(ErrorCodes.INTERNAL_ERROR, 'Failed to confirm reservation', {
-        message: err.message,
+        message,
       }),
       { status: 500 }
     )

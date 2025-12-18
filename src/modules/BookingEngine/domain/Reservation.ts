@@ -275,6 +275,14 @@ export class Reservation extends AggregateRoot<string> {
   }
 
   /**
+   * Get remaining balance (alias for calculateBalance)
+   * Convenience getter for policy implementations
+   */
+  get remainingBalance(): MoneyAmount {
+    return this.calculateBalance()
+  }
+
+  /**
    * Check if reservation is fully paid
    */
   isFullyPaid(): boolean {
@@ -337,15 +345,18 @@ export class Reservation extends AggregateRoot<string> {
   }
 
   /**
-   * Confirm the reservation (after payment received)
+   * Confirm the reservation
+   *
+   * IMPORTANT: This method handles only the domain state transition.
+   * Payment validation is handled by IConfirmationPolicy at the
+   * application layer. This design allows property owners to configure
+   * different confirmation rules (full payment, deposit, no payment).
+   *
+   * @see IConfirmationPolicy for payment rule enforcement
    */
   confirm(): void {
-    if (this.status !== ReservationStatus.PENDING) {
+    if (!this.canBeConfirmed()) {
       throw new Error('Can only confirm pending reservations')
-    }
-
-    if (!this.isFullyPaid()) {
-      throw new Error('Reservation must be fully paid before confirmation')
     }
 
     this.props.status = ReservationStatus.CONFIRMED
@@ -358,6 +369,16 @@ export class Reservation extends AggregateRoot<string> {
         this.confirmationNumber.value
       )
     )
+  }
+
+  /**
+   * Check if reservation can be confirmed (domain invariant)
+   *
+   * Only checks domain-level constraints (status).
+   * Policy constraints (payment requirements) are checked separately.
+   */
+  canBeConfirmed(): boolean {
+    return this.status === ReservationStatus.PENDING
   }
 
   /**
@@ -524,8 +545,8 @@ export class Reservation extends AggregateRoot<string> {
       num_children: this.props.occupancy.numChildren,
       num_pets: this.props.occupancy.numPets,
       num_vehicles: this.props.occupancy.numVehicles,
-      total_amount_cents: this.props.totalAmount.amountInCents,
-      paid_amount_cents: this.props.paidAmount.amountInCents,
+      total_amount: this.props.totalAmount.amountInCents,
+      paid_amount: this.props.paidAmount.amountInCents,
       status: this.props.status,
       payment_status: this.props.paymentStatus,
       special_requests: this.props.specialRequests,
@@ -533,15 +554,12 @@ export class Reservation extends AggregateRoot<string> {
       source: this.props.source,
       checked_in_at: this.props.checkedInAt,
       checked_in_by: this.props.checkedInBy,
-      balance_paid_at_check_in_cents: this.props.balancePaidAtCheckIn?.amountInCents || null,
+      balance_paid_at_checkin: this.props.balancePaidAtCheckIn?.amountInCents || null,
       check_in_notes: this.props.checkInNotes,
       checked_out_at: this.props.checkedOutAt,
       checked_out_by: this.props.checkedOutBy,
-      has_damages: this.props.hasDamages,
       check_out_notes: this.props.checkOutNotes,
       cancelled_at: this.props.cancelledAt,
-      cancellation_reason: this.props.cancellationReason,
-      refund_amount_cents: this.props.refundAmount?.amountInCents || null,
       created_at: this.createdAt,
       updated_at: this.props.updatedAt,
     }

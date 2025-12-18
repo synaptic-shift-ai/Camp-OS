@@ -557,6 +557,141 @@ describe('Reservation', () => {
       expect(reservation.domainEvents).toHaveLength(0) // No events on reconstitute
     })
   })
+
+  describe('fromPersistence', () => {
+    test('should reconstitute from database row with correct column names', () => {
+      // This test uses ACTUAL database column names (not _cents suffix)
+      // to ensure fromPersistence matches the production schema
+      const dbRow = {
+        id: randomUUID(),
+        property_id: propertyId,
+        site_id: siteId,
+        guest_id: guestId,
+        confirmation_number: 'CAMP-2025-ABC123',
+        check_in_date: addDays(new Date(), 7).toISOString(),
+        check_out_date: addDays(new Date(), 10).toISOString(),
+        num_adults: 2,
+        num_children: 1,
+        num_pets: 0,
+        num_vehicles: 1,
+        // CRITICAL: Database uses total_amount, NOT total_amount_cents
+        total_amount: 30000, // $300.00 in cents
+        paid_amount: 15000,  // $150.00 in cents
+        status: 'pending',
+        payment_status: 'partial',
+        special_requests: 'Late arrival',
+        notes: null,
+        source: 'online',
+        checked_in_at: null,
+        checked_in_by: null,
+        // CRITICAL: Database uses balance_paid_at_checkin, NOT balance_paid_at_check_in_cents
+        balance_paid_at_checkin: null,
+        check_in_notes: null,
+        checked_out_at: null,
+        checked_out_by: null,
+        has_damages: false,
+        check_out_notes: null,
+        cancelled_at: null,
+        cancellation_reason: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      const reservation = Reservation.fromPersistence(dbRow)
+
+      expect(reservation.id).toBe(dbRow.id)
+      expect(reservation.propertyId).toBe(propertyId)
+      expect(reservation.confirmationNumber.value).toBe('CAMP-2025-ABC123')
+      expect(reservation.totalAmount.amountInCents).toBe(30000)
+      expect(reservation.totalAmount.dollars).toBe(300)
+      expect(reservation.paidAmount.amountInCents).toBe(15000)
+      expect(reservation.paidAmount.dollars).toBe(150)
+      expect(reservation.status).toBe(ReservationStatus.PENDING)
+      expect(reservation.paymentStatus).toBe(PaymentStatus.PARTIAL)
+    })
+
+    test('should handle balance_paid_at_checkin when present', () => {
+      const dbRow = {
+        id: randomUUID(),
+        property_id: propertyId,
+        site_id: siteId,
+        guest_id: guestId,
+        confirmation_number: 'CAMP-2025-DEF456',
+        check_in_date: new Date().toISOString(),
+        check_out_date: addDays(new Date(), 3).toISOString(),
+        num_adults: 2,
+        num_children: 0,
+        num_pets: 0,
+        num_vehicles: 1,
+        total_amount: 30000,
+        paid_amount: 30000,
+        status: 'checked_in',
+        payment_status: 'paid',
+        special_requests: null,
+        notes: null,
+        source: 'online',
+        checked_in_at: new Date().toISOString(),
+        checked_in_by: randomUUID(),
+        balance_paid_at_checkin: 15000, // $150.00 paid at check-in
+        check_in_notes: 'Arrived on time',
+        checked_out_at: null,
+        checked_out_by: null,
+        has_damages: false,
+        check_out_notes: null,
+        cancelled_at: null,
+        cancellation_reason: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      const reservation = Reservation.fromPersistence(dbRow)
+
+      expect(reservation.status).toBe(ReservationStatus.CHECKED_IN)
+      expect(reservation.checkedInAt).toBeInstanceOf(Date)
+    })
+
+    test('should handle decimal money amounts from database', () => {
+      // Some databases may return numbers with floating point
+      const dbRow = {
+        id: randomUUID(),
+        property_id: propertyId,
+        site_id: siteId,
+        guest_id: guestId,
+        confirmation_number: 'CAMP-2025-GHI789',
+        check_in_date: addDays(new Date(), 1).toISOString(),
+        check_out_date: addDays(new Date(), 2).toISOString(),
+        num_adults: 1,
+        num_children: 0,
+        num_pets: 0,
+        num_vehicles: 0,
+        total_amount: 10050.5, // Floating point from DB
+        paid_amount: 5025.25,
+        status: 'pending',
+        payment_status: 'partial',
+        special_requests: null,
+        notes: null,
+        source: 'online',
+        checked_in_at: null,
+        checked_in_by: null,
+        balance_paid_at_checkin: null,
+        check_in_notes: null,
+        checked_out_at: null,
+        checked_out_by: null,
+        has_damages: false,
+        check_out_notes: null,
+        cancelled_at: null,
+        cancellation_reason: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      const reservation = Reservation.fromPersistence(dbRow)
+
+      // Should round to nearest integer
+      expect(reservation.totalAmount.amountInCents).toBe(10051)
+      expect(reservation.paidAmount.amountInCents).toBe(5025)
+    })
+  })
 })
 
 // ============================================================================

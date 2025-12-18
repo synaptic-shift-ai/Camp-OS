@@ -563,14 +563,16 @@ export class Reservation extends AggregateRoot<string> {
       data.num_pets,
       data.num_vehicles
     )
-    const totalAmount = MoneyAmount.create(data.total_amount_cents)
-    const paidAmount = MoneyAmount.create(data.paid_amount_cents)
-    const balancePaidAtCheckIn = data.balance_paid_at_check_in_cents
-      ? MoneyAmount.create(data.balance_paid_at_check_in_cents)
+    // Database columns: total_amount, paid_amount (stored in cents, no _cents suffix)
+    // Ensure integer values for MoneyAmount (database may return as number)
+    const totalAmount = MoneyAmount.create(Math.round(data.total_amount ?? 0))
+    const paidAmount = MoneyAmount.create(Math.round(data.paid_amount ?? 0))
+    // Database column: balance_paid_at_checkin (not balance_paid_at_check_in_cents)
+    const balancePaidAtCheckIn = data.balance_paid_at_checkin != null
+      ? MoneyAmount.create(Math.round(data.balance_paid_at_checkin))
       : null
-    const refundAmount = data.refund_amount_cents
-      ? MoneyAmount.create(data.refund_amount_cents)
-      : null
+    // refund_amount column does not exist in production schema
+    const refundAmount = null
 
     const props: ReservationProps = {
       propertyId: data.property_id,

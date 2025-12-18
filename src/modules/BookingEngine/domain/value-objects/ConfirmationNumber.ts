@@ -3,15 +3,15 @@
  *
  * Represents a unique, human-readable confirmation number for reservations.
  *
- * Format: XXX-NNNNNN (e.g., "RES-123456")
- * - Prefix: 3 uppercase letters
- * - Separator: hyphen
- * - Number: 6 digits
+ * Format: CAMP-YYYY-XXXXXX (e.g., "CAMP-2025-A1B2C3")
+ * - Prefix: CAMP
+ * - Year: 4-digit year
+ * - Suffix: 6 alphanumeric characters
  *
  * Business Rules:
  * - Must be globally unique across all properties
  * - Should be easy to communicate over phone
- * - Avoids ambiguous characters (0/O, 1/I/L)
+ * - Generated at reservation creation time
  */
 
 import { ValueObject } from '@/shared/domain/ValueObject'
@@ -21,8 +21,8 @@ export interface ConfirmationNumberProps {
 }
 
 export class ConfirmationNumber extends ValueObject<ConfirmationNumberProps> {
-  private static readonly FORMAT_REGEX = /^[A-Z]{3}-\d{6}$/
-  private static readonly DEFAULT_PREFIX = 'RES'
+  // Format: CAMP-YYYY-XXXXXX (matches production generator in lib/booking/api.ts)
+  private static readonly FORMAT_REGEX = /^CAMP-\d{4}-[A-Z0-9]{6}$/
 
   private constructor(props: ConfirmationNumberProps) {
     super(props)
@@ -36,7 +36,7 @@ export class ConfirmationNumber extends ValueObject<ConfirmationNumberProps> {
 
     if (!this.FORMAT_REGEX.test(normalized)) {
       throw new Error(
-        'Invalid confirmation number format. Expected: XXX-NNNNNN (e.g., "RES-123456")'
+        'Invalid confirmation number format. Expected: CAMP-YYYY-XXXXXX (e.g., "CAMP-2025-A1B2C3")'
       )
     }
 
@@ -45,21 +45,12 @@ export class ConfirmationNumber extends ValueObject<ConfirmationNumberProps> {
 
   /**
    * Generate a new confirmation number
+   * Matches the format used by lib/booking/api.ts generateConfirmationNumber()
    */
-  static generate(prefix: string = this.DEFAULT_PREFIX): ConfirmationNumber {
-    const normalizedPrefix = prefix.trim().toUpperCase()
-
-    // Validate prefix is 3 letters
-    if (!/^[A-Z]{3}$/.test(normalizedPrefix)) {
-      throw new Error('Prefix must be exactly 3 uppercase letters')
-    }
-
-    // Generate random 6-digit number
-    const randomNumber = Math.floor(Math.random() * 1000000)
-      .toString()
-      .padStart(6, '0')
-
-    const value = `${normalizedPrefix}-${randomNumber}`
+  static generate(): ConfirmationNumber {
+    const year = new Date().getFullYear()
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const value = `CAMP-${year}-${random}`
     return new ConfirmationNumber({ value })
   }
 
@@ -68,17 +59,19 @@ export class ConfirmationNumber extends ValueObject<ConfirmationNumberProps> {
   }
 
   /**
-   * Get the prefix part (first 3 letters)
+   * Get the year part (4-digit year)
    */
-  get prefix(): string {
-    return this.value.split('-')[0] || ''
+  get year(): number {
+    const parts = this.value.split('-')
+    return parseInt(parts[1] || '0', 10)
   }
 
   /**
-   * Get the number part (last 6 digits)
+   * Get the suffix part (6 alphanumeric characters)
    */
-  get number(): string {
-    return this.value.split('-')[1] || ''
+  get suffix(): string {
+    const parts = this.value.split('-')
+    return parts[2] || ''
   }
 
   /**

@@ -82,10 +82,39 @@ export async function GET(
       )
     }
 
-    // Convert to DTO
+    // Fetch guest info
+    const { data: guest } = await supabase
+      .from('guests')
+      .select('first_name, last_name, email')
+      .eq('id', reservation.guestId)
+      .single()
+
+    // Fetch site info
+    const { data: site } = await supabase
+      .from('sites')
+      .select('site_number, site_name')
+      .eq('id', reservation.siteId)
+      .single()
+
+    // Convert to DTO and add guest/site info
     const reservationDTO = toReservationDTO(reservation)
 
-    return success(reservationDTO)
+    // Return in format expected by check-in/check-out dialogs
+    return success({
+      id: reservationDTO.id,
+      confirmation_number: reservationDTO.confirmationNumber,
+      status: reservationDTO.status,
+      check_in_date: reservationDTO.checkInDate,
+      check_out_date: reservationDTO.checkOutDate,
+      total_amount: reservationDTO.totalAmountCents,
+      paid_amount: reservationDTO.paidAmountCents,
+      num_adults: reservationDTO.occupancy.numAdults,
+      num_children: reservationDTO.occupancy.numChildren,
+      num_pets: reservationDTO.occupancy.numPets,
+      checked_in_at: reservationDTO.checkedInAt,
+      guest: guest || undefined,
+      site: site || undefined,
+    })
   } catch (err: any) {
     console.error('[Reservations API v1] GET by ID error:', err)
     return NextResponse.json(

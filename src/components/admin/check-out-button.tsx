@@ -49,7 +49,7 @@ export function CheckOutButton({ reservationId, status }: CheckOutButtonProps) {
       }
 
       const data = await response.json()
-      setReservationData(data.reservation)
+      setReservationData(data.data)
       setDialogOpen(true)
     } catch (error) {
       console.error('Error fetching reservation:', error)

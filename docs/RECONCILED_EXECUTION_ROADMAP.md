@@ -365,21 +365,26 @@ src/modules/StaffManagement/
 - [x] Delete ReservationManagement module (orphaned, no imports, has type errors)
 - [x] Create AvailabilityService domain service (6 tests)
 - [x] Create PricingCalculator domain service (12 tests)
-- [ ] Add ExtendReservationCommand
-- [ ] Add RenewReservationCommand
-- [ ] Add ModifyReservationCommand
-- [ ] Add CheckInGuestCommand (verify existing)
-- [ ] Add CheckOutGuestCommand (verify existing)
+- [x] Add CheckInGuestCommand (verified existing - complete)
+- [x] Add CheckOutGuestCommand (verified existing - complete)
+- [x] Add `NO_SHOW` status to ReservationStatus enum
+- [x] Add `modifyDates()` method to Reservation aggregate
+- [x] Add `modifyGuestCount()` method to Reservation aggregate
+- [x] Add `markNoShow()` method to Reservation aggregate
+- [x] Add `canBeModified()` method to Reservation aggregate
+- [x] Add `ReservationModifiedEvent` domain event
+- [x] Add `NoShowMarked` domain event
+- [x] Create `ModifyReservationDatesCommand` handler
+- [x] Create `ModifyReservationGuestsCommand` handler
+- [x] Create `MarkNoShowCommand` handler
+- [x] Write tests for all new Reservation methods (20 tests added)
+- [x] Update API schema for NO_SHOW status
+- [x] Add ExtendReservationCommand (combines date + availability check)
+- [x] Add RenewReservationCommand (long-term stay renewal with linked reservations)
+- [x] Add refund initiation and tracking (`issueRefund()` method with RefundInitiated event)
+- [x] Add `canIssueRefund()`, `totalRefunded`, `maxRefundableAmount` to Reservation
+- [x] Write tests for refund functionality (9 tests added)
 - [ ] Update/create API routes for new commands
-- [ ] Write tests for all new commands
-
-**Enhancement Gaps (captured from ReservationManagement analysis):**
-These features should be implemented fresh in BookingEngine (not copied from legacy code):
-- [ ] Add `NO_SHOW` status to ReservationStatus enum
-- [ ] Add `modifyDates()` method to Reservation aggregate
-- [ ] Add `modifyGuestCount()` method to Reservation aggregate
-- [ ] Add `ReservationModifiedEvent` domain event
-- [ ] Add refund initiation and tracking (`issueRefund()` method)
 - [ ] Consider `ReservationPricing` value object for base/tax/refund separation (evaluate vs current MoneyAmount approach)
 
 **Files Created (Policy Architecture & Domain Services):**
@@ -408,9 +413,29 @@ src/modules/BookingEngine/domain/services/
 │   └── PricingCalculator.test.ts    (12 tests)
 └── index.ts
 
+src/modules/BookingEngine/domain/events/
+├── ReservationModified.ts         - Date/guest modification event
+├── NoShowMarked.ts                - No-show event
+└── RefundInitiated.ts             - Refund tracking event
+
+src/modules/BookingEngine/application/commands/
+├── ModifyReservationDatesCommand.ts    - Change check-in/out dates
+├── ModifyReservationGuestsCommand.ts   - Change guest count
+├── MarkNoShowCommand.ts                - Mark as no-show
+├── ExtendReservationCommand.ts         - Extend checkout date with availability check
+└── RenewReservationCommand.ts          - Create linked renewal reservation
+
 src/modules/BookingEngine/infrastructure/
 └── DefaultStrategyProvider.ts     - Default policy provider
 ```
+
+**BookingEngine Test Counts:**
+- Reservation.test.ts: 83 tests (including 29 new tests for modifications + refunds)
+- ConfirmationPolicies.test.ts: 22 tests
+- AvailabilityService.test.ts: 6 tests
+- PricingCalculator.test.ts: 12 tests
+- ConfirmationNumber.test.ts: 11 tests
+- **Total BookingEngine: 134 tests**
 
 ### Phase 3B: Complete SiteManagement
 
@@ -654,18 +679,18 @@ From implementation plan:
 **Last Updated:** December 18, 2025
 **Source of Truth:** `docs/implementation-plan-modular-architecture.md`
 
-### Test Summary (as of Phase 3A - domain services complete)
+### Test Summary (as of Phase 3A - commands & refunds complete)
 
 | Module | Tests |
 |--------|-------|
 | shared/ (Phase 0-1) | 94 |
 | CompanyManagement (Phase 2A) | 68 |
 | StaffManagement (Phase 2B) | 57 |
-| BookingEngine (Phase 3A) | 105 |
-| **Total New Tests** | **324** |
+| BookingEngine (Phase 3A) | 134 |
+| **Total New Tests** | **353** |
 
 BookingEngine breakdown:
-- Reservation aggregate: 54 tests
+- Reservation aggregate: 83 tests (+29 new modification/refund tests)
 - ConfirmationNumber: 11 tests
 - Confirmation policies: 22 tests
 - AvailabilityService: 6 tests

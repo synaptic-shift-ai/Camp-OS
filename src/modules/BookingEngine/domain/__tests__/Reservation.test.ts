@@ -875,6 +875,398 @@ describe('Reservation', () => {
       expect(reconstituted.cancelledAt).toBeInstanceOf(Date)
     })
   })
+
+  // ============================================================================
+  // Modification Methods Tests
+  // ============================================================================
+
+  describe('canBeModified', () => {
+    test('should allow modifying pending reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+
+      expect(reservation.canBeModified()).toBe(true)
+    })
+
+    test('should allow modifying confirmed reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+
+      expect(reservation.canBeModified()).toBe(true)
+    })
+
+    test('should not allow modifying checked-in reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId, 0)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.checkIn(randomUUID())
+
+      expect(reservation.canBeModified()).toBe(false)
+    })
+
+    test('should not allow modifying cancelled reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.cancel('Guest cancelled', MoneyAmount.zero())
+
+      expect(reservation.canBeModified()).toBe(false)
+    })
+
+    test('should not allow modifying no-show reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.markNoShow('staff-123')
+
+      expect(reservation.canBeModified()).toBe(false)
+    })
+  })
+
+  describe('modifyDates', () => {
+    test('should modify dates for pending reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.clearDomainEvents()
+
+      const newCheckIn = addDays(new Date(), 14)
+      const newCheckOut = addDays(new Date(), 18)
+      const newDateRange = DateRange.create(newCheckIn, newCheckOut)
+      const newTotal = MoneyAmount.fromDollars(400) // 4 nights
+
+      reservation.modifyDates(newDateRange, newTotal)
+
+      expect(reservation.dateRange.checkIn.toDateString()).toBe(newCheckIn.toDateString())
+      expect(reservation.dateRange.checkOut.toDateString()).toBe(newCheckOut.toDateString())
+      expect(reservation.nights).toBe(4)
+      expect(reservation.totalAmount.dollars).toBe(400)
+      expect(reservation.domainEvents).toHaveLength(1)
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('ReservationModified')
+    })
+
+    test('should modify dates for confirmed reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.clearDomainEvents()
+
+      const newCheckIn = addDays(new Date(), 21)
+      const newCheckOut = addDays(new Date(), 24)
+      const newDateRange = DateRange.create(newCheckIn, newCheckOut)
+      const newTotal = MoneyAmount.fromDollars(300)
+
+      reservation.modifyDates(newDateRange, newTotal)
+
+      expect(reservation.status).toBe(ReservationStatus.CONFIRMED)
+      expect(reservation.nights).toBe(3)
+    })
+
+    test('should reject modifying dates for checked-in reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId, 0)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.checkIn(randomUUID())
+
+      const newDateRange = DateRange.create(addDays(new Date(), 1), addDays(new Date(), 5))
+
+      expect(() =>
+        reservation.modifyDates(newDateRange, MoneyAmount.fromDollars(400))
+      ).toThrow('Cannot modify reservation in current status')
+    })
+
+    test('should reject modifying dates to past dates', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+
+      const pastCheckIn = addDays(new Date(), -7)
+      const pastCheckOut = addDays(new Date(), -4)
+      const pastDateRange = DateRange.create(pastCheckIn, pastCheckOut)
+
+      expect(() =>
+        reservation.modifyDates(pastDateRange, MoneyAmount.fromDollars(300))
+      ).toThrow('Cannot modify reservation to past dates')
+    })
+
+    test('should publish ReservationModified event with date modification details', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      const originalCheckIn = reservation.checkInDate
+      const originalCheckOut = reservation.checkOutDate
+      reservation.clearDomainEvents()
+
+      const newCheckIn = addDays(new Date(), 14)
+      const newCheckOut = addDays(new Date(), 17)
+      const newDateRange = DateRange.create(newCheckIn, newCheckOut)
+      const newTotal = MoneyAmount.fromDollars(350)
+
+      reservation.modifyDates(newDateRange, newTotal)
+
+      const event = reservation.domainEvents[0] as any
+      expect(event.modificationType).toBe('dates')
+      // Compare dates by date string since DateRange normalizes time component
+      expect(event.dateModification.previousCheckIn.toDateString()).toBe(originalCheckIn.toDateString())
+      expect(event.dateModification.previousCheckOut.toDateString()).toBe(originalCheckOut.toDateString())
+      expect(event.dateModification.newCheckIn.toDateString()).toBe(newCheckIn.toDateString())
+      expect(event.dateModification.newCheckOut.toDateString()).toBe(newCheckOut.toDateString())
+    })
+  })
+
+  describe('modifyGuestCount', () => {
+    test('should modify guest count for pending reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.clearDomainEvents()
+
+      const newOccupancy = OccupancyInfo.create(4, 2, 1, 2)
+      const newTotal = MoneyAmount.fromDollars(450)
+
+      reservation.modifyGuestCount(newOccupancy, newTotal)
+
+      expect(reservation.occupancy.numAdults).toBe(4)
+      expect(reservation.occupancy.numChildren).toBe(2)
+      expect(reservation.occupancy.numPets).toBe(1)
+      expect(reservation.occupancy.numVehicles).toBe(2)
+      expect(reservation.totalAmount.dollars).toBe(450)
+      expect(reservation.domainEvents).toHaveLength(1)
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('ReservationModified')
+    })
+
+    test('should modify guest count for confirmed reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.clearDomainEvents()
+
+      const newOccupancy = OccupancyInfo.create(3, 0, 0, 1)
+      const newTotal = MoneyAmount.fromDollars(350)
+
+      reservation.modifyGuestCount(newOccupancy, newTotal)
+
+      expect(reservation.status).toBe(ReservationStatus.CONFIRMED)
+      expect(reservation.occupancy.numAdults).toBe(3)
+    })
+
+    test('should reject modifying guest count for checked-in reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId, 0)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.checkIn(randomUUID())
+
+      expect(() =>
+        reservation.modifyGuestCount(OccupancyInfo.create(4), MoneyAmount.fromDollars(400))
+      ).toThrow('Cannot modify reservation in current status')
+    })
+
+    test('should publish ReservationModified event with guest modification details', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.clearDomainEvents()
+
+      const newOccupancy = OccupancyInfo.create(5, 3, 0, 2)
+      const newTotal = MoneyAmount.fromDollars(500)
+
+      reservation.modifyGuestCount(newOccupancy, newTotal)
+
+      const event = reservation.domainEvents[0] as any
+      expect(event.modificationType).toBe('guests')
+      expect(event.guestModification.previousAdults).toBe(2) // Original from createTestReservation
+      expect(event.guestModification.previousChildren).toBe(1)
+      expect(event.guestModification.newAdults).toBe(5)
+      expect(event.guestModification.newChildren).toBe(3)
+    })
+  })
+
+  describe('markNoShow', () => {
+    test('should mark confirmed reservation as no-show', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.clearDomainEvents()
+
+      const staffId = randomUUID()
+      reservation.markNoShow(staffId)
+
+      expect(reservation.status).toBe(ReservationStatus.NO_SHOW)
+      expect(reservation.domainEvents).toHaveLength(1)
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('NoShowMarked')
+    })
+
+    test('should reject marking pending reservation as no-show', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+
+      expect(() =>
+        reservation.markNoShow(randomUUID())
+      ).toThrow('Can only mark confirmed reservations as no-show')
+    })
+
+    test('should reject marking checked-in reservation as no-show', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId, 0)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.checkIn(randomUUID())
+
+      expect(() =>
+        reservation.markNoShow(randomUUID())
+      ).toThrow('Can only mark confirmed reservations as no-show')
+    })
+
+    test('should publish NoShowMarked event with correct details', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.clearDomainEvents()
+
+      const staffId = randomUUID()
+      reservation.markNoShow(staffId)
+
+      const event = reservation.domainEvents[0] as any
+      expect(event.reservationId).toBe(reservation.id)
+      expect(event.confirmationNumber).toBe(reservation.confirmationNumber.value)
+      expect(event.markedBy).toBe(staffId)
+      expect(event.scheduledCheckInDate.getTime()).toBe(reservation.checkInDate.getTime())
+    })
+  })
+
+  describe('canBeCancelled with NO_SHOW', () => {
+    test('should not allow cancelling no-show reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.markNoShow(randomUUID())
+
+      expect(reservation.canBeCancelled()).toBe(false)
+    })
+
+    test('should reject cancel call on no-show reservation', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.confirm()
+      reservation.markNoShow(randomUUID())
+
+      expect(() =>
+        reservation.cancel('Attempt to cancel', MoneyAmount.zero())
+      ).toThrow('Reservation cannot be cancelled in current status')
+    })
+  })
+
+  describe('issueRefund', () => {
+    test('should issue partial refund', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.clearDomainEvents()
+
+      const staffId = randomUUID()
+      reservation.issueRefund(
+        MoneyAmount.fromDollars(100),
+        'service_issue',
+        staffId,
+        'Guest complained about noise'
+      )
+
+      expect(reservation.totalRefunded.dollars).toBe(100)
+      expect(reservation.maxRefundableAmount.dollars).toBe(200)
+      expect(reservation.canIssueRefund()).toBe(true)
+      expect(reservation.domainEvents).toHaveLength(1)
+      expect(reservation.domainEvents[0]!.constructor.name).toBe('RefundInitiated')
+    })
+
+    test('should issue full refund and update payment status', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.clearDomainEvents()
+
+      const staffId = randomUUID()
+      reservation.issueRefund(
+        MoneyAmount.fromDollars(300),
+        'cancellation',
+        staffId
+      )
+
+      expect(reservation.totalRefunded.dollars).toBe(300)
+      expect(reservation.paymentStatus).toBe(PaymentStatus.REFUNDED)
+      expect(reservation.canIssueRefund()).toBe(false)
+      expect(reservation.maxRefundableAmount.dollars).toBe(0)
+    })
+
+    test('should accumulate multiple refunds', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.clearDomainEvents()
+
+      const staffId = randomUUID()
+      reservation.issueRefund(MoneyAmount.fromDollars(100), 'service_issue', staffId)
+      reservation.issueRefund(MoneyAmount.fromDollars(50), 'partial_cancellation', staffId)
+
+      expect(reservation.totalRefunded.dollars).toBe(150)
+      expect(reservation.maxRefundableAmount.dollars).toBe(150)
+      expect(reservation.domainEvents).toHaveLength(2)
+    })
+
+    test('should reject refund exceeding paid amount', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(100), 'credit_card')
+
+      expect(() =>
+        reservation.issueRefund(
+          MoneyAmount.fromDollars(200),
+          'cancellation',
+          randomUUID()
+        )
+      ).toThrow('Refund amount cannot exceed paid amount')
+    })
+
+    test('should reject zero refund', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(100), 'credit_card')
+
+      expect(() =>
+        reservation.issueRefund(
+          MoneyAmount.zero(),
+          'cancellation',
+          randomUUID()
+        )
+      ).toThrow('Refund amount must be positive')
+    })
+
+    test('should publish RefundInitiated event with correct details', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+      reservation.clearDomainEvents()
+
+      const staffId = randomUUID()
+      const notes = 'Refund due to weather closure'
+      reservation.issueRefund(
+        MoneyAmount.fromDollars(150),
+        'weather',
+        staffId,
+        notes
+      )
+
+      const event = reservation.domainEvents[0] as any
+      expect(event.reservationId).toBe(reservation.id)
+      expect(event.confirmationNumber).toBe(reservation.confirmationNumber.value)
+      expect(event.refundAmountCents).toBe(15000)
+      expect(event.reason).toBe('weather')
+      expect(event.notes).toBe(notes)
+      expect(event.initiatedBy).toBe(staffId)
+    })
+  })
+
+  describe('canIssueRefund', () => {
+    test('should return true when there is paid amount and no refunds', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(100), 'credit_card')
+
+      expect(reservation.canIssueRefund()).toBe(true)
+    })
+
+    test('should return false when no payments made', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+
+      expect(reservation.canIssueRefund()).toBe(false)
+    })
+
+    test('should return false when fully refunded', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(100), 'credit_card')
+      reservation.issueRefund(MoneyAmount.fromDollars(100), 'cancellation', randomUUID())
+
+      expect(reservation.canIssueRefund()).toBe(false)
+    })
+  })
 })
 
 // ============================================================================

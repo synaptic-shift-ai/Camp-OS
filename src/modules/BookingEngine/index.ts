@@ -66,7 +66,33 @@ export {
 } from './application/commands/ConfirmReservationCommand'
 export { CreateManualReservationCommandHandler } from './application/commands/CreateManualReservationCommand'
 export { CreateReservationCommandHandler } from './application/commands/CreateReservationCommand'
+export {
+  MarkNoShowCommandHandler,
+  type MarkNoShowDto,
+  type MarkNoShowResult,
+} from './application/commands/MarkNoShowCommand'
+export {
+  ModifyReservationDatesCommandHandler,
+  type ModifyReservationDatesDto,
+  type ModifyReservationDatesResult,
+} from './application/commands/ModifyReservationDatesCommand'
+export {
+  ModifyReservationGuestsCommandHandler,
+  type ModifyReservationGuestsDto,
+  type ModifyReservationGuestsResult,
+} from './application/commands/ModifyReservationGuestsCommand'
 export { RecordPaymentCommandHandler } from './application/commands/RecordPaymentCommand'
+export {
+  ExtendReservationCommandHandler,
+  type ExtendReservationDto,
+  type ExtendReservationResult,
+} from './application/commands/ExtendReservationCommand'
+export {
+  RenewReservationCommandHandler,
+  type RenewReservationDto,
+  type RenewReservationResult,
+  type RenewalPeriod,
+} from './application/commands/RenewReservationCommand'
 
 // Application - Queries
 export { CheckSiteAvailabilityQueryHandler } from './application/queries/CheckSiteAvailabilityQuery'

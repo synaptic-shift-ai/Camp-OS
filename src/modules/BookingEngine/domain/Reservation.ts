@@ -21,6 +21,9 @@ import { OccupancyInfo } from './value-objects/OccupancyInfo'
 import { ReservationCreated } from './events/ReservationCreated'
 import { ReservationConfirmed } from './events/ReservationConfirmed'
 import { ReservationCancelled } from './events/ReservationCancelled'
+import { ReservationModified } from './events/ReservationModified'
+import { NoShowMarked } from './events/NoShowMarked'
+import { RefundInitiated, type RefundReason } from './events/RefundInitiated'
 import { GuestCheckedIn } from './events/GuestCheckedIn'
 import { GuestCheckedOut } from './events/GuestCheckedOut'
 import { PaymentReceived } from './events/PaymentReceived'
@@ -35,6 +38,7 @@ export enum ReservationStatus {
   CHECKED_OUT = 'checked_out',   // Guest has checked out
   COMPLETED = 'completed',       // Reservation fully processed
   CANCELLED = 'cancelled',       // Reservation cancelled
+  NO_SHOW = 'no_show',           // Guest did not arrive for check-in
 }
 
 /**
@@ -293,12 +297,13 @@ export class Reservation extends AggregateRoot<string> {
    * Check if reservation can be cancelled
    */
   canBeCancelled(): boolean {
-    // Can only cancel if not yet checked in and not already cancelled
+    // Can only cancel if not yet checked in and not already cancelled/no-show
     return (
       this.status !== ReservationStatus.CHECKED_IN &&
       this.status !== ReservationStatus.CHECKED_OUT &&
       this.status !== ReservationStatus.COMPLETED &&
-      this.status !== ReservationStatus.CANCELLED
+      this.status !== ReservationStatus.CANCELLED &&
+      this.status !== ReservationStatus.NO_SHOW
     )
   }
 
@@ -505,6 +510,204 @@ export class Reservation extends AggregateRoot<string> {
   updateNotes(notes: string): void {
     this.props.notes = notes.trim() || null
     this.props.updatedAt = new Date()
+  }
+
+  // ============================================================================
+  // Modification Methods
+  // ============================================================================
+
+  /**
+   * Check if reservation can be modified
+   * Modifications are only allowed for pending or confirmed reservations
+   */
+  canBeModified(): boolean {
+    return (
+      this.status === ReservationStatus.PENDING ||
+      this.status === ReservationStatus.CONFIRMED
+    )
+  }
+
+  /**
+   * Modify reservation dates
+   *
+   * @param newDateRange - New check-in and check-out dates
+   * @param newTotalAmount - Recalculated total based on new dates
+   */
+  modifyDates(newDateRange: DateRange, newTotalAmount: MoneyAmount): void {
+    if (!this.canBeModified()) {
+      throw new Error('Cannot modify reservation in current status')
+    }
+
+    if (newDateRange.isPast()) {
+      throw new Error('Cannot modify reservation to past dates')
+    }
+
+    const previousCheckIn = this.dateRange.checkIn
+    const previousCheckOut = this.dateRange.checkOut
+    const previousTotal = this.totalAmount
+
+    this.props.dateRange = newDateRange
+    this.props.totalAmount = newTotalAmount
+    this.props.updatedAt = new Date()
+
+    // Publish domain event
+    this.addDomainEvent(
+      new ReservationModified(
+        this.id,
+        this.confirmationNumber.value,
+        'dates',
+        {
+          previousCheckIn,
+          previousCheckOut,
+          newCheckIn: newDateRange.checkIn,
+          newCheckOut: newDateRange.checkOut,
+        },
+        null,
+        newTotalAmount.amountInCents,
+        previousTotal.amountInCents
+      )
+    )
+  }
+
+  /**
+   * Modify guest count
+   *
+   * @param newOccupancy - New occupancy information
+   * @param newTotalAmount - Recalculated total based on new guest count
+   */
+  modifyGuestCount(newOccupancy: OccupancyInfo, newTotalAmount: MoneyAmount): void {
+    if (!this.canBeModified()) {
+      throw new Error('Cannot modify reservation in current status')
+    }
+
+    const previousAdults = this.occupancy.numAdults
+    const previousChildren = this.occupancy.numChildren
+    const previousTotal = this.totalAmount
+
+    this.props.occupancy = newOccupancy
+    this.props.totalAmount = newTotalAmount
+    this.props.updatedAt = new Date()
+
+    // Publish domain event
+    this.addDomainEvent(
+      new ReservationModified(
+        this.id,
+        this.confirmationNumber.value,
+        'guests',
+        null,
+        {
+          previousAdults,
+          previousChildren,
+          newAdults: newOccupancy.numAdults,
+          newChildren: newOccupancy.numChildren,
+        },
+        newTotalAmount.amountInCents,
+        previousTotal.amountInCents
+      )
+    )
+  }
+
+  /**
+   * Mark reservation as no-show
+   *
+   * A no-show occurs when the guest does not arrive by the check-in deadline.
+   * This is typically done on the day after the scheduled check-in date.
+   */
+  markNoShow(staffUserId: string): void {
+    if (this.status !== ReservationStatus.CONFIRMED) {
+      throw new Error('Can only mark confirmed reservations as no-show')
+    }
+
+    this.props.status = ReservationStatus.NO_SHOW
+    this.props.updatedAt = new Date()
+
+    // Publish domain event
+    this.addDomainEvent(
+      new NoShowMarked(
+        this.id,
+        this.confirmationNumber.value,
+        staffUserId,
+        this.dateRange.checkIn
+      )
+    )
+  }
+
+  /**
+   * Initiate a refund for this reservation
+   *
+   * This method tracks refund requests. The actual refund processing
+   * is handled by the payment infrastructure (e.g., Stripe).
+   * Refunds can be issued for cancellations, service issues, etc.
+   *
+   * @param amount - The refund amount (cannot exceed paid amount)
+   * @param reason - The reason for the refund
+   * @param staffUserId - The staff member initiating the refund
+   * @param notes - Optional notes about the refund
+   */
+  issueRefund(
+    amount: MoneyAmount,
+    reason: RefundReason,
+    staffUserId: string,
+    notes: string | null = null
+  ): void {
+    // Validate refund doesn't exceed paid amount
+    if (amount.isGreaterThan(this.paidAmount)) {
+      throw new Error('Refund amount cannot exceed paid amount')
+    }
+
+    // Validate there's something to refund
+    if (!amount.isGreaterThan(MoneyAmount.zero())) {
+      throw new Error('Refund amount must be positive')
+    }
+
+    // Track the refund
+    this.props.refundAmount = this.props.refundAmount
+      ? this.props.refundAmount.add(amount)
+      : amount
+
+    // Update payment status if fully refunded
+    if (this.props.refundAmount.isGreaterThanOrEqual(this.paidAmount)) {
+      this.props.paymentStatus = PaymentStatus.REFUNDED
+    }
+
+    this.props.updatedAt = new Date()
+
+    // Publish domain event
+    this.addDomainEvent(
+      new RefundInitiated(
+        this.id,
+        this.confirmationNumber.value,
+        amount.amountInCents,
+        reason,
+        notes,
+        staffUserId
+      )
+    )
+  }
+
+  /**
+   * Get total refunded amount
+   */
+  get totalRefunded(): MoneyAmount {
+    return this.props.refundAmount ?? MoneyAmount.zero()
+  }
+
+  /**
+   * Check if refund can be issued
+   */
+  canIssueRefund(): boolean {
+    // Can refund if there's paid amount and not fully refunded
+    return (
+      this.paidAmount.isGreaterThan(MoneyAmount.zero()) &&
+      this.totalRefunded.isLessThan(this.paidAmount)
+    )
+  }
+
+  /**
+   * Get maximum refundable amount
+   */
+  get maxRefundableAmount(): MoneyAmount {
+    return this.paidAmount.subtract(this.totalRefunded)
   }
 
   /**

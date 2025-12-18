@@ -1,25 +1,25 @@
 'use client'
 
 /**
- * Check-in Button Component
+ * Check-out Button Component
  *
- * Renders a check-in action for reservations that are eligible for check-in.
- * Fetches full reservation data and opens CheckInDialog when clicked.
+ * Renders a check-out action for reservations that are currently checked in.
+ * Fetches full reservation data and opens CheckOutDialog when clicked.
  */
 
 import { useState } from 'react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { CheckCircle, Loader2 } from 'lucide-react'
-import { CheckInDialog } from '@/components/dashboard/reservations/check-in-dialog'
+import { LogOut, Loader2 } from 'lucide-react'
+import { CheckOutDialog } from '@/components/dashboard/reservations/check-out-dialog'
 import { useToast } from '@/hooks/use-toast'
 import type { Reservation } from '@/lib/booking/types'
 
-interface CheckInButtonProps {
+interface CheckOutButtonProps {
   reservationId: string
   status: string
 }
 
-export function CheckInButton({ reservationId, status }: CheckInButtonProps) {
+export function CheckOutButton({ reservationId, status }: CheckOutButtonProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -31,12 +31,12 @@ export function CheckInButton({ reservationId, status }: CheckInButtonProps) {
     | null
   >(null)
 
-  // Show check-in for confirmed reservations
-  if (status !== 'confirmed') {
+  // Show check-out for checked_in reservations
+  if (status !== 'checked_in') {
     return null
   }
 
-  const handleCheckInClick = async (e: Event) => {
+  const handleCheckOutClick = async (e: Event) => {
     e.preventDefault()
     setIsLoading(true)
 
@@ -66,20 +66,20 @@ export function CheckInButton({ reservationId, status }: CheckInButtonProps) {
   return (
     <>
       <DropdownMenuItem
-        onSelect={handleCheckInClick}
+        onSelect={handleCheckOutClick}
         disabled={isLoading}
         className="gap-2"
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <CheckCircle className="h-4 w-4" />
+          <LogOut className="h-4 w-4" />
         )}
-        Check In Guest
+        Check Out Guest
       </DropdownMenuItem>
 
       {reservationData && (
-        <CheckInDialog
+        <CheckOutDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           reservation={reservationData}

@@ -3,12 +3,11 @@
 /**
  * Site Check-in Button Component
  *
- * Renders a check-in action for sites with active reservations checking in today.
+ * Renders a check-in action for booked sites with confirmed reservations.
  * Fetches reservation data for the site and opens CheckInDialog.
  */
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import { CheckInDialog } from '@/components/dashboard/reservations/check-in-dialog'
@@ -21,7 +20,6 @@ interface SiteCheckInButtonProps {
 }
 
 export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps) {
-  const router = useRouter()
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -43,17 +41,16 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
     setIsLoading(true)
 
     try {
-      // Fetch today's reservation for this site
-      const today = new Date().toISOString().split('T')[0]
+      // Fetch confirmed reservation for this site
       const response = await fetch(
-        `/api/admin/sites/${siteId}/reservations?check_in_date=${today}&status=confirmed`
+        `/api/admin/sites/${siteId}/reservations?status=confirmed`
       )
 
       if (!response.ok) {
         if (response.status === 404) {
           toast({
-            title: 'No Check-in Today',
-            description: 'No confirmed reservations checking in today for this site.',
+            title: 'No Reservation',
+            description: 'No confirmed reservations found for this site.',
             variant: 'default',
           })
           return
@@ -65,8 +62,8 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
 
       if (!data.reservation) {
         toast({
-          title: 'No Check-in Today',
-          description: 'No confirmed reservations checking in today for this site.',
+          title: 'No Reservation',
+          description: 'No confirmed reservations found for this site.',
           variant: 'default',
         })
         return

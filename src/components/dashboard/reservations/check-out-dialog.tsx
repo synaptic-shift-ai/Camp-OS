@@ -1,10 +1,10 @@
 'use client'
 
 /**
- * Check-in Dialog Component
+ * Check-out Dialog Component
  *
- * Dialog for performing guest check-in workflow.
- * Displays reservation details, handles balance payment, and calls check-in API.
+ * Dialog for performing guest check-out workflow.
+ * Displays reservation details, handles damage reporting, and calls check-out API.
  */
 
 import { useState } from 'react'
@@ -22,18 +22,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
-import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText } from 'lucide-react'
+import { AlertCircle, Loader2, LogOut, DollarSign, Calendar, Users, Home, AlertTriangle } from 'lucide-react'
 import type { Reservation } from '@/lib/booking/types'
 
-interface CheckInDialogProps {
+interface CheckOutDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   reservation: Reservation & {
@@ -42,53 +36,50 @@ interface CheckInDialogProps {
   }
 }
 
-export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialogProps) {
+export function CheckOutDialog({ open, onOpenChange, reservation }: CheckOutDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [checkInNotes, setCheckInNotes] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<string>('')
+  const [checkOutNotes, setCheckOutNotes] = useState('')
+  const [hasDamages, setHasDamages] = useState(false)
 
   // Calculate outstanding balance
   const outstandingBalance = Math.max(0, reservation.total_amount - reservation.paid_amount)
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
-  const handleCheckIn = async () => {
+  const handleCheckOut = async () => {
     setIsProcessing(true)
     setError(null)
 
     try {
-      // Determine if payment is being collected
-      const isCollectingPayment = hasBalance && paymentMethod && paymentMethod !== 'skip'
-
-      const response = await fetch(`/api/v1/reservations/${reservation.id}/check-in`, {
+      const response = await fetch(`/api/v1/reservations/${reservation.id}/check-out`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          balancePaidCents: isCollectingPayment ? outstandingBalance : 0,
-          notes: checkInNotes.trim() || null,
+          hasDamages,
+          notes: checkOutNotes.trim() || null,
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to check in guest')
+        throw new Error(data.error || 'Failed to check out guest')
       }
 
       toast({
-        title: 'Check-in Successful',
-        description: `${reservation.guest?.first_name} ${reservation.guest?.last_name} has been checked in to Site ${reservation.site?.site_number}`,
+        title: 'Check-out Successful',
+        description: `${reservation.guest?.first_name} ${reservation.guest?.last_name} has been checked out from Site ${reservation.site?.site_number}`,
       })
 
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      console.error('Check-in error:', err)
+      console.error('Check-out error:', err)
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')
     } finally {
       setIsProcessing(false)
@@ -96,8 +87,8 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
   }
 
   const handleCancel = () => {
-    setCheckInNotes('')
-    setPaymentMethod('')
+    setCheckOutNotes('')
+    setHasDamages(false)
     setError(null)
     onOpenChange(false)
   }
@@ -115,11 +106,11 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            Check In Guest
+            <LogOut className="h-5 w-5 text-blue-600" />
+            Check Out Guest
           </DialogTitle>
           <DialogDescription>
-            Confirm guest arrival and complete check-in process
+            Complete the guest departure and site inspection
           </DialogDescription>
         </DialogHeader>
 
@@ -154,7 +145,7 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
           {/* Reservation Details */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Reservation Details
+              Stay Summary
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-start gap-3 p-3 rounded-lg border">
@@ -169,7 +160,7 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
               <div className="flex items-start gap-3 p-3 rounded-lg border">
                 <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Dates</p>
+                  <p className="text-sm text-muted-foreground">Stay</p>
                   <p className="font-medium text-sm">
                     {checkInDate} - {checkOutDate}
                   </p>
@@ -195,83 +186,55 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
             </div>
           </div>
 
-          {/* Payment Section */}
+          {/* Outstanding Balance Warning */}
           {hasBalance && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Balance Due
-              </h3>
-              <Alert>
-                <DollarSign className="h-4 w-4" />
-                <AlertDescription>
-                  <span className="font-semibold">Outstanding Balance: ${balanceInDollars}</span>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Paid: ${(reservation.paid_amount / 100).toFixed(2)} of $
-                    {(reservation.total_amount / 100).toFixed(2)}
-                  </p>
-                </AlertDescription>
-              </Alert>
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Collect Payment</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger id="payment-method">
-                    <SelectValue placeholder="Select payment method..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="h-4 w-4" />
-                        <span>Cash - ${balanceInDollars}</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="check">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span>Check - ${balanceInDollars}</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="card">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        <span>Card - ${balanceInDollars}</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="skip">
-                      <span className="text-muted-foreground">Skip - Collect later</span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {paymentMethod && paymentMethod !== 'skip' && (
-                  <p className="text-xs text-muted-foreground">
-                    Recording ${balanceInDollars} payment via {paymentMethod}
-                  </p>
-                )}
-                {paymentMethod === 'skip' && (
-                  <p className="text-xs text-amber-600">
-                    Guest will check in with outstanding balance
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!hasBalance && (
-            <Alert className="bg-green-50 border-green-200">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                Reservation is fully paid. No additional payment required.
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <span className="font-semibold">Outstanding Balance: ${balanceInDollars}</span>
+                <p className="text-sm mt-1">
+                  This guest has an unpaid balance. Consider collecting payment before check-out.
+                </p>
               </AlertDescription>
             </Alert>
           )}
 
+          {/* Site Inspection */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Site Inspection
+            </h3>
+            <div className="flex items-center space-x-2 p-3 rounded-lg border">
+              <Checkbox
+                id="damages"
+                checked={hasDamages}
+                onCheckedChange={(checked) => setHasDamages(checked === true)}
+              />
+              <Label htmlFor="damages" className="cursor-pointer">
+                Report damages to site or property
+              </Label>
+            </div>
+            {hasDamages && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Please describe the damages in the notes below. A maintenance ticket may be created.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
           {/* Notes Section */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Check-in Notes (Optional)</Label>
+            <Label htmlFor="notes">Check-out Notes {hasDamages && <span className="text-destructive">*</span>}</Label>
             <Textarea
               id="notes"
-              placeholder="Record any special requests, observations, or details..."
-              value={checkInNotes}
-              onChange={(e) => setCheckInNotes(e.target.value)}
+              placeholder={hasDamages
+                ? "Describe the damages found during inspection..."
+                : "Record any observations, feedback, or details..."
+              }
+              value={checkOutNotes}
+              onChange={(e) => setCheckOutNotes(e.target.value)}
               rows={3}
             />
           </div>
@@ -289,7 +252,10 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
           <Button variant="outline" onClick={handleCancel} disabled={isProcessing}>
             Cancel
           </Button>
-          <Button onClick={handleCheckIn} disabled={isProcessing}>
+          <Button
+            onClick={handleCheckOut}
+            disabled={isProcessing || (hasDamages && !checkOutNotes.trim())}
+          >
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -297,8 +263,8 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
               </>
             ) : (
               <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Complete Check-in
+                <LogOut className="mr-2 h-4 w-4" />
+                Complete Check-out
               </>
             )}
           </Button>

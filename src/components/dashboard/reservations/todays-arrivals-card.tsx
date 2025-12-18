@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Clock, User, Home, AlertCircle } from 'lucide-react'
+import { CheckCircle, Clock, User, Home, AlertTriangle } from 'lucide-react'
 import { CheckInDialog } from './check-in-dialog'
 import type { Reservation } from '@/lib/booking/types'
 
@@ -64,9 +64,22 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
     )
   }
 
-  // Separate arrivals by status
-  const pendingCheckIns = arrivals.filter((r) => r.status === 'confirmed')
+  // Get today's date for comparison
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Helper to check if a reservation is a late arrival
+  const isLateArrival = (reservation: typeof arrivals[0]) => {
+    const checkInDate = new Date(reservation.check_in_date)
+    checkInDate.setHours(0, 0, 0, 0)
+    return checkInDate.getTime() < today.getTime()
+  }
+
+  // Separate arrivals by status and late arrivals
+  const lateArrivals = arrivals.filter((r) => r.status === 'confirmed' && isLateArrival(r))
+  const todaysPendingCheckIns = arrivals.filter((r) => r.status === 'confirmed' && !isLateArrival(r))
   const completedCheckIns = arrivals.filter((r) => r.status === 'checked_in')
+  const pendingCheckIns = [...lateArrivals, ...todaysPendingCheckIns]
 
   return (
     <>
@@ -76,23 +89,87 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                Today's Arrivals
+                Arrivals
               </CardTitle>
               <CardDescription>
-                {pendingCheckIns.length} pending • {completedCheckIns.length} completed
+                {lateArrivals.length > 0 && (
+                  <span className="text-red-600">{lateArrivals.length} late • </span>
+                )}
+                {todaysPendingCheckIns.length} today • {completedCheckIns.length} checked in
               </CardDescription>
             </div>
-            {pendingCheckIns.length > 0 && (
-              <Badge variant="secondary" className="bg-orange-500/10 text-orange-600">
-                {pendingCheckIns.length} waiting
-              </Badge>
-            )}
+            <div className="flex gap-2">
+              {lateArrivals.length > 0 && (
+                <Badge variant="destructive">
+                  {lateArrivals.length} late
+                </Badge>
+              )}
+              {todaysPendingCheckIns.length > 0 && (
+                <Badge variant="secondary" className="bg-orange-500/10 text-orange-600">
+                  {todaysPendingCheckIns.length} waiting
+                </Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {/* Pending Check-ins */}
-            {pendingCheckIns.map((reservation) => {
+            {/* Late Arrivals - Show first with red styling */}
+            {lateArrivals.map((reservation) => {
+              const outstandingBalance = reservation.total_amount - reservation.paid_amount
+              const hasBalance = outstandingBalance > 0
+              const checkInDate = new Date(reservation.check_in_date).toLocaleDateString()
+
+              return (
+                <div
+                  key={reservation.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-red-200 bg-red-50/30"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                      <p className="font-medium truncate">
+                        {reservation.guest?.first_name} {reservation.guest?.last_name}
+                      </p>
+                      <Badge variant="destructive" className="text-xs">
+                        Late
+                      </Badge>
+                      {hasBalance && (
+                        <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                          Balance Due
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Home className="h-3 w-3" />
+                        Site {reservation.site?.site_number}
+                      </span>
+                      <span className="text-red-600 text-xs">
+                        Expected: {checkInDate}
+                      </span>
+                    </div>
+                    {hasBalance && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ${(outstandingBalance / 100).toFixed(2)} balance due
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleCheckIn(reservation)}
+                    className="flex-shrink-0 ml-3"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Check In
+                  </Button>
+                </div>
+              )
+            })}
+
+            {/* Today's Pending Check-ins */}
+            {todaysPendingCheckIns.map((reservation) => {
               const outstandingBalance = reservation.total_amount - reservation.paid_amount
               const hasBalance = outstandingBalance > 0
 

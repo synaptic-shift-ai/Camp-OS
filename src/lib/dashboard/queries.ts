@@ -1215,8 +1215,10 @@ export async function getOccupancyByMonth(
 // ============================================================================
 
 /**
- * Get today's arrivals (reservations with check-in date = today)
- * Returns reservations that need check-in or have already been checked in today
+ * Get today's arrivals and late arrivals
+ * Returns:
+ * - Reservations with check_in_date = today (confirmed or checked_in)
+ * - Late arrivals: confirmed reservations with check_in_date before today
  */
 export async function getTodaysArrivals(propertyId: string) {
   const supabase = await createClient()
@@ -1225,7 +1227,8 @@ export async function getTodaysArrivals(propertyId: string) {
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]!
 
-  const { data, error } = await supabase
+  // Get today's arrivals (scheduled for today, any status that's pending or completed)
+  const { data: todaysData, error: todaysError } = await supabase
     .from('reservations')
     .select(
       `
@@ -1236,13 +1239,36 @@ export async function getTodaysArrivals(propertyId: string) {
     )
     .eq('property_id', propertyId)
     .eq('check_in_date', todayStr)
-    .in('status', ['confirmed', 'checked_in']) // Only show confirmed (pending check-in) and checked_in
-    .order('checked_in_at', { ascending: false, nullsFirst: false }) // Show pending first
+    .in('status', ['confirmed', 'checked_in'])
+    .order('checked_in_at', { ascending: false, nullsFirst: false })
 
-  if (error) {
-    console.error('Error fetching todays arrivals:', error)
+  if (todaysError) {
+    console.error('Error fetching todays arrivals:', todaysError)
     return []
   }
 
-  return data || []
+  // Get late arrivals (check-in date before today, still in confirmed status)
+  const { data: lateData, error: lateError } = await supabase
+    .from('reservations')
+    .select(
+      `
+      *,
+      guest:guests (*),
+      site:sites (*)
+      `
+    )
+    .eq('property_id', propertyId)
+    .lt('check_in_date', todayStr)
+    .eq('status', 'confirmed')
+    .order('check_in_date', { ascending: true })
+
+  if (lateError) {
+    console.error('Error fetching late arrivals:', lateError)
+  }
+
+  // Combine: late arrivals first (they need attention), then today's arrivals
+  const lateArrivals = lateData || []
+  const todaysArrivals = todaysData || []
+
+  return [...lateArrivals, ...todaysArrivals]
 }

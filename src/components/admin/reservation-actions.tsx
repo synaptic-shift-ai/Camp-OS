@@ -13,6 +13,7 @@ import { MoreVertical } from "lucide-react"
 import { EditReservationDialog } from "./edit-reservation-dialog"
 import { CancelReservationDialog } from "./cancel-reservation-dialog"
 import { CheckInButton } from "./check-in-button"
+import { CheckOutButton } from "./check-out-button"
 import { ExtendDialog } from "./extend-dialog"
 import { RenewDialog } from "./renew-dialog"
 
@@ -65,7 +66,10 @@ export function ReservationActions({
         <CheckInButton
           reservationId={reservationId}
           status={status}
-          checkInDate={checkIn}
+        />
+        <CheckOutButton
+          reservationId={reservationId}
+          status={status}
         />
         <EditReservationDialog
           reservationId={reservationId}

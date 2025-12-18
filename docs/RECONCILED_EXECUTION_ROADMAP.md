@@ -1,10 +1,10 @@
 # CampOps Modular Architecture - Execution Roadmap
 
-**Version:** 5.4
+**Version:** 5.5
 **Created:** December 18, 2025
 **Last Updated:** December 18, 2025
 **Source of Truth:** `docs/implementation-plan-modular-architecture.md`
-**Status:** Phase 0 ✅ | Phase 1 ✅ | Phase 2 ✅ | Phase 3A 🔄 In Progress
+**Status:** Phase 0 ✅ | Phase 1 ✅ | Phase 2 ✅ | Phase 3A ✅
 
 ---
 
@@ -333,14 +333,15 @@ src/modules/StaffManagement/
 
 ## Phase 3: Enhance Existing Modules
 
-**Status:** 🔄 IN PROGRESS (Phase 3A started)
+**Status:** 🔄 IN PROGRESS (Phase 3A complete, Phase 3B-D pending)
 **Goal:** Consolidate and complete existing modules
 **Prerequisites:** Phase 0 ✅, Phase 1 ✅, Phase 2 ✅
 
 ### Phase 3A: Consolidate BookingEngine + ReservationManagement
 
-**Status:** 🔄 IN PROGRESS
+**Status:** ✅ COMPLETE
 **Started:** December 18, 2025
+**Completed:** December 18, 2025
 
 **Completed Tasks:**
 - [x] **FIX `toPersistence()` column names** - Fixed all column name mismatches
@@ -384,8 +385,15 @@ src/modules/StaffManagement/
 - [x] Add refund initiation and tracking (`issueRefund()` method with RefundInitiated event)
 - [x] Add `canIssueRefund()`, `totalRefunded`, `maxRefundableAmount` to Reservation
 - [x] Write tests for refund functionality (9 tests added)
-- [ ] Update/create API routes for new commands
-- [ ] Consider `ReservationPricing` value object for base/tax/refund separation (evaluate vs current MoneyAmount approach)
+- [x] **Create API routes for all new commands:**
+  - [x] POST `/api/v1/reservations/[id]/modify-dates`
+  - [x] POST `/api/v1/reservations/[id]/modify-guests`
+  - [x] POST `/api/v1/reservations/[id]/no-show`
+  - [x] POST `/api/v1/reservations/[id]/extend`
+  - [x] POST `/api/v1/reservations/[id]/renew`
+  - [x] POST `/api/v1/reservations/[id]/refund`
+- [x] Add Zod request schemas for all new endpoints
+- [x] **ReservationPricing value object evaluation:** Deferred to Phase 3D (Financial Module) - current MoneyAmount approach is sufficient; pricing breakdowns computed on-demand via PricingCalculator service
 
 **Files Created (Policy Architecture & Domain Services):**
 ```
@@ -427,6 +435,16 @@ src/modules/BookingEngine/application/commands/
 
 src/modules/BookingEngine/infrastructure/
 └── DefaultStrategyProvider.ts     - Default policy provider
+
+src/app/api/v1/reservations/[id]/
+├── modify-dates/route.ts          - POST modify check-in/out dates
+├── modify-guests/route.ts         - POST modify guest count
+├── no-show/route.ts               - POST mark as no-show
+├── extend/route.ts                - POST extend checkout date
+├── renew/route.ts                 - POST create linked renewal
+└── refund/route.ts                - POST issue refund
+
+src/types/api/v1/schemas/reservations.ts  - Added 6 new request schemas
 ```
 
 **BookingEngine Test Counts:**
@@ -654,8 +672,8 @@ Per implementation plan Appendix B:
 3. Phase 5 - Database Migrations - Do early to have tables ready
 4. ✅ **Phase 2A - CompanyManagement** - COMPLETE (December 18, 2025) - 68 tests
 5. ✅ **Phase 2B - StaffManagement** - COMPLETE (December 18, 2025) - 57 tests
-6. 🔄 **Phase 3A - BookingEngine Consolidation** - IN PROGRESS (persistence fixed, policies implemented)
-7. 🔜 Phase 3B-D - Module Enhancements - NEXT
+6. ✅ **Phase 3A - BookingEngine Consolidation** - COMPLETE (December 18, 2025) - 134 tests, 6 new API routes
+7. 🔜 **Phase 3B-D - Module Enhancements** - NEXT
 8. Phase 4 - API Consolidation
 9. Phase 6 - Testing (ongoing)
 10. Phase 7 - Premium Foundation
@@ -675,11 +693,11 @@ From implementation plan:
 
 ---
 
-**Document Status:** IN PROGRESS - Phases 0, 1, 2 Complete | Phase 3A In Progress
+**Document Status:** IN PROGRESS - Phases 0, 1, 2, 3A Complete | Phase 3B-D Next
 **Last Updated:** December 18, 2025
 **Source of Truth:** `docs/implementation-plan-modular-architecture.md`
 
-### Test Summary (as of Phase 3A - commands & refunds complete)
+### Test Summary (Phase 3A Complete)
 
 | Module | Tests |
 |--------|-------|

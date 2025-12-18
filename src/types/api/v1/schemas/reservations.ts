@@ -422,3 +422,116 @@ export const PaymentLinkResponseSchema = z.object({
 })
 
 export type PaymentLinkResponse = z.infer<typeof PaymentLinkResponseSchema>
+
+// ============================================================================
+// Phase 3A: Modification, Extension, Renewal, and Refund Schemas
+// ============================================================================
+
+/**
+ * Modify Reservation Dates Request
+ * POST /api/v1/reservations/[id]/modify-dates
+ */
+export const ModifyReservationDatesRequestSchema = z.object({
+  newCheckIn: z.string().datetime('New check-in must be a valid ISO 8601 datetime'),
+  newCheckOut: z.string().datetime('New check-out must be a valid ISO 8601 datetime'),
+  newTotalAmountCents: z.number().int().min(0, 'Amount cannot be negative'),
+})
+
+export type ModifyReservationDatesRequest = z.infer<typeof ModifyReservationDatesRequestSchema>
+
+/**
+ * Modify Reservation Guests Request
+ * POST /api/v1/reservations/[id]/modify-guests
+ */
+export const ModifyReservationGuestsRequestSchema = z.object({
+  numAdults: z.number().int().min(1, 'At least 1 adult required').max(20),
+  numChildren: z.number().int().min(0).max(20),
+  numPets: z.number().int().min(0).max(10),
+  numVehicles: z.number().int().min(0).max(5),
+  newTotalAmountCents: z.number().int().min(0, 'Amount cannot be negative'),
+})
+
+export type ModifyReservationGuestsRequest = z.infer<typeof ModifyReservationGuestsRequestSchema>
+
+/**
+ * Extend Reservation Request
+ * POST /api/v1/reservations/[id]/extend
+ */
+export const ExtendReservationRequestSchema = z.object({
+  newCheckOutDate: z.string().datetime('New check-out must be a valid ISO 8601 datetime'),
+  additionalAmountCents: z.number().int().min(0, 'Amount cannot be negative'),
+})
+
+export type ExtendReservationRequest = z.infer<typeof ExtendReservationRequestSchema>
+
+/**
+ * Renewal Period Schema
+ */
+export const RenewalPeriodSchema = z.enum(['weekly', 'monthly', 'custom'])
+
+/**
+ * Renew Reservation Request
+ * POST /api/v1/reservations/[id]/renew
+ */
+export const RenewReservationRequestSchema = z.object({
+  renewalPeriod: RenewalPeriodSchema,
+  customNights: z.number().int().min(1).max(365).optional(),
+  totalAmountCents: z.number().int().min(0, 'Amount cannot be negative'),
+  specialRequests: z.string().max(1000).optional().nullable(),
+}).refine(
+  (data) => {
+    // customNights required when period is 'custom'
+    if (data.renewalPeriod === 'custom') {
+      return data.customNights !== undefined && data.customNights > 0
+    }
+    return true
+  },
+  { message: 'customNights is required when renewalPeriod is "custom"' }
+)
+
+export type RenewReservationRequest = z.infer<typeof RenewReservationRequestSchema>
+
+/**
+ * Refund Reason Schema
+ */
+export const RefundReasonSchema = z.enum([
+  'cancellation',
+  'partial_cancellation',
+  'service_issue',
+  'overbooking',
+  'weather',
+  'other',
+])
+
+/**
+ * Issue Refund Request
+ * POST /api/v1/reservations/[id]/refund
+ */
+export const IssueRefundRequestSchema = z.object({
+  amountCents: z.number().int().min(1, 'Refund amount must be positive'),
+  reason: RefundReasonSchema,
+  notes: z.string().max(1000).optional().nullable(),
+})
+
+export type IssueRefundRequest = z.infer<typeof IssueRefundRequestSchema>
+
+/**
+ * Renew Reservation Response
+ */
+export const RenewReservationResponseSchema = z.object({
+  originalReservation: ReservationResponseSchema,
+  renewalReservation: ReservationResponseSchema,
+  renewalNights: z.number().int(),
+})
+
+export type RenewReservationResponse = z.infer<typeof RenewReservationResponseSchema>
+
+/**
+ * Extend Reservation Response
+ */
+export const ExtendReservationResponseSchema = z.object({
+  reservation: ReservationResponseSchema,
+  additionalNights: z.number().int(),
+})
+
+export type ExtendReservationResponse = z.infer<typeof ExtendReservationResponseSchema>

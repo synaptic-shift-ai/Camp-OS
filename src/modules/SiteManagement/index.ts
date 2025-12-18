@@ -7,6 +7,7 @@ export { Pricing } from './domain/Pricing'
 export { SiteStatus, SiteStatusLabels, parseSiteStatus, isValidStatusTransition } from './domain/SiteStatus'
 export { SiteType } from './domain/SiteType'
 export * from './domain/events'
+export * from './domain/value-objects'
 
 // Application - Commands
 export { CreateSiteCommandHandler } from './application/commands/CreateSiteCommand'

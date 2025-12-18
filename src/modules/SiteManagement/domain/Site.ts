@@ -36,7 +36,14 @@ import {
   SiteUpdatedEvent,
   SiteStatusChangedEvent,
   SitePricingUpdatedEvent,
+  SiteMaintenanceStartedEvent,
 } from './events'
+import {
+  PetPolicy,
+  AccessibilityFeatures,
+  Hookups,
+  Coordinates,
+} from './value-objects'
 
 export type SiteProps = {
   propertyId: string
@@ -53,6 +60,10 @@ export type SiteProps = {
   hookups: string[] | null
   images: string[] | null
   locationMap: Record<string, any> | null
+  // Phase 3B additions
+  petPolicy: PetPolicy
+  accessibility: AccessibilityFeatures
+  coordinates: Coordinates | null
 }
 
 export class Site extends AggregateRoot<string> {
@@ -88,6 +99,10 @@ export class Site extends AggregateRoot<string> {
       hookups?: string[] | null | undefined
       images?: string[] | null | undefined
       locationMap?: Record<string, any> | null | undefined
+      // Phase 3B additions
+      petPolicy?: PetPolicy | undefined
+      accessibility?: AccessibilityFeatures | undefined
+      coordinates?: Coordinates | null | undefined
     } = {}
   ): Site {
     // Validate required fields
@@ -126,6 +141,9 @@ export class Site extends AggregateRoot<string> {
         hookups: options.hookups || null,
         images: options.images || null,
         locationMap: options.locationMap || null,
+        petPolicy: options.petPolicy || PetPolicy.noPets(),
+        accessibility: options.accessibility || AccessibilityFeatures.notAccessible(),
+        coordinates: options.coordinates || null,
       }
     )
 
@@ -163,7 +181,12 @@ export class Site extends AggregateRoot<string> {
     images: string[] | null,
     locationMap: Record<string, any> | null,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
+    // Phase 3B additions
+    allowPets: boolean = false,
+    petFee: number | null = null,
+    adaAccessible: boolean = false,
+    accessibilityFeatures: unknown = null
   ): Site {
     return new Site(
       id,
@@ -182,6 +205,9 @@ export class Site extends AggregateRoot<string> {
         hookups,
         images,
         locationMap,
+        petPolicy: PetPolicy.fromPersistence(allowPets, petFee),
+        accessibility: AccessibilityFeatures.fromPersistence(adaAccessible, accessibilityFeatures),
+        coordinates: Coordinates.fromPersistence(locationMap),
       },
       createdAt,
       updatedAt
@@ -246,6 +272,27 @@ export class Site extends AggregateRoot<string> {
 
   get locationMap(): Record<string, any> | null {
     return this.props.locationMap
+  }
+
+  // Phase 3B getters
+  get petPolicy(): PetPolicy {
+    return this.props.petPolicy
+  }
+
+  get accessibility(): AccessibilityFeatures {
+    return this.props.accessibility
+  }
+
+  get coordinates(): Coordinates | null {
+    return this.props.coordinates
+  }
+
+  get allowsPets(): boolean {
+    return this.props.petPolicy.allowPets
+  }
+
+  get isAdaAccessible(): boolean {
+    return this.props.accessibility.adaAccessible
   }
 
   // ============================================================
@@ -356,10 +403,44 @@ export class Site extends AggregateRoot<string> {
   }
 
   /**
+   * Mark site as reserved (has upcoming booking but not yet occupied)
+   */
+  markAsReserved(): void {
+    if (this.props.status !== SiteStatus.AVAILABLE) {
+      throw new Error(`Cannot reserve site - current status is ${this.props.status}`)
+    }
+
+    const oldStatus = this.props.status
+    this.props.status = SiteStatus.RESERVED
+
+    this.touch()
+    this.addDomainEvent(
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.RESERVED)
+    )
+  }
+
+  /**
+   * Release a reserved site back to available
+   */
+  release(): void {
+    if (this.props.status !== SiteStatus.RESERVED && this.props.status !== SiteStatus.BOOKED) {
+      throw new Error(`Cannot release site - current status is ${this.props.status}`)
+    }
+
+    const oldStatus = this.props.status
+    this.props.status = SiteStatus.AVAILABLE
+
+    this.touch()
+    this.addDomainEvent(
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.AVAILABLE)
+    )
+  }
+
+  /**
    * Mark site as occupied
    */
   markAsOccupied(): void {
-    if (this.props.status !== SiteStatus.AVAILABLE) {
+    if (this.props.status !== SiteStatus.AVAILABLE && this.props.status !== SiteStatus.RESERVED) {
       throw new Error(`Cannot occupy site - current status is ${this.props.status}`)
     }
 
@@ -416,6 +497,50 @@ export class Site extends AggregateRoot<string> {
   }
 
   /**
+   * Put site under maintenance (alias for markAsOutOfService with additional event)
+   * Triggers maintenance-specific workflows
+   */
+  putUnderMaintenance(
+    reason: string | null = null,
+    estimatedEndDate: Date | null = null,
+    initiatedBy: string | null = null
+  ): void {
+    const oldStatus = this.props.status
+    this.props.status = SiteStatus.OUT_OF_SERVICE
+
+    this.touch()
+    this.addDomainEvent(
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.OUT_OF_SERVICE)
+    )
+    this.addDomainEvent(
+      new SiteMaintenanceStartedEvent(
+        this.id,
+        this.propertyId,
+        reason,
+        estimatedEndDate,
+        initiatedBy
+      )
+    )
+  }
+
+  /**
+   * Complete maintenance and return to available
+   */
+  completeMaintenance(): void {
+    if (this.props.status !== SiteStatus.OUT_OF_SERVICE) {
+      throw new Error('Cannot complete maintenance - site is not under maintenance')
+    }
+
+    const oldStatus = this.props.status
+    this.props.status = SiteStatus.AVAILABLE
+
+    this.touch()
+    this.addDomainEvent(
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.AVAILABLE)
+    )
+  }
+
+  /**
    * Check if site is available for booking
    */
   isAvailableForBooking(): boolean {
@@ -439,6 +564,9 @@ export class Site extends AggregateRoot<string> {
    * Convert to persistence format
    */
   toPersistence(): Record<string, any> {
+    const petPersistence = this.props.petPolicy.toPersistence()
+    const accessibilityPersistence = this.props.accessibility.toPersistence()
+
     return {
       id: this.id,
       property_id: this.props.propertyId,
@@ -455,7 +583,14 @@ export class Site extends AggregateRoot<string> {
       amenities: this.props.amenities,
       hookups: this.props.hookups,
       images: this.props.images,
-      location_map: this.props.locationMap,
+      location_map: this.props.coordinates
+        ? this.props.coordinates.toPersistence()
+        : this.props.locationMap,
+      // Phase 3B: Pet and accessibility fields
+      allow_pets: petPersistence.allow_pets,
+      pet_fee: petPersistence.pet_fee,
+      ada_accessible: accessibilityPersistence.ada_accessible,
+      accessibility_features: accessibilityPersistence.accessibility_features,
       created_at: this.createdAt.toISOString(),
       updated_at: this.updatedAt.toISOString(),
     }

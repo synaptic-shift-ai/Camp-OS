@@ -20,8 +20,8 @@ import { UpdateGuestCommandHandler } from '@/modules/GuestManagement/application
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 import { GuestDTO } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
-import { ContactInfo } from '@/modules/GuestManagement/domain/ContactInfo'
-import { Address } from '@/modules/GuestManagement/domain/Address'
+import { ContactInfo } from '@/modules/GuestManagement/domain/value-objects/ContactInfo'
+import { Address } from '@/modules/GuestManagement/domain/value-objects/Address'
 
 /**
  * GET /api/v1/guests/[id]

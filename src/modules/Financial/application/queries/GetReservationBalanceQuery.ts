@@ -5,11 +5,11 @@
  * Returns total amount, paid amount, and balance due.
  */
 
-import type { ITransactionRepository } from '../../domain/repositories/ITransactionRepository'
-import type { IInvoiceRepository } from '../../domain/repositories/IInvoiceRepository'
+import type { ITransactionRepository } from '../../domain/ITransactionRepository'
+import type { IInvoiceRepository } from '../../domain/IInvoiceRepository'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
-import { TransactionType } from '../../domain/value-objects/TransactionType'
-import { TransactionStatus } from '../../domain/value-objects/TransactionStatus'
+import { TransactionType } from '../../domain//value-objects/TransactionType'
+import { TransactionStatus } from '../../domain//value-objects/TransactionStatus'
 
 export interface ReservationBalanceResult {
   reservationId: string

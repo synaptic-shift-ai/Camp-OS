@@ -5,11 +5,11 @@
  * This is the main entry point for processing guest payments.
  */
 
-import type { ITransactionRepository } from '../../domain/repositories/ITransactionRepository'
-import type { IInvoiceRepository } from '../../domain/repositories/IInvoiceRepository'
-import { Transaction } from '../../domain/aggregates/Transaction'
-import { TransactionType } from '../../domain/value-objects/TransactionType'
-import { PaymentMethod } from '../../domain/value-objects/PaymentMethod'
+import type { ITransactionRepository } from '../../domain/ITransactionRepository'
+import type { IInvoiceRepository } from '../../domain/IInvoiceRepository'
+import { Transaction } from '../../domain/Transaction'
+import { TransactionType } from '../../domain//value-objects/TransactionType'
+import { PaymentMethod } from '../../domain//value-objects/PaymentMethod'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

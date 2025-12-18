@@ -9,7 +9,7 @@
  */
 
 import { describe, test, expect } from 'vitest'
-import { ContactInfo } from '../ContactInfo'
+import { ContactInfo } from '../value-objects/ContactInfo'
 
 describe('ContactInfo', () => {
   describe('create', () => {

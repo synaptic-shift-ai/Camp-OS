@@ -4,9 +4,9 @@
  * Processes a refund for a cancelled reservation or overpayment.
  */
 
-import type { ITransactionRepository } from '../../domain/repositories/ITransactionRepository'
-import { Transaction } from '../../domain/aggregates/Transaction'
-import { PaymentMethod } from '../../domain/value-objects/PaymentMethod'
+import type { ITransactionRepository } from '../../domain/ITransactionRepository'
+import { Transaction } from '../../domain/Transaction'
+import { PaymentMethod } from '../../domain//value-objects/PaymentMethod'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

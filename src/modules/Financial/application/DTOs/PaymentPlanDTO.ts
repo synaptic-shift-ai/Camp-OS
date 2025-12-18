@@ -5,7 +5,7 @@
  * Used for API responses.
  */
 
-import type { PaymentPlan } from '../../domain/aggregates/PaymentPlan'
+import type { PaymentPlan } from '../../domain/PaymentPlan'
 
 export interface PaymentPlanDTO {
   id: string

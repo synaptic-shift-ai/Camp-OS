@@ -4,8 +4,8 @@
  * Creates an installment payment plan for a long-term reservation.
  */
 
-import type { IPaymentPlanRepository } from '../../domain/repositories/IPaymentPlanRepository'
-import { PaymentPlan } from '../../domain/aggregates/PaymentPlan'
+import type { IPaymentPlanRepository } from '../../domain/IPaymentPlanRepository'
+import { PaymentPlan } from '../../domain/PaymentPlan'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

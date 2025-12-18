@@ -7,10 +7,10 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { IInvoiceRepository } from '../domain/repositories/IInvoiceRepository'
-import { Invoice } from '../domain/aggregates/Invoice'
-import { InvoiceNumber } from '../domain/value-objects/InvoiceNumber'
-import { InvoiceStatus } from '../domain/value-objects/InvoiceStatus'
+import type { IInvoiceRepository } from '../domain/IInvoiceRepository'
+import { Invoice } from '../domain/Invoice'
+import { InvoiceNumber } from '../domain//value-objects/InvoiceNumber'
+import { InvoiceStatus } from '../domain//value-objects/InvoiceStatus'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 

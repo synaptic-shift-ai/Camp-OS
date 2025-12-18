@@ -1,492 +1,511 @@
-# CampOps Reconciled Execution Roadmap
+# CampOps Modular Architecture - Execution Roadmap
 
-**Version:** 2.0
-**Created:** December 17, 2025
-**Status:** RECONCILED - Accounts for all architecture documents
-**Priority:** Stability FIRST, then consolidation, then features
-
----
-
-## Executive Summary: Why This Document Exists
-
-We discovered that the codebase has **THREE parallel booking implementations** causing confusion and 500 errors:
-
-| Location | Status | Format Used |
-|----------|--------|-------------|
-| `src/lib/booking/` | OLD - Works | `CAMP-2025-A1B2C3` |
-| `src/modules/BookingEngine/` | NEW - Broken | `RES-123456` |
-| `src/modules/ReservationManagement/` | Duplicate - Should be merged | N/A |
-
-The previous `EXECUTION_ROADMAP.md` focused on feature delivery but didn't account for:
-- The `implementation-plan-modular-architecture.md` (7-phase migration plan)
-- The post-incident `IMPLEMENTATION_ROADMAP.md` (safety improvements)
-- The actual broken state of the domain layer
-
-This document reconciles ALL planning documents into ONE logical execution order.
+**Version:** 5.2
+**Created:** December 18, 2025
+**Last Updated:** December 18, 2025
+**Source of Truth:** `docs/implementation-plan-modular-architecture.md`
+**Status:** Phase 0 ✅ | Phase 1 ✅ | Phase 2 Ready
 
 ---
 
-## Documents Reconciled
+## Purpose
 
-| Document | Focus | Incorporated As |
-|----------|-------|-----------------|
-| `EXECUTION_ROADMAP.md` | Feature delivery (60 days) | Phases 2-3 |
-| `implementation-plan-modular-architecture.md` | 7-phase architecture migration | Phases 1, 4-5 |
-| `docs/architecture/IMPLEMENTATION_ROADMAP.md` | Post-incident safety | Phase 3 |
-| `campops-modular-architecture.pdf` | Design source | Reference |
-| `campops-implementation-guide.pdf` | Migration patterns | Reference |
+This document tracks execution of the modular architecture implementation plan. The implementation plan (`docs/implementation-plan-modular-architecture.md`) is the source of truth for WHAT to build. This document tracks progress and notes discovered issues.
+
+**Do not deviate from the implementation plan phase order.**
 
 ---
 
-## Key Conflicts Resolved
+## Known Issues (To Be Fixed In Relevant Phases)
 
-### 1. When to Consolidate BookingEngine
+Issues discovered during development. Each will be resolved in its designated phase.
 
-| Document Said | Reality | Resolution |
-|---------------|---------|------------|
-| `EXECUTION_ROADMAP`: Phase 5 (Days 51-60) | API routes ALREADY use broken domain layer | Move to Phase 0-1 |
-| `implementation-plan`: Phase 3A (after missing modules) | Can't wait - causing 500 errors NOW | Fix immediately |
+### Issue: BookingEngine Persistence Layer Broken
 
-### 2. What Gets Built First
+**Discovered:** December 18, 2025
+**Location:** `src/modules/BookingEngine/domain/Reservation.ts`
+**Fix In:** Phase 3A (Consolidate BookingEngine + ReservationManagement)
 
-| Document Said | Reality | Resolution |
-|---------------|---------|------------|
-| `EXECUTION_ROADMAP`: Features first | Features built on broken foundation | Fix foundation first |
-| `implementation-plan`: Shared kernel first | Customer needs working product NOW | Minimal fix, then features |
+`toPersistence()` writes to non-existent columns:
+- `total_amount_cents` → should be `total_amount`
+- `paid_amount_cents` → should be `paid_amount`
+- `balance_paid_at_check_in_cents` → should be `balance_paid_at_checkin`
+- `refund_amount_cents` → column doesn't exist
 
-### 3. ReservationManagement Module
+### Issue: Duplicate Booking Modules
 
-| Document Said | Reality | Resolution |
-|---------------|---------|------------|
-| `implementation-plan`: Merge into BookingEngine | Still exists as separate module | Merge in Phase 1 |
-| `EXECUTION_ROADMAP`: Not mentioned | Creating confusion | Address explicitly |
+**Fix In:** Phase 3A
 
----
+Both `BookingEngine` and `ReservationManagement` modules exist. Implementation plan specifies merging them.
 
-## Reconciled Phase Structure
+### Issue: Legacy lib/booking Code
 
-```
-Phase 0: EMERGENCY STABILIZATION (Days 1-3)     ← NEW - Not in original docs
-    │
-    └── Fix 500 errors, restore basic functionality
+**Fix In:** After Phase 4 (API Consolidation)
 
-Phase 1: CODE CONSOLIDATION (Days 4-10)          ← From implementation-plan Phase 3A
-    │
-    └── Merge modules, eliminate parallel implementations
+`lib/booking/` exists alongside modules. Delete after all routes migrated to module handlers.
 
-Phase 2: FEATURE COMPLETION (Days 11-25)         ← From EXECUTION_ROADMAP Phases 0-2
-    │
-    └── Check-in/out, payments, guest documents
+### ~~Issue: Inconsistent Module Structures~~ RESOLVED
 
-Phase 3: SAFETY IMPROVEMENTS (Days 26-35)        ← From post-incident IMPLEMENTATION_ROADMAP
-    │
-    └── E2E tests, observability, loop detection
+**Discovered:** December 18, 2025
+**Fixed In:** Phase 0 (Prerequisites) - December 18, 2025
 
-Phase 4: ARCHITECTURE MATURATION (Days 36-50)    ← From implementation-plan Phases 1-2
-    │
-    └── Shared kernel, missing modules, complete BookingEngine
+~~Existing modules do not conform to canonical structure defined in CLAUDE.md (M-1).~~
 
-Phase 5: DEPRECATION & CLEANUP (Days 51-60)      ← From implementation-plan Phase 3-4
-    │
-    └── Remove old code, finalize architecture
-```
+**Resolution:** All 5 modules now conform to canonical structure. Generator tested and working.
 
 ---
 
-## Phase 0: EMERGENCY STABILIZATION (Days 1-3)
+## Phase 0: Infrastructure & Tooling
 
-**Goal:** Fix 500 errors and restore basic functionality for customer testing.
+**Status:** ✅ COMPLETE
+**Completed:** December 18, 2025
+**Goal:** Establish tooling and patterns before module work
 
-**Priority:** CRITICAL - Customer cannot use the product without this.
+### 0.1 Prerequisites: Conform Existing Modules to Canonical Structure ✅
 
-### Day 1: Fix ConfirmationNumber Format Mismatch
+All modules now conform to canonical structure per CLAUDE.md (M-1 through M-5):
 
-**Problem:** New domain layer rejects existing production confirmation numbers.
-
-**Root Cause:**
-```typescript
-// ConfirmationNumber.ts - CURRENT (breaks existing data)
-private static readonly FORMAT_REGEX = /^[A-Z]{3}-\d{6}$/
-// Expects: RES-123456
-
-// api.ts - PRODUCTION data format
-return `CAMP-${year}-${random}`
-// Generates: CAMP-2025-A1B2C3
 ```
-
-**Solution:** Update regex to accept BOTH formats:
-```typescript
-private static readonly FORMAT_REGEX = /^([A-Z]{3}-\d{6}|CAMP-\d{4}-[A-Z0-9]{6})$/
-```
-
-**Files:**
-- `src/modules/BookingEngine/domain/value-objects/ConfirmationNumber.ts`
-
-**Tests:**
-- [ ] OLD format (`CAMP-2025-A1B2C3`) accepted
-- [ ] NEW format (`RES-123456`) accepted
-- [ ] Invalid formats rejected
-
-### Day 2: Fix Check-in Button Visibility
-
-**Problem:** Button only visible when check-in date is exactly today.
-
-**Solution:**
-```typescript
-// BEFORE (broken)
-const isEligible = status === 'confirmed' && checkIn.getTime() === today.getTime()
-
-// AFTER (working)
-const isEligible = status === 'confirmed' && checkIn.getTime() <= today.getTime()
-```
-
-**Files:**
-- `src/components/admin/check-in-button.tsx` (already fixed per session history)
-
-### Day 3: Verify Check-out UI Works
-
-**Status:** CheckOutButton and CheckOutDialog were created in previous session.
-
-**Tasks:**
-- [ ] Verify check-out button appears for `checked_in` reservations
-- [ ] Test full check-in → check-out flow
-- [ ] Fix any issues discovered
-
----
-
-## Phase 1: CODE CONSOLIDATION (Days 4-10)
-
-**Goal:** Eliminate parallel booking implementations.
-
-**CRITICAL ISSUE DISCOVERED:** See `docs/ISSUE_DOMAIN_DATABASE_MISMATCH.md`
-
-The BookingEngine domain layer has column name mismatches with the database schema that cause:
-- 500 errors on read (looking for non-existent columns)
-- Silent data loss on write (updates to wrong column names are ignored)
-- Check-in/check-out appears to work but changes don't persist
-
-This MUST be resolved as part of Phase 1 consolidation.
-
-### Days 4-5: Fix Domain-Database Mismatches (NEW - BLOCKING)
-
-**Before any module merging, fix the persistence layer:**
-
-- [ ] Audit ALL `toPersistence()` methods against `src/contracts/db.ts`
-- [ ] Audit ALL `fromPersistence()` methods against `src/contracts/db.ts`
-- [ ] Fix Reservation.ts column name mappings (see ISSUE_DOMAIN_DATABASE_MISMATCH.md)
-- [ ] Add schema validation tests for each entity
-- [ ] Add round-trip persistence tests
-- [ ] Run integration tests against real database
-
-### Days 6-7: Merge ReservationManagement into BookingEngine
-
-**Current State:**
-```
-src/modules/ReservationManagement/     ← TO BE DELETED
+src/modules/{ModuleName}/
 ├── domain/
-│   ├── Reservation.ts                 ← Duplicate
-│   ├── DateRange.ts                   ← Move to BookingEngine
-│   ├── GuestCount.ts                  ← Map to OccupancyInfo
-│   ├── ReservationPricing.ts          ← Evaluate need
-│   ├── events/                        ← Merge with BookingEngine events
-│   └── __tests__/                     ← Merge tests
+│   ├── {Entity}.ts
+│   ├── I{Entity}Repository.ts
+│   ├── events/
+│   │   └── index.ts
+│   ├── value-objects/
+│   │   └── index.ts
+│   └── __tests__/
+├── application/
+│   ├── commands/
+│   ├── queries/
+│   └── DTOs/
+├── infrastructure/
+│   └── __tests__/
+└── index.ts
 ```
 
+**Conformance Tasks:**
+- [x] Add missing `domain/value-objects/` to GuestManagement, PropertyManagement, SiteManagement
+- [x] Add missing `domain/__tests__/` to BookingEngine, Financial
+- [x] Add missing `infrastructure/__tests__/` to BookingEngine, Financial, PropertyManagement
+- [x] Move Financial `domain/aggregates/*` contents to `domain/`
+- [x] Move Financial `domain/repositories/*` contents to `domain/`
+- [x] Remove empty `domain/aggregates/` and `domain/repositories/` from Financial
+- [x] Relocate `infrastructure/__benchmarks__/` from PropertyManagement to `benchmarks/PropertyManagement/`
+- [x] Create `index.ts` barrel export for ALL modules (except ReservationManagement)
+- [x] Add `events/index.ts` barrel export to all modules
+- [x] Add `value-objects/index.ts` barrel export to all modules
+- [x] Verify all modules pass structure validation
+
+### 0.2 Generator & DI Container ✅
+
 **Tasks:**
-- [ ] Compare value objects, identify what to keep
-- [ ] Move unique value objects to BookingEngine
-- [ ] Merge events (remove duplicates)
+- [x] Create `scripts/generate-module.ts` (based on conforming module structure)
+- [x] Add npm script: `npm run generate:module`
+- [x] Create `src/shared/infrastructure/container/Container.ts`
+- [x] Create `src/shared/infrastructure/container/index.ts`
+- [ ] Document module creation process in `docs/creating-modules.md` (deferred - not blocking)
+- [x] Test generator output matches canonical structure exactly
+- [x] Fix generator issues discovered during testing (events export, table name typing)
+
+### Files Created
+
+```
+scripts/generate-module.ts                              ✅
+src/shared/infrastructure/container/Container.ts       ✅
+src/shared/infrastructure/container/index.ts           ✅
+src/modules/BookingEngine/index.ts                     ✅
+src/modules/Financial/index.ts                         ✅
+src/modules/GuestManagement/index.ts                   ✅
+src/modules/PropertyManagement/index.ts                ✅
+src/modules/SiteManagement/index.ts                    ✅
+src/modules/*/domain/events/index.ts                   ✅ (all modules)
+src/modules/*/domain/value-objects/index.ts            ✅ (all modules)
+benchmarks/PropertyManagement/                         ✅ (relocated)
+```
+
+### Completion Criteria
+
+- [x] ALL existing modules conform to canonical structure (M-1)
+- [x] ALL modules have barrel exports (M-2)
+- [x] No non-standard folders exist (M-3)
+- [x] Module generator works and produces conforming output
+- [x] Generator tested with TestModule - type-check passes
+- [x] DI container functional (singleton/transient support)
+- [ ] Documentation complete (deferred - `docs/creating-modules.md`)
+
+---
+
+## Phase 1: Complete Shared Kernel
+
+**Status:** ✅ COMPLETE
+**Completed:** December 18, 2025
+**Goal:** Fill gaps in shared infrastructure
+**Prerequisites:** Phase 0 ✅
+
+### Tasks
+
+**Logger Infrastructure:**
+- [x] Create `src/shared/infrastructure/logging/ILogger.ts`
+- [x] Create `src/shared/infrastructure/logging/ConsoleLogger.ts`
+- [x] Create `src/shared/infrastructure/logging/index.ts`
+- [x] Write tests for Logger (16 tests)
+
+**Event Store:**
+- [x] Migration exists: `20251105000001_add_event_store_table.sql`
+- [x] Create `src/shared/infrastructure/eventStore/IEventStoreRepository.ts`
+- [x] Create `src/shared/infrastructure/eventStore/SupabaseEventStoreRepository.ts`
+- [x] Create `src/shared/infrastructure/eventStore/index.ts`
+- [x] Repository implementation complete (integration tests deferred to Phase 6)
+
+**Persistent Event Bus:**
+- [x] Create `src/shared/infrastructure/eventBus/PersistentEventBus.ts`
+- [x] Write tests for PersistentEventBus (17 tests)
+- [x] Update `src/shared/infrastructure/index.ts` barrel exports
+
+### Files Created
+
+```
+src/shared/infrastructure/logging/ILogger.ts           ✅
+src/shared/infrastructure/logging/ConsoleLogger.ts    ✅
+src/shared/infrastructure/logging/index.ts            ✅
+src/shared/infrastructure/logging/__tests__/ConsoleLogger.test.ts  ✅
+
+src/shared/infrastructure/eventStore/IEventStoreRepository.ts      ✅
+src/shared/infrastructure/eventStore/SupabaseEventStoreRepository.ts ✅
+src/shared/infrastructure/eventStore/index.ts         ✅
+
+src/shared/infrastructure/eventBus/PersistentEventBus.ts ✅
+src/shared/infrastructure/eventBus/__tests__/PersistentEventBus.test.ts ✅
+```
+
+### Completion Criteria
+
+- [x] Logger works (ConsoleLogger with levels, context, child loggers)
+- [x] event_store table exists (migration present)
+- [x] Event store repository implemented
+- [x] PersistentEventBus persists and dispatches events
+- [x] All tests pass (94 tests in shared/)
+
+---
+
+## Phase 2: Missing Core Modules
+
+**Status:** 🔜 READY TO START
+**Goal:** Create CompanyManagement and StaffManagement modules
+**Prerequisites:** Phase 0 ✅, Phase 1 ✅
+
+### Phase 2A: CompanyManagement Module
+
+**Priority:** HIGH - Core SaaS tenant functionality
+
+**Tasks:**
+- [ ] Create directory structure
+- [ ] Implement `Company.ts` aggregate root
+- [ ] Implement value objects: CompanyName, SubscriptionPlan, SubscriptionStatus, BillingCycle, OnboardingToken
+- [ ] Implement domain events (6 events)
+- [ ] Implement `ICompanyRepository.ts`
+- [ ] Implement commands (6 commands)
+- [ ] Implement queries (3 queries)
+- [ ] Implement DTOs
+- [ ] Implement `SupabaseCompanyRepository.ts`
+- [ ] Create API routes under `/api/v1/companies/`
+- [ ] Write unit tests for Company aggregate
+- [ ] Write integration tests for repository
+- [ ] Write API route tests
+
+### Phase 2B: StaffManagement Module
+
+**Priority:** HIGH - RBAC functionality
+
+**Tasks:**
+- [ ] Create directory structure
+- [ ] Implement `PropertyStaff.ts` aggregate root
+- [ ] Implement value objects: StaffRole, Permissions
+- [ ] Implement domain events (4 events)
+- [ ] Implement `IPropertyStaffRepository.ts`
+- [ ] Implement commands (4 commands)
+- [ ] Implement queries (3 queries)
+- [ ] Implement DTOs
+- [ ] Implement `SupabasePropertyStaffRepository.ts`
+- [ ] Create API routes under `/api/v1/properties/[propertyId]/staff/`
+- [ ] Write unit tests for PropertyStaff aggregate
+- [ ] Write integration tests for repository
+- [ ] Create permission-checking middleware
+
+### Completion Criteria
+
+- [ ] CompanyManagement module passes all tests
+- [ ] StaffManagement module passes all tests
+- [ ] All API routes functional
+
+---
+
+## Phase 3: Enhance Existing Modules
+
+**Status:** NOT STARTED
+**Goal:** Consolidate and complete existing modules
+
+### Phase 3A: Consolidate BookingEngine + ReservationManagement
+
+**NOTE:** This is where the persistence layer issue gets fixed.
+
+**Tasks:**
+- [ ] Create new folder structure under BookingEngine
+- [ ] Move ReservationManagement value objects to BookingEngine
+- [ ] Move ReservationManagement events to BookingEngine
+- [ ] **FIX `toPersistence()` column names** (see Known Issues)
+- [ ] **Add schema validation tests for persistence**
 - [ ] Update all imports across codebase
-- [ ] Delete `src/modules/ReservationManagement/`
-- [ ] Run tests, fix breakages
+- [ ] Delete ReservationManagement module
+- [ ] Create AvailabilityService domain service
+- [ ] Create PricingCalculator domain service
+- [ ] Add ExtendReservationCommand
+- [ ] Add RenewReservationCommand
+- [ ] Add ModifyReservationCommand
+- [ ] Add CheckInGuestCommand (verify existing)
+- [ ] Add CheckOutGuestCommand (verify existing)
+- [ ] Update/create API routes for new commands
+- [ ] Write tests for all new commands
 
-### Days 7-8: Decide Canonical Code Path
+### Phase 3B: Complete SiteManagement
 
-**Decision Required:** Which implementation should be canonical?
+**Tasks:**
+- [ ] Create Hookup value object
+- [ ] Create Amenity value object
+- [ ] Create Coordinates value object
+- [ ] Create PetPolicy value object
+- [ ] Create AccessibilityFeatures value object
+- [ ] Add business logic methods to Site entity (markAsReserved, markAsOccupied, release, putUnderMaintenance, canAccommodate)
+- [ ] Add SiteMaintenanceStartedEvent
+- [ ] Add SitePricingUpdatedEvent
+- [ ] Update SupabaseSiteRepository for new fields
+- [ ] Write tests for new value objects
+- [ ] Write tests for Site business methods
 
-#### Option A: Keep `lib/booking` as Canonical (RECOMMENDED)
+### Phase 3C: Enhance GuestManagement
 
-**Rationale:** Customer is actively testing. Stability over architecture purity.
+**Tasks:**
+- [ ] Create EmergencyContact value object
+- [ ] Create GuestUpdatedEvent
+- [ ] Update Guest aggregate to use EmergencyContact
+- [ ] Update repository and DTO
+- [ ] Write tests
 
-**Approach:**
-- Make v1 API routes use `lib/booking` directly for reads
-- Use BookingEngine commands for writes (they work)
-- Defer full migration to Phase 4-5
+### Phase 3D: Complete Financial Module
 
-**Pros:**
-- Minimal changes
-- Stable, tested code
-- Lower risk during customer testing
+**Tasks:**
+- [ ] Create Stripe adapter in `infrastructure/stripe/`
+- [ ] Create FinancialReportingService domain service
+- [ ] Create ReservationEventHandlers (event subscriptions)
+- [ ] Add API endpoint for financial summary
+- [ ] Write tests
 
-**Cons:**
-- Two code paths temporarily
-- Defers architectural cleanup
+### Completion Criteria
 
-#### Option B: Make BookingEngine Canonical Now
-
-**Approach:**
-- Fix all BookingEngine issues
-- Migrate all routes to use BookingEngine
-- Deprecate `lib/booking` immediately
-
-**Pros:**
-- Clean architecture sooner
-- Single code path
-
-**Cons:**
-- More changes during customer testing
-- Higher risk
-- More time needed
-
-### Days 9-10: Implement Chosen Approach
-
-If Option A:
-- Create thin adapter for v1 API reads
-- Document the temporary dual-path
-
-If Option B:
-- Fix remaining BookingEngine issues
-- Update all API routes
-- More extensive testing needed
+- [ ] BookingEngine consolidated (single module)
+- [ ] Persistence layer works correctly
+- [ ] All modules at 85%+ domain test coverage
 
 ---
 
-## Phase 2: FEATURE COMPLETION (Days 11-25)
+## Phase 4: API Consolidation
 
-**Goal:** Complete customer-requested features.
+**Status:** NOT STARTED
+**Goal:** All API endpoints exist and use module handlers
 
-*Imported from original EXECUTION_ROADMAP.md Phases 0-2*
+### Missing Endpoints to Create
 
-### Days 11-15: Check-in/Check-out Enhancements
+**Companies API:**
+- [ ] POST `/v1/companies`
+- [ ] GET `/v1/companies/:id`
+- [ ] PATCH `/v1/companies/:id`
+- [ ] GET `/v1/companies/:id/subscription`
+- [ ] POST `/v1/companies/:id/subscription`
+- [ ] POST `/v1/companies/:id/invite`
 
-- [ ] Fix check-in dialog payment flow (cash/check support)
-- [ ] Add arrivals dashboard widget
-- [ ] Guest verification fields
-- [ ] Arrival slip generation
-- [ ] Departure checklist
+**Properties API:**
+- [ ] GET `/v1/properties/:id/settings`
+- [ ] PATCH `/v1/properties/:id/settings`
 
-### Days 16-20: Payment Management
+**Guests API:**
+- [ ] POST `/v1/guests`
+- [ ] GET `/v1/guests/:id/reservations`
 
-- [ ] Manual payment entry (cash, check, offline card)
-- [ ] Payment history view
-- [ ] Receipt generation
-- [ ] Refund processing
-- [ ] Basic financial reports
+**Reservations API:**
+- [ ] POST `/v1/reservations`
+- [ ] POST `/v1/reservations/:id/extend`
+- [ ] POST `/v1/reservations/:id/renew`
 
-### Days 21-25: Guest Documentation
+**Financial API:**
+- [ ] POST `/v1/payments`
+- [ ] GET `/v1/payments/:id`
+- [ ] POST `/v1/payments/:id/refund`
+- [ ] POST `/v1/reservations/:id/installments`
+- [ ] GET `/v1/reservations/:id/installments`
+- [ ] PATCH `/v1/installments/:id/mark-paid`
+- [ ] GET `/v1/properties/:propertyId/financial-summary`
 
-- [ ] Document schema and storage
-- [ ] Document upload component
-- [ ] Template system (if time permits)
-- [ ] E-signature (if time permits)
+**Staff API:**
+- [ ] GET `/v1/properties/:propertyId/staff`
+- [ ] POST `/v1/properties/:propertyId/staff`
+- [ ] GET `/v1/properties/:propertyId/staff/:staffId`
+- [ ] PATCH `/v1/properties/:propertyId/staff/:staffId`
+- [ ] DELETE `/v1/properties/:propertyId/staff/:staffId`
 
----
+### Additional Tasks
 
-## Phase 3: SAFETY IMPROVEMENTS (Days 26-35)
+- [ ] Update all existing routes to use Container/handlers pattern
+- [ ] Add OpenAPI/Swagger documentation
+- [ ] Create API integration tests for all endpoints
 
-**Goal:** Add safeguards from October 30 incident learnings.
+### Completion Criteria
 
-*Imported from docs/architecture/IMPLEMENTATION_ROADMAP.md*
-
-### Days 26-28: E2E Tests for Critical Paths
-
-- [ ] Conversion pipeline test (checkout → webhook → wizard → dashboard)
-- [ ] Check-in/check-out flow test
-- [ ] Payment flow test
-
-### Days 29-31: Observability Improvements
-
-- [ ] Structured logging with correlation IDs
-- [ ] Sentry integration improvements
-- [ ] Critical path alerts
-
-### Days 32-35: Redirect Loop Detection
-
-- [ ] Implement RedirectLoopDetector
-- [ ] Add to middleware
-- [ ] Test with various scenarios
-
----
-
-## Phase 4: ARCHITECTURE MATURATION (Days 36-50)
-
-**Goal:** Complete modular architecture per design documents.
-
-*Imported from implementation-plan-modular-architecture.md Phases 1-2*
-
-### Days 36-40: Complete Shared Kernel
-
-- [ ] Logger infrastructure (`ILogger`, `Logger`, `ConsoleLogger`)
-- [ ] Event Store table migration
-- [ ] `SupabaseEventStoreRepository`
-- [ ] `PersistentEventBus`
-
-### Days 41-45: Missing Core Modules (If Needed)
-
-- [ ] CompanyManagement module (subscription management)
-- [ ] StaffManagement module (RBAC)
-
-*Note: Only build if feature work requires these*
-
-### Days 46-50: Complete BookingEngine
-
-NOW safe to make BookingEngine fully canonical:
-
-- [ ] Add missing commands (ExtendReservation, RenewReservation, ModifyReservation)
-- [ ] Add domain services (AvailabilityService, PricingCalculator)
-- [ ] Migrate remaining API routes from `lib/booking`
-- [ ] Complete test coverage
+- [ ] All API endpoints exist
+- [ ] All routes use module handlers (no direct Supabase in routes)
+- [ ] Integration tests pass
 
 ---
 
-## Phase 5: DEPRECATION & CLEANUP (Days 51-60)
+## Phase 5: Database Schema Evolution
 
-**Goal:** Remove old code paths, finalize architecture.
+**Status:** NOT STARTED
+**Goal:** Add required tables
 
-### Days 51-55: Final Migration
+### Tasks
 
-- [ ] Update ALL API routes to use BookingEngine
-- [ ] Remove `lib/booking` adapters
-- [ ] Update frontend to use v1 API consistently
+- [ ] Create migration for event_store table (if not done in Phase 1)
+- [ ] Create migration for module_licenses table
+- [ ] Create/enhance subscription_events table
+- [ ] Run migrations in development
+- [ ] Verify RLS policies work correctly
+- [ ] Update Supabase types (`npm run gen:db`)
+- [ ] Test migrations in staging
+- [ ] Deploy to production
 
-### Days 56-58: Remove Old Code
+### Completion Criteria
 
-- [ ] Delete `src/lib/booking/` directory
+- [ ] All tables exist
+- [ ] RLS policies correct
+- [ ] Types regenerated
+
+---
+
+## Phase 6: Testing & Quality Gates
+
+**Status:** NOT STARTED
+**Goal:** Comprehensive test coverage and CI gates
+
+### Coverage Targets
+
+| Layer | Target |
+|-------|--------|
+| Domain Entities/Aggregates | 90% |
+| Value Objects | 95% |
+| Command Handlers | 85% |
+| Query Handlers | 80% |
+| Repositories | 80% |
+| API Routes | 75% |
+| E2E Critical Paths | 100% |
+
+### Tasks
+
+- [ ] Create test file structure per implementation plan
+- [ ] Write unit tests for CompanyManagement domain (90% coverage)
+- [ ] Write unit tests for StaffManagement domain (90% coverage)
+- [ ] Write unit tests for BookingEngine consolidation
+- [ ] Write integration tests for new repositories
+- [ ] Write API tests for all new endpoints
+- [ ] Create E2E test: Complete Booking Flow
+- [ ] Create E2E test: Onboarding Wizard
+- [ ] Create E2E test: Reservation Lifecycle
+- [ ] Create E2E test: Staff Management
+- [ ] Create security tests for tenant isolation
+- [ ] Create security tests for RLS policies
+- [ ] Set up GitHub Actions quality gate workflow
+- [ ] Configure coverage thresholds
+
+### Completion Criteria
+
+- [ ] All quality gates passing
+- [ ] E2E tests green
+- [ ] Coverage targets met
+
+---
+
+## Phase 7: Premium Module Foundation
+
+**Status:** NOT STARTED
+**Goal:** Foundation for premium features
+
+### Tasks
+
+- [ ] Create FeatureFlags service interface
+- [ ] Implement SupabaseFeatureFlagService
+- [ ] Create premium guard middleware
+- [ ] Create stub folders for all premium modules
+- [ ] Write README specs for each premium module
+- [ ] Add upgrade prompts in UI where premium features would appear
+- [ ] Create billing/upgrade page placeholder
+
+### Premium Module Stubs to Create
+
+- DynamicPricing/README.md
+- GuestCommunications/README.md
+- ChannelManagement/README.md
+- AdvancedAnalytics/README.md
+- MaintenanceManagement/README.md
+- ReviewSystem/README.md
+
+### Completion Criteria
+
+- [ ] Premium foundation ready
+- [ ] Feature flags working
+- [ ] Guard middleware functional
+
+---
+
+## Post-Implementation: Cleanup
+
+**After Phase 4 completion:**
+
+- [ ] Delete `src/lib/booking/` (legacy code)
 - [ ] Remove any remaining adapter layers
 - [ ] Clean up unused types
-
-### Days 59-60: Documentation
-
-- [ ] Update CLAUDE.md with new architecture
-- [ ] Document API contracts
-- [ ] Write migration guide for any breaking changes
+- [ ] Update CLAUDE.md with final architecture
 
 ---
 
-## Deprecation Timeline
+## Execution Order
 
-| Code Path | Now | Phase 1 | Phase 4 | Phase 5 |
-|-----------|-----|---------|---------|---------|
-| `lib/booking/` | Primary | Canonical (temp) | Being replaced | REMOVED |
-| `modules/ReservationManagement/` | Duplicate | REMOVED | - | - |
-| `modules/BookingEngine/` | Broken | Fixed | Canonical | Canonical |
+Per implementation plan Appendix B:
 
----
-
-## Dependencies
-
-```
-Phase 0 ──┬── Phase 1 ──┬── Phase 2 ──┬── Phase 3 ──┬── Phase 4 ──── Phase 5
-          │             │             │             │
-          │             │             └─────────────┴── Can run in parallel
-          │             │                               after Phase 1
-          │             │
-          │             └── Blocks feature work until complete
-          │
-          └── CRITICAL: Blocks everything
-```
-
-**Critical Path:** Phase 0 → Phase 1 → (Phases 2-3 parallel) → Phase 4 → Phase 5
-
----
-
-## Risk Mitigation
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| ConfirmationNumber fix breaks something | CRITICAL | Test both formats extensively |
-| Customer loses data during migration | HIGH | Additive migrations only |
-| Check-in/check-out breaks | HIGH | E2E tests before deploying |
-| API breaking changes | MEDIUM | Version APIs, deprecation notices |
-
-### Rollback Strategy
-
-- **Phase 0:** Revert single file changes
-- **Phase 1:** Restore ReservationManagement from git if needed
-- **Phase 2-3:** Feature flags for new features
-- **Phase 4-5:** Keep old code until new code proven
+1. ✅ **Phase 0 - Foundation** - COMPLETE (December 18, 2025)
+2. ✅ **Phase 1 - Shared Kernel** - COMPLETE (December 18, 2025)
+3. Phase 5 - Database Migrations - Do early to have tables ready
+4. 🔜 **Phase 2A - CompanyManagement** - NEXT
+5. Phase 2B - StaffManagement
+6. Phase 3A - BookingEngine Consolidation
+7. Phase 3B-D - Module Enhancements
+8. Phase 4 - API Consolidation
+9. Phase 6 - Testing (ongoing)
+10. Phase 7 - Premium Foundation
 
 ---
 
 ## Success Metrics
 
-### Phase 0 Complete When:
-- [ ] Zero 500 errors on reservation retrieval
-- [ ] Check-in button visible for all valid scenarios
-- [ ] Check-out functionality works
-- [ ] Customer confirms basic flow works
+From implementation plan:
 
-### Phase 1 Complete When:
-- [ ] Only ONE booking module exists (BookingEngine)
-- [ ] All tests pass
-- [ ] No import errors
-- [ ] Clear canonical code path documented
-
-### Phase 2 Complete When:
-- [ ] Customer confirms check-in/check-out works
-- [ ] Cash/check payments can be recorded
-- [ ] Payment history visible
-
-### Phase 3 Complete When:
-- [ ] E2E tests pass in CI
-- [ ] Logs have correlation IDs
-- [ ] Redirect loops are detected
-
-### Phase 4-5 Complete When:
-- [ ] Full modular architecture per design docs
-- [ ] No legacy `lib/booking` code
-- [ ] Documentation complete
+- [ ] 100% of design doc core modules implemented
+- [ ] 0 TypeScript errors
+- [ ] 85%+ unit test coverage on domain layer
+- [ ] All E2E critical paths passing
+- [ ] API response times < 200ms (p95)
+- [ ] Zero security test failures
 
 ---
 
-## Immediate Next Steps
-
-1. **Review this document** - Does this ordering make sense?
-2. **Approve Phase 0 approach** - Fix ConfirmationNumber regex
-3. **Decide Option A vs B for Phase 1** - Keep lib/booking or migrate now?
-4. **Begin execution** - Start with Day 1 tasks
-
----
-
-## Appendix: Files to Modify
-
-### Phase 0 Critical Files
-
-1. `src/modules/BookingEngine/domain/value-objects/ConfirmationNumber.ts`
-   - Update FORMAT_REGEX to accept both formats
-
-2. `src/components/admin/check-in-button.tsx`
-   - Already fixed per session (verify)
-
-3. `src/components/admin/check-out-button.tsx`
-   - Already created per session (verify)
-
-### Phase 1 Files to Fix (Domain-Database Mismatches)
-
-**See:** `docs/ISSUE_DOMAIN_DATABASE_MISMATCH.md` for complete details.
-
-| File | Issue |
-|------|-------|
-| `src/modules/BookingEngine/domain/Reservation.ts` | `toPersistence()` and `fromPersistence()` use wrong column names |
-| `src/modules/BookingEngine/application/DTOs/ReservationDTO.ts` | References non-existent `refund_amount_cents` |
-| `src/modules/Financial/domain/aggregates/PaymentPlan.ts` | Uses `_cents` suffix - verify if persisted |
-
-### Phase 1 Files to Delete
-
-- `src/modules/ReservationManagement/` (entire directory after merge)
-
-### Phase 5 Files to Delete
-
-- `src/lib/booking/` (entire directory after migration)
-
----
-
-## Supplemental Documentation
-
-- `docs/ISSUE_DOMAIN_DATABASE_MISMATCH.md` - Critical persistence layer issues discovered 2025-12-18
-
----
-
-**Document Status:** READY FOR REVIEW
-**Supersedes:** EXECUTION_ROADMAP.md (root)
-**Next Step:** Review and approve, then begin Phase 0
+**Document Status:** IN PROGRESS - Phase 0 & 1 Complete, Phase 2 Ready
+**Last Updated:** December 18, 2025
+**Source of Truth:** `docs/implementation-plan-modular-architecture.md`

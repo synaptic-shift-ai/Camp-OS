@@ -7,9 +7,9 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ISecurityDepositRepository } from '../domain/repositories/ISecurityDepositRepository'
-import { SecurityDeposit } from '../domain/aggregates/SecurityDeposit'
-import { DepositStatus } from '../domain/value-objects/DepositStatus'
+import type { ISecurityDepositRepository } from '../domain/ISecurityDepositRepository'
+import { SecurityDeposit } from '../domain/SecurityDeposit'
+import { DepositStatus } from '../domain//value-objects/DepositStatus'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 

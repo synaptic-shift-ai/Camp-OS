@@ -7,8 +7,8 @@
 import type {
   ITransactionRepository,
   TransactionFilters,
-} from '../../domain/repositories/ITransactionRepository'
-import type { Transaction } from '../../domain/aggregates/Transaction'
+} from '../../domain/ITransactionRepository'
+import type { Transaction } from '../../domain/Transaction'
 
 export interface GetPropertyTransactionsDto {
   propertyId: string

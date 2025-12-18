@@ -9,9 +9,9 @@ import { GetGuestQueryHandler, GetGuestInput } from '../queries/GetGuestQuery'
 import { ListGuestsQueryHandler, ListGuestsInput } from '../queries/ListGuestsQuery'
 import { IGuestRepository } from '../../domain/IGuestRepository'
 import { Guest } from '../../domain/Guest'
-import { PersonName } from '../../domain/PersonName'
-import { ContactInfo } from '../../domain/ContactInfo'
-import { Address } from '../../domain/Address'
+import { PersonName } from '../../domain/value-objects/PersonName'
+import { ContactInfo } from '../../domain/value-objects/ContactInfo'
+import { Address } from '../../domain/value-objects/Address'
 import { GuestDTO } from '../DTOs/GuestDTO'
 
 describe('GetGuestQueryHandler', () => {

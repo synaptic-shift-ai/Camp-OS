@@ -4,8 +4,8 @@
  * Retrieves a single transaction by ID.
  */
 
-import type { ITransactionRepository } from '../../domain/repositories/ITransactionRepository'
-import type { Transaction } from '../../domain/aggregates/Transaction'
+import type { ITransactionRepository } from '../../domain/ITransactionRepository'
+import type { Transaction } from '../../domain/Transaction'
 
 export class GetTransactionQueryHandler {
   constructor(private readonly transactionRepository: ITransactionRepository) {}

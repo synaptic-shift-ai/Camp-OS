@@ -5,7 +5,7 @@
  * Used for API responses.
  */
 
-import type { Transaction } from '../../domain/aggregates/Transaction'
+import type { Transaction } from '../../domain/Transaction'
 
 export interface TransactionDTO {
   id: string

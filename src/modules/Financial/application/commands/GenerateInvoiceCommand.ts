@@ -5,10 +5,10 @@
  * Used for both one-time invoices and installment invoices.
  */
 
-import type { IInvoiceRepository } from '../../domain/repositories/IInvoiceRepository'
-import { Invoice } from '../../domain/aggregates/Invoice'
-import { InvoiceNumber } from '../../domain/value-objects/InvoiceNumber'
-import { InvoiceLineItem } from '../../domain/value-objects/InvoiceLineItem'
+import type { IInvoiceRepository } from '../../domain/IInvoiceRepository'
+import { Invoice } from '../../domain/Invoice'
+import { InvoiceNumber } from '../../domain//value-objects/InvoiceNumber'
+import { InvoiceLineItem } from '../../domain//value-objects/InvoiceLineItem'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

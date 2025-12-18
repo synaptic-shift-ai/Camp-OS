@@ -5,8 +5,8 @@
  */
 
 import { Guest } from '../../domain/Guest'
-import { ContactInfo } from '../../domain/ContactInfo'
-import { Address } from '../../domain/Address'
+import { ContactInfo } from '../../domain/value-objects/ContactInfo'
+import { Address } from '../../domain/value-objects/Address'
 import { IGuestRepository } from '../../domain/IGuestRepository'
 import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 

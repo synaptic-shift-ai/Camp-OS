@@ -4,8 +4,8 @@
  * Holds a security deposit for a reservation.
  */
 
-import type { ISecurityDepositRepository } from '../../domain/repositories/ISecurityDepositRepository'
-import { SecurityDeposit } from '../../domain/aggregates/SecurityDeposit'
+import type { ISecurityDepositRepository } from '../../domain/ISecurityDepositRepository'
+import { SecurityDeposit } from '../../domain/SecurityDeposit'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

@@ -30,7 +30,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "seed:analytics": "node scripts/run-seed-data.js"
+    "seed:analytics": "node scripts/run-seed-data.js",
+    "generate:module": "npx tsx scripts/generate-module.ts"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "1.2.2",

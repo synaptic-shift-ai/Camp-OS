@@ -5,20 +5,31 @@
  */
 export type { IEventBus, EventHandler, EventConstructor } from './IEventBus'
 export { InMemoryEventBus } from './InMemoryEventBus'
+export { PersistentEventBus } from './PersistentEventBus'
+export type { PersistentEventBusOptions, PublishOptions } from './PersistentEventBus'
 
 // Singleton instance for application-wide use
 import { InMemoryEventBus } from './InMemoryEventBus'
+import type { IEventBus } from './IEventBus'
 
-let eventBusInstance: InMemoryEventBus | null = null
+let eventBusInstance: IEventBus | null = null
 
 /**
  * Get the global event bus instance (singleton pattern)
+ * By default returns InMemoryEventBus. Use setEventBus() to configure PersistentEventBus.
  */
-export function getEventBus(): InMemoryEventBus {
+export function getEventBus(): IEventBus {
   if (!eventBusInstance) {
     eventBusInstance = new InMemoryEventBus()
   }
   return eventBusInstance
+}
+
+/**
+ * Set a custom event bus instance (e.g., PersistentEventBus)
+ */
+export function setEventBus(eventBus: IEventBus): void {
+  eventBusInstance = eventBus
 }
 
 /**

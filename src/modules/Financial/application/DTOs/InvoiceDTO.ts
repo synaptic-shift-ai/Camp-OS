@@ -5,7 +5,7 @@
  * Used for API responses.
  */
 
-import type { Invoice } from '../../domain/aggregates/Invoice'
+import type { Invoice } from '../../domain/Invoice'
 
 export interface InvoiceLineItemDTO {
   description: string

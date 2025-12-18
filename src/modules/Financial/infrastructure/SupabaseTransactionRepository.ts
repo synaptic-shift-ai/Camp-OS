@@ -10,8 +10,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   ITransactionRepository,
   TransactionFilters,
-} from '../domain/repositories/ITransactionRepository'
-import { Transaction } from '../domain/aggregates/Transaction'
+} from '../domain/ITransactionRepository'
+import { Transaction } from '../domain/Transaction'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 

@@ -4,8 +4,8 @@
  * Releases a security deposit back to the guest.
  */
 
-import type { ISecurityDepositRepository } from '../../domain/repositories/ISecurityDepositRepository'
-import type { SecurityDeposit } from '../../domain/aggregates/SecurityDeposit'
+import type { ISecurityDepositRepository } from '../../domain/ISecurityDepositRepository'
+import type { SecurityDeposit } from '../../domain/SecurityDeposit'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface ReleaseSecurityDepositDto {

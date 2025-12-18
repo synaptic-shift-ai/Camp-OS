@@ -7,9 +7,9 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { IPaymentPlanRepository } from '../domain/repositories/IPaymentPlanRepository'
-import { PaymentPlan } from '../domain/aggregates/PaymentPlan'
-import { PaymentPlanStatus } from '../domain/value-objects/PaymentPlanStatus'
+import type { IPaymentPlanRepository } from '../domain/IPaymentPlanRepository'
+import { PaymentPlan } from '../domain/PaymentPlan'
+import { PaymentPlanStatus } from '../domain//value-objects/PaymentPlanStatus'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 

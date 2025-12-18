@@ -9,9 +9,9 @@ import { UpdateGuestCommandHandler, UpdateGuestInput } from '../commands/UpdateG
 import { IGuestRepository } from '../../domain/IGuestRepository'
 import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
-import { PersonName } from '../../domain/PersonName'
-import { ContactInfo } from '../../domain/ContactInfo'
-import { Address } from '../../domain/Address'
+import { PersonName } from '../../domain/value-objects/PersonName'
+import { ContactInfo } from '../../domain/value-objects/ContactInfo'
+import { Address } from '../../domain/value-objects/Address'
 import { GuestUpdated } from '../../domain/events/GuestUpdated'
 
 describe('UpdateGuestCommandHandler', () => {

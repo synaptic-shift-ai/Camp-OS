@@ -16,9 +16,9 @@
  */
 import type { IGuestRepository } from '../domain/IGuestRepository'
 import { Guest } from '../domain/Guest'
-import { PersonName } from '../domain/PersonName'
-import { ContactInfo } from '../domain/ContactInfo'
-import { Address } from '../domain/Address'
+import { PersonName } from '../domain/value-objects/PersonName'
+import { ContactInfo } from '../domain/value-objects/ContactInfo'
+import { Address } from '../domain/value-objects/Address'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'

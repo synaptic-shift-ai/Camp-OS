@@ -6,9 +6,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { SupabaseGuestRepository } from '../SupabaseGuestRepository'
 import { Guest } from '../../domain/Guest'
-import { PersonName } from '../../domain/PersonName'
-import { ContactInfo } from '../../domain/ContactInfo'
-import { Address } from '../../domain/Address'
+import { PersonName } from '../../domain/value-objects/PersonName'
+import { ContactInfo } from '../../domain/value-objects/ContactInfo'
+import { Address } from '../../domain/value-objects/Address'
 import type { Database } from '@/contracts/db'
 
 type GuestRow = {

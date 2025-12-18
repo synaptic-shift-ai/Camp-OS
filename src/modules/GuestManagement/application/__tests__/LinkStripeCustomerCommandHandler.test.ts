@@ -9,8 +9,8 @@ import { LinkStripeCustomerCommandHandler, LinkStripeCustomerInput } from '../co
 import { IGuestRepository } from '../../domain/IGuestRepository'
 import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
-import { PersonName } from '../../domain/PersonName'
-import { ContactInfo } from '../../domain/ContactInfo'
+import { PersonName } from '../../domain/value-objects/PersonName'
+import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { StripeCustomerLinked } from '../../domain/events/StripeCustomerLinked'
 
 describe('LinkStripeCustomerCommandHandler', () => {

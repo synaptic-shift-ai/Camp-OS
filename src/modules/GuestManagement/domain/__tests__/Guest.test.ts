@@ -550,4 +550,172 @@ describe('Guest', () => {
       expect(guest.getFullName()).toBe('John Doe')
     })
   })
+
+  describe('updateName', () => {
+    test('should update guest name', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: null,
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: null,
+      })
+
+      const newName = PersonName.create({ firstName: 'Jane', lastName: 'Smith' })
+      guest.updateName(newName)
+
+      expect(guest.name).toBe(newName)
+      expect(guest.getFullName()).toBe('Jane Smith')
+    })
+
+    test('should fire GuestUpdated event when name changes', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: null,
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: null,
+      })
+
+      guest.clearDomainEvents()
+
+      const newName = PersonName.create({ firstName: 'Jane', lastName: 'Smith' })
+      guest.updateName(newName)
+
+      const events = guest.getDomainEvents()
+      expect(events).toHaveLength(1)
+      expect(events[0]).toBeInstanceOf(GuestUpdated)
+
+      const event = events[0] as GuestUpdated
+      expect(event.updatedFields).toContain('name')
+    })
+  })
+
+  describe('linkToUser', () => {
+    test('should link guest to user account', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: null,
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: null,
+      })
+
+      guest.linkToUser('user-789')
+
+      expect(guest.userId).toBe('user-789')
+    })
+
+    test('should fire GuestUpdated event when linked to user', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: null,
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: null,
+      })
+
+      guest.clearDomainEvents()
+      guest.linkToUser('user-789')
+
+      const events = guest.getDomainEvents()
+      expect(events).toHaveLength(1)
+      expect(events[0]).toBeInstanceOf(GuestUpdated)
+
+      const event = events[0] as GuestUpdated
+      expect(event.updatedFields).toContain('userId')
+    })
+
+    test('should throw error when already linked to user', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: 'user-existing',
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: null,
+      })
+
+      expect(() => guest.linkToUser('user-new')).toThrow(
+        'Guest already linked to a user'
+      )
+    })
+  })
+
+  describe('clearNotes', () => {
+    test('should clear notes', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: null,
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: 'Some existing notes',
+      })
+
+      guest.clearNotes()
+
+      expect(guest.notes).toBeNull()
+    })
+
+    test('should fire GuestUpdated event when notes cleared', () => {
+      const guest = Guest.create({
+        id: 'guest-123',
+        propertyId: 'property-456',
+        userId: null,
+        name: PersonName.create({ firstName: 'John', lastName: 'Doe' }),
+        contact: ContactInfo.create({
+          email: 'john@example.com',
+          phone: '555-0100',
+        }),
+        address: null,
+        stripeCustomerId: null,
+        notes: 'Some existing notes',
+      })
+
+      guest.clearDomainEvents()
+      guest.clearNotes()
+
+      const events = guest.getDomainEvents()
+      expect(events).toHaveLength(1)
+      expect(events[0]).toBeInstanceOf(GuestUpdated)
+
+      const event = events[0] as GuestUpdated
+      expect(event.updatedFields).toContain('notes')
+    })
+  })
 })

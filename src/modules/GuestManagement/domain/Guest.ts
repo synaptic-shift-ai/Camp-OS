@@ -239,6 +239,65 @@ export class Guest extends AggregateRoot<string> {
   }
 
   /**
+   * Update guest name
+   *
+   * @param name - New PersonName
+   */
+  public updateName(name: PersonName): void {
+    this._name = name
+    this.touch()
+
+    this.addDomainEvent(
+      new GuestUpdated({
+        guestId: this.id,
+        propertyId: this.propertyId,
+        updatedFields: ['name'],
+        updatedAt: this.updatedAt,
+      })
+    )
+  }
+
+  /**
+   * Link guest to a user account
+   *
+   * @param userId - User ID to link
+   */
+  public linkToUser(userId: string): void {
+    if (this._userId !== null) {
+      throw new Error('Guest already linked to a user')
+    }
+
+    this._userId = userId
+    this.touch()
+
+    this.addDomainEvent(
+      new GuestUpdated({
+        guestId: this.id,
+        propertyId: this.propertyId,
+        updatedFields: ['userId'],
+        updatedAt: this.updatedAt,
+      })
+    )
+  }
+
+  /**
+   * Clear notes
+   */
+  public clearNotes(): void {
+    this._notes = null
+    this.touch()
+
+    this.addDomainEvent(
+      new GuestUpdated({
+        guestId: this.id,
+        propertyId: this.propertyId,
+        updatedFields: ['notes'],
+        updatedAt: this.updatedAt,
+      })
+    )
+  }
+
+  /**
    * Check if guest has a Stripe customer ID
    *
    * @returns True if Stripe customer linked

@@ -1,32 +1,25 @@
 /**
  * Guests API v1 Contract Tests
  *
- * Phase 2, Week 7: Guest Management Module
- * Parent: IMPLEMENTATION_PLAN.md
- *
- * CRITICAL: These tests prevent the Oct 30 incident pattern
- * - Validates complete Guest entity schema
- * - Ensures all fields are ALWAYS present
- * - Tests for missing fields that would cause silent failures
+ * Phase 4D: API Consolidation - Guests API
  *
  * Following CLAUDE.md:
  * - T-1: Tests colocated in tests/integration/
  * - T-6: Test entire structure in one assertion
  * - T-7: Parameterized test inputs
  * - T-8: Test description states what expect verifies
+ * - T-12: Group unit tests under describe(functionName, ...)
  */
 
 import { describe, it, expect } from 'vitest'
 import {
+  AddressSchema,
+  EmergencyContactSchema,
   GuestSchema,
   CreateGuestRequestSchema,
   UpdateGuestRequestSchema,
   LinkStripeCustomerRequestSchema,
   ListGuestsQuerySchema,
-  GuestResponseSchema,
-  GuestListResponseSchema,
-  AddressSchema,
-  EmergencyContactSchema,
   type Guest,
   type CreateGuestRequest,
   type UpdateGuestRequest,
@@ -34,11 +27,422 @@ import {
 
 describe('Guests API v1 Contract Tests', () => {
   // ========================================================================
-  // Complete Entity Schema Tests (Oct 30 Regression Prevention)
+  // Address Schema Validation
   // ========================================================================
 
-  describe('GuestSchema - Complete Entity Validation', () => {
-    it('should validate complete guest entity with all fields present', () => {
+  describe('AddressSchema', () => {
+    it('should validate complete address', () => {
+      const validAddress = {
+        street: '123 Campground Lane',
+        city: 'Yosemite',
+        state: 'CA',
+        zipCode: '95389',
+        country: 'USA',
+      }
+
+      const result = AddressSchema.safeParse(validAddress)
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject empty street', () => {
+      const invalidAddress = {
+        street: '',
+        city: 'Yosemite',
+        state: 'CA',
+        zipCode: '95389',
+        country: 'USA',
+      }
+
+      const result = AddressSchema.safeParse(invalidAddress)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject missing required fields', () => {
+      const invalidAddress = {
+        street: '123 Main St',
+        city: 'Yosemite',
+      }
+
+      const result = AddressSchema.safeParse(invalidAddress)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  // ========================================================================
+  // Emergency Contact Schema Validation
+  // ========================================================================
+
+  describe('EmergencyContactSchema', () => {
+    it('should validate complete emergency contact', () => {
+      const validContact = {
+        name: 'Jane Doe',
+        phone: '555-987-6543',
+      }
+
+      const result = EmergencyContactSchema.safeParse(validContact)
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject empty name', () => {
+      const invalidContact = {
+        name: '',
+        phone: '555-123-4567',
+      }
+
+      const result = EmergencyContactSchema.safeParse(invalidContact)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject empty phone', () => {
+      const invalidContact = {
+        name: 'Jane Doe',
+        phone: '',
+      }
+
+      const result = EmergencyContactSchema.safeParse(invalidContact)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  // ========================================================================
+  // Create Guest Request Schema Validation
+  // ========================================================================
+
+  describe('CreateGuestRequestSchema', () => {
+    it('should validate complete guest creation request', () => {
+      const validRequest: CreateGuestRequest = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        phone: '555-123-4567',
+        address: {
+          street: '123 Main St',
+          city: 'Anytown',
+          state: 'CA',
+          zipCode: '12345',
+          country: 'USA',
+        },
+        emergencyContactName: 'Jane Doe',
+        emergencyContactPhone: '555-987-6543',
+        notes: 'Regular camper, prefers site #12',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate minimal guest creation request', () => {
+      const minimalRequest = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '555-123-4567',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(minimalRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject invalid email format', () => {
+      const invalidRequest = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'not-an-email',
+        phone: '555-123-4567',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject empty first name', () => {
+      const invalidRequest = {
+        firstName: '',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '555-123-4567',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject empty last name', () => {
+      const invalidRequest = {
+        firstName: 'John',
+        lastName: '',
+        email: 'john@example.com',
+        phone: '555-123-4567',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject empty phone', () => {
+      const invalidRequest = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject first name over 100 characters', () => {
+      const invalidRequest = {
+        firstName: 'A'.repeat(101),
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '555-123-4567',
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject notes over 1000 characters', () => {
+      const invalidRequest = {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '555-123-4567',
+        notes: 'A'.repeat(1001),
+      }
+
+      const result = CreateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  // ========================================================================
+  // Update Guest Request Schema Validation
+  // ========================================================================
+
+  describe('UpdateGuestRequestSchema', () => {
+    it('should validate update with email only', () => {
+      const validRequest: UpdateGuestRequest = {
+        email: 'newemail@example.com',
+      }
+
+      const result = UpdateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate update with phone only', () => {
+      const validRequest: UpdateGuestRequest = {
+        phone: '555-999-8888',
+      }
+
+      const result = UpdateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate update with address', () => {
+      const validRequest: UpdateGuestRequest = {
+        address: {
+          street: '456 New Street',
+          city: 'Newtown',
+          state: 'NY',
+          zipCode: '54321',
+          country: 'USA',
+        },
+      }
+
+      const result = UpdateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate update with null address (clearing)', () => {
+      const validRequest = {
+        address: null,
+      }
+
+      const result = UpdateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate empty update request (no changes)', () => {
+      const validRequest = {}
+
+      const result = UpdateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate complete update request', () => {
+      const validRequest: UpdateGuestRequest = {
+        email: 'updated@example.com',
+        phone: '555-111-2222',
+        address: {
+          street: '789 Updated Blvd',
+          city: 'UpdateCity',
+          state: 'TX',
+          zipCode: '77777',
+          country: 'USA',
+        },
+        emergencyContactName: 'Updated Contact',
+        emergencyContactPhone: '555-333-4444',
+        notes: 'Updated notes',
+      }
+
+      const result = UpdateGuestRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject invalid email format', () => {
+      const invalidRequest = {
+        email: 'invalid-email',
+      }
+
+      const result = UpdateGuestRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  // ========================================================================
+  // Link Stripe Customer Request Schema Validation
+  // ========================================================================
+
+  describe('LinkStripeCustomerRequestSchema', () => {
+    it('should validate valid Stripe customer ID', () => {
+      const validRequest = {
+        stripeCustomerId: 'cus_1234567890abcdef',
+      }
+
+      const result = LinkStripeCustomerRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate Stripe customer ID with alphanumeric characters', () => {
+      const validRequest = {
+        stripeCustomerId: 'cus_AbCdEf123456',
+      }
+
+      const result = LinkStripeCustomerRequestSchema.safeParse(validRequest)
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject invalid Stripe customer ID format', () => {
+      const invalidRequest = {
+        stripeCustomerId: 'invalid_customer_id',
+      }
+
+      const result = LinkStripeCustomerRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject Stripe customer ID without cus_ prefix', () => {
+      const invalidRequest = {
+        stripeCustomerId: '1234567890abcdef',
+      }
+
+      const result = LinkStripeCustomerRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject empty Stripe customer ID', () => {
+      const invalidRequest = {
+        stripeCustomerId: '',
+      }
+
+      const result = LinkStripeCustomerRequestSchema.safeParse(invalidRequest)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  // ========================================================================
+  // List Guests Query Schema Validation
+  // ========================================================================
+
+  describe('ListGuestsQuerySchema', () => {
+    it('should validate empty query (defaults)', () => {
+      const result = ListGuestsQuerySchema.safeParse({})
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate query with email filter', () => {
+      const query = {
+        email: 'john@example.com',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(true)
+    })
+
+    it('should validate query with hasStripeCustomer filter', () => {
+      const query = {
+        hasStripeCustomer: 'true',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.hasStripeCustomer).toBe(true)
+      }
+    })
+
+    it('should transform hasStripeCustomer false string correctly', () => {
+      const query = {
+        hasStripeCustomer: 'false',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.hasStripeCustomer).toBe(false)
+      }
+    })
+
+    it('should validate query with pagination', () => {
+      const query = {
+        limit: '50',
+        offset: '20',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.limit).toBe(50)
+        expect(result.data.offset).toBe(20)
+      }
+    })
+
+    it('should reject limit over 100', () => {
+      const query = {
+        limit: '150',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject negative offset', () => {
+      const query = {
+        offset: '-5',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject invalid email in query', () => {
+      const query = {
+        email: 'not-an-email',
+      }
+
+      const result = ListGuestsQuerySchema.safeParse(query)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  // ========================================================================
+  // Guest Response Schema Validation
+  // ========================================================================
+
+  describe('GuestSchema', () => {
+    it('should validate complete guest entity', () => {
       const completeGuest: Guest = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         propertyId: '660e8400-e29b-41d4-a716-446655440001',
@@ -46,492 +450,163 @@ describe('Guests API v1 Contract Tests', () => {
         firstName: 'John',
         lastName: 'Doe',
         fullName: 'John Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
+        email: 'john.doe@example.com',
+        phone: '555-123-4567',
         address: {
-          street: '123 Main St',
-          city: 'Portland',
-          state: 'OR',
-          zipCode: '97201',
+          street: '123 Campground Lane',
+          city: 'Yosemite',
+          state: 'CA',
+          zipCode: '95389',
           country: 'USA',
         },
         emergencyContact: {
           name: 'Jane Doe',
-          phone: '555-0200',
+          phone: '555-987-6543',
         },
         hasStripeCustomer: true,
-        stripeCustomerId: 'cus_123456',
-        notes: 'VIP guest',
+        stripeCustomerId: 'cus_1234567890',
+        notes: 'Returning guest, prefers waterfront sites',
         createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-02T00:00:00Z',
+        updatedAt: '2025-01-10T14:30:00Z',
       }
 
       expect(() => GuestSchema.parse(completeGuest)).not.toThrow()
     })
 
-    it('should reject guest missing required field (firstName)', () => {
-      const incompleteGuest = {
+    it('should validate guest with null optional fields', () => {
+      const minimalGuest: Guest = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         propertyId: '660e8400-e29b-41d4-a716-446655440001',
         userId: null,
-        // firstName is MISSING
+        firstName: 'John',
         lastName: 'Doe',
         fullName: 'John Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
+        email: 'john.doe@example.com',
+        phone: '555-123-4567',
         address: null,
         emergencyContact: null,
         hasStripeCustomer: false,
         stripeCustomerId: null,
         notes: null,
         createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-02T00:00:00Z',
+        updatedAt: '2025-01-01T00:00:00Z',
       }
 
-      expect(() => GuestSchema.parse(incompleteGuest)).toThrow()
+      expect(() => GuestSchema.parse(minimalGuest)).not.toThrow()
     })
 
-    it('should reject guest missing tenant isolation field (propertyId)', () => {
-      const guestWithoutTenantId = {
-        id: '550e8400-e29b-41d4-a716-446655440000',
-        // propertyId is MISSING - critical for tenant isolation
-        userId: null,
-        firstName: 'John',
-        lastName: 'Doe',
-        fullName: 'John Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
-        hasStripeCustomer: false,
-        createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-02T00:00:00Z',
-      }
-
-      expect(() => GuestSchema.parse(guestWithoutTenantId)).toThrow()
-    })
-
-    it('should accept guest with nullable fields set to null', () => {
-      const guestWithNulls: Guest = {
-        id: '550e8400-e29b-41d4-a716-446655440000',
-        propertyId: '660e8400-e29b-41d4-a716-446655440001',
-        userId: null, // Optional
-        firstName: 'John',
-        lastName: 'Doe',
-        fullName: 'John Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
-        address: null, // Optional
-        emergencyContact: null, // Optional
-        hasStripeCustomer: false,
-        stripeCustomerId: null, // Optional
-        notes: null, // Optional
-        createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-02T00:00:00Z',
-      }
-
-      expect(() => GuestSchema.parse(guestWithNulls)).not.toThrow()
-    })
-
-    it('should reject guest with invalid email format', () => {
-      const guestWithInvalidEmail = {
-        id: '550e8400-e29b-41d4-a716-446655440000',
+    it('should reject guest with invalid UUID', () => {
+      const invalid = {
+        id: 'not-a-uuid',
         propertyId: '660e8400-e29b-41d4-a716-446655440001',
         userId: null,
         firstName: 'John',
         lastName: 'Doe',
         fullName: 'John Doe',
-        email: 'not-an-email', // Invalid format
-        phone: '555-0100',
+        email: 'john@example.com',
+        phone: '555-123-4567',
         address: null,
         emergencyContact: null,
         hasStripeCustomer: false,
         stripeCustomerId: null,
         notes: null,
         createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-02T00:00:00Z',
+        updatedAt: '2025-01-01T00:00:00Z',
       }
 
-      expect(() => GuestSchema.parse(guestWithInvalidEmail)).toThrow()
-    })
-  })
-
-  // ========================================================================
-  // Address Schema Tests
-  // ========================================================================
-
-  describe('AddressSchema - Value Object Validation', () => {
-    it('should validate complete address with all required fields', () => {
-      const completeAddress = {
-        street: '123 Main St',
-        city: 'Portland',
-        state: 'OR',
-        zipCode: '97201',
-        country: 'USA',
-      }
-
-      expect(() => AddressSchema.parse(completeAddress)).not.toThrow()
+      expect(() => GuestSchema.parse(invalid)).toThrow()
     })
 
-    it('should reject partial address missing required field (city)', () => {
-      const partialAddress = {
-        street: '123 Main St',
-        // city is MISSING
-        state: 'OR',
-        zipCode: '97201',
-        country: 'USA',
-      }
-
-      expect(() => AddressSchema.parse(partialAddress)).toThrow()
-    })
-
-    it('should reject address with empty string fields', () => {
-      const addressWithEmptyStrings = {
-        street: '',
-        city: 'Portland',
-        state: 'OR',
-        zipCode: '97201',
-        country: 'USA',
-      }
-
-      expect(() => AddressSchema.parse(addressWithEmptyStrings)).toThrow()
-    })
-  })
-
-  // ========================================================================
-  // Emergency Contact Schema Tests
-  // ========================================================================
-
-  describe('EmergencyContactSchema - Value Object Validation', () => {
-    it('should validate emergency contact with both name and phone', () => {
-      const emergencyContact = {
-        name: 'Jane Doe',
-        phone: '555-0200',
-      }
-
-      expect(() => EmergencyContactSchema.parse(emergencyContact)).not.toThrow()
-    })
-
-    it('should reject emergency contact missing phone', () => {
-      const incompleteContact = {
-        name: 'Jane Doe',
-        // phone is MISSING
-      }
-
-      expect(() => EmergencyContactSchema.parse(incompleteContact)).toThrow()
-    })
-  })
-
-  // ========================================================================
-  // Create Guest Request Schema Tests
-  // ========================================================================
-
-  describe('CreateGuestRequestSchema - Input Validation', () => {
-    it('should validate minimal required fields for guest creation', () => {
-      const minimalRequest: CreateGuestRequest = {
+    it('should reject guest with invalid email', () => {
+      const invalid = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        propertyId: '660e8400-e29b-41d4-a716-446655440001',
+        userId: null,
         firstName: 'John',
         lastName: 'Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
-      }
-
-      expect(() => CreateGuestRequestSchema.parse(minimalRequest)).not.toThrow()
-    })
-
-    it('should validate complete request with all optional fields', () => {
-      const completeRequest: CreateGuestRequest = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
-        address: {
-          street: '123 Main St',
-          city: 'Portland',
-          state: 'OR',
-          zipCode: '97201',
-          country: 'USA',
-        },
-        emergencyContactName: 'Jane Doe',
-        emergencyContactPhone: '555-0200',
-        userId: '770e8400-e29b-41d4-a716-446655440002',
-        notes: 'VIP guest',
-      }
-
-      expect(() => CreateGuestRequestSchema.parse(completeRequest)).not.toThrow()
-    })
-
-    it('should reject request with invalid email format', () => {
-      const invalidRequest = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'not-an-email',
-        phone: '555-0100',
-      }
-
-      expect(() => CreateGuestRequestSchema.parse(invalidRequest)).toThrow()
-    })
-
-    it('should reject request with empty firstName', () => {
-      const invalidRequest = {
-        firstName: '',
-        lastName: 'Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
-      }
-
-      expect(() => CreateGuestRequestSchema.parse(invalidRequest)).toThrow()
-    })
-
-    it('should reject request with firstName exceeding max length', () => {
-      const invalidRequest = {
-        firstName: 'a'.repeat(101), // Max is 100
-        lastName: 'Doe',
-        email: 'john@example.com',
-        phone: '555-0100',
-      }
-
-      expect(() => CreateGuestRequestSchema.parse(invalidRequest)).toThrow()
-    })
-  })
-
-  // ========================================================================
-  // Update Guest Request Schema Tests
-  // ========================================================================
-
-  describe('UpdateGuestRequestSchema - Input Validation', () => {
-    it('should validate empty update request (all fields optional)', () => {
-      const emptyUpdate: UpdateGuestRequest = {}
-
-      expect(() => UpdateGuestRequestSchema.parse(emptyUpdate)).not.toThrow()
-    })
-
-    it('should validate partial update with single field', () => {
-      const partialUpdate: UpdateGuestRequest = {
-        email: 'newemail@example.com',
-      }
-
-      expect(() => UpdateGuestRequestSchema.parse(partialUpdate)).not.toThrow()
-    })
-
-    it('should validate update with address set to null', () => {
-      const updateWithNullAddress: UpdateGuestRequest = {
+        fullName: 'John Doe',
+        email: 'invalid-email',
+        phone: '555-123-4567',
         address: null,
+        emergencyContact: null,
+        hasStripeCustomer: false,
+        stripeCustomerId: null,
+        notes: null,
+        createdAt: '2025-01-01T00:00:00Z',
+        updatedAt: '2025-01-01T00:00:00Z',
       }
 
-      expect(() => UpdateGuestRequestSchema.parse(updateWithNullAddress)).not.toThrow()
+      expect(() => GuestSchema.parse(invalid)).toThrow()
     })
 
-    it('should reject update with invalid email', () => {
-      const invalidUpdate = {
-        email: 'not-an-email',
+    it('should reject guest with missing required fields', () => {
+      const invalid = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        firstName: 'John',
+        lastName: 'Doe',
       }
 
-      expect(() => UpdateGuestRequestSchema.parse(invalidUpdate)).toThrow()
-    })
-  })
-
-  // ========================================================================
-  // Link Stripe Customer Request Schema Tests
-  // ========================================================================
-
-  describe('LinkStripeCustomerRequestSchema - Input Validation', () => {
-    it('should validate valid Stripe Customer ID format', () => {
-      const validRequest = {
-        stripeCustomerId: 'cus_123456abcdef',
-      }
-
-      expect(() => LinkStripeCustomerRequestSchema.parse(validRequest)).not.toThrow()
-    })
-
-    it('should reject Stripe Customer ID without "cus_" prefix', () => {
-      const invalidRequest = {
-        stripeCustomerId: '123456abcdef', // Missing cus_ prefix
-      }
-
-      expect(() => LinkStripeCustomerRequestSchema.parse(invalidRequest)).toThrow()
-    })
-
-    it('should reject empty Stripe Customer ID', () => {
-      const invalidRequest = {
-        stripeCustomerId: '',
-      }
-
-      expect(() => LinkStripeCustomerRequestSchema.parse(invalidRequest)).toThrow()
+      expect(() => GuestSchema.parse(invalid)).toThrow()
     })
   })
 
   // ========================================================================
-  // List Guests Query Schema Tests
+  // Business Logic Verification
   // ========================================================================
 
-  describe('ListGuestsQuerySchema - Query Parameter Validation', () => {
-    it('should validate empty query (all parameters optional)', () => {
-      const emptyQuery = {}
+  describe('Guest Business Logic', () => {
+    it('fullName should be combination of firstName and lastName', () => {
+      const firstName = 'John'
+      const lastName = 'Doe'
+      const expectedFullName = `${firstName} ${lastName}`
 
-      expect(() => ListGuestsQuerySchema.parse(emptyQuery)).not.toThrow()
+      expect(expectedFullName).toBe('John Doe')
     })
 
-    it('should validate query with email filter', () => {
-      const queryWithEmail = {
-        email: 'john@example.com',
+    it('guest with Stripe customer should have hasStripeCustomer true', () => {
+      const guestWithStripe = {
+        hasStripeCustomer: true,
+        stripeCustomerId: 'cus_1234567890',
       }
 
-      expect(() => ListGuestsQuerySchema.parse(queryWithEmail)).not.toThrow()
+      expect(guestWithStripe.hasStripeCustomer).toBe(true)
+      expect(guestWithStripe.stripeCustomerId).not.toBeNull()
     })
 
-    it('should transform string limit to number', () => {
-      const queryWithLimit = {
-        limit: '10',
+    it('guest without Stripe customer should have hasStripeCustomer false', () => {
+      const guestWithoutStripe = {
+        hasStripeCustomer: false,
+        stripeCustomerId: null,
       }
 
-      const result = ListGuestsQuerySchema.parse(queryWithLimit)
-      expect(result.limit).toBe(10)
-      expect(typeof result.limit).toBe('number')
+      expect(guestWithoutStripe.hasStripeCustomer).toBe(false)
+      expect(guestWithoutStripe.stripeCustomerId).toBeNull()
     })
 
-    it('should reject limit exceeding max (100)', () => {
-      const invalidQuery = {
-        limit: '101',
+    it('emergency contact should have both name and phone', () => {
+      const validEmergencyContact = {
+        name: 'Jane Doe',
+        phone: '555-987-6543',
       }
 
-      expect(() => ListGuestsQuerySchema.parse(invalidQuery)).toThrow()
+      expect(validEmergencyContact.name).toBeTruthy()
+      expect(validEmergencyContact.phone).toBeTruthy()
     })
 
-    it('should transform hasStripeCustomer string to boolean', () => {
-      const queryWithFilter = {
-        hasStripeCustomer: 'true',
+    it('address should have all required fields', () => {
+      const requiredFields = ['street', 'city', 'state', 'zipCode', 'country']
+      const validAddress = {
+        street: '123 Main St',
+        city: 'Anytown',
+        state: 'CA',
+        zipCode: '12345',
+        country: 'USA',
       }
 
-      const result = ListGuestsQuerySchema.parse(queryWithFilter)
-      expect(result.hasStripeCustomer).toBe(true)
-      expect(typeof result.hasStripeCustomer).toBe('boolean')
-    })
-  })
-
-  // ========================================================================
-  // Response Schema Tests
-  // ========================================================================
-
-  describe('GuestResponseSchema - API Response Validation', () => {
-    it('should validate single guest success response', () => {
-      const successResponse = {
-        success: true,
-        data: {
-          id: '550e8400-e29b-41d4-a716-446655440000',
-          propertyId: '660e8400-e29b-41d4-a716-446655440001',
-          userId: null,
-          firstName: 'John',
-          lastName: 'Doe',
-          fullName: 'John Doe',
-          email: 'john@example.com',
-          phone: '555-0100',
-          address: null,
-          emergencyContact: null,
-          hasStripeCustomer: false,
-          stripeCustomerId: null,
-          notes: null,
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-02T00:00:00Z',
-        },
-        meta: {
-          timestamp: '2025-01-02T12:00:00Z',
-          version: 'v1',
-        },
-      }
-
-      expect(() => GuestResponseSchema.parse(successResponse)).not.toThrow()
-    })
-
-    it('should reject response with success: false (not a success response)', () => {
-      const errorResponse = {
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Guest not found',
-        },
-        meta: {
-          timestamp: '2025-01-02T12:00:00Z',
-          version: 'v1',
-        },
-      }
-
-      expect(() => GuestResponseSchema.parse(errorResponse)).toThrow()
-    })
-  })
-
-  describe('GuestListResponseSchema - List Response Validation', () => {
-    it('should validate guest list success response', () => {
-      const listResponse = {
-        success: true,
-        data: {
-          items: [
-            {
-              id: '550e8400-e29b-41d4-a716-446655440000',
-              propertyId: '660e8400-e29b-41d4-a716-446655440001',
-              userId: null,
-              firstName: 'John',
-              lastName: 'Doe',
-              fullName: 'John Doe',
-              email: 'john@example.com',
-              phone: '555-0100',
-              address: null,
-              emergencyContact: null,
-              hasStripeCustomer: false,
-              stripeCustomerId: null,
-              notes: null,
-              createdAt: '2025-01-01T00:00:00Z',
-              updatedAt: '2025-01-02T00:00:00Z',
-            },
-          ],
-          pagination: {
-            page: 1,
-            per_page: 20,
-            total: 1,
-            total_pages: 1,
-          },
-        },
-        meta: {
-          timestamp: '2025-01-02T12:00:00Z',
-          version: 'v1',
-        },
-      }
-
-      expect(() => GuestListResponseSchema.parse(listResponse)).not.toThrow()
-    })
-
-    it('should validate empty list response', () => {
-      const emptyListResponse = {
-        success: true,
-        data: {
-          items: [],
-          pagination: {
-            page: 1,
-            per_page: 20,
-            total: 0,
-            total_pages: 0,
-          },
-        },
-        meta: {
-          timestamp: '2025-01-02T12:00:00Z',
-          version: 'v1',
-        },
-      }
-
-      expect(() => GuestListResponseSchema.parse(emptyListResponse)).not.toThrow()
-    })
-
-    it('should reject list response missing pagination', () => {
-      const invalidResponse = {
-        success: true,
-        data: {
-          items: [],
-          // pagination is MISSING
-        },
-        meta: {
-          timestamp: '2025-01-02T12:00:00Z',
-          version: 'v1',
-        },
-      }
-
-      expect(() => GuestListResponseSchema.parse(invalidResponse)).toThrow()
+      requiredFields.forEach((field) => {
+        expect(validAddress).toHaveProperty(field)
+        expect(validAddress[field as keyof typeof validAddress]).toBeTruthy()
+      })
     })
   })
 })

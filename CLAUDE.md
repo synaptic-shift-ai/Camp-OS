@@ -33,7 +33,86 @@ Camp-OS is a campground management SaaS platform built with Next.js 16, Supabase
 
 **Stack**: Next.js 16 (App Router), React 19, TypeScript, Supabase, Stripe, TailwindCSS, Shadcn/UI
 **Testing**: Vitest, Testing Library, Playwright
-**Architecture**: Modular monolith (in migration)
+**Architecture**: Modular monolith (migration complete for core modules)
+
+---
+
+## ⚠️ Development Request Classification (REQUIRED)
+
+**Before writing ANY code**, classify the request type and route to the correct architecture.
+
+### Step 1: Identify Request Type
+
+Ask yourself (or the user if unclear):
+
+| Type | Description | Examples |
+|------|-------------|----------|
+| **🐛 Bug Fix** | Existing functionality broken | "Payments failing", "Wrong date displayed" |
+| **✨ Enhancement** | Improve existing feature | "Add sorting to reservations list", "Improve error messages" |
+| **🆕 New Feature** | Entirely new functionality | "Add staff management", "Add reporting dashboard" |
+| **♻️ Refactor** | Restructure without behavior change | "Move to modules", "Improve types" |
+
+### Step 2: Route to Correct Location
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Where does this code go?                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Is this a NEW API endpoint or NEW domain logic?                        │
+│      YES → src/modules/{ModuleName}/  (see M-1 through M-5)             │
+│      NO  ↓                                                               │
+│                                                                          │
+│  Is this a bug fix in existing code?                                    │
+│      YES → Fix where the bug lives (don't migrate as part of fix)       │
+│      NO  ↓                                                               │
+│                                                                          │
+│  Is this enhancing an existing module feature?                          │
+│      YES → Enhance in src/modules/{ModuleName}/                         │
+│      NO  ↓                                                               │
+│                                                                          │
+│  Is this a UI component?                                                │
+│      YES → components/ or app/ (Next.js conventions)                    │
+│      NO  ↓                                                               │
+│                                                                          │
+│  Is this shared utility used by 2+ modules?                             │
+│      YES → src/shared/ or lib/ (see O-1)                                │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Step 3: Verify Module Ownership
+
+For module work, identify which module owns this functionality:
+
+| Domain Area | Module | Key Entities |
+|-------------|--------|--------------|
+| Reservations, availability, check-in/out | `BookingEngine` | Reservation |
+| Company/tenant management, subscriptions | `CompanyManagement` | Company |
+| Invoices, payments, refunds, deposits | `Financial` | Invoice, Transaction, PaymentPlan |
+| Guest profiles, contact info | `GuestManagement` | Guest |
+| Property settings, configuration | `PropertyManagement` | Property |
+| Sites, pricing, amenities | `SiteManagement` | Site |
+| Staff roles, permissions (RBAC) | `StaffManagement` | PropertyStaff |
+
+**If unclear which module**: Ask the user before proceeding.
+
+### ⛔ Anti-Patterns to Avoid
+
+- **R-1 (MUST NOT)** Add new code to `lib/booking/` — this is legacy, scheduled for deletion
+- **R-2 (MUST NOT)** Create new files in `lib/` for domain logic — use `src/modules/`
+- **R-3 (MUST NOT)** Put business logic in API routes — routes should only: validate, call handlers, format responses
+- **R-4 (MUST NOT)** Skip the module structure for "quick fixes" — tech debt compounds
+- **R-5 (MUST NOT)** Create a new module without discussing with user first (M-5)
+
+### Questions to Ask User (When Unclear)
+
+If the request is ambiguous, ask:
+
+1. "Is this fixing broken functionality or adding new capability?"
+2. "Which existing feature does this relate to?" (helps identify module)
+3. "Should this work for all properties, or is it property-specific?" (tenant scope)
+4. "Is this user-facing or internal/admin only?" (helps with risk classification)
 
 ---
 
@@ -147,12 +226,17 @@ These rules ensure maintainability, safety, and developer velocity.
 ### 5 — Code Organization
 
 - **O-1 (MUST)** Place shared code in `lib/` only if used by ≥2 modules
-- **O-2 (SHOULD)** Follow existing directory structure:
-  - `lib/booking/` - Booking domain logic
+- **O-2 (MUST)** New domain logic goes in `src/modules/` — NOT in `lib/`
+- **O-3 (SHOULD)** Follow existing directory structure:
+  - `src/modules/` - **Domain modules (DDD architecture)** ← NEW CODE GOES HERE
+  - `src/shared/` - Cross-cutting infrastructure (logging, events, container)
   - `lib/middleware/` - Request middleware
   - `lib/email/` - Email templates and sending
+  - `lib/api/` - API response helpers
+  - `lib/supabase/` - Database client utilities
   - `components/` - UI components
-  - `app/api/` - API routes
+  - `app/api/` - API routes (thin layer calling module handlers)
+  - ~~`lib/booking/`~~ - **⚠️ LEGACY - Do not add new code here (R-1)**
 
 ---
 
@@ -224,22 +308,44 @@ Located in `lib/middleware/`, this system provides:
 Middleware functions follow a **single responsibility** pattern (C-4). Each middleware adds context to `request.middlewareContext` and returns a result type (e.g., `TenantResult`, `AuthResult`) without handling redirects directly.
 
 ### Booking System Architecture
-Located in `lib/booking/`, organized by domain:
-- **`reservation.ts`** - Core reservation creation/modification (CRITICAL)
-- **`pricing.ts`** - Price calculations with discounts, fees (CRITICAL)
-- **`availability.ts`** - Site availability checking
-- **`check-in.ts`** - Check-in/check-out workflows
-- **`actions.ts`** - Reservation actions (cancel, extend, modify)
-- **`types.ts`** - Shared types matching DB schema exactly
 
-The booking system uses a **functional approach** (C-4) with explicit success/error return types instead of throwing exceptions.
+> ⚠️ **LEGACY NOTICE**: The `lib/booking/` code is being phased out. New booking functionality should be added to `src/modules/BookingEngine/`. See "Development Request Classification" section.
+
+**Current architecture (`src/modules/BookingEngine/`):**
+- `domain/Reservation.ts` - Aggregate root with business logic
+- `domain/policies/` - Confirmation policies (payment rules)
+- `domain/services/` - AvailabilityService, PricingCalculator
+- `application/commands/` - Write operations (create, modify, cancel, etc.)
+- `application/queries/` - Read operations
+- `infrastructure/` - Supabase repository implementation
+
+**Legacy code (`lib/booking/`) — DO NOT ADD NEW CODE HERE:**
+- `reservation.ts`, `pricing.ts`, `availability.ts`, `check-in.ts`, `actions.ts`
+- Will be deleted after API consolidation (Phase 4)
+
+The booking system uses explicit success/error return types instead of throwing exceptions.
 
 ### API Routes Structure
+
 API routes follow Next.js App Router conventions in `app/api/`:
+- **`v1/`** - Versioned API using module handlers ← **NEW ENDPOINTS GO HERE**
 - **`guest/`** - Public APIs for guest booking (no auth required)
 - **`admin/`** - Property manager APIs (auth required)
 - **`webhooks/`** - External service webhooks (Stripe)
-- **`v1/`** - (Planned) Versioned public API
+
+**Route Implementation Pattern (R-3):**
+```typescript
+// app/api/v1/{resource}/route.ts
+export async function POST(request: NextRequest) {
+  // 1. Auth check
+  // 2. Tenant isolation (BP-4)
+  // 3. Validate request body with Zod schema
+  // 4. Call module command handler
+  // 5. Return DTO response
+}
+```
+
+Routes should be thin — business logic lives in module handlers, not routes.
 
 All API routes enforce **multi-tenant isolation** (BP-4, D-2) and return consistent response structures.
 

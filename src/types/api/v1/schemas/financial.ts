@@ -140,3 +140,124 @@ export const TransactionFiltersSchema = z.object({
 })
 
 export type TransactionFilters = z.infer<typeof TransactionFiltersSchema>
+
+// ============================================================================
+// Response Schemas
+// ============================================================================
+
+/**
+ * Transaction Response
+ */
+export const TransactionResponseSchema = z.object({
+  id: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  reservationId: z.string().uuid().nullable(),
+  invoiceId: z.string().uuid().nullable(),
+  type: z.enum([
+    'payment',
+    'refund',
+    'deposit',
+    'deposit_release',
+    'deposit_deduction',
+    'expense',
+    'platform_fee',
+    'payout',
+  ]),
+  amountCents: z.number().int(),
+  currency: z.string(),
+  paymentMethod: z.string(),
+  stripePaymentIntentId: z.string().nullable(),
+  stripeRefundId: z.string().nullable(),
+  status: z.enum(['pending', 'completed', 'failed', 'cancelled']),
+  processedAt: z.string().datetime().nullable(),
+  failureReason: z.string().nullable(),
+  notes: z.string().nullable(),
+  reconciledAt: z.string().datetime().nullable(),
+  reconciledBy: z.string().uuid().nullable(),
+  createdAt: z.string().datetime(),
+  createdBy: z.string().uuid(),
+  updatedAt: z.string().datetime(),
+})
+
+export type TransactionResponse = z.infer<typeof TransactionResponseSchema>
+
+/**
+ * Transaction List Response
+ */
+export const TransactionListResponseSchema = z.object({
+  transactions: z.array(TransactionResponseSchema),
+  count: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+})
+
+export type TransactionListResponse = z.infer<typeof TransactionListResponseSchema>
+
+/**
+ * Invoice Line Item Response
+ */
+export const InvoiceLineItemResponseSchema = z.object({
+  description: z.string(),
+  quantity: z.number().int(),
+  unitPriceCents: z.number().int(),
+  totalCents: z.number().int(),
+})
+
+export type InvoiceLineItemResponse = z.infer<typeof InvoiceLineItemResponseSchema>
+
+/**
+ * Invoice Response
+ */
+export const InvoiceResponseSchema = z.object({
+  id: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  reservationId: z.string().uuid(),
+  invoiceNumber: z.string(),
+  lineItems: z.array(InvoiceLineItemResponseSchema),
+  subtotalCents: z.number().int(),
+  taxCents: z.number().int(),
+  totalCents: z.number().int(),
+  paidCents: z.number().int(),
+  balanceCents: z.number().int(),
+  taxRate: z.number(),
+  isInstallment: z.boolean(),
+  installmentNumber: z.number().int().nullable(),
+  installmentTotal: z.number().int().nullable(),
+  dueDate: z.string().datetime(),
+  status: z.enum(['draft', 'issued', 'paid', 'overdue', 'cancelled']),
+  issuedAt: z.string().datetime().nullable(),
+  paidAt: z.string().datetime().nullable(),
+  cancelledAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+
+export type InvoiceResponse = z.infer<typeof InvoiceResponseSchema>
+
+/**
+ * Invoice Summary for Balance Response
+ */
+export const InvoiceSummarySchema = z.object({
+  id: z.string().uuid(),
+  invoiceNumber: z.string(),
+  totalCents: z.number().int(),
+  paidCents: z.number().int(),
+  balanceCents: z.number().int(),
+  status: z.string(),
+})
+
+export type InvoiceSummary = z.infer<typeof InvoiceSummarySchema>
+
+/**
+ * Reservation Balance Response
+ * GET /api/v1/reservations/[reservationId]/balance
+ */
+export const ReservationBalanceResponseSchema = z.object({
+  reservationId: z.string().uuid(),
+  totalCents: z.number().int(),
+  paidCents: z.number().int(),
+  balanceCents: z.number().int(),
+  invoices: z.array(InvoiceSummarySchema),
+})
+
+export type ReservationBalanceResponse = z.infer<typeof ReservationBalanceResponseSchema>

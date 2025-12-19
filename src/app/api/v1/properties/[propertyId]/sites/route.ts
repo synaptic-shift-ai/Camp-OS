@@ -221,10 +221,10 @@ export async function POST(
       )
     }
 
-    // BP-4: Verify user has access to this property
+    // BP-4: Verify user has access to this property and fetch pricing defaults
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, reservation_type_config')
       .eq('id', propertyId)
       .single()
 
@@ -250,6 +250,20 @@ export async function POST(
       )
     }
 
+    // Determine effective base price:
+    // If using property defaults (enabledReservationTypesOverride is null) and basePrice is 0,
+    // use the property's nightly rate from reservation_type_config
+    let effectiveBasePrice = validatedRequest.basePrice
+    const isUsingPropertyDefaults = validatedRequest.enabledReservationTypesOverride === null
+
+    if (isUsingPropertyDefaults && effectiveBasePrice === 0) {
+      const config = property.reservation_type_config as Record<string, any> | null
+      const propertyNightlyRate = config?.nightly?.rate_cents
+      if (propertyNightlyRate && propertyNightlyRate > 0) {
+        effectiveBasePrice = propertyNightlyRate
+      }
+    }
+
     // Execute command using application layer
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const commandHandler = new CreateSiteCommand(repository)
@@ -262,8 +276,8 @@ export async function POST(
       siteName: validatedRequest.siteName || null,
       siteType: validatedRequest.siteType,
       description: validatedRequest.description || null,
-      basePrice: validatedRequest.basePrice,
-      weekendPrice: validatedRequest.weekendPrice || validatedRequest.basePrice,
+      basePrice: effectiveBasePrice,
+      weekendPrice: validatedRequest.weekendPrice || effectiveBasePrice,
       maxOccupancy: validatedRequest.maxOccupancy || null,
       maxVehicles: validatedRequest.maxVehicles || null,
       sizeSqft: validatedRequest.sizeSqft || null,

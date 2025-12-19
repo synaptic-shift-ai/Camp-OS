@@ -11,14 +11,16 @@ import { useState, useMemo } from 'react'
 import { SitesStatsCards, type SiteStatus } from './sites-stats-cards'
 import { SitesAccordion } from './sites-accordion'
 import type { Database } from '@/contracts/db'
+import type { PropertyPricingDefaults } from '@/app/dashboard/sites/page'
 
 type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesContentProps {
   sites: Site[]
+  propertyPricingDefaults?: PropertyPricingDefaults | undefined
 }
 
-export function SitesContent({ sites }: SitesContentProps) {
+export function SitesContent({ sites, propertyPricingDefaults }: SitesContentProps) {
   const [activeFilter, setActiveFilter] = useState<SiteStatus>('all')
 
   // Calculate stats from sites
@@ -68,7 +70,11 @@ export function SitesContent({ sites }: SitesContentProps) {
       />
 
       {/* Filtered Sites Accordion */}
-      <SitesAccordion sites={filteredSites} totalSitesByType={totalSitesByType} />
+      <SitesAccordion
+        sites={filteredSites}
+        totalSitesByType={totalSitesByType}
+        propertyPricingDefaults={propertyPricingDefaults}
+      />
     </div>
   )
 }

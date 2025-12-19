@@ -34,6 +34,7 @@ import { SiteCalendarDialog } from './site-calendar-dialog'
 import { SiteCheckInButton } from './site-check-in-button'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/contracts/db'
+import type { PropertyPricingDefaults } from '@/app/dashboard/sites/page'
 
 const siteTypeIcons: Record<SiteType, LucideIcon> = {
   rv: Home,
@@ -60,6 +61,47 @@ type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesGridProps {
   sites: Site[]
+  propertyPricingDefaults?: PropertyPricingDefaults | undefined
+}
+
+/**
+ * Determine if a site has custom pricing (not using property defaults)
+ * A site has custom pricing if its base_price differs from the property's nightly rate
+ */
+function hasCustomPricing(site: Site, propertyDefaults?: PropertyPricingDefaults): boolean {
+  if (!propertyDefaults?.nightlyRateCents) {
+    // No property defaults set, so any price is considered custom
+    return site.base_price > 0
+  }
+  // Site has custom pricing if its base_price differs from property default
+  return site.base_price !== propertyDefaults.nightlyRateCents
+}
+
+/**
+ * Get the effective display price for a site
+ * Uses site's base_price if set (non-zero), otherwise falls back to property default
+ */
+function getEffectivePrice(site: Site, propertyDefaults?: PropertyPricingDefaults): {
+  price: number
+  isPropertyDefault: boolean
+} {
+  const sitePrice = site.base_price ?? 0
+  const propertyNightlyRate = propertyDefaults?.nightlyRateCents ?? 0
+
+  // If site has a price set (non-zero), use it
+  if (sitePrice > 0) {
+    // Check if it matches property default
+    const isPropertyDefault = propertyNightlyRate > 0 && sitePrice === propertyNightlyRate
+    return { price: sitePrice, isPropertyDefault }
+  }
+
+  // Site has no price, use property default if available
+  if (propertyNightlyRate > 0) {
+    return { price: propertyNightlyRate, isPropertyDefault: true }
+  }
+
+  // No price set anywhere
+  return { price: 0, isPropertyDefault: false }
 }
 
 /**
@@ -72,7 +114,7 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-export function SitesGrid({ sites }: SitesGridProps) {
+export function SitesGrid({ sites, propertyPricingDefaults }: SitesGridProps) {
   const [editingSite, setEditingSite] = useState<Site | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
   const [viewingSite, setViewingSite] = useState<Site | null>(null)
@@ -146,10 +188,15 @@ export function SitesGrid({ sites }: SitesGridProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {sites.map((site) => {
           const Icon = siteTypeIcons[site.site_type as SiteType] || MapPin
+          const isCustomPricing = hasCustomPricing(site, propertyPricingDefaults)
+          const effectivePricing = getEffectivePrice(site, propertyPricingDefaults)
+
           return (
             <Card
               key={site.id}
-              className="relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+              className={`relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${
+                isCustomPricing ? 'border-l-2 border-l-amber-500/60' : ''
+              }`}
               onClick={() => setViewingSite(site)}
             >
               <CardHeader>
@@ -236,9 +283,14 @@ export function SitesGrid({ sites }: SitesGridProps) {
                     <span className="text-muted-foreground">Max Occupancy</span>
                     <span className="font-medium">{site.max_occupancy} guests</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-start">
                     <span className="text-muted-foreground">Base Price</span>
-                    <span className="font-medium">{formatMoney(site.base_price ?? 0)}/night</span>
+                    <div className="text-right">
+                      <span className="font-medium">{formatMoney(effectivePricing.price)}/night</span>
+                      <p className="text-xs text-muted-foreground">
+                        {effectivePricing.isPropertyDefault ? 'Property rate' : 'Custom rate'}
+                      </p>
+                    </div>
                   </div>
                   {site.hookups && Array.isArray(site.hookups) && site.hookups.length > 0 && (
                     <div className="flex justify-between">

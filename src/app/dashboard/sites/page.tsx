@@ -5,10 +5,23 @@ import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 import { SitesContent } from "@/components/dashboard/sites/sites-content"
 
 /**
- * Get the current user's property ID
+ * Property pricing defaults from reservation_type_config
+ */
+export type PropertyPricingDefaults = {
+  nightlyRateCents: number | null
+  weeklyRateCents: number | null
+  monthlyRateCents: number | null
+  seasonalRateCents: number | null
+}
+
+/**
+ * Get the current user's property ID and pricing defaults
  * MVP: Assumes user has access to one property
  */
-async function getCurrentPropertyId(): Promise<string | null> {
+async function getCurrentProperty(): Promise<{
+  id: string
+  pricingDefaults: PropertyPricingDefaults
+} | null> {
   const supabase = await createClient()
 
   // Get the currently authenticated user
@@ -18,20 +31,33 @@ async function getCurrentPropertyId(): Promise<string | null> {
     return null
   }
 
-  // Get the first property owned by this user
+  // Get the first property owned by this user with pricing config
   const { data: property } = await supabase
     .from('properties')
-    .select('id')
+    .select('id, reservation_type_config')
     .eq('owner_id', user.id)
     .single()
 
-  return property?.id || null
+  if (!property) {
+    return null
+  }
+
+  // Extract pricing defaults from reservation_type_config
+  const config = property.reservation_type_config as Record<string, any> | null
+  const pricingDefaults: PropertyPricingDefaults = {
+    nightlyRateCents: config?.nightly?.rate_cents ?? null,
+    weeklyRateCents: config?.weekly?.rate_cents ?? null,
+    monthlyRateCents: config?.monthly?.rate_cents ?? null,
+    seasonalRateCents: config?.seasonal?.rate_cents ?? null,
+  }
+
+  return { id: property.id, pricingDefaults }
 }
 
 async function SitesView() {
-  const propertyId = await getCurrentPropertyId()
+  const property = await getCurrentProperty()
 
-  if (!propertyId) {
+  if (!property) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">No property found. Please contact support.</p>
@@ -44,7 +70,7 @@ async function SitesView() {
   const { data: sites } = await supabase
     .from('sites')
     .select('*')
-    .eq('property_id', propertyId)
+    .eq('property_id', property.id)
     .order('site_number', { ascending: true })
 
   if (!sites || sites.length === 0) {
@@ -55,8 +81,8 @@ async function SitesView() {
     )
   }
 
-  // Pass sites to client component that handles stats + accordion
-  return <SitesContent sites={sites} />
+  // Pass sites and property pricing defaults to client component
+  return <SitesContent sites={sites} propertyPricingDefaults={property.pricingDefaults} />
 }
 
 interface SitesPageProps {
@@ -74,7 +100,8 @@ export default async function SitesPage({ searchParams }: SitesPageProps) {
   }
 
   // Get current property ID for bulk upload
-  const currentPropertyId = await getCurrentPropertyId()
+  const property = await getCurrentProperty()
+  const currentPropertyId = property?.id ?? null
 
   // Normal sites view
   return (

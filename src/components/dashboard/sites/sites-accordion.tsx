@@ -12,14 +12,14 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/contracts/db'
 import { SitesGrid } from './sites-grid'
-import type { PropertyPricingDefaults } from '@/app/dashboard/sites/page'
+import type { PropertyPricingConfig } from '@/app/dashboard/sites/page'
 
 type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesAccordionProps {
   sites: Site[]
   totalSitesByType: Record<string, number>
-  propertyPricingDefaults?: PropertyPricingDefaults | undefined
+  propertyPricingConfig?: PropertyPricingConfig | undefined
 }
 
 const siteTypeLabels: Record<string, string> = {
@@ -33,7 +33,7 @@ const siteTypeLabels: Record<string, string> = {
 
 const siteTypeOrder = ['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other']
 
-export function SitesAccordion({ sites, totalSitesByType, propertyPricingDefaults }: SitesAccordionProps) {
+export function SitesAccordion({ sites, totalSitesByType, propertyPricingConfig }: SitesAccordionProps) {
   // Group sites by type
   const sitesByType = sites.reduce((acc, site) => {
     const type = site.site_type || 'other'
@@ -103,7 +103,7 @@ export function SitesAccordion({ sites, totalSitesByType, propertyPricingDefault
             {/* Accordion Content */}
             {isExpanded && !isEmpty && (
               <div className="px-4 pb-4">
-                <SitesGrid sites={typeSites} propertyPricingDefaults={propertyPricingDefaults} />
+                <SitesGrid sites={typeSites} propertyPricingConfig={propertyPricingConfig} />
               </div>
             )}
           </div>

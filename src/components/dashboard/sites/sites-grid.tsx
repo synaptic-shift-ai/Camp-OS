@@ -34,7 +34,7 @@ import { SiteCalendarDialog } from './site-calendar-dialog'
 import { SiteCheckInButton } from './site-check-in-button'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/contracts/db'
-import type { PropertyPricingDefaults } from '@/app/dashboard/sites/page'
+import type { PropertyPricingConfig } from '@/app/dashboard/sites/page'
 
 const siteTypeIcons: Record<SiteType, LucideIcon> = {
   rv: Home,
@@ -61,47 +61,77 @@ type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesGridProps {
   sites: Site[]
-  propertyPricingDefaults?: PropertyPricingDefaults | undefined
+  propertyPricingConfig?: PropertyPricingConfig | undefined
 }
 
 /**
- * Determine if a site has custom pricing (not using property defaults)
- * A site has custom pricing if its base_price differs from the property's nightly rate
+ * Rate display info for a single reservation type
  */
-function hasCustomPricing(site: Site, propertyDefaults?: PropertyPricingDefaults): boolean {
-  if (!propertyDefaults?.nightlyRateCents) {
-    // No property defaults set, so any price is considered custom
-    return site.base_price > 0
-  }
-  // Site has custom pricing if its base_price differs from property default
-  return site.base_price !== propertyDefaults.nightlyRateCents
+type RateDisplay = {
+  type: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+  label: string
+  rateCents: number
+  isOverride: boolean
 }
 
 /**
- * Get the effective display price for a site
- * Uses site's base_price if set (non-zero), otherwise falls back to property default
+ * Get the rates to display for a site based on property's enabled types
+ * Shows property rates for enabled types, with site overrides if present
  */
-function getEffectivePrice(site: Site, propertyDefaults?: PropertyPricingDefaults): {
-  price: number
-  isPropertyDefault: boolean
-} {
-  const sitePrice = site.base_price ?? 0
-  const propertyNightlyRate = propertyDefaults?.nightlyRateCents ?? 0
+function getDisplayRates(site: Site, config?: PropertyPricingConfig): RateDisplay[] {
+  if (!config) return []
 
-  // If site has a price set (non-zero), use it
-  if (sitePrice > 0) {
-    // Check if it matches property default
-    const isPropertyDefault = propertyNightlyRate > 0 && sitePrice === propertyNightlyRate
-    return { price: sitePrice, isPropertyDefault }
+  const rates: RateDisplay[] = []
+
+  // Only show rates for enabled types
+  for (const typeConfig of config.rates) {
+    if (!typeConfig.enabled) continue
+
+    let rateCents = typeConfig.rateCents ?? 0
+    let isOverride = false
+
+    // Check for site-specific rate overrides
+    switch (typeConfig.type) {
+      case 'nightly':
+        // For nightly, check if site's base_price differs from property rate
+        if (site.base_price > 0) {
+          rateCents = site.base_price
+          isOverride = typeConfig.rateCents !== null && site.base_price !== typeConfig.rateCents
+        }
+        break
+      case 'weekly':
+        if (site.weekly_rate_cents !== null && site.weekly_rate_cents !== undefined) {
+          rateCents = site.weekly_rate_cents
+          isOverride = typeConfig.rateCents !== null && site.weekly_rate_cents !== typeConfig.rateCents
+        }
+        break
+      case 'monthly':
+        if (site.monthly_rate_cents !== null && site.monthly_rate_cents !== undefined) {
+          rateCents = site.monthly_rate_cents
+          isOverride = typeConfig.rateCents !== null && site.monthly_rate_cents !== typeConfig.rateCents
+        }
+        break
+      case 'seasonal':
+        // Seasonal uses site's base_price if no specific seasonal rate
+        // In future, could have seasonal_rate_cents field
+        if (site.base_price > 0 && (typeConfig.rateCents === null || typeConfig.rateCents === 0)) {
+          rateCents = site.base_price
+        }
+        break
+    }
+
+    // Only include if we have a rate to show
+    if (rateCents > 0) {
+      rates.push({
+        type: typeConfig.type,
+        label: typeConfig.label,
+        rateCents,
+        isOverride,
+      })
+    }
   }
 
-  // Site has no price, use property default if available
-  if (propertyNightlyRate > 0) {
-    return { price: propertyNightlyRate, isPropertyDefault: true }
-  }
-
-  // No price set anywhere
-  return { price: 0, isPropertyDefault: false }
+  return rates
 }
 
 /**
@@ -114,7 +144,7 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-export function SitesGrid({ sites, propertyPricingDefaults }: SitesGridProps) {
+export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
   const [editingSite, setEditingSite] = useState<Site | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
   const [viewingSite, setViewingSite] = useState<Site | null>(null)
@@ -188,14 +218,14 @@ export function SitesGrid({ sites, propertyPricingDefaults }: SitesGridProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {sites.map((site) => {
           const Icon = siteTypeIcons[site.site_type as SiteType] || MapPin
-          const isCustomPricing = hasCustomPricing(site, propertyPricingDefaults)
-          const effectivePricing = getEffectivePrice(site, propertyPricingDefaults)
+          const displayRates = getDisplayRates(site, propertyPricingConfig)
+          const hasAnyOverride = displayRates.some(r => r.isOverride)
 
           return (
             <Card
               key={site.id}
               className={`relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${
-                isCustomPricing ? 'border-l-2 border-l-amber-500/60' : ''
+                hasAnyOverride ? 'border-l-2 border-l-amber-500/60' : ''
               }`}
               onClick={() => setViewingSite(site)}
             >
@@ -283,15 +313,38 @@ export function SitesGrid({ sites, propertyPricingDefaults }: SitesGridProps) {
                     <span className="text-muted-foreground">Max Occupancy</span>
                     <span className="font-medium">{site.max_occupancy} guests</span>
                   </div>
-                  <div className="flex justify-between items-start">
-                    <span className="text-muted-foreground">Base Price</span>
-                    <div className="text-right">
-                      <span className="font-medium">{formatMoney(effectivePricing.price)}/night</span>
-                      <p className="text-xs text-muted-foreground">
-                        {effectivePricing.isPropertyDefault ? 'Property rate' : 'Custom rate'}
-                      </p>
+
+                  {/* Show all enabled rate types */}
+                  {displayRates.length > 0 ? (
+                    <div className="space-y-1">
+                      <span className="text-muted-foreground">Rates</span>
+                      <div className="space-y-0.5">
+                        {displayRates.map((rate) => (
+                          <div key={rate.type} className="flex justify-between items-center">
+                            <span className="text-xs text-muted-foreground">{rate.label}</span>
+                            <div className="text-right">
+                              <span className="font-medium text-sm">
+                                {formatMoney(rate.rateCents)}
+                                {rate.type === 'seasonal' ? '' : `/${rate.type === 'nightly' ? 'night' : rate.type === 'weekly' ? 'wk' : 'mo'}`}
+                              </span>
+                              {rate.isOverride && (
+                                <span className="ml-1 text-xs text-amber-600">*</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {hasAnyOverride && (
+                        <p className="text-xs text-muted-foreground mt-1">* Custom rate</p>
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Base Price</span>
+                      <span className="font-medium">{formatMoney(site.base_price ?? 0)}/night</span>
+                    </div>
+                  )}
+
                   {site.hookups && Array.isArray(site.hookups) && site.hookups.length > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Hookups</span>

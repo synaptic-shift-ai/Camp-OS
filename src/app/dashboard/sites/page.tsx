@@ -5,22 +5,37 @@ import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 import { SitesContent } from "@/components/dashboard/sites/sites-content"
 
 /**
- * Property pricing defaults from reservation_type_config
+ * Reservation type with pricing info
  */
-export type PropertyPricingDefaults = {
-  nightlyRateCents: number | null
-  weeklyRateCents: number | null
-  monthlyRateCents: number | null
-  seasonalRateCents: number | null
+export type ReservationTypeConfig = {
+  type: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+  enabled: boolean
+  rateCents: number | null
+  label: string
 }
 
 /**
- * Get the current user's property ID and pricing defaults
+ * Property pricing configuration including enabled types and rates
+ */
+export type PropertyPricingConfig = {
+  enabledTypes: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
+  rates: ReservationTypeConfig[]
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  nightly: 'Nightly',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  seasonal: 'Seasonal',
+}
+
+/**
+ * Get the current user's property ID and pricing config
  * MVP: Assumes user has access to one property
  */
 async function getCurrentProperty(): Promise<{
   id: string
-  pricingDefaults: PropertyPricingDefaults
+  pricingConfig: PropertyPricingConfig
 } | null> {
   const supabase = await createClient()
 
@@ -34,7 +49,7 @@ async function getCurrentProperty(): Promise<{
   // Get the first property owned by this user with pricing config
   const { data: property } = await supabase
     .from('properties')
-    .select('id, reservation_type_config')
+    .select('id, enabled_reservation_types, reservation_type_config')
     .eq('owner_id', user.id)
     .single()
 
@@ -42,16 +57,26 @@ async function getCurrentProperty(): Promise<{
     return null
   }
 
-  // Extract pricing defaults from reservation_type_config
-  const config = property.reservation_type_config as Record<string, any> | null
-  const pricingDefaults: PropertyPricingDefaults = {
-    nightlyRateCents: config?.nightly?.rate_cents ?? null,
-    weeklyRateCents: config?.weekly?.rate_cents ?? null,
-    monthlyRateCents: config?.monthly?.rate_cents ?? null,
-    seasonalRateCents: config?.seasonal?.rate_cents ?? null,
-  }
+  // Parse enabled types from database
+  const enabledTypesRaw = property.enabled_reservation_types as string[] | null
+  const enabledTypes = (enabledTypesRaw ?? ['nightly']) as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
 
-  return { id: property.id, pricingDefaults }
+  // Extract pricing from reservation_type_config
+  const config = property.reservation_type_config as Record<string, any> | null
+
+  // Build rates array for all types, marking which are enabled
+  const allTypes = ['nightly', 'weekly', 'monthly', 'seasonal'] as const
+  const rates: ReservationTypeConfig[] = allTypes.map(type => ({
+    type,
+    enabled: enabledTypes.includes(type),
+    rateCents: config?.[type]?.rate_cents ?? null,
+    label: TYPE_LABELS[type] ?? type.charAt(0).toUpperCase() + type.slice(1),
+  }))
+
+  return {
+    id: property.id,
+    pricingConfig: { enabledTypes, rates },
+  }
 }
 
 async function SitesView() {
@@ -81,8 +106,8 @@ async function SitesView() {
     )
   }
 
-  // Pass sites and property pricing defaults to client component
-  return <SitesContent sites={sites} propertyPricingDefaults={property.pricingDefaults} />
+  // Pass sites and property pricing config to client component
+  return <SitesContent sites={sites} propertyPricingConfig={property.pricingConfig} />
 }
 
 interface SitesPageProps {

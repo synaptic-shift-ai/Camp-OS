@@ -49,11 +49,13 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     setValue,
     watch,
+    trigger,
   } = useForm<SiteFormData>({
     resolver: zodResolver(siteFormSchema),
+    mode: 'onChange',
     defaultValues: defaultFormValues || {
           site_number: "",
           site_name: "",
@@ -330,46 +332,48 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
             <Switch
               id="use_property_defaults"
               checked={usePropertyReservationTypes}
-              onCheckedChange={(checked) => {
-                setValue("use_property_reservation_types", checked, { shouldValidate: true, shouldDirty: true })
+              onCheckedChange={async (checked) => {
+                setValue("use_property_reservation_types", checked, { shouldDirty: true })
                 if (checked) {
-                  setValue("enabled_reservation_types_override", undefined, { shouldValidate: true })
-                  setValue("default_reservation_type", undefined, { shouldValidate: true })
+                  setValue("enabled_reservation_types_override", undefined)
+                  setValue("default_reservation_type", undefined)
                 } else {
                   // Pre-fill with property defaults when switching to override mode
                   const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
-                  setValue("enabled_reservation_types_override", defaultTypes, { shouldValidate: true, shouldDirty: true })
-                  setValue("default_reservation_type", propertyDefaults?.default_reservation_type, { shouldValidate: true })
+                  setValue("enabled_reservation_types_override", defaultTypes, { shouldDirty: true })
+                  setValue("default_reservation_type", propertyDefaults?.default_reservation_type)
 
                   // In edit mode, keep existing rates; only pre-fill from property defaults if rates are 0
                   const currentBasePrice = watch("base_price")
                   if (!currentBasePrice || currentBasePrice === 0) {
                     if (propertyDefaults?.nightly_rate_cents || propertyDefaults?.base_price_cents) {
                       const baseRate = (propertyDefaults.nightly_rate_cents || propertyDefaults.base_price_cents || 0) / 100
-                      setValue("base_price", baseRate, { shouldValidate: true, shouldDirty: true })
+                      setValue("base_price", baseRate, { shouldDirty: true })
                     }
                   }
 
                   const currentWeekendPrice = watch("weekend_price")
                   if (!currentWeekendPrice && propertyDefaults?.weekend_price_cents) {
-                    setValue("weekend_price", propertyDefaults.weekend_price_cents / 100, { shouldValidate: true })
+                    setValue("weekend_price", propertyDefaults.weekend_price_cents / 100)
                   }
 
                   const currentWeeklyRate = watch("weekly_rate")
                   if (!currentWeeklyRate && propertyDefaults?.weekly_rate_cents) {
-                    setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100, { shouldValidate: true })
+                    setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
                   }
 
                   const currentMonthlyRate = watch("monthly_rate")
                   if (!currentMonthlyRate && propertyDefaults?.monthly_rate_cents) {
-                    setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100, { shouldValidate: true })
+                    setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
                   }
 
                   const currentSeasonalRate = watch("seasonal_rate")
                   if (!currentSeasonalRate && propertyDefaults?.seasonal_rate_cents) {
-                    setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100, { shouldValidate: true })
+                    setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
                   }
                 }
+                // Trigger validation after all changes
+                await trigger()
               }}
             />
           </div>

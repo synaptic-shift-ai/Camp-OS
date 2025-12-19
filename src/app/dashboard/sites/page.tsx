@@ -3,6 +3,10 @@ import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-cont
 import { createClient } from "@/lib/supabase/server"
 import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 import { SitesContent } from "@/components/dashboard/sites/sites-content"
+import {
+  parseReservationTypesConfigFromDB,
+  parseEnabledReservationTypesFromDB,
+} from "@/lib/config/resolution"
 
 /**
  * Reservation type with pricing info
@@ -57,19 +61,22 @@ async function getCurrentProperty(): Promise<{
     return null
   }
 
-  // Parse enabled types from database
-  const enabledTypesRaw = property.enabled_reservation_types as string[] | null
-  const enabledTypes = (enabledTypesRaw ?? ['nightly']) as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
+  // Parse enabled types and config using shared functions (same as API uses)
+  const parsedEnabledTypes = parseEnabledReservationTypesFromDB(property.enabled_reservation_types)
+  const parsedConfig = parseReservationTypesConfigFromDB(property.reservation_type_config)
 
-  // Extract pricing from reservation_type_config
-  const config = property.reservation_type_config as Record<string, any> | null
+  // Filter to just the 4 standard reservation types
+  const standardTypes = ['nightly', 'weekly', 'monthly', 'seasonal'] as const
+  type StandardType = typeof standardTypes[number]
+  const enabledTypes = parsedEnabledTypes.filter(
+    (t): t is StandardType => standardTypes.includes(t as StandardType)
+  ) as StandardType[]
 
   // Build rates array for all types, marking which are enabled
-  const allTypes = ['nightly', 'weekly', 'monthly', 'seasonal'] as const
-  const rates: ReservationTypeConfig[] = allTypes.map(type => ({
+  const rates: ReservationTypeConfig[] = standardTypes.map(type => ({
     type,
     enabled: enabledTypes.includes(type),
-    rateCents: config?.[type]?.rate_cents ?? null,
+    rateCents: parsedConfig[type]?.rate_cents ?? null,
     label: TYPE_LABELS[type] ?? type.charAt(0).toUpperCase() + type.slice(1),
   }))
 

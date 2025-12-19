@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Save, X } from "lucide-react"
-import { siteFormSchema, siteStatuses, reservationTypes, toApiFormat, fromApiFormat, type SiteFormData } from "./site-form-schema"
+import { siteFormSchema, siteStatuses, toApiFormat, fromApiFormat } from "./site-form-schema"
+import type { SiteFormData, reservationTypes } from "./site-form-schema"
 import { Switch } from "@/components/ui/switch"
 
 /**
@@ -49,7 +50,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     setValue,
     watch,
     trigger,
@@ -104,7 +105,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const accessibilityFeatures = watch("accessibility_features")
   const usePropertyReservationTypes = watch("use_property_reservation_types")
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
-  const seasonalRate = watch("seasonal_rate")
   const defaultReservationType = watch("default_reservation_type")
 
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
@@ -894,6 +894,22 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
           </div>
         </CardContent>
       </Card>
+
+      {/* Form Validation Errors Summary */}
+      {Object.keys(errors).length > 0 && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            <p className="font-medium mb-1">Please fix the following errors:</p>
+            <ul className="list-disc list-inside text-sm">
+              {Object.entries(errors).map(([field, error]) => (
+                <li key={field}>
+                  {field.replace(/_/g, ' ')}: {error?.message || 'Invalid value'}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-2">

@@ -6,7 +6,8 @@
  * - D-2: Tenant context enforced
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -56,7 +57,7 @@ export async function GET(
     }
 
     // Remove nested properties from response
-    const { properties, ...siteData } = site
+    const { properties: _properties, ...siteData } = site
 
     return success(siteData)
   } catch (err: any) {
@@ -144,6 +145,14 @@ export async function PUT(
           ? body.monthly_rate_cents
           : existingSite.monthly_rate_cents
 
+    // Handle default_reservation_type
+    const defaultReservationType =
+      body.defaultReservationType !== undefined
+        ? body.defaultReservationType
+        : body.default_reservation_type !== undefined
+          ? body.default_reservation_type
+          : existingSite.default_reservation_type
+
     // Update the site
     const { data: updatedSite, error: updateError } = await supabase
       .from('sites')
@@ -165,6 +174,7 @@ export async function PUT(
         site_images: body.site_images ?? body.images ?? existingSite.site_images,
         enabled_reservation_types_override: reservationTypesOverride,
         seasonal_rate_cents: seasonalRateCents,
+        default_reservation_type: defaultReservationType,
         updated_at: new Date().toISOString(),
       })
       .eq('id', siteId)

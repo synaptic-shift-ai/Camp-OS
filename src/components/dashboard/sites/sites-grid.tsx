@@ -57,7 +57,20 @@ const statusColors: Record<SiteStatus, string> = {
   unavailable: "bg-red-500/10 text-red-500 border-red-500/20",
 }
 
-type Site = Database['public']['Tables']['sites']['Row']
+/**
+ * Extended Site type that includes columns added in migration
+ * 20251214000000_add_reservation_type_pricing.sql
+ *
+ * These columns may not be in generated types if:
+ * - Migration was applied but types weren't regenerated
+ * - There's a sync issue between local and linked database
+ */
+type BaseSite = Database['public']['Tables']['sites']['Row']
+type Site = BaseSite & {
+  enabled_reservation_types_override?: string[] | null
+  seasonal_rate_cents?: number | null
+  default_reservation_type?: string | null
+}
 
 interface SitesGridProps {
   sites: Site[]
@@ -77,45 +90,68 @@ type RateDisplay = {
 /**
  * Get the rates to display for a site based on property's enabled types
  * Shows property rates for enabled types, with site overrides if present
+ *
+ * Logic:
+ * - If site uses property defaults (enabled_reservation_types_override is null/undefined),
+ *   always show property rates for property's enabled types
+ * - If site has custom pricing (enabled_reservation_types_override is an array),
+ *   show site-specific rates for the site's enabled types, marked as overrides
  */
 function getDisplayRates(site: Site, config?: PropertyPricingConfig): RateDisplay[] {
   if (!config) return []
 
   const rates: RateDisplay[] = []
 
-  // Only show rates for enabled types
+  // Determine if site uses property defaults or has custom pricing
+  // null/undefined means use property defaults; array means custom pricing
+  const siteOverrideTypes = site.enabled_reservation_types_override as string[] | null | undefined
+  const usesPropertyDefaults = siteOverrideTypes === null || siteOverrideTypes === undefined
+
+  // Determine which types to show rates for
+  // If using property defaults: show property's enabled types
+  // If custom pricing: show site's enabled types (but fall back to property's if empty)
+  const typesToShow = usesPropertyDefaults
+    ? config.rates.filter(r => r.enabled).map(r => r.type)
+    : (siteOverrideTypes?.length ? siteOverrideTypes : config.rates.filter(r => r.enabled).map(r => r.type))
+
   for (const typeConfig of config.rates) {
-    if (!typeConfig.enabled) continue
+    // Only show this type if it's in the list of types to show
+    if (!typesToShow.includes(typeConfig.type)) continue
 
     let rateCents = typeConfig.rateCents ?? 0
     let isOverride = false
 
-    // Check for site-specific rate overrides
-    switch (typeConfig.type) {
-      case 'nightly':
-        // For nightly, check if site's base_price differs from property rate
-        if (site.base_price > 0) {
-          rateCents = site.base_price
-          isOverride = typeConfig.rateCents !== null && site.base_price !== typeConfig.rateCents
-        }
-        break
-      case 'weekly':
-        if (site.weekly_rate_cents !== null && site.weekly_rate_cents !== undefined) {
-          rateCents = site.weekly_rate_cents
-          isOverride = typeConfig.rateCents !== null && site.weekly_rate_cents !== typeConfig.rateCents
-        }
-        break
-      case 'monthly':
-        if (site.monthly_rate_cents !== null && site.monthly_rate_cents !== undefined) {
-          rateCents = site.monthly_rate_cents
-          isOverride = typeConfig.rateCents !== null && site.monthly_rate_cents !== typeConfig.rateCents
-        }
-        break
-      case 'seasonal':
-        // Seasonal: use property rate from config, no site override for now
-        // rateCents is already set to typeConfig.rateCents above
-        // Future: could add seasonal_rate_cents field to sites for overrides
-        break
+    // If using property defaults, always use property rates
+    // If custom pricing, check for site-specific rate overrides
+    if (!usesPropertyDefaults) {
+      switch (typeConfig.type) {
+        case 'nightly':
+          // For nightly, use site's base_price if set
+          if (site.base_price > 0) {
+            rateCents = site.base_price
+            isOverride = typeConfig.rateCents !== null && site.base_price !== typeConfig.rateCents
+          }
+          break
+        case 'weekly':
+          if (site.weekly_rate_cents !== null && site.weekly_rate_cents !== undefined) {
+            rateCents = site.weekly_rate_cents
+            isOverride = typeConfig.rateCents !== null && site.weekly_rate_cents !== typeConfig.rateCents
+          }
+          break
+        case 'monthly':
+          if (site.monthly_rate_cents !== null && site.monthly_rate_cents !== undefined) {
+            rateCents = site.monthly_rate_cents
+            isOverride = typeConfig.rateCents !== null && site.monthly_rate_cents !== typeConfig.rateCents
+          }
+          break
+        case 'seasonal':
+          // Check for site-specific seasonal rate
+          if (site.seasonal_rate_cents !== null && site.seasonal_rate_cents !== undefined) {
+            rateCents = site.seasonal_rate_cents
+            isOverride = typeConfig.rateCents !== null && site.seasonal_rate_cents !== typeConfig.rateCents
+          }
+          break
+      }
     }
 
     // Only include if we have a rate to show
@@ -218,12 +254,15 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
           const Icon = siteTypeIcons[site.site_type as SiteType] || MapPin
           const displayRates = getDisplayRates(site, propertyPricingConfig)
           const hasAnyOverride = displayRates.some(r => r.isOverride)
+          // Determine if site uses property defaults for pricing
+          const siteOverrideTypes = site.enabled_reservation_types_override as string[] | null | undefined
+          const usesPropertyDefaults = siteOverrideTypes === null || siteOverrideTypes === undefined
 
           return (
             <Card
               key={site.id}
               className={`relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${
-                hasAnyOverride ? 'border-l-2 border-l-amber-500/60' : ''
+                !usesPropertyDefaults ? 'border-l-2 border-l-amber-500/60' : ''
               }`}
               onClick={() => setViewingSite(site)}
             >
@@ -315,7 +354,12 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                   {/* Show all enabled rate types */}
                   {displayRates.length > 0 ? (
                     <div className="space-y-1">
-                      <span className="text-muted-foreground">Rates</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Rates</span>
+                        {usesPropertyDefaults && (
+                          <span className="text-xs text-muted-foreground/70 italic">Property defaults</span>
+                        )}
+                      </div>
                       <div className="space-y-0.5">
                         {displayRates.map((rate) => (
                           <div key={rate.type} className="flex justify-between items-center">
@@ -332,8 +376,10 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                           </div>
                         ))}
                       </div>
-                      {hasAnyOverride && (
-                        <p className="text-xs text-muted-foreground mt-1">* Custom rate</p>
+                      {!usesPropertyDefaults && (
+                        <p className="text-xs text-amber-600/80 mt-1">
+                          {hasAnyOverride ? '* Custom rate override' : 'Custom pricing enabled'}
+                        </p>
                       )}
                     </div>
                   ) : (

@@ -136,6 +136,7 @@ function createMockRequest(
       clone: () => ({ pathname, searchParams: url.searchParams }),
     },
     cookies: {
+      get: vi.fn().mockReturnValue(undefined),
       getAll: vi.fn().mockReturnValue([]),
       set: vi.fn(),
     },

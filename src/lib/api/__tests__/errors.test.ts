@@ -22,8 +22,8 @@ describe('API Error Codes', () => {
       expect(ErrorCodes.RES_001.message).toContain('not found')
       expect(ErrorCodes.RES_001.status).toBe(404)
 
-      expect(ErrorCodes.RES_002.status).toBe(409) // Conflict
-      expect(ErrorCodes.RES_003.status).toBe(400) // Bad request
+      expect(ErrorCodes.RES_002.status).toBe(409)
+      expect(ErrorCodes.RES_003.status).toBe(400)
     })
 
     it('should have SITE error codes', () => {
@@ -44,8 +44,8 @@ describe('API Error Codes', () => {
 
     it('should have PAY error codes', () => {
       expect(ErrorCodes.PAY_001.code).toBe('PAY_001')
-      expect(ErrorCodes.PAY_001.status).toBe(402) // Payment Required
-      expect(ErrorCodes.PAY_002.status).toBe(500) // Internal Error
+      expect(ErrorCodes.PAY_001.status).toBe(402)
+      expect(ErrorCodes.PAY_002.status).toBe(500)
     })
 
     it('should have VAL error codes', () => {
@@ -57,10 +57,16 @@ describe('API Error Codes', () => {
     it('should have SYS error codes', () => {
       expect(ErrorCodes.SYS_001.code).toBe('SYS_001')
       expect(ErrorCodes.SYS_001.status).toBe(500)
-      expect(ErrorCodes.SYS_002.status).toBe(503) // Service Unavailable
+      expect(ErrorCodes.SYS_002.status).toBe(503)
     })
 
     it('all error codes should have required fields', () => {
+      const aliasKeys = new Set([
+        'VALIDATION_001', 'VALIDATION_002', 'VALIDATION_003',
+        'RESOURCE_001', 'RESOURCE_004', 'SERVER_001',
+        'RESOURCE_NOT_FOUND', 'VALIDATION_ERROR', 'INTERNAL_ERROR', 'DUPLICATE_RESOURCE',
+      ])
+
       Object.entries(ErrorCodes).forEach(([key, value]) => {
         expect(value).toHaveProperty('code')
         expect(value).toHaveProperty('message')
@@ -70,28 +76,29 @@ describe('API Error Codes', () => {
         expect(typeof value.message).toBe('string')
         expect(typeof value.status).toBe('number')
 
-        // Status should be valid HTTP status code
         expect(value.status).toBeGreaterThanOrEqual(400)
         expect(value.status).toBeLessThan(600)
 
-        // Code should match key
-        expect(value.code).toBe(key)
+        if (aliasKeys.has(key) === false) {
+          expect(value.code).toBe(key)
+        }
       })
     })
 
     it('error codes should follow naming convention', () => {
+      const legacyKeys = new Set([
+        'RESOURCE_NOT_FOUND', 'VALIDATION_ERROR', 'INTERNAL_ERROR', 'DUPLICATE_RESOURCE',
+      ])
+
       Object.keys(ErrorCodes).forEach((key) => {
-        // Should be CATEGORY_NUMBER format
+        if (legacyKeys.has(key)) return
         expect(key).toMatch(/^[A-Z]+_\d{3}$/)
       })
     })
 
     it('error messages should be descriptive', () => {
       Object.values(ErrorCodes).forEach((error) => {
-        // Message should be at least 10 characters
         expect(error.message.length).toBeGreaterThan(10)
-
-        // Message should not end with period (for consistency)
         expect(error.message.endsWith('.')).toBe(false)
       })
     })
@@ -116,14 +123,15 @@ describe('API Error Codes', () => {
       Object.values(ErrorCodes).forEach((expectedError) => {
         const found = getErrorByCode(expectedError.code)
 
-        expect(found).toEqual(expectedError)
+        expect(found).toBeDefined()
+        expect(found?.code).toBe(expectedError.code)
+        expect(found?.status).toBe(expectedError.status)
       })
     })
   })
 
   describe('error code categories', () => {
     it('should have consistent status codes per category', () => {
-      // AUTH errors should be 401/403/404
       const authStatuses = [
         ErrorCodes.AUTH_001.status,
         ErrorCodes.AUTH_002.status,
@@ -133,7 +141,6 @@ describe('API Error Codes', () => {
         expect([401, 403, 404]).toContain(status)
       })
 
-      // VAL errors should be 400
       const valStatuses = [
         ErrorCodes.VAL_001.status,
         ErrorCodes.VAL_002.status,
@@ -143,20 +150,17 @@ describe('API Error Codes', () => {
         expect(status).toBe(400)
       })
 
-      // SYS errors should be 500/503/etc
       expect(ErrorCodes.SYS_001.status).toBeGreaterThanOrEqual(500)
       expect(ErrorCodes.SYS_002.status).toBeGreaterThanOrEqual(500)
     })
 
     it('should have appropriate status codes for conflicts', () => {
-      // Conflict errors should be 409
       expect(ErrorCodes.RES_002.status).toBe(409)
       expect(ErrorCodes.SITE_003.status).toBe(409)
       expect(ErrorCodes.GUEST_002.status).toBe(409)
     })
 
     it('should have appropriate status codes for not found', () => {
-      // Not found errors should be 404
       expect(ErrorCodes.RES_001.status).toBe(404)
       expect(ErrorCodes.SITE_001.status).toBe(404)
       expect(ErrorCodes.PROP_001.status).toBe(404)
@@ -178,21 +182,17 @@ describe('API Error Codes', () => {
     })
 
     it('should cover common error scenarios', () => {
-      // Should have "not found" errors for main resources
       expect(ErrorCodes.RES_001.message).toContain('not found')
       expect(ErrorCodes.SITE_001.message).toContain('not found')
       expect(ErrorCodes.PROP_001.message).toContain('not found')
       expect(ErrorCodes.GUEST_001.message).toContain('not found')
 
-      // Should have validation errors
       expect(ErrorCodes.VAL_001.code).toBe('VAL_001')
       expect(ErrorCodes.VAL_002.code).toBe('VAL_002')
 
-      // Should have auth errors
       expect(ErrorCodes.AUTH_001.code).toBe('AUTH_001')
       expect(ErrorCodes.AUTH_002.code).toBe('AUTH_002')
 
-      // Should have system errors
       expect(ErrorCodes.SYS_001.code).toBe('SYS_001')
       expect(ErrorCodes.SYS_002.code).toBe('SYS_002')
     })

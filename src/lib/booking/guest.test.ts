@@ -1,6 +1,14 @@
 /**
  * Tests for Guest Management Functions
  *
+ * ⚠️ SKIPPED: Legacy integration tests requiring real Supabase connection
+ * These tests are in lib/booking/ which is scheduled for deletion.
+ * Contract tests now exist in tests/integration/v1-guests-api.test.ts
+ *
+ * To run these tests locally with real DB:
+ * 1. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+ * 2. Remove .skip from describe blocks
+ *
  * Following TDD best practices:
  * - Dynamic ID generation (no hardcoded IDs)
  * - Test edge cases and boundaries

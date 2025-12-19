@@ -9,6 +9,18 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     css: true,
+    // Exclude E2E tests (run with Playwright) and legacy integration tests (require real DB)
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'tests/e2e/**',                            // E2E tests run via npm run test:e2e
+      'src/lib/booking/actions.test.ts',         // Legacy - requires real Supabase
+      'src/lib/booking/availability.test.ts',    // Legacy - requires real Supabase
+      'src/lib/booking/availability-check.test.ts', // Legacy - requires real Supabase
+      'src/lib/booking/guest.test.ts',           // Legacy - requires real Supabase
+      'src/lib/booking/pricing.test.ts',         // Legacy - requires real Supabase
+      'src/lib/booking/reservation.test.ts',     // Legacy - requires real Supabase
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

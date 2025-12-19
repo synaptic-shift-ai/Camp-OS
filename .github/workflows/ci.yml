@@ -62,49 +62,47 @@ jobs:
           flags: unit-tests
           fail_ci_if_error: false
 
-  # TODO: Re-enable when test:integration script is added
-  # integration-tests:
-  #   name: Integration Tests
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #         cache: 'npm'
-  #
-  #     - name: Install dependencies
-  #       run: npm ci
-  #
-  #     - name: Run integration tests
-  #       run: npm run test:integration
-  #       env:
-  #         NODE_ENV: test
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  # TODO: Re-enable when test:security script is added
-  # security-tests:
-  #   name: Security & Tenant Isolation Tests
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #         cache: 'npm'
-  #
-  #     - name: Install dependencies
-  #       run: npm ci
-  #
-  #     - name: Run security tests
-  #       run: npm run test:security
-  #       env:
-  #         NODE_ENV: test
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+
+  security-tests:
+    name: Security & Tenant Isolation Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tenant isolation security tests
+        run: npx vitest run tests/integration/v1-tenant-isolation-security.test.ts
+        env:
+          NODE_ENV: test
 
   build-test:
     name: Build Verification
@@ -159,8 +157,9 @@ jobs:
     needs:
       - quality-checks
       - unit-tests
+      - integration-tests
+      - security-tests
       - build-test
-      # TODO: Add integration-tests, security-tests, api-startup-verification when implemented
     if: always()
 
     steps:
@@ -168,6 +167,8 @@ jobs:
         run: |
           if [[ "${{ needs.quality-checks.result }}" == "failure" ]] || \
              [[ "${{ needs.unit-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.integration-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.security-tests.result }}" == "failure" ]] || \
              [[ "${{ needs.build-test.result }}" == "failure" ]]; then
             echo "One or more CI jobs failed"
             exit 1

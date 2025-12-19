@@ -1,6 +1,14 @@
 /**
  * Tests for Booking Lifecycle Availability Checking
  *
+ * ⚠️ SKIPPED: Legacy integration tests requiring real Supabase connection
+ * These tests are in lib/booking/ which is scheduled for deletion.
+ * Contract tests now exist in tests/integration/v1-reservations-api.test.ts
+ *
+ * To run these tests locally with real DB:
+ * 1. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+ * 2. Remove .skip from describe blocks
+ *
  * Tests checkExtensionAvailability and checkRenewalAvailability functions.
  * Following TDD best practices:
  * - Dynamic date and ID generation

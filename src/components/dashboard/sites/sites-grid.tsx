@@ -112,11 +112,9 @@ function getDisplayRates(site: Site, config?: PropertyPricingConfig): RateDispla
         }
         break
       case 'seasonal':
-        // Seasonal uses site's base_price if no specific seasonal rate
-        // In future, could have seasonal_rate_cents field
-        if (site.base_price > 0 && (typeConfig.rateCents === null || typeConfig.rateCents === 0)) {
-          rateCents = site.base_price
-        }
+        // Seasonal: use property rate from config, no site override for now
+        // rateCents is already set to typeConfig.rateCents above
+        // Future: could add seasonal_rate_cents field to sites for overrides
         break
     }
 

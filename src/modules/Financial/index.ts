@@ -26,6 +26,9 @@ export { TransactionType } from './domain/value-objects/TransactionType'
 // Domain - Events
 export * from './domain/events'
 
+// Domain - Services
+export * from './domain/services'
+
 // Application - Commands
 export { CreatePaymentPlanCommandHandler } from './application/commands/CreatePaymentPlanCommand'
 export { GenerateInvoiceCommandHandler } from './application/commands/GenerateInvoiceCommand'
@@ -51,3 +54,6 @@ export { SupabaseInvoiceRepository } from './infrastructure/SupabaseInvoiceRepos
 export { SupabasePaymentPlanRepository } from './infrastructure/SupabasePaymentPlanRepository'
 export { SupabaseSecurityDepositRepository } from './infrastructure/SupabaseSecurityDepositRepository'
 export { SupabaseTransactionRepository } from './infrastructure/SupabaseTransactionRepository'
+
+// Infrastructure - Stripe
+export * from './infrastructure/stripe'

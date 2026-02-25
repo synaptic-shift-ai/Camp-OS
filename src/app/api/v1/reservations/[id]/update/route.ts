@@ -102,7 +102,7 @@ export async function PATCH(
       .update({
         check_in_date: check_in_date,
         check_out_date: check_out_date,
-        num_nights: numNights,
+        // num_nights: numNights,
         num_adults: num_adults,
         num_children: num_children || 0,
         num_pets: num_pets || 0,

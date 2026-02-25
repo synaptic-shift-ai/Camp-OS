@@ -12,6 +12,7 @@ import {
   resolveEnabledReservationTypes,
   parseReservationTypesConfigFromDB,
   parseEnabledReservationTypesFromDB,
+  resolveReservationTypeRate,
 } from '@/lib/config/resolution'
 import type {
   Site,
@@ -76,14 +77,18 @@ function convertAmenities(amenitiesArray: string[] | null): SiteAmenities {
 /**
  * Convert DB Site to UI-friendly AvailableSite
  */
-function convertToAvailableSite(site: Site): AvailableSite {
+function convertToAvailableSite(site: Site, effectiveNightlyRateCents?: number): AvailableSite {
+  const basePricePerNight =
+    effectiveNightlyRateCents !== undefined
+      ? effectiveNightlyRateCents
+      : site.base_price
   return {
     id: site.id,
     name: site.site_name || `Site ${site.site_number}`,
     site_number: site.site_number,
     site_type: site.site_type,
     max_occupancy: site.max_occupancy,
-    base_price_per_night: site.base_price,
+    base_price_per_night: basePricePerNight,
     amenities: convertAmenities(site.amenities),
     ...(site.images && Array.isArray(site.images) && site.images.length > 0 && { image_url: site.images[0] }),
   }
@@ -345,7 +350,25 @@ export async function searchAvailableSites(
     })
   }
 
-  const availableSites = filteredSites.map((site) => convertToAvailableSite(site as Site))
+  type SiteRow = Site & {
+    weekly_rate_cents?: number | null
+    monthly_rate_cents?: number | null
+    pricing_override?: { reservation_type_rates_override?: Partial<Record<BookingType, number>> | null }
+  }
+  const availableSites = filteredSites.map((site) => {
+    const row = site as SiteRow
+    const effectiveNightlyRate = resolveReservationTypeRate(
+      'nightly',
+      reservationTypeConfig,
+      row.pricing_override?.reservation_type_rates_override ?? null,
+      {
+        base_price: row.base_price ?? 0,
+        weekly_rate_cents: row.weekly_rate_cents ?? null,
+        monthly_rate_cents: row.monthly_rate_cents ?? null,
+      }
+    )
+    return convertToAvailableSite(row as Site, effectiveNightlyRate)
+  })
 
   return {
     success: true,

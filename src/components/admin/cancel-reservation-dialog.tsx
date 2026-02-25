@@ -41,6 +41,13 @@ export function CancelReservationDialog({
       setLoading(true)
       setError(null)
 
+      // API requires refundAmountCents; 0 = no refund (backend may override per policy)
+      const requestBody = {
+        reason: reason.trim() || undefined,
+        refundAmountCents: 0,
+      }
+      console.log("[Cancel Reservation] Sending request", { reservationId, requestBody })
+
       const response = await fetch(
         `/api/v1/reservations/${reservationId}/cancel`,
         {
@@ -48,16 +55,25 @@ export function CancelReservationDialog({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            reason: reason.trim() || undefined,
-          }),
+          body: JSON.stringify(requestBody),
         }
       )
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to cancel reservation")
+        const errorPayload = data?.error ?? data
+        const details = errorPayload?.details as { errors?: Array<{ path?: string[]; message?: string }> } | undefined
+        console.warn("[Cancel Reservation] API error response", {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+        })
+        const errorMessage =
+          details?.errors?.length
+            ? `Validation failed: ${details.errors.map((e) => e.message ?? String(e)).join(", ")}`
+            : errorPayload?.message ?? "Failed to cancel reservation"
+        throw new Error(errorMessage)
       }
 
       // Success - close dialog and refresh the page

@@ -9,6 +9,7 @@ import { ReservationTypeSettings } from "@/components/dashboard/settings/reserva
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PropertySettings } from "@/components/dashboard/settings/property-settings"
+import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 import type { BookingType, SeasonalPeriod } from "@/lib/config/types"
@@ -50,7 +51,8 @@ async function getCurrentProperty() {
       booking_rules_config,
       rate_discounts_config,
       enabled_reservation_types,
-      reservation_type_config
+      reservation_type_config,
+      settings
     `)
     .eq('owner_id', user.id)
     .single()
@@ -97,12 +99,13 @@ export default async function SettingsPage() {
       </Alert>
 
       <Tabs defaultValue="property" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="property">Property</TabsTrigger>
           <TabsTrigger value="fees">Additional Charges</TabsTrigger>
           <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
+          <TabsTrigger value="cancellation-policy">Cancellation Policy</TabsTrigger>
           <TabsTrigger value="discounts">Discounts</TabsTrigger>
         </TabsList>
 
@@ -150,6 +153,16 @@ export default async function SettingsPage() {
           <BookingRulesSettings
             propertyId={property.id}
             initialConfig={property.booking_rules_config}
+          />
+        </TabsContent>
+
+        <TabsContent value="cancellation-policy" className="space-y-4">
+          <CancellationPolicySettings
+            propertyId={property.id}
+            initialCancellationPolicy={
+              (property.settings as { cancellationPolicy?: string | null } | null)?.cancellationPolicy ?? null
+            }
+            currentSettings={(property.settings as Record<string, unknown> | null) ?? null}
           />
         </TabsContent>
 

@@ -405,12 +405,20 @@ export default function NewReservationPage() {
       // Update numVehicles count based on actual vehicles added
       const actualNumVehicles = vehiclesData.length > 0 ? vehiclesData.length : (data.numVehicles || 0)
 
+      // Total from pricing (same as Pricing Summary base: rate × nights, in cents)
+      const submitNights = Math.ceil(
+        (new Date(data.checkOutDate).getTime() - new Date(data.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+      )
+      const selectedSite = availableSites.find((s) => s.id === data.siteId)
+      const totalAmountCents = selectedSite ? selectedSite.base_price_per_night * submitNights : 0
+
       // Debug: Log what we're sending
       console.log('[Manual Reservation Form] Submitting with:', {
         siteId: data.siteId,
         propertyId,
         checkInDate: data.checkInDate,
         checkOutDate: data.checkOutDate,
+        totalAmountCents,
       })
 
       // Use v1 API endpoint
@@ -453,6 +461,7 @@ export default function NewReservationPage() {
           paymentMode: data.paymentMode,
           paymentMethod: data.paymentMethod,
           paidAmountCents: paidAmountCents,
+          totalAmountCents: totalAmountCents > 0 ? totalAmountCents : undefined,
           paymentNotes: data.paymentNotes || null,
           // Discounts/fees
           selectedDiscountIds,

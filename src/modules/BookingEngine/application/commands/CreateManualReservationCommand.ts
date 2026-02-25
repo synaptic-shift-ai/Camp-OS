@@ -91,6 +91,16 @@ export class CreateManualReservationCommandHandler {
     }
     const reservation = reservationResult.data
 
+    // 2b. Apply client-provided total when present (fixes $0 when site.base_price is unset)
+    if (dto.totalAmountCents != null && dto.totalAmountCents > 0) {
+      await supabase
+        .from('reservations')
+        .update({ total_amount: dto.totalAmountCents })
+        .eq('id', reservation.id)
+        .eq('property_id', dto.propertyId)
+      reservation.total_amount = dto.totalAmountCents
+    }
+
     // 3. Handle spouse/partner information (stored on guest)
     if (dto.spousePartner) {
       // Build spouse input conditionally (exactOptionalPropertyTypes)

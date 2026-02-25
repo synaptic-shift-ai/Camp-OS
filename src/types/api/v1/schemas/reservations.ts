@@ -363,6 +363,8 @@ export const CreateManualReservationRequestSchema = z.object({
   paymentMode: PaymentModeSchema.default('cash'),
   paymentMethod: PaymentMethodSchema.optional(),
   paidAmountCents: z.number().int().min(0).optional().default(0),
+  /** Total reservation amount in cents (from pricing summary). When provided, used as reservation total_amount. */
+  totalAmountCents: z.number().int().min(0).optional(),
   paymentNotes: z.string().max(500).optional().nullable(),
 
   // Discounts and fees

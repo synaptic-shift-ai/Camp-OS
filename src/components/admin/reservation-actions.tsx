@@ -51,7 +51,7 @@ export function ReservationActions({
   // Only show extend/renew for confirmed or checked-in reservations
   const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
 
-  const showCancel = status !== 'cancelled'
+  const showCancel = status !== 'cancelled' && status !== 'checked_out' && status !== 'checked_in' && status !== 'no_show'
 
   // Renewals are primarily for seasonal/monthly bookings
   const showRenew = canExtendOrRenew && ['seasonal', 'monthly', 'long_term'].includes(bookingType)

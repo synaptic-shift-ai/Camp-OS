@@ -76,6 +76,8 @@ export const PropertySchema = z.object({
   // Contact
   phone: z.string().nullable(),
   email: z.string().email().nullable().or(z.literal('')),
+  checkInTime: z.string().nullable(),
+  checkOutTime: z.string().nullable(),
 
   // Branding
   subdomain: z.string().nullable(),
@@ -165,6 +167,8 @@ export const UpdatePropertyRequestSchema = z.object({
   // Contact
   phone: z.string().max(50).nullable().optional(),
   email: z.string().email().max(255).nullable().optional(),
+  checkInTime: z.string().max(500).nullable().optional(),
+  checkOutTime: z.string().max(500).nullable().optional(),
 
   // Branding
   subdomain: z.string().max(100).nullable().optional(),

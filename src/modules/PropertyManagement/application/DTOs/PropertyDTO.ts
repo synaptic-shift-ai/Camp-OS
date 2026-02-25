@@ -34,6 +34,8 @@ export type PropertyDTO = {
   // Contact
   phone: string | null
   email: string | null
+  checkInTime: string | null
+  checkOutTime: string | null
 
   // Branding
   subdomain: string | null
@@ -110,6 +112,8 @@ export function toPropertyDTO(property: Property): PropertyDTO {
     // Contact
     phone: property.phone,
     email: property.email,
+    checkInTime: property.checkInTime,
+    checkOutTime: property.checkOutTime,
 
     // Branding
     subdomain: property.subdomain,

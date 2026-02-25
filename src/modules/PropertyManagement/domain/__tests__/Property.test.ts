@@ -700,6 +700,8 @@ describe('Property', () => {
         'USA',
         '555-1234',
         'test@example.com',
+        '15:00', // checkInTime
+        '11:00', // checkOutTime
         'mountain-view',
         'mountain-view-booking',
         'https://example.com/hero.jpg', // heroImageUrl
@@ -724,6 +726,8 @@ describe('Property', () => {
       expect(property.onboardingStatus).toBe(OnboardingStatus.COMPLETED)
       expect(property.stripeConnectInfo.accountId).toBe('acct_123')
       expect(property.stripeConnectInfo.isConnected()).toBe(true)
+      expect(property.settings.checkInTime).toBe('15:00')
+      expect(property.settings.checkOutTime).toBe('11:00')
       expect(property.createdAt).toBe(createdAt)
       expect(property.updatedAt).toBe(updatedAt)
     })

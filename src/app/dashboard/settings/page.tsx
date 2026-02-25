@@ -8,6 +8,7 @@ import { DiscountsSettings } from "@/components/dashboard/settings/discounts-set
 import { ReservationTypeSettings } from "@/components/dashboard/settings/reservation-type-settings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PropertySettings } from "@/components/dashboard/settings/property-settings"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 import type { BookingType, SeasonalPeriod } from "@/lib/config/types"
@@ -34,6 +35,14 @@ async function getCurrentProperty() {
     .select(`
       id,
       name,
+      address,
+      city,
+      state,
+      zip_code,
+      phone,
+      email,
+      check_in_time,
+      check_out_time,
       owner_id,
       company_id,
       deposit_config,
@@ -87,14 +96,32 @@ export default async function SettingsPage() {
         </AlertDescription>
       </Alert>
 
-      <Tabs defaultValue="fees" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+      <Tabs defaultValue="property" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="property">Property</TabsTrigger>
           <TabsTrigger value="fees">Additional Charges</TabsTrigger>
           <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
           <TabsTrigger value="discounts">Discounts</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="property" className="space-y-4">
+          <PropertySettings
+            propertyId={property.id}
+            initial={{
+              name: property.name,
+              address: property.address,
+              city: property.city,
+              state: property.state,
+              zipCode: property.zip_code,
+              phone: property.phone,
+              email: property.email,
+              checkInTime: property.check_in_time,
+              checkOutTime: property.check_out_time,
+            }}
+          />
+        </TabsContent>
 
         <TabsContent value="fees" className="space-y-4">
           <FeesSettings

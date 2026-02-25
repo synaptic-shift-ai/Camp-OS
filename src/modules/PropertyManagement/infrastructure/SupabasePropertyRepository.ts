@@ -264,6 +264,8 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       row.country,
       row.phone,
       row.email,
+      row.check_in_time ?? null,
+      row.check_out_time ?? null,
       row.subdomain,
       row.booking_page_slug,
       row.hero_image_url,

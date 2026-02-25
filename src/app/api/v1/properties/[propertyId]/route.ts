@@ -204,6 +204,8 @@ export async function PATCH(
       country: validatedRequest.country,
       phone: validatedRequest.phone,
       email: validatedRequest.email,
+      checkInTime: validatedRequest.checkInTime,
+      checkOutTime: validatedRequest.checkOutTime,
       subdomain: validatedRequest.subdomain,
       bookingPageSlug: validatedRequest.bookingPageSlug,
       heroImageUrl: validatedRequest.heroImageUrl,

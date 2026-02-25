@@ -62,6 +62,8 @@ export type PropertyProps = {
   // Contact
   phone: string | null
   email: string | null
+  checkInTime: string | null
+  checkOutTime: string | null
 
   // Branding
   subdomain: string | null
@@ -117,6 +119,8 @@ export class Property extends AggregateRoot<string> {
       country?: string | null | undefined
       phone?: string | null | undefined
       email?: string | null | undefined
+      checkInTime?: string | null | undefined
+      checkOutTime?: string | null | undefined
       subdomain?: string | null | undefined
       bookingPageSlug?: string | null | undefined
       heroImageUrl?: string | null | undefined
@@ -172,6 +176,8 @@ export class Property extends AggregateRoot<string> {
         country: options.country || null,
         phone: options.phone || null,
         email: options.email || null,
+        checkInTime: options.checkInTime ?? null,
+        checkOutTime: options.checkOutTime ?? null,
         subdomain: options.subdomain || null,
         bookingPageSlug: options.bookingPageSlug || null,
         heroImageUrl: options.heroImageUrl || null,
@@ -213,6 +219,8 @@ export class Property extends AggregateRoot<string> {
     country: string | null,
     phone: string | null,
     email: string | null,
+    checkInTime: string | null,
+    checkOutTime: string | null,
     subdomain: string | null,
     bookingPageSlug: string | null,
     heroImageUrl: string | null,
@@ -254,17 +262,19 @@ export class Property extends AggregateRoot<string> {
         country,
         phone,
         email,
+        checkInTime,
+        checkOutTime,
         subdomain,
         bookingPageSlug,
         heroImageUrl,
         settings,
         amenities,
-        checkInInstructions,
-        checkOutInstructions,
-        houseRules,
-        onboardingStatus,
-        onboardingCompletedAt,
-        stripeConnectInfo,
+    checkInInstructions,
+    checkOutInstructions,
+    houseRules,
+    onboardingStatus,
+    onboardingCompletedAt,
+    stripeConnectInfo,
       },
       createdAt,
       updatedAt
@@ -363,6 +373,14 @@ export class Property extends AggregateRoot<string> {
     return this.props.houseRules
   }
 
+  get checkInTime(): string | null {
+    return this.props.checkInTime
+  }
+
+  get checkOutTime(): string | null {
+    return this.props.checkOutTime
+  }
+
   get onboardingStatus(): OnboardingStatus {
     return this.props.onboardingStatus
   }
@@ -407,6 +425,8 @@ export class Property extends AggregateRoot<string> {
     propertyType?: PropertyType | null | undefined
     phone?: string | null | undefined
     email?: string | null | undefined
+    checkInTime?: string | null | undefined
+    checkOutTime?: string | null | undefined
   }): void {
     // Validate name
     if (updates.name !== undefined) {
@@ -436,6 +456,12 @@ export class Property extends AggregateRoot<string> {
     }
     if (updates.phone !== undefined) {
       this.props.phone = updates.phone
+    }
+    if (updates.checkInTime !== undefined) {
+      this.props.checkInTime = updates.checkInTime
+    }
+    if (updates.checkOutTime !== undefined) {
+      this.props.checkOutTime = updates.checkOutTime
     }
 
     this.touch()
@@ -679,6 +705,8 @@ export class Property extends AggregateRoot<string> {
       country: this.props.country,
       phone: this.props.phone,
       email: this.props.email,
+      check_in_time: this.props.checkInTime,
+      check_out_time: this.props.checkOutTime,
       subdomain: this.props.subdomain,
       booking_page_slug: this.props.bookingPageSlug,
       hero_image_url: this.props.heroImageUrl,

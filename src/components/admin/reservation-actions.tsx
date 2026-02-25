@@ -51,6 +51,8 @@ export function ReservationActions({
   // Only show extend/renew for confirmed or checked-in reservations
   const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
 
+  const showCancel = status !== 'cancelled'
+
   // Renewals are primarily for seasonal/monthly bookings
   const showRenew = canExtendOrRenew && ['seasonal', 'monthly', 'long_term'].includes(bookingType)
   return (
@@ -123,20 +125,24 @@ export function ReservationActions({
             )}
           </>
         )}
-        <DropdownMenuSeparator />
-        <CancelReservationDialog
-          reservationId={reservationId}
-          confirmationNumber={confirmationNumber}
-          guestName={guestName}
-          trigger={
-            <DropdownMenuItem
-              className="text-destructive"
-              onSelect={(e) => e.preventDefault()}
-            >
-              Cancel Reservation
-            </DropdownMenuItem>
-          }
-        />
+        {showCancel && (
+          <>
+            <DropdownMenuSeparator />
+            <CancelReservationDialog
+              reservationId={reservationId}
+              confirmationNumber={confirmationNumber}
+              guestName={guestName}
+              trigger={
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  Cancel Reservation
+                </DropdownMenuItem>
+              }
+            />
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

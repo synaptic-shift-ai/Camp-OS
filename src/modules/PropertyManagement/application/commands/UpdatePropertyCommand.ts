@@ -17,6 +17,8 @@ export type UpdatePropertyDto = {
   propertyType?: PropertyType | 'campground' | 'rv_park' | 'glamping' | 'cabin_resort' | 'mixed' | null | undefined
   phone?: string | null | undefined
   email?: string | null | undefined
+  checkInTime?: string | null | undefined
+  checkOutTime?: string | null | undefined
   address?: string | null | undefined
   city?: string | null | undefined
   state?: string | null | undefined
@@ -49,7 +51,9 @@ export class UpdatePropertyCommandHandler {
       dto.description !== undefined ||
       dto.propertyType !== undefined ||
       dto.phone !== undefined ||
-      dto.email !== undefined
+      dto.email !== undefined ||
+      dto.checkInTime !== undefined ||
+      dto.checkOutTime !== undefined
     ) {
       property.updateDetails({
         ...(dto.name !== undefined && { name: dto.name }),
@@ -57,6 +61,8 @@ export class UpdatePropertyCommandHandler {
         ...(dto.propertyType !== undefined && { propertyType: dto.propertyType as PropertyType | null }),
         ...(dto.phone !== undefined && { phone: dto.phone }),
         ...(dto.email !== undefined && { email: dto.email }),
+        ...(dto.checkInTime !== undefined && { checkInTime: dto.checkInTime }),
+        ...(dto.checkOutTime !== undefined && { checkOutTime: dto.checkOutTime }),
       })
     }
 

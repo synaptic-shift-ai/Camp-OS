@@ -57,6 +57,8 @@ describe('Properties API v1 Contract Tests', () => {
         email: 'info@example.com',
 
         // Branding
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
         subdomain: 'mountain-view',
         bookingPageSlug: 'mountain-view-booking',
 
@@ -170,6 +172,8 @@ describe('Properties API v1 Contract Tests', () => {
         // Contact - nullable
         phone: null,
         email: null,
+        checkInTime: null,
+        checkOutTime: null,
 
         // Branding - nullable
         subdomain: null,
@@ -511,6 +515,8 @@ describe('Properties API v1 Contract Tests', () => {
         country: null,
         phone: null,
         email: null,
+        checkInTime: null,
+        checkOutTime: null,
         subdomain: null,
         bookingPageSlug: null,
         settings: {

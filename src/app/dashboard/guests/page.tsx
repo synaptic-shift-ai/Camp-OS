@@ -11,9 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Mail, MoreVertical, Phone, Plus } from "lucide-react"
+import { Mail, MoreVertical, Phone } from "lucide-react"
 import { getGuests } from "@/lib/dashboard/queries"
 import { createClient } from "@/lib/supabase/server"
+import { GuestsPageHeader } from "@/components/dashboard/guests/guests-page-header"
 
 /**
  * Format money from integer cents to dollar display
@@ -167,19 +168,11 @@ interface GuestsPageProps {
 export default async function GuestsPage({ searchParams }: GuestsPageProps) {
   const params = await searchParams
   const searchQuery = typeof params.search === 'string' ? params.search : undefined
+  const propertyId = await getCurrentPropertyId()
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Guests</h1>
-          <p className="text-muted-foreground">Manage your guest database</p>
-        </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Guest
-        </Button>
-      </div>
+      <GuestsPageHeader propertyId={propertyId} />
 
       <Card>
         <CardHeader>

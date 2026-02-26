@@ -34,6 +34,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { SiteType } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
+import Marquee from "react-fast-marquee"
 
 type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal'
 
@@ -42,6 +50,15 @@ const RESERVATION_TYPE_LABELS: Record<BookingType, string> = {
   weekly: 'Weekly Rate',
   monthly: 'Monthly Rate',
   seasonal: 'Seasonal Rate',
+}
+
+export type SiteTypeSummary = {
+  type: SiteType
+  name: string
+  description: string
+  price: number
+  capacity: string
+  amenities: string[]
 }
 
 interface PropertyBookingPortalProps {
@@ -62,9 +79,16 @@ interface PropertyBookingPortalProps {
     enabled_reservation_types?: BookingType[]
   }
   slug: string
+  siteTypeSummaries?: SiteTypeSummary[]
+  recentBookings?: {
+    name: string
+    numberOfNights: number
+    siteType: string
+    timeAgo: string
+  }[]
 }
 
-export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalProps) {
+export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recentBookings = [] }: PropertyBookingPortalProps) {
   const router = useRouter()
   const { toast } = useToast()
 
@@ -183,11 +207,15 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
     { src: "/lake-activities.jpg", alt: "Lake activities" },
   ]
 
-  const recentBookings = [
-    { name: "Sarah M.", location: "Austin, TX", siteType: "RV Site", timeAgo: "2 minutes ago" },
-    { name: "Mike K.", location: "Denver, CO", siteType: "Cabin", timeAgo: "8 minutes ago" },
-    { name: "Lisa R.", location: "Phoenix, AZ", siteType: "Tent Site", timeAgo: "15 minutes ago" },
-  ]
+  // const bookingMessage = bookingStats && bookingStats.recentCount > 0
+  // ? `${bookingStats.recentCount} booking${bookingStats.recentCount > 1 ? 's' : ''} in the last 7 days`
+  // : null
+
+  // const recentBookings = [
+  //   { name: "Sarah M.", location: "Austin, TX", siteType: "RV Site", timeAgo: "2 minutes ago" },
+  //   { name: "Mike K.", location: "Denver, CO", siteType: "Cabin", timeAgo: "8 minutes ago" },
+  //   { name: "Lisa R.", location: "Phoenix, AZ", siteType: "Tent Site", timeAgo: "15 minutes ago" },
+  // ]
 
   const trustBadges = [
     { icon: "🔒", text: "Secure Booking" },
@@ -510,94 +538,87 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                type: "tent" as SiteType,
-                name: "Tent Sites",
-                description: "Perfect for traditional camping with your own tent",
-                price: 35,
-                capacity: "2-4",
-                amenities: ["Fire Pit", "Picnic Table", "Water Access"],
-              },
-              {
-                type: "rv" as SiteType,
-                name: "RV Sites",
-                description: "Full hookup sites for RVs and motorhomes",
-                price: 55,
-                capacity: "4-6",
-                amenities: ["Electric", "Water", "Sewer", "Fire Pit"],
-              },
-              {
-                type: "cabin" as SiteType,
-                name: "Cabins",
-                description: "Cozy cabins with modern amenities",
-                price: 125,
-                capacity: "4-6",
-                amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"],
-              },
-            ].map((siteType) => {
-              const IconComponent = getSiteTypeIcon(siteType.type)
-              return (
-                <Card key={siteType.type} className="overflow-hidden hover:shadow-xl transition-shadow border-2">
-                  <div className="relative h-64 bg-gradient-to-br from-green-100 to-green-50">
-                    <div className="absolute top-4 left-4">
-                      <div className="bg-white/95 p-3 rounded-full shadow-lg">
-                        <IconComponent className="h-6 w-6 text-[#2D5A27]" />
-                      </div>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <Badge className="bg-[#2D5A27] text-white text-lg px-4 py-2">From ${siteType.price}/night</Badge>
-                    </div>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="text-xl text-[#2D5A27]">{siteType.name}</CardTitle>
-                    <CardDescription className="text-base">{siteType.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-600 mb-2">Sleeps {siteType.capacity}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {siteType.amenities.map((amenity) => (
-                          <div key={amenity} className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-[#8FBC8F] rounded-full"></div>
-                            <span className="text-sm text-gray-700">{amenity}</span>
+          <Carousel opts={{ align: "start", loop: false }} className="w-full">
+            <CarouselContent className="-ml-4">
+              {(siteTypeSummaries && siteTypeSummaries.length > 0
+                ? siteTypeSummaries
+                : [
+                    { type: "tent" as SiteType, name: "Tent Sites", site_number: "1", description: "Perfect for traditional camping with your own tent", price: 35, capacity: "2-4", amenities: ["Fire Pit", "Picnic Table", "Water Access"] },
+                    { type: "rv" as SiteType, name: "RV Sites", site_number: "2", description: "Full hookup sites for RVs and motorhomes", price: 55, capacity: "4-6", amenities: ["Electric", "Water", "Sewer", "Fire Pit"] },
+                    { type: "cabin" as SiteType, name: "Cabins", site_number: "3", description: "Cozy cabins with modern amenities", price: 125, capacity: "4-6", amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"] },
+                  ]
+              ).map((siteType) => {
+                const IconComponent = getSiteTypeIcon(siteType.type)
+                return (
+                  <CarouselItem key={siteType.name} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                    <div className="h-full" style={{ display: "flex" }}>
+                      <Card className="overflow-hidden hover:shadow-xl transition-shadow border-2 w-full flex flex-col">
+                        <div className="relative h-64 bg-gradient-to-br from-green-100 to-green-50 shrink-0">
+                          <div className="absolute top-4 left-4">
+                            <div className="bg-white/95 p-3 rounded-full shadow-lg">
+                              <IconComponent className="h-6 w-6 text-[#2D5A27]" />
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                          <div className="absolute top-4 right-4">
+                            <Badge className="bg-[#2D5A27] text-white text-lg px-4 py-2">From ${siteType.price}/night</Badge>
+                          </div>
+                        </div>
+                        <CardHeader className="shrink-0">
+                          <CardTitle className="text-2xl">{`${siteType.type.toLocaleUpperCase()} Sites`}</CardTitle>
+                          <CardTitle className="text-xl text-[#2D5A27]">{siteType.name}</CardTitle>
+                          <CardDescription className="text-base">{siteType.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col flex-1 justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-600 mb-2">Sleeps {siteType.capacity}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {siteType.amenities.map((amenity) => (
+                                <div key={amenity} className="flex items-center space-x-2">
+                                  <div className="w-2 h-2 bg-[#8FBC8F] rounded-full"></div>
+                                  <span className="text-sm text-gray-700">{amenity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <Button
+                            className="w-full bg-[#2D5A27] hover:bg-[#1e3d1a] text-white"
+                            onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
+                          >
+                            View Sites
+                          </Button>
+                        </CardContent>
+                      </Card>
                     </div>
-                    <Button
-                      className="w-full bg-[#2D5A27] hover:bg-[#1e3d1a] text-white"
-                      onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
-                    >
-                      View Sites
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                  </CarouselItem>
+                )
+              })}
+            </CarouselContent>
+            <CarouselPrevious className="-translate-x-1/2 h-10 w-10 [&_svg]:size-6" />
+            <CarouselNext className="translate-x-1/2 h-10 w-10 [&_svg]:size-6" />
+          </Carousel>
         </div>
       </section>
 
       {/* Trust & Social Proof */}
       <section className="py-12 bg-gradient-to-r from-[#8FBC8F]/10 to-[#2D5A27]/10">
-        <div className="container mx-auto px-4">
-          {/* Recent Bookings Ticker */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-8 overflow-hidden">
-            <div className="flex items-center justify-center space-x-8 text-sm">
+
+        <div className="bg-white shadow-sm p-4 mb-8 overflow-hidden w-full">
+          <Marquee speed={80} gradient={false} pauseOnHover>
+            <div className="flex items-center justify-center space-x-8 text-sm animate-marquee">
               {recentBookings.map((booking, index) => (
                 <div key={index} className="flex items-center space-x-2 text-gray-700 whitespace-nowrap">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                   <span className="font-medium">{booking.name}</span>
-                  <span>from {booking.location}</span>
-                  <span>booked a {booking.siteType}</span>
+                  {/* <span>from {booking.siteType}</span> */}
+                  <span>booked a {booking.siteType} Site for {booking.numberOfNights} nights</span>
                   <span className="text-gray-500">{booking.timeAgo}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </Marquee>
+        </div>
 
+        <div className="container mx-auto px-4 w-full">
           {/* Trust Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -749,7 +770,7 @@ export function PropertyBookingPortal({ property, slug }: PropertyBookingPortalP
           <p className="text-xl mb-8 opacity-90">Start planning your perfect camping getaway today</p>
           <Button
             size="lg"
-            className="bg-white text-[#2D5A27] hover:bg-gray-100 text-lg px-8 py-3"
+            className="bg-white text-[#2D5A27] hover:bg-gray-100 text-lg"
             onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
           >
             Check Availability

@@ -18,7 +18,10 @@ export const siteFormSchema = z.object({
   // Pricing (in dollars - will convert to cents for API)
   // Note: min(0) allows property defaults mode; conditional validation via .refine()
   base_price: z.coerce.number().min(0),
-  weekend_price: z.coerce.number().min(0).optional(),
+  weekend_price: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+    z.number().min(0).optional()
+  ),
   weekly_rate: z.coerce.number().min(0).optional(), // Weekly per-night rate
   monthly_rate: z.coerce.number().min(0).optional(), // Monthly per-night rate
 
@@ -117,6 +120,7 @@ export function toApiFormat(data: SiteFormData) {
     weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
     weeklyRateCents: data.weekly_rate ? Math.round(data.weekly_rate * 100) : undefined,
     monthlyRateCents: data.monthly_rate ? Math.round(data.monthly_rate * 100) : undefined,
+    status: data.status,
     // Convert boolean objects to arrays of keys where value is true
     amenities: Object.entries(data.amenities)
       .filter(([_, v]) => v)
@@ -211,10 +215,8 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
     },
     // Reservation type overrides
     use_property_reservation_types:
-      site.enabledReservationTypesOverride === null ||
-      site.enabledReservationTypesOverride === undefined ||
-      site.enabled_reservation_types_override === null ||
-      site.enabled_reservation_types_override === undefined,
+      (site.enabledReservationTypesOverride === null || site.enabledReservationTypesOverride === undefined) &&
+      (site.enabled_reservation_types_override === null || site.enabled_reservation_types_override === undefined),
     enabled_reservation_types_override:
       site.enabledReservationTypesOverride || site.enabled_reservation_types_override || undefined,
     // Default reservation type for this site

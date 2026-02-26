@@ -27,6 +27,7 @@ import { createClient } from '@/lib/supabase/server'
 import { calculatePriceBreakdown } from '@/lib/booking/pricing'
 import type { Database } from '@/contracts/db'
 import type { CreateGuestInput } from '@/lib/booking/types'
+import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
 
 // Input validation schema
 const createGuestReservationSchema = z.object({
@@ -348,7 +349,9 @@ export async function POST(request: NextRequest) {
     // Step 8: Generate confirmation number
     // ========================================================================
 
-    const confirmationNumber = `CAMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    // const confirmationNumber = `CAMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+
+    const confirmationNumber = ConfirmationNumber.generate().value
 
     // ========================================================================
     // Step 9: Create pending reservation with 15-minute checkout timer

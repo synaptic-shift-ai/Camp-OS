@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { extractPropertyIdFromSlug } from "@/lib/booking/slug-utils"
 import { PropertyBookingPortal } from "@/components/guest/property-booking-portal"
+import type { SiteType } from "@/lib/booking/types"
 
 export default async function PropertyBookingPage({
   params,
@@ -50,7 +51,8 @@ export default async function PropertyBookingPage({
       special_instructions,
       directions,
       amenities,
-      enabled_reservation_types
+      enabled_reservation_types,
+      reservation_type_config
     `)
     .eq("booking_page_slug", slug)
     .eq("onboarding_completed", true)
@@ -61,6 +63,89 @@ export default async function PropertyBookingPage({
     console.error("[Booking] Property not found or not published:", slug, error)
     notFound()
   }
+
+  const { data: sites} = await supabase
+    .from("sites")
+    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description")
+    .eq("property_id", property.id)
+    .eq("status", "available")
+
+  const { data: recentReservations } = await supabase
+    .from("reservations")
+    .select(`
+      created_at,
+      check_in_date,
+      check_out_date,
+      guests ( first_name, last_name),
+      sites ( site_name, site_type )
+      `)
+    .eq("property_id", property.id)
+    .in("status", ["confirmed", "occupied"])
+    .order("created_at", { ascending: false })
+    .limit(5)
+
+  // const bookingStats = {
+  //   recentCount: recentReservations?.length ?? 0,
+  //   siteTypes: [...new Set(recentReservations?.map(r => (r.sites as any)?.site_type).filter(Boolean))] as string[],
+  // }
+
+  console.log("recentReservations", recentReservations)
+
+  const SITE_TYPE_DESCRIPTIONS: Record<string, string> = {
+    tent: "Perfect for traditional camping with your own tent",
+    rv: "Full hookup sites for RVs and motorhomes",
+    cabin: "Cozy cabins with modern amenities",
+    glamping: "Comfortable glamping accommodations",
+    yurt: "Unique yurt stays",
+    other: "Other accommodation types",
+  }
+
+  type SiteTypeSummary = {
+    type: SiteType
+    name: string
+    description: string
+    price: number
+    capacity: string
+    amenities: string[]
+  }
+
+  const recentBookings = recentReservations?.map(r => {
+    const guest = r.guests as any
+    const site = r.sites as any
+    const firstName = guest.first_name ?? "Someone"
+    const lastName = guest.last_name ?? ""
+    const siteType = site.site_type ?? "other"
+    const createdAt = r.created_at ? new Date(r.created_at) : new Date()
+    const checkInDate = r.check_in_date ? new Date(r.check_in_date) : new Date()
+    const checkOutDate = r.check_out_date ? new Date(r.check_out_date) : new Date()
+    const numberOfNights = Math.floor((checkOutDate.getTime() - checkInDate.getTime()) / 86400000)
+    const minutesAgo = Math.floor((Date.now() - createdAt.getTime()) / 60000)
+    const timeAgo = minutesAgo < 60
+      ? `${minutesAgo} minutes${minutesAgo !== 1 ? "s" : ""} ago`
+      : minutesAgo < 1440
+        ? `${Math.floor(minutesAgo / 60)} hour${Math.floor(minutesAgo / 60) !== 1 ? "s" : ""} ago`
+        : `${Math.floor(minutesAgo / 1440)} day${Math.floor(minutesAgo / 1440) !== 1 ? "s" : ""} ago`
+
+    console.log("recent Bookings:", { name: `${firstName} ${lastName}`.trim(), numberOfNights, siteType, timeAgo })
+
+    return { name: `${firstName} ${lastName}`.trim(), numberOfNights, siteType, timeAgo }
+  })
+
+  const siteTypeSummaries: SiteTypeSummary[] = (sites ?? []).map((s) => {
+    const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
+    const amenities = Array.isArray(s.amenities)
+      ? (s.amenities as string[]).slice(0, 6)
+      : ["See availability for details"]
+  
+    return {
+      type: siteType,
+      name: s.site_name ?? `Site ${s.site_number}`,
+      description: s.description ?? SITE_TYPE_DESCRIPTIONS[siteType] ?? "",
+      price: (s.base_price ?? 0) / 100,
+      capacity: s.max_occupancy ? String(s.max_occupancy) : "-",
+      amenities,
+    }
+  })
 
   // Prepare property data for PropertyBookingPortal component
   const propertyData = {
@@ -80,7 +165,12 @@ export default async function PropertyBookingPage({
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
   }
 
-  return <PropertyBookingPortal property={propertyData} slug={slug} />
+  return <PropertyBookingPortal 
+    property={propertyData} 
+    slug={slug} 
+    siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : [] as SiteTypeSummary[]}
+    recentBookings={recentBookings ?? []}
+    />
 }
 
 // Generate metadata for SEO
@@ -88,7 +178,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
 
   try {
-    const propertyIdPrefix = extractPropertyIdFromSlug(slug)
+    extractPropertyIdFromSlug(slug)
     const supabase = await createClient()
 
     const { data: property } = await supabase

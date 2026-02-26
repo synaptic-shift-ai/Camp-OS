@@ -432,7 +432,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                             step="0.01"
                             min="0"
                             className="pl-7 h-9"
-                            {...register("weekend_price", { valueAsNumber: true })}
+                            {...register("weekend_price")}
                             placeholder="Optional"
                           />
                         </div>

@@ -292,8 +292,8 @@ export async function calculateReservationPriceEnhanced(
       subtotal += effectiveRate
 
       // Track weekend surcharge for display
-      if (isWeekend && typedSite.weekend_price_cents && typedSite.weekend_price_cents > typedSite.base_price) {
-        weekendSurcharge += (typedSite.weekend_price_cents - typedSite.base_price)
+      if (isWeekend && typedSite.weekend_price && typedSite.weekend_price > typedSite.base_price) {
+        weekendSurcharge += (typedSite.weekend_price - typedSite.base_price)
       }
 
       // Update rate type based on what was applied
@@ -301,7 +301,7 @@ export async function calculateReservationPriceEnhanced(
         rateType = 'monthly'
       } else if (discountTier.tier === 'weekly') {
         rateType = 'weekly'
-      } else if (isWeekend && typedSite.weekend_price_cents) {
+      } else if (isWeekend && typedSite.weekend_price) {
         rateType = 'weekend'
       }
 

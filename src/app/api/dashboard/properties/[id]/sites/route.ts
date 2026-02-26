@@ -161,7 +161,7 @@ export async function POST(
       status: site.status || "available",
       description: site.description || null,
       base_price: site.base_price, // Already in cents from frontend
-      weekend_price: site.weekend_price || site.weekend_price_cents || null,
+      weekend_price: site.weekend_price || null,
       hookups: site.hookups || [],
       amenities: site.site_amenities || site.amenities || [],
       images: site.site_images || site.images || [],

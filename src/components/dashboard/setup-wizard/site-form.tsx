@@ -28,7 +28,7 @@ export interface PropertyDefaults {
   monthly_rate_cents?: number | null
   seasonal_rate_cents?: number | null
   base_price_cents?: number | null  // Fallback base price
-  weekend_price_cents?: number | null
+  weekend_price?: number | null
 }
 
 interface SiteFormProps {
@@ -353,8 +353,8 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
                   }
 
                   const currentWeekendPrice = watch("weekend_price")
-                  if (!currentWeekendPrice && propertyDefaults?.weekend_price_cents) {
-                    setValue("weekend_price", propertyDefaults.weekend_price_cents / 100)
+                  if (!currentWeekendPrice && propertyDefaults?.weekend_price) {
+                    setValue("weekend_price", propertyDefaults.weekend_price / 100)
                   }
 
                   const currentWeeklyRate = watch("weekly_rate")

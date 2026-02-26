@@ -71,7 +71,7 @@ export async function PATCH(
       "status",
       "description",
       "base_price",
-      "weekend_price_cents",
+      "weekend_price",
       "hookups",
       "site_amenities",
       "site_images",

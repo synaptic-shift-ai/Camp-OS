@@ -891,7 +891,7 @@ export type Database = {
           status: string | null
           updated_at: string | null
           weekend_price: number | null
-          weekend_price_cents: number | null
+          weekend_price_cents?: number | null
           weekly_rate_cents: number | null
         }
         Insert: {

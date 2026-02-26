@@ -121,7 +121,7 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
                 </div>
                 <div>
                   <span className="text-muted-foreground">Weekend Price</span>
-                  <p className="font-medium">{formatPrice(site.weekend_price_cents)}</p>
+                  <p className="font-medium">{formatPrice(site.weekend_price)}</p>
                 </div>
               </div>
             </div>

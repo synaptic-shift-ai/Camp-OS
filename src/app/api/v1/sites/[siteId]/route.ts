@@ -162,7 +162,7 @@ export async function PUT(
         site_type: body.site_type ?? body.siteType ?? existingSite.site_type,
         description: body.description ?? existingSite.description,
         base_price: body.base_price ?? body.basePrice ?? existingSite.base_price,
-        weekend_price_cents: body.weekend_price_cents ?? body.weekendPrice ?? existingSite.weekend_price_cents,
+        weekend_price: body.weekend_price ?? body.weekendPrice ?? existingSite.weekend_price,
         weekly_rate_cents: weeklyRateCents,
         monthly_rate_cents: monthlyRateCents,
         max_occupancy: body.max_occupancy ?? body.maxOccupancy ?? existingSite.max_occupancy,

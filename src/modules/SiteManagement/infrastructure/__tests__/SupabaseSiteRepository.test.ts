@@ -49,7 +49,6 @@ function createMockSiteRow(overrides: Partial<SiteRow> = {}): SiteRow {
     seasonal_pricing: null,
     site_amenities: null,
     site_images: null,
-    weekend_price_cents: null,
     weekly_rate_cents: null,
     ...overrides,
   }

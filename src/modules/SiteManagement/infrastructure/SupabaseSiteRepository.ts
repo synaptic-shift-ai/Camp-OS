@@ -199,7 +199,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
     // Create pricing value object
     const pricing = Pricing.create(
       row.base_price || 0,
-      row.weekend_price_cents || row.base_price || 0,
+      row.weekend_price || row.base_price || 0,
       'USD'
     )
 

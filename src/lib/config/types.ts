@@ -878,7 +878,7 @@ export interface SiteWithConfig {
 
   // Base pricing
   base_price: number
-  weekend_price_cents?: number | null
+  weekend_price?: number | null
   seasonal_pricing: SeasonalPricingEntry[]
 
   // Extended stay rates

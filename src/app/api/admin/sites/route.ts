@@ -88,7 +88,7 @@ export async function GET() {
         hookups,
         site_amenities,
         base_price,
-        weekend_price_cents,
+        weekend_price,
         status,
         description,
         site_images,

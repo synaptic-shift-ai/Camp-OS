@@ -347,8 +347,8 @@ export function getEffectiveNightlyRate(
   }
 
   // Use weekend rate if applicable
-  const baseRate = isWeekend && site.weekend_price_cents
-    ? site.weekend_price_cents
+  const baseRate = isWeekend && site.weekend_price
+    ? site.weekend_price
     : site.base_price
 
   // Apply monthly discount percentage if no custom rate

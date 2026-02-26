@@ -173,7 +173,7 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
 
   // Handle pricing - v1 API uses nested pricing object
   const basePrice = site.pricing?.basePrice ?? site.base_price ?? 0
-  const weekendPrice = site.pricing?.weekendPrice ?? site.weekend_price_cents ?? 0
+  const weekendPrice = site.pricing?.weekendPrice ?? site.weekend_price ?? 0
 
   // Handle capacity - v1 API uses nested capacity object
   const maxOccupancy = site.capacity?.maxOccupancy ?? site.max_occupancy ?? 4

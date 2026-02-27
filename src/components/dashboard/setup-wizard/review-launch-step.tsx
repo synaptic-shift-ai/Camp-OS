@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
-import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Mail, Phone, Building2, AlertCircle } from "lucide-react"
+import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Phone, Building2, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"

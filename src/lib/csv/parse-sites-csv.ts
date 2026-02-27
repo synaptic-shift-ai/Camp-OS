@@ -7,7 +7,7 @@
 
 import Papa from 'papaparse'
 import type { SiteType, SiteStatus } from '@/lib/booking/types'
-import { CSV_COLUMNS, getColumnByKey } from './site-csv-template'
+import { CSV_COLUMNS } from './site-csv-template'
 
 // ============================================================================
 // Constants
@@ -120,19 +120,6 @@ function parseJsonArray(value: string | undefined): any[] | null {
       return parsed
     }
     return null
-  } catch {
-    return null
-  }
-}
-
-/**
- * Parse JSON object from string
- */
-function parseJsonObject(value: string | undefined): any | null {
-  if (!value || value.trim() === '') return null
-
-  try {
-    return JSON.parse(value)
   } catch {
     return null
   }

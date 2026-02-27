@@ -18,8 +18,6 @@
  * - C-6: Use import type for type-only imports
  */
 
-import type { SessionId, UserId, CompanyId } from './types'
-
 /**
  * Metric types supported by the system
  */

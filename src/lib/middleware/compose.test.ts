@@ -114,7 +114,7 @@ describe('composeMiddleware', () => {
         addAuthMiddleware,
         verifyContextMiddleware
       )
-      const result = (await composed(req)) as MiddlewareRequest
+      const _result = (await composed(req)) as MiddlewareRequest
 
       // Verify context was passed through
       expect(verifyContextMiddleware).toHaveBeenCalled()

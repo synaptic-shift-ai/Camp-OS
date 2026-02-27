@@ -7,12 +7,10 @@
  * Supports multiple payment modes: cash/check, card (Stripe), and payment link.
  */
 
-import { useState } from 'react'
 import { useFormContext, Controller } from 'react-hook-form'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
@@ -24,7 +22,6 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import {
   CreditCard,
   Banknote,
@@ -32,7 +29,6 @@ import {
   DollarSign,
   Info,
   Loader2,
-  CheckCircle2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PriceBreakdown } from '@/lib/booking/types'

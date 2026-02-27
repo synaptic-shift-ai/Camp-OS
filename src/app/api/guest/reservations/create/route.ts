@@ -25,8 +25,6 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { calculatePriceBreakdown } from '@/lib/booking/pricing'
-import type { Database } from '@/contracts/db'
-import type { CreateGuestInput } from '@/lib/booking/types'
 import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
 
 // Input validation schema
@@ -55,8 +53,6 @@ const createGuestReservationSchema = z.object({
     emergency_contact_phone: z.string().max(50).optional(),
   }),
 })
-
-type CreateGuestReservationInput = z.infer<typeof createGuestReservationSchema>
 
 export async function POST(request: NextRequest) {
   try {

@@ -16,7 +16,6 @@ import type {
   BookingPeriod,
   ExtensionDetails,
   RenewalDetails,
-  PaymentInstallment,
 } from './types'
 
 // ============================================================================

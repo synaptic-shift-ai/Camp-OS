@@ -4,9 +4,9 @@
  * Data Transfer Object for Site API responses.
  * Maps from domain entity to API-friendly format.
  */
-import { Site } from '../../domain/Site'
-import { SiteStatus, SiteStatusLabels } from '../../domain/SiteStatus'
-import { SiteType, SiteTypeLabels } from '../../domain/SiteType'
+import { type Site } from '../../domain/Site'
+import { type SiteStatus, SiteStatusLabels } from '../../domain/SiteStatus'
+import { type SiteType, SiteTypeLabels } from '../../domain/SiteType'
 
 export type SiteDTO = {
   id: string

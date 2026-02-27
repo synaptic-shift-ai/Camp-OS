@@ -31,7 +31,7 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
+import { type NextResponse } from 'next/server'
 import { initializeRequest, createSupabaseClient, createInitialResponse } from '@/lib/middleware/init'
 import { composeMiddleware } from '@/lib/middleware/compose'
 import {

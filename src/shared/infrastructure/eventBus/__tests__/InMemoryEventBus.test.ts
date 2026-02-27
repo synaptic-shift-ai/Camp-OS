@@ -71,7 +71,7 @@ describe('InMemoryEventBus', () => {
     })
 
     it('should support async handlers', async () => {
-      const handler = vi.fn(async (event: TestEvent) => {
+      const handler = vi.fn(async (_event: TestEvent) => {
         await new Promise((resolve) => setTimeout(resolve, 10))
       })
 

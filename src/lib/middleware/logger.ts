@@ -253,7 +253,7 @@ export class StructuredLogger {
    *
    * @param entry - Log entry to send
    */
-  private sendToMonitoring(entry: LogEntry): void {
+  private sendToMonitoring(_entry: LogEntry): void {
     // TODO: Implement monitoring integration
     // Example: Sentry.captureException(entry)
   }

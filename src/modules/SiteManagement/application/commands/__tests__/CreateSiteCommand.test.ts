@@ -3,11 +3,9 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { CreateSiteCommandHandler } from '../CreateSiteCommand'
-import { ISiteRepository } from '../../../domain/ISiteRepository'
-import { Site } from '../../../domain/Site'
+import { type ISiteRepository } from '../../../domain/ISiteRepository'
+import { type Site } from '../../../domain/Site'
 import { SiteType } from '../../../domain/SiteType'
-import { Pricing } from '../../../domain/Pricing'
-import { SiteCreatedEvent } from '../../../domain/events'
 
 // Mock repository
 class MockSiteRepository implements ISiteRepository {
@@ -31,7 +29,7 @@ class MockSiteRepository implements ISiteRepository {
 
   async findByPropertyIdWithFilters(
     propertyId: string,
-    filters: any
+    _filters: any
   ): Promise<{ sites: Site[]; total: number }> {
     const sites = await this.findByPropertyId(propertyId)
     return { sites, total: sites.length }

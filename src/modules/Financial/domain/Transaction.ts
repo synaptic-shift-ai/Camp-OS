@@ -15,7 +15,7 @@
 import { AggregateRoot } from '@/shared/domain/AggregateRoot'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { TransactionType } from './value-objects/TransactionType'
-import { PaymentMethod } from './value-objects/PaymentMethod'
+import { type PaymentMethod } from './value-objects/PaymentMethod'
 import { TransactionStatus } from './value-objects/TransactionStatus'
 import { TransactionRecorded } from './events/TransactionRecorded'
 import { TransactionCompleted } from './events/TransactionCompleted'

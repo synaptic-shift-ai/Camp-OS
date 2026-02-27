@@ -61,7 +61,7 @@ export async function POST(
       )
     }
 
-    const { amountCents, sendEmail } = parsed.data
+    const { amountCents } = parsed.data
 
     // Fetch reservation with guest and property details
     const supabaseServiceRole = createServiceRoleClient()

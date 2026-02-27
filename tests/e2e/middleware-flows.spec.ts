@@ -5,7 +5,6 @@ import { DashboardPage } from './pages/dashboard.page';
 import {
   generateTestUser,
   generatePropertyDetails,
-  generateCampgroundName,
   createIncompleteProperty,
 } from './helpers/test-data';
 
@@ -258,7 +257,7 @@ test.describe('E2E Flow 3: Session Persistence and Logout', () => {
 
   test('should clear session on logout and redirect to login', async ({ page }) => {
     const authPage = new AuthPage(page);
-    const dashboardPage = new DashboardPage(page);
+    const _dashboardPage = new DashboardPage(page);
 
     // Create and login user
     const testUser = generateTestUser();

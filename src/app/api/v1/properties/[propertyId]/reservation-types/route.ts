@@ -7,7 +7,7 @@
  * Manages property-level reservation type configuration.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
@@ -16,7 +16,6 @@ import {
   parseReservationTypesConfigFromDB,
   parseEnabledReservationTypesFromDB,
 } from '@/lib/config/resolution'
-import type { PropertyReservationTypesConfig, BookingType } from '@/lib/config/types'
 
 // Validation schema for updating reservation types config
 const UpdateReservationTypesSchema = z.object({

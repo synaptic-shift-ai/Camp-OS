@@ -4,8 +4,8 @@
  * Retrieves a single guest by ID.
  */
 
-import { IGuestRepository } from '../../domain/IGuestRepository'
-import { GuestDTO } from '../DTOs/GuestDTO'
+import { type IGuestRepository } from '../../domain/IGuestRepository'
+import { type GuestDTO, GuestDTOMapper } from '../DTOs/GuestDTO'
 
 export interface GetGuestInput {
   guestId: string
@@ -21,6 +21,6 @@ export class GetGuestQueryHandler {
       throw new Error(`Guest not found: ${input.guestId}`)
     }
 
-    return GuestDTO.fromDomain(guest)
+    return GuestDTOMapper.fromDomain(guest)
   }
 }

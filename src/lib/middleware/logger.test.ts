@@ -10,11 +10,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  StructuredLogger,
   createLogger,
   parseLogEntry,
-  type LogEntry,
-  type LogContext,
 } from './logger'
 import { createSessionId, createUserId, createCompanyId } from './types'
 

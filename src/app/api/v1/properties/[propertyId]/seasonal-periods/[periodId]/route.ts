@@ -8,7 +8,7 @@
  * Manages individual seasonal period operations.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'

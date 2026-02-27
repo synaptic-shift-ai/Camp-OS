@@ -69,7 +69,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   const { stripe: tenantStripe, stripeAccountId } = tenantStripeResult
-  const stripeOptions = createTenantRequestOptions(stripeAccountId)
+  const _stripeOptions = createTenantRequestOptions(stripeAccountId)
 
   try {
     // Fetch guest record

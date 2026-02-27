@@ -3,8 +3,8 @@
  *
  * Query to get a single site by ID.
  */
-import { ISiteRepository } from '../../domain/ISiteRepository'
-import { Site } from '../../domain/Site'
+import { type ISiteRepository } from '../../domain/ISiteRepository'
+import { type Site } from '../../domain/Site'
 
 export type GetSiteDto = {
   siteId: string

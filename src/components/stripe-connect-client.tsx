@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export function StripeConnectClient() {
-  const router = useRouter()
+  const _router = useRouter()
   const [connecting, setConnecting] = useState(false)
 
   const handleStripeConnect = () => {

@@ -71,7 +71,7 @@ export class FinancialReportingService implements IFinancialReportingService {
 
     // Get overdue invoices
     const overdueInvoices = await this.invoiceRepository.findOverdueInvoices(propertyId)
-    let overdueCount = overdueInvoices.length
+    const overdueCount = overdueInvoices.length
     let overdueCents = 0
 
     for (const invoice of overdueInvoices) {
@@ -80,21 +80,21 @@ export class FinancialReportingService implements IFinancialReportingService {
 
     // Note: findByProperty is not available, so outstanding totals are limited to overdue invoices
     // For a complete picture, the repository interface would need to be extended
-    let outstandingTotal = overdueCents
-    let invoiceCount = overdueCount
+    const outstandingTotal = overdueCents
+    const invoiceCount = overdueCount
 
     // Get held security deposits
     const heldDeposits = await this.depositRepository.findHeldByProperty(propertyId)
     let heldCents = 0
-    let pendingDepositCount = heldDeposits.length
+    const pendingDepositCount = heldDeposits.length
 
     for (const deposit of heldDeposits) {
       heldCents += deposit.depositAmount.amountInCents
     }
 
     // Note: Released/deducted totals require findByProperty which is not available
-    let releasedCents = 0
-    let deductedCents = 0
+    const releasedCents = 0
+    const deductedCents = 0
 
     return {
       propertyId,

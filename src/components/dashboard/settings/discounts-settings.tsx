@@ -280,7 +280,7 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
     return DISCOUNT_TYPE_OPTIONS.find(opt => opt.value === type)?.label || type
   }
 
-  const getTriggerTypeLabel = (type: DiscountTriggerType) => {
+  const _getTriggerTypeLabel = (type: DiscountTriggerType) => {
     return TRIGGER_TYPE_OPTIONS.find(opt => opt.value === type)?.label || type
   }
 

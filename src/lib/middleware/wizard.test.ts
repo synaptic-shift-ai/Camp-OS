@@ -24,7 +24,6 @@ import {
   shouldApplyWizardException,
   getWizardSafePaths,
   isValidWizardParam,
-  type WizardResult,
 } from './wizard'
 
 // ============================================================================

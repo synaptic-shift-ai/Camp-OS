@@ -5,8 +5,6 @@
  * Includes all available fields with example data and descriptions.
  */
 
-import type { SiteType, SiteStatus } from '@/lib/booking/types'
-
 export interface CsvColumn {
   key: string
   header: string

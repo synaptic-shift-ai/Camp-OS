@@ -5,7 +5,7 @@
  * Infrastructure layer implements this interface.
  */
 
-import { Guest } from './Guest'
+import { type Guest } from './Guest'
 
 export interface IGuestRepository {
   /**

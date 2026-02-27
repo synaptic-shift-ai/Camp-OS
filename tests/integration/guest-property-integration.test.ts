@@ -22,10 +22,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Property } from '@/modules/PropertyManagement/domain/Property'
-import { Guest } from '@/modules/GuestManagement/domain/Guest'
-import { PersonName } from '@/modules/GuestManagement/domain/value-objects/PersonName'
-import { ContactInfo } from '@/modules/GuestManagement/domain/value-objects/ContactInfo'
+import { type Property } from '@/modules/PropertyManagement/domain/Property'
+import { type Guest } from '@/modules/GuestManagement/domain/Guest'
 import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/application/commands/CreatePropertyCommand'
 import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
 import { ListGuestsQueryHandler } from '@/modules/GuestManagement/application/queries/ListGuestsQuery'
@@ -34,7 +32,7 @@ import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEvent
 import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { IPropertyRepository } from '@/modules/PropertyManagement/domain/IPropertyRepository'
 import type { IGuestRepository } from '@/modules/GuestManagement/domain/IGuestRepository'
-import { PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
+import { type PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
 
 /**
  * Mock Repositories for Cross-Module Testing
@@ -68,7 +66,7 @@ class MockPropertyRepository implements IPropertyRepository {
 
   async findByCompanyIdWithFilters(
     companyId: string,
-    filters: {
+    _filters: {
       status?: PropertyStatus | undefined
       onboardingComplete?: boolean | undefined
       limit?: number | undefined
@@ -414,7 +412,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
 
       // Act: Create multiple guests for the same property
       const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
-      const guest1 = await guestCommand.execute({
+      const _guest1 = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'First',
         lastName: 'Guest',
@@ -422,7 +420,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
         phone: '555-0001',
       })
 
-      const guest2 = await guestCommand.execute({
+      const _guest2 = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'Second',
         lastName: 'Guest',

@@ -270,7 +270,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // Send onboarding email with magic link token
   await sendOnboardingEmail(
-    session.customer_details?.email!,
+    session.customer_details?.email ?? '',
     planId,
     companyData?.companyName || "My Company",
     onboardingToken

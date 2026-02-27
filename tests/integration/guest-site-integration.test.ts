@@ -22,12 +22,12 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Property } from '@/modules/PropertyManagement/domain/Property'
+import { type Property } from '@/modules/PropertyManagement/domain/Property'
 import { Site } from '@/modules/SiteManagement/domain/Site'
 import { SiteType } from '@/modules/SiteManagement/domain/SiteType'
 import { SiteStatus } from '@/modules/SiteManagement/domain/SiteStatus'
 import { Pricing } from '@/modules/SiteManagement/domain/Pricing'
-import { Guest } from '@/modules/GuestManagement/domain/Guest'
+import { type Guest } from '@/modules/GuestManagement/domain/Guest'
 import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/application/commands/CreatePropertyCommand'
 import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
 import { ListSitesQueryHandler } from '@/modules/SiteManagement/application/queries/ListSitesQuery'
@@ -36,7 +36,7 @@ import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEvent
 import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { IPropertyRepository } from '@/modules/PropertyManagement/domain/IPropertyRepository'
 import type { IGuestRepository } from '@/modules/GuestManagement/domain/IGuestRepository'
-import { PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
+import { type PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
 import type { ISiteRepository } from '@/modules/SiteManagement/domain/ISiteRepository'
 
 /**
@@ -68,7 +68,7 @@ class MockPropertyRepository implements IPropertyRepository {
 
   async findByCompanyIdWithFilters(
     companyId: string,
-    filters: {
+    _filters: {
       status?: PropertyStatus | undefined
       onboardingComplete?: boolean | undefined
       limit?: number | undefined

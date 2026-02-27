@@ -15,14 +15,13 @@
  * - T-4: Prefer integration tests over heavy mocking
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import { CreateSiteRequestSchema, type CreateSiteRequest } from '@/types/api/v1/schemas/sites'
+import { CreateSiteRequestSchema } from '@/types/api/v1/schemas/sites'
 import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteManagement/application/commands/CreateSiteCommand'
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 import { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import { toSiteDTO } from '@/modules/SiteManagement/application/DTOs/SiteDTO'
 import { z } from 'zod'

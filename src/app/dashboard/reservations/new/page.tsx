@@ -19,34 +19,17 @@ import {
   Loader2,
   Calendar,
   DollarSign,
-  Zap,
-  Droplet,
-  Wifi,
-  Flame,
   Users,
-  PawPrint,
-  Tent,
-  Home,
-  Caravan,
-  Check,
-  Car
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { cn } from "@/lib/utils"
 import { AvailableSitesAccordion } from "@/components/dashboard/reservations/available-sites-accordion"
 import { PricingSummary } from "@/components/dashboard/reservations/pricing-summary"
 import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-info-step"
-import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType, UserDefinedDiscount, UserDefinedFee } from '@/lib/config/types'
+import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
 import { parseEnabledReservationTypesFromDB } from '@/lib/config/resolution'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  SpousePartnerSchema,
-  CreateChildSchema,
-  CreateVehicleSchema,
-  EvacuationContactSchema,
-} from '@/contracts/schemas'
 
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
@@ -143,25 +126,6 @@ interface AvailableSite {
   image_url?: string
 }
 
-// Amenity icon mapping
-const amenityIcons: Record<string, { icon: typeof Zap; label: string }> = {
-  electric: { icon: Zap, label: "Electric" },
-  electricity: { icon: Zap, label: "Electric" },
-  water: { icon: Droplet, label: "Water" },
-  wifi: { icon: Wifi, label: "WiFi" },
-  firepit: { icon: Flame, label: "Fire Pit" },
-  petFriendly: { icon: PawPrint, label: "Pet Friendly" },
-}
-
-// Site type icon mapping
-const siteTypeIcons: Record<string, typeof Tent> = {
-  tent: Tent,
-  rv: Caravan,
-  cabin: Home,
-  glamping: Home,
-  yurt: Home,
-  other: Home,
-}
 
 // Booking type friendly labels and descriptions
 const BOOKING_TYPE_INFO: Record<BookingType, { label: string; description: string }> = {
@@ -220,7 +184,6 @@ export default function NewReservationPage() {
     formState: { errors },
     setValue,
     watch,
-    control,
   } = methods
 
   const selectedSiteId = watch("siteId")
@@ -515,15 +478,6 @@ export default function NewReservationPage() {
     }).format(cents / 100)
   }
 
-  // Group sites by type
-  const sitesByType = availableSites.reduce((acc, site) => {
-    const type = site.site_type
-    if (!acc[type]) {
-      acc[type] = []
-    }
-    acc[type].push(site)
-    return acc
-  }, {} as Record<string, AvailableSite[]>)
 
   const selectedSite = availableSites.find(s => s.id === selectedSiteId)
 

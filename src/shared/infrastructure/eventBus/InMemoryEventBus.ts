@@ -24,11 +24,11 @@
  * ```
  */
 import {
-  IEventBus,
-  EventHandler,
-  EventConstructor,
+  type IEventBus,
+  type EventHandler,
+  type EventConstructor,
 } from './IEventBus'
-import { DomainEvent } from '../../domain/DomainEvent'
+import { type DomainEvent } from '../../domain/DomainEvent'
 
 export class InMemoryEventBus implements IEventBus {
   private subscribers: Map<string, Set<EventHandler>> = new Map()

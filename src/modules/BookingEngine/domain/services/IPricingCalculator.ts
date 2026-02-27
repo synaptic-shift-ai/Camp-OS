@@ -11,7 +11,6 @@
  */
 
 import type { DateRange } from '../value-objects/DateRange'
-import type { MoneyAmount } from '../value-objects/MoneyAmount'
 import type { OccupancyInfo } from '../value-objects/OccupancyInfo'
 
 /**

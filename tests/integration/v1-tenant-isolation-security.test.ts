@@ -25,16 +25,16 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 
-// eslint-disable-next-line no-restricted-imports -- Security tests must import schemas directly
+ 
 import {
   CreateReservationRequestSchema,
   ListReservationsQuerySchema,
 } from '@/types/api/v1/schemas/reservations'
 
-// eslint-disable-next-line no-restricted-imports -- Security tests must import schemas directly
+ 
 import { CreateSiteRequestSchema } from '@/types/api/v1/schemas/sites'
 
-// eslint-disable-next-line no-restricted-imports -- Security tests must import schemas directly
+ 
 import { CreateGuestRequestSchema } from '@/types/api/v1/schemas/guests'
 
 // ============================================================================

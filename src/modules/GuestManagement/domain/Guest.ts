@@ -6,9 +6,9 @@
  */
 
 import { AggregateRoot } from '@/shared/domain/AggregateRoot'
-import { PersonName } from './value-objects/PersonName'
-import { ContactInfo } from './value-objects/ContactInfo'
-import { Address } from './value-objects/Address'
+import { type PersonName } from './value-objects/PersonName'
+import { type ContactInfo } from './value-objects/ContactInfo'
+import { type Address } from './value-objects/Address'
 import { GuestCreated } from './events/GuestCreated'
 import { GuestUpdated } from './events/GuestUpdated'
 import { StripeCustomerLinked } from './events/StripeCustomerLinked'

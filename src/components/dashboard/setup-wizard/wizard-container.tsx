@@ -3,14 +3,12 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from "lucide-react"
-import { useProperty, type Property } from "@/components/property-context"
+import { useProperty } from "@/components/property-context"
 import { WizardProgressBar, WIZARD_STEPS, type WizardStep } from "./wizard-progress-bar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-
 // Step components (will be implemented in subsequent phases)
 import { PropertyDetailsStep } from "./property-details-step"
 import { SitesSetupStep } from "./sites-setup-step"
@@ -38,7 +36,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
   const [workingPropertyId, setWorkingPropertyId] = useState<string | null>(
     initialPropertyId || null
   )
-  const [isCompleting, setIsCompleting] = useState(false)
+  const [_isCompleting, setIsCompleting] = useState(false)
 
   // Select property on mount
   useEffect(() => {
@@ -219,7 +217,7 @@ export function WizardContainer({ initialPropertyId }: WizardContainerProps) {
 
   const currentStepIndex = WIZARD_STEPS.findIndex((s) => s.id === currentStep)
   const isFirstStep = currentStepIndex === 0
-  const isLastStep = currentStepIndex === WIZARD_STEPS.length - 1
+  const _isLastStep = currentStepIndex === WIZARD_STEPS.length - 1
 
   return (
     <div className="space-y-6">

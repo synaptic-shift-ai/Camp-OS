@@ -8,8 +8,6 @@
  * @module lib/config/types
  */
 
-import type { Database } from '@/contracts/db'
-
 // =====================================================
 // Base Types
 // =====================================================

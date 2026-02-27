@@ -14,8 +14,7 @@
  * - T-9: Use dynamic test data generation
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { NextResponse } from 'next/server'
+import { describe, it, expect, vi } from 'vitest'
 import type { NextRequest } from 'next/server'
 import { initializeRequest, createInitialResponse } from './init'
 

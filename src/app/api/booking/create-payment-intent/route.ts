@@ -11,14 +11,13 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { Database } from '@/contracts/db'
 import {
   CreatePaymentIntentRequestSchema,
   CreatePaymentIntentResponseSchema,
 } from '@/contracts/schemas'
-import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
+import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 

@@ -10,8 +10,6 @@ import type {
   ActionAvailabilityCheck,
   AlternativeSite,
   ReservationConflict,
-  ActionRecommendation,
-  BookingType,
   Site,
   ReservationWithLifecycle,
 } from './types'

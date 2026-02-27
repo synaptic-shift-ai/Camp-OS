@@ -36,7 +36,6 @@ import { CsvPreviewTable } from './csv-preview-table'
 import { CsvErrorReport } from './csv-error-report'
 import {
   parseSitesCsv,
-  type ParsedSite,
   type ParseError,
   type ParseResult,
 } from '@/lib/csv/parse-sites-csv'

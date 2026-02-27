@@ -61,7 +61,7 @@ export async function isTenantSite(): Promise<boolean> {
  * Get the property ID for the current tenant
  * This would typically query the database based on subdomain
  */
-export async function getTenantPropertyId(subdomain: string): Promise<string | null> {
+export async function getTenantPropertyId(_subdomain: string): Promise<string | null> {
   // This will be implemented with actual database query
   // For now, return null - you'll need to query Supabase
   return null

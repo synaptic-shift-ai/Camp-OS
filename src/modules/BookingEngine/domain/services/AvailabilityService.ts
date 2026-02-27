@@ -105,7 +105,7 @@ export class AvailabilityService implements IAvailabilityService {
     }
 
     // Get unique occupied site IDs
-    const occupiedSiteIds = new Set(filteredReservations.map((r) => r.siteId))
+    const _occupiedSiteIds = new Set(filteredReservations.map((r) => r.siteId))
 
     // TODO: Fetch all site IDs for the property and filter out occupied ones
     // This requires a Site repository or query

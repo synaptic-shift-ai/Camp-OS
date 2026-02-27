@@ -21,10 +21,6 @@ import type {
   PropertyWithConfig,
   SiteWithConfig,
   SeasonalPricingEntry,
-  SeasonalPricingTemplate,
-  UserDefinedFee,
-  UserDefinedDiscount,
-  DiscountTriggerType,
 } from '@/lib/config/types'
 import {
   resolvePricingConfig,
@@ -80,13 +76,6 @@ function countWeekendNights(checkIn: string, checkOut: string): number {
 }
 
 /**
- * Get the day of week for a date string
- */
-function getDayOfWeek(date: string): string {
-  const d = new Date(date + 'T00:00:00')
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-  return days[d.getDay()]!
-}
 
 /**
  * Check if a date falls within a seasonal pricing period
@@ -222,7 +211,7 @@ export async function calculateReservationPriceEnhanced(
   // Calculate nights
   const totalNights = calculateNights(checkInDate, checkOutDate)
   const weekendNights = countWeekendNights(checkInDate, checkOutDate)
-  const weekdayNights = totalNights - weekendNights
+  const _weekdayNights = totalNights - weekendNights
 
   // Determine booking type - use explicit type if provided, otherwise detect
   const effectiveBookingType = options.booking_type || 'nightly'
@@ -356,7 +345,7 @@ export async function calculateReservationPriceEnhanced(
   if (userDefinedFees.length > 0) {
     // Use new user-defined fees system
     breakdown.user_fees = []
-    let taxableFeesTotal = 0
+    let _taxableFeesTotal = 0
 
     for (const fee of userDefinedFees) {
       if (!fee.enabled) continue
@@ -394,7 +383,7 @@ export async function calculateReservationPriceEnhanced(
         breakdown.total += feeAmount
 
         if (fee.is_taxable) {
-          taxableFeesTotal += feeAmount
+          _taxableFeesTotal += feeAmount
         }
       }
     }

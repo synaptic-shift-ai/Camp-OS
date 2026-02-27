@@ -29,7 +29,7 @@
 import type { IEventBus, EventHandler, EventConstructor } from './IEventBus'
 import type { IEventStoreRepository, AppendEventOptions, EventMetadata } from '../eventStore/IEventStoreRepository'
 import type { ILogger } from '../logging/ILogger'
-import { DomainEvent } from '../../domain/DomainEvent'
+import { type DomainEvent } from '../../domain/DomainEvent'
 
 export interface PersistentEventBusOptions {
   /**

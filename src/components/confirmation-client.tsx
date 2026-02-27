@@ -66,9 +66,9 @@ export function ConfirmationClient() {
   const [copied, setCopied] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [similarSites, setSimilarSites] = useState<AvailableSite[]>([])
-  const [isLoadingSimilar, setIsLoadingSimilar] = useState(false)
+  const [_isLoadingSimilar, setIsLoadingSimilar] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
-  const [confirmationError, setConfirmationError] = useState<string | null>(null)
+  const [_confirmationError, setConfirmationError] = useState<string | null>(null)
 
   // Get confirmation number from CheckoutContext
   const confirmationNumber = checkoutData.confirmationNumber || ""

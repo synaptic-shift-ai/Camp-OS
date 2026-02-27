@@ -5,7 +5,7 @@
  * Used for API responses.
  */
 
-import type { SecurityDeposit, DepositDeduction } from '../../domain/SecurityDeposit'
+import type { SecurityDeposit } from '../../domain/SecurityDeposit'
 
 export interface DepositDeductionDTO {
   amountCents: number

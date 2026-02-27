@@ -11,7 +11,7 @@
  * POST   /api/v1/properties/[propertyId]/guests - Create new guest
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -24,7 +24,7 @@ import { ListGuestsQueryHandler } from '@/modules/GuestManagement/application/qu
 import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
-import { GuestDTO } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
+import { GuestDTOMapper } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
 
 /**
  * GET /api/v1/properties/[propertyId]/guests
@@ -242,7 +242,7 @@ export async function POST(
     })
 
     // Convert to DTO
-    const guestDTO = GuestDTO.fromDomain(guest)
+    const guestDTO = GuestDTOMapper.fromDomain(guest)
 
     // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
     const response = success(guestDTO)

@@ -40,8 +40,8 @@ export class PricingCalculator implements IPricingCalculator {
   // For now, using a simple implementation without DB dependency
 
   async calculatePrice(
-    input: PricingInput,
-    options?: PricingOptions
+    _input: PricingInput,
+    _options?: PricingOptions
   ): Promise<PricingBreakdown> {
     // TODO: Fetch site pricing config from database
     // For now, this requires the calling code to use calculatePriceFromConfig
@@ -161,7 +161,7 @@ export class PricingCalculator implements IPricingCalculator {
     }
   }
 
-  async getBaseNightlyRate(siteId: string): Promise<number> {
+  async getBaseNightlyRate(_siteId: string): Promise<number> {
     // TODO: Fetch from database via site repository
     // For now, return 0 to indicate not implemented
     console.warn(

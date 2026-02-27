@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { ListSitesQueryHandler } from '../ListSitesQuery'
-import { ISiteRepository } from '../../../domain/ISiteRepository'
+import { type ISiteRepository } from '../../../domain/ISiteRepository'
 import { Site } from '../../../domain/Site'
 import { SiteType } from '../../../domain/SiteType'
 import { SiteStatus } from '../../../domain/SiteStatus'

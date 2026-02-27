@@ -18,7 +18,7 @@ export function GlowingTiltCard({
   tiltAmount = 10,
   glareOpacity = 0.2,
   perspective = 1000,
-  ...props
+  ..._props
 }: GlowingTiltCardProps) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const [glarePosition, setGlarePosition] = useState({ x: 0, y: 0 })

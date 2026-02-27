@@ -4,9 +4,8 @@
  * Links a Stripe Customer ID to a guest for saved payment methods.
  */
 
-import { Guest } from '../../domain/Guest'
-import { IGuestRepository } from '../../domain/IGuestRepository'
-import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
+import { type IGuestRepository } from '../../domain/IGuestRepository'
+import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface LinkStripeCustomerInput {
   guestId: string

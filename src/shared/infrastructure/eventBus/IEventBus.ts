@@ -16,7 +16,7 @@
  * })
  * ```
  */
-import { DomainEvent } from '../../domain/DomainEvent'
+import { type DomainEvent } from '../../domain/DomainEvent'
 
 export type EventHandler<T extends DomainEvent = DomainEvent> = (
   event: T

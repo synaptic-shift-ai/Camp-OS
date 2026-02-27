@@ -13,7 +13,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 export function PaymentForm() {
   const stripe = useStripe()
   const elements = useElements()
-  const router = useRouter()
+  const _router = useRouter()
   const { checkoutData } = useCheckout()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)

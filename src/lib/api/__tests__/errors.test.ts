@@ -2,7 +2,7 @@
  * API Error Codes Tests
  */
 import { describe, it, expect } from 'vitest'
-import { ErrorCodes, getErrorByCode, type ErrorCode } from '../errors'
+import { ErrorCodes, getErrorByCode } from '../errors'
 
 describe('API Error Codes', () => {
   describe('ErrorCodes', () => {

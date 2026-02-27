@@ -1,18 +1,15 @@
 "use client"
 
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { CheckCircle2, Mail, ArrowRight, Tent, Check, ArrowRightIcon } from "lucide-react"
+import { CheckCircle2, Mail, Tent, Check, ArrowRightIcon } from "lucide-react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PLANS, type BillingCycle } from "@/lib/constants/plans"
 
 export function PaymentSuccessClient() {
   const searchParams = useSearchParams()
-  const router = useRouter()
-
   const planId = searchParams.get("plan") || "growth"
   const billingCycle = (searchParams.get("billing") as BillingCycle) || "monthly"
   const email = searchParams.get("email") || "user@example.com"

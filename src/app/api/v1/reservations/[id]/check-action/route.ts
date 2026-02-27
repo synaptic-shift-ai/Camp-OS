@@ -7,7 +7,7 @@
  * Returns conflicts, alternatives, and recommendations for the operator.
  */
 
-import { NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'

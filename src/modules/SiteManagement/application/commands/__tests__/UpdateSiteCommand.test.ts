@@ -3,12 +3,10 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { UpdateSiteCommandHandler } from '../UpdateSiteCommand'
-import { ISiteRepository } from '../../../domain/ISiteRepository'
+import { type ISiteRepository } from '../../../domain/ISiteRepository'
 import { Site } from '../../../domain/Site'
 import { SiteType } from '../../../domain/SiteType'
 import { Pricing } from '../../../domain/Pricing'
-import { SiteUpdatedEvent, SitePricingUpdatedEvent } from '../../../domain/events'
-
 // Mock repository
 class MockSiteRepository implements ISiteRepository {
   private sites: Map<string, Site> = new Map()
@@ -31,7 +29,7 @@ class MockSiteRepository implements ISiteRepository {
 
   async findByPropertyIdWithFilters(
     propertyId: string,
-    filters: any
+    _filters: any
   ): Promise<{ sites: Site[]; total: number }> {
     const sites = await this.findByPropertyId(propertyId)
     return { sites, total: sites.length }

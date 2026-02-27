@@ -12,7 +12,7 @@ import { PropertySettings } from "@/components/dashboard/settings/property-setti
 import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
-import type { BookingType, SeasonalPeriod } from "@/lib/config/types"
+import type { SeasonalPeriod } from "@/lib/config/types"
 
 // Force dynamic rendering to always fetch fresh data
 export const dynamic = 'force-dynamic'

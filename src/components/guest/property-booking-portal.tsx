@@ -99,7 +99,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   const [pets, setPets] = useState(0)
   const [selectedSiteType, setSelectedSiteType] = useState<SiteType | ("")>("")
   const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
-  const [isSearching, setIsSearching] = useState(false)
+  const [isSearching, _setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Get available reservation types from property config (default to nightly, weekly, monthly)

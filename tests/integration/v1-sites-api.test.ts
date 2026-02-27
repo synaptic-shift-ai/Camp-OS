@@ -25,8 +25,6 @@ import {
   ListSitesQuerySchema,
   GetSiteResponseSchema,
   ListSitesResponseSchema,
-  CreateSiteResponseSchema,
-  UpdateSiteResponseSchema,
   DeleteSiteResponseSchema,
 } from '@/types/api/v1/schemas/sites'
 

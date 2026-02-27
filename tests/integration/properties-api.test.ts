@@ -30,7 +30,7 @@ import {
   validatePropertyListResponse,
   safeValidatePropertyListResponse,
   formatValidationError,
-  type PropertyListResponse,
+  // type PropertyListResponse,
 } from '@/types/api/property.schema'
 
 describe('Properties API Contract', () => {

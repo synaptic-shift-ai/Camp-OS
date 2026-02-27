@@ -37,7 +37,7 @@
  * ```
  */
 import { Entity } from './Entity'
-import { DomainEvent } from './DomainEvent'
+import { type DomainEvent } from './DomainEvent'
 
 export abstract class AggregateRoot<TId> extends Entity<TId> {
   private _domainEvents: DomainEvent[] = []

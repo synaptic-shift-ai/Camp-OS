@@ -32,16 +32,9 @@ export { getSiteById, getSimilarSites } from './sites'
 // ============================================================================
 
 /**
- * Calculate number of nights between check-in and check-out
+ * Generate unique confirmation number
+ * Format: CAMP-YYYY-XXXXXX
  */
-function calculateNights(checkIn: string, checkOut: string): number {
-  const start = new Date(checkIn)
-  const end = new Date(checkOut)
-  const diffTime = end.getTime() - start.getTime()
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  return diffDays
-}
-
 /**
  * Generate unique confirmation number
  * Format: CAMP-YYYY-XXXXXX

@@ -465,7 +465,7 @@ export function CampgroundSearch({
                         {/* Amenities */}
                         <div className="flex flex-wrap gap-2">
                           {Object.entries(site.amenities)
-                            .filter(([_, value]) => value)
+                            .filter(([, value]) => value)
                             .slice(0, 6)
                             .map(([key]) => (
                               <Badge key={key} variant="outline" className="text-xs gap-1">

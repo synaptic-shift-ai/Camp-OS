@@ -9,7 +9,7 @@ import {
   resolveReservationTypeRate,
   resolveReservationTypeRateWithSource,
 } from './resolution'
-import type { PropertyReservationTypesConfig, BookingType } from './types'
+import type { PropertyReservationTypesConfig } from './types'
 
 describe('resolveReservationTypeRate', () => {
   // Test data

@@ -277,7 +277,7 @@ export class SecurityDeposit extends AggregateRoot<string> {
   /**
    * Forfeit deposit (guest doesn't get it back)
    */
-  forfeit(reason: string): void {
+  forfeit(_reason: string): void {
     // Cannot forfeit already released deposit
     if (
       this.status === DepositStatus.FULLY_RELEASED ||

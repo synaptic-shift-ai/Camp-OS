@@ -94,7 +94,7 @@ export async function PATCH(
 
     // Calculate new number of nights
     const diffTime = checkOut.getTime() - checkIn.getTime()
-    const numNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const _numNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
     // Update the reservation
     const { data: updatedReservation, error: updateError } = await supabase

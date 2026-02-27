@@ -11,7 +11,6 @@ import { useFieldArray, useFormContext, Controller } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -20,7 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Collapsible,
   CollapsibleContent,
@@ -53,7 +51,7 @@ export function VehicleInfoStep({
   showRVSection = true,
   className,
 }: VehicleInfoStepProps) {
-  const { register, control, watch, setValue, formState: { errors } } = useFormContext()
+  const { register, control, watch } = useFormContext()
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -83,11 +81,6 @@ export function VehicleInfoStep({
   }
 
   const vehicleCount = fields.length
-  const personalVehicles = fields.filter((_, i) => {
-    const type = watch(`vehicles.${i}.vehicle_type`)
-    return type === 'personal' || type === 'tow_vehicle'
-  })
-  const rvVehicles = fields.filter((_, i) => watch(`vehicles.${i}.vehicle_type`) === 'rv')
 
   return (
     <Card className={cn('', className)}>

@@ -446,7 +446,7 @@ describe('Tenant Caching', () => {
     const result1 = await resolveTenantCached(request1, supabase, cache)
 
     // Resolve for user 2
-    const result2 = await resolveTenantCached(request2, supabase, cache)
+    const _result2 = await resolveTenantCached(request2, supabase, cache)
 
     // Both should be cached separately
     expect(callCount).toBe(2)

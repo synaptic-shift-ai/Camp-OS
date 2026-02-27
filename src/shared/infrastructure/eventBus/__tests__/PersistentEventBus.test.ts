@@ -7,7 +7,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { PersistentEventBus } from '../PersistentEventBus'
 import { DomainEvent } from '../../../domain/DomainEvent'
-import type { IEventStoreRepository, StoredEvent, AppendEventOptions } from '../../eventStore/IEventStoreRepository'
+import type { IEventStoreRepository, StoredEvent } from '../../eventStore/IEventStoreRepository'
 import type { ILogger } from '../../logging/ILogger'
 
 // Test event classes

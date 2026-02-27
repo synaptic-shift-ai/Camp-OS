@@ -240,7 +240,7 @@ describe('Pricing Value Object', () => {
       const pricing = Pricing.create(7500, 9000, 'USD')
 
       // Access via calculateTotal result
-      const total = pricing.calculateTotal(1, false)
+      const _total = pricing.calculateTotal(1, false)
       const formatted = pricing.formatBasePrice() // Should match
 
       expect(formatted).toBe('$75.00')

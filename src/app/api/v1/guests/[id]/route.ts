@@ -10,7 +10,7 @@
  * PATCH  /api/v1/guests/[id] - Update guest
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -19,9 +19,7 @@ import { GetGuestQueryHandler } from '@/modules/GuestManagement/application/quer
 import { UpdateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/UpdateGuestCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
-import { GuestDTO } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
-import { ContactInfo } from '@/modules/GuestManagement/domain/value-objects/ContactInfo'
-import { Address } from '@/modules/GuestManagement/domain/value-objects/Address'
+import { GuestDTOMapper } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
 
 /**
  * GET /api/v1/guests/[id]
@@ -181,7 +179,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
 
     // Convert to DTO
-    const guestDTO = GuestDTO.fromDomain(guest)
+    const guestDTO = GuestDTOMapper.fromDomain(guest)
 
     return success(guestDTO)
   } catch (err: any) {

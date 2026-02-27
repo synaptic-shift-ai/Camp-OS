@@ -27,7 +27,7 @@ type CompanyDetailsFormData = z.infer<typeof companyDetailsSchema>
 export function CompanyDetailsClient() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedPropertyCount, setSelectedPropertyCount] = useState<number>(0)
+  const [_selectedPropertyCount, setSelectedPropertyCount] = useState<number>(0)
 
   const {
     register,

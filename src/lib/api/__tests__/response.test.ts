@@ -1,7 +1,7 @@
 /**
  * API Response Utilities Tests
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { success, error, deprecated, paginated, isErrorResponse } from '../response'
 import { NextRequest } from 'next/server'
 

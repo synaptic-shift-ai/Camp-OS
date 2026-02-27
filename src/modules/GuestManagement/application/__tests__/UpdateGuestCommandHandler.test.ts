@@ -5,9 +5,9 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { UpdateGuestCommandHandler, UpdateGuestInput } from '../commands/UpdateGuestCommand'
-import { IGuestRepository } from '../../domain/IGuestRepository'
-import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
+import { UpdateGuestCommandHandler, type UpdateGuestInput } from '../commands/UpdateGuestCommand'
+import { type IGuestRepository } from '../../domain/IGuestRepository'
+import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'

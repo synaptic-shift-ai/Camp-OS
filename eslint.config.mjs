@@ -42,13 +42,25 @@ export default [
           fixStyle: 'inline-type-imports',
         },
       ],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          vars: 'all',
+          args: 'after-used',
+          ignoreRestSiblings: true,
+          varsIgnorePattern: '^_',
+          argsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       'react/no-unescaped-entities': 'warn',
       'no-restricted-imports': [
         'error',
         {
           patterns: [
             {
-              group: ['*/types', '../types', './types'],
+              group: ['../types', './types'],
               message:
                 'Import types from @/contracts/* instead of local types files. This ensures type consistency across the codebase.',
             },
@@ -58,26 +70,44 @@ export default [
     },
   },
 
-  // Middleware layer - allow local types imports
+  // Legacy code - allow local types imports (scheduled for deletion)
   {
-    files: ['lib/middleware/**/*.ts', 'tests/integration/middleware-*.test.ts'],
+    files: [
+      'src/lib/booking/**',
+      'src/lib/config/**',
+      'src/lib/middleware/**',
+      'src/lib/api/**',
+    ],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            // Allow ./types imports in middleware
-            // Middleware has its own type system separate from contracts
-          ],
-        },
-      ],
+      'no-restricted-imports': 'off',
+    },
+  },
+
+  // Financial repositories use @ts-nocheck because DB tables are not yet in schema
+  {
+    files: [
+      'src/modules/Financial/infrastructure/SupabaseInvoiceRepository.ts',
+      'src/modules/Financial/infrastructure/SupabasePaymentPlanRepository.ts',
+      'src/modules/Financial/infrastructure/SupabaseSecurityDepositRepository.ts',
+      'src/modules/Financial/infrastructure/SupabaseTransactionRepository.ts',
+    ],
+    rules: {
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
+  },
+
+  // Tests - allow local types imports
+  {
+    files: ['tests/**', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
 
   // UI layer (app/components) - strict SDK isolation
   {
-    files: ['app/**/*.ts', 'app/**/*.tsx', 'components/**/*.ts', 'components/**/*.tsx'],
-    ignores: ['app/api/**', 'app/**/actions/**', '**/*.test.ts', '**/*.test.tsx'],
+    files: ['src/app/**/*.ts', 'src/app/**/*.tsx', 'src/components/**/*.ts', 'src/components/**/*.tsx'],
+    ignores: ['src/app/api/**', 'src/app/**/actions/**', '**/*.test.ts', '**/*.test.tsx'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -94,29 +124,6 @@ export default [
               message:
                 '⛔ Do not import Stripe SDK in UI components. Only @stripe/react-stripe-js is allowed for UI. Use server actions or API routes for Stripe API calls.',
             },
-            {
-              group: ['*/types', '../types', './types'],
-              message: 'Import types from @/contracts/* instead of local types files.',
-            },
-          ],
-        },
-      ],
-    },
-  },
-
-  // Server layer (API routes and actions) - enforce contracts
-  {
-    files: ['app/api/**/*.ts', 'app/**/actions/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['*/types', '../types', './types'],
-              message:
-                'Import types from @/contracts/* instead. Server actions and API routes must use canonical contracts.',
-            },
           ],
         },
       ],
@@ -126,10 +133,10 @@ export default [
   // Relax rules for UI pages with animations and error handling
   {
     files: [
-      'app/**/confirmation/page.tsx',
-      'app/dashboard/analytics/page.tsx',
-      'app/global-error.tsx',
-      'app/error.tsx',
+      'src/app/**/confirmation/page.tsx',
+      'src/app/dashboard/analytics/page.tsx',
+      'src/app/global-error.tsx',
+      'src/app/error.tsx',
     ],
     rules: {
       '@typescript-eslint/no-empty-object-type': 'warn',

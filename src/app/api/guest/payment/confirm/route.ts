@@ -25,8 +25,6 @@ import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { sendBookingConfirmation } from '@/lib/email/send'
-import type { Database } from '@/contracts/db'
-
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -37,8 +35,6 @@ const confirmPaymentSchema = z.object({
   payment_intent_id: z.string().startsWith('pi_', 'Invalid PaymentIntent ID'),
   reservation_id: z.string().uuid('Invalid reservation ID'),
 })
-
-type ConfirmPaymentInput = z.infer<typeof confirmPaymentSchema>
 
 export async function POST(request: NextRequest) {
   try {

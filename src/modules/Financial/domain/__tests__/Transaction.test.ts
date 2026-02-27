@@ -5,7 +5,7 @@
  * Following TDD methodology (RED phase - tests written first).
  */
 
-import { describe, test, expect, beforeEach } from 'vitest'
+import { describe, test, expect } from 'vitest'
 import { Transaction } from '../Transaction'
 import { TransactionType } from '../value-objects/TransactionType'
 import { PaymentMethod } from '../value-objects/PaymentMethod'
@@ -306,7 +306,7 @@ describe('Transaction', () => {
 
   describe('refund business rules', () => {
     test('should create refund transaction linked to original payment', () => {
-      const originalAmount = MoneyAmount.create(10000)
+      const _originalAmount = MoneyAmount.create(10000)
       const refundAmount = MoneyAmount.create(5000) // Partial refund
 
       const refund = Transaction.createRefund(

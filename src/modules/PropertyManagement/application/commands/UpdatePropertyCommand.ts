@@ -5,8 +5,8 @@
  */
 import type { IPropertyRepository } from '../../domain/IPropertyRepository'
 import type { Property } from '../../domain/Property'
-import { PropertyType } from '../../domain/PropertyType'
-import { PropertySettings } from '../../domain/PropertySettings'
+import { type PropertyType } from '../../domain/PropertyType'
+import { type PropertySettings } from '../../domain/PropertySettings'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type UpdatePropertyDto = {

@@ -16,7 +16,7 @@
  */
 import type { IPropertyRepository } from '../domain/IPropertyRepository'
 import { Property } from '../domain/Property'
-import { PropertyType } from '../domain/PropertyType'
+import { type PropertyType } from '../domain/PropertyType'
 import { PropertyStatus } from '../domain/PropertyStatus'
 import { PropertySettings } from '../domain/PropertySettings'
 import type { SupabaseClient } from '@supabase/supabase-js'

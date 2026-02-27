@@ -21,7 +21,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // CRITICAL: Only allow in non-production environments
     if (process.env.NODE_ENV === 'production') {

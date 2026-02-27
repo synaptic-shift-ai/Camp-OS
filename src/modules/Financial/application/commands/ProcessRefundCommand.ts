@@ -6,7 +6,7 @@
 
 import type { ITransactionRepository } from '../../domain/ITransactionRepository'
 import { Transaction } from '../../domain/Transaction'
-import { PaymentMethod } from '../../domain//value-objects/PaymentMethod'
+import { type PaymentMethod } from '../../domain//value-objects/PaymentMethod'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

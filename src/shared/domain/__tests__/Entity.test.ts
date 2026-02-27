@@ -1,7 +1,7 @@
 /**
  * Entity Tests
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { Entity } from '../Entity'
 
 // Test implementation of Entity

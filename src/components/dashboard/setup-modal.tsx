@@ -11,8 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-
 interface SetupModalProps {
   open: boolean
   onStartSetup: () => void
@@ -22,7 +20,7 @@ interface SetupModalProps {
 
 export function SetupModal({ open, onStartSetup, onDismiss, properties }: SetupModalProps) {
   const totalProperties = properties.length
-  const totalSites = properties.reduce((sum, p) => sum + (p.siteCount || 0), 0)
+  const _totalSites = properties.reduce((sum, p) => sum + (p.siteCount || 0), 0)
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onDismiss()}>

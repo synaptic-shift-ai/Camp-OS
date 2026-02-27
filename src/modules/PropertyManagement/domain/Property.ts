@@ -31,7 +31,7 @@
  */
 import { AggregateRoot } from '@/shared/domain'
 import { PropertySettings } from './PropertySettings'
-import { PropertyType } from './PropertyType'
+import { type PropertyType } from './PropertyType'
 import { PropertyStatus } from './PropertyStatus'
 import { OnboardingStatus, isOnboardingComplete } from './OnboardingStatus'
 import { StripeConnectInfo } from './StripeConnectInfo'
@@ -597,7 +597,7 @@ export class Property extends AggregateRoot<string> {
    */
   advanceOnboarding(newStatus: OnboardingStatus): void {
     // Validate transition
-    const currentStatus = this.props.onboardingStatus
+    const _currentStatus = this.props.onboardingStatus
 
     if (newStatus === OnboardingStatus.COMPLETED) {
       // Completing onboarding requires Stripe Connect

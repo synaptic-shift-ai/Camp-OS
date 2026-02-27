@@ -28,8 +28,8 @@
  * ```
  */
 import { AggregateRoot } from '@/shared/domain'
-import { Pricing } from './Pricing'
-import { SiteType } from './SiteType'
+import { type Pricing } from './Pricing'
+import { type SiteType } from './SiteType'
 import { SiteStatus } from './SiteStatus'
 import {
   SiteCreatedEvent,
@@ -41,7 +41,6 @@ import {
 import {
   PetPolicy,
   AccessibilityFeatures,
-  Hookups,
   Coordinates,
 } from './value-objects'
 

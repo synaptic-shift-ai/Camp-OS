@@ -9,7 +9,7 @@
  * POST   /api/v1/guests/[id]/stripe - Link Stripe Customer ID to guest
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -21,8 +21,6 @@ import { GetGuestQueryHandler } from '@/modules/GuestManagement/application/quer
 import { LinkStripeCustomerCommandHandler } from '@/modules/GuestManagement/application/commands/LinkStripeCustomerCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
-import { GuestDTO } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
-
 /**
  * POST /api/v1/guests/[id]/stripe
  *

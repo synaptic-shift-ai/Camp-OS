@@ -5,9 +5,9 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { LinkStripeCustomerCommandHandler, LinkStripeCustomerInput } from '../commands/LinkStripeCustomerCommand'
-import { IGuestRepository } from '../../domain/IGuestRepository'
-import { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
+import { LinkStripeCustomerCommandHandler, type LinkStripeCustomerInput } from '../commands/LinkStripeCustomerCommand'
+import { type IGuestRepository } from '../../domain/IGuestRepository'
+import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'

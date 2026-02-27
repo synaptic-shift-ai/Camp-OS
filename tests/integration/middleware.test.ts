@@ -26,7 +26,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { updateSession } from '@/lib/supabase/middleware'
+// import { updateSession } from '@/lib/supabase/middleware'
 import { composeMiddleware } from '@/lib/middleware/compose'
 import {
   createAuthMiddleware,
@@ -35,8 +35,8 @@ import {
   createOnboardingMiddleware,
 } from '@/lib/middleware/routing'
 import { initializeRequest } from '@/lib/middleware/init'
-import type { MiddlewareRequest, SessionId } from '@/lib/middleware/types'
-import { createSessionId, createUserId, createCompanyId } from '@/lib/middleware/types'
+import type { MiddlewareRequest } from '@/lib/middleware/types'
+import { createCompanyId } from '@/lib/middleware/types'
 
 // ============================================================================
 // Test Data Factories (Dynamic Generation)
@@ -46,9 +46,9 @@ import { createSessionId, createUserId, createCompanyId } from '@/lib/middleware
  * Create unique session ID for test
  * Following T-9: No hardcoded IDs
  */
-function createTestSessionId(): SessionId {
-  return createSessionId(`test-session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
-}
+// function createTestSessionId(): SessionId {
+//   return createSessionId(`test-session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
+// }
 
 /**
  * Create test user data

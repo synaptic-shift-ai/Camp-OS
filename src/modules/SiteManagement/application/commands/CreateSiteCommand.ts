@@ -6,8 +6,8 @@
  */
 import type { ISiteRepository } from '../../domain/ISiteRepository'
 import { Site } from '../../domain/Site'
-import { SiteType } from '../../domain/SiteType'
-import { SiteStatus } from '../../domain/SiteStatus'
+import { type SiteType } from '../../domain/SiteType'
+import { type SiteStatus } from '../../domain/SiteStatus'
 import { Pricing } from '../../domain/Pricing'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

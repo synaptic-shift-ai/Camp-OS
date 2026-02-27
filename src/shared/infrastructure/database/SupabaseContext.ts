@@ -23,7 +23,7 @@
  *   .select('*')
  * ```
  */
-import { SupabaseClient } from '@supabase/supabase-js'
+import { type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../../contracts/db'
 
 export type TenantContext = {

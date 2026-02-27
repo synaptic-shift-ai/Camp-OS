@@ -50,9 +50,9 @@ export default function ConfirmationPage() {
   const { toast } = useToast()
   const [showConfetti, setShowConfetti] = useState(true)
   const [showCheckmark, setShowCheckmark] = useState(false)
-  const [isConfirming, setIsConfirming] = useState(false)
+  const [_isConfirming, setIsConfirming] = useState(false)
   const [hasAttemptedConfirmation, setHasAttemptedConfirmation] = useState(false)
-  const [confirmationError, setConfirmationError] = useState<string | null>(null)
+  const [_confirmationError, setConfirmationError] = useState<string | null>(null)
 
   // Helper to format cents as dollars
   const formatCurrency = (cents: number) => {

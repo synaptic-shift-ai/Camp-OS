@@ -27,7 +27,7 @@ export async function GET() {
     }
 
     // Fetch properties that are booking-ready
-    const { data: readyProperties, error: readyError } = await supabase
+    const { data: readyProperties } = await supabase
       .from('properties')
       .select('id, name, booking_page_slug, onboarding_completed, stripe_account_id')
       .eq('onboarding_completed', true)

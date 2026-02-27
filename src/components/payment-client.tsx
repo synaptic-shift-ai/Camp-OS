@@ -239,7 +239,7 @@ export function PaymentClient() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold truncate">{checkoutData.site?.name}</h3>
                     <p className="text-sm text-muted-foreground">Site #{checkoutData.site?.site_number}</p>
-                    <Badge className={cn("border mt-1", siteTypeColors[checkoutData.site?.site_type!])}>
+                    <Badge className={cn("border mt-1", checkoutData.site?.site_type ? siteTypeColors[checkoutData.site.site_type] : undefined)}>
                       {checkoutData.site?.site_type.toUpperCase()}
                     </Badge>
                   </div>

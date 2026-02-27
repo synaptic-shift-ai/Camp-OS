@@ -5,7 +5,7 @@
  * This prevents silent failures from API contract mismatches (see: API_CONTRACT_SAFETY.md)
  */
 
-import { z } from "zod"
+import { type z } from "zod"
 
 /**
  * Custom error class for API validation failures.

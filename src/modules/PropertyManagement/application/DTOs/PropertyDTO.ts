@@ -8,9 +8,9 @@
  * (onboarding_completed and all related fields must be present)
  */
 import type { Property } from '../../domain/Property'
-import { PropertyStatus, getPropertyStatusLabel } from '../../domain/PropertyStatus'
-import { PropertyType, getPropertyTypeLabel } from '../../domain/PropertyType'
-import { OnboardingStatus, getOnboardingStatusLabel } from '../../domain/OnboardingStatus'
+import { type PropertyStatus, getPropertyStatusLabel } from '../../domain/PropertyStatus'
+import { type PropertyType, getPropertyTypeLabel } from '../../domain/PropertyType'
+import { type OnboardingStatus, getOnboardingStatusLabel } from '../../domain/OnboardingStatus'
 
 export type PropertyDTO = {
   id: string

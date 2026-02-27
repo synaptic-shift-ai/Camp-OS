@@ -5,7 +5,7 @@ import type React from "react"
 import { useRef, useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
-interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement> {}
+type SpotlightCardProps = React.HTMLAttributes<HTMLDivElement>
 
 export function SpotlightCard({ className, children, ...props }: SpotlightCardProps) {
   const containerRef = useRef<HTMLDivElement>(null)

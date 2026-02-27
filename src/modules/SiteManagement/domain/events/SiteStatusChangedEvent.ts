@@ -5,7 +5,7 @@
  * Other modules can react to status changes (e.g., update availability calendars).
  */
 import { DomainEvent } from '@/shared/domain'
-import { SiteStatus } from '../SiteStatus'
+import { type SiteStatus } from '../SiteStatus'
 
 export class SiteStatusChangedEvent extends DomainEvent {
   constructor(

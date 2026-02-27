@@ -3,8 +3,8 @@
  *
  * Command to update site details.
  */
-import { ISiteRepository } from '../../domain/ISiteRepository'
-import { Site } from '../../domain/Site'
+import { type ISiteRepository } from '../../domain/ISiteRepository'
+import { type Site } from '../../domain/Site'
 import { Pricing } from '../../domain/Pricing'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 

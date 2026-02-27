@@ -12,9 +12,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Property } from '../Property'
 import { PropertySettings } from '../PropertySettings'
 import { PropertyType } from '../PropertyType'
-import { PropertyStatus, canAcceptBookings } from '../PropertyStatus'
-import { OnboardingStatus, isOnboardingComplete } from '../OnboardingStatus'
-import { StripeConnectInfo } from '../StripeConnectInfo'
+import { PropertyStatus } from '../PropertyStatus'
+import { OnboardingStatus } from '../OnboardingStatus'
 import {
   PropertyCreatedEvent,
   PropertyUpdatedEvent,

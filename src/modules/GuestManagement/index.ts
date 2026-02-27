@@ -18,7 +18,8 @@ export { GetGuestQueryHandler } from './application/queries/GetGuestQuery'
 export { ListGuestsQueryHandler } from './application/queries/ListGuestsQuery'
 
 // Application - DTOs
-export { GuestDTO } from './application/DTOs/GuestDTO'
+export type { GuestDTO } from './application/DTOs/GuestDTO'
+export { GuestDTOMapper } from './application/DTOs/GuestDTO'
 
 // Infrastructure
 export { SupabaseGuestRepository } from './infrastructure/SupabaseGuestRepository'

@@ -11,7 +11,7 @@
  * Note: wizard_progress is infrastructure-level tracking (JSONB), not core domain logic.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'

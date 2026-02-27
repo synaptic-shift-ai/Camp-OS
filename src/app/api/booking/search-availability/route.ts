@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Filter out undefined values to match exactOptionalPropertyTypes
     const cleanParams = Object.fromEntries(
-      Object.entries(validatedParams).filter(([_, value]) => value !== undefined)
+      Object.entries(validatedParams).filter(([, value]) => value !== undefined)
     )
 
     // Call availability search function

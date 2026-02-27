@@ -64,10 +64,10 @@ export async function POST(
     addTenantContext(propertyId, user.id)
 
     // Parse request body (optional notes)
-    let housekeepingNotes: string | undefined
+    let _housekeepingNotes: string | undefined
     try {
       const body: HousekeepingCompleteRequest = await request.json()
-      housekeepingNotes = body.notes
+      _housekeepingNotes = body.notes
     } catch {
       // Body is optional
     }

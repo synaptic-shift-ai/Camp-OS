@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-// eslint-disable-next-line no-restricted-imports -- Integration tests must import schemas directly for contract testing
+ 
 import {
   // Enums
   ReservationStatusSchema,

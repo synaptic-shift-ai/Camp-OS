@@ -5,15 +5,13 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { GetGuestQueryHandler, GetGuestInput } from '../queries/GetGuestQuery'
-import { ListGuestsQueryHandler, ListGuestsInput } from '../queries/ListGuestsQuery'
-import { IGuestRepository } from '../../domain/IGuestRepository'
+import { GetGuestQueryHandler, type GetGuestInput } from '../queries/GetGuestQuery'
+import { ListGuestsQueryHandler, type ListGuestsInput } from '../queries/ListGuestsQuery'
+import { type IGuestRepository } from '../../domain/IGuestRepository'
 import { Guest } from '../../domain/Guest'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { Address } from '../../domain/value-objects/Address'
-import { GuestDTO } from '../DTOs/GuestDTO'
-
 describe('GetGuestQueryHandler', () => {
   let handler: GetGuestQueryHandler
   let mockRepository: IGuestRepository

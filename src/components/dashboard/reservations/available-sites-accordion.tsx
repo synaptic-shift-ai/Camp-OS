@@ -10,7 +10,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Zap,
@@ -178,7 +177,7 @@ export function AvailableSitesAccordion({
 
                     // Get amenities that are true
                     const activeAmenities = Object.entries(site.amenities)
-                      .filter(([_, value]) => value === true)
+                      .filter(([, value]) => value === true)
                       .map(([key]) => key)
                       .slice(0, 4) // Limit to 4 amenities
 

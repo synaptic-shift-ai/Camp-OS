@@ -328,7 +328,7 @@ describe('PropertyRepository Mapping Performance', () => {
     })
 
     bench('serialize batch of 10 complex properties', () => {
-      const properties = Array.from({ length: 10 }, (_, i) =>
+      const properties = Array.from({ length: 10 }, () =>
         createComplexDomainProperty()
       )
       properties.forEach((p) => p.toPersistence())

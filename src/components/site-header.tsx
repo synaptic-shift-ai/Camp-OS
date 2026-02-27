@@ -23,7 +23,7 @@ const navItems = [
 ]
 
 export function SiteHeader() {
-  const pathname = usePathname()
+  const _pathname = usePathname()
   const scrollPosition = useScrollPosition()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 

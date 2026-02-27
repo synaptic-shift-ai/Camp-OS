@@ -17,13 +17,11 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { NextResponse } from 'next/server'
 import type { MiddlewareRequest } from './types'
 import { createSessionId, createUserId, createCompanyId } from './types'
 import {
   createAuthMiddleware,
   createEmailVerificationMiddleware,
-  createSubscriptionMiddleware,
   createOnboardingMiddleware,
 } from './routing'
 

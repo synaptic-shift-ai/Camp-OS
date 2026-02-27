@@ -85,7 +85,7 @@ function daysFromNow(days: number): string {
 function validateMinStay(
   numNights: number,
   minStayNights: number,
-  checkInDate: string
+  _checkInDate: string
 ): BookingRuleValidationError | null {
   if (numNights < minStayNights) {
     return {

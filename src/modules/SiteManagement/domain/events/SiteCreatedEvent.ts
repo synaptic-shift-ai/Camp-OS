@@ -5,7 +5,7 @@
  * Other modules can subscribe to this to react to new sites.
  */
 import { DomainEvent } from '@/shared/domain'
-import { SiteType } from '../SiteType'
+import { type SiteType } from '../SiteType'
 
 export class SiteCreatedEvent extends DomainEvent {
   constructor(

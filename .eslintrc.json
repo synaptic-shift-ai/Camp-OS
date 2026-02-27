@@ -15,7 +15,7 @@
       {
         "patterns": [
           {
-            "group": ["*/types", "../types", "./types"],
+            "group": ["../types", "./types"],
             "message": "Import types from @/contracts/* instead of local types files. This ensures type consistency across the codebase."
           }
         ]
@@ -23,6 +23,19 @@
     ]
   },
   "overrides": [
+    {
+      "files": [
+        "src/lib/booking/**",
+        "src/lib/config/**",
+        "src/lib/middleware/**",
+        "src/lib/middleware/__tests__/**",
+        "src/modules/**",
+        "tests/**"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
     {
       "files": [
         "app/**/*.ts",
@@ -51,7 +64,7 @@
                 "message": "⛔ Do not import Stripe SDK in UI components. Only @stripe/react-stripe-js is allowed for UI. Use server actions or API routes for Stripe API calls."
               },
               {
-                "group": ["*/types", "../types", "./types"],
+                "group": ["../types", "./types"],
                 "message": "Import types from @/contracts/* instead of local types files."
               }
             ]
@@ -67,7 +80,7 @@
           {
             "patterns": [
               {
-                "group": ["*/types", "../types", "./types"],
+                "group": ["../types", "./types"],
                 "message": "Import types from @/contracts/* instead. Server actions and API routes must use canonical contracts."
               }
             ]

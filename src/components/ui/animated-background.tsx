@@ -21,7 +21,7 @@ export function AnimatedBackground({
   secondaryColor = "rgba(255, 255, 255, 0.05)",
   speed = 5,
   density = 30,
-  interactive = true,
+  interactive: _interactive = true,
 }: AnimatedBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 

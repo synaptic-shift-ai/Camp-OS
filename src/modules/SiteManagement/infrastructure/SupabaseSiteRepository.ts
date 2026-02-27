@@ -7,12 +7,12 @@
  * IMPORTANT: Always uses .select('*') to fetch complete entities
  * (prevents Oct 30 incident - selective field fetching causing silent failures)
  */
-import { ISiteRepository } from '../domain/ISiteRepository'
+import { type ISiteRepository } from '../domain/ISiteRepository'
 import { Site } from '../domain/Site'
 import { SiteStatus, parseSiteStatus } from '../domain/SiteStatus'
 import { SiteType, parseSiteType } from '../domain/SiteType'
 import { Pricing } from '../domain/Pricing'
-import { SupabaseClient } from '@supabase/supabase-js'
+import { type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
 
 type SiteInsert = Database['public']['Tables']['sites']['Insert']

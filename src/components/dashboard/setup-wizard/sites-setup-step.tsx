@@ -17,12 +17,12 @@ interface SitesSetupStepProps {
 
 type ViewMode = "list" | "create" | "edit"
 
-export function SitesSetupStep({ property, onComplete, onSkip }: SitesSetupStepProps) {
+export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesSetupStepProps) {
   const [mode, setMode] = useState<ViewMode>("list")
   const [sites, setSites] = useState<any[]>([])
   const [editingSite, setEditingSite] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const [deleting, setDeleting] = useState(false)
+  const [_deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
   const { toast } = useToast()

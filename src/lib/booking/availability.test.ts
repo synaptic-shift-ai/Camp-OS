@@ -21,7 +21,7 @@ import { checkSiteAvailability, searchAvailableSites } from './availability'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { futureDays, bookingDateRange, pastDays } from './test-utils/date-helpers'
 import { testPropertyId, testSiteId, testGuestId, testUUID } from './test-utils/id-helpers'
-import type { Site, Reservation, Guest } from './types'
+import type { Site, Guest } from './types'
 
 describe('checkSiteAvailability', () => {
   const supabase = createServiceRoleClient()

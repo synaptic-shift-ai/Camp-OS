@@ -18,8 +18,8 @@
  * }
  * ```
  */
-import { Site } from './Site'
-import { SiteStatus } from './SiteStatus'
+import { type Site } from './Site'
+import { type SiteStatus } from './SiteStatus'
 
 export interface ISiteRepository {
   /**

@@ -7,7 +7,7 @@
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateDateRange } from './api'
-import { detectBestReservationType, findMatchingSeasonalPeriod } from './reservation-type-detection'
+import { detectBestReservationType } from './reservation-type-detection'
 import {
   resolveEnabledReservationTypes,
   parseReservationTypesConfigFromDB,

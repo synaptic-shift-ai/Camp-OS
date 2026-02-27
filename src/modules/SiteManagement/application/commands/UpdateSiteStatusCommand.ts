@@ -3,9 +3,8 @@
  *
  * Command to update site status (e.g., mark as occupied, complete housekeeping).
  */
-import { ISiteRepository } from '../../domain/ISiteRepository'
-import { Site } from '../../domain/Site'
-import { SiteStatus } from '../../domain/SiteStatus'
+import { type ISiteRepository } from '../../domain/ISiteRepository'
+import { type Site } from '../../domain/Site'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type UpdateSiteStatusDto = {

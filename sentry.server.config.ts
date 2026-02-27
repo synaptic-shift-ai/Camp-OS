@@ -17,7 +17,7 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   // Enable debug logs in development
   debug: process.env.NODE_ENV === 'development',
 
-  beforeSend(event, hint) {
+  beforeSend(event, _hint) {
     // Don't send events in development unless explicitly enabled
     if (process.env.NODE_ENV === 'development' && !process.env.SENTRY_ENABLED) {
       return null

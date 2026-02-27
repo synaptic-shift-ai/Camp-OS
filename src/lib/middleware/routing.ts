@@ -37,7 +37,6 @@ import {
   recordRedirectLoopPrevented,
   recordError,
   startTimer,
-  METRICS,
 } from './metrics'
 
 /**

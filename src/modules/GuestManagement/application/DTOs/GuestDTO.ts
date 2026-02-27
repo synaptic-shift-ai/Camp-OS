@@ -4,7 +4,7 @@
  * Flattened representation of Guest aggregate for API responses.
  */
 
-import { Guest } from '../../domain/Guest'
+import { type Guest } from '../../domain/Guest'
 
 export interface AddressDTO {
   street: string
@@ -19,7 +19,7 @@ export interface EmergencyContactDTO {
   phone: string
 }
 
-export interface GuestDTO {
+export type GuestDTO = {
   id: string
   propertyId: string
   userId: string | null
@@ -37,13 +37,7 @@ export interface GuestDTO {
   updatedAt: string
 }
 
-export class GuestDTO {
-  /**
-   * Convert Guest domain entity to DTO
-   *
-   * @param guest - Guest aggregate
-   * @returns GuestDTO
-   */
+export class GuestDTOMapper {
   static fromDomain(guest: Guest): GuestDTO {
     return {
       id: guest.id,

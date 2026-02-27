@@ -37,7 +37,7 @@ function AvailabilityResultsContent() {
 
   const [availableSites, setAvailableSites] = useState<AvailableSite[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [propertyName, setPropertyName] = useState("Pine Valley Campground")
+  const [propertyName] = useState("Pine Valley Campground")
 
   const slug = searchParams.get("slug") || ""
   const propertyId = searchParams.get("propertyId")
@@ -89,7 +89,7 @@ function AvailabilityResultsContent() {
             variant: "destructive",
           })
         }
-      } catch (error) {
+      } catch {
         if (mounted) {
           toast({
             title: "Error",

@@ -12,9 +12,8 @@ export default async function PropertyBookingPage({
   const { slug } = await params
 
   // Extract property ID from slug
-  let propertyIdPrefix: string
   try {
-    propertyIdPrefix = extractPropertyIdFromSlug(slug)
+    extractPropertyIdFromSlug(slug)
   } catch (error) {
     console.error("[Booking] Invalid slug format:", slug, error)
     notFound()

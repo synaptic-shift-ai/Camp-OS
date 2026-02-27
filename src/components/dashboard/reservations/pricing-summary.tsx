@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DollarSign, Info } from 'lucide-react'
-import type { PricingConfig, RateDiscountsConfig, DepositConfig, UserDefinedFee, UserDefinedDiscount, BookingType } from '@/lib/config/types'
+import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
 
 interface AvailableSite {
   id: string
@@ -66,7 +66,7 @@ export function PricingSummary({
   rateDiscountsConfig,
   depositConfig,
   checkInDate,
-  checkOutDate,
+  checkOutDate: _checkOutDate,
   selectedDiscountIds = [],
   selectedFeeIds = [],
 }: PricingSummaryProps) {

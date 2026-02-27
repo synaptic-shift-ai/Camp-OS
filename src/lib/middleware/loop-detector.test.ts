@@ -10,7 +10,7 @@
  * Following CLAUDE.md T-6: Test entire structure in one assertion when possible
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { RedirectLoopDetector } from './loop-detector'
 
@@ -255,7 +255,7 @@ function createMockRequest(pathname: string): NextRequest {
  * Create mock NextRequest with redirect count cookie
  */
 function createMockRequestWithCount(count: number): NextRequest {
-  const request = createMockRequest('/')
+  const _request = createMockRequest('/')
 
   // Set the cookie manually
   // Note: Next.js request cookies are read-only, so we create a request

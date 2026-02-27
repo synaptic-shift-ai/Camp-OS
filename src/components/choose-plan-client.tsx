@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Check, ArrowLeft, Loader2, Sparkles } from "lucide-react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,8 +21,6 @@ function isPlanRecommended(plan: Plan, siteCount: number): boolean {
 
 export function ChoosePlanClient() {
   const searchParams = useSearchParams()
-  const router = useRouter()
-  const supabase = createClient()
   const siteCount = Number(searchParams.get("sites")) || 0
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [loading, setLoading] = useState<string | null>(null)

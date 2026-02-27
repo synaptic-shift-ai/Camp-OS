@@ -17,7 +17,6 @@
 
 import { describe, it, expect } from 'vitest'
 import type { AuthenticatedRequest } from '../types'
-import { resolveTenant } from '../tenant'
 import { createUserId, createCompanyId } from '../types'
 
 /**
@@ -116,7 +115,7 @@ describe('Tenant Isolation - Integration Tests', () => {
     // This is a unit test verifying type safety
     // Real integration test would verify RLS policies
 
-    const mockRequest: AuthenticatedRequest = {
+    const _mockRequest: AuthenticatedRequest = {
       middlewareContext: {
         sessionId: 'test-session',
         pathname: '/dashboard',
@@ -129,7 +128,7 @@ describe('Tenant Isolation - Integration Tests', () => {
           userMetadata: {},
         } as any,
       },
-    } as AuthenticatedRequest
+    } as unknown as AuthenticatedRequest
 
     // Verify type system prevents CompanyId mixing
     const validCompanyId = createCompanyId('company-123')

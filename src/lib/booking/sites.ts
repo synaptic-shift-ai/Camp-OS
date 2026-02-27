@@ -5,7 +5,7 @@
  */
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import type { Site, AvailableSite, BookingResult } from './types'
+import type { AvailableSite, BookingResult } from './types'
 
 /**
  * Get site details by ID

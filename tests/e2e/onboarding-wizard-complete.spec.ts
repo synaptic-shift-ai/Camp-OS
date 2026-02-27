@@ -51,7 +51,7 @@ test.describe('Onboarding Wizard - Complete Flow (Week 6 E2E)', () => {
     // Initialize page objects
     const authPage = new AuthPage(page);
     const wizardPage = new WizardPage(page);
-    const dashboardPage = new DashboardPage(page);
+    const _dashboardPage = new DashboardPage(page);
 
     // Generate dynamic test data (time-invariant)
     const testUser = generateTestUser();
@@ -250,7 +250,7 @@ test.describe('Onboarding Wizard - Complete Flow (Week 6 E2E)', () => {
   test('should fetch complete property entity with all fields (regression)', async ({ page }) => {
     const authPage = new AuthPage(page);
     const testUser = generateTestUser();
-    const propertyDetails = generatePropertyDetails();
+    const _propertyDetails = generatePropertyDetails();
 
     // Create user and incomplete property
     await authPage.navigateToSignup();

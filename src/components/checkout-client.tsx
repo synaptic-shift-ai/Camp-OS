@@ -128,7 +128,7 @@ export function CheckoutClient() {
   const { toast } = useToast()
   const { checkoutData, setCheckoutData } = useCheckout()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [_error, setError] = useState<string | null>(null)
 
   const {
     register,

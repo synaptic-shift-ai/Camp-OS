@@ -76,7 +76,7 @@ async function ReservationsTable() {
   }
 
   // Fetch all reservations for this property
-  const { data: reservations, total } = await getReservations(propertyId, {}, 1, 100)
+  const { data: reservations } = await getReservations(propertyId, {}, 1, 100)
 
   if (reservations.length === 0) {
     return (

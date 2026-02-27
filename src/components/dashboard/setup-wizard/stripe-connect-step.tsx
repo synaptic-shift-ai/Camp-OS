@@ -6,7 +6,6 @@ import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import {
   CreditCard,
@@ -45,7 +44,7 @@ interface StripeConnectStepProps {
   onSkip: () => void
 }
 
-export function StripeConnectStep({ property, onComplete, onSkip }: StripeConnectStepProps) {
+export function StripeConnectStep({ property: _property, onComplete, onSkip }: StripeConnectStepProps) {
   const [properties, setProperties] = useState<PropertyWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()

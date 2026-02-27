@@ -20,7 +20,6 @@ import type {
 // ============================================================================
 
 type DbReservation = Database['public']['Tables']['reservations']['Row']
-type DbPayment = Database['public']['Tables']['payments']['Row']
 type DbSite = Database['public']['Tables']['sites']['Row']
 type DbGuest = Database['public']['Tables']['guests']['Row']
 

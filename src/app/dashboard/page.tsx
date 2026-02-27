@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TodaysArrivalsCard } from "@/components/dashboard/reservations/todays-arrivals-card"
 import type { ReservationStatus } from "@/contracts/booking"
+import { DepartureCheckOutButton } from "@/components/dashboard/reservations/departure-check-out-button"
 
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -128,7 +129,25 @@ async function RecentActivity() {
   }
 
   // Get recent reservations
-  const { data: recentReservations } = await getReservations(propertyId, {}, 1, 5)
+  const { data: currentlyCheckedIn } = await getReservations(
+    propertyId, 
+    {
+      status: 'checked_in',
+    },
+    1, 
+    5
+  )
+
+  const todayStr = new Date().toISOString().split('T')[0]!
+  const { data: departures } = await getReservations(
+    propertyId,
+    {
+      status: 'checked_in',
+      checkOutDate: todayStr
+    },
+    1,
+    5
+  )
 
   // Get upcoming check-ins for next 7 days (excluding today since it's shown in TodaysArrivalsCard)
   const today = new Date()
@@ -141,30 +160,19 @@ async function RecentActivity() {
   const tomorrowStr = tomorrow.toISOString().split('T')[0]!
   const nextWeekStr = nextWeek.toISOString().split('T')[0]!
 
-  const { data: upcomingCheckIns } = await getReservations(
-    propertyId,
-    {
-      startDate: tomorrowStr,
-      endDate: nextWeekStr,
-      status: 'confirmed',
-    },
-    1,
-    5
-  )
-
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Recent Reservations</CardTitle>
-          <CardDescription>Latest bookings at your property</CardDescription>
+          <CardTitle>Currently Checked In</CardTitle>
+          {/* <CardDescription>Latest bookings at your property</CardDescription> */}
         </CardHeader>
         <CardContent>
-          {recentReservations.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No reservations yet</p>
+          {currentlyCheckedIn.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No guests checked in yet</p>
           ) : (
             <div className="space-y-4">
-              {recentReservations.map((reservation) => {
+              {currentlyCheckedIn.map((reservation) => {
                 const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                 const hasBalance = outstandingBalance > 0
 
@@ -207,15 +215,15 @@ async function RecentActivity() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upcoming Check-ins</CardTitle>
-          <CardDescription>Next 7 days (excluding today)</CardDescription>
+          <CardTitle>Departures</CardTitle>
+          {/* <CardDescription>Next 7 days (excluding today)</CardDescription> */}
         </CardHeader>
         <CardContent>
-          {upcomingCheckIns.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No upcoming check-ins</p>
+          {departures.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No guests departing today</p>
           ) : (
             <div className="space-y-4">
-              {upcomingCheckIns.map((reservation) => {
+              {departures.map((reservation) => {
                 const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                 const hasBalance = outstandingBalance > 0
 
@@ -244,9 +252,10 @@ async function RecentActivity() {
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
                       <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                         Upcoming
-                      </Badge>
+                      </Badge> */}
+                      <DepartureCheckOutButton reservationId={reservation.id} />
                     </div>
                   </div>
                 )
@@ -256,6 +265,78 @@ async function RecentActivity() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+async function RecentReservations() {
+  const propertyId = await getCurrentPropertyId()
+
+  if (!propertyId) {
+    return null
+  }
+
+  // Get recent reservations
+  const { data: recentReservations } = await getReservations(propertyId,
+    {
+      status: ['confirmed', 'pending'],
+    }, 
+    1, 
+    10
+  )
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent Reservations</CardTitle>
+        <CardDescription>Latest bookings at your property</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {recentReservations.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No reservations yet</p>
+        ) : (
+          <div className="max-h-96 overflow-y-auto">
+            <div className="space-y-4">
+              {recentReservations.map((reservation) => {
+                const outstandingBalance = reservation.totalAmount - reservation.paidAmount
+                const hasBalance = outstandingBalance > 0
+
+                return (
+                  <div
+                    key={reservation.id}
+                    className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{reservation.guestName}</p>
+                        {hasBalance && (
+                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                            Balance Due
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                      </p>
+                      {hasBalance && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          {formatMoney(outstandingBalance)} balance due
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                      <Badge variant="outline" className={statusColors[reservation.status]}>
+                        {reservation.status}
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -420,6 +501,25 @@ export default async function DashboardPage() {
         }
       >
         <RecentActivity />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="grid gap-4 md:grid-cols-2">
+            {[...Array(2)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <CardTitle>Loading...</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-32 bg-muted animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        }
+      >
+        <RecentReservations />
       </Suspense>
 
       {/* Booking Portal CTA */}

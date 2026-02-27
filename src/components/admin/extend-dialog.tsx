@@ -37,6 +37,7 @@ interface ExtendDialogProps {
   siteNumber: string
   siteName?: string | undefined
   pricePerNight: number
+  status: string
   trigger?: React.ReactNode
 }
 
@@ -69,6 +70,7 @@ export function ExtendDialog({
   siteNumber,
   siteName,
   pricePerNight,
+  status,
   trigger,
 }: ExtendDialogProps) {
   const [open, setOpen] = useState(false)
@@ -167,7 +169,7 @@ export function ExtendDialog({
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to extend reservation')
+        throw new Error(data.error?.message || 'Failed to extend reservation')
       }
 
       // Success - close dialog and refresh the page
@@ -238,21 +240,23 @@ export function ExtendDialog({
           </div>
 
           {/* New Check-in Date */}
-          <div className="space-y-2">
-            <Label htmlFor="newCheckIn">
-              New Check-in Date
-              <span className="ml-2 text-xs text-muted-foreground font-normal">
-                (select earlier to extend before)
-              </span>
-            </Label>
-            <Input
-              id="newCheckIn"
-              type="date"
-              value={newCheckIn}
-              onChange={(e) => setNewCheckIn(e.target.value)}
-              disabled={loading}
-            />
-          </div>
+          {status === 'confirmed' && (
+            <div className="space-y-2">
+              <Label htmlFor="newCheckIn">
+                New Check-in Date
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  (select earlier to extend before)
+                </span>
+              </Label>
+              <Input
+                id="newCheckIn"
+                type="date"
+                value={newCheckIn}
+                onChange={(e) => setNewCheckIn(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          )}
 
           {/* New Check-out Date */}
           <div className="space-y-2">

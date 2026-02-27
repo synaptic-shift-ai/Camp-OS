@@ -43,7 +43,8 @@ export function useActionAvailability(
         throw new Error(errorData.error || 'Availability check failed')
       }
 
-      const data: ActionAvailabilityCheck = await response.json()
+      const responseData = await response.json()
+      const data: ActionAvailabilityCheck = responseData.data
       setResult(data)
     } catch (err) {
       console.error('[useActionAvailability] Error:', err)

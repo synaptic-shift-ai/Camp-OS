@@ -92,6 +92,23 @@ export async function PATCH(
       return error(ErrorCodes.AUTH_002, request)
     }
 
+    const { data: conflicts, error: conflictsError } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('site_id', reservation.site_id)
+      .neq('id', reservationId)
+      .in('status', ['confirmed', 'checked_in', 'pending'])
+      .lt('check_in_date', check_out_date)
+      .gt('check_out_date', check_in_date)
+
+    if (conflictsError) {
+      return error('RES_009', 'The dates are already taken, Please select different dates', 409, request)
+    }
+
+    if (conflicts && conflicts.length > 0) {
+      return error('RES_009', 'The dates are already taken, Please select different dates', 409, request)
+    }
+
     // Calculate new number of nights
     const diffTime = checkOut.getTime() - checkIn.getTime()
     const _numNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -110,6 +127,7 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq('id', reservationId)
+      .eq('property_id', reservation.sites.property_id)
       .select()
       .single()
 

@@ -109,7 +109,7 @@ export function EditReservationDialog({
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to update reservation")
+        throw new Error(data.error?.message || "Failed to update reservation")
       }
 
       // Success - close dialog and refresh the page

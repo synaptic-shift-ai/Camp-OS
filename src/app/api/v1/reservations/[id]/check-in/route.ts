@@ -118,18 +118,8 @@ export async function POST(
     console.error('[Reservations API v1] Check-in error:', err)
 
     // Handle domain validation errors
-    if (err.message.includes('confirmed')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, err.message),
-        { status: 409 }
-      )
-    }
-
-    if (err.message.includes('check-in date')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, err.message),
-        { status: 400 }
-      )
+    if (err.message.includes('confirmed') || err.message.includes('check-in date')) {
+      return error('VALIDATION_ERROR', err.message, 400)
     }
 
     return NextResponse.json(

@@ -71,11 +71,12 @@ export interface DashboardStats {
 }
 
 export interface ReservationFilters {
-  status?: ReservationStatus
+  status?: ReservationStatus | ReservationStatus[]
   paymentStatus?: ReservationPaymentStatus
   search?: string
   startDate?: string
   endDate?: string
+  checkOutDate?: string
 }
 
 export interface PaymentFilters {
@@ -139,7 +140,11 @@ export async function getReservations(
 
   // Apply filters
   if (filters.status) {
-    query = query.eq('status', filters.status)
+    if (Array.isArray(filters.status)) {
+      query = query.in('status', filters.status)
+    } else {
+      query = query.eq('status', filters.status)
+    }
   }
   if (filters.paymentStatus) {
     query = query.eq('payment_status', filters.paymentStatus)
@@ -154,6 +159,9 @@ export async function getReservations(
     query = query.or(
       `confirmation_number.ilike.%${filters.search}%,guests.first_name.ilike.%${filters.search}%,guests.last_name.ilike.%${filters.search}%`
     )
+  }
+  if (filters.checkOutDate) {
+    query = query.eq('check_out_date', filters.checkOutDate)
   }
 
   const { data, error, count } = await query

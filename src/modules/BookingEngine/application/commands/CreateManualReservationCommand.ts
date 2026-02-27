@@ -222,16 +222,6 @@ export class CreateManualReservationCommandHandler {
         .eq('property_id', dto.propertyId)
     }
 
-    // 8. Update site status
-    await supabase
-      .from('sites')
-      .update({
-        status: 'reserved',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', dto.siteId)
-      .eq('property_id', dto.propertyId)
-
     return {
       id: reservation.id,
       confirmationNumber: reservation.confirmation_number,

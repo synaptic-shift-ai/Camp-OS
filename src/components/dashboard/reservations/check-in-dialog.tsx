@@ -77,7 +77,7 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to check in guest')
+        throw new Error(data.error?.message || 'Failed to check in guest')
       }
 
       toast({

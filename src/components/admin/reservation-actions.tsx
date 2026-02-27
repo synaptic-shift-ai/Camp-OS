@@ -100,6 +100,7 @@ export function ReservationActions({
               siteNumber={siteNumber}
               siteName={siteName}
               pricePerNight={pricePerNight}
+              status={status}
               trigger={
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   Extend Stay

@@ -105,6 +105,23 @@ function calculateNights(checkIn: string, checkOut: string): number {
 }
 
 /**
+ * Check if a site's blocked_dates overlap with the requested date range.
+ * A block overlaps when: block.from < checkOut AND block.to >= checkIn
+ */
+function hasBlockedDateOverlap(
+  availabilityRules: unknown,
+  checkInDate: string,
+  checkOutDate: string
+): boolean {
+  if (!availabilityRules || typeof availabilityRules !== 'object') return false
+  const rules = availabilityRules as { blocked_dates?: { from: string; to: string; reason: string }[] }
+  const blockedDates = rules.blocked_dates ?? []
+  return blockedDates.some(
+    (block) => block.from < checkOutDate && block.to >= checkInDate
+  )
+}
+
+/**
  * Check if a specific site is available for given dates
  *
  * Rules:
@@ -259,9 +276,9 @@ export async function searchAvailableSites(
   // Build site query with filters
   let query = supabase
     .from('sites')
-    .select('*, enabled_reservation_types_override')
+    .select('*, enabled_reservation_types_override, availability_rules')
     .eq('property_id', params.property_id)
-    .eq('status', 'available')
+    .in('status', ['available', 'housekeeping', 'maintenance'])
 
   // Apply filters
   if (params.site_type) {
@@ -337,7 +354,11 @@ export async function searchAvailableSites(
   const occupiedSiteIds = new Set(overlappingReservations?.map((r) => r.site_id) || [])
 
   // Filter out occupied sites and optionally filter by reservation type
-  let filteredSites = allSites.filter((site) => !occupiedSiteIds.has(site.id))
+  let filteredSites = allSites.filter(
+    (site) => 
+      !occupiedSiteIds.has(site.id) &&
+      !hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)
+  )
 
   // If a specific reservation type is requested, filter sites that support it
   if (params.reservation_type) {

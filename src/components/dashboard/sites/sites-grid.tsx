@@ -32,6 +32,7 @@ import { DeleteSiteDialog } from './delete-site-dialog'
 import { SiteDetailsDialog } from './site-details-dialog'
 import { SiteCalendarDialog } from './site-calendar-dialog'
 import { SiteCheckInButton } from './site-check-in-button'
+import { HousekeepingScheduleDialog } from './housekeeping-schedule-dialog'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/contracts/db'
 import type { PropertyPricingConfig } from '@/app/dashboard/sites/page'
@@ -184,6 +185,7 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
   const [viewingSite, setViewingSite] = useState<Site | null>(null)
   const [calendarSite, setCalendarSite] = useState<Site | null>(null)
   const [statusPopoverOpen, setStatusPopoverOpen] = useState<string | null>(null)
+  const [schedulingSite, setSchedulingSite] = useState<{ site: Site; status: 'housekeeping' | 'maintenance' } | null>(null)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -204,6 +206,12 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
 
   const handleStatusChange = async (site: Site, newStatus: SiteStatus, e: React.MouseEvent) => {
     e.stopPropagation()
+
+    if (newStatus === 'housekeeping' || newStatus === 'maintenance') {
+      setStatusPopoverOpen(null)
+      setSchedulingSite({ site, status: newStatus })
+      return
+    }
 
     try {
       // Migrated to v1 API
@@ -345,6 +353,23 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                     {site.site_type}
                   </Badge>
                 </div>
+                {(site as any).availability_rules?.blocked_dates?.length > 0 && (
+                  <div className="mt-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs w-full justify-center ${
+                        (site as any).availability_rules.blocked_dates[0].reason === 'maintenance'
+                          ? 'bg-blue-50 border-blue-200 text-blue-700'
+                          : 'bg-orange-50 border-orange-200 text-orange-700'
+                      }`}
+                    >
+                      🗓 {(site as any).availability_rules.blocked_dates[0].reason === 'maintenance' ? 'Scheduled Maintenance' : 'Scheduled Housekeeping'}: {(site as any).availability_rules.blocked_dates[0].from}
+                      {(site as any).availability_rules.blocked_dates[0].from !== (site as any).availability_rules.blocked_dates[0].to 
+                        ? ` – ${(site as any).availability_rules.blocked_dates[0].to}` 
+                        : ''}
+                    </Badge>
+                  </div>
+                )}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Max Occupancy</span>
@@ -439,6 +464,19 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
           open={!!calendarSite}
           onOpenChange={(open) => !open && setCalendarSite(null)}
           site={calendarSite}
+        />
+      )}
+
+      {/* Housekeeping / Maintenance Schedule Dialog */}
+      {schedulingSite && (
+        <HousekeepingScheduleDialog
+          open={!!schedulingSite}
+          onOpenChange={(open) => !open && setSchedulingSite(null)}
+          site={{
+            ...schedulingSite.site,
+            availability_rules: schedulingSite.site.availability_rules as { blocked_dates?: Array<{ from: string; to: string; reason: string }> } | null,
+          }}
+          status={schedulingSite.status}
         />
       )}
     </>

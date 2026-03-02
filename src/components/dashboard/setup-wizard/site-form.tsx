@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -43,6 +43,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isEditMode = !!site
+  const [isSingleDay, setIsSingleDay] = useState(true)
+  const [houseKeepingFrom, setHouseKeepingFrom] = useState<string>('')
+  const [houseKeepingTo, setHouseKeepingTo] = useState('')
+  const [dateConflictError, setDateConflictError] = useState<string | null>(null)
+  const [checkingDate, setCheckingDate] = useState(false)
 
   // Convert API response (camelCase) to form format (snake_case) using shared helper
   const defaultFormValues = site ? fromApiFormat(site) : undefined
@@ -107,6 +112,17 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const defaultReservationType = watch("default_reservation_type")
 
+  useEffect(() => {
+    if (!site?.availability_rules) return
+    const blocked = (site.availability_rules as any)?.blocked_dates
+    if (blocked?.length > 0) {
+      const firstBlock = blocked[0]
+      setHouseKeepingFrom(firstBlock.from ?? '')
+      setHouseKeepingTo(firstBlock.to ?? '')
+      setIsSingleDay(firstBlock.from === firstBlock.to) 
+    }
+  }, [site])
+
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
     const current = enabledReservationTypesOverride || []
     const updated = current.includes(type)
@@ -129,16 +145,32 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
 
       const apiData = toApiFormat(data)
 
-      console.log("[SiteForm] Form data:", data)
-      console.log("[SiteForm] API data:", JSON.stringify(apiData, null, 2))
-      console.log("[SiteForm] Property ID:", propertyId)
+      const isBlockingDates = 
+        (data.status === "housekeeping" || data.status === "maintenance") &&
+        houseKeepingFrom
+
+      const finalApiData = isBlockingDates 
+        ? {
+            ...apiData,
+            status: site?.status ?? apiData.status,
+            availability_rules: {
+              blocked_dates: [
+                {
+                  from: houseKeepingFrom,
+                  to: isSingleDay ? houseKeepingFrom : (houseKeepingTo || houseKeepingFrom),
+                  reason: data.status,
+                }
+              ]
+            }
+          }
+        : apiData
 
       if (isEditMode) {
         // Update existing site - Migrated to v1 API
         const response = await fetch(`/api/v1/sites/${site.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(apiData),
+          body: JSON.stringify(finalApiData),
         })
         const result = await response.json()
 
@@ -153,7 +185,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
         const response = await fetch(`/api/v1/properties/${propertyId}/sites`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(apiData),
+          body: JSON.stringify(finalApiData),
         })
 
         console.log("[SiteForm] Response status:", response.status)
@@ -299,6 +331,58 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
               </Select>
             </div>
           </div>
+          
+          {(watch("status") === "housekeeping" || watch("status") === "maintenance") && (
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="Date">Select Date</Label>
+                <CardDescription>
+                  Set the date for the site {watch("status")} schedule.
+                </CardDescription>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="singleDay"
+                  checked={isSingleDay}
+                  onCheckedChange={(checked) => setIsSingleDay(!!checked)}
+                />
+                <Label htmlFor="singleDay" className="cursor-pointer font-normal">
+                  Single Day
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Label htmlFor="houseKeepingFrom" className="text-xs text-muted-foreground mb-1 block">
+                    {isSingleDay ? "Date" : "Start Date"}
+                  </Label>
+                  <Input
+                    id="houseKeepingFrom"
+                    type="date"
+                    value={houseKeepingFrom}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setHouseKeepingFrom(e.target.value)}
+                  />
+                </div>
+
+                {!isSingleDay && (
+                  <div className="flex-1">
+                    <Label htmlFor="houseKeepingTo" className="text-xs text-muted-foreground mb-1 block">
+                      End Date
+                    </Label>
+                    <Input
+                      id="houseKeepingTo"
+                      type="date"
+                      value={houseKeepingTo}
+                      min={houseKeepingFrom || new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setHouseKeepingTo(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="description">Description</Label>

@@ -153,6 +153,23 @@ export async function PUT(
           ? body.default_reservation_type
           : existingSite.default_reservation_type
 
+    const availabilityRules = body.availability_rules?.blocked_dates
+    if (availabilityRules?.length > 0) {
+      for (const block of availabilityRules) {
+        const { data: conflictingReservations } = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('site_id', siteId)
+          .in('status', ['confirmed', 'checked_in', 'pending'])
+          .lte('check_in_date', block.to)
+          .gte('check_out_date', block.from)
+        
+        if (conflictingReservations && conflictingReservations.length > 0) {
+          return error('VALIDATION_ERROR', 'The selected date for housekeeping is not available, please select a different date', 400)
+        }
+      }
+    }
+
     // Update the site
     const { data: updatedSite, error: updateError } = await supabase
       .from('sites')
@@ -171,6 +188,7 @@ export async function PUT(
         hookups: body.hookups ?? existingSite.hookups,
         site_amenities: body.site_amenities ?? body.amenities ?? existingSite.site_amenities,
         status: body.status ?? existingSite.status,
+        availability_rules: body.availability_rules ?? existingSite.availability_rules,
         site_images: body.site_images ?? body.images ?? existingSite.site_images,
         enabled_reservation_types_override: reservationTypesOverride,
         seasonal_rate_cents: seasonalRateCents,

@@ -186,6 +186,10 @@ export async function PATCH(
           maxStayNights: validatedRequest.settings.maxStayNights ?? null,
           bookingLeadTimeDays: validatedRequest.settings.bookingLeadTimeDays ?? null,
           customRules: validatedRequest.settings.customRules ?? null,
+          freeCancellationWindow: validatedRequest.settings.freeCancellationWindow ?? null,
+          cancellationRefundPercentage: validatedRequest.settings.cancellationRefundPercentage ?? null,
+          cancellationNonRefundableDays: validatedRequest.settings.cancellationNonRefundableDays ?? null,
+          cancellationRefundProcessingWindow: validatedRequest.settings.cancellationRefundProcessingWindow ?? null,
         })
       : undefined
 

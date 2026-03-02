@@ -21,9 +21,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, FileText } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+// import { Description } from '@/components/ui/description'
 
 const cancellationPolicySchema = z.object({
   cancellationPolicy: z.string().max(5000, 'Policy text must be 5000 characters or less').nullable(),
+  freeCancellationWindow: z.number().int().min(0).nullable(),
+  cancellationRefundPercentage: z.number().int().min(0).max(100).nullable(),
+  cancellationNonRefundableDays: z.number().int().min(0).nullable(),
+  cancellationRefundProcessingWindow: z.number().int().min(0).nullable(),
 })
 
 type CancellationPolicyFormData = z.infer<typeof cancellationPolicySchema>
@@ -34,6 +40,10 @@ type SettingsForMerge = Record<string, unknown> | null
 interface CancellationPolicySettingsProps {
   propertyId: string
   initialCancellationPolicy: string | null
+  initialFreeCancellationWindow: number | null
+  initialCancellationRefundPercentage: number | null
+  initialCancellationNonRefundableDays: number | null
+  initialCancellationRefundProcessingWindow: number | null
   currentSettings: SettingsForMerge
 }
 
@@ -43,6 +53,10 @@ const DEFAULT_PLACEHOLDER =
 export function CancellationPolicySettings({
   propertyId,
   initialCancellationPolicy,
+  initialFreeCancellationWindow,
+  initialCancellationRefundPercentage,
+  initialCancellationNonRefundableDays,
+  initialCancellationRefundProcessingWindow,
   currentSettings,
 }: CancellationPolicySettingsProps) {
     const router = useRouter()
@@ -57,6 +71,10 @@ export function CancellationPolicySettings({
     resolver: zodResolver(cancellationPolicySchema),
     defaultValues: {
         cancellationPolicy: initialCancellationPolicy ?? '',
+        freeCancellationWindow: initialFreeCancellationWindow ?? null,
+        cancellationRefundPercentage: initialCancellationRefundPercentage ?? null,
+        cancellationNonRefundableDays: initialCancellationNonRefundableDays ?? null,
+        cancellationRefundProcessingWindow: initialCancellationRefundProcessingWindow ?? null,
     },
     })
 
@@ -68,6 +86,10 @@ export function CancellationPolicySettings({
             const mergedSettings = {
             ...(currentSettings && typeof currentSettings === 'object' ? currentSettings : {}),
             cancellationPolicy: policyValue,
+            freeCancellationWindow: data.freeCancellationWindow ?? null,
+            cancellationRefundPercentage: data.cancellationRefundPercentage ?? null,
+            cancellationNonRefundableDays: data.cancellationNonRefundableDays ?? null,
+            cancellationRefundProcessingWindow: data.cancellationRefundProcessingWindow ?? null,
             }
 
             const response = await fetch(`/api/v1/properties/${propertyId}`, {
@@ -112,17 +134,84 @@ export function CancellationPolicySettings({
                 )}
 
                 <div className="space-y-2">
-                <Label htmlFor="cancellationPolicy">Policy text</Label>
-                <Textarea
-                    id="cancellationPolicy"
-                    {...register('cancellationPolicy')}
-                    placeholder={DEFAULT_PLACEHOLDER}
-                    rows={6}
-                    className={errors.cancellationPolicy ? 'border-destructive' : ''}
-                />
-                {errors.cancellationPolicy && (
-                    <p className="text-sm text-destructive">{errors.cancellationPolicy.message}</p>
-                )}
+                    <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
+                    <Textarea
+                        id="cancellationPolicy"
+                        {...register('cancellationPolicy')}
+                        placeholder={DEFAULT_PLACEHOLDER}
+                        rows={6}
+                        className={errors.cancellationPolicy ? 'border-destructive' : ''}
+                    />
+                    {errors.cancellationPolicy && (
+                        <p className="text-sm text-destructive">{errors.cancellationPolicy.message}</p>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="freeCancellationWindow">Free cancellation window (days)</Label>
+                        <p className="text-sm text-muted-foreground">Number of days before check-in that guests can cancel for free.</p>
+                        <Input
+                            id="freeCancellationWindow"
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className={errors.freeCancellationWindow ? 'border-destructive' : ''}
+                            {...register('freeCancellationWindow', { valueAsNumber: true })}
+                        />
+                        {errors.freeCancellationWindow && (
+                            <p className="text-sm text-destructive">{errors.freeCancellationWindow.message}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="cancellationRefundPercentage">Refund percentage for late cancellations (%)</Label>
+                        <p className="text-sm text-muted-foreground">Percentage of the booking refunded when cancelling outside the free window.</p>
+                        <Input
+                            id="cancellationRefundPercentage"
+                            type="number"
+                            min="0"
+                            max="100"
+                            placeholder="0"
+                            className={errors.cancellationRefundPercentage ? 'border-destructive' : ''}
+                            {...register('cancellationRefundPercentage', { valueAsNumber: true })}
+                        />
+                        {errors.cancellationRefundPercentage && (
+                            <p className="text-sm text-destructive">{errors.cancellationRefundPercentage.message}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="cancellationNonRefundableDays">Non-refundable window (days before check-in)</Label>
+                        <p className="text-sm text-muted-foreground">Cancellations within this many days of check-in receive no refund.</p>
+                        <Input
+                            id="cancellationNonRefundableDays"
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className={errors.cancellationNonRefundableDays ? 'border-destructive' : ''}
+                            {...register('cancellationNonRefundableDays', { valueAsNumber: true })}
+                        />
+                        {errors.cancellationNonRefundableDays && (
+                            <p className="text-sm text-destructive">{errors.cancellationNonRefundableDays.message}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="cancellationRefundProcessingWindow">Refund processing window (days)</Label>
+                        <p className="text-sm text-muted-foreground">Number of days within which a refund will be processed after cancellation.</p>
+                        <Input
+                            id="cancellationRefundProcessingWindow"
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className={errors.cancellationRefundProcessingWindow ? 'border-destructive' : ''}
+                            {...register('cancellationRefundProcessingWindow', { valueAsNumber: true })}
+                        />
+                        {errors.cancellationRefundProcessingWindow && (
+                            <p className="text-sm text-destructive">{errors.cancellationRefundProcessingWindow.message}</p>
+                        )}
+                    </div>
                 </div>
 
                 <Button type="submit" disabled={isSaving || !isDirty}>

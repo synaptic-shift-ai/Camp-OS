@@ -44,6 +44,10 @@ export const PropertySettingsSchema = z.object({
   maxStayNights: z.number().int().positive().nullable(),
   bookingLeadTimeDays: z.number().int().min(0).nullable(),
   customRules: z.string().nullable(),
+  freeCancellationWindow: z.number().int().min(0).nullable(),
+  cancellationRefundPercentage: z.number().int().min(0).max(100).nullable(),
+  cancellationNonRefundableDays: z.number().int().min(0).nullable(),
+  cancellationRefundProcessingWindow: z.number().int().min(0).nullable(),
 })
 
 // ============================================================================

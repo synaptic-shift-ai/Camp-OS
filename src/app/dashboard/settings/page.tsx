@@ -157,13 +157,25 @@ export default async function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="cancellation-policy" className="space-y-4">
-          <CancellationPolicySettings
-            propertyId={property.id}
-            initialCancellationPolicy={
-              (property.settings as { cancellationPolicy?: string | null } | null)?.cancellationPolicy ?? null
-            }
-            currentSettings={(property.settings as Record<string, unknown> | null) ?? null}
-          />
+        <CancellationPolicySettings
+          propertyId={property.id}
+          initialCancellationPolicy={
+            (property.settings as Record<string, any> | null)?.cancellationPolicy ?? null
+          }
+          initialFreeCancellationWindow={
+            (property.settings as Record<string, any> | null)?.freeCancellationWindow ?? null
+          }
+          initialCancellationRefundPercentage={
+            (property.settings as Record<string, any> | null)?.cancellationRefundPercentage ?? null
+          }
+          initialCancellationNonRefundableDays={
+            (property.settings as Record<string, any> | null)?.cancellationNonRefundableDays ?? null
+          }
+          initialCancellationRefundProcessingWindow={
+            (property.settings as Record<string, any> | null)?.cancellationRefundProcessingWindow ?? null
+          }
+          currentSettings={(property.settings as Record<string, unknown> | null) ?? null}
+        />
         </TabsContent>
 
         <TabsContent value="discounts" className="space-y-4">

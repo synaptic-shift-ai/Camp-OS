@@ -25,6 +25,10 @@ export type PropertySettingsProps = {
   maxStayNights: number | null
   bookingLeadTimeDays: number | null // How far in advance bookings are allowed
   customRules: string | null // Custom text rules for guests
+  freeCancellationWindow: number | null
+  cancellationRefundPercentage: number | null
+  cancellationNonRefundableDays: number | null
+  cancellationRefundProcessingWindow: number | null
 }
 
 export class PropertySettings extends ValueObject<PropertySettingsProps> {
@@ -81,6 +85,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: props.maxStayNights || null,
       bookingLeadTimeDays: props.bookingLeadTimeDays || null,
       customRules: props.customRules || null,
+      freeCancellationWindow: props.freeCancellationWindow ?? null,
+      cancellationRefundPercentage: props.cancellationRefundPercentage ?? null,
+      cancellationNonRefundableDays: props.cancellationNonRefundableDays ?? null,
+      cancellationRefundProcessingWindow: props.cancellationRefundProcessingWindow ?? null,
     })
   }
 
@@ -97,6 +105,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: 30,
       bookingLeadTimeDays: 365,
       customRules: null,
+      freeCancellationWindow: null,
+      cancellationRefundPercentage: null,
+      cancellationNonRefundableDays: null,
+      cancellationRefundProcessingWindow: null,
     })
   }
 
@@ -117,6 +129,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: json.maxStayNights || json.max_stay_nights || null,
       bookingLeadTimeDays: json.bookingLeadTimeDays || json.booking_lead_time_days || null,
       customRules: json.customRules || json.custom_rules || null,
+      freeCancellationWindow: json.freeCancellationWindow ?? json.free_cancellation_window ?? null,
+      cancellationRefundPercentage: json.cancellationRefundPercentage ?? json.cancellation_refund_percentage ?? null,
+      cancellationNonRefundableDays: json.cancellationNonRefundableDays ?? json.cancellation_non_refundable_days ?? null,
+      cancellationRefundProcessingWindow: json.cancellationRefundProcessingWindow ?? json.cancellation_refund_processing_window ?? null,
     })
   }
 
@@ -134,6 +150,22 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
 
   get cancellationPolicy(): string | null {
     return this.props.cancellationPolicy
+  }
+
+  get freeCancellationWindow(): number | null {
+    return this.props.freeCancellationWindow
+  }
+
+  get cancellationRefundPercentage(): number | null {
+    return this.props.cancellationRefundPercentage
+  }
+
+  get cancellationNonRefundableDays(): number | null {
+    return this.props.cancellationNonRefundableDays
+  }
+
+  get cancellationRefundProcessingWindow(): number | null {
+    return this.props.cancellationRefundProcessingWindow
   }
 
   get minStayNights(): number | null {
@@ -187,6 +219,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: this.props.maxStayNights,
       bookingLeadTimeDays: this.props.bookingLeadTimeDays,
       customRules: this.props.customRules,
+      freeCancellationWindow: this.props.freeCancellationWindow,
+      cancellationRefundPercentage: this.props.cancellationRefundPercentage,
+      cancellationNonRefundableDays: this.props.cancellationNonRefundableDays,
+      cancellationRefundProcessingWindow: this.props.cancellationRefundProcessingWindow,
     }
   }
 }

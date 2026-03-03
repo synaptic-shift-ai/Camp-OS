@@ -16,6 +16,7 @@ import { CheckInButton } from "./check-in-button"
 import { CheckOutButton } from "./check-out-button"
 import { ExtendDialog } from "./extend-dialog"
 import { RenewDialog } from "./renew-dialog"
+import { ManualPaymentDialog } from "./manual-payment-dialog"
 
 interface ReservationActionsProps {
   reservationId: string
@@ -31,6 +32,9 @@ interface ReservationActionsProps {
   siteName?: string | undefined
   pricePerNight: number
   bookingType?: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term' | undefined
+  totalAmount: number
+  paidAmount: number
+  hasOutstandingBalance?: boolean
 }
 
 export function ReservationActions({
@@ -47,6 +51,9 @@ export function ReservationActions({
   siteName,
   pricePerNight,
   bookingType = 'nightly',
+  totalAmount,
+  paidAmount,
+  hasOutstandingBalance = false,
 }: ReservationActionsProps) {
   // Only show extend/renew for confirmed or checked-in reservations
   const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
@@ -55,6 +62,8 @@ export function ReservationActions({
 
   // Renewals are primarily for seasonal/monthly bookings
   const showRenew = canExtendOrRenew && ['seasonal', 'monthly', 'long_term'].includes(bookingType)
+
+  const showManualPayment = !!hasOutstandingBalance
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -88,6 +97,20 @@ export function ReservationActions({
             </DropdownMenuItem>
           }
         />
+        {showManualPayment && (
+          <ManualPaymentDialog
+            reservationId={reservationId}
+            confirmationNumber={confirmationNumber}
+            guestName={guestName}
+            totalAmountCents={totalAmount}
+            paidAmountCents={paidAmount}
+            trigger={
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                Manual Payment
+              </DropdownMenuItem>
+            }
+          />
+        )}
         {canExtendOrRenew && (
           <>
             <DropdownMenuSeparator />

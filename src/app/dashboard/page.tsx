@@ -128,26 +128,29 @@ async function RecentActivity() {
     return null
   }
 
+  // Today's date in YYYY-MM-DD format for comparisons
+  const todayStr = new Date().toISOString().split('T')[0]!
+
   // Get recent reservations
-  const { data: currentlyCheckedIn } = await getReservations(
+  const { data: allCheckedIn } = await getReservations(
     propertyId, 
     {
       status: 'checked_in',
+      // checkOutDate: todayStr
     },
     1, 
-    5
+    50
   )
 
-  const todayStr = new Date().toISOString().split('T')[0]!
-  const { data: departures } = await getReservations(
-    propertyId,
-    {
-      status: 'checked_in',
-      checkOutDate: todayStr
-    },
-    1,
-    5
-  )
+  // Currently Checked In: guests whose checkout date is after today
+  const currentlyCheckedIn = allCheckedIn.filter((reservation) => {
+    const checkOutDateStr = reservation.checkOut.split('T')[0]!
+    return checkOutDateStr > todayStr
+  })
+
+  // Departures: all other checked-in reservations not shown in Currently Checked In
+  const currentlyCheckedInIds = new Set(currentlyCheckedIn.map((reservation) => reservation.id))
+  const departures = allCheckedIn.filter((reservation) => !currentlyCheckedInIds.has(reservation.id))
 
   // Get upcoming check-ins for next 7 days (excluding today since it's shown in TodaysArrivalsCard)
   const today = new Date()
@@ -171,7 +174,7 @@ async function RecentActivity() {
           {currentlyCheckedIn.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No guests checked in yet</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-96 overflow-y-auto">
               {currentlyCheckedIn.map((reservation) => {
                 const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                 const hasBalance = outstandingBalance > 0
@@ -222,7 +225,7 @@ async function RecentActivity() {
           {departures.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No guests departing today</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-96 overflow-y-auto">
               {departures.map((reservation) => {
                 const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                 const hasBalance = outstandingBalance > 0
@@ -235,14 +238,14 @@ async function RecentActivity() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="font-medium">{reservation.guestName}</p>
-                        {hasBalance && (
+                        {hasBalance && (  
                           <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
                             Balance Due
                           </Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {reservation.siteName} • Check-in: {formatDate(reservation.checkIn)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                        {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
                       </p>
                       {hasBalance && (
                         <p className="text-xs text-orange-600 mt-1">

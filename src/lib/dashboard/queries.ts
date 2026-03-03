@@ -1246,7 +1246,7 @@ export async function getTodaysArrivals(propertyId: string) {
     )
     .eq('property_id', propertyId)
     .eq('check_in_date', todayStr)
-    .in('status', ['confirmed', 'checked_in'])
+    .eq('status', 'confirmed')
     .order('checked_in_at', { ascending: false, nullsFirst: false })
 
   if (todaysError) {

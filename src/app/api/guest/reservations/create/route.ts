@@ -397,18 +397,18 @@ export async function POST(request: NextRequest) {
     // Step 9.5: Update site status to 'reserved' (hold during checkout)
     // ========================================================================
 
-    const { error: siteUpdateError } = await supabase
-      .from('sites')
-      .update({
-        status: 'reserved',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', validatedInput.site_id)
+    // const { error: siteUpdateError } = await supabase
+    //   .from('sites')
+    //   .update({
+    //     status: 'reserved',
+    //     updated_at: new Date().toISOString(),
+    //   })
+    //   .eq('id', validatedInput.site_id)
 
-    if (siteUpdateError) {
-      console.error('[Guest Reservation] Site status update error:', siteUpdateError)
-      // Don't fail reservation creation - site status can be corrected by cleanup job
-    }
+    // if (siteUpdateError) {
+    //   console.error('[Guest Reservation] Site status update error:', siteUpdateError)
+    //   // Don't fail reservation creation - site status can be corrected by cleanup job
+    // }
 
     // ========================================================================
     // Step 10: Return reservation details for payment

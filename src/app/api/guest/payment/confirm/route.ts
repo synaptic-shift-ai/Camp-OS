@@ -184,19 +184,19 @@ export async function POST(request: NextRequest) {
     // Step 3.5: Update site status to 'booked'
     // ========================================================================
 
-    const { error: siteUpdateError } = await supabase
-      .from('sites')
-      .update({
-        status: 'booked',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', reservation.site_id)
+    // const { error: siteUpdateError } = await supabase
+    //   .from('sites')
+    //   .update({
+    //     status: 'booked',
+    //     updated_at: new Date().toISOString(),
+    //   })
+    //   .eq('id', reservation.site_id)
 
-    if (siteUpdateError) {
-      console.error('[Payment Confirm] Site status update error:', siteUpdateError)
-      // Don't fail the payment confirmation - reservation is already confirmed
-      // Site status can be manually corrected if needed
-    }
+    // if (siteUpdateError) {
+    //   console.error('[Payment Confirm] Site status update error:', siteUpdateError)
+    //   // Don't fail the payment confirmation - reservation is already confirmed
+    //   // Site status can be manually corrected if needed
+    // }
 
     // ========================================================================
     // Step 4: Create payment record

@@ -27,7 +27,35 @@ function PaymentFormInner({ slug }: { slug: string }) {
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [paymentElementReady, setPaymentElementReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Log Stripe/Elements availability when they change (payment element readiness debugging)
+  useEffect(() => {
+    console.log('[Payment] Stripe/Elements state:', {
+      hasStripe: !!stripe,
+      hasElements: !!elements,
+      paymentElementReady,
+    })
+  }, [stripe, elements, paymentElementReady])
+
+  // Log why "Complete Booking" button is disabled (for debugging)
+  const submitDisabled = isProcessing || !stripe || !termsAccepted || !paymentElementReady
+  useEffect(() => {
+    if (!submitDisabled) return
+    const reasons: string[] = []
+    if (isProcessing) reasons.push('isProcessing')
+    if (!stripe) reasons.push('stripe not ready')
+    if (!termsAccepted) reasons.push('terms not accepted')
+    if (!paymentElementReady) reasons.push('payment element not ready')
+    console.log('[Payment] Complete Booking button disabled:', {
+      reasons,
+      isProcessing,
+      hasStripe: !!stripe,
+      termsAccepted,
+      paymentElementReady,
+    })
+  }, [submitDisabled, isProcessing, stripe, termsAccepted, paymentElementReady])
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -44,26 +72,44 @@ function PaymentFormInner({ slug }: { slug: string }) {
     setIsProcessing(true)
     setErrorMessage(null)
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/book/${slug}/confirmation`,
-      },
-    })
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/book/${slug}/confirmation`,
+        },
+      })
 
-    if (error) {
-      console.error("Payment error:", error)
-      setErrorMessage(error.message || "An unexpected error occurred.")
-      setIsProcessing(false)
+      if (error) {
+        console.error("Payment error:", error)
+        setErrorMessage(error.message || "An unexpected error occurred.")
+        toast({
+          title: "Payment failed",
+          description: error.message || "An unexpected error occurred.",
+          variant: "destructive",
+        })
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred."
+      console.error("Payment error:", err)
+      setErrorMessage(message)
       toast({
         title: "Payment failed",
-        description: error.message || "An unexpected error occurred.",
+        description: message,
         variant: "destructive",
       })
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   if (!checkoutData.site || !checkoutData.checkInDate || !checkoutData.checkOutDate || !checkoutData.guestInfo) {
+    console.log('[Payment] PaymentFormInner returning null — missing checkout data:', {
+      hasSite: !!checkoutData.site,
+      hasCheckInDate: !!checkoutData.checkInDate,
+      hasCheckOutDate: !!checkoutData.checkOutDate,
+      hasGuestInfo: !!checkoutData.guestInfo,
+    })
     return null
   }
 
@@ -83,10 +129,20 @@ function PaymentFormInner({ slug }: { slug: string }) {
   priceBreakdown.total =
     priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0) + (priceBreakdown.taxes || 0)
 
+  console.log('[Payment] PaymentFormInner rendering form with PaymentElement (waiting for onReady)')
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
-        <PaymentElement />
+        <PaymentElement
+        onReady={() => {
+          console.log('[Payment] PaymentElement onReady fired — element is mounted and ready')
+          setPaymentElementReady(true)
+        }}
+        onLoadError={(event) => {
+          console.error('[Payment] PaymentElement onLoadError:', event.error?.message ?? event)
+        }}
+      />
       </div>
 
       {errorMessage && (
@@ -148,7 +204,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
         </Button>
         <Button
           type="submit"
-          disabled={isProcessing || !stripe || !termsAccepted}
+          disabled={submitDisabled}
           className="flex-1 bg-[#2D5A27] hover:bg-[#1e3d1a] text-white h-12"
         >
           {isProcessing ? (

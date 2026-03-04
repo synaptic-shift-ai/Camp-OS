@@ -69,12 +69,9 @@ export function createAuthMiddleware(
         const authResult = await verifyAuthentication(request, supabase)
         if (authResult.authenticated) {
           const origin = request.middlewareContext.origin || 'http://localhost:3000'
-          // If the user is already authenticated and tries to access an auth page
-          // (login/signup), send them into the onboarding flow first. The onboarding
-          // flow is responsible for redirecting to the dashboard once setup is complete.
-          const url = new URL('/onboarding', origin)
+          const url = new URL('/dashboard', origin)
 
-          logger.info('Redirecting authenticated user from auth page to onboarding', {
+          logger.info('Redirecting authenticated user from auth page to dashboard', {
             from: pathname,
             to: url.pathname,
           })

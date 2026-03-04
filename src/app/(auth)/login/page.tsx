@@ -50,16 +50,22 @@ export default function LoginPage() {
             return
           }
 
-          // Buyers - check property and subscription status
-          const { data: properties } = await supabase
-            .from('properties')
-            .select('id, onboarding_completed, subscription_status')
+          // Buyers - check company first (initial signup), then subscription, then property onboarding
+          const { data: companies } = await supabase
+            .from('companies')
+            .select('id, subscription_status')
             .eq('owner_id', user.id)
             .limit(1)
-          const property = properties?.[0] ?? null
+          const company = companies?.[0] ?? null
 
-          if (!property) {
-            // No property = payment not completed yet
+          if (!company) {
+            // No company = initial onboarding (company details) not done yet
+            router.push("/company-details")
+            router.refresh()
+            return
+          }
+
+          if (company.subscription_status !== 'active') {
             router.push("/choose-plan")
             router.refresh()
             return
@@ -67,17 +73,22 @@ export default function LoginPage() {
 
           // User has completed signup; clear stale signup data from localStorage
           if (typeof window !== "undefined") {
-            window.localStorage.removeItem("pendingCompanyData")
+            window.localStorage.removeItem("signup_company_details")
           }
 
-          if (!property.onboarding_completed) {
-            // Has property but onboarding incomplete
+          const { data: properties } = await supabase
+            .from('properties')
+            .select('id, onboarding_completed')
+            .eq('company_id', company.id)
+            .limit(1)
+          const property = properties?.[0] ?? null
+
+          if (!property || !property.onboarding_completed) {
             router.push("/onboarding")
             router.refresh()
             return
           }
 
-          // Fully set up - go to dashboard
           router.push("/dashboard")
           router.refresh()
         }

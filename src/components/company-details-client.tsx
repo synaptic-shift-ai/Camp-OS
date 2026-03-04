@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useLayoutEffect } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -24,7 +24,59 @@ const companyDetailsSchema = z.object({
 
 type CompanyDetailsFormData = z.infer<typeof companyDetailsSchema>
 
+const EMPTY_DEFAULTS: CompanyDetailsFormData = {
+  companyName: "",
+  propertyCount: "",
+  properties: [],
+}
+
+function getStoredDefaultValues(): CompanyDetailsFormData {
+  if (typeof window === "undefined") return EMPTY_DEFAULTS
+  try {
+    const raw = window.localStorage.getItem("signup_company_details")
+    if (!raw) return EMPTY_DEFAULTS
+    const data = JSON.parse(raw) as {
+      companyName?: string
+      propertyCount?: string | number
+      properties: Array<{ name?: string; siteCount?: number }>
+    }
+    if (!Array.isArray(data.properties) || data.properties.length === 0) return EMPTY_DEFAULTS
+    const countStr = data.propertyCount != null ? String(data.propertyCount) : String(data.properties.length)
+    return {
+      companyName: data.companyName ?? "",
+      propertyCount: countStr,
+      properties: data.properties.map((p) => ({
+        name: p.name ?? "",
+        siteCount: Number(p.siteCount) || 0,
+      })),
+    }
+  } catch {
+    return EMPTY_DEFAULTS
+  }
+}
+
 export function CompanyDetailsClient() {
+  const [initialValues, setInitialValues] = useState<CompanyDetailsFormData | null>(null)
+
+  useLayoutEffect(() => {
+    setInitialValues(getStoredDefaultValues())
+  }, [])
+
+  if (initialValues === null) {
+    return (
+      <div className="min-h-screen w-[480px] bg-black flex items-center justify-center p-4">
+        <div className="flex items-center gap-2 text-white">
+          <Tent className="h-6 w-6 animate-pulse" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return <CompanyDetailsForm defaultValues={initialValues} />
+}
+
+function CompanyDetailsForm({ defaultValues }: { defaultValues: CompanyDetailsFormData }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -37,11 +89,7 @@ export function CompanyDetailsClient() {
     watch,
   } = useForm<CompanyDetailsFormData>({
     resolver: zodResolver(companyDetailsSchema),
-    defaultValues: {
-      companyName: "",
-      propertyCount: "",
-      properties: [],
-    },
+    defaultValues,
   })
 
   const { fields, replace } = useFieldArray({
@@ -50,40 +98,59 @@ export function CompanyDetailsClient() {
   })
 
   const propertyCount = watch("propertyCount")
+  const watchedValues = watch()
 
-  // Sync property fields to dropdown selection
+  // Sync property fields to dropdown: when user changes # of properties, add/remove rows
   useEffect(() => {
     const count = Number(propertyCount)
-    if (count > 0) {
+    if (count > 0 && fields.length !== count) {
       replace(
         Array.from({ length: count }, () => ({ name: "", siteCount: 0 }))
       )
     }
-  }, [propertyCount, replace])
+  }, [propertyCount, replace, fields.length])
+
+  // Persist to localStorage on change (debounced) so # of properties and all field inputs survive refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const t = setTimeout(() => {
+      const { companyName, propertyCount: pc, properties: props } = watchedValues
+      if (!props?.length || !pc) return
+      const totalSites = props.reduce((sum, p) => sum + Number(p.siteCount) || 0, 0)
+      const normalized = props.map((p) => ({
+        name: p?.name ?? "",
+        siteCount: Number(p?.siteCount) || 0,
+      }))
+      window.localStorage.setItem(
+        "signup_company_details",
+        JSON.stringify({
+          companyName: companyName ?? "",
+          propertyCount: pc,
+          properties: normalized,
+          totalSites,
+        })
+      )
+    }, 400)
+    return () => clearTimeout(t)
+  }, [watchedValues])
 
   const onSubmit = async (data: CompanyDetailsFormData) => {
     setIsLoading(true)
-
-    // Calculate total sites across all properties
-    const totalSites = data.properties.reduce((sum, property) => sum + property.siteCount, 0)
-
-    console.log("[Company Details] Submitted:", { ...data, totalSites })
-
-    // Store company data in localStorage as backup for page refreshes
-    const companyData = {
-      companyName: data.companyName,
-      properties: data.properties,
-      totalSites,
+    try {
+      const totalSites = data.properties.reduce((sum, property) => sum + property.siteCount, 0)
+      const companyData = {
+        companyName: data.companyName,
+        propertyCount: data.propertyCount,
+        properties: data.properties,
+        totalSites,
+      }
+      localStorage.setItem("signup_company_details", JSON.stringify(companyData))
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const encodedData = btoa(JSON.stringify(companyData))
+      router.push(`/choose-plan?sites=${totalSites}&company=${encodedData}`)
+    } finally {
+      setIsLoading(false)
     }
-    localStorage.setItem('pendingCompanyData', JSON.stringify(companyData))
-
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Pass company data as query params to choose-plan
-    // Encode as base64 to handle special characters
-    const encodedData = btoa(JSON.stringify(companyData))
-    router.push(`/choose-plan?sites=${totalSites}&company=${encodedData}`)
   }
 
   return (

@@ -21,24 +21,31 @@ function isPlanRecommended(plan: Plan, siteCount: number): boolean {
 
 export function ChoosePlanClient() {
   const searchParams = useSearchParams()
-  const siteCount = Number(searchParams.get("sites")) || 0
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Decode company data from query params
+  // Company data from query params or localStorage
   const companyData = (() => {
     try {
       const encoded = searchParams.get("company")
-      if (!encoded) return null
-      const decoded = atob(encoded)
-      return JSON.parse(decoded)
+      if (encoded) {
+        const decoded = atob(encoded)
+        return JSON.parse(decoded)
+      }
+      if (typeof window !== "undefined") {
+        const raw = window.localStorage.getItem("signup_company_details")
+        if (raw) return JSON.parse(raw)
+      }
+      return null
     } catch (err) {
       console.error("[Choose Plan] Failed to decode company data:", err)
       return null
     }
   })()
 
+  const siteCountFromParams = Number(searchParams.get("sites")) || 0
+  const siteCount = companyData?.totalSites ?? siteCountFromParams
   const recommendedPlan = getRecommendedPlan(siteCount)
   const annualSavings = 10 // percentage
 
@@ -151,9 +158,8 @@ export function ChoosePlanClient() {
 
             const cardContent = (
               <Card
-                className={`relative p-6 bg-zinc-900 border-zinc-800 h-full flex flex-col transition-all duration-300 ${
-                  isBestMatch ? "border-glow-red" : ""
-                }`}
+                className={`relative p-6 bg-zinc-900 border-zinc-800 h-full flex flex-col transition-all duration-300 ${isBestMatch ? "border-glow-red" : ""
+                  }`}
               >
                 {/* Badges */}
                 <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
@@ -212,11 +218,10 @@ export function ChoosePlanClient() {
                   <Button
                     onClick={() => handleSelectPlan(plan)}
                     disabled={isLoadingPlan}
-                    className={`w-full h-11 font-medium ${
-                      isBestMatch
-                        ? "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white"
-                        : "bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
-                    }`}
+                    className={`w-full h-11 font-medium ${isBestMatch
+                      ? "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
+                      }`}
                   >
                     {isLoadingPlan ? (
                       <>

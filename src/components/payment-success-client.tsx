@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { CheckCircle2, Mail, Tent, Check, ArrowRightIcon } from "lucide-react"
@@ -8,8 +9,18 @@ import { Card } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PLANS, type BillingCycle } from "@/lib/constants/plans"
 
+const SIGNUP_COMPANY_DETAILS_KEY = "signup_company_details"
+
 export function PaymentSuccessClient() {
   const searchParams = useSearchParams()
+
+  // Subscription success: clear initial signup onboarding data so it doesn't persist
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(SIGNUP_COMPANY_DETAILS_KEY)
+    }
+  }, [])
+
   const planId = searchParams.get("plan") || "growth"
   const billingCycle = (searchParams.get("billing") as BillingCycle) || "monthly"
   const email = searchParams.get("email") || "user@example.com"

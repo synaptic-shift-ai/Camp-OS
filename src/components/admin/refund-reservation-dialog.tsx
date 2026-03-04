@@ -21,103 +21,103 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, DollarSign, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useRouter } from "next/navigation"
-import { DollarSign } from "lucide-react"
+import type { IssueRefundRequest } from "@/types/api/v1/schemas/reservations"
 
-interface CancelReservationDialogProps {
+const REFUND_REASONS: { value: IssueRefundRequest["reason"]; label: string }[] = [
+  { value: "partial_cancellation", label: "Partial cancellation" },
+  { value: "cancellation", label: "Cancellation" },
+  { value: "service_issue", label: "Service issue" },
+  { value: "overbooking", label: "Overbooking" },
+  { value: "weather", label: "Weather" },
+  { value: "other", label: "Other" },
+]
+
+interface RefundReservationDialogProps {
   reservationId: string
   confirmationNumber: string
   guestName: string
-  paidAmountCents: number
+  maxRefundableCents: number
   trigger?: React.ReactNode
 }
 
-export function CancelReservationDialog({
+export function RefundReservationDialog({
   reservationId,
   confirmationNumber,
   guestName,
-  paidAmountCents,
+  maxRefundableCents,
   trigger,
-}: CancelReservationDialogProps) {
+}: RefundReservationDialogProps) {
   const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState("")
-  const [refundAmountDollars, setRefundAmountDollars] = useState("")
-  const [refundPaymentMethod, setRefundPaymentMethod] = useState<string>("")
+  const [amountDollars, setAmountDollars] = useState("")
+  const [reason, setReason] = useState<IssueRefundRequest["reason"] | "">("")
+  const [refundPaymentMethod, setRefundPaymentMethod] = useState("")
+  const [notes, setNotes] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const maxRefundDollars = paidAmountCents != null ? (paidAmountCents / 100).toFixed(2) : null
+  const maxRefundDollars = maxRefundableCents > 0 ? (maxRefundableCents / 100).toFixed(2) : "0.00"
 
-  const handleCancel = async () => {
+  const handleRefund = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const refundAmountCents = Math.round(parseFloat(refundAmountDollars || "0") * 100)
-      if (refundAmountCents < 0) {
-        setError("Refund amount cannot be negative")
+      const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
+      if (amountCents < 1) {
+        setError("Refund amount must be at least $0.01")
+        setLoading(false)
+        return
+      }
+      if (amountCents > maxRefundableCents) {
+        setError(`Refund amount cannot exceed $${maxRefundDollars}`)
+        setLoading(false)
+        return
+      }
+      if (!reason || !REFUND_REASONS.some((r) => r.value === reason)) {
+        setError("Please select a refund reason")
         setLoading(false)
         return
       }
 
-      if (paidAmountCents != null && refundAmountCents > paidAmountCents) {
-        setError(`Refund amount cannot exceed amount paid ($${maxRefundDollars})`)
-        setLoading(false)
-        return
-      }
-
-      const reasonWithMethod = [
-        reason.trim(),
-        refundPaymentMethod && refundAmountCents > 0
-          ? `Refunded $${(refundAmountCents / 100).toFixed(2)} via ${refundPaymentMethod}`
-          : "",
+      const notesWithMethod = [
+        notes.trim(),
+        refundPaymentMethod ? `Refund method: ${refundPaymentMethod}` : "",
       ]
         .filter(Boolean)
-        .join(", ") || undefined
+        .join(". ") || undefined
 
-      // API requires refundAmountCents; 0 = no refund (backend may override per policy)
-      const requestBody = {
-        reason: reasonWithMethod,
-        refundAmountCents,
+      const body: IssueRefundRequest = {
+        amountCents,
+        reason,
+        notes: notesWithMethod,
       }
-      console.log("[Cancel Reservation] Sending request", { reservationId, requestBody })
 
-      const response = await fetch(
-        `/api/v1/reservations/${reservationId}/cancel`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      )
+      const response = await fetch(`/api/v1/reservations/${reservationId}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
 
       const data = await response.json()
 
       if (!response.ok) {
         const errorPayload = data?.error ?? data
         const details = errorPayload?.details as { errors?: Array<{ path?: string[]; message?: string }> } | undefined
-        console.warn("[Cancel Reservation] API error response", {
-          status: response.status,
-          statusText: response.statusText,
-          data,
-        })
         const errorMessage =
           details?.errors?.length
             ? `Validation failed: ${details.errors.map((e) => e.message ?? String(e)).join(", ")}`
-            : errorPayload?.message ?? "Failed to cancel reservation"
+            : errorPayload?.message ?? "Failed to issue refund"
         throw new Error(errorMessage)
       }
 
-      // Success - close dialog and refresh the page
       setOpen(false)
       router.refresh()
     } catch (err) {
-      console.error("Cancel reservation error:", err)
+      console.error("Refund reservation error:", err)
       setError(err instanceof Error ? err.message : "An unexpected error occurred")
     } finally {
       setLoading(false)
@@ -127,18 +127,17 @@ export function CancelReservationDialog({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        {trigger || <Button variant="destructive" size="sm">Cancel Reservation</Button>}
+        {trigger ?? <Button variant="outline" size="sm">Issue Refund</Button>}
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Cancel Reservation</SheetTitle>
+          <SheetTitle>Issue Refund</SheetTitle>
           <SheetDescription>
-            Are you sure you want to cancel this reservation? This action cannot be undone.
+            Issue an additional refund for this cancelled reservation. Amount cannot exceed the remaining refundable balance.
           </SheetDescription>
         </SheetHeader>
 
         <div className="space-y-4 py-4">
-          {/* Reservation Details */}
           <div className="space-y-2">
             <div className="text-sm">
               <span className="font-medium">Confirmation:</span>{" "}
@@ -151,12 +150,12 @@ export function CancelReservationDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Amount To be Refunded</Label>
+            <Label>Remaining Amount To be Refunded</Label>
             <Alert>
               <DollarSign className="h-4 w-4" />
               <AlertDescription>
                 <span className="font-semibold">
-                  Amount To be Refunded: ${maxRefundDollars}
+                  Remaining Amount To be Refunded: ${maxRefundDollars}
                 </span>
               </AlertDescription>
             </Alert>
@@ -180,57 +179,49 @@ export function CancelReservationDialog({
             </Select>
           </div>
 
-          {/* Refund Amount */}
           <div className="space-y-2">
-            <Label htmlFor="refund-amount">Refund Amount</Label>
-            <Input 
-              id="refundAmount"
+            <Label htmlFor="refund-amount">Refund amount</Label>
+            <Input
+              id="refund-amount"
               type="number"
               min="0"
-              placeholder={maxRefundDollars != null ? `Max $${maxRefundDollars}` : "$0.00"}
-              value={refundAmountDollars}
-              onChange={(e) => setRefundAmountDollars(e.target.value)}
-              disabled={loading}
-            />
-            {maxRefundDollars != null && (
-              <p className="text-xs text-muted-foreground">
-                Maximum refund amount is ${maxRefundDollars} (amount paid).
-              </p>
-            )}
-          </div>
-
-          {/* Cancellation Reason */}
-          <div className="space-y-2">
-            <Label htmlFor="reason">Cancellation Reason (Optional)</Label>
-            <Textarea
-              id="reason"
-              placeholder="e.g., Guest requested cancellation, Weather conditions, etc."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
+              step="0.01"
+              placeholder={maxRefundDollars ? `Max $${maxRefundDollars}` : "$0.00"}
+              value={amountDollars}
+              onChange={(e) => setAmountDollars(e.target.value)}
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              This reason will be saved in the reservation notes.
+              Maximum refundable: ${maxRefundDollars}
             </p>
           </div>
 
-          {/* Error Display */}
+          <div className="space-y-2">
+            <Label>Refund reason</Label>
+            <Select
+              value={reason}
+              onValueChange={(v) => setReason(v as IssueRefundRequest["reason"])}
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select reason..." />
+              </SelectTrigger>
+              <SelectContent>
+                {REFUND_REASONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>
+                    {r.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
-          {/* Warning */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              The guest will need to be notified manually about this cancellation.
-              Email notifications will be added in a future update.
-            </AlertDescription>
-          </Alert>
         </div>
 
         <SheetFooter>
@@ -239,15 +230,14 @@ export function CancelReservationDialog({
             onClick={() => setOpen(false)}
             disabled={loading}
           >
-            Keep Reservation
+            Cancel
           </Button>
           <Button
-            variant="destructive"
-            onClick={handleCancel}
-            disabled={loading}
+            onClick={handleRefund}
+            disabled={loading || !refundPaymentMethod || !amountDollars || !reason}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Cancelling..." : "Cancel Reservation"}
+            {loading ? "Processing..." : "Issue Refund"}
           </Button>
         </SheetFooter>
       </SheetContent>

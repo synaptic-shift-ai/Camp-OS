@@ -42,6 +42,7 @@ export interface DashboardReservation {
   numPets: number
   totalAmount: MoneyCents
   paidAmount: MoneyCents
+  refundAmount: MoneyCents
   status: ReservationStatus
   paymentStatus: ReservationPaymentStatus
   createdAt: string
@@ -117,6 +118,7 @@ export async function getReservations(
       num_pets,
       total_amount,
       paid_amount,
+      refund_amount_cents,
       status,
       payment_status,
       booking_type,
@@ -199,6 +201,7 @@ export async function getReservations(
       numPets: reservation.num_pets || 0,
       totalAmount: reservation.total_amount as MoneyCents,
       paidAmount: reservation.paid_amount as MoneyCents,
+      refundAmount: ((reservation as { refund_amount_cents?: number }).refund_amount_cents ?? 0) as MoneyCents,
       status: reservation.status as ReservationStatus,
       paymentStatus: reservation.payment_status as ReservationPaymentStatus,
       createdAt: reservation.created_at!,
@@ -289,6 +292,7 @@ export async function getReservation(
     numPets: data.num_pets || 0,
     totalAmount: data.total_amount as MoneyCents,
     paidAmount: data.paid_amount as MoneyCents,
+    refundAmount: ((data as { refund_amount_cents?: number }).refund_amount_cents ?? 0) as MoneyCents,
     status: data.status as ReservationStatus,
     paymentStatus: data.payment_status as ReservationPaymentStatus,
     createdAt: data.created_at!,

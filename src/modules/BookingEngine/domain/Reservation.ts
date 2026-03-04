@@ -36,7 +36,8 @@ export enum ReservationStatus {
   CONFIRMED = 'confirmed',       // Payment received, reservation confirmed
   CHECKED_IN = 'checked_in',     // Guest has checked in
   CHECKED_OUT = 'checked_out',   // Guest has checked out
-  COMPLETED = 'completed',       // Reservation fully processed
+  COMPLETED = 'completed',  
+  PARTIALLY_REFUNDED = 'partially_refunded',
   CANCELLED = 'cancelled',       // Reservation cancelled
   NO_SHOW = 'no_show',           // Guest did not arrive for check-in
 }
@@ -48,6 +49,7 @@ export enum PaymentStatus {
   PENDING = 'pending',           // No payment received
   PARTIAL = 'partial',           // Partial payment received
   PAID = 'paid',                 // Fully paid
+  PARTIALLY_REFUNDED = 'partially_refunded',
   REFUNDED = 'refunded',         // Payment refunded (after cancellation)
 }
 
@@ -406,7 +408,9 @@ export class Reservation extends AggregateRoot<string> {
 
     // Update payment status if refunded
     if (refundAmount.isGreaterThan(MoneyAmount.zero())) {
-      this.props.paymentStatus = PaymentStatus.REFUNDED
+      this.props.paymentStatus = refundAmount.isLessThan(this.paidAmount)
+        ? PaymentStatus.PARTIALLY_REFUNDED
+        : PaymentStatus.REFUNDED
     }
 
     this.props.updatedAt = new Date()
@@ -763,6 +767,7 @@ export class Reservation extends AggregateRoot<string> {
       checked_out_by: this.props.checkedOutBy,
       check_out_notes: this.props.checkOutNotes,
       cancelled_at: this.props.cancelledAt,
+      refund_amount_cents: this.props.refundAmount?.amountInCents ?? null,
       created_at: this.createdAt,
       updated_at: this.props.updatedAt,
     }
@@ -793,7 +798,9 @@ export class Reservation extends AggregateRoot<string> {
       ? MoneyAmount.create(Math.round(data.balance_paid_at_checkin))
       : null
     // refund_amount column does not exist in production schema
-    const refundAmount = null
+    const refundAmount = data.refund_amount_cents != null && data.refund_amount_cents > 0
+      ? MoneyAmount.create(Math.round(data.refund_amount_cents))
+      : null
 
     const props: ReservationProps = {
       propertyId: data.property_id,

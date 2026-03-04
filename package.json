@@ -122,6 +122,7 @@
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
     "postcss": "^8.5",
+    "supabase": "^2.76.16",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
     "typescript": "^5",

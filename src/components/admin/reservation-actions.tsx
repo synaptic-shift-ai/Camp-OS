@@ -17,6 +17,7 @@ import { CheckOutButton } from "./check-out-button"
 import { ExtendDialog } from "./extend-dialog"
 import { RenewDialog } from "./renew-dialog"
 import { ManualPaymentDialog } from "./manual-payment-dialog"
+import { RefundReservationDialog } from "./refund-reservation-dialog"
 
 interface ReservationActionsProps {
   reservationId: string
@@ -35,6 +36,8 @@ interface ReservationActionsProps {
   totalAmount: number
   paidAmount: number
   hasOutstandingBalance?: boolean
+  canRefund?: boolean
+  maxRefundableCents?: number
 }
 
 export function ReservationActions({
@@ -54,6 +57,8 @@ export function ReservationActions({
   totalAmount,
   paidAmount,
   hasOutstandingBalance = false,
+  canRefund = false,
+  maxRefundableCents = 0,
 }: ReservationActionsProps) {
   // Only show extend/renew for confirmed or checked-in reservations
   const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
@@ -64,6 +69,9 @@ export function ReservationActions({
   const showRenew = canExtendOrRenew && ['seasonal', 'monthly', 'long_term'].includes(bookingType)
 
   const showManualPayment = !!hasOutstandingBalance
+
+  const showRefund = canRefund && maxRefundableCents > 0
+  
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -149,6 +157,21 @@ export function ReservationActions({
             )}
           </>
         )}
+        {showRefund && (
+          <>
+            <RefundReservationDialog
+              reservationId={reservationId}
+              confirmationNumber={confirmationNumber}
+              guestName={guestName}
+              maxRefundableCents={maxRefundableCents}
+              trigger={
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  Issue Refund
+                </DropdownMenuItem>
+              }
+            />
+          </>
+        )}
         {showCancel && (
           <>
             <DropdownMenuSeparator />
@@ -156,6 +179,7 @@ export function ReservationActions({
               reservationId={reservationId}
               confirmationNumber={confirmationNumber}
               guestName={guestName}
+              paidAmountCents={paidAmount}
               trigger={
                 <DropdownMenuItem
                   className="text-destructive"

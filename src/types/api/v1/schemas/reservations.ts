@@ -19,11 +19,12 @@ export const ReservationStatusSchema = z.enum([
   'checked_in',
   'checked_out',
   'completed',
+  'partially_refunded',
   'cancelled',
   'no_show',
 ])
 
-export const PaymentStatusSchema = z.enum(['pending', 'partial', 'paid', 'refunded'])
+export const PaymentStatusSchema = z.enum(['pending', 'partial', 'paid', 'partially_refunded', 'refunded'])
 
 export const PaymentMethodSchema = z.enum([
   'credit_card',

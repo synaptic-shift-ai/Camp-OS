@@ -39,6 +39,7 @@ interface PricingSummaryProps {
   selectedDiscountIds?: string[]
   /** Manually selected fee IDs (for manual trigger_type fees) */
   selectedFeeIds?: string[]
+  onTotalChange?: (totalCents: number) => void
 }
 
 interface CalculatedFee {
@@ -69,6 +70,7 @@ export function PricingSummary({
   checkOutDate: _checkOutDate,
   selectedDiscountIds = [],
   selectedFeeIds = [],
+  onTotalChange,
 }: PricingSummaryProps) {
   // If no site selected or no config, show placeholder
   if (!selectedSite || !pricingConfig || !rateDiscountsConfig) {
@@ -365,6 +367,7 @@ export function PricingSummary({
 
   // Total
   const total = subtotalBeforeTax + taxAmount
+  onTotalChange?.(Math.round(total * 100))
 
   // Deposit calculation (if applicable)
   let depositAmount = 0

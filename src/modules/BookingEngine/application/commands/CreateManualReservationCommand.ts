@@ -180,16 +180,20 @@ export class CreateManualReservationCommandHandler {
 
     // 7. Handle payment
     const paidAmountCents = dto.paidAmountCents || 0
+    const totalAmountCents = dto.totalAmountCents ?? reservation.total_amount
+    const isFullyPaid = paidAmountCents >= totalAmountCents
     const paymentStatus = paidAmountCents > 0
-      ? (paidAmountCents >= reservation.total_amount ? 'paid' : 'partial')
+      ? (isFullyPaid ? 'paid' : 'partial')
       : 'pending'
+
+    const reservationStatus = isFullyPaid ? 'confirmed' : 'pending'
 
     if (paidAmountCents > 0) {
       // Update reservation payment status
       await supabase
         .from('reservations')
         .update({
-          status: 'confirmed',
+          status: reservationStatus,
           payment_status: paymentStatus,
           paid_amount: paidAmountCents,
           notes: dto.notes || `Manual booking. Payment method: ${dto.paymentMethod}`,
@@ -210,11 +214,11 @@ export class CreateManualReservationCommandHandler {
           notes: `Manual payment - ${dto.paymentMethod}`,
         })
     } else {
-      // Mark as confirmed but unpaid
+      // Unpaid: keep status pending
       await supabase
         .from('reservations')
         .update({
-          status: 'confirmed',
+          status: 'pending',
           payment_status: 'pending',
           notes: dto.notes || `Manual booking. Payment method: ${dto.paymentMode} (payment pending)`,
         })
@@ -231,7 +235,7 @@ export class CreateManualReservationCommandHandler {
       checkOutDate: dto.checkOutDate,
       totalAmountCents: reservation.total_amount,
       paidAmountCents,
-      status: 'confirmed',
+      status: reservationStatus,
       paymentStatus,
       childrenCount,
       vehiclesCount,

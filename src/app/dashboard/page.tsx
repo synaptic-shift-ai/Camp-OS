@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink } from "lucide-react"
+import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink, Home, User } from "lucide-react"
 import { getDashboardStats, getReservations, getTodaysArrivals } from "@/lib/dashboard/queries"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
@@ -193,8 +193,13 @@ async function RecentActivity() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Home className="h-3 w-3" />
                         {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {reservation.numAdults + reservation.numChildren} guests
+                        </span>
                       </p>
                       {hasBalance && (
                         <p className="text-xs text-orange-600 mt-1">
@@ -244,8 +249,13 @@ async function RecentActivity() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Home className="h-3 w-3" />
                         {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {reservation.numAdults + reservation.numChildren} guests
+                        </span>
                       </p>
                       {hasBalance && (
                         <p className="text-xs text-orange-600 mt-1">
@@ -317,8 +327,13 @@ async function RecentReservations() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Home className="h-3 w-3" />
                         {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'}
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {reservation.numAdults + reservation.numChildren} guests
+                        </span>
                       </p>
                       {hasBalance && (
                         <p className="text-xs text-orange-600 mt-1">

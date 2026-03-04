@@ -38,6 +38,13 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
     setDialogOpen(true)
   }
 
+  function formatDate(dateString: string): string {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -80,6 +87,9 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
   const todaysPendingCheckIns = arrivals.filter((r) => r.status === 'confirmed' && !isLateArrival(r))
   const completedCheckIns = arrivals.filter((r) => r.status === 'checked_in')
   const pendingCheckIns = [...lateArrivals, ...todaysPendingCheckIns]
+
+  const getNights = (checkIn: string, checkOut: string) =>
+    Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
 
   return (
     <>
@@ -193,7 +203,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Home className="h-3 w-3" />
-                        Site {reservation.site?.site_number}
+                        {reservation.site?.site_name || `Site ${reservation.site?.site_number}`} • {formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)} • {getNights(reservation.check_in_date, reservation.check_out_date)} {getNights(reservation.check_in_date, reservation.check_out_date) === 1 ? 'night' : 'nights'}
                       </span>
                       <span className="flex items-center gap-1">
                         <User className="h-3 w-3" />

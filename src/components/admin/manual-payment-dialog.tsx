@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { AlertCircle, Banknote, CreditCard, DollarSign, FileText, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { Input } from "../ui/input"
 
 interface ManualPaymentDialogProps {
   reservationId: string
@@ -45,13 +46,35 @@ export function ManualPaymentDialog({
   const [loading, setLoading] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
+  const [amountDollars, setAmountDollars] = useState("")
 
   const outstandingBalance = Math.max(0, totalAmountCents - paidAmountCents)
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
+  const amountCentsEntered = Math.round(parseFloat(amountDollars || "0") * 100)
+  const isAmountValid =
+    amountCentsEntered >= 1 && amountCentsEntered <= outstandingBalance
+
+  useEffect(() => {
+    if (open && hasBalance) {
+      setAmountDollars(balanceInDollars)
+    }
+  }, [open, hasBalance, balanceInDollars])
+
   const handleRecordPayment = async () => {
-    if (!hasBalance || !paymentMethod) return
+    const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
+
+    if (!paymentMethod) return
+
+    if (amountCents < 1) {
+      setError("Amount must be greater than 0")
+      return
+    }
+    if (amountCents > outstandingBalance) {
+      setError(`Amount cannot exceed outstanding balance ($${balanceInDollars})`)
+      return
+    }
 
     try {
       setLoading(true)
@@ -64,8 +87,8 @@ export function ManualPaymentDialog({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amountCents: outstandingBalance,
-          paymentMethod: paymentMethod, // "cash" | "check" | "card"
+          amountCents,
+          paymentMethod: paymentMethod,
         }),
       })
 
@@ -155,6 +178,19 @@ export function ManualPaymentDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="amount-paid">Amount Paid</Label>
+                <Input
+                  id="amount-paid"
+                  type="number"
+                  min="0"
+                  max={parseFloat(balanceInDollars)}
+                  placeholder="$ 0.00"
+                  value={amountDollars}
+                  onChange={(e) => setAmountDollars(e.target.value)}
+                />
+              </div>
             </>
           ) : (
             <Alert>
@@ -183,7 +219,7 @@ export function ManualPaymentDialog({
           </Button>
           <Button
             onClick={handleRecordPayment}
-            disabled={loading || !hasBalance || !paymentMethod}
+            disabled={loading || !hasBalance || !paymentMethod || !isAmountValid}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? "Recording..." : "Record Payment"}

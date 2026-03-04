@@ -152,6 +152,7 @@ export default function NewReservationPage() {
   const [enabledReservationTypes, setEnabledReservationTypes] = useState<BookingType[]>(['nightly', 'weekly', 'monthly', 'seasonal'])
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
+  const [summaryTotalCents, setSummaryTotalCents] = useState<number | null>(null)
 
   // Collapsible section states
   const [spouseOpen, setSpouseOpen] = useState(false)
@@ -373,7 +374,9 @@ export default function NewReservationPage() {
         (new Date(data.checkOutDate).getTime() - new Date(data.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
       )
       const selectedSite = availableSites.find((s) => s.id === data.siteId)
-      const totalAmountCents = selectedSite ? selectedSite.base_price_per_night * submitNights : 0
+      const totalAmountCents = 
+        summaryTotalCents ??
+        (selectedSite ? selectedSite.base_price_per_night * submitNights : 0)
 
       // Debug: Log what we're sending
       console.log('[Manual Reservation Form] Submitting with:', {
@@ -1018,6 +1021,7 @@ export default function NewReservationPage() {
             checkOutDate={checkOutDate}
             selectedDiscountIds={selectedDiscountIds}
             selectedFeeIds={selectedFeeIds}
+            onTotalChange={setSummaryTotalCents}
           />
         </div>
       </div>

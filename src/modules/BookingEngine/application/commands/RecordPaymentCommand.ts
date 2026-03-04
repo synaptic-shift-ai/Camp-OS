@@ -33,6 +33,10 @@ export class RecordPaymentCommandHandler {
     // Record payment on aggregate
     reservation.receivePayment(amount, dto.paymentMethod, dto.stripePaymentIntentId || null)
 
+    if (reservation.canBeConfirmed() && reservation.isFullyPaid()) {
+      reservation.confirm()
+    }
+
     // Save updated reservation
     await this.repository.save(reservation)
 

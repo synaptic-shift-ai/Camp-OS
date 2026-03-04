@@ -87,88 +87,90 @@ async function ReservationsTable() {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Confirmation</TableHead>
-          <TableHead>Guest</TableHead>
-          <TableHead>Site</TableHead>
-          <TableHead>Check-in</TableHead>
-          <TableHead>Check-out</TableHead>
-          <TableHead>Nights</TableHead>
-          <TableHead>Guests</TableHead>
-          <TableHead>Total Amount</TableHead>
-          <TableHead>Paid Amount</TableHead>
-          <TableHead>Refund</TableHead>
-          <TableHead>Balance</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {reservations.map((reservation) => {
-          const amountDueCents = Math.max(0, reservation.totalAmount - reservation.paidAmount)
-          const balanceCents = Math.max(
-            0,
-            reservation.totalAmount - reservation.paidAmount
-          )
-          const hasOutstandingBalance = amountDueCents > 0
+    <div className="h-[calc(100vh-260px)] overflow-y-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Confirmation</TableHead>
+            <TableHead>Guest</TableHead>
+            <TableHead>Site</TableHead>
+            <TableHead>Check-in</TableHead>
+            <TableHead>Check-out</TableHead>
+            <TableHead>Nights</TableHead>
+            <TableHead>Guests</TableHead>
+            <TableHead>Total Amount</TableHead>
+            <TableHead>Paid Amount</TableHead>
+            <TableHead>Refund</TableHead>
+            <TableHead>Balance</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {reservations.map((reservation) => {
+            const amountDueCents = Math.max(0, reservation.totalAmount - reservation.paidAmount)
+            const balanceCents = Math.max(
+              0,
+              reservation.totalAmount - reservation.paidAmount
+            )
+            const hasOutstandingBalance = amountDueCents > 0
 
-          const canRefund = 
-            reservation.status === 'cancelled' && 
-            reservation.paidAmount > 0 &&
-            reservation.refundAmount < reservation.paidAmount
+            const canRefund = 
+              reservation.status === 'cancelled' && 
+              reservation.paidAmount > 0 &&
+              reservation.refundAmount < reservation.paidAmount
 
-          const maxRefundableCents = Math.max(
-            0,
-            reservation.paidAmount - reservation.refundAmount
-          )
+            const maxRefundableCents = Math.max(
+              0,
+              reservation.paidAmount - reservation.refundAmount
+            )
 
-          return (
-            <TableRow key={reservation.id}>
-              <TableCell className="font-medium">{reservation.confirmationNumber}</TableCell>
-              <TableCell>{reservation.guestName}</TableCell>
-              <TableCell>{reservation.siteName}</TableCell>
-              <TableCell>{formatDate(reservation.checkIn)}</TableCell>
-              <TableCell>{formatDate(reservation.checkOut)}</TableCell>
-              <TableCell>{reservation.numNights}</TableCell>
-              <TableCell>{reservation.numAdults + reservation.numChildren}</TableCell>
-              <TableCell>{formatMoney(reservation.totalAmount)}</TableCell>
-              <TableCell>{formatMoney(reservation.paidAmount)}</TableCell>
-              <TableCell>{formatMoney(reservation.refundAmount)}</TableCell>
-              <TableCell>{formatMoney(balanceCents)}</TableCell>
-              <TableCell>
-                <Badge variant="outline" className={statusColors[reservation.status]}>
-                  {reservation.status.replace("_", " ")}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <ReservationActions
-                  reservationId={reservation.id}
-                  confirmationNumber={reservation.confirmationNumber}
-                  guestName={reservation.guestName}
-                  status={reservation.status}
-                  checkIn={reservation.checkIn}
-                  checkOut={reservation.checkOut}
-                  numAdults={reservation.numAdults}
-                  numChildren={reservation.numChildren}
-                  numPets={reservation.numPets}
-                  siteNumber={reservation.siteNumber}
-                  siteName={reservation.siteName}
-                  pricePerNight={reservation.pricePerNight}
-                  bookingType={reservation.bookingType}
-                  totalAmount={reservation.totalAmount}
-                  paidAmount={reservation.paidAmount}
-                  hasOutstandingBalance={hasOutstandingBalance}
-                  canRefund={canRefund}
-                  maxRefundableCents={maxRefundableCents}
-                />
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
+            return (
+              <TableRow key={reservation.id}>
+                <TableCell className="font-medium">{reservation.confirmationNumber}</TableCell>
+                <TableCell>{reservation.guestName}</TableCell>
+                <TableCell>{reservation.siteName}</TableCell>
+                <TableCell>{formatDate(reservation.checkIn)}</TableCell>
+                <TableCell>{formatDate(reservation.checkOut)}</TableCell>
+                <TableCell>{reservation.numNights}</TableCell>
+                <TableCell>{reservation.numAdults + reservation.numChildren}</TableCell>
+                <TableCell>{formatMoney(reservation.totalAmount)}</TableCell>
+                <TableCell>{formatMoney(reservation.paidAmount)}</TableCell>
+                <TableCell>{formatMoney(reservation.refundAmount)}</TableCell>
+                <TableCell>{formatMoney(balanceCents)}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={statusColors[reservation.status]}>
+                    {reservation.status.replace("_", " ")}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <ReservationActions
+                    reservationId={reservation.id}
+                    confirmationNumber={reservation.confirmationNumber}
+                    guestName={reservation.guestName}
+                    status={reservation.status}
+                    checkIn={reservation.checkIn}
+                    checkOut={reservation.checkOut}
+                    numAdults={reservation.numAdults}
+                    numChildren={reservation.numChildren}
+                    numPets={reservation.numPets}
+                    siteNumber={reservation.siteNumber}
+                    siteName={reservation.siteName}
+                    pricePerNight={reservation.pricePerNight}
+                    bookingType={reservation.bookingType}
+                    totalAmount={reservation.totalAmount}
+                    paidAmount={reservation.paidAmount}
+                    hasOutstandingBalance={hasOutstandingBalance}
+                    canRefund={canRefund}
+                    maxRefundableCents={maxRefundableCents}
+                  />
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 

@@ -380,7 +380,7 @@ export async function searchAvailableSites(
     const row = site as SiteRow
     const effectiveNightlyRate = resolveReservationTypeRate(
       'nightly',
-      reservationTypeConfig,
+      null,
       row.pricing_override?.reservation_type_rates_override ?? null,
       {
         base_price: row.base_price ?? 0,

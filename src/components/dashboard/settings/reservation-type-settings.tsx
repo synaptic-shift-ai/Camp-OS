@@ -129,6 +129,8 @@ export function ReservationTypeSettings({
 
   // Track if form is dirty
   const [isDirty, setIsDirty] = useState(false)
+  const [focusedRateField, setFocusedRateField] = useState<'nightly' | 'weekly' | 'monthly' | null>(null)
+  const [rateInputValue, setRateInputValue] = useState<string>('')
 
   const toggleReservationType = (type: ConfigurableReservationType) => {
     const isEnabled = enabledTypes.includes(type)
@@ -373,14 +375,25 @@ export function ReservationTypeSettings({
                       <Input
                         id={`${type}-rate`}
                         type="number"
-                        step="0.01"
+                        step="1"
                         min="0"
                         className="pl-7"
                         placeholder="Enter rate"
-                        value={formatCentsToInput(config[type].rate_cents)}
-                        onChange={(e) =>
-                          updateTypeConfig(type, 'rate_cents', parseDollarsToCents(e.target.value))
+                        value={
+                          focusedRateField === type
+                            ? rateInputValue
+                            : formatCentsToInput(config[type].rate_cents)
                         }
+                        onFocus={() => {
+                          setFocusedRateField(type)
+                          setRateInputValue(formatCentsToInput(config[type].rate_cents))
+                        }}
+                        onChange={(e) => setRateInputValue(e.target.value)}
+                        onBlur={() => {
+                          const cents = parseDollarsToCents(rateInputValue)
+                          updateTypeConfig(type, 'rate_cents', cents ?? config[type].rate_cents ?? 0)
+                          setFocusedRateField(null)
+                        }}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">

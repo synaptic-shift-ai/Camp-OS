@@ -111,3 +111,4 @@ async function updateSessionInternal(
  * @returns NextResponse with updated session cookies and redirect if needed
  */
 export const updateSession = withErrorHandler(updateSessionInternal)
+

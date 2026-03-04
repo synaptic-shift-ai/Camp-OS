@@ -25,9 +25,9 @@ export function CheckOutButton({ reservationId, status }: CheckOutButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [reservationData, setReservationData] = useState<
     | (Reservation & {
-        guest?: { first_name: string; last_name: string; email: string }
-        site?: { site_number: string; site_name: string | null }
-      })
+      guest?: { first_name: string; last_name: string; email: string }
+      site?: { site_number: string; site_name: string | null }
+    })
     | null
   >(null)
 

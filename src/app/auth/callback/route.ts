@@ -43,11 +43,12 @@ export async function GET(request: NextRequest) {
     console.log('[Auth Callback] Redirecting verified explorer to resources')
   } else {
     // Buyers - check property and subscription status
-    const { data: property } = await supabase
+    const { data: properties } = await supabase
       .from('properties')
       .select('id, onboarding_completed, subscription_status')
       .eq('owner_id', user.id)
-      .single()
+      .limit(1)
+    const property = properties?.[0] ?? null
 
     console.log('[Auth Callback] Property check:', {
       hasProperty: !!property,

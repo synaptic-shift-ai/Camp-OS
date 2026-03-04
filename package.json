@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "lint": "eslint .",
     "start": "next start",
     "test": "vitest",

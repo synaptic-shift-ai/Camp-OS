@@ -59,6 +59,54 @@ export function createAuthMiddleware(
     // Record request
     recordRequest('auth-middleware', pathname)
 
+    // Redirect authenticated users away from login/signup to dashboard
+    const authOnlyRoutes = ['/login', '/signup']
+    const isAuthOnlyRoute = authOnlyRoutes.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    )
+    if (isAuthOnlyRoute) {
+      try {
+        const authResult = await verifyAuthentication(request, supabase)
+        if (authResult.authenticated) {
+          const origin = request.middlewareContext.origin || 'http://localhost:3000'
+          // If the user is already authenticated and tries to access an auth page
+          // (login/signup), send them into the onboarding flow first. The onboarding
+          // flow is responsible for redirecting to the dashboard once setup is complete.
+          const url = new URL('/onboarding', origin)
+
+          logger.info('Redirecting authenticated user from auth page to onboarding', {
+            from: pathname,
+            to: url.pathname,
+          })
+
+          if (!RedirectLoopDetector.check(request, url.pathname)) {
+            logger.error(
+              'Redirect loop detected redirecting from auth page',
+              new Error('Auth page redirect loop'),
+              { pathname, targetPath: url.pathname }
+            )
+            recordRedirectLoopPrevented('auth-middleware', pathname)
+            recordDuration('auth-middleware', timer.end(), 'failure')
+            return request
+          }
+
+          recordRedirect('auth-middleware', url.pathname)
+          recordDuration('auth-middleware', timer.end(), 'redirect')
+
+          const response = NextResponse.redirect(url)
+          RedirectLoopDetector.incrementCount(response)
+          return response
+        }
+      } catch (error) {
+        recordError('auth-middleware', 'authentication_error')
+        recordDuration('auth-middleware', timer.end(), 'failure')
+        throw error
+      }
+      logger.debug('Unauthenticated user on auth page - allowing access', { pathname })
+      recordDuration('auth-middleware', timer.end(), 'success')
+      return request
+    }
+
     // Define routes that require authentication
     const requiresAuth = ['/dashboard', '/onboarding']
     const needsAuth = requiresAuth.some((route) => pathname.startsWith(route))
@@ -277,15 +325,17 @@ export function createSubscriptionMiddleware(
         supabase
       )
 
-      // No active subscription - redirect to plan selection
+      // No company or no active subscription - redirect to correct step
       if (!tenantResult.resolved) {
         const origin = request.middlewareContext.origin || 'http://localhost:3000'
-        const url = new URL('/choose-plan', origin)
+        const isNoCompany = tenantResult.reason === 'no_company'
+        const url = new URL(isNoCompany ? '/company-details' : '/choose-plan', origin)
 
-        logger.info('Redirecting user without active subscription', {
+        logger.info(isNoCompany ? 'Redirecting user without company to company details' : 'Redirecting user without active subscription', {
           from: pathname,
           to: url.pathname,
           userId: auth.userId,
+          reason: tenantResult.reason,
         })
 
         // CRITICAL: Check for redirect loops before redirecting
@@ -453,9 +503,36 @@ export function createOnboardingMiddleware(
       // Onboarding complete - continue
       return request
     } catch (error) {
+      // If the onboarding check itself fails (e.g., database issue),
+      // fail safe by sending the user into the onboarding flow instead of
+      // surfacing a JSON error response on /dashboard.
       recordError('onboarding-middleware', 'onboarding_check_error')
-      recordDuration('onboarding-middleware', timer.end(), 'failure')
-      throw error
+
+      const origin = request.middlewareContext.origin || 'http://localhost:3000'
+      const url = new URL('/onboarding', origin)
+
+      logger.error(
+        'Error during onboarding check, redirecting to onboarding as fallback',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          pathname,
+          companyId: tenant?.companyId,
+        }
+      )
+
+      // Protect against potential redirect loops
+      if (!RedirectLoopDetector.check(request, url.pathname)) {
+        recordRedirectLoopPrevented('onboarding-middleware', pathname)
+        recordDuration('onboarding-middleware', timer.end(), 'failure')
+        return request
+      }
+
+      recordRedirect('onboarding-middleware', url.pathname)
+      recordDuration('onboarding-middleware', timer.end(), 'redirect')
+
+      const response = NextResponse.redirect(url)
+      RedirectLoopDetector.incrementCount(response)
+      return response
     }
   }
 }

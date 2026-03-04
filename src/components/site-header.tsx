@@ -22,10 +22,16 @@ const navItems = [
   { name: "FAQ", href: "#faq" },
 ]
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  /** Server-resolved session from layout (SSR only, no client auth check) */
+  initialUser?: { id: string } | null
+}
+
+export function SiteHeader({ initialUser = null }: SiteHeaderProps) {
   const _pathname = usePathname()
   const scrollPosition = useScrollPosition()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+  const isAuthenticated = initialUser ?? null
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
@@ -81,21 +87,38 @@ export function SiteHeader() {
 
           {/* Desktop CTA Buttons - Hidden on mobile */}
           <div className="hidden md:flex items-center space-x-2">
-            <Button variant="ghost" size="sm" className="neumorphic-button" asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button size="sm" className="neumorphic-button-primary" asChild>
-              <Link href="/signup">
-                Start Free Trial
-                <motion.div
-                  className="ml-1"
-                  animate={{ x: [0, 3, 0] }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
-                >
-                  →
-                </motion.div>
-              </Link>
-            </Button>
+            {isAuthenticated ? (
+              <Button size="sm" className="neumorphic-button-primary" asChild>
+                <Link href="/dashboard">
+                  Go to Dashboard
+                  <motion.div
+                    className="ml-1"
+                    animate={{ x: [0, 3, 0] }}
+                    transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
+                  >
+                    →
+                  </motion.div>
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" className="neumorphic-button" asChild>
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button size="sm" className="neumorphic-button-primary" asChild>
+                  <Link href="/signup">
+                    Start Free Trial
+                    <motion.div
+                      className="ml-1"
+                      animate={{ x: [0, 3, 0] }}
+                      transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
+                    >
+                      →
+                    </motion.div>
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button - Only visible on mobile */}
@@ -159,18 +182,33 @@ export function SiteHeader() {
               </div>
 
               <div className="mt-auto p-4 border-t border-border">
-                <div className="grid grid-cols-2 gap-3">
-                  <Button variant="outline" className="w-full bg-transparent" asChild>
-                    <Link href="/login" onClick={closeMobileMenu}>
-                      Sign in
-                    </Link>
-                  </Button>
+                {isAuthenticated ? (
                   <Button className="w-full neumorphic-button-primary" asChild>
-                    <Link href="/signup" onClick={closeMobileMenu}>
-                      Start Trial
+                    <Link href="/dashboard" onClick={closeMobileMenu} className="inline-flex items-center justify-center">
+                      Go to Dashboard
+                      <motion.div
+                        className="ml-1"
+                        animate={{ x: [0, 3, 0] }}
+                        transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
+                      >
+                        →
+                      </motion.div>
                     </Link>
                   </Button>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <Link href="/login" onClick={closeMobileMenu}>
+                        Sign in
+                      </Link>
+                    </Button>
+                    <Button className="w-full neumorphic-button-primary" asChild>
+                      <Link href="/signup" onClick={closeMobileMenu}>
+                        Start Trial
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

@@ -5,6 +5,7 @@ import type React from "react"
 import { Suspense, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -51,6 +52,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { selectedProperty, isLoading } = useProperty()
   const propertyName = selectedProperty?.name
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = "/login"
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -112,7 +119,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 Notifications
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Log out
               </DropdownMenuItem>

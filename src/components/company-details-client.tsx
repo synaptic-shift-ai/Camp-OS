@@ -27,7 +27,6 @@ type CompanyDetailsFormData = z.infer<typeof companyDetailsSchema>
 export function CompanyDetailsClient() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [_selectedPropertyCount, setSelectedPropertyCount] = useState<number>(0)
 
   const {
     register,
@@ -45,28 +44,22 @@ export function CompanyDetailsClient() {
     },
   })
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, replace } = useFieldArray({
     control,
     name: "properties",
   })
 
   const propertyCount = watch("propertyCount")
 
-  // Update property fields when dropdown changes
+  // Sync property fields to dropdown selection
   useEffect(() => {
     const count = Number(propertyCount)
-    if (count > 0 && count !== fields.length) {
-      setSelectedPropertyCount(count)
-      // Clear existing fields
-      while (fields.length > 0) {
-        remove(0)
-      }
-      // Add new fields based on selected count
-      for (let i = 0; i < count; i++) {
-        append({ name: "", siteCount: 0 })
-      }
+    if (count > 0) {
+      replace(
+        Array.from({ length: count }, () => ({ name: "", siteCount: 0 }))
+      )
     }
-  }, [propertyCount, fields.length, append, remove])
+  }, [propertyCount, replace])
 
   const onSubmit = async (data: CompanyDetailsFormData) => {
     setIsLoading(true)
@@ -94,7 +87,7 @@ export function CompanyDetailsClient() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen w-[480px] bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">

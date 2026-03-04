@@ -98,11 +98,21 @@ export function withErrorHandler(
       // Error occurred - log and return safe response
       const err = error instanceof Error ? error : new Error(String(error))
 
+      const pathname = request.nextUrl?.pathname || 'unknown'
+
       logger.critical('Unhandled middleware error', err, {
-        pathname: request.nextUrl?.pathname || 'unknown',
+        pathname,
         method: request.method,
         userAgent: request.headers?.get('user-agent') || 'unknown',
       })
+
+      // If an unexpected error happens while accessing any dashboard route,
+      // fail safe by sending the user into the onboarding flow instead of
+      // surfacing a JSON error page.
+      if (pathname.startsWith('/dashboard') && request.nextUrl) {
+        const url = new URL('/onboarding', request.nextUrl.origin)
+        return NextResponse.redirect(url)
+      }
 
       // Get error response configuration
       const config = getErrorResponseConfig(err)

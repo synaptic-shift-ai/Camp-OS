@@ -23,10 +23,24 @@ export default function OnboardingContent() {
       // User clicked magic link from email - verify and authenticate
       handleMagicLinkAuth(token)
     } else {
-      // Direct access - redirect to wizard (requires authentication via middleware)
-      router.push("/dashboard/sites?wizard=true")
+      // Direct access - send to company-details if no company, else to property wizard
+      resolveAndRedirect()
     }
   }, [router, searchParams])
+
+  async function resolveAndRedirect() {
+    try {
+      const res = await fetch("/api/onboarding/has-company")
+      const data = res.ok ? await res.json() : { hasCompany: false }
+      if (data.hasCompany) {
+        router.push("/dashboard/sites?wizard=true")
+      } else {
+        router.push("/company-details")
+      }
+    } catch {
+      router.push("/company-details")
+    }
+  }
 
   async function handleMagicLinkAuth(token: string) {
     setIsVerifying(true)

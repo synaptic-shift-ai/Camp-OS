@@ -51,17 +51,23 @@ export default function LoginPage() {
           }
 
           // Buyers - check property and subscription status
-          const { data: property } = await supabase
+          const { data: properties } = await supabase
             .from('properties')
             .select('id, onboarding_completed, subscription_status')
             .eq('owner_id', user.id)
-            .single()
+            .limit(1)
+          const property = properties?.[0] ?? null
 
           if (!property) {
             // No property = payment not completed yet
             router.push("/choose-plan")
             router.refresh()
             return
+          }
+
+          // User has completed signup; clear stale signup data from localStorage
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("pendingCompanyData")
           }
 
           if (!property.onboarding_completed) {

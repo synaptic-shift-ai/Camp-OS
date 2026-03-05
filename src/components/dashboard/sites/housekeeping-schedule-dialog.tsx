@@ -50,7 +50,6 @@ export function HousekeepingScheduleDialog({
   const router = useRouter()
   const { toast } = useToast()
   const [isSingleDay, setIsSingleDay] = useState(true)
-  const [singleDate, setSingleDate] = useState<Date | undefined>(undefined)
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -59,11 +58,10 @@ export function HousekeepingScheduleDialog({
   const label = statusLabels[status]
   const siteName = site.site_name || `Site ${site.site_number}`
 
-  const hasValidSelection = isSingleDay ? !!singleDate : !!(dateFrom && dateTo)
+  const hasValidSelection = isSingleDay ? !!dateFrom : !!(dateFrom && dateTo)
 
   const handleSingleDayToggle = (checked: boolean) => {
     setIsSingleDay(checked)
-    setSingleDate(undefined)
     setDateFrom(undefined)
     setDateTo(undefined)
   }
@@ -88,13 +86,19 @@ export function HousekeepingScheduleDialog({
   }, [open])
 
   const handleConfirm = async () => {
-    if (!hasValidSelection) return
+    const fromDate = isSingleDay ? dateFrom : dateFrom
+    const toDate = isSingleDay ? dateFrom : dateTo
+
+    if (!fromDate || !toDate) {
+      setError('Please select date(s)')
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
 
-    const from = format(isSingleDay ? singleDate! : dateFrom!, 'yyyy-MM-dd')
-    const to = format(isSingleDay ? singleDate! : dateTo!, 'yyyy-MM-dd')
+    const from = format(fromDate, 'yyyy-MM-dd')
+    const to = format(toDate, 'yyyy-MM-dd')
 
     try {
       const response = await fetch(`/api/v1/sites/${site.id}`, {
@@ -129,7 +133,6 @@ export function HousekeepingScheduleDialog({
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setIsSingleDay(true)
-      setSingleDate(undefined)
       setDateFrom(undefined)
       setDateTo(undefined)
       setError(null)
@@ -173,8 +176,8 @@ export function HousekeepingScheduleDialog({
               <Input
                 id="houseKeepingFrom"
                 type="date"
-                value={dateFrom?.toISOString().split('T')[0] || ''}
-                min={new Date().toISOString().split('T')[0]}
+                value={dateFrom ? format(dateFrom, 'yyyy-MM-dd') : ''}
+                min={format(new Date(), 'yyyy-MM-dd')}
                 onChange={(e) => setDateFrom(new Date(e.target.value))}
               />
             </div>
@@ -187,8 +190,8 @@ export function HousekeepingScheduleDialog({
                 <Input
                   id="houseKeepingTo"
                   type="date"
-                  value={dateTo?.toISOString().split('T')[0] || ''}
-                  min={dateFrom?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]}
+                  value={dateTo ? format(dateTo, 'yyyy-MM-dd') : ''}
+                  min={dateFrom ? format(dateFrom, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
                   onChange={(e) => setDateTo(new Date(e.target.value))}
                 />
               </div>
@@ -206,7 +209,10 @@ export function HousekeepingScheduleDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!hasValidSelection || isSubmitting}>
+          <Button
+            onClick={handleConfirm}
+            disabled={(!isSingleDay && !hasValidSelection) || isSubmitting}
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

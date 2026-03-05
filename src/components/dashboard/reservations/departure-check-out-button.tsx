@@ -39,7 +39,13 @@ export function DepartureCheckOutButton({ reservationId }: DepartureCheckOutButt
 
     return (
         <>
-        <Button size="sm" variant="outline" onClick={handleClick} disabled={isLoading}>
+        <Button 
+            size="sm" 
+            variant="destructive" 
+            onClick={handleClick} 
+            disabled={isLoading}
+            className="flex-shrink-0 ml-3"
+        >
             {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogOut className="h-3 w-3" />}
             Check Out
         </Button>

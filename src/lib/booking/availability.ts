@@ -24,6 +24,12 @@ import type {
 } from './types'
 import type { BookingType, SeasonalPeriod } from '@/lib/config/types'
 
+type AvailableSiteRate = {
+  nightlyCents: number
+  weeklyCents?: number
+  monthlyCents?: number
+}
+
 /**
  * Convert DB amenities array to UI-friendly SiteAmenities object
  */
@@ -77,18 +83,16 @@ function convertAmenities(amenitiesArray: string[] | null): SiteAmenities {
 /**
  * Convert DB Site to UI-friendly AvailableSite
  */
-function convertToAvailableSite(site: Site, effectiveNightlyRateCents?: number): AvailableSite {
-  const basePricePerNight =
-    effectiveNightlyRateCents !== undefined
-      ? effectiveNightlyRateCents
-      : site.base_price
+function convertToAvailableSite(site: Site, rates: AvailableSiteRate): AvailableSite {
   return {
     id: site.id,
     name: site.site_name || `Site ${site.site_number}`,
     site_number: site.site_number,
     site_type: site.site_type,
     max_occupancy: site.max_occupancy,
-    base_price_per_night: basePricePerNight,
+    base_price_per_night: rates.nightlyCents,
+    ...(rates.weeklyCents !== undefined && { weekly_rate_cents: rates.weeklyCents }),
+    ...(rates.monthlyCents !== undefined && { monthly_rate_cents: rates.monthlyCents }),
     amenities: convertAmenities(site.amenities),
     ...(site.images && Array.isArray(site.images) && site.images.length > 0 && { image_url: site.images[0] }),
   }
@@ -374,24 +378,37 @@ export async function searchAvailableSites(
   type SiteRow = Site & {
     weekly_rate_cents?: number | null
     monthly_rate_cents?: number | null
+    enabled_reservation_types_override?: string[] | null
     pricing_override?: { reservation_type_rates_override?: Partial<Record<BookingType, number>> | null }
   }
+  const fallbackRates = (row: SiteRow) => {
+    const usesPropertyDefaults = row.enabled_reservation_types_override == null
+    return {
+      base_price: row.base_price ?? 0,
+      weekly_rate_cents: usesPropertyDefaults ? null : (row.weekly_rate_cents ?? null),
+      monthly_rate_cents: usesPropertyDefaults ? null : (row.monthly_rate_cents ?? null),
+    }
+  }
+
   const availableSites = filteredSites.map((site) => {
     const row = site as SiteRow
-    const effectiveNightlyRate = resolveReservationTypeRate(
-      'nightly',
-      null,
-      row.pricing_override?.reservation_type_rates_override ?? null,
-      {
-        base_price: row.base_price ?? 0,
-        weekly_rate_cents: row.weekly_rate_cents ?? null,
-        monthly_rate_cents: row.monthly_rate_cents ?? null,
-      }
-    )
-    return convertToAvailableSite(row as Site, effectiveNightlyRate)
+    const usesPropertyDefaults = row.enabled_reservation_types_override == null
+    const override = row.pricing_override?.reservation_type_rates_override ?? null
+    const effectiveOverride = usesPropertyDefaults
+      ? override
+      : { ...(override ?? {}), nightly: row.base_price ?? 0 }
+    const nightlyCents = resolveReservationTypeRate('nightly', reservationTypeConfig, effectiveOverride, fallbackRates(row))
+    const weeklyCents = resolveReservationTypeRate('weekly', reservationTypeConfig, effectiveOverride, fallbackRates(row))
+    const monthlyCents = resolveReservationTypeRate('monthly', reservationTypeConfig, effectiveOverride, fallbackRates(row))
+    const rates: AvailableSiteRate = {
+      nightlyCents,
+      ...(weeklyCents !== nightlyCents * 7 && { weeklyCents }),
+      ...(monthlyCents !== nightlyCents * 28 && { monthlyCents }),
+    }
+    return convertToAvailableSite(row as Site, rates)
   })
 
-  return {
+  return {  
     success: true,
     data: {
       sites: availableSites,

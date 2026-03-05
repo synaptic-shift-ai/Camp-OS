@@ -489,7 +489,7 @@ async function sendOnboardingEmail(email: string, planId: string, companyName: s
   console.log(`[Onboarding Email] Sending to ${email} for ${companyName} (${planId} plan)`)
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
     const onboardingUrl = `${baseUrl}/onboarding?token=${token}`
 
     const { data, error } = await resend.emails.send({

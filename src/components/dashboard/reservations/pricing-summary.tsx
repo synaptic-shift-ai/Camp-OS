@@ -21,6 +21,8 @@ interface AvailableSite {
   name: string
   site_number: string
   base_price_per_night: number
+  weekly_rate_cents?: number
+  monthly_rate_cents?: number
 }
 
 interface PricingSummaryProps {
@@ -72,6 +74,14 @@ export function PricingSummary({
   selectedFeeIds = [],
   onTotalChange,
 }: PricingSummaryProps) {
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(amount)
+  }
+
   // If no site selected or no config, show placeholder
   if (!selectedSite || !pricingConfig || !rateDiscountsConfig) {
     return (
@@ -96,9 +106,45 @@ export function PricingSummary({
     )
   }
 
-  // Calculate pricing breakdown (convert from cents to dollars)
+  // Effective stay type (match page: weekly requires 7+ nights, monthly 28+)
+  const STAY_TYPE_MIN_NIGHTS: Record<BookingType, number> = {
+    nightly: 1,
+    weekly: 7,
+    monthly: 28,
+    seasonal: 28,
+    long_term: 28,
+  }
+  const effectiveStayType: BookingType =
+    stayType === 'monthly' && numNights >= STAY_TYPE_MIN_NIGHTS.monthly
+      ? 'monthly'
+      : (stayType === 'monthly' || stayType === 'weekly') && numNights >= STAY_TYPE_MIN_NIGHTS.weekly
+        ? 'weekly'
+        : 'nightly'
+
+  // Base subtotal and display label from effective stay type (match accordion and blue bar)
+  let subtotal: number
+  let basePriceLabel: string
+  const nightlyRateDollars = selectedSite.base_price_per_night / 100
+  switch (effectiveStayType) {
+    case 'weekly': {
+      const weeklyCents = selectedSite.weekly_rate_cents ?? selectedSite.base_price_per_night * 7
+      subtotal = (weeklyCents / 100) * (numNights / 7)
+      basePriceLabel = `${formatMoney(weeklyCents / 100)}/week × ${numNights} night${numNights !== 1 ? 's' : ''}`
+      break
+    }
+    case 'monthly': {
+      const monthlyCents = selectedSite.monthly_rate_cents ?? selectedSite.base_price_per_night * 28
+      subtotal = (monthlyCents / 100) * (numNights / 28)
+      basePriceLabel = `${formatMoney(monthlyCents / 100)}/month × ${numNights} night${numNights !== 1 ? 's' : ''}`
+      break
+    }
+    default: {
+      subtotal = nightlyRateDollars * numNights
+      basePriceLabel = `${formatMoney(nightlyRateDollars)} × ${numNights} night${numNights !== 1 ? 's' : ''}`
+      break
+    }
+  }
   const basePricePerNight = selectedSite.base_price_per_night / 100
-  const subtotal = basePricePerNight * numNights
   const totalGuests = numAdults + (numChildren || 0)
 
   // =====================================================
@@ -385,14 +431,6 @@ export function PricingSummary({
     }
   }
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount)
-  }
-
   return (
     <div className="lg:sticky lg:top-6">
       <Card>
@@ -413,12 +451,10 @@ export function PricingSummary({
 
           <Separator />
 
-          {/* Nightly breakdown */}
+          {/* Base price breakdown (weekly/monthly/nightly) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span>
-                {formatMoney(basePricePerNight)} x {numNights} {numNights === 1 ? 'night' : 'nights'}
-              </span>
+              <span>{basePriceLabel}</span>
               <span className="font-medium">{formatMoney(subtotal)}</span>
             </div>
 

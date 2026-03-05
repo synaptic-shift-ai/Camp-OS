@@ -150,7 +150,7 @@ export async function POST(
     const { stripe, stripeAccountId } = tenantStripeResult
 
     // Build URLs
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
     const successUrl = `${baseUrl}/payment/reservation-success?session_id={CHECKOUT_SESSION_ID}&reservation=${reservationId}`
     const cancelUrl = `${baseUrl}/payment/reservation-cancelled?reservation=${reservationId}`
 

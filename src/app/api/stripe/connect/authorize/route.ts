@@ -7,7 +7,25 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
 })
 
+function getRedirectBaseUrl(request: NextRequest): string {
+  const fromEnv = process.env.NEXT_PUBLIC_BASE_URL;
+  const reqUrl = request.url ? new URL(request.url) : null
+  const protocol =
+    request.headers.get("x-forwarded-proto") ??
+    reqUrl?.protocol?.replace(":", "") ??
+    "https"
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    reqUrl?.host ??
+    ""
+  const fromHeaders = host ? `${protocol}://${host}` : ""
+  const origin = (fromEnv || fromHeaders || reqUrl?.origin || "").replace(/\/$/, "")
+  return origin || (reqUrl?.origin ?? "http://localhost:3000")
+}
+
 export async function GET(request: NextRequest) {
+  const baseUrl = getRedirectBaseUrl(request)
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get("code")
   const state = searchParams.get("state")
@@ -17,14 +35,14 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error("Stripe OAuth error:", error)
     return NextResponse.redirect(
-      new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=oauth_failed", request.url)
+      new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=oauth_failed", baseUrl)
     )
   }
 
   // Verify state for CSRF protection and extract property ID
   if (!state) {
     return NextResponse.redirect(
-      new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=invalid_state", request.url)
+      new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=invalid_state", baseUrl)
     )
   }
 
@@ -40,7 +58,7 @@ export async function GET(request: NextRequest) {
   } catch (parseError) {
     console.error("Error parsing state:", parseError)
     return NextResponse.redirect(
-      new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=invalid_state", request.url)
+      new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=invalid_state", baseUrl)
     )
   }
 
@@ -56,7 +74,7 @@ export async function GET(request: NextRequest) {
 
       if (authError || !user) {
         return NextResponse.redirect(
-          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=unauthorized", request.url)
+          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=unauthorized", baseUrl)
         )
       }
 
@@ -85,14 +103,14 @@ export async function GET(request: NextRequest) {
       if (propertyError || !property) {
         console.error("Property not found:", propertyError)
         return NextResponse.redirect(
-          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=property_not_found", request.url)
+          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=property_not_found", baseUrl)
         )
       }
 
       if (property.owner_id !== user.id) {
         console.error("Unauthorized property access")
         return NextResponse.redirect(
-          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=unauthorized", request.url)
+          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=unauthorized", baseUrl)
         )
       }
 
@@ -109,21 +127,21 @@ export async function GET(request: NextRequest) {
       if (updateError) {
         console.error("Error updating property with Stripe account:", updateError)
         return NextResponse.redirect(
-          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=update_failed", request.url)
+          new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=update_failed", baseUrl)
         )
       }
 
       // Success - redirect back to wizard Stripe step
       return NextResponse.redirect(
-        new URL(`/dashboard/sites?wizard=true&step=stripe_connect&stripe_connected=true`, request.url)
+        new URL(`/dashboard/sites?wizard=true&step=stripe_connect&stripe_connected=true`, baseUrl)
       )
     } catch (error) {
       console.error("Error exchanging Stripe code:", error)
       return NextResponse.redirect(
-        new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=exchange_failed", request.url)
+        new URL("/dashboard/sites?wizard=true&step=stripe_connect&error=exchange_failed", baseUrl)
       )
     }
   }
 
-  return NextResponse.redirect(new URL("/dashboard/sites?wizard=true&step=stripe_connect", request.url))
+  return NextResponse.redirect(new URL("/dashboard/sites?wizard=true&step=stripe_connect", baseUrl))
 }

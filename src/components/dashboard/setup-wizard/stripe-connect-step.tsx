@@ -124,7 +124,10 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
       }
 
       // Build OAuth redirect URI - return to this wizard step
-      const redirectUri = `${window.location.origin}/api/stripe/connect/authorize`
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+      const redirectUri = `${baseUrl}/api/stripe/connect/authorize`
+      console.log(`redirectUri: ${redirectUri}`)
+      
 
       // Build Stripe OAuth URL
       const stripeOAuthUrl = new URL("https://connect.stripe.com/oauth/authorize")

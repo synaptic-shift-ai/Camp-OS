@@ -30,6 +30,7 @@ import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-inf
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
 import { parseEnabledReservationTypesFromDB } from '@/lib/config/resolution'
 import { Checkbox } from '@/components/ui/checkbox'
+import { getDisplayPrice } from "@/components/dashboard/reservations/available-sites-accordion"
 
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
@@ -122,6 +123,8 @@ interface AvailableSite {
   site_type: string
   max_occupancy: number
   base_price_per_night: number
+  weekly_rate_cents?: number
+  monthly_rate_cents?: number
   amenities: Record<string, boolean>
   image_url?: string
 }
@@ -185,6 +188,7 @@ export default function NewReservationPage() {
     formState: { errors },
     setValue,
     watch,
+    trigger,
   } = methods
 
   const selectedSiteId = watch("siteId")
@@ -195,6 +199,11 @@ export default function NewReservationPage() {
   const numChildren = watch("numChildren")
   const numPets = watch("numPets")
   const paymentMethod = watch("paymentMethod")
+
+  useEffect(() => {
+    if (!checkInDate || !checkOutDate) return
+    void trigger(['stayType', 'checkInDate', 'checkOutDate'])
+  }, [stayType, checkInDate, checkOutDate, trigger])
 
   // Fetch property ID on mount
   useEffect(() => {
@@ -484,6 +493,21 @@ export default function NewReservationPage() {
 
   const selectedSite = availableSites.find(s => s.id === selectedSiteId)
 
+  const STAY_TYPE_MIN_NIGHTS: Record<BookingType, number> = {
+    nightly: 1,
+    weekly: 7,
+    monthly: 28,
+    seasonal: 28,
+    long_term: 28,
+  }
+
+  const effectiveStayType: BookingType =
+    (stayType === 'monthly' && totalNights >= STAY_TYPE_MIN_NIGHTS.monthly)
+      ? 'monthly'
+      : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_TYPE_MIN_NIGHTS.weekly
+        ? 'weekly'
+        : 'nightly'
+
   return (
     <div className="container max-w-7xl py-8">
       <div className="mb-6">
@@ -535,6 +559,14 @@ export default function NewReservationPage() {
               </Select>
               {errors.stayType && (
                 <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
+              )}
+              {stayType && 
+                totalNights > 0 && 
+                totalNights < STAY_TYPE_MIN_NIGHTS[stayType] && (
+                  <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
+                    You should reserve {STAY_TYPE_MIN_NIGHTS[stayType]} nights to use the{' '}
+                    {BOOKING_TYPE_INFO[stayType]?.label?.toLowerCase() ?? stayType} rate.
+                  </p>
               )}
               <p className="text-sm text-muted-foreground mt-1">
                 Determines pricing and discount eligibility
@@ -667,6 +699,7 @@ export default function NewReservationPage() {
                 sites={availableSites}
                 selectedSiteId={selectedSiteId}
                 onSiteSelect={(siteId) => setValue("siteId", siteId)}
+                stayType={stayType}
               />
             )}
 
@@ -679,15 +712,30 @@ export default function NewReservationPage() {
                 <DollarSign className="h-4 w-4" />
                 <AlertDescription>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <strong>Total for {selectedSite.name}</strong>
-                      <div className="text-xs mt-1">
-                        {formatMoney(selectedSite.base_price_per_night)}/night × {totalNights} night{totalNights > 1 ? 's' : ''}
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {formatMoney(estimatedTotal)}
-                    </div>
+                  {(() => {
+                    const { amountCents, unitLabel } = getDisplayPrice(selectedSite, effectiveStayType)
+
+                    const totalCents =
+                      effectiveStayType === 'monthly'
+                        ? Math.round(amountCents * (totalNights / 28))
+                        : effectiveStayType === 'weekly'
+                          ? Math.round(amountCents * (totalNights / 7))
+                          : amountCents * totalNights
+
+                    return (
+                      <>
+                        <div>
+                          <strong>Total for {selectedSite.name}</strong>
+                          <div className="text-xs mt-1">
+                            {formatMoney(amountCents)}{unitLabel} × {totalNights} night{totalNights > 1 ? 's' : ''}
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {formatMoney(totalCents)}
+                        </div>
+                      </>
+                    )
+                  })()}
                   </div>
                 </AlertDescription>
               </Alert>
@@ -996,7 +1044,15 @@ export default function NewReservationPage() {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={loading || !selectedSiteId}>
+          <Button type="submit" 
+            disabled={
+              loading || 
+              !selectedSiteId || 
+              (totalNights > 0 &&
+                stayType != null &&
+                totalNights < STAY_TYPE_MIN_NIGHTS[stayType])
+            }
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? "Creating..." : "Create Reservation"}
           </Button>

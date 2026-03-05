@@ -22,6 +22,8 @@ import {
   Caravan,
 } from 'lucide-react'
 
+type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal' | 'long_term'
+
 interface AvailableSite {
   id: string
   name: string
@@ -29,6 +31,8 @@ interface AvailableSite {
   site_type: string
   max_occupancy: number
   base_price_per_night: number
+  weekly_rate_cents?: number
+  monthly_rate_cents?: number
   amenities: Record<string, boolean>
   image_url?: string
 }
@@ -37,6 +41,27 @@ interface AvailableSitesAccordionProps {
   sites: AvailableSite[]
   selectedSiteId: string | null
   onSiteSelect: (siteId: string) => void
+  stayType?: BookingType
+}
+
+export function getDisplayPrice(
+  site: AvailableSite,
+  stayType: BookingType
+): { amountCents: number; unitLabel: string } {
+  switch (stayType) {
+    case 'weekly':
+      return {
+        amountCents: site.weekly_rate_cents ?? site.base_price_per_night * 7,
+        unitLabel: '/week',
+      }
+    case 'monthly':
+      return {
+        amountCents: site.monthly_rate_cents ?? site.base_price_per_night * 28,
+        unitLabel: '/month',
+      }
+    default:
+      return { amountCents: site.base_price_per_night, unitLabel: '/night' }
+  }
 }
 
 // Amenity icon mapping
@@ -74,6 +99,7 @@ export function AvailableSitesAccordion({
   sites,
   selectedSiteId,
   onSiteSelect,
+  stayType = 'nightly',
 }: AvailableSitesAccordionProps) {
   // Group sites by type
   const sitesByType = sites.reduce((acc, site) => {
@@ -157,14 +183,17 @@ export function AvailableSitesAccordion({
               </div>
 
               {/* Show selected site summary when collapsed */}
-              {!isExpanded && selectedSiteInType && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="font-normal">
-                    {selectedSiteInType.name} - {formatMoney(selectedSiteInType.base_price_per_night)}/night
-                  </Badge>
-                  <Check className="h-5 w-5 text-primary" />
-                </div>
-              )}
+              {!isExpanded && selectedSiteInType && (() => {
+                const { amountCents, unitLabel } = getDisplayPrice(selectedSiteInType, stayType)
+                return (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="font-normal">
+                      {selectedSiteInType.name} - {formatMoney(amountCents)}{unitLabel}
+                    </Badge>
+                    <Check className="h-5 w-5 text-primary" />
+                  </div>
+                )
+              })()}
             </button>
 
             {/* Accordion Content */}
@@ -215,12 +244,17 @@ export function AvailableSitesAccordion({
                           </div>
 
                           {/* Pricing */}
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold">
-                              {formatMoney(site.base_price_per_night)}
-                            </span>
-                            <span className="text-sm text-muted-foreground">/night</span>
-                          </div>
+                          {(() => {
+                            const { amountCents, unitLabel } = getDisplayPrice(site, stayType)
+                            return (
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl font-bold">
+                                  {formatMoney(amountCents)}
+                                </span>
+                                <span className="text-sm text-muted-foreground">{unitLabel}</span>
+                              </div>
+                            )
+                          })()}
 
                           {/* Amenities */}
                           {activeAmenities.length > 0 && (

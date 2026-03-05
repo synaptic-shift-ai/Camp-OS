@@ -33,8 +33,9 @@ export function StripeConnectClient() {
         return
       }
 
-      // Build OAuth redirect URI
-      const redirectUri = `${window.location.origin}/api/stripe/connect/authorize`
+      // Build OAuth redirect URI from configured app URL so Stripe redirects to the correct host (e.g. production)
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const redirectUri = `${baseUrl.replace(/\/$/, "")}/api/stripe/connect/authorize`
 
       // Build Stripe OAuth URL
       const stripeOAuthUrl = new URL("https://connect.stripe.com/oauth/authorize")

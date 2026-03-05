@@ -85,6 +85,8 @@ export interface AvailableSite {
   site_type: SiteType
   max_occupancy: number
   base_price_per_night: number // Converted from base_price
+  weekly_rate_cents?: number
+  monthly_rate_cents?: number
   amenities: SiteAmenities // Converted from string[]
   image_url?: string // First image from images[]
 }

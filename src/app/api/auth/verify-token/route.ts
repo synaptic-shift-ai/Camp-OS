@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       type: 'magiclink',
       email: user.user.email!,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/sites?wizard=true`
+        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard/sites?wizard=true`
       }
     })
 

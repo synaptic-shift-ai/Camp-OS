@@ -390,7 +390,7 @@ async function BookingPortalCTA() {
     return null
   }
 
-  const bookingPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/book/${property.booking_page_slug}`
+  const bookingPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/book/${property.booking_page_slug}`
 
   return (
     <Card className="border-0 bg-gradient-to-br from-red-50 via-rose-50 to-pink-50 dark:from-red-950/20 dark:via-rose-950/20 dark:to-pink-950/20 overflow-hidden">

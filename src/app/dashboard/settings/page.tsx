@@ -171,8 +171,8 @@ export default async function SettingsPage() {
             initialCancellationNonRefundableDays={
               (property.settings as Record<string, any> | null)?.cancellationNonRefundableDays ?? null
             }
-            initialCancellationRefundProcessingWindow={
-              (property.settings as Record<string, any> | null)?.cancellationRefundProcessingWindow ?? null
+            initialRefundEligiblePeriod={
+              (property.settings as Record<string, any> | null)?.refundEligiblePeriod ?? null
             }
             currentSettings={(property.settings as Record<string, unknown> | null) ?? null}
           />

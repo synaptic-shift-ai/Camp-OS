@@ -23,6 +23,7 @@ import {
   UpdatePropertyRequestSchema,
   ListPropertiesResponseSchema,
   GetPropertyResponseSchema,
+  PropertySettingsSchema,
   type Property,
 } from '@/types/api/v1/schemas/properties'
 
@@ -75,7 +76,7 @@ describe('Properties API v1 Contract Tests', () => {
           freeCancellationWindow: 7,
           cancellationRefundPercentage: 100,
           cancellationNonRefundableDays: 0,
-          cancellationRefundProcessingWindow: 0,
+          refundEligiblePeriod: '3-6',
         },
 
         // Amenities
@@ -196,7 +197,7 @@ describe('Properties API v1 Contract Tests', () => {
           freeCancellationWindow: null,
           cancellationRefundPercentage: null,
           cancellationNonRefundableDays: null,
-          cancellationRefundProcessingWindow: null,
+          refundEligiblePeriod: null,
         },
 
         // Amenities - nullable
@@ -266,7 +267,7 @@ describe('Properties API v1 Contract Tests', () => {
           freeCancellationWindow: 7,
           cancellationRefundPercentage: 100,
           cancellationNonRefundableDays: 0,
-          cancellationRefundProcessingWindow: 0,
+          refundEligiblePeriod: '3-6',
         },
         amenities: ['wifi', 'showers'],
       }
@@ -389,7 +390,7 @@ describe('Properties API v1 Contract Tests', () => {
             freeCancellationWindow: null,
             cancellationRefundPercentage: null,
             cancellationNonRefundableDays: null,
-            cancellationRefundProcessingWindow: null,
+            refundEligiblePeriod: null,
           },
           amenities: null,
           onboardingStatus: 'completed',
@@ -452,7 +453,7 @@ describe('Properties API v1 Contract Tests', () => {
                 freeCancellationWindow: null,
                 cancellationRefundPercentage: null,
                 cancellationNonRefundableDays: null,
-                cancellationRefundProcessingWindow: null,
+                refundEligiblePeriod: null,
               },
               amenities: null,
               onboardingStatus: 'not_started',
@@ -516,6 +517,26 @@ describe('Properties API v1 Contract Tests', () => {
   // ========================================================================
 
   describe('Edge Cases', () => {
+    it('should reject settings with invalid refundEligiblePeriod format', () => {
+      const invalidSettings = {
+        checkInTime: null,
+        checkOutTime: null,
+        timezone: null,
+        cancellationPolicy: null,
+        minStayNights: null,
+        maxStayNights: null,
+        bookingLeadTimeDays: null,
+        customRules: null,
+        freeCancellationWindow: null,
+        cancellationRefundPercentage: null,
+        cancellationNonRefundableDays: null,
+        // invalid format: not a number or range
+        refundEligiblePeriod: 'invalid',
+      }
+
+      expect(() => PropertySettingsSchema.parse(invalidSettings)).toThrow()
+    })
+
     it('should handle property with maximum field lengths', () => {
       const property: Property = {
         id: '550e8400-e29b-41d4-a716-446655440000',
@@ -551,7 +572,7 @@ describe('Properties API v1 Contract Tests', () => {
           freeCancellationWindow: null,
           cancellationRefundPercentage: null,
           cancellationNonRefundableDays: null,
-          cancellationRefundProcessingWindow: null,
+          refundEligiblePeriod: null,
         },
         amenities: null,
         onboardingStatus: 'completed',
@@ -600,12 +621,11 @@ describe('Properties API v1 Contract Tests', () => {
             cancellationPolicy: null,
             minStayNights: null,
             maxStayNights: null,
-            bookingLeadTimeDays: null,
-            customRules: null,
-            freeCancellationWindow: null,
-            cancellationRefundPercentage: null,
-            cancellationNonRefundableDays: null,
-            cancellationRefundProcessingWindow: null,
+              bookingLeadTimeDays: null,
+              customRules: null,
+              freeCancellationWindow: null,
+              cancellationRefundPercentage: null,
+              cancellationNonRefundableDays: null,
           },
           amenities: null,
           onboardingStatus: 'not_started',
@@ -667,7 +687,6 @@ describe('Properties API v1 Contract Tests', () => {
             freeCancellationWindow: null,
             cancellationRefundPercentage: null,
             cancellationNonRefundableDays: null,
-            cancellationRefundProcessingWindow: null,
           },
           amenities: null,
           onboardingStatus: status,

@@ -28,7 +28,7 @@ export type PropertySettingsProps = {
   freeCancellationWindow: number | null
   cancellationRefundPercentage: number | null
   cancellationNonRefundableDays: number | null
-  cancellationRefundProcessingWindow: number | null
+  refundEligiblePeriod: string | null
 }
 
 export class PropertySettings extends ValueObject<PropertySettingsProps> {
@@ -88,7 +88,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       freeCancellationWindow: props.freeCancellationWindow ?? null,
       cancellationRefundPercentage: props.cancellationRefundPercentage ?? null,
       cancellationNonRefundableDays: props.cancellationNonRefundableDays ?? null,
-      cancellationRefundProcessingWindow: props.cancellationRefundProcessingWindow ?? null,
+      refundEligiblePeriod: props.refundEligiblePeriod ?? null,
     })
   }
 
@@ -108,7 +108,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       freeCancellationWindow: null,
       cancellationRefundPercentage: null,
       cancellationNonRefundableDays: null,
-      cancellationRefundProcessingWindow: null,
+      refundEligiblePeriod: null,
     })
   }
 
@@ -132,7 +132,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       freeCancellationWindow: json.freeCancellationWindow ?? json.free_cancellation_window ?? null,
       cancellationRefundPercentage: json.cancellationRefundPercentage ?? json.cancellation_refund_percentage ?? null,
       cancellationNonRefundableDays: json.cancellationNonRefundableDays ?? json.cancellation_non_refundable_days ?? null,
-      cancellationRefundProcessingWindow: json.cancellationRefundProcessingWindow ?? json.cancellation_refund_processing_window ?? null,
+      refundEligiblePeriod: json.refundEligiblePeriod ?? json.refund_eligible_period ?? null,
     })
   }
 
@@ -164,8 +164,8 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
     return this.props.cancellationNonRefundableDays
   }
 
-  get cancellationRefundProcessingWindow(): number | null {
-    return this.props.cancellationRefundProcessingWindow
+  get refundEligiblePeriod(): string | null {
+    return this.props.refundEligiblePeriod
   }
 
   get minStayNights(): number | null {
@@ -222,7 +222,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       freeCancellationWindow: this.props.freeCancellationWindow,
       cancellationRefundPercentage: this.props.cancellationRefundPercentage,
       cancellationNonRefundableDays: this.props.cancellationNonRefundableDays,
-      cancellationRefundProcessingWindow: this.props.cancellationRefundProcessingWindow,
+      refundEligiblePeriod: this.props.refundEligiblePeriod,
     }
   }
 }

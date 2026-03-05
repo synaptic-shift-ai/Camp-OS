@@ -189,7 +189,7 @@ export async function PATCH(
           freeCancellationWindow: validatedRequest.settings.freeCancellationWindow ?? null,
           cancellationRefundPercentage: validatedRequest.settings.cancellationRefundPercentage ?? null,
           cancellationNonRefundableDays: validatedRequest.settings.cancellationNonRefundableDays ?? null,
-          cancellationRefundProcessingWindow: validatedRequest.settings.cancellationRefundProcessingWindow ?? null,
+          refundEligiblePeriod: validatedRequest.settings.refundEligiblePeriod ?? null,
         })
       : undefined
 

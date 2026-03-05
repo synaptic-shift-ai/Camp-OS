@@ -29,7 +29,12 @@ const cancellationPolicySchema = z.object({
   freeCancellationWindow: z.number().int().min(0).nullable(),
   cancellationRefundPercentage: z.number().int().min(0).max(100).nullable(),
   cancellationNonRefundableDays: z.number().int().min(0).nullable(),
-  cancellationRefundProcessingWindow: z.number().int().min(0).nullable(),
+  refundEligiblePeriod: z
+    .string()
+    .regex(/^(?:\d+|\d+-\d+)$/, {
+      message: 'Enter a number (e.g. 4) or a range (e.g. 3-6)',
+    })
+    .nullable(),
 })
 
 type CancellationPolicyFormData = z.infer<typeof cancellationPolicySchema>
@@ -43,7 +48,7 @@ interface CancellationPolicySettingsProps {
   initialFreeCancellationWindow: number | null
   initialCancellationRefundPercentage: number | null
   initialCancellationNonRefundableDays: number | null
-  initialCancellationRefundProcessingWindow: number | null
+  initialRefundEligiblePeriod: string | null
   currentSettings: SettingsForMerge
 }
 
@@ -56,7 +61,7 @@ export function CancellationPolicySettings({
   initialFreeCancellationWindow,
   initialCancellationRefundPercentage,
   initialCancellationNonRefundableDays,
-  initialCancellationRefundProcessingWindow,
+  initialRefundEligiblePeriod,
   currentSettings,
 }: CancellationPolicySettingsProps) {
     const router = useRouter()
@@ -74,7 +79,7 @@ export function CancellationPolicySettings({
         freeCancellationWindow: initialFreeCancellationWindow ?? null,
         cancellationRefundPercentage: initialCancellationRefundPercentage ?? null,
         cancellationNonRefundableDays: initialCancellationNonRefundableDays ?? null,
-        cancellationRefundProcessingWindow: initialCancellationRefundProcessingWindow ?? null,
+        refundEligiblePeriod: initialRefundEligiblePeriod ?? null,
     },
     })
 
@@ -89,7 +94,7 @@ export function CancellationPolicySettings({
             freeCancellationWindow: data.freeCancellationWindow ?? null,
             cancellationRefundPercentage: data.cancellationRefundPercentage ?? null,
             cancellationNonRefundableDays: data.cancellationNonRefundableDays ?? null,
-            cancellationRefundProcessingWindow: data.cancellationRefundProcessingWindow ?? null,
+            refundEligiblePeriod: data.refundEligiblePeriod ?? null,
             }
 
             const response = await fetch(`/api/v1/properties/${propertyId}`, {
@@ -198,18 +203,20 @@ export function CancellationPolicySettings({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="cancellationRefundProcessingWindow">Refund processing window (days)</Label>
-                        <p className="text-sm text-muted-foreground">Number of days within which a refund will be processed after cancellation.</p>
+                        <Label htmlFor="refundEligiblePeriod">Refund-eligible period (days before check-in)</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Enter a single day (e.g. 4) or a range of days (e.g. 3-6) before check-in when a cancellation
+                          still qualifies for the partial refund percentage.
+                        </p>
                         <Input
-                            id="cancellationRefundProcessingWindow"
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            className={errors.cancellationRefundProcessingWindow ? 'border-destructive' : ''}
-                            {...register('cancellationRefundProcessingWindow', { valueAsNumber: true })}
+                            id="refundEligiblePeriod"
+                            type="text"
+                            placeholder="e.g. 4 or 3-6"
+                            className={errors.refundEligiblePeriod ? 'border-destructive' : ''}
+                            {...register('refundEligiblePeriod')}
                         />
-                        {errors.cancellationRefundProcessingWindow && (
-                            <p className="text-sm text-destructive">{errors.cancellationRefundProcessingWindow.message}</p>
+                        {errors.refundEligiblePeriod && (
+                            <p className="text-sm text-destructive">{errors.refundEligiblePeriod.message}</p>
                         )}
                     </div>
                 </div>

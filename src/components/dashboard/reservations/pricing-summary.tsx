@@ -115,11 +115,18 @@ export function PricingSummary({
     long_term: 28,
   }
   const effectiveStayType: BookingType =
-    stayType === 'monthly' && numNights >= STAY_TYPE_MIN_NIGHTS.monthly
-      ? 'monthly'
-      : (stayType === 'monthly' || stayType === 'weekly') && numNights >= STAY_TYPE_MIN_NIGHTS.weekly
-        ? 'weekly'
-        : 'nightly'
+    stayType === 'nightly'
+      ? numNights >= STAY_TYPE_MIN_NIGHTS.monthly
+          ? 'monthly'
+          : numNights >= STAY_TYPE_MIN_NIGHTS.weekly
+            ? 'weekly'
+            : 'nightly'
+      : stayType === 'monthly' && numNights >= STAY_TYPE_MIN_NIGHTS.monthly
+        ? 'monthly'
+        : (stayType === 'monthly' || stayType === 'weekly') &&
+            numNights >= STAY_TYPE_MIN_NIGHTS.weekly
+          ? 'weekly'
+          : stayType
 
   // Base subtotal and display label from effective stay type (match accordion and blue bar)
   let subtotal: number

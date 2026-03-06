@@ -21,7 +21,7 @@ function getRedirectBaseUrl(request: NextRequest): string {
     reqUrl?.host ??
     ""
   const fromRequest = host ? `${protocol}://${host}`.replace(/\/$/, "") : ""
-  return fromRequest || reqUrl?.origin || ''
+  return fromRequest || reqUrl?.origin || "http://localhost:3000"
 }
 
 /**

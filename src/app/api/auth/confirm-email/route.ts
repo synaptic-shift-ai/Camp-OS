@@ -10,8 +10,9 @@ function hashToken(token: string): string {
 function getBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL
-  ) || ''
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    'http://localhost:3000'
+  )
 }
 
 export async function GET(request: NextRequest) {

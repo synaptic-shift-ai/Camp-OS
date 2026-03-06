@@ -219,11 +219,6 @@ export function ReservationActions({
               disabled={noShowLoading}
               className="gap-2"
             >
-              {noShowLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserX className="h-4 w-4" />
-              )}
               Mark as No-Show
             </DropdownMenuItem>
           </>

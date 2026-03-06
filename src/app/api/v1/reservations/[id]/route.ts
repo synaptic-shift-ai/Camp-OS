@@ -13,6 +13,8 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
+import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
 
 /**
  * GET /api/v1/reservations/[id]
@@ -71,7 +73,7 @@ export async function GET(
     // Check if property belongs to user's company
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, settings')
       .eq('id', reservation.propertyId)
       .single()
 
@@ -80,6 +82,29 @@ export async function GET(
         error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
         { status: 403 }
       )
+    }
+
+    const settings = PropertySettings.fromJson(property.settings ?? null)
+    const policy = {
+      freeCancellationWindow: settings.freeCancellationWindow,
+      refundEligiblePeriod: settings.refundEligiblePeriod,
+      cancellationRefundPercentage: settings.cancellationRefundPercentage,
+      cancellationNonRefundableDays: settings.cancellationNonRefundableDays,
+    }
+    const paidCents = reservation.paidAmount.amountInCents
+    const totalCents = reservation.totalAmount.amountInCents
+    let suggestedRefundCents = computeRefundCentsFromCancellationPolicy(
+      reservation.checkInDate,
+      new Date(),
+      paidCents,
+      policy
+    )
+    if (
+      suggestedRefundCents === 0 &&
+      paidCents > 0 &&
+      paidCents < totalCents
+    ) {
+      suggestedRefundCents = paidCents
     }
 
     // Fetch guest info
@@ -108,6 +133,7 @@ export async function GET(
       check_out_date: reservationDTO.checkOutDate,
       total_amount: reservationDTO.totalAmountCents,
       paid_amount: reservationDTO.paidAmountCents,
+      suggested_refund_cents: suggestedRefundCents,
       num_adults: reservationDTO.occupancy.numAdults,
       num_children: reservationDTO.occupancy.numChildren,
       num_pets: reservationDTO.occupancy.numPets,

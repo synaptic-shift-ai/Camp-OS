@@ -6,6 +6,7 @@
  * POST /api/v1/reservations/[id]/no-show - Mark reservation as no-show
  */
 
+import { revalidatePath } from 'next/cache'
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
@@ -94,7 +95,7 @@ export async function POST(
     if (!result.success) {
       const statusCode =
         result.error === 'NOT_FOUND' ? 404 :
-        result.error === 'NOT_CONFIRMED' ? 409 :
+        result.error === 'INVALID_STATUS' ? 409 :
         500
 
       return NextResponse.json(
@@ -102,6 +103,8 @@ export async function POST(
         { status: statusCode }
       )
     }
+
+    revalidatePath('/dashboard/reservations')
 
     // Convert to DTO
     const reservationDTO = toReservationDTO(result.reservation)

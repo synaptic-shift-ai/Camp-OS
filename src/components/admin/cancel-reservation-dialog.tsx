@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -47,9 +47,35 @@ export function CancelReservationDialog({
   const [refundPaymentMethod, setRefundPaymentMethod] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [suggestedRefundCents, setSuggestedRefundCents] = useState<number | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const router = useRouter()
 
   const maxRefundDollars = paidAmountCents != null ? (paidAmountCents / 100).toFixed(2) : null
+  const suggestedRefundDollars =
+    suggestedRefundCents != null ? (suggestedRefundCents / 100).toFixed(2) : null
+  const amountToRefundDollars = suggestedRefundDollars ?? maxRefundDollars
+
+  useEffect(() => {
+    if (!open || !reservationId) return
+    setPreviewLoading(true)
+    setSuggestedRefundCents(null)
+    fetch(`/api/v1/reservations/${reservationId}`)
+      .then((res) => res.json())
+      .then((json) => {
+        const cents = json?.data?.suggested_refund_cents
+        if (json?.success === true && typeof cents === "number") {
+          setSuggestedRefundCents(cents)
+          setRefundAmountDollars((cents / 100).toFixed(2))
+        } else {
+          setRefundAmountDollars(maxRefundDollars ?? "")
+        }
+      })
+      .catch(() => {
+        setRefundAmountDollars(maxRefundDollars ?? "")
+      })
+      .finally(() => setPreviewLoading(false))
+  }, [open, reservationId, maxRefundDollars])
 
   const handleCancel = async () => {
     try {
@@ -114,7 +140,7 @@ export function CancelReservationDialog({
       }
 
       // Success - close dialog and refresh the page
-      setOpen(false)
+      handleOpenChange(false)
       router.refresh()
     } catch (err) {
       console.error("Cancel reservation error:", err)
@@ -124,8 +150,28 @@ export function CancelReservationDialog({
     }
   }
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSuggestedRefundCents(null)
+      setRefundAmountDollars("")
+      setError(null)
+    }
+    setOpen(nextOpen)
+  }
+
+  const isRefundable = suggestedRefundCents != null && suggestedRefundCents > 0
+
+  const refundMessage = 
+    suggestedRefundCents != null && paidAmountCents > 0
+      ? suggestedRefundCents >= paidAmountCents
+        ? 'Your Cancellation is Eligible for full refund.'
+        : suggestedRefundCents > 0
+          ? `Your Cancellation is Eligible for ${Math.round((suggestedRefundCents / paidAmountCents) * 100)}% refund.`
+          : null
+      : null
+
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         {trigger || <Button variant="destructive" size="sm">Cancel Reservation</Button>}
       </SheetTrigger>
@@ -150,54 +196,78 @@ export function CancelReservationDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Amount To be Refunded</Label>
+          {previewLoading ? (
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              <span>Checking refund eligibility...</span>
+            </div>
+          ) : isRefundable ? (
+            <>
+              <div className="space-y-2">
+                <Label>Amount To be Refunded</Label>
+                <Alert>
+                  <DollarSign className="h-4 w-4" />
+                  <AlertDescription>
+                    <span className="font-semibold">
+                      Amount To be Refunded: ${amountToRefundDollars ?? "0.00"}
+                    </span>
+                    {suggestedRefundDollars != null && (
+                      <span className="block text-sm text-muted-foreground mt-1">
+                        {refundMessage}
+                        {/* Per cancellation policy. You may adjust below (max ${maxRefundDollars}). */}
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Refund method</Label>
+                <Select 
+                  value={refundPaymentMethod}
+                  onValueChange={setRefundPaymentMethod}
+                  disabled={loading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select refund method..."/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Refund Amount */}
+              <div className="space-y-2">
+                <Label htmlFor="refund-amount">Refund Amount</Label>
+                <Input 
+                  id="refundAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={maxRefundDollars != null ? `Max $${maxRefundDollars}` : "$0.00"}
+                  value={refundAmountDollars}
+                  onChange={(e) => setRefundAmountDollars(e.target.value)}
+                  disabled={loading}
+                />
+                {maxRefundDollars != null && (
+                  <p className="text-xs text-muted-foreground">
+                    {suggestedRefundDollars != null
+                      ? `Per policy: $${suggestedRefundDollars}. Maximum: $${maxRefundDollars} (amount paid).`
+                      : `Maximum refund amount is $${maxRefundDollars} (amount paid).`}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : paidAmountCents > 0 ? (
             <Alert>
-              <DollarSign className="h-4 w-4" />
               <AlertDescription>
-                <span className="font-semibold">
-                  Amount To be Refunded: ${maxRefundDollars}
-                </span>
+                Your Cancellation is not eligible for a refund due to late cancellation.
               </AlertDescription>
             </Alert>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Refund method</Label>
-            <Select 
-              value={refundPaymentMethod}
-              onValueChange={setRefundPaymentMethod}
-              disabled={loading}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select refund method..."/>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="check">Check</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Refund Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="refund-amount">Refund Amount</Label>
-            <Input 
-              id="refundAmount"
-              type="number"
-              min="0"
-              placeholder={maxRefundDollars != null ? `Max $${maxRefundDollars}` : "$0.00"}
-              value={refundAmountDollars}
-              onChange={(e) => setRefundAmountDollars(e.target.value)}
-              disabled={loading}
-            />
-            {maxRefundDollars != null && (
-              <p className="text-xs text-muted-foreground">
-                Maximum refund amount is ${maxRefundDollars} (amount paid).
-              </p>
-            )}
-          </div>
+          ) : null}
 
           {/* Cancellation Reason */}
           <div className="space-y-2">
@@ -236,7 +306,7 @@ export function CancelReservationDialog({
         <SheetFooter>
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={loading}
           >
             Keep Reservation
@@ -244,7 +314,7 @@ export function CancelReservationDialog({
           <Button
             variant="destructive"
             onClick={handleCancel}
-            disabled={loading}
+            disabled={loading || (isRefundable && !refundPaymentMethod)}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? "Cancelling..." : "Cancel Reservation"}

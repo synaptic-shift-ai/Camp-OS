@@ -1,5 +1,8 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Loader2, UserX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,6 +21,7 @@ import { ExtendDialog } from "./extend-dialog"
 import { RenewDialog } from "./renew-dialog"
 import { ManualPaymentDialog } from "./manual-payment-dialog"
 import { RefundReservationDialog } from "./refund-reservation-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface ReservationActionsProps {
   reservationId: string
@@ -60,6 +64,32 @@ export function ReservationActions({
   canRefund = false,
   maxRefundableCents = 0,
 }: ReservationActionsProps) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [noShowLoading, setNoShowLoading] = useState(false)
+
+  const handleMarkNoShow = async (e: Event) => {
+    e.preventDefault()
+    setNoShowLoading(true)
+    try {
+      const res = await fetch(`/api/v1/reservations/${reservationId}/no-show`, {
+        method: "POST",
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const msg = data?.error?.message ?? "Failed to mark as no-show"
+        toast({ title: "No-show failed", description: msg, variant: "destructive" })
+        return
+      }
+      toast({ title: "Marked as no-show", description: "Reservation status updated." })
+      router.refresh()
+    } catch (err) {
+      console.error("Mark no-show error:", err)
+      toast({ title: "Error", description: "Could not mark as no-show.", variant: "destructive" })
+    } finally {
+      setNoShowLoading(false)
+    }
+  }
   // Only show extend/renew for confirmed or checked-in reservations
   const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
 
@@ -71,6 +101,16 @@ export function ReservationActions({
   const showManualPayment = !!hasOutstandingBalance
 
   const showRefund = canRefund && maxRefundableCents > 0
+
+  const showNoShowStatus = status === 'pending' || status === 'confirmed'
+  const checkInReached = (() => {
+    const d = new Date(checkIn)
+    const t = new Date()
+    d.setHours(0, 0, 0, 0)
+    t.setHours(0, 0, 0, 0)
+    return d.getTime() <= t.getTime()
+  })()
+  const showNoShowButton = showNoShowStatus && checkInReached
   
   return (
     <DropdownMenu>
@@ -170,6 +210,22 @@ export function ReservationActions({
                 </DropdownMenuItem>
               }
             />
+          </>
+        )}
+        {showNoShowButton && (
+          <>
+            <DropdownMenuItem
+              onSelect={handleMarkNoShow}
+              disabled={noShowLoading}
+              className="gap-2"
+            >
+              {noShowLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserX className="h-4 w-4" />
+              )}
+              Mark as No-Show
+            </DropdownMenuItem>
           </>
         )}
         {showCancel && (

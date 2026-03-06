@@ -18,6 +18,8 @@ import { CancelReservationCommandHandler } from '@/modules/BookingEngine/applica
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
+import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
 
 /**
  * POST /api/v1/reservations/[id]/cancel
@@ -74,7 +76,7 @@ export async function POST(
     // Verify tenant access (BP-4)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, settings')
       .eq('id', existingReservation.propertyId)
       .single()
 
@@ -100,13 +102,39 @@ export async function POST(
       )
     }
 
+    // Apply cancellation policy to property settings
+    const settings = PropertySettings.fromJson(property.settings ?? null)
+    const policy = {
+      freeCancellationWindow: settings.freeCancellationWindow,
+      refundEligiblePeriod: settings.refundEligiblePeriod,
+      cancellationRefundPercentage: settings.cancellationRefundPercentage,
+      cancellationNonRefundableDays: settings.cancellationNonRefundableDays,
+    }
+
+    const paidCents = existingReservation.paidAmount.amountInCents
+    const totalCents = existingReservation.totalAmount.amountInCents
+    const policyRefundCents = computeRefundCentsFromCancellationPolicy(
+      existingReservation.checkInDate,
+      new Date(),
+      paidCents,
+      policy,
+    )
+    const effectivePolicyRefundCents =
+      policyRefundCents === 0 && paidCents > 0 && paidCents < totalCents
+        ? paidCents
+        : policyRefundCents
+    const refundAmountCents = Math.min(
+      validatedRequest.refundAmountCents,
+      effectivePolicyRefundCents
+    )
+
     // Execute command using application layer
     const commandHandler = new CancelReservationCommandHandler(repository)
 
     const reservation = await commandHandler.execute({
       reservationId,
       reason: validatedRequest.reason ?? null,
-      refundAmountCents: validatedRequest.refundAmountCents,
+      refundAmountCents,
     })
 
     // Convert to DTO

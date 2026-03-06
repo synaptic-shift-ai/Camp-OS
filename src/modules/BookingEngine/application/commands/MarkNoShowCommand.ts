@@ -18,7 +18,7 @@ export type MarkNoShowResult = {
   reservation: Reservation
 } | {
   success: false
-  error: 'NOT_FOUND' | 'NOT_CONFIRMED'
+  error: 'NOT_FOUND' | 'INVALID_STATUS'
   message: string
 }
 
@@ -39,14 +39,14 @@ export class MarkNoShowCommandHandler {
       }
     }
 
-    // Attempt to mark as no-show (will throw if not confirmed)
+    // Attempt to mark as no-show (will throw if not confirmed or pending)
     try {
       reservation.markNoShow(dto.staffUserId)
     } catch {
       return {
         success: false,
-        error: 'NOT_CONFIRMED',
-        message: 'Can only mark confirmed reservations as no-show',
+        error: 'INVALID_STATUS',
+        message: 'Can only mark confirmed or pending reservations as no-show',
       }
     }
 

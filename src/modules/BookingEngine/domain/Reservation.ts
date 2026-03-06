@@ -618,8 +618,11 @@ export class Reservation extends AggregateRoot<string> {
    * This is typically done on the day after the scheduled check-in date.
    */
   markNoShow(staffUserId: string): void {
-    if (this.status !== ReservationStatus.CONFIRMED) {
-      throw new Error('Can only mark confirmed reservations as no-show')
+    if (
+      this.status !== ReservationStatus.CONFIRMED &&
+      this.status !== ReservationStatus.PENDING
+    ) {
+      throw new Error('Can only mark confirmed or pending reservations as no-show')
     }
 
     this.props.status = ReservationStatus.NO_SHOW

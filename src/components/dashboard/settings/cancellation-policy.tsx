@@ -24,18 +24,46 @@ import { Loader2, FileText } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 // import { Description } from '@/components/ui/description'
 
+function optionalNumber(schema: z.ZodNumber) {
+  return z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined) return null
+      if (typeof val === 'number' && Number.isNaN(val)) return null
+      return val
+    },
+    schema.nullable()
+  )
+}
+
 const cancellationPolicySchema = z.object({
   cancellationPolicy: z.string().max(5000, 'Policy text must be 5000 characters or less').nullable(),
-  freeCancellationWindow: z.number().int().min(0).nullable(),
-  cancellationRefundPercentage: z.number().int().min(0).max(100).nullable(),
-  cancellationNonRefundableDays: z.number().int().min(0).nullable(),
-  refundEligiblePeriod: z
-    .string()
-    .regex(/^(?:\d+|\d+-\d+)$/, {
-      message: 'Enter a number (e.g. 4) or a range (e.g. 3-6)',
-    })
-    .nullable(),
+  freeCancellationWindow: optionalNumber(z.number().int().min(0)),
+  cancellationRefundPercentage: optionalNumber(z.number().int().min(0).max(100)),
+  cancellationNonRefundableDays: optionalNumber(z.number().int().min(0)),
+  refundEligiblePeriod: z.preprocess(
+    (val) =>
+      val === '' || (typeof val === 'string' && val.trim() === '') || val === undefined
+        ? null
+        : val,
+    z
+      .string()
+      .regex(/^(?:\d+|\d+-\d+)$/, {
+        message: 'Enter a number (e.g. 4) or a range (e.g. 3-6)',
+      })
+      .nullable()
+  ),
 })
+.refine(
+    (data) => {
+      const hasPercentage = data.cancellationRefundPercentage != null
+      if (!hasPercentage) return true
+      return data.refundEligiblePeriod != null && data.refundEligiblePeriod.trim() !== ''
+    },
+    {
+      message: 'Refund-eligible period (days before check-in) is required when refund percentage is set.',
+      path: ['refundEligiblePeriod'],
+    }
+)
 
 type CancellationPolicyFormData = z.infer<typeof cancellationPolicySchema>
 
@@ -205,8 +233,7 @@ export function CancellationPolicySettings({
                     <div className="space-y-2">
                         <Label htmlFor="refundEligiblePeriod">Refund-eligible period (days before check-in)</Label>
                         <p className="text-sm text-muted-foreground">
-                          Enter a single day (e.g. 4) or a range of days (e.g. 3-6) before check-in when a cancellation
-                          still qualifies for the partial refund percentage.
+                          Enter a single day (e.g. 4) or a range of days (e.g. 3-6) before check-in
                         </p>
                         <Input
                             id="refundEligiblePeriod"

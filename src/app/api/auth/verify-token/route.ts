@@ -2,20 +2,46 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 
 /**
+ * Base URL we tell Supabase to redirect to after sign-in. Must match a URL in
+ * Supabase Dashboard → Auth → URL Configuration → Redirect URLs.
+ */
+function getRedirectBaseUrl(request: NextRequest): string {
+  const fromEnv = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    ""
+  ).replace(/\/$/, "")
+  if (fromEnv) return fromEnv
+  const reqUrl = request.url ? new URL(request.url) : null
+  const protocol =
+    request.headers.get("x-forwarded-proto") ?? reqUrl?.protocol?.replace(":", "") ?? "https"
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    reqUrl?.host ??
+    ""
+  const fromRequest = host ? `${protocol}://${host}`.replace(/\/$/, "") : ""
+  return fromRequest || reqUrl?.origin || ''
+}
+
+/**
  * Magic Link Token Verification Endpoint
  *
  * Validates the onboarding token from email link and authenticates the user automatically.
- * This allows users to click the email link in any browser and be signed in seamlessly.
+ * Redirect URL must be in Supabase Dashboard → Auth → URL Configuration → Redirect URLs.
  */
 export async function POST(request: NextRequest) {
   try {
-    const { token } = await request.json()
+    const body = (await request.json()) as { token?: unknown }
+    const token = body.token
 
     if (!token || typeof token !== "string") {
       return NextResponse.json({ error: "Invalid token" }, { status: 400 })
     }
 
-    console.log('[Token Verification] Verifying token:', token.substring(0, 8) + '...')
+    const baseUrl = getRedirectBaseUrl(request)
+    const redirectTo = `${baseUrl}/onboarding`
+    console.log('[Token Verification] Verifying token:', token.substring(0, 8) + '...', 'redirectTo:', redirectTo)
 
     // Use service role client to query companies table without authentication
     const supabaseService = createServiceClient(
@@ -72,7 +98,7 @@ export async function POST(request: NextRequest) {
       type: 'magiclink',
       email: user.user.email!,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard/sites?wizard=true`
+        redirectTo,
       }
     })
 

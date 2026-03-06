@@ -127,7 +127,7 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
       const redirectUri = `${baseUrl}/api/stripe/connect/authorize`
       console.log(`redirectUri: ${redirectUri}`)
-      
+
 
       // Build Stripe OAuth URL
       const stripeOAuthUrl = new URL("https://connect.stripe.com/oauth/authorize")
@@ -202,7 +202,7 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
           <CreditCard className="h-6 w-6 text-primary" />
         </div>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold">Payment Setup</h2>
+          <h2 className="text-xl font-semibold">Payment Setup</h2>
           <p className="text-muted-foreground">
             Connect Stripe to accept payments for your {totalCount === 1 ? "property" : "properties"}
           </p>
@@ -311,104 +311,108 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
         </CardContent>
       </Card>
 
-      {/* Properties List */}
+      {/* Properties List - same grid as sites so card width matches site items */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Your Properties</h3>
-        {properties.map((prop) => {
-          const isConnected = prop.stripeConnected
-          const isLoading = prop.isConnecting || prop.isDisconnecting
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {properties.map((prop) => {
+            const isConnected = prop.stripeConnected
+            const isLoading = prop.isConnecting || prop.isDisconnecting
 
-          return (
-            <Card key={prop.id} className={isConnected ? "border-green-200 dark:border-green-800" : ""}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <CardTitle className="text-base">{prop.name}</CardTitle>
-                      {prop.address && (
-                        <p className="text-sm text-muted-foreground">{prop.address}</p>
-                      )}
+            return (
+              <Card key={prop.id} className={isConnected ? "border-green-200 dark:border-green-800" : ""}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <CardTitle className="text-base">{prop.name}</CardTitle>
+                        {prop.address && (
+                          <p className="text-sm text-muted-foreground">{prop.address}</p>
+                        )}
+                      </div>
                     </div>
+                    {isConnected && (
+                      <Badge variant="default" className="bg-green-600">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
+                    )}
                   </div>
-                  {isConnected && (
-                    <Badge variant="default" className="bg-green-600">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Connected
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {isConnected ? (
-                  <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/20 p-3 rounded-lg">
-                    <p className="text-sm text-green-900 dark:text-green-100">
-                      Ready to accept payments
-                    </p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {isConnected ? (
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/20 p-3 rounded-lg">
+                      <p className="text-sm text-green-900 dark:text-green-100">
+                        Ready to accept payments
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDisconnect(prop.id)}
+                        disabled={isLoading}
+                      >
+                        {prop.isDisconnecting ? (
+                          <>
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                            Disconnecting...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-3 w-3" />
+                            Reconnect
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDisconnect(prop.id)}
+                      className="w-full"
+                      onClick={() => handleStripeConnect(prop.id)}
                       disabled={isLoading}
                     >
-                      {prop.isDisconnecting ? (
+                      {prop.isConnecting ? (
                         <>
-                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                          Disconnecting...
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Connecting to Stripe...
                         </>
                       ) : (
                         <>
-                          <RefreshCw className="mr-2 h-3 w-3" />
-                          Reconnect
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Connect Stripe
                         </>
                       )}
                     </Button>
-                  </div>
-                ) : (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleStripeConnect(prop.id)}
-                    disabled={isLoading}
-                  >
-                    {prop.isConnecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Connecting to Stripe...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Connect Stripe for {prop.name}
-                      </>
-                    )}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between gap-4">
-        <Button variant="outline" onClick={onSkip}>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Alert className="flex-1 min-w-0 border-blue-500/30 bg-blue-500/10 [&>svg]:text-blue-600 dark:[&>svg]:text-blue-400">
+          {/* <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>Note:</strong> You can skip this step and connect Stripe later from your property
+            settings. However, you won&apos;t be able to accept online bookings until Stripe is connected.
+            {connectedCount > 0 && connectedCount < totalCount && (
+              <> You&apos;ve connected {connectedCount} of {totalCount} properties - you can connect the remaining properties now or later.</>
+            )}
+          </AlertDescription> */}
+          <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>Note:</strong> You won&apos;t be able to accept online bookings until Stripe is
+            connected for a property. Connect Stripe for each property above, or connect later from
+            your property settings.
+            {connectedCount > 0 && connectedCount < totalCount && (
+              <> You&apos;ve connected {connectedCount} of {totalCount} properties; connect the remaining when ready.</>
+            )}
+          </AlertDescription>
+        </Alert>
+        {/* <Button variant="outline" onClick={onSkip} className="shrink-0">
           Skip for Now
-        </Button>
-
-        <Button onClick={onComplete}>
-          Continue to Review & Launch
-        </Button>
+        </Button> */}
       </div>
-
-      <Alert>
-        <AlertDescription className="text-sm">
-          <strong>Note:</strong> You can skip this step and connect Stripe later from your property
-          settings. However, you won't be able to accept online bookings until Stripe is connected.
-          {connectedCount > 0 && connectedCount < totalCount && (
-            <> You've connected {connectedCount} of {totalCount} properties - you can connect the remaining properties now or later.</>
-          )}
-        </AlertDescription>
-      </Alert>
     </div>
   )
 }

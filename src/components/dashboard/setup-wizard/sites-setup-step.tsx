@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react"
 import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Tent, Plus, Loader2, CheckCircle } from "lucide-react"
+import { Tent, Plus, Loader2, CheckCircle, AlertTriangle } from "lucide-react"
 import { SiteForm, type PropertyDefaults } from "./site-form"
 import { ExistingSitesList } from "./existing-sites-list"
 import { useToast } from "@/hooks/use-toast"
@@ -13,21 +13,38 @@ interface SitesSetupStepProps {
   property: Property
   onComplete: () => void
   onSkip: () => void
+  /** Called with propertyId whenever this property is confirmed to have ≥1 site */
+  onSiteConfirmed?: (propertyId: string) => void
+}
+
+export interface SitesSetupStepHandle {
+  /**
+   * Called by the wizard's Next button.
+   * Waits for any in-progress fetch to finish, then:
+   * Returns true  → has ≥1 site, wizard may advance.
+   * Returns false → 0 sites, shows inline error, wizard stays.
+   */
+  canAdvance: () => Promise<boolean>
 }
 
 type ViewMode = "list" | "create" | "edit"
 
-export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesSetupStepProps) {
+const SitesSetupStepComponent = (
+  { property, onComplete, onSkip: _onSkip, onSiteConfirmed }: SitesSetupStepProps,
+  ref: React.Ref<SitesSetupStepHandle>
+) => {
   const [mode, setMode] = useState<ViewMode>("list")
   const [sites, setSites] = useState<any[]>([])
   const [editingSite, setEditingSite] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [_deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [noSiteError, setNoSiteError] = useState<string | null>(null)
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
+  const loadingRef = useRef(true)
+  const sitesRef = useRef<any[]>([])
   const { toast } = useToast()
 
-  // Fetch property defaults for reservation types
   const fetchPropertyDefaults = useCallback(async () => {
     try {
       const response = await fetch(`/api/v1/properties/${property.id}/reservation-types`)
@@ -47,14 +64,13 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
       }
     } catch (err) {
       console.error("Error fetching property defaults:", err)
-      // Don't block the form if defaults can't be fetched
     }
   }, [property.id])
 
-  // Fetch existing sites - migrated to v1 API
   const fetchSites = useCallback(async () => {
     try {
       setLoading(true)
+      loadingRef.current = true
       const response = await fetch(`/api/v1/properties/${property.id}/sites`)
       const result = await response.json()
 
@@ -62,23 +78,56 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
         throw new Error(result.error?.message || "Failed to fetch sites")
       }
 
-      // v1 API returns { success: true, data: { items: [...] } }
       const items = result.success && result.data?.items ? result.data.items : []
       setSites(items)
+      sitesRef.current = items
+
+      if (items.length > 0) {
+        setNoSiteError(null)
+        onSiteConfirmed?.(property.id)
+      }
     } catch (err) {
       console.error("Error fetching sites:", err)
       setError(err instanceof Error ? err.message : "Failed to load sites")
+      sitesRef.current = []
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
-  }, [property.id])
+  }, [property.id, onSiteConfirmed])
 
   useEffect(() => {
     fetchSites()
     fetchPropertyDefaults()
   }, [fetchSites, fetchPropertyDefaults])
 
+
+  useImperativeHandle(ref, () => ({
+    canAdvance: (): Promise<boolean> => {
+      return new Promise((resolve) => {
+        const check = () => {
+          if (loadingRef.current) {
+            // Still fetching — poll every 100ms
+            setTimeout(check, 100)
+            return
+          }
+          if (sitesRef.current.length === 0) {
+            setNoSiteError(
+              `"${property.name}" has no sites yet. Please add at least one campsite before continuing.`
+            )
+            resolve(false)
+          } else {
+            setNoSiteError(null)
+            resolve(true)
+          }
+        }
+        check()
+      })
+    },
+  }))
+
   const handleAddSiteClick = () => {
+    setNoSiteError(null)
     setMode("create")
     setEditingSite(null)
   }
@@ -91,10 +140,7 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
   const handleDeleteSite = async (siteId: string) => {
     try {
       setDeleting(true)
-      // Migrated to v1 API
-      const response = await fetch(`/api/v1/sites/${siteId}`, {
-        method: "DELETE",
-      })
+      const response = await fetch(`/api/v1/sites/${siteId}`, { method: "DELETE" })
       const result = await response.json()
 
       if (!response.ok) {
@@ -106,7 +152,6 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
         description: "The site has been removed successfully.",
       })
 
-      // Refresh sites list
       await fetchSites()
     } catch (err) {
       console.error("Error deleting site:", err)
@@ -126,10 +171,7 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
       description: `Site ${savedSite.siteNumber} has been saved successfully.`,
     })
 
-    // Refresh sites list
     await fetchSites()
-
-    // Return to list view
     setMode("list")
     setEditingSite(null)
   }
@@ -137,14 +179,6 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
   const handleCancel = () => {
     setMode("list")
     setEditingSite(null)
-  }
-
-  const handleContinue = () => {
-    if (sites.length === 0) {
-      setError("Please add at least one site before continuing")
-      return
-    }
-    onComplete()
   }
 
   if (loading) {
@@ -163,22 +197,23 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
           <Tent className="h-6 w-6 text-primary" />
         </div>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold">Sites Setup</h2>
+          <h2 className="text-xl font-semibold">Sites Setup</h2>
           <p className="text-muted-foreground">
             Add and configure campsites for {property.name}
           </p>
         </div>
-        {mode === "list" && (
-          <Button onClick={handleAddSiteClick}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Site
-          </Button>
-        )}
       </div>
 
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {noSiteError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{noSiteError}</AlertDescription>
         </Alert>
       )}
 
@@ -188,9 +223,9 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
           {sites.length === 0 ? (
             <div className="rounded-lg border border-dashed border-muted-foreground/25 p-12 text-center">
               <Tent className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No sites yet</h3>
+              <h3 className="text-base font-semibold mb-2">No sites yet</h3>
               <p className="text-muted-foreground mb-4">
-                Get started by adding your first campsite. You'll need at least one site to
+                Get started by adding your first campsite. You&apos;ll need at least one site to
                 continue.
               </p>
               <Button onClick={handleAddSiteClick}>
@@ -206,21 +241,15 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
                 onDelete={handleDeleteSite}
               />
 
-              {/* Success message */}
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Great! You've added {sites.length} site{sites.length !== 1 ? "s" : ""}. You
-                  can add more or continue to the next step.
-                </AlertDescription>
-              </Alert>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                <Button onClick={handleContinue}>
-                  Continue to Dashboard Tour
-                </Button>
-                <Button variant="outline" onClick={handleAddSiteClick}>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+                  <p className="text-sm text-green-800 dark:text-green-200">
+                    Great! You&apos;ve added {sites.length} site{sites.length !== 1 ? "s" : ""}. You
+                    can add more or continue to the next step.
+                  </p>
+                </div>
+                <Button onClick={handleAddSiteClick} className="shrink-0">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Another Site
                 </Button>
@@ -230,7 +259,7 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
         </>
       )}
 
-      {/* Create/Edit Form View */}
+      {/* Create / Edit Form */}
       {(mode === "create" || mode === "edit") && (
         <SiteForm
           propertyId={property.id}
@@ -243,3 +272,5 @@ export function SitesSetupStep({ property, onComplete, onSkip: _onSkip }: SitesS
     </div>
   )
 }
+
+export const SitesSetupStep = forwardRef(SitesSetupStepComponent)

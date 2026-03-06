@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
-import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Phone, Building2, AlertCircle } from "lucide-react"
+import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Phone, Building2, AlertCircle, ArrowLeft } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 interface ReviewLaunchStepProps {
   property: Property
   onComplete: () => void
+  onBack?: () => void
 }
 
 interface Site {
@@ -53,7 +54,7 @@ interface CompletionData {
   }
 }
 
-export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps) {
+export function ReviewLaunchStep({ property: _property, onComplete, onBack }: ReviewLaunchStepProps) {
   const [completionData, setCompletionData] = useState<CompletionData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -61,15 +62,39 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch(`/api/v1/properties/${property.id}/completion-status`)
-        const result = await response.json()
+        // Step 1: get all properties
+        const propsResponse = await fetch("/api/v1/properties")
+        const propsResult = await propsResponse.json()
 
-        if (!response.ok || !result.success) {
-          throw new Error(result.error?.message || "Failed to fetch completion status")
+        if (!propsResponse.ok || !propsResult.success) {
+          throw new Error(propsResult.error?.message || "Failed to fetch properties")
         }
 
-        // v1 API returns { success: true, data: { properties: [...], summary: {...} } }
-        setCompletionData(result.data)
+        const allProperties: { id: string }[] =
+          propsResult.data?.items ?? propsResult.data ?? []
+
+        // Step 2: fetch completion status for each property in parallel
+        const statuses = await Promise.all(
+          allProperties.map(async (p) => {
+            const res = await fetch(`/api/v1/properties/${p.id}/completion-status`)
+            const json = await res.json()
+            if (!res.ok || !json.success) return null
+            // Each endpoint returns { data: { properties: [PropertyData], summary: {...} } }
+            // We only need the single property entry from each response
+            return (json.data?.properties?.[0] ?? null) as PropertyData | null
+          })
+        )
+
+        const validProperties = statuses.filter((p): p is PropertyData => p !== null)
+
+        const summary = {
+          totalProperties: validProperties.length,
+          totalSites: validProperties.reduce((sum, p) => sum + p.totalSites, 0),
+          propertiesWithStripe: validProperties.filter((p) => p.stripeConnected).length,
+          allStripeConnected: validProperties.every((p) => p.stripeConnected),
+        }
+
+        setCompletionData({ properties: validProperties, summary })
       } catch (error) {
         console.error("Error fetching completion data:", error)
       } finally {
@@ -77,7 +102,7 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
       }
     }
     fetchData()
-  }, [property.id])
+  }, []) // Run once on mount — fetches all properties, not scoped to a single property.id
 
   if (loading) {
     return (
@@ -122,8 +147,8 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
           <Rocket className="h-6 w-6 text-primary" />
         </div>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold">Review & Launch</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl font-semibold">Review & Launch</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Review your setup and launch your {summary.totalProperties === 1 ? "property" : "properties"}
           </p>
         </div>
@@ -143,7 +168,7 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
                 <Building2 className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-3xl font-bold">{summary.totalProperties}</p>
+                <p className="text-2xl font-bold">{summary.totalProperties}</p>
                 <p className="text-sm text-muted-foreground">
                   {summary.totalProperties === 1 ? "Property" : "Properties"}
                 </p>
@@ -159,7 +184,7 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
                 <Tent className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-3xl font-bold">{summary.totalSites}</p>
+                <p className="text-2xl font-bold">{summary.totalSites}</p>
                 <p className="text-sm text-muted-foreground">
                   Total {summary.totalSites === 1 ? "Site" : "Sites"}
                 </p>
@@ -172,20 +197,18 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div
-                className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                  summary.allStripeConnected
-                    ? "bg-green-100 dark:bg-green-900/20"
-                    : "bg-amber-100 dark:bg-amber-900/20"
-                }`}
+                className={`h-12 w-12 rounded-full flex items-center justify-center ${summary.allStripeConnected
+                  ? "bg-green-100 dark:bg-green-900/20"
+                  : "bg-amber-100 dark:bg-amber-900/20"
+                  }`}
               >
                 <CreditCard
-                  className={`h-6 w-6 ${
-                    summary.allStripeConnected ? "text-green-600" : "text-amber-600"
-                  }`}
+                  className={`h-6 w-6 ${summary.allStripeConnected ? "text-green-600" : "text-amber-600"
+                    }`}
                 />
               </div>
               <div>
-                <p className="text-3xl font-bold">
+                <p className="text-2xl font-bold">
                   {summary.propertiesWithStripe}/{summary.totalProperties}
                 </p>
                 <p className="text-sm text-muted-foreground">Payment Ready</p>
@@ -197,7 +220,7 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
 
       {/* Properties List */}
       <div className="space-y-6">
-        <h3 className="text-lg font-semibold">Your Properties</h3>
+        <h3 className="text-base font-semibold">Your Properties</h3>
         {properties.map((prop) => {
           const hasBasicInfo = !!(prop.address && prop.city && prop.state)
           const hasSites = prop.totalSites > 0
@@ -205,10 +228,17 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
           const isComplete = hasBasicInfo && hasSites && hasStripe
 
           return (
-            <Card key={prop.id} className={isComplete ? "border-green-200 dark:border-green-800" : "border-amber-200 dark:border-amber-800"}>
+            <Card
+              key={prop.id}
+              className={
+                isComplete
+                  ? "border-green-200 dark:border-green-800"
+                  : "border-amber-200 dark:border-amber-800"
+              }
+            >
               <CardHeader className="bg-muted/50">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">{prop.name}</CardTitle>
+                  <CardTitle className="text-base">{prop.name}</CardTitle>
                   {isComplete ? (
                     <Badge variant="default" className="bg-green-600">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -315,16 +345,22 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
                   {summary.totalProperties === 1 ? "Your property is" : "All properties are"} ready to launch!
                 </p>
                 <p className="text-sm text-green-700 dark:text-green-300 mt-2">
-                  All required setup steps are complete. Click "Complete Setup" below to start accepting bookings for {summary.totalProperties === 1 ? "your property" : `all ${summary.totalProperties} properties`}.
+                  All required setup steps are complete. Click "Complete Setup" below to start accepting bookings for{" "}
+                  {summary.totalProperties === 1 ? "your property" : `all ${summary.totalProperties} properties`}.
                 </p>
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>{summary.totalProperties} {summary.totalProperties === 1 ? "property" : "properties"} configured</span>
+                    <span>
+                      {summary.totalProperties}{" "}
+                      {summary.totalProperties === 1 ? "property" : "properties"} configured
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>{summary.totalSites} {summary.totalSites === 1 ? "site" : "sites"} ready for booking</span>
+                    <span>
+                      {summary.totalSites} {summary.totalSites === 1 ? "site" : "sites"} ready for booking
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -351,13 +387,21 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
                 <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
                   {incompleteProperties.length === 1
                     ? "1 property needs"
-                    : `${incompleteProperties.length} properties need`} additional configuration. Please complete the required steps for all properties before launching.
+                    : `${incompleteProperties.length} properties need`}{" "}
+                  additional configuration. Please complete the required steps for all properties before launching.
                 </p>
                 <div className="mt-4 space-y-2">
                   {incompleteProperties.map((prop) => (
                     <div key={prop.id} className="flex items-center gap-2 text-sm">
                       <XCircle className="h-4 w-4 text-amber-600" />
-                      <span>{prop.name} — {!prop.address || !prop.city || !prop.state ? "Missing property details" : !prop.totalSites ? "No sites configured" : "Stripe not connected"}</span>
+                      <span>
+                        {prop.name} —{" "}
+                        {!prop.address || !prop.city || !prop.state
+                          ? "Missing property details"
+                          : !prop.totalSites
+                            ? "No sites configured"
+                            : "Stripe not connected"}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -368,7 +412,15 @@ export function ReviewLaunchStep({ property, onComplete }: ReviewLaunchStepProps
       )}
 
       {/* Action Buttons */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-4">
+        {onBack ? (
+          <Button variant="outline" onClick={onBack} size="lg">
+            <ArrowLeft className="mr-2 h-5 w-5" />
+            Previous
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button onClick={onComplete} disabled={!allPropertiesReady} size="lg">
           <Rocket className="mr-2 h-5 w-5" />
           Complete Setup

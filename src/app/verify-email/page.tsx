@@ -3,76 +3,99 @@
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Mail, Loader2, CheckCircle2 } from "lucide-react"
+import { Mail, Loader2, CheckCircle2, ArrowLeft, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_link: "That verification link is invalid. Please request a new one.",
+  expired: "That verification link has expired. Please request a new one.",
+  failed: "Something went wrong confirming your email. Please try again.",
+}
 
 function VerifyEmailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+
   const [email, setEmail] = useState<string>("")
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
-  const [checking, setChecking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+
+  const isConfirmed = searchParams.get("confirmed") === "true"
+  const linkError = searchParams.get("error")
+  const redirect = searchParams.get("redirect")
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
+      if (isConfirmed) {
+        await supabase.auth.refreshSession()
+        setConfirmed(true)
+        setTimeout(() => {
+          router.push(redirect || "/company-details")
+        }, 1500)
+        return
+      }
+
+      if (linkError && ERROR_MESSAGES[linkError]) {
+        setError(ERROR_MESSAGES[linkError])
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email) {
         setEmail(user.email)
       }
+      if (user?.app_metadata?.custom_email_verified) {
+        router.push(redirect || "/company-details")
+      }
     }
-    getUser()
-  }, [supabase])
+    init()
+  }, [supabase, router, isConfirmed, linkError, redirect])
 
-  const handleResendEmail = async () => {
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
+
+  const handleResend = async () => {
     setResending(true)
     setResent(false)
+    setError(null)
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      })
+      const res = await fetch("/api/auth/send-verification", { method: "POST" })
+      const data = await res.json()
 
-      if (error) {
-        console.error('Failed to resend verification email:', error)
-      } else {
-        setResent(true)
+      if (!res.ok) {
+        setError(data.error || "Failed to send verification email")
+        setResending(false)
+        return
       }
-    } catch (err) {
-      console.error('Error resending email:', err)
+
+      setResent(true)
+      setCooldown(60)
+    } catch {
+      setError("Failed to send verification email. Please try again.")
     } finally {
       setResending(false)
     }
   }
 
-  const handleCheckVerification = async () => {
-    setChecking(true)
-
-    try {
-      // Refresh the user session to get latest email_confirmed_at
-      const { data: { user }, error } = await supabase.auth.getUser()
-
-      if (error) {
-        console.error('Failed to check verification:', error)
-        setChecking(false)
-        return
-      }
-
-      if (user?.email_confirmed_at) {
-        // Email is verified! Redirect to where they were trying to go
-        const redirect = searchParams.get('redirect')
-        router.push(redirect || '/dashboard')
-      } else {
-        // Not verified yet
-        alert('Email not verified yet. Please check your inbox and click the verification link.')
-        setChecking(false)
-      }
-    } catch (err) {
-      console.error('Error checking verification:', err)
-      setChecking(false)
-    }
+  if (confirmed) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-zinc-900 rounded-lg p-8 border border-zinc-800 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Email Verified!</h1>
+          <p className="text-gray-400">Redirecting you now...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -84,88 +107,74 @@ function VerifyEmailContent() {
           </div>
 
           <h1 className="text-2xl font-bold text-white mb-2">
-            Verify Your Email
+            Check your email
           </h1>
 
           <p className="text-gray-400 mb-6">
-            To access your dashboard, please verify your email address.
+            We sent a verification link to
           </p>
 
           {email && (
-            <div className="mb-6 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-              <p className="text-sm text-gray-400 mb-1">Verification email sent to:</p>
-              <p className="text-white font-medium">{email}</p>
+            <div className="mb-6 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+              <p className="text-white font-medium text-sm">{email}</p>
             </div>
           )}
 
-          <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Check your inbox and click the verification link. Once verified, click the button below to continue.
-            </p>
-
-            <Button
-              onClick={handleCheckVerification}
-              disabled={checking}
-              className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium"
-            >
-              {checking ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  I've Verified My Email
-                </>
-              )}
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-700"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-zinc-900 text-gray-500">or</span>
-              </div>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-400 text-left">{error}</p>
             </div>
+          )}
 
-            <Button
-              onClick={handleResendEmail}
-              disabled={resending}
-              variant="outline"
-              className="w-full bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
-            >
-              {resending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                "Resend Verification Email"
-              )}
-            </Button>
-
-            {resent && (
-              <p className="text-sm text-emerald-400">
-                Verification email sent! Check your inbox.
-              </p>
-            )}
+          <div className="space-y-3 mb-6">
+            <p className="text-sm text-gray-400">
+              Click the link in the email to verify your address. Check your spam folder if you don&apos;t see it.
+            </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-zinc-800">
-            <p className="text-sm text-gray-400 mb-4">
-              Need help? Contact support at{" "}
-              <a href="mailto:support@campos.com" className="text-red-500 hover:text-red-400">
-                support@campos.com
-              </a>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-700" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-zinc-900 text-gray-500">
+                didn&apos;t receive it?
+              </span>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleResend}
+            disabled={resending || cooldown > 0}
+            className="w-full h-11 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-medium"
+          >
+            {resending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : cooldown > 0 ? (
+              `Resend email in ${cooldown}s`
+            ) : (
+              "Resend Verification Email"
+            )}
+          </Button>
+
+          {resent && (
+            <p className="text-sm text-emerald-400 mt-3">
+              New verification email sent! Check your inbox.
             </p>
+          )}
+
+          <div className="mt-8 pt-6 border-t border-zinc-800">
             <Button
-              onClick={() => router.push('/choose-plan')}
+              onClick={() => router.push("/signup")}
               variant="ghost"
               className="text-gray-400 hover:text-white"
             >
-              Back to Plan Selection
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Sign Up
             </Button>
           </div>
         </div>
@@ -176,11 +185,13 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-white animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        </div>
+      }
+    >
       <VerifyEmailContent />
     </Suspense>
   )

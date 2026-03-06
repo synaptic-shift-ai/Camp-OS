@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 export type WizardStep =
   | "property_details"
   | "sites_setup"
-  | "dashboard_tour"
   | "stripe_connect"
   | "review_launch"
 
@@ -26,11 +25,6 @@ export const WIZARD_STEPS: WizardStepConfig[] = [
     id: "sites_setup",
     label: "Sites Setup",
     description: "Add and configure campsites",
-  },
-  {
-    id: "dashboard_tour",
-    label: "Dashboard Tour",
-    description: "Learn the platform",
   },
   {
     id: "stripe_connect",
@@ -58,30 +52,31 @@ export function WizardProgressBar({
   const currentStepIndex = WIZARD_STEPS.findIndex((s) => s.id === currentStep)
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-visible">
       {/* Desktop: Horizontal stepper */}
-      <div className="hidden md:block">
+      <div className="hidden md:block overflow-visible">
         <nav aria-label="Progress">
-          <ol className="flex items-center justify-between">
+          <ol className="flex items-center overflow-visible">
             {WIZARD_STEPS.map((step, stepIdx) => {
               const isCompleted = completedSteps.has(step.id)
               const isCurrent = step.id === currentStep
+
+              const showAsCompleted = isCompleted && !isCurrent
               const isClickable = onStepClick && (isCompleted || stepIdx <= currentStepIndex)
+              const connectorFilled = stepIdx <= currentStepIndex
 
               return (
-                <li key={step.id} className="relative flex-1">
+                <li key={step.id} className="relative flex-1 flex justify-center overflow-visible">
                   {/* Connector line */}
                   {stepIdx !== 0 && (
                     <div
-                      className="absolute left-0 top-4 -ml-px mt-0.5 h-0.5 w-full"
+                      className="absolute left-[-50%] top-[1.125rem] z-0 h-0.5 w-full -translate-y-1/2"
                       aria-hidden="true"
                     >
                       <div
                         className={cn(
-                          "h-full w-full",
-                          stepIdx <= currentStepIndex
-                            ? "bg-primary"
-                            : "bg-muted"
+                          "h-full w-full transition-colors duration-300",
+                          connectorFilled ? "bg-primary" : "bg-muted"
                         )}
                       />
                     </div>
@@ -97,8 +92,8 @@ export function WizardProgressBar({
                       isClickable ? "cursor-pointer" : "cursor-default"
                     )}
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 bg-background relative z-10">
-                      {isCompleted ? (
+                    <span className="relative z-10">
+                      {showAsCompleted ? (
                         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary">
                           <Check className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
                         </span>
@@ -110,9 +105,7 @@ export function WizardProgressBar({
                         <span
                           className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-full border-2",
-                            stepIdx < currentStepIndex
-                              ? "border-primary bg-primary/10"
-                              : "border-muted bg-background"
+                            "border-muted bg-background"
                           )}
                         >
                           <span className="text-sm font-medium text-muted-foreground">
@@ -121,15 +114,16 @@ export function WizardProgressBar({
                         </span>
                       )}
                     </span>
+
                     <span className="mt-2 flex flex-col items-center">
                       <span
                         className={cn(
                           "text-sm font-medium",
                           isCurrent
                             ? "text-primary"
-                            : isCompleted
-                            ? "text-foreground"
-                            : "text-muted-foreground"
+                            : showAsCompleted
+                              ? "text-foreground"
+                              : "text-muted-foreground"
                         )}
                       >
                         {step.label}

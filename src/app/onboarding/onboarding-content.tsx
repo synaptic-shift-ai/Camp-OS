@@ -1,39 +1,92 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { PropertyProvider } from "@/components/property-context"
+import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-container"
+import type { WizardStep } from "@/components/dashboard/setup-wizard/wizard-progress-bar"
 
-/**
- * Onboarding content component
- *
- * This component handles magic link authentication and redirects.
- * Separated from page.tsx to allow wrapping in Suspense (Next.js 15 requirement for useSearchParams)
- */
 export default function OnboardingContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const supabase = createClient()
   const [error, setError] = useState<string | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [showWizard, setShowWizard] = useState<{
+    propertyId: string
+    initialStep: WizardStep | "dashboard_tour"
+  } | null>(null)
+
+  const WIZARD_STEPS = [
+    "property_details",
+    "sites_setup",
+    "stripe_connect",
+    "review_launch",
+  ]
 
   useEffect(() => {
-    const token = searchParams.get('token')
+    const hash = window.location.hash
 
-    if (token) {
-      // User clicked magic link from email - verify and authenticate
-      handleMagicLinkAuth(token)
+    if (hash && hash.includes("access_token")) {
+      // Let Supabase handle the hash fragment automatically
+      handleHashAuth()
     } else {
-      // Direct access - send to company-details if no company, else to property wizard
       resolveAndRedirect()
     }
-  }, [router, searchParams])
+  }, [])
+
+  async function handleHashAuth() {
+    setIsVerifying(true)
+    setError(null)
+
+    try {
+      // Supabase JS client automatically picks up #access_token from the URL hash
+      const { data, error } = await supabase.auth.getSession()
+
+      if (error) throw error
+
+      if (data.session) {
+        console.log('[Onboarding] ✓ Session established from magic link')
+        // Clear the hash from URL for cleanliness
+        window.history.replaceState(null, '', window.location.pathname)
+        await resolveAndRedirect()
+      } else {
+        throw new Error('No session established')
+      }
+    } catch (err) {
+      console.error('[Onboarding] ❌ Magic link auth failed:', err)
+      setError(err instanceof Error ? err.message : 'Authentication failed')
+      setIsVerifying(false)
+    }
+  }
 
   async function resolveAndRedirect() {
     try {
       const res = await fetch("/api/onboarding/has-company")
-      const data = res.ok ? await res.json() : { hasCompany: false }
-      if (data.hasCompany) {
-        router.push("/dashboard/sites?wizard=true")
+      const data = res.ok
+        ? await res.json()
+        : { hasCompany: false, propertyId: null, onboardingStep: null, onboardingCompleted: false }
+
+      if (!data.hasCompany) {
+        router.push("/company-details")
+        return
+      }
+      if (data.onboardingCompleted) {
+        router.push("/dashboard")
+        return
+      }
+      if (data.onboardingStep === "company_details") {
+        router.push("/company-details")
+        return
+      }
+      if (data.hasCompany && data.propertyId) {
+        const rawStep = data.onboardingStep === "dashboard_tour" ? "stripe_connect" : data.onboardingStep
+        const step: WizardStep | "dashboard_tour" =
+          rawStep && WIZARD_STEPS.includes(rawStep)
+            ? (rawStep as WizardStep | "dashboard_tour")
+            : "property_details"
+        setShowWizard({ propertyId: data.propertyId, initialStep: step })
       } else {
         router.push("/company-details")
       }
@@ -42,37 +95,15 @@ export default function OnboardingContent() {
     }
   }
 
-  async function handleMagicLinkAuth(token: string) {
-    setIsVerifying(true)
-    setError(null)
-
-    try {
-      console.log('[Onboarding] Verifying magic link token...')
-
-      const response = await fetch('/api/auth/verify-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Token verification failed')
-      }
-
-      const data = await response.json()
-      console.log('[Onboarding] ✓ Token verified, redirecting to auth URL...')
-
-      // Redirect to the magic link auth URL which will authenticate the user
-      // and then redirect to the wizard
-      window.location.href = data.authUrl
-    } catch (err) {
-      console.error('[Onboarding] ❌ Magic link verification failed:', err)
-      setError(err instanceof Error ? err.message : 'Authentication failed')
-      setIsVerifying(false)
-    }
+  if (showWizard) {
+    return (
+      <PropertyProvider>
+        <WizardContainer
+          initialPropertyId={showWizard.propertyId}
+          initialStep={showWizard.initialStep}
+        />
+      </PropertyProvider>
+    )
   }
 
   return (
@@ -93,7 +124,7 @@ export default function OnboardingContent() {
           <>
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-muted-foreground">
-              {isVerifying ? 'Authenticating...' : 'Redirecting to setup wizard...'}
+              {isVerifying ? "Authenticating..." : "Redirecting..."}
             </p>
           </>
         )}

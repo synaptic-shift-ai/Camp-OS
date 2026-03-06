@@ -37,20 +37,25 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        // Route user based on persona and status
         const { data: { user } } = await supabase.auth.getUser()
 
         if (user) {
+          // If email is not verified via our custom flow, send a new link and gate access
+          if (!user.app_metadata?.custom_email_verified) {
+            fetch('/api/auth/send-verification', { method: 'POST' }).catch(() => {})
+            router.push("/verify-email?redirect=/company-details")
+            router.refresh()
+            return
+          }
+
           const userType = user.user_metadata?.user_type
 
-          // Explorers go to resources hub
           if (userType === 'explorer') {
             router.push("/resources")
             router.refresh()
             return
           }
 
-          // Buyers - check company first (initial signup), then subscription, then property onboarding
           const { data: companies } = await supabase
             .from('companies')
             .select('id, subscription_status')
@@ -59,7 +64,6 @@ export default function LoginPage() {
           const company = companies?.[0] ?? null
 
           if (!company) {
-            // No company = initial onboarding (company details) not done yet
             router.push("/company-details")
             router.refresh()
             return
@@ -71,7 +75,6 @@ export default function LoginPage() {
             return
           }
 
-          // User has completed signup; clear stale signup data from localStorage
           if (typeof window !== "undefined") {
             window.localStorage.removeItem("signup_company_details")
           }

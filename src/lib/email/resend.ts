@@ -13,6 +13,8 @@ function getResendClient(): Resend {
   return resendInstance
 }
 
+const SENDER_NAME = 'CampOS'
+
 function getFromEmail(): string {
   if (!process.env.RESEND_FROM_EMAIL) {
     throw new Error('RESEND_FROM_EMAIL environment variable is not set')
@@ -27,5 +29,5 @@ export const resend = {
 }
 
 export function getFrom(): string {
-  return getFromEmail()
+  return `${SENDER_NAME} <${getFromEmail()}>`
 }

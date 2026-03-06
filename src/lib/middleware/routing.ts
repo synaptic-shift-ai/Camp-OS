@@ -292,12 +292,13 @@ export function createSubscriptionMiddleware(
       return request
     }
 
-    // Don't redirect if already on payment/plan pages
+    // Don't redirect if already on company-details, choose-plan, or payment pages
     if (
+      pathname.startsWith('/company-details') ||
       pathname.startsWith('/choose-plan') ||
       pathname.startsWith('/payment')
     ) {
-      logger.debug('On payment/plan page, skipping redirect', { pathname })
+      logger.debug('On onboarding/payment page, skipping redirect', { pathname })
       recordDuration('subscription-middleware', timer.end(), 'success')
       return request
     }
@@ -326,7 +327,8 @@ export function createSubscriptionMiddleware(
       if (!tenantResult.resolved) {
         const origin = request.middlewareContext.origin || 'http://localhost:3000'
         const isNoCompany = tenantResult.reason === 'no_company'
-        const url = new URL(isNoCompany ? '/company-details' : '/choose-plan', origin)
+        const path = isNoCompany ? '/company-details' : '/choose-plan'
+        const url = new URL(path, origin)
 
         logger.info(isNoCompany ? 'Redirecting user without company to company details' : 'Redirecting user without active subscription', {
           from: pathname,

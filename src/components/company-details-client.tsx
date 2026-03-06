@@ -57,12 +57,28 @@ function getStoredDefaultValues(): CompanyDetailsFormData {
 
 export function CompanyDetailsClient() {
   const [initialValues, setInitialValues] = useState<CompanyDetailsFormData | null>(null)
+  const [hasCompany, setHasCompany] = useState<boolean | null>(null)
 
   useLayoutEffect(() => {
     setInitialValues(getStoredDefaultValues())
   }, [])
 
-  if (initialValues === null) {
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/onboarding/has-company")
+      .then((res) => (res.ok ? res.json() : { hasCompany: false }))
+      .then((data) => {
+        if (!cancelled) setHasCompany(Boolean(data.hasCompany))
+      })
+      .catch(() => {
+        if (!cancelled) setHasCompany(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (initialValues === null || hasCompany === null) {
     return (
       <div className="min-h-screen w-[480px] bg-black flex items-center justify-center p-4">
         <div className="flex items-center gap-2 text-white">
@@ -73,10 +89,16 @@ export function CompanyDetailsClient() {
     )
   }
 
-  return <CompanyDetailsForm defaultValues={initialValues} />
+  return <CompanyDetailsForm defaultValues={initialValues} hasCompany={hasCompany} />
 }
 
-function CompanyDetailsForm({ defaultValues }: { defaultValues: CompanyDetailsFormData }) {
+function CompanyDetailsForm({
+  defaultValues,
+  hasCompany,
+}: {
+  defaultValues: CompanyDetailsFormData
+  hasCompany: boolean
+}) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -145,9 +167,19 @@ function CompanyDetailsForm({ defaultValues }: { defaultValues: CompanyDetailsFo
         totalSites,
       }
       localStorage.setItem("signup_company_details", JSON.stringify(companyData))
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      const encodedData = btoa(JSON.stringify(companyData))
-      router.push(`/choose-plan?sites=${totalSites}&company=${encodedData}`)
+
+      if (hasCompany) {
+        // Already have company (e.g. after payment): update step and go to onboarding
+        await fetch("/api/onboarding/company-progress", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ onboardingStep: "property_details" }),
+        })
+        router.push("/onboarding")
+      } else {
+        // No company yet: go to choose plan; company is created by webhook after payment
+        router.push("/choose-plan")
+      }
     } finally {
       setIsLoading(false)
     }

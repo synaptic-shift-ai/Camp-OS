@@ -36,6 +36,7 @@ import { PropertyProvider, useProperty } from "@/components/property-context"
 import { PropertySwitcher } from "@/components/dashboard/property-switcher"
 import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
 import { SetupCompleteToast } from "@/components/dashboard/setup-complete-toast"
+import { QuickTourPrompt } from "@/components/dashboard/quick-tour-prompt"
 
 const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -177,7 +178,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="flex-1 min-w-0 p-6">{children}</div>
+          <div className="flex-1 min-w-0 p-6">
+            <QuickTourPrompt />
+            {children}
+          </div>
         </main>
       </div>
     </div>

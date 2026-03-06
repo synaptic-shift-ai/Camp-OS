@@ -21,9 +21,33 @@ export function PaymentSuccessClient() {
     }
   }, [])
 
+  // Ensure welcome email is sent when user lands on success page (fallback if webhook didn't send it)
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id")
+    if (!sessionId) return
+
+    const send = () => {
+      fetch("/api/onboarding/send-welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.sent) return
+          if (data.retry === true) {
+            setTimeout(send, 3000)
+          }
+        })
+        .catch(() => { })
+    }
+
+    send()
+  }, [searchParams])
+
   const planId = searchParams.get("plan") || "growth"
   const billingCycle = (searchParams.get("billing") as BillingCycle) || "monthly"
-  const email = searchParams.get("email") || "user@example.com"
+  const email = searchParams.get("email")
 
   // Find plan with fallback (Growth plan guaranteed to exist at index 1)
   const foundPlan = PLANS.find((p) => p.id === planId)
@@ -99,37 +123,13 @@ export function PaymentSuccessClient() {
           <Alert className="bg-blue-500/10 border-blue-500/20 mb-6">
             <Mail className="h-5 w-5 text-blue-400" />
             <AlertDescription className="text-gray-300 ml-2">
-              <p className="mb-2">We've sent onboarding instructions to:</p>
-              <p className="font-mono text-white mb-2">{email}</p>
+              <p className="mb-2">We&apos;ve sent a confirmation and onboarding link to your email.</p>
+              {email ? (
+                <p className="font-mono text-white mb-2">{email}</p>
+              ) : null}
               <p className="text-sm text-gray-400">Check your inbox (and spam folder) for the link</p>
             </AlertDescription>
           </Alert>
-        </motion.div>
-
-        {/* Setup in Progress Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mb-8"
-        >
-          <Card className="bg-emerald-500/10 border-emerald-500/20 p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
-                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-white mb-2">We're Setting Up Your Properties</h3>
-                <p className="text-gray-300 mb-4">
-                  Your properties are being created based on the information you provided. This usually takes less than a minute.
-                </p>
-                <p className="text-sm text-gray-400">
-                  <strong className="text-white">Check your email</strong> for an onboarding link once setup is complete. You'll receive it at:
-                </p>
-                <p className="font-mono text-emerald-400 mt-2">{email}</p>
-              </div>
-            </div>
-          </Card>
         </motion.div>
 
         {/* What's Next Timeline */}

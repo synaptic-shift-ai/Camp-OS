@@ -56,10 +56,10 @@ export async function GET(request: NextRequest) {
       subscriptionStatus: property?.subscription_status
     })
 
-    // No property = payment not completed, send to plan selection
+    // No property = payment not completed, send to company details first then plan selection
     if (!property) {
-      redirectUrl = new URL('/choose-plan', requestUrl.origin)
-      console.log('[Auth Callback] No property - redirecting to plan selection')
+      redirectUrl = new URL('/company-details', requestUrl.origin)
+      console.log('[Auth Callback] No property - redirecting to company details')
     }
     // Has property but onboarding incomplete
     else if (!property.onboarding_completed) {

@@ -16,7 +16,7 @@ export function DashboardTourStep({ onComplete, onSkip }: DashboardTourStepProps
           <Compass className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Dashboard Tour</h2>
+          <h2 className="text-xl font-semibold">Dashboard Tour</h2>
           <p className="text-muted-foreground">
             Learn how to navigate and use your CampOS dashboard
           </p>

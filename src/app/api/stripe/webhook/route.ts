@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
-import { resend, getFrom } from "@/lib/email/resend"
+import { sendPaymentWelcomeEmail } from "@/lib/email/send-payment-welcome"
 import { randomBytes } from "crypto"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -176,6 +176,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     billing_cycle: billingCycle,
     onboarding_token: onboardingToken,
     onboarding_token_expires_at: tokenExpiresAt.toISOString(),
+    onboarding_step: "property_details",
+    onboarding_completed: false,
   }
   console.log('[Webhook] Company insert data:', { ...companyInsertData, onboarding_token: '[REDACTED]' })
 
@@ -268,13 +270,32 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     },
   })
 
-  // Send onboarding email with magic link token
-  await sendOnboardingEmail(
-    session.customer_details?.email ?? '',
-    planId,
-    companyData?.companyName || "My Company",
-    onboardingToken
-  )
+  // Resolve recipient email: Stripe session first, then Supabase user
+  let recipientEmail =
+    (session.customer_details?.email as string | undefined) ??
+    (session as { customer_email?: string }).customer_email ??
+    ""
+  if (!recipientEmail && userId) {
+    const { data: user } = await supabase.auth.admin.getUserById(userId)
+    recipientEmail = user?.user?.email ?? ""
+  }
+
+  // Send payment confirmation + onboarding link email (always after successful payment)
+  if (recipientEmail) {
+    const result = await sendPaymentWelcomeEmail(
+      recipientEmail,
+      planId,
+      companyData?.companyName || "My Company",
+      onboardingToken
+    )
+    if (result.success) {
+      console.log("[Webhook] ✅ Payment confirmation + onboarding email sent:", result.id)
+    } else {
+      console.error("[Webhook] ❌ Payment confirmation email failed:", result.error)
+    }
+  } else {
+    console.error("[Webhook] ❌ No email available to send payment confirmation (userId:", userId, ")")
+  }
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -483,89 +504,6 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
       attempt_count: invoice.attempt_count,
     },
   })
-}
-
-async function sendOnboardingEmail(email: string, planId: string, companyName: string, token: string) {
-  console.log(`[Onboarding Email] Sending to ${email} for ${companyName} (${planId} plan)`)
-
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
-    const onboardingUrl = `${baseUrl}/onboarding?token=${token}`
-
-    const { data, error } = await resend.emails.send({
-      from: getFrom(),
-      to: email,
-      subject: `Welcome to CampOS - Let's Set Up ${companyName}!`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-
-            <!-- Header -->
-            <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f0f0f0;">
-              <h1 style="color: #DC2626; margin: 0; font-size: 28px;">🏕️ CampOS</h1>
-            </div>
-
-            <!-- Main Content -->
-            <div style="padding: 30px 0;">
-              <h2 style="color: #1a1a1a; font-size: 24px; margin-bottom: 20px;">Welcome to CampOS, ${companyName}!</h2>
-
-              <p style="font-size: 16px; color: #555; margin-bottom: 20px;">
-                Thank you for subscribing to the <strong>${planId.charAt(0).toUpperCase() + planId.slice(1)}</strong> plan. Your payment has been confirmed and your properties are ready to configure!
-              </p>
-
-              <div style="background: #f9fafb; border-left: 4px solid #DC2626; padding: 20px; margin: 30px 0;">
-                <h3 style="margin-top: 0; color: #1a1a1a; font-size: 18px;">🚀 Next Steps</h3>
-                <ol style="margin: 15px 0; padding-left: 20px; color: #555;">
-                  <li style="margin-bottom: 10px;"><strong>Complete your property setup</strong> - Add details, photos, and amenities (2 minutes)</li>
-                  <li style="margin-bottom: 10px;"><strong>Create your campsites</strong> - Define sites and set pricing (5 minutes)</li>
-                  <li style="margin-bottom: 10px;"><strong>Connect Stripe</strong> - Link your account to receive payouts (3 minutes)</li>
-                  <li style="margin-bottom: 10px;"><strong>Launch!</strong> - Go live and start accepting bookings</li>
-                </ol>
-              </div>
-
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 40px 0;">
-                <a href="${onboardingUrl}"
-                   style="display: inline-block; background: #DC2626; color: white; text-decoration: none; padding: 16px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                  Start Property Setup →
-                </a>
-              </div>
-
-              <p style="font-size: 14px; color: #888; text-align: center; margin-top: 30px;">
-                Or copy and paste this link into your browser:<br>
-                <a href="${onboardingUrl}" style="color: #DC2626; word-break: break-all;">${onboardingUrl}</a>
-              </p>
-            </div>
-
-            <!-- Footer -->
-            <div style="border-top: 2px solid #f0f0f0; padding-top: 20px; margin-top: 40px; text-align: center; color: #888; font-size: 14px;">
-              <p>Need help getting started?</p>
-              <p>
-                <a href="mailto:support@campgroundos.com" style="color: #DC2626; text-decoration: none;">Contact our support team</a>
-              </p>
-              <p style="margin-top: 20px; font-size: 12px; color: #aaa;">
-                © ${new Date().getFullYear()} CampOS. All rights reserved.
-              </p>
-            </div>
-          </body>
-        </html>
-      `
-    })
-
-    if (error) {
-      console.error('[Onboarding Email] ❌ Failed to send:', error)
-      return
-    }
-
-    console.log('[Onboarding Email] ✅ Sent successfully:', data?.id)
-  } catch (error) {
-    console.error('[Onboarding Email] ❌ Error:', error)
-  }
 }
 
 /**

@@ -48,7 +48,6 @@ export function SignupClient() {
     setError(null)
 
     try {
-      // Sign up with Supabase Auth - immediate session without email confirmation
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -58,8 +57,6 @@ export function SignupClient() {
             full_name: data.fullName,
             company_name: data.companyName,
           },
-          // Still send verification email for security, but don't block funnel
-          emailRedirectTo: `${window.location.origin}/auth/callback?verified=true`,
         },
       })
 
@@ -69,19 +66,22 @@ export function SignupClient() {
         return
       }
 
-      // With email confirmation disabled, we always get an immediate session
-      if (authData.session) {
-        console.log('[Signup] Session created:', {
-          userId: authData.user?.id,
-          emailVerified: authData.user?.email_confirmed_at ? true : false
-        })
-
-        // Redirect to company details to continue funnel
-        router.push("/company-details")
-      } else {
-        // This shouldn't happen with confirmation disabled, but handle it
+      if (!authData.session) {
         setError("Failed to create session. Please try again.")
+        setIsLoading(false)
+        return
       }
+
+      console.log('[Signup] Session created, sending verification email')
+
+      const verifyRes = await fetch('/api/auth/send-verification', { method: 'POST' })
+      if (!verifyRes.ok) {
+        const body = await verifyRes.json().catch(() => ({}))
+        console.error('[Signup] Failed to send verification email:', body)
+        // Still navigate to verify-email so the user can resend from there
+      }
+
+      router.push("/verify-email?redirect=/company-details")
     } catch (err) {
       console.error("Signup error:", err)
       setError("An unexpected error occurred. Please try again.")

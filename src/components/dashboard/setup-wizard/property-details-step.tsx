@@ -1,18 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, forwardRef, useImperativeHandle } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import type { Property } from "@/components/property-context"
-import { Button } from "@/components/ui/button"
+import { useProperty, type Property } from "@/components/property-context"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, Loader2, Save } from "lucide-react"
+import { Building2, Save } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 
 const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
@@ -35,10 +36,17 @@ const propertyDetailsSchema = z.object({
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
 
+export interface PropertyDetailsStepHandle {
+  // Returns true if save succeeded, false if validation or save failed
+  submitForm: () => Promise<boolean>
+}
+
 interface PropertyDetailsStepProps {
   property: Property
   onComplete: () => void
   onSkip: () => void
+  onSaveStateChange?: (saving: boolean) => void
+  onPropertyDetailsSaved?: (propertyId: string) => void
 }
 
 const US_TIMEZONES = [
@@ -51,9 +59,15 @@ const US_TIMEZONES = [
   { value: "Pacific/Honolulu", label: "Hawaii Time (HT)" },
 ]
 
-export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDetailsStepProps) {
+const PropertyDetailsStepComponent = (
+  { property, onComplete, onSkip, onSaveStateChange, onPropertyDetailsSaved }: PropertyDetailsStepProps,
+  ref: React.Ref<PropertyDetailsStepHandle>
+) => {
   const [saving, setSaving] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+  const { refreshProperties } = useProperty()
 
   const {
     register,
@@ -84,77 +98,128 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
 
   const timezone = watch("timezone")
 
-  // Debug: Log validation errors when form submission fails
-  const onFormError = (formErrors: Record<string, unknown>) => {
-    console.error("[PropertyDetailsStep] Form validation failed:", formErrors)
-    setError("Form validation failed. Please check all required fields.")
-  }
+  const buildRequestBody = (data: PropertyDetailsFormData) => ({
+    address: data.address,
+    city: data.city,
+    state: data.state,
+    zipCode: data.zipCode,
+    email: data.email || null,
+    phone: data.phone || null,
+    description: data.description || null,
+    settings: {
+      timezone: data.timezone,
+      checkInTime: data.checkInTime,
+      checkOutTime: data.checkOutTime,
+      cancellationPolicy: data.cancellationPolicy || null,
+      customRules: data.customRules || null,
+      minStayNights: data.minStayNights || 1,
+      maxStayNights: data.maxStayNights || null,
+      bookingLeadTimeDays: data.bookingLeadTimeDays ?? 365,
+    },
+  })
 
-  const onSubmit = async (data: PropertyDetailsFormData) => {
-    console.log("[PropertyDetailsStep] Form submitted with data:", data)
-    console.log("[PropertyDetailsStep] Property ID:", property.id)
+  const handleSaveOnly = async (data: PropertyDetailsFormData) => {
     try {
       setSaving(true)
       setError(null)
+      onSaveStateChange?.(true)
 
-      const requestBody = {
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        zipCode: data.zipCode,
-        email: data.email || null,
-        phone: data.phone || null,
-        description: data.description || null,
-        settings: {
-          timezone: data.timezone,
-          checkInTime: data.checkInTime,
-          checkOutTime: data.checkOutTime,
-          cancellationPolicy: data.cancellationPolicy || null,
-          customRules: data.customRules || null,
-          minStayNights: data.minStayNights || 1,
-          maxStayNights: data.maxStayNights || null,
-          bookingLeadTimeDays: data.bookingLeadTimeDays ?? 365,
-        },
-      }
-
-      console.log("[PropertyDetailsStep] Sending PATCH request to:", `/api/v1/properties/${property.id}`)
-      console.log("[PropertyDetailsStep] Request body:", JSON.stringify(requestBody, null, 2))
-
-      // Save property details - Migrated to v1 API (Phase 4, Week 13-14)
-      // Map form data to v1 API format with nested settings
       const response = await fetch(`/api/v1/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(buildRequestBody(data)),
       })
 
-      console.log("[PropertyDetailsStep] Response status:", response.status)
       const result = await response.json()
-      console.log("[PropertyDetailsStep] Response body:", result)
 
       if (!response.ok || !result.success) {
         throw new Error(result.error?.message || "Failed to save property details")
       }
 
-      // Mark step as complete and continue
-      onComplete()
+      await refreshProperties()
+      onPropertyDetailsSaved?.(property.id)
+
+      toast({
+        title: "Saved",
+        description: `${property.name} details saved. You can switch to another property or click Next when ready.`,
+      })
     } catch (err) {
       console.error("[PropertyDetailsStep] Error saving property details:", err)
       setError(err instanceof Error ? err.message : "Failed to save property details")
     } finally {
       setSaving(false)
+      onSaveStateChange?.(false)
     }
   }
 
+  const handleSubmitForNext = async (data: PropertyDetailsFormData): Promise<boolean> => {
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      const response = await fetch(`/api/v1/properties/${property.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRequestBody(data)),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || "Failed to save property details")
+      }
+
+      await refreshProperties()
+      onPropertyDetailsSaved?.(property.id)
+      onComplete()
+      return true
+    } catch (err) {
+      console.error("[PropertyDetailsStep] Error saving property details:", err)
+      setError(err instanceof Error ? err.message : "Failed to save property details")
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  useImperativeHandle(ref, () => ({
+    submitForm: (): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        handleSubmit(
+          // Valid — run the save
+          async (data) => {
+            const success = await handleSubmitForNext(data)
+            resolve(success)
+          },
+          // Invalid — log errors, surface them, resolve false
+          (formErrors) => {
+            console.error("[PropertyDetailsStep] Form validation failed:", formErrors)
+            setError("Please fill in all required fields before continuing.")
+            resolve(false)
+          }
+        )()
+      })
+    },
+  }))
+
   return (
-    <form onSubmit={handleSubmit(onSubmit, onFormError)} className="space-y-6">
+    <form
+      onSubmit={handleSubmit(
+        (data) => handleSaveOnly(data),
+        (formErrors) => {
+          console.error("[PropertyDetailsStep] Form validation failed:", formErrors)
+          setError("Please fill in all required fields.")
+        }
+      )}
+      className="space-y-6"
+    >
       <div className="flex items-center gap-3">
         <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
           <Building2 className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Property Details</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl font-semibold">Property Details</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Add basic information and images for {property.name}
           </p>
         </div>
@@ -169,8 +234,8 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       {/* Location Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Location</CardTitle>
-          <CardDescription>Property address and contact information</CardDescription>
+          <CardTitle className="text-base">Location</CardTitle>
+          <CardDescription className="text-sm">Property address and contact information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -257,8 +322,8 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       {/* Operating Hours */}
       <Card>
         <CardHeader>
-          <CardTitle>Operating Hours</CardTitle>
-          <CardDescription>Check-in and check-out times</CardDescription>
+          <CardTitle className="text-base">Operating Hours</CardTitle>
+          <CardDescription className="text-sm">Check-in and check-out times</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -294,8 +359,8 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       {/* Booking Rules */}
       <Card>
         <CardHeader>
-          <CardTitle>Booking Rules</CardTitle>
-          <CardDescription>Default stay limits and booking window for your property</CardDescription>
+          <CardTitle className="text-base">Booking Rules</CardTitle>
+          <CardDescription className="text-sm">Default stay limits and booking window for your property</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -346,8 +411,8 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
       {/* Policies */}
       <Card>
         <CardHeader>
-          <CardTitle>Policies & Rules</CardTitle>
-          <CardDescription>Guest guidelines and property rules</CardDescription>
+          <CardTitle className="text-base">Policies & Rules</CardTitle>
+          <CardDescription className="text-sm">Guest guidelines and property rules</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -372,25 +437,23 @@ export function PropertyDetailsStep({ property, onComplete, onSkip }: PropertyDe
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={saving}>
+      <div className="flex justify-end pt-2">
+        <Button
+          type="submit"
+          disabled={saving || submitting}
+        >
           {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
+            "Saving..."
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Save & Continue
+              Save
             </>
           )}
-        </Button>
-        <Button type="button" variant="outline" onClick={onSkip} disabled={saving}>
-          Skip for Now
         </Button>
       </div>
     </form>
   )
 }
+
+export const PropertyDetailsStep = forwardRef(PropertyDetailsStepComponent)

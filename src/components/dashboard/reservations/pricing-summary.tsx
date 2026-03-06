@@ -128,14 +128,28 @@ export function PricingSummary({
   switch (effectiveStayType) {
     case 'weekly': {
       const weeklyCents = selectedSite.weekly_rate_cents ?? selectedSite.base_price_per_night * 7
-      subtotal = (weeklyCents / 100) * (numNights / 7)
-      basePriceLabel = `${formatMoney(weeklyCents / 100)}/week × ${numNights} night${numNights !== 1 ? 's' : ''}`
+      const nightlyCents = selectedSite.base_price_per_night
+      const fullWeeks = Math.floor(numNights / 7)
+      const remainderNights = numNights % 7
+      subtotal =
+        (fullWeeks * weeklyCents) / 100 + (remainderNights * nightlyCents) / 100
+      basePriceLabel =
+        remainderNights === 0
+          ? `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents / 100)}/week)`
+          : `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents / 100)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents / 100)}/night)`
       break
     }
     case 'monthly': {
       const monthlyCents = selectedSite.monthly_rate_cents ?? selectedSite.base_price_per_night * 28
-      subtotal = (monthlyCents / 100) * (numNights / 28)
-      basePriceLabel = `${formatMoney(monthlyCents / 100)}/month × ${numNights} night${numNights !== 1 ? 's' : ''}`
+      const nightlyCents = selectedSite.base_price_per_night
+      const fullMonths = Math.floor(numNights / 28)
+      const remainderNights = numNights % 28
+      subtotal =
+        (fullMonths * monthlyCents) / 100 + (remainderNights * nightlyCents) / 100
+      basePriceLabel =
+        remainderNights === 0
+          ? `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents / 100)}/month)`
+          : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents / 100)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents / 100)}/night)`
       break
     }
     default: {

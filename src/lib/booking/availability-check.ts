@@ -101,7 +101,8 @@ async function findConflictingReservations(
     .select('*, guest:guests(first_name, last_name)')
     .eq('site_id', siteId)
     .in('status', ['confirmed', 'checked_in', 'pending'])
-    .or(`check_in_date.lte.${checkOut},check_out_date.gte.${checkIn}`)
+    .lt('check_in_date', checkOut)
+    .gt('check_out_date', checkIn)
 
   // Exclude specific reservation (for extension checks)
   if (options?.excludeReservationId) {
@@ -155,7 +156,8 @@ async function checkPendingRenewals(
     .eq('site_id', siteId)
     .in('renewal_status', ['offered', 'accepted'])
     .gte('renewal_deadline', new Date().toISOString().split('T')[0])
-    .or(`check_in_date.lte.${checkOut},check_out_date.gte.${checkIn}`)
+    .lt('check_in_date', checkOut)
+    .gt('check_out_date', checkIn)
     .single()
 
   if (!renewal) return null

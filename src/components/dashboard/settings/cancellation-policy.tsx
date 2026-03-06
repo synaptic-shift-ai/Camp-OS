@@ -35,6 +35,18 @@ function optionalNumber(schema: z.ZodNumber) {
   )
 }
 
+function parseRefundEligiblePeriod(val: string | null): { minDays: number; maxDays: number } | null {
+  if (val == null || (typeof val === 'string' && val.trim() === '')) return null
+  const s = typeof val === 'string' ? val.trim() : String(val)
+  const parts = s.split('-').map((x) => parseInt(x.trim(), 10))
+  const first = parts[0]
+  if (first === undefined || Number.isNaN(first)) return null
+  const minDays = first
+  const second = parts[1]
+  const maxDays = second !== undefined && !Number.isNaN(second) ? second : minDays
+  return { minDays, maxDays }
+}
+
 const cancellationPolicySchema = z.object({
   cancellationPolicy: z.string().max(5000, 'Policy text must be 5000 characters or less').nullable(),
   freeCancellationWindow: optionalNumber(z.number().int().min(0)),
@@ -64,6 +76,64 @@ const cancellationPolicySchema = z.object({
       path: ['refundEligiblePeriod'],
     }
 )
+.superRefine((data, ctx) => {
+  const free = data.freeCancellationWindow ?? null
+  const nonRefundable = data.cancellationNonRefundableDays ?? null
+  const eligible = parseRefundEligiblePeriod(data.refundEligiblePeriod ?? null)
+
+  const message =
+    'You cannot set the same value for multiple fields. Please adjust the values to avoid overlapping periods.'
+
+  // Free vs non-refundable: disallow exact same day value
+  if (free != null && nonRefundable != null && free === nonRefundable) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message,
+      path: ['freeCancellationWindow'],
+    })
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message,
+      path: ['cancellationNonRefundableDays'],
+    })
+  }
+
+  if (eligible != null) {
+    // Free vs refund-eligible range: disallow when free equals any boundary of the range
+    if (
+      free != null &&
+      (free === eligible.minDays || free === eligible.maxDays)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message,
+        path: ['freeCancellationWindow'],
+      })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message,
+        path: ['refundEligiblePeriod'],
+      })
+    }
+
+    // Non-refundable vs refund-eligible range: disallow when non-refundable equals any boundary of the range
+    if (
+      nonRefundable != null &&
+      (nonRefundable === eligible.minDays || nonRefundable === eligible.maxDays)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message,
+        path: ['cancellationNonRefundableDays'],
+      })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message,
+        path: ['refundEligiblePeriod'],
+      })
+    }
+  }
+})
 
 type CancellationPolicyFormData = z.infer<typeof cancellationPolicySchema>
 

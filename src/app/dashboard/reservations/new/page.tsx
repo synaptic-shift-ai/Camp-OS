@@ -30,8 +30,6 @@ import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-inf
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
 import { parseEnabledReservationTypesFromDB } from '@/lib/config/resolution'
 import { Checkbox } from '@/components/ui/checkbox'
-import { getDisplayPrice } from "@/components/dashboard/reservations/available-sites-accordion"
-
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
   // Site selection
@@ -713,21 +711,60 @@ export default function NewReservationPage() {
                 <AlertDescription>
                   <div className="flex items-center justify-between">
                   {(() => {
-                    const { amountCents, unitLabel } = getDisplayPrice(selectedSite, effectiveStayType)
+                    // Use same effective stay type and calculation as Pricing Summary (weekly when 7+ nights, monthly when 28+)
+                    const STAY_MIN: Record<BookingType, number> = {
+                      nightly: 1,
+                      weekly: 7,
+                      monthly: 28,
+                      seasonal: 28,
+                      long_term: 28,
+                    }
+                    const pricingEffectiveStayType: BookingType =
+                      stayType === 'nightly'
+                        ? totalNights >= STAY_MIN.monthly
+                          ? 'monthly'
+                          : totalNights >= STAY_MIN.weekly
+                            ? 'weekly'
+                            : 'nightly'
+                        : stayType === 'monthly' && totalNights >= STAY_MIN.monthly
+                          ? 'monthly'
+                          : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_MIN.weekly
+                            ? 'weekly'
+                            : stayType
 
-                    const totalCents =
-                      effectiveStayType === 'monthly'
-                        ? Math.round(amountCents * (totalNights / 28))
-                        : effectiveStayType === 'weekly'
-                          ? Math.round(amountCents * (totalNights / 7))
-                          : amountCents * totalNights
+                    const nightlyCents = selectedSite.base_price_per_night
+                    let totalCents: number
+                    let detailLabel: string
+
+                    if (pricingEffectiveStayType === 'monthly') {
+                      const monthlyCents = selectedSite.monthly_rate_cents ?? selectedSite.base_price_per_night * 28
+                      const fullMonths = Math.floor(totalNights / 28)
+                      const remainderNights = totalNights % 28
+                      totalCents = fullMonths * monthlyCents + remainderNights * nightlyCents
+                      detailLabel =
+                        remainderNights === 0
+                          ? `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents)}/month)`
+                          : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents)}/night)`
+                    } else if (pricingEffectiveStayType === 'weekly') {
+                      const weeklyCents = selectedSite.weekly_rate_cents ?? selectedSite.base_price_per_night * 7
+                      const fullWeeks = Math.floor(totalNights / 7)
+                      const remainderNights = totalNights % 7
+                      totalCents = fullWeeks * weeklyCents + remainderNights * nightlyCents
+                      detailLabel =
+                        remainderNights === 0
+                          ? `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}/week)`
+                          : `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents)}/night)`
+                    } else {
+                      totalCents = nightlyCents * totalNights
+                      detailLabel = `${formatMoney(nightlyCents)}/night × ${totalNights} night${totalNights !== 1 ? 's' : ''}`
+                    }
 
                     return (
                       <>
                         <div>
                           <strong>Total for {selectedSite.name}</strong>
                           <div className="text-xs mt-1">
-                            {formatMoney(amountCents)}{unitLabel} × {totalNights} night{totalNights > 1 ? 's' : ''}
+                            {detailLabel}
                           </div>
                         </div>
                         <div className="text-2xl font-bold">

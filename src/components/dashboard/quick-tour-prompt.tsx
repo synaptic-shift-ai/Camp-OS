@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/dialog"
 import { Compass } from "lucide-react"
 import { DashboardTour } from "@/components/dashboard/setup-wizard/dashboard-tour"
+import { useProperty } from "@/components/property-context"
 
 function QuickTourPromptContent() {
   const router = useRouter()
+  const pathname = usePathname()
+  const { properties, selectedPropertyId } = useProperty()
   const [loading, setLoading] = useState(true)
   const [quickTourCompleted, setQuickTourCompleted] = useState(false)
   const [open, setOpen] = useState(false)
@@ -109,6 +112,12 @@ function QuickTourPromptContent() {
             <DialogTitle>Quick tour</DialogTitle>
           </DialogHeader>
           <DashboardTour
+            propertyId={
+              (pathname.split("/").filter(Boolean)[0] === "dashboard" && pathname.split("/").filter(Boolean)[1]) ||
+              selectedPropertyId ||
+              properties[0]?.id ||
+              null
+            }
             onComplete={handleCompleteOrSkip}
             onSkip={handleCompleteOrSkip}
           />

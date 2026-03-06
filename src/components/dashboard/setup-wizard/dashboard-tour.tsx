@@ -8,12 +8,20 @@ import { ChevronLeft, ChevronRight, Check, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { DASHBOARD_TOUR_STEPS, QUICK_TIPS } from "./dashboard-tour-config"
 
-interface DashboardTourProps {
+export interface DashboardTourProps {
+  propertyId?: string | null
   onComplete: () => void
   onSkip: () => void
 }
 
-export function DashboardTour({ onComplete, onSkip }: DashboardTourProps) {
+function buildTourPath(stepPath: string, propertyId: string | null | undefined): string {
+  if (!stepPath?.startsWith("/dashboard")) return stepPath
+  if (!propertyId) return stepPath
+  const afterDashboard = stepPath.replace(/^\/dashboard\/?/, "") || ""
+  return `/dashboard/${propertyId}${afterDashboard ? `/${afterDashboard}` : ""}`
+}
+
+export function DashboardTour({ propertyId, onComplete, onSkip }: DashboardTourProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const currentStep = DASHBOARD_TOUR_STEPS[currentStepIndex]
   const progress = ((currentStepIndex + 1) / DASHBOARD_TOUR_STEPS.length) * 100
@@ -64,10 +72,10 @@ export function DashboardTour({ onComplete, onSkip }: DashboardTourProps) {
               key={step.id}
               onClick={() => handleStepClick(index)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${isActive
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : isCompleted
-                    ? "bg-green-100 text-green-800 border-green-300"
-                    : "bg-muted hover:bg-muted/80 border-muted-foreground/20"
+                ? "bg-primary text-primary-foreground border-primary"
+                : isCompleted
+                  ? "bg-green-100 text-green-800 border-green-300"
+                  : "bg-muted hover:bg-muted/80 border-muted-foreground/20"
                 }`}
             >
               {isCompleted ? (
@@ -114,7 +122,7 @@ export function DashboardTour({ onComplete, onSkip }: DashboardTourProps) {
           {/* Action Button (if applicable) */}
           {currentStep.path && (
             <div className="pt-4 border-t">
-              <Link href={currentStep.path} target="_blank">
+              <Link href={buildTourPath(currentStep.path, propertyId)} target="_blank">
                 <Button variant="outline" className="w-full sm:w-auto">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   {currentStep.action || `Visit ${currentStep.title}`}

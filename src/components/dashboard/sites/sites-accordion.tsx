@@ -12,7 +12,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/contracts/db'
 import { SitesGrid } from './sites-grid'
-import type { PropertyPricingConfig } from '@/app/dashboard/sites/page'
+import type { PropertyPricingConfig } from '@/app/dashboard/[propertyId]/sites/page'
 
 type Site = Database['public']['Tables']['sites']['Row']
 

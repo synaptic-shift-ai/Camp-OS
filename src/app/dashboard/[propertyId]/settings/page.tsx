@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
 import { DepositSettings } from "@/components/dashboard/settings/deposit-settings"
@@ -14,72 +15,33 @@ import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 import type { SeasonalPeriod } from "@/lib/config/types"
 
-// Force dynamic rendering to always fetch fresh data
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-/**
- * Get the current user's property with all configuration fields
- */
-async function getCurrentProperty() {
+async function getPropertyWithSeasonal(propertyId: string) {
+  const property = await getPropertyForUser(propertyId)
+  if (!property) return null
+
   const supabase = await createClient()
-
-  // Get the currently authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Get the property owned by this user with all config fields
-  const { data: property, error } = await supabase
-    .from('properties')
-    .select(`
-      id,
-      name,
-      address,
-      city,
-      state,
-      zip_code,
-      phone,
-      email,
-      check_in_time,
-      check_out_time,
-      owner_id,
-      company_id,
-      deposit_config,
-      pricing_config,
-      booking_rules_config,
-      rate_discounts_config,
-      enabled_reservation_types,
-      reservation_type_config,
-      settings
-    `)
-    .eq('owner_id', user.id)
-    .single()
-
-  if (error) {
-    console.error('Error fetching property:', error)
-    return null
-  }
-
-  // Fetch seasonal periods for this property
   const { data: seasonalPeriods } = await supabase
-    .from('property_seasonal_periods')
-    .select('*')
-    .eq('property_id', property.id)
-    .order('start_month', { ascending: true })
+    .from("property_seasonal_periods")
+    .select("*")
+    .eq("property_id", property.id)
+    .order("start_month", { ascending: true })
 
   return {
     ...property,
-    seasonalPeriods: seasonalPeriods || [],
+    seasonalPeriods: seasonalPeriods ?? [],
   }
 }
 
-export default async function SettingsPage() {
-  const property = await getCurrentProperty()
+type PageProps = { params: Promise<{ propertyId: string }> }
+
+export default async function SettingsPage({ params }: PageProps) {
+  const { propertyId } = await params
+  const property = await getPropertyWithSeasonal(propertyId)
 
   if (!property) {
-    redirect('/auth/login')
+    redirect("/auth/login")
   }
 
   return (

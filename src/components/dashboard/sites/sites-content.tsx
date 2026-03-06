@@ -11,7 +11,7 @@ import { useState, useMemo } from 'react'
 import { SitesStatsCards, type SiteStatus } from './sites-stats-cards'
 import { SitesAccordion } from './sites-accordion'
 import type { Database } from '@/contracts/db'
-import type { PropertyPricingConfig } from '@/app/dashboard/sites/page'
+import type { PropertyPricingConfig } from '@/app/dashboard/[propertyId]/sites/page'
 
 type Site = Database['public']['Tables']['sites']['Row']
 

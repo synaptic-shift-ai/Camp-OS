@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect, useTransition } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import {
   Building2,
   BarChart3,
   Bell,
+  Loader2,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -38,21 +39,44 @@ import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
 import { SetupCompleteToast } from "@/components/dashboard/setup-complete-toast"
 import { QuickTourPrompt } from "@/components/dashboard/quick-tour-prompt"
 
-const navigation = [
-  { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Reservations", href: "/dashboard/reservations", icon: Calendar },
-  { name: "Sites", href: "/dashboard/sites", icon: Tent },
-  { name: "Guests", href: "/dashboard/guests", icon: Users },
-  { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
-]
+const NAV_ITEMS = [
+  { name: "Overview", path: "", icon: LayoutDashboard },
+  { name: "Reservations", path: "/reservations", icon: Calendar },
+  { name: "Sites", path: "/sites", icon: Tent },
+  { name: "Guests", path: "/guests", icon: Users },
+  { name: "Payments", path: "/payments", icon: CreditCard },
+  { name: "Analytics", path: "/analytics", icon: BarChart3 },
+  { name: "Settings", path: "/settings", icon: Settings },
+] as const
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { selectedProperty, isLoading } = useProperty()
+  const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
   const propertyName = selectedProperty?.name
+
+  const segments = pathname.split("/").filter(Boolean)
+  const propertyIdFromUrl = segments[0] === "dashboard" && segments[1] ? segments[1] : null
+  const dashboardBase = propertyIdFromUrl ? `/dashboard/${propertyIdFromUrl}` : "/dashboard"
+
+  useEffect(() => {
+    if (propertyIdFromUrl && propertyIdFromUrl !== selectedPropertyId) {
+      selectProperty(propertyIdFromUrl)
+    }
+  }, [propertyIdFromUrl, selectedPropertyId, selectProperty])
+
+  const handleNavClick = (href: string, closeMobile?: boolean) => {
+    if (href === pathname) {
+      if (closeMobile) setMobileMenuOpen(false)
+      return
+    }
+    if (closeMobile) setMobileMenuOpen(false)
+    startTransition(() => {
+      router.push(href)
+    })
+  }
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -71,13 +95,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <PropertySwitcher />
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
+            {NAV_ITEMS.map((item) => {
+              const href = `${dashboardBase}${item.path}`
+              const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
               return (
-                <Link
+                <a
                   key={item.name}
-                  href={item.href}
-                  prefetch={false}
+                  href={href}
+                  onClick={(e) => {
+                    if (e.button === 0) {
+                      e.preventDefault()
+                      handleNavClick(href)
+                    }
+                  }}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     isActive
@@ -87,7 +117,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-5 w-5" />
                   {item.name}
-                </Link>
+                </a>
               )
             })}
           </nav>
@@ -146,14 +176,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
               <ScrollArea className="flex-1 px-3 py-4">
                 <nav className="space-y-1">
-                  {navigation.map((item) => {
-                    const isActive = pathname === item.href
+                  {NAV_ITEMS.map((item) => {
+                    const href = `${dashboardBase}${item.path}`
+                    const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
                     return (
                       <Link
                         key={item.name}
-                        href={item.href}
-                        prefetch={false}
-                        onClick={() => setMobileMenuOpen(false)}
+                        href={href}
+                        prefetch={true}
+                        onClick={(e) => {
+                          if (e.button === 0) {
+                            e.preventDefault()
+                            handleNavClick(href, true)
+                          }
+                        }}
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                           isActive
@@ -177,10 +213,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="flex-1 min-w-0 p-6">
+        <main className="flex flex-1 flex-col overflow-y-auto">
+          <div className="flex min-w-0 flex-1 flex-col p-6">
             <QuickTourPrompt />
-            {children}
+            {isPending ? (
+              <div className="flex min-h-[200px] flex-1 items-center justify-center" aria-busy="true" aria-label="Loading">
+                <Loader2 className="h-12 w-12 animate-spin stroke-[1] text-muted-foreground" />
+              </div>
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>

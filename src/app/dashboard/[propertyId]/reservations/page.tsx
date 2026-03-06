@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus } from "lucide-react"
 import { getReservations } from "@/lib/dashboard/queries"
 import type { ReservationStatus } from "@/contracts/booking"
-import { createClient } from "@/lib/supabase/server"
+import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirect } from "next/navigation"
 import { ReservationActions } from "@/components/admin/reservation-actions"
 
 const statusColors: Record<ReservationStatus, string> = {
@@ -40,32 +41,7 @@ function formatDate(dateString: string): string {
   })
 }
 
-/**
- * Get the current user's property ID
- * MVP: Assumes user has access to one property
- */
-async function getCurrentPropertyId(): Promise<string | null> {
-  const supabase = await createClient()
-
-  // Get the currently authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Get the first property owned by this user
-  const { data: property } = await supabase
-    .from('properties')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
-  return property?.id || null
-}
-
-async function ReservationsTable() {
-  const propertyId = await getCurrentPropertyId()
+async function ReservationsTable({ propertyId }: { propertyId: string }) {
 
   if (!propertyId) {
     return (
@@ -174,7 +150,13 @@ async function ReservationsTable() {
   )
 }
 
-export default async function ReservationsPage() {
+type PageProps = { params: Promise<{ propertyId: string }> }
+
+export default async function ReservationsPage({ params }: PageProps) {
+  const { propertyId } = await params
+  const property = await getPropertyForUser(propertyId)
+  if (!property) redirect("/auth/login")
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -182,7 +164,7 @@ export default async function ReservationsPage() {
           <h1 className="text-3xl font-heading font-bold tracking-tight">Reservations</h1>
           <p className="text-muted-foreground">Manage all your property bookings</p>
         </div>
-        <Link href="/dashboard/reservations/new">
+        <Link href={`/dashboard/${propertyId}/reservations/new`}>
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
             New Reservation
@@ -205,7 +187,7 @@ export default async function ReservationsPage() {
               <p className="text-muted-foreground">Loading reservations...</p>
             </div>
           }>
-            <ReservationsTable />
+            <ReservationsTable propertyId={propertyId} />
           </Suspense>
         </CardContent>
       </Card>

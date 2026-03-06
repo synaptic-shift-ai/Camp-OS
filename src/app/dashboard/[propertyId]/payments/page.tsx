@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DollarSign, Clock, CreditCard } from "lucide-react"
 import { getPayments, getDashboardStats } from "@/lib/dashboard/queries"
 import type { PaymentStatus } from "@/contracts/booking"
-import { createClient } from "@/lib/supabase/server"
+import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirect } from "next/navigation"
 
 const statusColors: Record<PaymentStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -44,37 +45,7 @@ function formatPaymentMethod(method: string): string {
   ).join(' ')
 }
 
-/**
- * Get the current user's property ID
- * MVP: Assumes user has access to one property
- */
-async function getCurrentPropertyId(): Promise<string | null> {
-  const supabase = await createClient()
-
-  // Get the currently authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Get the first property owned by this user
-  const { data: property } = await supabase
-    .from('properties')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
-  return property?.id || null
-}
-
-async function PaymentStats() {
-  const propertyId = await getCurrentPropertyId()
-
-  if (!propertyId) {
-    return null
-  }
-
+async function PaymentStats({ propertyId }: { propertyId: string }) {
   const stats = await getDashboardStats(propertyId)
 
   return (
@@ -113,17 +84,7 @@ async function PaymentStats() {
   )
 }
 
-async function PaymentsTable() {
-  const propertyId = await getCurrentPropertyId()
-
-  if (!propertyId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No property found. Please contact support.</p>
-      </div>
-    )
-  }
-
+async function PaymentsTable({ propertyId }: { propertyId: string }) {
   // Fetch all payments for this property
   const { data: payments } = await getPayments(propertyId, {}, 1, 100)
 
@@ -170,7 +131,13 @@ async function PaymentsTable() {
   )
 }
 
-export default async function PaymentsPage() {
+type PageProps = { params: Promise<{ propertyId: string }> }
+
+export default async function PaymentsPage({ params }: PageProps) {
+  const { propertyId } = await params
+  const property = await getPropertyForUser(propertyId)
+  if (!property) redirect("/auth/login")
+
   return (
     <div className="space-y-6">
       <div>
@@ -178,7 +145,6 @@ export default async function PaymentsPage() {
         <p className="text-muted-foreground">Track and manage all transactions</p>
       </div>
 
-      {/* Payment Stats */}
       <Suspense fallback={
         <div className="grid gap-4 md:grid-cols-3">
           {[...Array(3)].map((_, i) => (
@@ -193,10 +159,9 @@ export default async function PaymentsPage() {
           ))}
         </div>
       }>
-        <PaymentStats />
+        <PaymentStats propertyId={propertyId} />
       </Suspense>
 
-      {/* Payments Table */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
@@ -208,7 +173,7 @@ export default async function PaymentsPage() {
               <p className="text-muted-foreground">Loading payments...</p>
             </div>
           }>
-            <PaymentsTable />
+            <PaymentsTable propertyId={propertyId} />
           </Suspense>
         </CardContent>
       </Card>

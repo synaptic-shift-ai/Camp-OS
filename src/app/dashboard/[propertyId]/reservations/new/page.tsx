@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -139,6 +139,9 @@ const BOOKING_TYPE_INFO: Record<BookingType, { label: string; description: strin
 
 export default function NewReservationPage() {
   const router = useRouter()
+  const params = useParams()
+  const propertyIdFromUrl = typeof params?.propertyId === "string" ? params.propertyId : null
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -203,9 +206,14 @@ export default function NewReservationPage() {
     void trigger(['stayType', 'checkInDate', 'checkOutDate'])
   }, [stayType, checkInDate, checkOutDate, trigger])
 
-  // Fetch property ID on mount
+  // Fetch property config from URL propertyId
   useEffect(() => {
-    const fetchPropertyId = async () => {
+    if (!propertyIdFromUrl) {
+      setError("Invalid property")
+      return
+    }
+
+    const fetchProperty = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
@@ -215,10 +223,10 @@ export default function NewReservationPage() {
       }
 
       const { data: property, error: propertyError } = await supabase
-        .from('properties')
-        .select('id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types')
-        .eq('owner_id', user.id)
-        .single()
+        .from("properties")
+        .select("id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types")
+        .eq("id", propertyIdFromUrl)
+        .maybeSingle()
 
       if (propertyError || !property) {
         setError("No property found for your account")
@@ -230,18 +238,16 @@ export default function NewReservationPage() {
       setRateDiscountsConfig(property.rate_discounts_config as RateDiscountsConfig | null)
       setDepositConfig(property.deposit_config as DepositConfig | null)
 
-      // Parse enabled reservation types from property config
       const parsedEnabledTypes = parseEnabledReservationTypesFromDB(property.enabled_reservation_types)
       setEnabledReservationTypes(parsedEnabledTypes)
 
-      // Set default stay type to the first enabled type
       if (parsedEnabledTypes.length > 0) {
         setValue("stayType", parsedEnabledTypes[0] as BookingType)
       }
     }
 
-    fetchPropertyId()
-  }, [setValue])
+    void fetchProperty()
+  }, [propertyIdFromUrl, setValue])
 
   // Check availability when dates or guest count changes
   useEffect(() => {

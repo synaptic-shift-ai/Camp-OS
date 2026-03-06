@@ -35,7 +35,7 @@ import { SiteCheckInButton } from './site-check-in-button'
 import { HousekeepingScheduleDialog } from './housekeeping-schedule-dialog'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/contracts/db'
-import type { PropertyPricingConfig } from '@/app/dashboard/sites/page'
+import type { PropertyPricingConfig } from '@/app/dashboard/[propertyId]/sites/page'
 
 const siteTypeIcons: Record<SiteType, LucideIcon> = {
   rv: Home,
@@ -269,9 +269,8 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
           return (
             <Card
               key={site.id}
-              className={`relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${
-                !usesPropertyDefaults ? 'border-l-2 border-l-amber-500/60' : ''
-              }`}
+              className={`relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${!usesPropertyDefaults ? 'border-l-2 border-l-amber-500/60' : ''
+                }`}
               onClick={() => setViewingSite(site)}
             >
               <CardHeader>
@@ -355,17 +354,16 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                 </div>
                 {(site as any).availability_rules?.blocked_dates?.length > 0 && (
                   <div className="mt-2">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs w-full justify-center ${
-                        (site as any).availability_rules.blocked_dates[0].reason === 'maintenance'
+                    <Badge
+                      variant="outline"
+                      className={`text-xs w-full justify-center ${(site as any).availability_rules.blocked_dates[0].reason === 'maintenance'
                           ? 'bg-blue-50 border-blue-200 text-blue-700'
                           : 'bg-orange-50 border-orange-200 text-orange-700'
-                      }`}
+                        }`}
                     >
                       🗓 {(site as any).availability_rules.blocked_dates[0].reason === 'maintenance' ? 'Scheduled Maintenance' : 'Scheduled Housekeeping'}: {(site as any).availability_rules.blocked_dates[0].from}
-                      {(site as any).availability_rules.blocked_dates[0].from !== (site as any).availability_rules.blocked_dates[0].to 
-                        ? ` – ${(site as any).availability_rules.blocked_dates[0].to}` 
+                      {(site as any).availability_rules.blocked_dates[0].from !== (site as any).availability_rules.blocked_dates[0].to
+                        ? ` – ${(site as any).availability_rules.blocked_dates[0].to}`
                         : ''}
                     </Badge>
                   </div>

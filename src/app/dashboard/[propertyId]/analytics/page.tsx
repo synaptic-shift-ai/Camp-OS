@@ -2,7 +2,8 @@ import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DollarSign, TrendingUp, Users, Calendar } from "lucide-react"
-import { createClient } from "@/lib/supabase/server"
+import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirect } from "next/navigation"
 import {
   getDashboardStats,
   getRevenueOverTime,
@@ -28,41 +29,7 @@ function formatMoney(cents: MoneyCents): string {
   }).format(cents / 100)
 }
 
-/**
- * Get the current user's property ID
- * MVP: Assumes user has access to one property
- */
-async function getCurrentPropertyId(): Promise<string | null> {
-  const supabase = await createClient()
-
-  // Get the currently authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Get the first property owned by this user
-  const { data: property } = await supabase
-    .from('properties')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
-  return property?.id || null
-}
-
-async function AnalyticsOverview() {
-  const propertyId = await getCurrentPropertyId()
-
-  if (!propertyId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No property found. Please contact support.</p>
-      </div>
-    )
-  }
-
+async function AnalyticsOverview({ propertyId }: { propertyId: string }) {
   // Fetch all analytics data in parallel
   const [stats, revenueData, topSites, bookingSources] = await Promise.all([
     getDashboardStats(propertyId),
@@ -448,22 +415,18 @@ async function OccupancyTab({ propertyId }: { propertyId: string }) {
   )
 }
 
-export default async function AnalyticsPage({
-  searchParams,
-}: {
+type PageProps = {
+  params: Promise<{ propertyId: string }>
   searchParams: Promise<{ range?: DateRange }>
-}) {
-  const params = await searchParams
-  const dateRange = params.range
-  const propertyId = await getCurrentPropertyId()
+}
 
-  if (!propertyId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No property found. Please contact support.</p>
-      </div>
-    )
-  }
+export default async function AnalyticsPage({ params, searchParams }: PageProps) {
+  const { propertyId } = await params
+  const property = await getPropertyForUser(propertyId)
+  if (!property) redirect("/auth/login")
+
+  const search = await searchParams
+  const dateRange = search.range
 
   return (
     <div className="space-y-6">
@@ -491,7 +454,7 @@ export default async function AnalyticsPage({
               </div>
             }
           >
-            <AnalyticsOverview />
+            <AnalyticsOverview propertyId={propertyId} />
           </Suspense>
         </TabsContent>
 

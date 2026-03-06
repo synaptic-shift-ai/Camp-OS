@@ -1,6 +1,8 @@
 import { Suspense } from "react"
 import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-container"
 import { createClient } from "@/lib/supabase/server"
+import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirect } from "next/navigation"
 import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 import { SitesContent } from "@/components/dashboard/sites/sites-content"
 import {
@@ -33,47 +35,23 @@ const TYPE_LABELS: Record<string, string> = {
   seasonal: 'Seasonal',
 }
 
-/**
- * Get the current user's property ID and pricing config
- * MVP: Assumes user has access to one property
- */
-async function getCurrentProperty(): Promise<{
+async function getPropertyWithPricing(propertyId: string): Promise<{
   id: string
   pricingConfig: PropertyPricingConfig
 } | null> {
-  const supabase = await createClient()
+  const property = await getPropertyForUser(propertyId)
+  if (!property) return null
 
-  // Get the currently authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Get the first property owned by this user with pricing config
-  const { data: property } = await supabase
-    .from('properties')
-    .select('id, enabled_reservation_types, reservation_type_config')
-    .eq('owner_id', user.id)
-    .single()
-
-  if (!property) {
-    return null
-  }
-
-  // Parse enabled types and config using shared functions (same as API uses)
   const parsedEnabledTypes = parseEnabledReservationTypesFromDB(property.enabled_reservation_types)
   const parsedConfig = parseReservationTypesConfigFromDB(property.reservation_type_config)
 
-  // Filter to just the 4 standard reservation types
-  const standardTypes = ['nightly', 'weekly', 'monthly', 'seasonal'] as const
-  type StandardType = typeof standardTypes[number]
-  const enabledTypes = parsedEnabledTypes.filter(
-    (t): t is StandardType => standardTypes.includes(t as StandardType)
+  const standardTypes = ["nightly", "weekly", "monthly", "seasonal"] as const
+  type StandardType = (typeof standardTypes)[number]
+  const enabledTypes = parsedEnabledTypes.filter((t): t is StandardType =>
+    standardTypes.includes(t as StandardType)
   ) as StandardType[]
 
-  // Build rates array for all types, marking which are enabled
-  const rates: ReservationTypeConfig[] = standardTypes.map(type => ({
+  const rates: ReservationTypeConfig[] = standardTypes.map((type) => ({
     type,
     enabled: enabledTypes.includes(type),
     rateCents: parsedConfig[type]?.rate_cents ?? null,
@@ -86,8 +64,8 @@ async function getCurrentProperty(): Promise<{
   }
 }
 
-async function SitesView() {
-  const property = await getCurrentProperty()
+async function SitesView({ propertyId }: { propertyId: string }) {
+  const property = await getPropertyWithPricing(propertyId)
 
   if (!property) {
     return (
@@ -117,28 +95,26 @@ async function SitesView() {
   return <SitesContent sites={sites} propertyPricingConfig={property.pricingConfig} />
 }
 
-interface SitesPageProps {
+type PageProps = {
+  params: Promise<{ propertyId: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function SitesPage({ searchParams }: SitesPageProps) {
-  const params = await searchParams
-  const isWizardMode = params.wizard === "true"
-  const propertyId = typeof params.propertyId === 'string' ? params.propertyId : null
+export default async function SitesPage({ params, searchParams }: PageProps) {
+  const { propertyId } = await params
+  const search = await searchParams
+  const isWizardMode = search.wizard === "true"
 
-  // Show wizard if wizard mode is active
   if (isWizardMode) {
     return <WizardContainer initialPropertyId={propertyId} />
   }
 
-  // Get current property ID for bulk upload
-  const property = await getCurrentProperty()
-  const currentPropertyId = property?.id ?? null
+  const property = await getPropertyForUser(propertyId)
+  if (!property) redirect("/auth/login")
 
-  // Normal sites view
   return (
     <div className="space-y-6">
-      <SitesPageHeader propertyId={currentPropertyId} />
+      <SitesPageHeader propertyId={propertyId} />
 
       {/* Sites View with Stats + Filtered Accordion */}
       <Suspense
@@ -164,7 +140,7 @@ export default async function SitesPage({ searchParams }: SitesPageProps) {
           </div>
         }
       >
-        <SitesView />
+        <SitesView propertyId={propertyId} />
       </Suspense>
     </div>
   )

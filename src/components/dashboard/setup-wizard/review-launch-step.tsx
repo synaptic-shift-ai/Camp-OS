@@ -421,7 +421,7 @@ export function ReviewLaunchStep({ property: _property, onComplete, onBack }: Re
         ) : (
           <span />
         )}
-        <Button onClick={onComplete} disabled={!allPropertiesReady} size="lg">
+        <Button type="button" onClick={onComplete} disabled={!allPropertiesReady} size="lg">
           <Rocket className="mr-2 h-5 w-5" />
           Complete Setup
         </Button>

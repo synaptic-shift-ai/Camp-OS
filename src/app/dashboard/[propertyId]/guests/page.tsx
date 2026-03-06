@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Mail, MoreVertical, Phone } from "lucide-react"
 import { getGuests } from "@/lib/dashboard/queries"
-import { createClient } from "@/lib/supabase/server"
+import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirect } from "next/navigation"
 import { GuestsPageHeader } from "@/components/dashboard/guests/guests-page-header"
 
 /**
@@ -26,36 +27,12 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-/**
- * Get the current user's property ID
- * MVP: Assumes user has access to one property
- */
-async function getCurrentPropertyId(): Promise<string | null> {
-  const supabase = await createClient()
-
-  // Get the currently authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Get the first property owned by this user
-  const { data: property } = await supabase
-    .from('properties')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
-  return property?.id || null
-}
-
 interface GuestsListProps {
+  propertyId: string
   searchQuery: string | undefined
 }
 
-async function GuestsList({ searchQuery }: GuestsListProps) {
-  const propertyId = await getCurrentPropertyId()
+async function GuestsList({ propertyId, searchQuery }: GuestsListProps) {
 
   if (!propertyId) {
     return (
@@ -161,14 +138,18 @@ async function GuestsList({ searchQuery }: GuestsListProps) {
   )
 }
 
-interface GuestsPageProps {
+type PageProps = {
+  params: Promise<{ propertyId: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function GuestsPage({ searchParams }: GuestsPageProps) {
-  const params = await searchParams
-  const searchQuery = typeof params.search === 'string' ? params.search : undefined
-  const propertyId = await getCurrentPropertyId()
+export default async function GuestsPage({ params, searchParams }: PageProps) {
+  const { propertyId } = await params
+  const property = await getPropertyForUser(propertyId)
+  if (!property) redirect("/auth/login")
+
+  const search = await searchParams
+  const searchQuery = typeof search.search === "string" ? search.search : undefined
 
   return (
     <div className="space-y-6">
@@ -187,7 +168,7 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
               </div>
             }
           >
-            <GuestsList searchQuery={searchQuery} />
+            <GuestsList propertyId={propertyId} searchQuery={searchQuery} />
           </Suspense>
         </CardContent>
       </Card>

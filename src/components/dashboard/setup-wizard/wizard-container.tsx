@@ -152,15 +152,21 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
   }, [selectedProperty, validStepFromUrl, validInitialStep])
 
   const handleWizardComplete = useCallback(async () => {
-    if (!selectedProperty) return
+    if (properties.length === 0) return
     try {
       setIsCompleting(true)
-      const response = await fetch(
-        `/api/v1/properties/${selectedProperty.id}/complete-onboarding`,
-        { method: "POST", headers: { "Content-Type": "application/json" } }
-      )
-      const result = await response.json()
-      if (!result.success) throw new Error(result.error?.message || "Failed to complete onboarding")
+      // Complete onboarding for every property so multi-property setup finishes correctly
+      const toComplete = properties.filter((p) => !p.onboardingCompleted)
+      for (const property of toComplete) {
+        const response = await fetch(
+          `/api/v1/properties/${property.id}/complete-onboarding`,
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        )
+        const result = await response.json()
+        if (!result.success) {
+          throw new Error(result.error?.message ?? "Failed to complete onboarding")
+        }
+      }
 
       try {
         await fetch("/api/onboarding/company-progress", {
@@ -172,13 +178,22 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
         console.error("Failed to save company onboarding complete:", err)
       }
 
-      await refreshProperties()
-      router.push("/dashboard?setup=complete&quick_tour=1")
+      const firstProperty = [...properties].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      )[0]
+      const firstPropertyId = firstProperty?.id
+
+      if (firstPropertyId) {
+        router.push(`/dashboard/${firstPropertyId}?setup=complete&quick_tour=1`)
+      } else {
+        router.push("/dashboard?setup=complete&quick_tour=1")
+      }
+      refreshProperties()
     } catch (error) {
       console.error("Failed to complete wizard:", error)
       setIsCompleting(false)
     }
-  }, [selectedProperty, router, refreshProperties])
+  }, [properties, router, refreshProperties])
 
   const handlePropertyDetailsSaved = useCallback((propertyId: string) => {
     setPropertyDetailsSavedIds((prev) => new Set(prev).add(propertyId))

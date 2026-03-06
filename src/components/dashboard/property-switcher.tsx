@@ -1,5 +1,7 @@
 "use client"
 
+import { startTransition } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { Building2, CheckCircle2, Circle } from "lucide-react"
 import { useProperty } from "@/components/property-context"
 import {
@@ -12,17 +14,43 @@ import {
 import { Badge } from "@/components/ui/badge"
 
 export function PropertySwitcher() {
+  const router = useRouter()
+  const pathname = usePathname()
   const { properties, selectedPropertyId, selectProperty, isLoading } = useProperty()
 
-  // Don't show if only one property or still loading
-  if (isLoading || properties.length <= 1) {
+  const handlePropertyChange = (newPropertyId: string) => {
+    selectProperty(newPropertyId)
+    const segments = pathname.split("/").filter(Boolean)
+    const newPath =
+      segments[0] === "dashboard" && segments[1]
+        ? segments.slice(2).length > 0
+          ? `/dashboard/${newPropertyId}/${segments.slice(2).join("/")}`
+          : `/dashboard/${newPropertyId}`
+        : `/dashboard/${newPropertyId}`
+    startTransition(() => {
+      router.push(newPath)
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="border-b border-border p-4">
+        <div className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-muted/30 px-3">
+          <div className="h-4 w-4 shrink-0 rounded bg-muted animate-pulse" />
+          <div className="h-4 flex-1 max-w-[140px] rounded bg-muted animate-pulse" />
+        </div>
+      </div>
+    )
+  }
+
+  if (properties.length <= 1) {
     return null
   }
 
   return (
     <div className="border-b border-border p-4">
-      <Select value={selectedPropertyId || ""} onValueChange={selectProperty}>
-        <SelectTrigger className="w-full">
+      <Select value={selectedPropertyId || ""} onValueChange={handlePropertyChange}>
+        <SelectTrigger className="w-full focus:ring-0 focus:ring-offset-0">
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
             <SelectValue placeholder="Select property" />

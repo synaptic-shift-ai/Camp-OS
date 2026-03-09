@@ -27,6 +27,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useRouter } from 'next/navigation'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
+import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
 
 interface ExtendDialogProps {
   reservationId: string
@@ -37,6 +38,9 @@ interface ExtendDialogProps {
   siteNumber: string
   siteName?: string | undefined
   pricePerNight: number
+  totalAmount: number
+  weeklyRateCents: number | null
+  monthlyRateCents: number | null
   status: string
   trigger?: React.ReactNode
 }
@@ -61,6 +65,55 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
+/**
+ * Format nights as "X week ($Y) + Z night(s) ($W/night)" or "X nights @ $Y/night" for display
+ */
+function formatNightsBreakdown(
+  nights: number,
+  basePriceCents: number,
+  weeklyRateCents: number | null,
+  monthlyRateCents: number | null
+): string {
+  if (nights >= 28 && monthlyRateCents != null) {
+    const fullMonths = Math.floor(nights / 28)
+    const remainder = nights % 28
+    const monthLabel = fullMonths === 1 ? '1 month' : `${fullMonths} months`
+    if (remainder === 0) {
+      return `${monthLabel} (${formatMoney(monthlyRateCents)})`
+    }
+    const nightLabel = remainder === 1 ? '1 night' : `${remainder} nights`
+    return `${monthLabel} (${formatMoney(monthlyRateCents)}) + ${nightLabel} (${formatMoney(basePriceCents)}/night)`
+  }
+  if (nights >= 7) {
+    const weeklyCents = weeklyRateCents ?? basePriceCents * 7
+    const fullWeeks = Math.floor(nights / 7)
+    const remainder = nights % 7
+    const weekLabel = fullWeeks === 1 ? '1 week' : `${fullWeeks} weeks`
+    if (remainder === 0) {
+      return `${weekLabel} (${formatMoney(weeklyCents)})`
+    }
+    const nightLabel = remainder === 1 ? '1 night' : `${remainder} nights`
+    return `${weekLabel} (${formatMoney(weeklyCents)}) + ${nightLabel} (${formatMoney(basePriceCents)}/night)`
+  }
+  return `${nights} night${nights !== 1 ? 's' : ''} @ ${formatMoney(basePriceCents)}/night`
+}
+
+/**
+ * Format for Pricing Impact: "N nights @ 1 week ($200.00) + 1 night ($30/night)" or "7 nights @ 1 week ($200.00)"
+ */
+function formatNightsWithBreakdown(
+  nights: number,
+  basePriceCents: number,
+  weeklyRateCents: number | null,
+  monthlyRateCents: number | null
+): string {
+  const breakdown = formatNightsBreakdown(nights, basePriceCents, weeklyRateCents, monthlyRateCents)
+  if (nights >= 7) {
+    return `${nights} nights @ ${breakdown}`
+  }
+  return breakdown
+}
+
 export function ExtendDialog({
   reservationId,
   confirmationNumber,
@@ -70,12 +123,17 @@ export function ExtendDialog({
   siteNumber,
   siteName,
   pricePerNight,
+  totalAmount,
+  weeklyRateCents,
+  monthlyRateCents,
   status,
   trigger,
 }: ExtendDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [projectedTotalCents, setProjectedTotalCents] = useState<number | null>(null)
   const router = useRouter()
 
   // Form state
@@ -90,28 +148,69 @@ export function ExtendDialog({
       setNewCheckOut(currentCheckOut)
       setNotes('')
       setError(null)
+      setProjectedTotalCents(null)
     }
   }, [open, currentCheckIn, currentCheckOut])
 
   // Check if dates have changed
   const hasChanges = newCheckIn !== currentCheckIn || newCheckOut !== currentCheckOut
 
-  // Calculate pricing impact
+  // Base-only pricing impact (fallback when full preview not available)
   const pricingImpact = useMemo(() => {
     if (!hasChanges) return null
-
     const originalNights = calculateNights(currentCheckIn, currentCheckOut)
     const newNights = calculateNights(newCheckIn, newCheckOut)
-    const nightsAdded = newNights - originalNights
-    const priceChange = nightsAdded * pricePerNight
-
+    const newTotalCents = calculateBaseSubtotalCents(
+      newNights,
+      pricePerNight,
+      weeklyRateCents,
+      monthlyRateCents
+    )
+    const priceChange = newTotalCents - totalAmount
     return {
       originalNights,
       newNights,
-      nightsAdded,
+      nightsAdded: newNights - originalNights,
       priceChange,
+      newTotalCents,
     }
-  }, [hasChanges, currentCheckIn, currentCheckOut, newCheckIn, newCheckOut, pricePerNight])
+  }, [hasChanges, currentCheckIn, currentCheckOut, newCheckIn, newCheckOut, pricePerNight, totalAmount, weeklyRateCents, monthlyRateCents])
+
+  // Fetch full projected total (discounts + fees) when dates change
+  useEffect(() => {
+    if (!hasChanges || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn) {
+      setProjectedTotalCents(null)
+      return
+    }
+    let cancelled = false
+    setPreviewLoading(true)
+    setProjectedTotalCents(null)
+    fetch(`/api/v1/reservations/${reservationId}/extend-preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newCheckIn, newCheckOut }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data?.success && typeof data?.data?.projectedTotalCents === 'number') {
+          setProjectedTotalCents(data.data.projectedTotalCents)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setProjectedTotalCents(null)
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reservationId, hasChanges, newCheckIn, newCheckOut])
+
+  // Use full projected total when available, else base-only
+  const displayNewTotalCents = projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0
+  const displayPriceChange = displayNewTotalCents - totalAmount
 
   // Real-time availability checking
   const { checking, result, error: availError } = useActionAvailability(
@@ -275,7 +374,7 @@ export function ExtendDialog({
             />
           </div>
 
-          {/* Pricing Impact */}
+          {/* Pricing Impact - amounts only shown after full pricing loads (or fallback if API fails) */}
           {pricingImpact && (
             <div className="rounded-lg border bg-blue-500/5 border-blue-500/20 p-3 space-y-2">
               <div className="text-sm font-medium text-blue-700">Pricing Impact</div>
@@ -283,28 +382,56 @@ export function ExtendDialog({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Original:</span>
                   <span>
-                    {pricingImpact.originalNights} nights @ {formatMoney(pricePerNight)}/night
+                    {formatNightsWithBreakdown(
+                      pricingImpact.originalNights,
+                      pricePerNight,
+                      weeklyRateCents,
+                      monthlyRateCents
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">New:</span>
                   <span>
-                    {pricingImpact.newNights} nights @ {formatMoney(pricePerNight)}/night
+                    {formatNightsWithBreakdown(
+                      pricingImpact.newNights,
+                      pricePerNight,
+                      weeklyRateCents,
+                      monthlyRateCents
+                    )}
                   </span>
                 </div>
-                <div className="flex justify-between pt-2 border-t font-medium">
-                  <span>
-                    {pricingImpact.nightsAdded > 0 ? 'Additional Charge:' : 'Refund:'}
-                  </span>
-                  <span
-                    className={
-                      pricingImpact.nightsAdded > 0 ? 'text-green-600' : 'text-red-600'
-                    }
-                  >
-                    {pricingImpact.nightsAdded > 0 ? '+' : ''}
-                    {formatMoney(pricingImpact.priceChange)}
-                  </span>
-                </div>
+                {previewLoading ? (
+                  <div className="pt-2 border-t flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Calculating total (discounts and fees)…</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between pt-2 border-t font-medium">
+                      <span>
+                        {pricingImpact.nightsAdded > 0 ? 'Additional Charge:' : 'Refund:'}
+                      </span>
+                      <span
+                        className={
+                          pricingImpact.nightsAdded > 0 ? 'text-green-600' : 'text-red-600'
+                        }
+                      >
+                        {pricingImpact.nightsAdded > 0 ? '+' : ''}
+                        {formatMoney(displayPriceChange)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span>New total:</span>
+                      <span>{formatMoney(displayNewTotalCents)}</span>
+                    </div>
+                    {projectedTotalCents != null && (
+                      <p className="text-xs text-muted-foreground pt-1">
+                        Includes applicable discounts and additional charges for this reservation.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -317,7 +444,14 @@ export function ExtendDialog({
             </Alert>
           )}
 
-          {hasChanges && !checking && result && <AvailabilityFeedback result={result} />}
+          {hasChanges && !checking && result && (
+            <AvailabilityFeedback
+              result={result}
+              {...(!previewLoading && {
+                overrideAdditionalChargeCents: displayPriceChange,
+              })}
+            />
+          )}
 
           {hasChanges && availError && (
             <Alert variant="destructive">

@@ -133,6 +133,8 @@ async function ReservationsTable({ propertyId }: { propertyId: string }) {
                     siteNumber={reservation.siteNumber}
                     siteName={reservation.siteName}
                     pricePerNight={reservation.pricePerNight}
+                    weeklyRateCents={reservation.weeklyRateCents ?? null}
+                    monthlyRateCents={reservation.monthlyRateCents ?? null}
                     bookingType={reservation.bookingType}
                     totalAmount={reservation.totalAmount}
                     paidAmount={reservation.paidAmount}

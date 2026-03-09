@@ -14,6 +14,8 @@ import type {
   PaymentMethod,
   MoneyCents,
 } from '@/contracts/booking'
+import { parseReservationTypesConfigFromDB } from '@/lib/config/resolution'
+import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
 // ============================================================================
 // Types
@@ -22,6 +24,49 @@ import type {
 type DbReservation = Database['public']['Tables']['reservations']['Row']
 type DbSite = Database['public']['Tables']['sites']['Row']
 type DbGuest = Database['public']['Tables']['guests']['Row']
+
+/** Site row as returned from join; may include enabled_reservation_types_override from migration */
+type SiteWithOverride = DbSite & {
+  enabled_reservation_types_override?: string[] | null
+  weekly_rate_cents?: number | null
+  monthly_rate_cents?: number | null
+}
+
+/**
+ * Resolve effective display rates for a reservation's site.
+ * When the site uses property defaults (enabled_reservation_types_override is null/undefined),
+ * use property's reservation_type_config rates; otherwise use the site's base_price and rate fields.
+ */
+function getEffectiveRatesForReservation(
+  site: SiteWithOverride,
+  propertyConfig: PropertyReservationTypesConfig | null
+): { pricePerNight: MoneyCents; weeklyRateCents: number | null; monthlyRateCents: number | null } {
+  const usesPropertyDefaults =
+    site.enabled_reservation_types_override === null ||
+    site.enabled_reservation_types_override === undefined
+
+  if (usesPropertyDefaults && propertyConfig) {
+    const nightly =
+      propertyConfig.nightly?.rate_cents != null
+        ? propertyConfig.nightly.rate_cents
+        : site.base_price
+    const weekly =
+      propertyConfig.weekly?.rate_cents != null ? propertyConfig.weekly.rate_cents : null
+    const monthly =
+      propertyConfig.monthly?.rate_cents != null ? propertyConfig.monthly.rate_cents : null
+    return {
+      pricePerNight: nightly as MoneyCents,
+      weeklyRateCents: weekly,
+      monthlyRateCents: monthly,
+    }
+  }
+
+  return {
+    pricePerNight: site.base_price as MoneyCents,
+    weeklyRateCents: site.weekly_rate_cents ?? null,
+    monthlyRateCents: site.monthly_rate_cents ?? null,
+  }
+}
 
 export interface DashboardReservation {
   id: string
@@ -33,6 +78,8 @@ export interface DashboardReservation {
   siteName: string
   siteNumber: string
   pricePerNight: MoneyCents
+  weeklyRateCents: number | null
+  monthlyRateCents: number | null
   bookingType: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term'
   checkIn: string
   checkOut: string
@@ -102,6 +149,16 @@ export async function getReservations(
   const supabase = await createClient()
   const offset = (page - 1) * limit
 
+  const { data: propertyRow } = await supabase
+    .from('properties')
+    .select('reservation_type_config')
+    .eq('id', propertyId)
+    .single()
+
+  const propertyConfig = propertyRow?.reservation_type_config
+    ? parseReservationTypesConfigFromDB(propertyRow.reservation_type_config)
+    : null
+
   // Build query with tenant isolation
   let query = supabase
     .from('reservations')
@@ -131,7 +188,10 @@ export async function getReservations(
       sites (
         site_name,
         site_number,
-        base_price
+        base_price,
+        weekly_rate_cents,
+        monthly_rate_cents,
+        enabled_reservation_types_override
       )
     `,
       { count: 'exact' }
@@ -175,12 +235,13 @@ export async function getReservations(
   // Transform database results to dashboard format
   const reservations: DashboardReservation[] = (data || []).map((reservation) => {
     const guest = reservation.guests as unknown as DbGuest
-    const site = reservation.sites as unknown as DbSite
+    const site = reservation.sites as unknown as SiteWithOverride
     const checkIn = new Date(reservation.check_in_date)
     const checkOut = new Date(reservation.check_out_date)
     const numNights = Math.ceil(
       (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
     )
+    const rates = getEffectiveRatesForReservation(site, propertyConfig)
 
     return {
       id: reservation.id,
@@ -191,7 +252,9 @@ export async function getReservations(
       siteId: reservation.site_id!,
       siteName: site.site_name || `Site ${site.site_number}`,
       siteNumber: site.site_number,
-      pricePerNight: site.base_price as MoneyCents,
+      pricePerNight: rates.pricePerNight,
+      weeklyRateCents: rates.weeklyRateCents,
+      monthlyRateCents: rates.monthlyRateCents,
       bookingType: (reservation.booking_type as any) || 'nightly',
       checkIn: reservation.check_in_date,
       checkOut: reservation.check_out_date,
@@ -223,10 +286,19 @@ export async function getReservation(
 ): Promise<DashboardReservation | null> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('reservations')
-    .select(
-      `
+  const [
+    { data: propertyRow },
+    { data, error },
+  ] = await Promise.all([
+    supabase
+      .from('properties')
+      .select('reservation_type_config')
+      .eq('id', propertyId)
+      .single(),
+    supabase
+      .from('reservations')
+      .select(
+        `
       id,
       confirmation_number,
       guest_id,
@@ -250,13 +322,17 @@ export async function getReservation(
       sites (
         site_name,
         site_number,
-        base_price
+        base_price,
+        weekly_rate_cents,
+        monthly_rate_cents,
+        enabled_reservation_types_override
       )
     `
-    )
-    .eq('property_id', propertyId)
-    .eq('id', reservationId)
-    .single()
+      )
+      .eq('property_id', propertyId)
+      .eq('id', reservationId)
+      .single(),
+  ])
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -265,13 +341,18 @@ export async function getReservation(
     throw new Error(`Failed to fetch reservation: ${error.message}`)
   }
 
+  const propertyConfig = propertyRow?.reservation_type_config
+    ? parseReservationTypesConfigFromDB(propertyRow.reservation_type_config)
+    : null
+
   const guest = data.guests as unknown as DbGuest
-  const site = data.sites as unknown as DbSite
+  const site = data.sites as unknown as SiteWithOverride
   const checkIn = new Date(data.check_in_date)
   const checkOut = new Date(data.check_out_date)
   const numNights = Math.ceil(
     (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
   )
+  const rates = getEffectiveRatesForReservation(site, propertyConfig)
 
   return {
     id: data.id,
@@ -282,7 +363,9 @@ export async function getReservation(
     siteId: data.site_id!,
     siteName: site.site_name || `Site ${site.site_number}`,
     siteNumber: site.site_number,
-    pricePerNight: site.base_price as MoneyCents,
+    pricePerNight: rates.pricePerNight,
+    weeklyRateCents: rates.weeklyRateCents,
+    monthlyRateCents: rates.monthlyRateCents,
     bookingType: (data.booking_type as any) || 'nightly',
     checkIn: data.check_in_date,
     checkOut: data.check_out_date,

@@ -16,6 +16,7 @@
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateDateRange } from './api'
+import { calculateBaseSubtotalCents } from './pricing'
 import type { PriceBreakdown, BookingResult, BookingType } from './types'
 import type {
   PropertyWithConfig,
@@ -208,6 +209,25 @@ export async function calculateReservationPriceEnhanced(
     property.reservation_type_config as PropertyReservationTypesConfig | null
   )
 
+  // When site uses property defaults (enabled_reservation_types_override is null/undefined),
+  // use property's reservation_type_config rates for base, weekly, and monthly pricing
+  const usesPropertyDefaults =
+    (typedSite as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override == null
+  const propertyNightlyCents = reservationTypesConfig?.nightly?.rate_cents ?? null
+  const propertyWeeklyCents = reservationTypesConfig?.weekly?.rate_cents ?? null
+  const propertyMonthlyCents = reservationTypesConfig?.monthly?.rate_cents ?? null
+  // When using property defaults, do not apply site-level weekend_price (property config has no weekend rate)
+  const siteForRates =
+    usesPropertyDefaults && propertyNightlyCents != null
+      ? {
+          ...typedSite,
+          base_price: propertyNightlyCents,
+          weekly_rate_cents: propertyWeeklyCents ?? typedSite.weekly_rate_cents ?? null,
+          monthly_rate_cents: propertyMonthlyCents ?? typedSite.monthly_rate_cents ?? null,
+          weekend_price: null,
+        }
+      : typedSite
+
   // Calculate nights
   const totalNights = calculateNights(checkInDate, checkOutDate)
   const weekendNights = countWeekendNights(checkInDate, checkOutDate)
@@ -249,7 +269,7 @@ export async function calculateReservationPriceEnhanced(
   // Check if we have seasonal pricing to apply
   const seasonalPricing = (typedSite.seasonal_pricing as SeasonalPricingEntry[]) || []
 
-  // Calculate price for each night
+  // Calculate price: use block-based weekly/monthly for standard path to avoid charging weekly rate per night
   const current = new Date(checkInDate + 'T00:00:00')
   const end = new Date(checkOutDate + 'T00:00:00')
 
@@ -268,24 +288,14 @@ export async function calculateReservationPriceEnhanced(
     } else if (usePerTypePricing && perTypeRate !== null) {
       // Use per-type flat rate for this night
       subtotal += perTypeRate
-      // Weekend surcharge typically not applied to weekly/monthly rates
     } else {
-      // Use standard pricing logic with weekly/monthly discounts
+      // Standard path: will be replaced by block subtotal below; this branch only runs for first night to set rateType
       const effectiveRate = getEffectiveNightlyRate(
-        typedSite,
+        siteForRates,
         rateDiscountsConfig,
         totalNights,
         isWeekend
       )
-
-      subtotal += effectiveRate
-
-      // Track weekend surcharge for display
-      if (isWeekend && typedSite.weekend_price && typedSite.weekend_price > typedSite.base_price) {
-        weekendSurcharge += (typedSite.weekend_price - typedSite.base_price)
-      }
-
-      // Update rate type based on what was applied
       if (discountTier.tier === 'monthly') {
         rateType = 'monthly'
       } else if (discountTier.tier === 'weekly') {
@@ -293,11 +303,46 @@ export async function calculateReservationPriceEnhanced(
       } else if (isWeekend && typedSite.weekend_price) {
         rateType = 'weekend'
       }
-
       baseRateUsed = effectiveRate
     }
 
     current.setDate(current.getDate() + 1)
+  }
+
+  // Standard (non-seasonal, non-per-type) path: use block-based subtotal so weekly = 1×weekly_rate + remainder×base, not 8×weekly_rate
+  if (!seasonalPricingApplied && !(usePerTypePricing && perTypeRate !== null)) {
+    subtotal = calculateBaseSubtotalCents(
+      totalNights,
+      siteForRates.base_price,
+      siteForRates.weekly_rate_cents ?? null,
+      siteForRates.monthly_rate_cents ?? null
+    )
+    if (totalNights >= 28 && siteForRates.monthly_rate_cents) {
+      baseRateUsed = siteForRates.monthly_rate_cents
+    } else if (totalNights >= 7 && siteForRates.weekly_rate_cents) {
+      baseRateUsed = siteForRates.weekly_rate_cents
+    } else {
+      baseRateUsed = siteForRates.base_price
+    }
+    // Weekend surcharge only for remainder nights (charged at base_price)
+    const fullWeeks = totalNights >= 7 ? Math.floor(totalNights / 7) : 0
+    const remainderCount = totalNights >= 28 ? totalNights % 28 : totalNights >= 7 ? totalNights % 7 : totalNights
+    const remainderStartNightIndex = totalNights - remainderCount
+    let nightIdx = 0
+    const surchargeStart = new Date(checkInDate + 'T00:00:00')
+    const surchargeEnd = new Date(checkOutDate + 'T00:00:00')
+    let cursor = new Date(surchargeStart)
+    while (cursor < surchargeEnd) {
+      if (nightIdx >= remainderStartNightIndex) {
+        const dateStr = cursor.toISOString().split('T')[0]!
+        if (isWeekendNight(dateStr) && siteForRates.weekend_price != null && siteForRates.weekend_price > siteForRates.base_price) {
+          weekendSurcharge += siteForRates.weekend_price - siteForRates.base_price
+        }
+      }
+      nightIdx++
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    subtotal += weekendSurcharge
   }
 
   // Build initial price breakdown
@@ -322,9 +367,15 @@ export async function calculateReservationPriceEnhanced(
     breakdown.seasonal_pricing_applied = true
   }
 
-  // Add discount information if applicable
-  if (discountTier.tier !== 'none' && !seasonalPricingApplied) {
-    const regularSubtotal = typedSite.base_price * totalNights
+  // Add legacy discount information only when we used per-night legacy percentage (not block pricing with custom weekly/monthly)
+  const usedBlockPricing =
+    !seasonalPricingApplied && !(usePerTypePricing && perTypeRate !== null)
+  if (
+    discountTier.tier !== 'none' &&
+    !seasonalPricingApplied &&
+    !usedBlockPricing
+  ) {
+    const regularSubtotal = siteForRates.base_price * totalNights
     const discountAmount = regularSubtotal - subtotal
 
     breakdown.discount_applied = {
@@ -343,12 +394,46 @@ export async function calculateReservationPriceEnhanced(
   const userDefinedFees = pricingConfig.user_defined_fees || []
 
   if (userDefinedFees.length > 0) {
-    // Use new user-defined fees system
+    // Use new user-defined fees system (match Pricing Summary: only apply when trigger conditions are met)
     breakdown.user_fees = []
     let _taxableFeesTotal = 0
 
     for (const fee of userDefinedFees) {
       if (!fee.enabled) continue
+
+      const triggerType = fee.trigger_type || 'always'
+      let shouldApplyFee = false
+      switch (triggerType) {
+        case 'always':
+          shouldApplyFee = true
+          break
+        case 'manual':
+          shouldApplyFee = false
+          break
+        case 'min_nights':
+          shouldApplyFee = totalNights >= (fee.trigger_conditions?.min_nights ?? 0)
+          break
+        case 'min_guests':
+          shouldApplyFee = totalGuests >= (fee.trigger_conditions?.min_guests ?? 0)
+          break
+        case 'has_pets':
+          shouldApplyFee = numPets > 0
+          break
+        case 'date_range':
+          if (fee.trigger_conditions?.start_date != null || fee.trigger_conditions?.end_date != null) {
+            const check = new Date(checkInDate)
+            const start = fee.trigger_conditions?.start_date ? new Date(fee.trigger_conditions.start_date) : null
+            const end = fee.trigger_conditions?.end_date ? new Date(fee.trigger_conditions.end_date) : null
+            shouldApplyFee = (!start || check >= start) && (!end || check <= end)
+          } else {
+            shouldApplyFee = true
+          }
+          break
+        default:
+          shouldApplyFee = true
+      }
+
+      if (!shouldApplyFee) continue
 
       let feeAmount = 0
 
@@ -467,10 +552,10 @@ export async function calculateReservationPriceEnhanced(
           break
         case 'date_range':
           if (discount.trigger_conditions?.start_date && discount.trigger_conditions?.end_date) {
-            const checkInDateObj = new Date(checkInDate)
-            const rangeStart = new Date(discount.trigger_conditions.start_date)
-            const rangeEnd = new Date(discount.trigger_conditions.end_date)
-            shouldApply = checkInDateObj >= rangeStart && checkInDateObj <= rangeEnd
+            const checkInStr = checkInDate.slice(0, 10)
+            const startStr = String(discount.trigger_conditions.start_date).slice(0, 10)
+            const endStr = String(discount.trigger_conditions.end_date).slice(0, 10)
+            shouldApply = checkInStr >= startStr && checkInStr <= endStr
           }
           break
       }

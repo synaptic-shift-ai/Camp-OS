@@ -45,6 +45,30 @@ export function calculatePriceBreakdown(params: {
 }
 
 /**
+ * Base subtotal in cents for N nights using weekly/monthly rules (matches PricingSummary).
+ * Use for extension pricing and any place that needs "total for N nights" without fees/discounts.
+ */
+export function calculateBaseSubtotalCents(
+  nights: number,
+  basePriceCents: number,
+  weeklyRateCents: number | null | undefined,
+  monthlyRateCents: number | null | undefined
+): number {
+  if (nights >= 28 && monthlyRateCents != null) {
+    const fullMonths = Math.floor(nights / 28)
+    const remainder = nights % 28
+    return fullMonths * monthlyRateCents + remainder * basePriceCents
+  }
+  if (nights >= 7) {
+    const weeklyCents = weeklyRateCents ?? basePriceCents * 7
+    const fullWeeks = Math.floor(nights / 7)
+    const remainder = nights % 7
+    return fullWeeks * weeklyCents + remainder * basePriceCents
+  }
+  return nights * basePriceCents
+}
+
+/**
  * Calculate number of nights between check-in and check-out
  */
 function calculateNights(checkIn: string, checkOut: string): number {

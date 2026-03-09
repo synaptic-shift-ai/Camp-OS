@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, UserX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -36,6 +35,8 @@ interface ReservationActionsProps {
   siteNumber: string
   siteName?: string | undefined
   pricePerNight: number
+  weeklyRateCents: number | null
+  monthlyRateCents: number | null
   bookingType?: 'seasonal' | 'monthly' | 'weekly' | 'nightly' | 'long_term' | undefined
   totalAmount: number
   paidAmount: number
@@ -57,6 +58,8 @@ export function ReservationActions({
   siteNumber,
   siteName,
   pricePerNight,
+  weeklyRateCents,
+  monthlyRateCents,
   bookingType = 'nightly',
   totalAmount,
   paidAmount,
@@ -171,6 +174,9 @@ export function ReservationActions({
               siteNumber={siteNumber}
               siteName={siteName}
               pricePerNight={pricePerNight}
+              weeklyRateCents={weeklyRateCents ?? null}
+              monthlyRateCents={monthlyRateCents ?? null}
+              totalAmount={totalAmount}
               status={status}
               trigger={
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>

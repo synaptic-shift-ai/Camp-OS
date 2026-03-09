@@ -15,6 +15,8 @@ import type { ActionAvailabilityCheck } from '@/lib/booking/types'
 
 interface AvailabilityFeedbackProps {
   result: ActionAvailabilityCheck
+  /** When provided (e.g. from extend-preview), use this for "Additional charge" instead of result recommendation */
+  overrideAdditionalChargeCents?: number | null
 }
 
 /**
@@ -39,9 +41,23 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-export function AvailabilityFeedback({ result }: AvailabilityFeedbackProps) {
+function getAdditionalChargeCents(
+  result: ActionAvailabilityCheck,
+  overrideAdditionalChargeCents: number | null | undefined
+): number | undefined {
+  if (overrideAdditionalChargeCents !== undefined && overrideAdditionalChargeCents !== null) {
+    return overrideAdditionalChargeCents
+  }
+  return result.recommendations[0]?.price_change
+}
+
+export function AvailabilityFeedback({
+  result,
+  overrideAdditionalChargeCents,
+}: AvailabilityFeedbackProps) {
   // Fully available - green success alert
   if (result.status === 'fully_available') {
+    const additionalChargeCents = getAdditionalChargeCents(result, overrideAdditionalChargeCents)
     return (
       <Alert className="border-green-500/50 bg-green-500/10">
         <CheckCircle className="h-4 w-4 text-green-500" />
@@ -53,12 +69,11 @@ export function AvailabilityFeedback({ result }: AvailabilityFeedbackProps) {
               <p className="text-sm font-medium text-green-700">
                 {result.recommendations[0]?.description}
               </p>
-              {result.recommendations[0]?.price_change !== undefined &&
-                result.recommendations[0].price_change > 0 && (
-                  <p className="text-sm text-green-600 mt-1">
-                    Additional charge: {formatMoney(result.recommendations[0].price_change)}
-                  </p>
-                )}
+              {additionalChargeCents !== undefined && additionalChargeCents > 0 && (
+                <p className="text-sm text-green-600 mt-1">
+                  Additional charge: {formatMoney(additionalChargeCents)}
+                </p>
+              )}
             </div>
           )}
         </AlertDescription>
@@ -115,19 +130,25 @@ export function AvailabilityFeedback({ result }: AvailabilityFeedbackProps) {
             <div className="mt-4 pt-3 border-t border-yellow-500/20">
               <p className="text-sm font-medium text-yellow-700 mb-2">Options:</p>
               <ul className="space-y-2">
-                {result.recommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-yellow-600">•</span>
-                    <div>
-                      <span className="text-yellow-700">{rec.description}</span>
-                      {rec.price_change !== undefined && rec.price_change > 0 && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          ({formatMoney(rec.price_change)})
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                {result.recommendations.map((rec, i) => {
+                  const recCharge =
+                    i === 0
+                      ? getAdditionalChargeCents(result, overrideAdditionalChargeCents)
+                      : rec.price_change
+                  return (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="text-yellow-600">•</span>
+                      <div>
+                        <span className="text-yellow-700">{rec.description}</span>
+                        {recCharge !== undefined && recCharge > 0 && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({formatMoney(recCharge)})
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}

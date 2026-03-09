@@ -17,6 +17,8 @@ import type {
   ExtensionDetails,
   RenewalDetails,
 } from './types'
+import { calculateBaseSubtotalCents } from './pricing'
+import { calculateReservationPriceEnhanced } from './pricing-enhanced'
 
 // ============================================================================
 // Helper Functions
@@ -104,7 +106,7 @@ export async function processExtension(
       }
     }
 
-    // 3. Calculate pricing changes
+    // 3. Calculate pricing changes (full pricing with discounts/fees when available, else base-only)
     const extensionCheckIn = newCheckIn || currentCheckIn
     const extensionCheckOut = newCheckOut || currentCheckOut
 
@@ -112,28 +114,63 @@ export async function processExtension(
     const newNights = calculateNights(extensionCheckIn, extensionCheckOut)
     const nightsAdded = newNights - originalNights
 
-    const site = currentRes.site as any
-    const pricePerNight = site.base_price
-    const priceChange = nightsAdded * pricePerNight
+    const siteId = currentRes.site_id
+    const numAdults = (currentRes as { num_adults?: number }).num_adults ?? 1
+    const numChildren = (currentRes as { num_children?: number }).num_children ?? 0
+    const numPets = (currentRes as { num_pets?: number }).num_pets ?? 0
+
+    let newTotalCents: number
+    const fullPriceResult = await calculateReservationPriceEnhanced(
+      siteId,
+      extensionCheckIn,
+      extensionCheckOut,
+      { num_adults: numAdults, num_children: numChildren, num_pets: numPets }
+    )
+    if (fullPriceResult.success && fullPriceResult.data) {
+      newTotalCents = fullPriceResult.data.total
+    } else {
+      const site = currentRes.site as {
+        base_price: number
+        weekly_rate_cents?: number | null
+        monthly_rate_cents?: number | null
+      }
+      newTotalCents = calculateBaseSubtotalCents(
+        newNights,
+        site.base_price,
+        site.weekly_rate_cents,
+        site.monthly_rate_cents
+      )
+    }
+    const priceChange = newTotalCents - currentRes.total_amount
 
     // 4. Capture state snapshot before changes
-    const previousState = {
+    const previousState: Record<string, unknown> = {
       check_in_date: currentCheckIn,
       check_out_date: currentCheckOut,
       total_amount: currentRes.total_amount,
       times_extended: currentRes.times_extended || 0,
     }
+    const currentStatus = (currentRes as { status?: string }).status
+    const currentPaymentStatus = (currentRes as { payment_status?: string }).payment_status
+    if (currentStatus != null) previousState.status = currentStatus
+    if (currentPaymentStatus != null) previousState.payment_status = currentPaymentStatus
 
-    // 5. Update reservation
+    // 5. Update reservation (set status to pending when additional charge is due so it shows as not fully paid)
+    const updatePayload: Record<string, unknown> = {
+      check_in_date: extensionCheckIn,
+      check_out_date: extensionCheckOut,
+      total_amount: currentRes.total_amount + priceChange,
+      times_extended: (currentRes.times_extended || 0) + 1,
+      updated_at: new Date().toISOString(),
+    }
+    if (priceChange > 0) {
+      updatePayload.status = 'pending'
+      updatePayload.payment_status = 'partial'
+    }
+
     const { data: updatedReservation, error: updateError } = await supabase
       .from('reservations')
-      .update({
-        check_in_date: extensionCheckIn,
-        check_out_date: extensionCheckOut,
-        total_amount: currentRes.total_amount + priceChange,
-        times_extended: (currentRes.times_extended || 0) + 1,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', reservationId)
       .select('*')
       .single()
@@ -175,6 +212,7 @@ export async function processExtension(
           check_out_date: extensionCheckOut,
           total_amount: currentRes.total_amount + priceChange,
           times_extended: (currentRes.times_extended || 0) + 1,
+          ...(priceChange > 0 && { status: 'pending', payment_status: 'partial' }),
         },
         notes,
       })

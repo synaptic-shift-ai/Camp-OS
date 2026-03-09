@@ -13,7 +13,13 @@ import { PropertySettings } from "@/components/dashboard/settings/property-setti
 import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
-import type { SeasonalPeriod } from "@/lib/config/types"
+import type {
+  SeasonalPeriod,
+  PricingConfig,
+  DepositConfig,
+  BookingRulesConfig,
+  RateDiscountsConfig,
+} from "@/lib/config/types"
 
 export const dynamic = "force-dynamic"
 
@@ -91,7 +97,9 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="fees" className="space-y-4">
           <FeesSettings
             propertyId={property.id}
-            initialConfig={property.pricing_config}
+            {...(property.pricing_config != null && {
+              initialConfig: property.pricing_config as PricingConfig,
+            })}
           />
         </TabsContent>
 
@@ -107,14 +115,18 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="deposits" className="space-y-4">
           <DepositSettings
             propertyId={property.id}
-            initialConfig={property.deposit_config}
+            {...(property.deposit_config != null && {
+              initialConfig: property.deposit_config as DepositConfig,
+            })}
           />
         </TabsContent>
 
         <TabsContent value="booking-rules" className="space-y-4">
           <BookingRulesSettings
             propertyId={property.id}
-            initialConfig={property.booking_rules_config}
+            {...(property.booking_rules_config != null && {
+              initialConfig: property.booking_rules_config as BookingRulesConfig,
+            })}
           />
         </TabsContent>
 
@@ -143,7 +155,9 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="discounts" className="space-y-4">
           <DiscountsSettings
             propertyId={property.id}
-            initialConfig={property.rate_discounts_config}
+            {...(property.rate_discounts_config != null && {
+              initialConfig: property.rate_discounts_config as RateDiscountsConfig,
+            })}
           />
         </TabsContent>
       </Tabs>

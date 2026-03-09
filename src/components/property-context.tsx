@@ -47,6 +47,8 @@ export interface Property {
   siteCount?: number
   // Legacy compatibility - mapped from v1 response
   wizard_progress?: Record<string, boolean>
+  heroImageUrl: string | null
+  galleryImageUrls: string[] | null
 }
 
 interface PropertyContextType {

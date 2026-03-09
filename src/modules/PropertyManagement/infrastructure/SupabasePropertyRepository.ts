@@ -27,6 +27,17 @@ import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseC
 
 type PropertyRow = Database['public']['Tables']['properties']['Row']
 
+function parseGalleryImages(value: unknown): string[] | null {
+  if (value == null) return null
+  if (Array.isArray(value)) {
+    const urls = value
+      .map((item) => (typeof item === 'string' ? item : (item as { url?: string })?.url))
+      .filter((u): u is string => typeof u === 'string')
+    return urls.length > 0 ? urls : null
+  }
+  return null
+}
+
 export class SupabasePropertyRepository implements IPropertyRepository {
   private readonly supabase: SupabaseClient<Database> | ReturnType<SupabaseClient<Database>['from']>
 
@@ -248,6 +259,9 @@ export class SupabasePropertyRepository implements IPropertyRepository {
     // Parse amenities
     const amenities = Array.isArray(row.amenities) ? (row.amenities as string[]) : null
 
+    // Parse gallery_images: JSONB may be string[] or [{ url, caption?, order? }]
+    const galleryImages = parseGalleryImages(row.gallery_images)
+
     return Property.fromPersistence(
       row.id,
       row.company_id,
@@ -269,6 +283,7 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       row.subdomain,
       row.booking_page_slug,
       row.hero_image_url,
+      galleryImages,
       settings,
       amenities,
       row.check_in_instructions,

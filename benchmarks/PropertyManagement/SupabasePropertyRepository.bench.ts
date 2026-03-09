@@ -232,6 +232,7 @@ function createComplexDomainProperty(): Property {
     'complexview',
     'book-now',
     'https://example.com/hero.jpg', // heroImageUrl
+    null, // galleryImages
     PropertySettings.create({
       checkInTime: '14:00',
       checkOutTime: '11:00',

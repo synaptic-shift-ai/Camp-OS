@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -11,10 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Save, X } from "lucide-react"
+import { Loader2, Save, X, ImageIcon, Trash2 } from "lucide-react"
 import { siteFormSchema, siteStatuses, toApiFormat, fromApiFormat } from "./site-form-schema"
 import type { SiteFormData, reservationTypes } from "./site-form-schema"
 import { Switch } from "@/components/ui/switch"
+import { Dropzone, DropzoneEmptyState, DropzoneContent } from "@/components/dropzone"
+import { useSupabaseUpload } from "@/hooks/use-supabase-upload"
+import { createClient } from "@/lib/supabase/client"
 
 /**
  * Property defaults for reservation types and pricing.
@@ -30,6 +33,10 @@ export interface PropertyDefaults {
   base_price_cents?: number | null  // Fallback base price
   weekend_price?: number | null
 }
+
+const SITE_IMAGES_BUCKET = "site-property-images"
+const MAX_SITE_IMAGES = 3
+const MAX_SITE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
 
 interface SiteFormProps {
   propertyId: string
@@ -48,6 +55,64 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const [houseKeepingTo, setHouseKeepingTo] = useState('')
   const [dateConflictError, setDateConflictError] = useState<string | null>(null)
   const [checkingDate, setCheckingDate] = useState(false)
+  const [siteImageUrls, setSiteImageUrls] = useState<string[]>(() => {
+    const raw = site?.images ?? site?.site_images
+    return Array.isArray(raw) ? [...raw] : []
+  })
+  const supabase = useMemo(() => createClient(), [])
+
+  const siteImagesPath = site?.id ? `${propertyId}/${site.id}` : `${propertyId}/new`
+  const siteImagesUpload = useSupabaseUpload({
+    bucketName: SITE_IMAGES_BUCKET,
+    path: siteImagesPath,
+    maxFiles: MAX_SITE_IMAGES,
+    maxFileSize: MAX_SITE_IMAGE_SIZE_BYTES,
+    allowedMimeTypes: ["image/*"],
+    upsert: true,
+  })
+
+  // When switching to a different site (or opening edit), init siteImageUrls from site
+  const siteId = site?.id
+  useEffect(() => {
+    if (!siteId) return
+    const raw = site?.images ?? site?.site_images
+    setSiteImageUrls(Array.isArray(raw) ? [...raw] : [])
+  }, [siteId])
+
+  // When uploads succeed, add their public URLs to siteImageUrls
+  const successes = siteImagesUpload.successes
+  useEffect(() => {
+    if (successes.length === 0) return
+    setSiteImageUrls((prev) => {
+      const existingUrls = new Set(prev)
+      let next = [...prev]
+      for (const name of successes) {
+        const { data } = supabase.storage.from(SITE_IMAGES_BUCKET).getPublicUrl(`${siteImagesPath}/${name}`)
+        if (!existingUrls.has(data.publicUrl) && next.length < MAX_SITE_IMAGES) {
+          next.push(data.publicUrl)
+          existingUrls.add(data.publicUrl)
+        }
+      }
+      return next.slice(0, MAX_SITE_IMAGES)
+    })
+  }, [successes, siteImagesPath, supabase])
+
+  const removeSiteImage = useCallback(
+    async (
+      url: string,
+      inputRef?: React.RefObject<HTMLInputElement | null>
+    ) => {
+      const marker = `/object/public/${SITE_IMAGES_BUCKET}/`
+      const idx = url.indexOf(marker)
+      const path = idx !== -1 ? url.slice(idx + marker.length) : null
+      if (path) {
+        await supabase.storage.from(SITE_IMAGES_BUCKET).remove([path])
+      }
+      setSiteImageUrls((prev) => prev.filter((u) => u !== url))
+      if (inputRef?.current) inputRef.current.value = ""
+    },
+    [supabase]
+  )
 
   // Convert API response (camelCase) to form format (snake_case) using shared helper
   const defaultFormValues = site ? fromApiFormat(site) : undefined
@@ -63,43 +128,43 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
     resolver: zodResolver(siteFormSchema),
     mode: 'onChange',
     defaultValues: defaultFormValues || {
-          site_number: "",
-          site_name: "",
-          site_type: "tent",
-          max_occupancy: 4,
-          max_vehicles: 1,
-          status: "available",
-          description: "",
-          base_price: 0,
-          hookups: {
-            water: false,
-            electric: false,
-            sewer: false,
-          },
-          amenities: {
-            fire_pit: false,
-            picnic_table: false,
-            grill: false,
-            shade: false,
-            pet_friendly: false,
-            lake_view: false,
-            waterfront: false,
-          },
-          allow_pets: false,
-          pet_fee: undefined,
-          ada_accessible: false,
-          accessibility_features: {
-            wheelchair_accessible: false,
-            wide_paths: false,
-            accessible_table: false,
-            accessible_restroom: false,
-            handrails: false,
-            level_ground: false,
-          },
-          use_property_reservation_types: true,
-          enabled_reservation_types_override: undefined,
-          seasonal_rate: undefined,
-        },
+      site_number: "",
+      site_name: "",
+      site_type: "tent",
+      max_occupancy: 4,
+      max_vehicles: 1,
+      status: "available",
+      description: "",
+      base_price: 0,
+      hookups: {
+        water: false,
+        electric: false,
+        sewer: false,
+      },
+      amenities: {
+        fire_pit: false,
+        picnic_table: false,
+        grill: false,
+        shade: false,
+        pet_friendly: false,
+        lake_view: false,
+        waterfront: false,
+      },
+      allow_pets: false,
+      pet_fee: undefined,
+      ada_accessible: false,
+      accessibility_features: {
+        wheelchair_accessible: false,
+        wide_paths: false,
+        accessible_table: false,
+        accessible_restroom: false,
+        handrails: false,
+        level_ground: false,
+      },
+      use_property_reservation_types: true,
+      enabled_reservation_types_override: undefined,
+      seasonal_rate: undefined,
+    },
   })
 
   const siteType = watch("site_type")
@@ -119,7 +184,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
       const firstBlock = blocked[0]
       setHouseKeepingFrom(firstBlock.from ?? '')
       setHouseKeepingTo(firstBlock.to ?? '')
-      setIsSingleDay(firstBlock.from === firstBlock.to) 
+      setIsSingleDay(firstBlock.from === firstBlock.to)
     }
   }, [site])
 
@@ -145,32 +210,34 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
 
       const apiData = toApiFormat(data)
 
-      const isBlockingDates = 
+      const isBlockingDates =
         (data.status === "housekeeping" || data.status === "maintenance") &&
         houseKeepingFrom
 
-      const finalApiData = isBlockingDates 
+      const finalApiData = isBlockingDates
         ? {
-            ...apiData,
-            status: site?.status ?? apiData.status,
-            availability_rules: {
-              blocked_dates: [
-                {
-                  from: houseKeepingFrom,
-                  to: isSingleDay ? houseKeepingFrom : (houseKeepingTo || houseKeepingFrom),
-                  reason: data.status,
-                }
-              ]
-            }
+          ...apiData,
+          status: site?.status ?? apiData.status,
+          availability_rules: {
+            blocked_dates: [
+              {
+                from: houseKeepingFrom,
+                to: isSingleDay ? houseKeepingFrom : (houseKeepingTo || houseKeepingFrom),
+                reason: data.status,
+              }
+            ]
           }
+        }
         : apiData
+
+      const payload = { ...finalApiData, images: siteImageUrls.length > 0 ? siteImageUrls : undefined }
 
       if (isEditMode) {
         // Update existing site - Migrated to v1 API
         const response = await fetch(`/api/v1/sites/${site.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(finalApiData),
+          body: JSON.stringify(payload),
         })
         const result = await response.json()
 
@@ -185,7 +252,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
         const response = await fetch(`/api/v1/properties/${propertyId}/sites`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(finalApiData),
+          body: JSON.stringify(payload),
         })
 
         console.log("[SiteForm] Response status:", response.status)
@@ -331,7 +398,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
               </Select>
             </div>
           </div>
-          
+
           {(watch("status") === "housekeeping" || watch("status") === "maintenance") && (
             <div className="space-y-3">
               <div>
@@ -392,6 +459,79 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
               placeholder="Describe this site, its features, and what makes it special..."
               rows={3}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Site Images */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-4 w-4" />
+            Site images
+          </CardTitle>
+          <CardDescription>
+            Upload up to {MAX_SITE_IMAGES} images for this site. Optional.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Dropzone
+            {...siteImagesUpload}
+            uploadedCount={siteImageUrls.length}
+            className={
+              siteImageUrls.length >= MAX_SITE_IMAGES && siteImagesUpload.files.length === 0
+                ? "opacity-60 pointer-events-none"
+                : ""
+            }
+          >
+            {siteImagesUpload.files.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center min-h-[120px]">
+                <DropzoneEmptyState />
+              </div>
+            ) : (
+              <div className="w-full overflow-y-auto p-2">
+                <DropzoneContent layout="grid" className="mt-0" />
+              </div>
+            )}
+          </Dropzone>
+
+          {/* Uploaded images — always show section like property step */}
+          <div className="pt-2">
+            <h4 className="text-sm font-medium mb-3">Uploaded images</h4>
+            {siteImageUrls.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {siteImageUrls.map((url) => {
+                  const fileName = url.split("/").pop() ?? "Image"
+                  return (
+                    <div
+                      key={url}
+                      className="relative h-28 rounded-lg overflow-hidden bg-muted group"
+                    >
+                      <img
+                        src={url}
+                        alt={fileName}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSiteImage(url, siteImagesUpload.inputRef)}
+                        className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md flex items-center justify-center backdrop-blur-sm bg-black/40 hover:bg-destructive/80 text-white transition opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                      {/* Filename label — same as property uploaded images */}
+                      <div className="absolute bottom-0 left-0 right-0 px-2 pt-6 pb-1.5 bg-gradient-to-t from-black/50 to-transparent">
+                        <p title={fileName} className="text-white text-[11px] font-medium truncate leading-tight">
+                          {fileName}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No images uploaded yet.</p>
+            )}
           </div>
         </CardContent>
       </Card>

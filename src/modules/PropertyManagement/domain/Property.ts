@@ -69,6 +69,7 @@ export type PropertyProps = {
   subdomain: string | null
   bookingPageSlug: string | null
   heroImageUrl: string | null
+  galleryImages: string[] | null
 
   // Settings
   settings: PropertySettings
@@ -124,6 +125,7 @@ export class Property extends AggregateRoot<string> {
       subdomain?: string | null | undefined
       bookingPageSlug?: string | null | undefined
       heroImageUrl?: string | null | undefined
+      galleryImages?: string[] | null | undefined
       settings?: PropertySettings | undefined
       amenities?: string[] | null | undefined
       checkInInstructions?: string | null | undefined
@@ -181,6 +183,7 @@ export class Property extends AggregateRoot<string> {
         subdomain: options.subdomain || null,
         bookingPageSlug: options.bookingPageSlug || null,
         heroImageUrl: options.heroImageUrl || null,
+        galleryImages: options.galleryImages ?? null,
         settings: options.settings || PropertySettings.default(),
         amenities: options.amenities || null,
         checkInInstructions: options.checkInInstructions || null,
@@ -224,6 +227,7 @@ export class Property extends AggregateRoot<string> {
     subdomain: string | null,
     bookingPageSlug: string | null,
     heroImageUrl: string | null,
+    galleryImages: string[] | null,
     settings: PropertySettings,
     amenities: string[] | null,
     checkInInstructions: string | null,
@@ -267,12 +271,13 @@ export class Property extends AggregateRoot<string> {
         subdomain,
         bookingPageSlug,
         heroImageUrl,
+        galleryImages,
         settings,
         amenities,
-    checkInInstructions,
-    checkOutInstructions,
-    houseRules,
-    onboardingStatus,
+        checkInInstructions,
+        checkOutInstructions,
+        houseRules,
+        onboardingStatus,
     onboardingCompletedAt,
     stripeConnectInfo,
       },
@@ -371,6 +376,10 @@ export class Property extends AggregateRoot<string> {
 
   get houseRules(): string | null {
     return this.props.houseRules
+  }
+
+  get galleryImages(): string[] | null {
+    return this.props.galleryImages
   }
 
   get checkInTime(): string | null {
@@ -525,6 +534,7 @@ export class Property extends AggregateRoot<string> {
     subdomain?: string | null | undefined
     bookingPageSlug?: string | null | undefined
     heroImageUrl?: string | null | undefined
+    galleryImages?: string[] | null | undefined
   }): void {
     if (updates.subdomain !== undefined) {
       this.props.subdomain = updates.subdomain
@@ -534,6 +544,9 @@ export class Property extends AggregateRoot<string> {
     }
     if (updates.heroImageUrl !== undefined) {
       this.props.heroImageUrl = updates.heroImageUrl
+    }
+    if (updates.galleryImages !== undefined) {
+      this.props.galleryImages = updates.galleryImages
     }
 
     this.touch()
@@ -710,6 +723,7 @@ export class Property extends AggregateRoot<string> {
       subdomain: this.props.subdomain,
       booking_page_slug: this.props.bookingPageSlug,
       hero_image_url: this.props.heroImageUrl,
+      gallery_images: this.props.galleryImages,
       settings: this.props.settings.toJson(),
       amenities: this.props.amenities,
       check_in_instructions: this.props.checkInInstructions,

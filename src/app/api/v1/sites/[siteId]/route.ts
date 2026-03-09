@@ -163,7 +163,7 @@ export async function PUT(
           .in('status', ['confirmed', 'checked_in', 'pending'])
           .lte('check_in_date', block.to)
           .gte('check_out_date', block.from)
-        
+
         if (conflictingReservations && conflictingReservations.length > 0) {
           return error('VALIDATION_ERROR', 'The selected date for housekeeping is not available, please select a different date', 400)
         }
@@ -189,7 +189,7 @@ export async function PUT(
         site_amenities: body.site_amenities ?? body.amenities ?? existingSite.site_amenities,
         status: body.status ?? existingSite.status,
         availability_rules: body.availability_rules ?? existingSite.availability_rules,
-        site_images: body.site_images ?? body.images ?? existingSite.site_images,
+        site_images: body.images ?? body.site_images ?? existingSite.site_images,
         enabled_reservation_types_override: reservationTypesOverride,
         seasonal_rate_cents: seasonalRateCents,
         default_reservation_type: defaultReservationType,

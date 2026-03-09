@@ -27,6 +27,7 @@ export type UpdatePropertyDto = {
   subdomain?: string | null | undefined
   bookingPageSlug?: string | null | undefined
   heroImageUrl?: string | null | undefined
+  galleryImages?: string[] | null | undefined
   settings?: PropertySettings | undefined
   amenities?: string[] | null | undefined
   checkInInstructions?: string | null | undefined
@@ -84,11 +85,17 @@ export class UpdatePropertyCommandHandler {
     }
 
     // Update branding
-    if (dto.subdomain !== undefined || dto.bookingPageSlug !== undefined || dto.heroImageUrl !== undefined) {
+    if (
+      dto.subdomain !== undefined ||
+      dto.bookingPageSlug !== undefined ||
+      dto.heroImageUrl !== undefined ||
+      dto.galleryImages !== undefined
+    ) {
       property.updateBranding({
         ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
         ...(dto.bookingPageSlug !== undefined && { bookingPageSlug: dto.bookingPageSlug }),
         ...(dto.heroImageUrl !== undefined && { heroImageUrl: dto.heroImageUrl }),
+        ...(dto.galleryImages !== undefined && { galleryImages: dto.galleryImages }),
       })
     }
 

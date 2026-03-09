@@ -41,6 +41,7 @@ export type PropertyDTO = {
   subdomain: string | null
   bookingPageSlug: string | null
   heroImageUrl: string | null
+  galleryImages: string[] | null
 
   // Settings
   settings: {
@@ -119,6 +120,7 @@ export function toPropertyDTO(property: Property): PropertyDTO {
     subdomain: property.subdomain,
     bookingPageSlug: property.bookingPageSlug,
     heroImageUrl: property.heroImageUrl,
+    galleryImages: property.galleryImages,
 
     // Settings
     settings: {

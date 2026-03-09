@@ -141,23 +141,25 @@ export class SupabaseSiteRepository implements ISiteRepository {
 
   async save(site: Site): Promise<void> {
     const persistence = site.toPersistence()
+    const { images, ...rest } = persistence
+    const dbRow = { ...rest, site_images: images }
 
     // Check if exists
     const existing = await this.findById(site.id)
 
     if (existing) {
-      // Update
+      // Update (DB column is site_images)
       const { error } = await this.supabase
         .from('sites')
-        .update(persistence)
+        .update(dbRow)
         .eq('id', site.id)
 
       if (error) {
         throw new Error(`Failed to update site: ${error.message}`)
       }
     } else {
-      // Insert
-      const { error } = await this.supabase.from('sites').insert(persistence as SiteInsert)
+      // Insert (DB column is site_images)
+      const { error } = await this.supabase.from('sites').insert(dbRow as SiteInsert)
 
       if (error) {
         throw new Error(`Failed to create site: ${error.message}`)
@@ -203,10 +205,10 @@ export class SupabaseSiteRepository implements ISiteRepository {
       'USD'
     )
 
-    // Parse JSON fields
+    // Parse JSON fields (site_images is the DB column for image URLs)
     const amenities = this.parseJsonArray(row.amenities)
     const hookups = this.parseJsonArray(row.hookups)
-    const images = this.parseJsonArray(row.images)
+    const images = this.parseJsonArray(row.site_images ?? row.images)
     const locationMap = this.parseJsonObject(row.location_map)
 
     // Reconstitute domain entity

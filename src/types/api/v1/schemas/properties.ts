@@ -91,6 +91,7 @@ export const PropertySchema = z.object({
   // Branding
   subdomain: z.string().nullable(),
   bookingPageSlug: z.string().nullable(),
+  galleryImages: z.array(z.string()).nullable(),
 
   // Settings
   settings: PropertySettingsSchema,
@@ -183,6 +184,7 @@ export const UpdatePropertyRequestSchema = z.object({
   subdomain: z.string().max(100).nullable().optional(),
   bookingPageSlug: z.string().max(100).nullable().optional(),
   heroImageUrl: z.string().max(2000).nullable().optional(),
+  galleryImages: z.array(z.string().max(2000)).nullable().optional(),
 
   // Settings (partial updates allowed - not all fields required)
   settings: PropertySettingsSchema.partial().optional(),

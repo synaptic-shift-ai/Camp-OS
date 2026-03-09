@@ -178,19 +178,19 @@ export async function PATCH(
     // Convert undefined values to null for PropertySettings compatibility
     const settings = validatedRequest.settings
       ? PropertySettings.create({
-          checkInTime: validatedRequest.settings.checkInTime ?? null,
-          checkOutTime: validatedRequest.settings.checkOutTime ?? null,
-          timezone: validatedRequest.settings.timezone ?? null,
-          cancellationPolicy: validatedRequest.settings.cancellationPolicy ?? null,
-          minStayNights: validatedRequest.settings.minStayNights ?? null,
-          maxStayNights: validatedRequest.settings.maxStayNights ?? null,
-          bookingLeadTimeDays: validatedRequest.settings.bookingLeadTimeDays ?? null,
-          customRules: validatedRequest.settings.customRules ?? null,
-          freeCancellationWindow: validatedRequest.settings.freeCancellationWindow ?? null,
-          cancellationRefundPercentage: validatedRequest.settings.cancellationRefundPercentage ?? null,
-          cancellationNonRefundableDays: validatedRequest.settings.cancellationNonRefundableDays ?? null,
-          refundEligiblePeriod: validatedRequest.settings.refundEligiblePeriod ?? null,
-        })
+        checkInTime: validatedRequest.settings.checkInTime ?? null,
+        checkOutTime: validatedRequest.settings.checkOutTime ?? null,
+        timezone: validatedRequest.settings.timezone ?? null,
+        cancellationPolicy: validatedRequest.settings.cancellationPolicy ?? null,
+        minStayNights: validatedRequest.settings.minStayNights ?? null,
+        maxStayNights: validatedRequest.settings.maxStayNights ?? null,
+        bookingLeadTimeDays: validatedRequest.settings.bookingLeadTimeDays ?? null,
+        customRules: validatedRequest.settings.customRules ?? null,
+        freeCancellationWindow: validatedRequest.settings.freeCancellationWindow ?? null,
+        cancellationRefundPercentage: validatedRequest.settings.cancellationRefundPercentage ?? null,
+        cancellationNonRefundableDays: validatedRequest.settings.cancellationNonRefundableDays ?? null,
+        refundEligiblePeriod: validatedRequest.settings.refundEligiblePeriod ?? null,
+      })
       : undefined
 
     // Execute command using application layer
@@ -214,6 +214,7 @@ export async function PATCH(
       bookingPageSlug: validatedRequest.bookingPageSlug,
       heroImageUrl: validatedRequest.heroImageUrl,
       settings,
+      galleryImages: validatedRequest.galleryImages,
       amenities: validatedRequest.amenities,
       checkInInstructions: validatedRequest.checkInInstructions,
       checkOutInstructions: validatedRequest.checkOutInstructions,

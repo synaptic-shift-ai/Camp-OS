@@ -704,6 +704,7 @@ describe('Property', () => {
         'mountain-view',
         'mountain-view-booking',
         'https://example.com/hero.jpg', // heroImageUrl
+        null, // galleryImages
         settings,
         ['wifi', 'showers'],
         'Check in at the office', // checkInInstructions

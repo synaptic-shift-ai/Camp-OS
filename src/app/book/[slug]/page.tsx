@@ -34,6 +34,7 @@ export default async function PropertyBookingPage({
       booking_page_description,
       booking_page_tagline,
       hero_image_url,
+      gallery_images,
       check_in_time,
       check_out_time,
       check_in_instructions,
@@ -63,9 +64,9 @@ export default async function PropertyBookingPage({
     notFound()
   }
 
-  const { data: sites} = await supabase
+  const { data: sites } = await supabase
     .from("sites")
-    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description")
+    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description, site_images, images")
     .eq("property_id", property.id)
     .eq("status", "available")
 
@@ -106,6 +107,7 @@ export default async function PropertyBookingPage({
     price: number
     capacity: string
     amenities: string[]
+    imageUrl?: string | null
   }
 
   const recentBookings = recentReservations?.map(r => {
@@ -135,7 +137,8 @@ export default async function PropertyBookingPage({
     const amenities = Array.isArray(s.amenities)
       ? (s.amenities as string[]).slice(0, 6)
       : ["See availability for details"]
-  
+    const imageUrl = s.site_images?.[0] ?? s.images?.[0]
+
     return {
       type: siteType,
       name: s.site_name ?? `Site ${s.site_number}`,
@@ -143,6 +146,7 @@ export default async function PropertyBookingPage({
       price: (s.base_price ?? 0) / 100,
       capacity: s.max_occupancy ? String(s.max_occupancy) : "-",
       amenities,
+      imageUrl: imageUrl ?? null,
     }
   })
 
@@ -155,6 +159,7 @@ export default async function PropertyBookingPage({
     description: property.booking_page_description || property.description,
     tagline: property.booking_page_tagline,
     hero_image_url: property.hero_image_url,
+    gallery_images: property.gallery_images,
     check_in_time: property.check_in_time || "15:00:00",
     check_out_time: property.check_out_time || "11:00:00",
     phone: property.phone,
@@ -164,12 +169,12 @@ export default async function PropertyBookingPage({
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
   }
 
-  return <PropertyBookingPortal 
-    property={propertyData} 
-    slug={slug} 
-    siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : [] as SiteTypeSummary[]}
+  return <PropertyBookingPortal
+    property={propertyData}
+    slug={slug}
+    siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : []}
     recentBookings={recentBookings ?? []}
-    />
+  />
 }
 
 // Generate metadata for SEO

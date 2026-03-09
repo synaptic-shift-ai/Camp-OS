@@ -59,7 +59,10 @@ export type SiteTypeSummary = {
   price: number
   capacity: string
   amenities: string[]
+  imageUrl?: string | null
 }
+
+type GalleryImageInput = string | { url: string; caption?: string }
 
 interface PropertyBookingPortalProps {
   property: {
@@ -70,6 +73,7 @@ interface PropertyBookingPortalProps {
     description: string | null
     tagline: string | null
     hero_image_url: string | null
+    gallery_images?: unknown
     check_in_time: string | null
     check_out_time: string | null
     phone: string | null
@@ -198,14 +202,30 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     { key: "hiking_trails", name: "Hiking Trails", description: "Nature walks" },
   ]
 
-  const galleryImages = [
-    { src: "/lakeside-camping.jpg", alt: "Lakeside camping" },
-    { src: "/rv-sites.jpg", alt: "RV sites" },
-    { src: "/cozy-cabin.jpg", alt: "Cozy cabin" },
-    { src: "/campfire-evening.jpg", alt: "Campfire evening" },
-    { src: "/winding-forest-trail.png", alt: "Hiking trail" },
-    { src: "/lake-activities.jpg", alt: "Lake activities" },
-  ]
+  // Generate alt text from image URL
+  function altFromUrl(url: string): string {
+    try {
+      const name = url.split("/").pop() || ""
+      return name.replace(/\.[^.]+$/, "") || property.name
+    } catch {
+      return property.name
+    }
+  }
+
+  const galleryImages = ((): { src: string; alt: string }[] => {
+    const raw = property.gallery_images
+    if (raw == null || !Array.isArray(raw) || raw.length === 0) return []
+    return (raw as GalleryImageInput[]).map((item) => {
+      const src = typeof item === "string" ? item : item?.url
+      const alt =
+        typeof item === "object" && item?.caption
+          ? item.caption
+          : src
+            ? altFromUrl(src)
+            : property.name
+      return { src: src || "", alt: alt || property.name }
+    }).filter((img) => img.src)
+  })()
 
   // const bookingMessage = bookingStats && bookingStats.recentCount > 0
   // ? `${bookingStats.recentCount} booking${bookingStats.recentCount > 1 ? 's' : ''} in the last 7 days`
@@ -543,17 +563,25 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               {(siteTypeSummaries && siteTypeSummaries.length > 0
                 ? siteTypeSummaries
                 : [
-                    { type: "tent" as SiteType, name: "Tent Sites", site_number: "1", description: "Perfect for traditional camping with your own tent", price: 35, capacity: "2-4", amenities: ["Fire Pit", "Picnic Table", "Water Access"] },
-                    { type: "rv" as SiteType, name: "RV Sites", site_number: "2", description: "Full hookup sites for RVs and motorhomes", price: 55, capacity: "4-6", amenities: ["Electric", "Water", "Sewer", "Fire Pit"] },
-                    { type: "cabin" as SiteType, name: "Cabins", site_number: "3", description: "Cozy cabins with modern amenities", price: 125, capacity: "4-6", amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"] },
-                  ]
+                  { type: "tent" as SiteType, name: "Tent Sites", description: "Perfect for traditional camping with your own tent", price: 35, capacity: "2-4", amenities: ["Fire Pit", "Picnic Table", "Water Access"] },
+                  { type: "rv" as SiteType, name: "RV Sites", description: "Full hookup sites for RVs and motorhomes", price: 55, capacity: "4-6", amenities: ["Electric", "Water", "Sewer", "Fire Pit"] },
+                  { type: "cabin" as SiteType, name: "Cabins", description: "Cozy cabins with modern amenities", price: 125, capacity: "4-6", amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"] },
+                ]
               ).map((siteType) => {
                 const IconComponent = getSiteTypeIcon(siteType.type)
                 return (
                   <CarouselItem key={siteType.name} className="pl-4 md:basis-1/2 lg:basis-1/3">
                     <div className="h-full" style={{ display: "flex" }}>
                       <Card className="overflow-hidden hover:shadow-xl transition-shadow border-2 w-full flex flex-col">
-                        <div className="relative h-64 bg-gradient-to-br from-green-100 to-green-50 shrink-0">
+                        <div className="relative h-64 shrink-0 bg-gradient-to-br from-green-100 to-green-50">
+                          {siteType.imageUrl ? (
+                            <Image
+                              src={siteType.imageUrl}
+                              alt={siteType.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : null}
                           <div className="absolute top-4 left-4">
                             <div className="bg-white/95 p-3 rounded-full shadow-lg">
                               <IconComponent className="h-6 w-6 text-[#2D5A27]" />
@@ -676,30 +704,32 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </section>
 
       {/* Photo Gallery */}
-      <section id="gallery" className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-[#2D5A27] mb-4">Experience {property.name}</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">See what makes our campground special</p>
-          </div>
+      {galleryImages.length > 0 && (
+        <section id="gallery" className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-[#2D5A27] mb-4">Experience {property.name}</h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">See what makes our campground special</p>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {galleryImages.map((image, index) => (
-              <div key={index} className="relative h-64 rounded-lg overflow-hidden group cursor-pointer">
-                <Image
-                  src={image.src || "/placeholder.svg"}
-                  alt={image.alt}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
-                  <Camera className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {galleryImages.map((image, index) => (
+                <div key={`${image.src}-${index}`} className="relative h-64 rounded-lg overflow-hidden group cursor-pointer">
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
+                    <Camera className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Property Information */}
       <section className="py-16 bg-gray-50">

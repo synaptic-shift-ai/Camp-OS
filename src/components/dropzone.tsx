@@ -295,7 +295,7 @@ const DropzoneCoverContent = ({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
-            className="flex-1 bg-black/60 hover:bg-black/80 text-white text-[10px] px-2 py-1 rounded transition"
+            className="flex-1 shadow-sm shadow-gray-400 bg-black/60 hover:bg-black/80 text-white text-[10px] px-2 py-1 rounded transition"
           >
             Change
           </button>

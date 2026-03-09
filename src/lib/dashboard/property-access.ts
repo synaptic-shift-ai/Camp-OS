@@ -62,6 +62,7 @@ export async function getPropertyForUser(propertyId: string): Promise<{
   email: string | null
   check_in_time: string | null
   check_out_time: string | null
+  hero_image_url: string | null
   owner_id: string | null
   company_id: string | null
   deposit_config: unknown
@@ -93,6 +94,7 @@ export async function getPropertyForUser(propertyId: string): Promise<{
       email,
       check_in_time,
       check_out_time,
+      hero_image_url,
       owner_id,
       company_id,
       deposit_config,

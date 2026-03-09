@@ -1,13 +1,6 @@
 'use client'
 
-/**
- * Edit Site Dialog Component
- *
- * Dialog for editing an existing site using the SiteForm component.
- * Loads existing site data and calls PATCH API on save.
- */
-
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -22,7 +15,7 @@ import { useToast } from '@/hooks/use-toast'
 interface EditSiteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  site: any // Full site data from database
+  site: any
 }
 
 export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps) {
@@ -30,18 +23,33 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
   const { toast } = useToast()
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
 
-  // Fetch property defaults for reservation types
+  // Track the latest site data locally so SiteForm always gets fresh data
+  const [currentSite, setCurrentSite] = useState<any>(site)
+  const justSavedRef = useRef(false)
+
+  useEffect(() => {
+    if (justSavedRef.current) {
+      justSavedRef.current = false
+      return
+    }
+    setCurrentSite(site)
+  }, [site])
+
+  useEffect(() => {
+    if (open && !justSavedRef.current) {
+      setCurrentSite(site)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   const fetchPropertyDefaults = useCallback(async () => {
     if (!site?.property_id) return
-
     try {
       const response = await fetch(`/api/v1/properties/${site.property_id}/reservation-types`)
       const result = await response.json()
-
       if (response.ok && result.success) {
         const config = result.data?.reservation_type_config
         const enabledTypes = result.data?.enabled_reservation_types
-
         setPropertyDefaults({
           enabled_reservation_types: enabledTypes,
           nightly_rate_cents: config?.nightly?.rate_cents ?? null,
@@ -62,6 +70,9 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
   }, [open, fetchPropertyDefaults])
 
   const handleSave = async (updatedSite: any) => {
+    // Set flag BEFORE setCurrentSite so the prop-sync useEffect skips one cycle
+    justSavedRef.current = true
+    setCurrentSite(updatedSite)
     toast({
       title: 'Site Updated',
       description: `Site ${updatedSite.site_number} has been updated successfully`,
@@ -78,15 +89,15 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Site {site.site_number}</DialogTitle>
+          <DialogTitle>Edit Site {currentSite?.site_number}</DialogTitle>
           <DialogDescription>
             Update site information, pricing, and amenities
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <SiteForm
-            propertyId={site.property_id}
-            site={site}
+            propertyId={currentSite?.property_id}
+            site={currentSite}
             propertyDefaults={propertyDefaults}
             onSave={handleSave}
             onCancel={handleCancel}

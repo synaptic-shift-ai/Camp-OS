@@ -10,19 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, ImageIcon, Save } from "lucide-react"
+import { Building2, Save } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import {
-  Dropzone,
-  DropzoneContent,
-  DropzoneCoverContent,
-  DropzoneCoverEmptyState,
-  DropzoneEmptyState,
-  DropzoneUploadedContent,
-} from "@/components/dropzone"
-import { useSupabaseUpload } from "@/hooks/use-supabase-upload"
+import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 
 const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
@@ -65,137 +57,6 @@ const US_TIMEZONES = [
   { value: "America/Anchorage", label: "Alaska Time (AKT)" },
   { value: "Pacific/Honolulu", label: "Hawaii Time (HT)" },
 ]
-
-const MAX_PROPERTY_IMAGES = 9
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
-
-// ─── CoverDropzoneSection ─────────────────────────────────────────────────────
-// Own component so that changing `key` from parent fully remounts it,
-// resetting useSupabaseUpload (files, successes, errors) back to zero.
-
-function CoverDropzoneSection({
-  propertyId,
-  coverUrl,
-  onUploaded,
-  onDeleted,
-}: {
-  propertyId: string
-  coverUrl: string | null
-  onUploaded: (url: string, name: string) => void
-  onDeleted: () => void
-}) {
-  const coverUpload = useSupabaseUpload({
-    bucketName: "cover-property-images",
-    path: `${propertyId}/cover`,
-    maxFiles: 1,
-    maxFileSize: MAX_IMAGE_SIZE_BYTES,
-    allowedMimeTypes: ["image/*"],
-    upsert: true,
-  })
-
-  return (
-    <Dropzone
-      {...coverUpload}
-      className="relative h-48 p-6 flex items-center justify-center overflow-hidden"
-    >
-      {!coverUrl && coverUpload.files.length === 0 && (
-        <DropzoneCoverEmptyState />
-      )}
-      <DropzoneCoverContent
-        propertyId={propertyId}
-        currentCoverUrl={coverUrl}
-        onUploaded={onUploaded}
-        onDeleted={onDeleted}
-      />
-    </Dropzone>
-  )
-}
-
-// ─── PropertyImagesSection ────────────────────────────────────────────────────
-
-function PropertyImagesSection({
-  propertyId,
-  initialCoverUrl,
-}: {
-  propertyId: string
-  initialCoverUrl?: string | null
-}) {
-  const [coverUrl, setCoverUrl] = useState<string | null>(initialCoverUrl ?? null)
-  const [uploadedGalleryCount, setUploadedGalleryCount] = useState(0)
-  // Changing this key forces CoverDropzoneSection to fully unmount + remount,
-  // which resets useSupabaseUpload so the same file can be uploaded again
-  const [coverKey, setCoverKey] = useState(0)
-
-  const galleryUpload = useSupabaseUpload({
-    bucketName: "property-images",
-    path: `${propertyId}/gallery`,
-    maxFiles: MAX_PROPERTY_IMAGES,
-    maxFileSize: MAX_IMAGE_SIZE_BYTES,
-    allowedMimeTypes: ["image/*"],
-  })
-
-  const galleryAtMax =
-    uploadedGalleryCount >= MAX_PROPERTY_IMAGES && galleryUpload.files.length === 0
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <ImageIcon className="h-4 w-4" />
-          Property images
-        </CardTitle>
-        <CardDescription className="text-sm">
-          Upload a cover photo and gallery images for your property.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-start">
-          {/* Cover — fixed size, never grows with gallery */}
-          <div className="w-full sm:w-44 sm:shrink-0 flex flex-col">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Cover photo</p>
-            <CoverDropzoneSection
-              key={coverKey}
-              propertyId={propertyId}
-              coverUrl={coverUrl}
-              onUploaded={(url) => setCoverUrl(url)}
-              onDeleted={() => { setCoverUrl(null); setCoverKey(k => k + 1) }}
-            />
-          </div>
-
-          {/* Gallery — disabled when already at max (9) so user can't add more */}
-          <div className="w-full sm:flex-1 sm:min-w-0 flex flex-col">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Gallery images</p>
-            <Dropzone
-              {...galleryUpload}
-              uploadedCount={uploadedGalleryCount}
-              className={
-                galleryAtMax
-                  ? "h-48 flex flex-col overflow-hidden opacity-60 pointer-events-none"
-                  : "h-48 flex flex-col overflow-hidden"
-              }
-            >
-              {galleryUpload.files.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <DropzoneEmptyState />
-                </div>
-              ) : (
-                <div className="w-full h-full overflow-y-auto p-2">
-                  <DropzoneContent layout="grid" className="mt-0" />
-                </div>
-              )}
-            </Dropzone>
-          </div>
-        </div>
-
-        <DropzoneUploadedContent
-          propertyId={propertyId}
-          upload={galleryUpload}
-          onPersistedCountChange={setUploadedGalleryCount}
-        />
-      </CardContent>
-    </Card>
-  )
-}
 
 // ─── PropertyDetailsStep ──────────────────────────────────────────────────────
 

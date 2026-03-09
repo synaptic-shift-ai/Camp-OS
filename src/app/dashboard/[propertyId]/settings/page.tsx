@@ -10,6 +10,7 @@ import { ReservationTypeSettings } from "@/components/dashboard/settings/reserva
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PropertySettings } from "@/components/dashboard/settings/property-settings"
+import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
@@ -91,6 +92,10 @@ export default async function SettingsPage({ params }: PageProps) {
               checkInTime: property.check_in_time,
               checkOutTime: property.check_out_time,
             }}
+          />
+          <PropertyImagesSection
+            propertyId={property.id}
+            initialCoverUrl={property.hero_image_url ?? null}
           />
         </TabsContent>
 

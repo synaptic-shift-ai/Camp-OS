@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server"
 import { extractPropertyIdFromSlug } from "@/lib/booking/slug-utils"
 import { PropertyBookingPortal } from "@/components/guest/property-booking-portal"
 import type { SiteType } from "@/lib/booking/types"
+import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveRateDiscountsConfig } from "@/lib/config/resolution"
+import type { RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
+import { format } from "date-fns"
 
 export default async function PropertyBookingPage({
   params,
@@ -52,7 +55,8 @@ export default async function PropertyBookingPage({
       directions,
       amenities,
       enabled_reservation_types,
-      reservation_type_config
+      reservation_type_config,
+      rate_discounts_config
     `)
     .eq("booking_page_slug", slug)
     .eq("onboarding_completed", true)
@@ -66,7 +70,7 @@ export default async function PropertyBookingPage({
 
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description, site_images, images")
+    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description, site_images, images, enabled_reservation_types_override, weekly_rate_cents, monthly_rate_cents")
     .eq("property_id", property.id)
     .eq("status", "available")
 
@@ -108,7 +112,77 @@ export default async function PropertyBookingPage({
     capacity: string
     amenities: string[]
     imageUrl?: string | null
+    discountedPrice?: number
+    discountEndDate?: string
+    discountLabel?: string
+    discountCondition?: string
+    promos?: Array<{ discountLabel: string; discountCondition: string }>
   }
+
+  function getDiscountLabel(discount: UserDefinedDiscount): string {
+    if (discount.discount_type === 'percentage_of_subtotal' || discount.discount_type === 'percentage_of_total') {
+      const pct = discount.value_percentage ?? 0
+      return pct ? `${pct}% off` : ''
+    }
+    if (discount.discount_type === 'flat_amount') {
+      const dollars = ((discount.value_cents ?? 0) / 100).toFixed(2)
+      return `$${dollars} off`
+    }
+    return ''
+  }
+
+  function getDiscountConditionText(discount: UserDefinedDiscount): string {
+    if (discount.trigger_type === 'date_range' && discount.trigger_conditions?.end_date) {
+      return `until ${format(new Date(discount.trigger_conditions.end_date), 'MMM d')}`
+    }
+    if (discount.trigger_type === 'min_nights' && discount.trigger_conditions?.min_nights != null) {
+      return `for ${discount.trigger_conditions.min_nights}+ nights`
+    }
+    if (discount.trigger_type === 'min_guests' && discount.trigger_conditions?.min_guests != null) {
+      return `for ${discount.trigger_conditions.min_guests}+ guests`
+    }
+    return ''
+  }
+
+  const rateDiscounts = resolveRateDiscountsConfig(
+    (property as { rate_discounts_config?: RateDiscountsConfig | null }).rate_discounts_config ?? null
+  )
+  const userDiscounts = rateDiscounts.user_defined_discounts ?? []
+
+  function isTodayInDateRange(
+    startDate: string | undefined,
+    endDate: string | undefined
+  ): boolean {
+    const today = new Date().toISOString().slice(0, 10)
+    if (startDate && today < startDate) return false
+    if (endDate && today > endDate) return false
+    return true
+  }
+
+  const activeDateRangeDiscount: UserDefinedDiscount | undefined = userDiscounts.find(
+    (d) =>
+      d.enabled &&
+      d.trigger_type === "date_range" &&
+      isTodayInDateRange(
+        d.trigger_conditions?.start_date,
+        d.trigger_conditions?.end_date
+      )
+  )
+
+  const activeMinNightsDiscount: UserDefinedDiscount | undefined = userDiscounts.find(
+    (d) => d.enabled && d.trigger_type === "min_nights" && (d.trigger_conditions?.min_nights ?? 0) > 0
+  )
+
+  const activeMinGuestsDiscount: UserDefinedDiscount | undefined = userDiscounts.find(
+    (d) => d.enabled && d.trigger_type === "min_guests" && (d.trigger_conditions?.min_guests ?? 0) > 0
+  )
+
+  const activeDiscount: UserDefinedDiscount | undefined =
+    activeDateRangeDiscount ?? activeMinNightsDiscount ?? activeMinGuestsDiscount
+
+  const activePromos = getActivePromoDisplay(
+    (property as { rate_discounts_config?: RateDiscountsConfig | null }).rate_discounts_config ?? null
+  )
 
   const recentBookings = recentReservations?.map(r => {
     const guest = r.guests as any
@@ -132,6 +206,10 @@ export default async function PropertyBookingPage({
     return { name: `${firstName} ${lastName}`.trim(), numberOfNights, siteType, timeAgo }
   })
 
+  const reservationTypeConfig = parseReservationTypesConfigFromDB(
+    property.reservation_type_config ?? null
+  )
+
   const siteTypeSummaries: SiteTypeSummary[] = (sites ?? []).map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
     const amenities = Array.isArray(s.amenities)
@@ -139,14 +217,54 @@ export default async function PropertyBookingPage({
       : ["See availability for details"]
     const imageUrl = s.site_images?.[0] ?? s.images?.[0]
 
+    const usesPropertyDefaults =
+      (s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override ==
+      null
+
+    const effectiveNightlyCents = usesPropertyDefaults
+      ? reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+      : (s.base_price ?? 0)
+
+    const priceDollars = effectiveNightlyCents / 100
+    let discountedPrice: number | undefined
+    let discountEndDate: string | undefined
+    let discountLabel: string | undefined
+    let discountCondition: string | undefined
+
+    if (activeDiscount) {
+      discountCondition = getDiscountConditionText(activeDiscount)
+      discountLabel = getDiscountLabel(activeDiscount)
+      if (activeDiscount.trigger_type === "date_range" && activeDiscount.trigger_conditions?.end_date) {
+        discountEndDate = activeDiscount.trigger_conditions.end_date
+      }
+      if (activeDiscount.discount_type === "percentage_of_subtotal" || activeDiscount.discount_type === "percentage_of_total") {
+        const pct = activeDiscount.value_percentage ?? 0
+        discountedPrice = Math.round(priceDollars * (1 - pct / 100) * 100) / 100
+        if (activeDiscount.max_discount_cents != null && activeDiscount.max_discount_cents > 0) {
+          const maxOffDollars = activeDiscount.max_discount_cents / 100
+          discountedPrice = Math.max(priceDollars - maxOffDollars, discountedPrice)
+        }
+      } else if (activeDiscount.discount_type === "flat_amount") {
+        discountedPrice = Math.max(0, priceDollars - (activeDiscount.value_cents ?? 0) / 100)
+        discountedPrice = Math.round(discountedPrice * 100) / 100
+      }
+    }
+
     return {
       type: siteType,
       name: s.site_name ?? `Site ${s.site_number}`,
       description: s.description ?? SITE_TYPE_DESCRIPTIONS[siteType] ?? "",
-      price: (s.base_price ?? 0) / 100,
+      price: priceDollars,
       capacity: s.max_occupancy ? String(s.max_occupancy) : "-",
       amenities,
       imageUrl: imageUrl ?? null,
+      ...(activePromos.length > 0 && { promos: activePromos }),
+      ...(discountedPrice != null && (discountCondition ?? discountEndDate) && {
+        discountedPrice,
+        ...(discountEndDate && { discountEndDate }),
+        ...(discountLabel && { discountLabel }),
+        ...(discountCondition && { discountCondition }),
+      }),
     }
   })
 
@@ -169,12 +287,12 @@ export default async function PropertyBookingPage({
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
   }
 
-  return <PropertyBookingPortal
-    property={propertyData}
-    slug={slug}
-    siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : []}
+  return <PropertyBookingPortal 
+    property={propertyData} 
+    slug={slug} 
+    siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : [] as SiteTypeSummary[]}
     recentBookings={recentBookings ?? []}
-  />
+    />
 }
 
 // Generate metadata for SEO

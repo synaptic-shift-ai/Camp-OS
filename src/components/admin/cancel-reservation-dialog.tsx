@@ -95,19 +95,22 @@ export function CancelReservationDialog({
         return
       }
 
-      const reasonWithMethod = [
-        reason.trim(),
-        refundPaymentMethod && refundAmountCents > 0
-          ? `Refunded $${(refundAmountCents / 100).toFixed(2)} via ${refundPaymentMethod}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join(", ") || undefined
+      const trimmedReason = reason.trim() || undefined
+
+      // const reasonWithMethod = [
+      //   reason.trim(),
+      //   refundPaymentMethod && refundAmountCents > 0
+      //     ? `Refunded $${(refundAmountCents / 100).toFixed(2)} via ${refundPaymentMethod}`
+      //     : "",
+      // ]
+      //   .filter(Boolean)
+      //   .join(", ") || undefined
 
       // API requires refundAmountCents; 0 = no refund (backend may override per policy)
       const requestBody = {
-        reason: reasonWithMethod,
+        reason: trimmedReason,
         refundAmountCents,
+        refundPaymentMethod: refundPaymentMethod ?? undefined,
       }
       console.log("[Cancel Reservation] Sending request", { reservationId, requestBody })
 

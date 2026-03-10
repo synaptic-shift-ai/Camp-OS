@@ -7,6 +7,7 @@
  * @module lib/config/resolution
  */
 
+import { format } from 'date-fns'
 import type {
   DepositConfig,
   PricingConfig,
@@ -22,6 +23,7 @@ import type {
   PropertyReservationTypesConfig,
   SeasonalPeriod,
   SiteSeasonalRate,
+  UserDefinedDiscount,
 } from './types'
 import {
   DEFAULT_DEPOSIT_CONFIG,
@@ -242,6 +244,78 @@ export function resolveRateDiscountsConfig(
     return propertyConfig
   }
   return DEFAULT_RATE_DISCOUNTS_CONFIG
+}
+
+export type PromoDisplay = { discountLabel: string; discountCondition: string }
+
+/**
+ * Get display label and condition for all active property-wide promos.
+ * Used for badges on booking portal and availability results.
+ *
+ * @param rateDiscountsConfig - Property's rate discounts config (raw or resolved)
+ * @returns Array of { discountLabel, discountCondition } for each active promo
+ */
+export function getActivePromoDisplay(
+  rateDiscountsConfig: RateDiscountsConfig | null | undefined
+): PromoDisplay[] {
+  const config = resolveRateDiscountsConfig(rateDiscountsConfig)
+  const discounts = config.user_defined_discounts ?? []
+
+  function discountLabel(d: UserDefinedDiscount): string {
+    if (d.discount_type === 'percentage_of_subtotal' || d.discount_type === 'percentage_of_total') {
+      const pct = d.value_percentage ?? 0
+      return pct ? `${pct}% off` : ''
+    }
+    if (d.discount_type === 'flat_amount') {
+      const dollars = ((d.value_cents ?? 0) / 100).toFixed(2)
+      return `$${dollars} off`
+    }
+    return ''
+  }
+
+  function conditionText(d: UserDefinedDiscount): string {
+    if (d.trigger_type === 'date_range' && d.trigger_conditions?.end_date) {
+      return 'until ' + format(new Date(d.trigger_conditions.end_date), 'MMM d')
+    }
+    if (d.trigger_type === 'min_nights' && d.trigger_conditions?.min_nights != null) {
+      return `for ${d.trigger_conditions.min_nights}+ nights`
+    }
+    if (d.trigger_type === 'min_guests' && d.trigger_conditions?.min_guests != null) {
+      return `for ${d.trigger_conditions.min_guests}+ guests`
+    }
+    return ''
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const inDateRange = (start: string | undefined, end: string | undefined) => {
+    if (start && today < start) return false
+    if (end && today > end) return false
+    return true
+  }
+
+  const promos: PromoDisplay[] = []
+
+  for (const d of discounts) {
+    if (!d.enabled) continue
+    let include = false
+    if (d.trigger_type === 'date_range' && inDateRange(d.trigger_conditions?.start_date, d.trigger_conditions?.end_date)) {
+      include = true
+    }
+    if (d.trigger_type === 'min_nights' && (d.trigger_conditions?.min_nights ?? 0) > 0) {
+      include = true
+    }
+    if (d.trigger_type === 'min_guests' && (d.trigger_conditions?.min_guests ?? 0) > 0) {
+      include = true
+    }
+    if (!include) continue
+    const label = discountLabel(d)
+    const condition = conditionText(d)
+    if (label || condition) {
+      promos.push({ discountLabel: label, discountCondition: condition })
+    }
+  }
+
+  return promos
 }
 
 // =====================================================

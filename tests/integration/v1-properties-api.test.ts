@@ -62,6 +62,7 @@ describe('Properties API v1 Contract Tests', () => {
         checkOutTime: '11:00',
         subdomain: 'mountain-view',
         bookingPageSlug: 'mountain-view-booking',
+        galleryImages: [],
 
         // Settings
         settings: {
@@ -183,6 +184,7 @@ describe('Properties API v1 Contract Tests', () => {
         // Branding - nullable
         subdomain: null,
         bookingPageSlug: null,
+        galleryImages: null,
 
         // Settings with nulls
         settings: {
@@ -560,6 +562,7 @@ describe('Properties API v1 Contract Tests', () => {
         checkOutTime: null,
         subdomain: null,
         bookingPageSlug: null,
+        galleryImages: null,
         settings: {
           checkInTime: null,
           checkOutTime: null,

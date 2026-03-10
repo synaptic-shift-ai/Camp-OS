@@ -60,6 +60,10 @@ export type SiteTypeSummary = {
   capacity: string
   amenities: string[]
   imageUrl?: string | null
+  discountedPrice?: number
+  discountEndDate?: string
+  discountLabel?: string
+  discountCondition?: string
 }
 
 type GalleryImageInput = string | { url: string; caption?: string }
@@ -560,20 +564,22 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
           <Carousel opts={{ align: "start", loop: false }} className="w-full">
             <CarouselContent className="-ml-4">
-              {(siteTypeSummaries && siteTypeSummaries.length > 0
-                ? siteTypeSummaries
-                : [
-                  { type: "tent" as SiteType, name: "Tent Sites", description: "Perfect for traditional camping with your own tent", price: 35, capacity: "2-4", amenities: ["Fire Pit", "Picnic Table", "Water Access"] },
-                  { type: "rv" as SiteType, name: "RV Sites", description: "Full hookup sites for RVs and motorhomes", price: 55, capacity: "4-6", amenities: ["Electric", "Water", "Sewer", "Fire Pit"] },
-                  { type: "cabin" as SiteType, name: "Cabins", description: "Cozy cabins with modern amenities", price: 125, capacity: "4-6", amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"] },
-                ]
+              {(
+                (siteTypeSummaries?.length
+                  ? siteTypeSummaries
+                  : [
+                      { type: "tent" as SiteType, name: "Tent Sites", description: "Perfect for traditional camping with your own tent", price: 35, capacity: "2-4", amenities: ["Fire Pit", "Picnic Table", "Water Access"] },
+                      { type: "rv" as SiteType, name: "RV Sites", description: "Full hookup sites for RVs and motorhomes", price: 55, capacity: "4-6", amenities: ["Electric", "Water", "Sewer", "Fire Pit"] },
+                      { type: "cabin" as SiteType, name: "Cabins", description: "Cozy cabins with modern amenities", price: 125, capacity: "4-6", amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"] },
+                    ]
+                  ) as SiteTypeSummary[]
               ).map((siteType) => {
                 const IconComponent = getSiteTypeIcon(siteType.type)
                 return (
                   <CarouselItem key={siteType.name} className="pl-4 md:basis-1/2 lg:basis-1/3">
                     <div className="h-full" style={{ display: "flex" }}>
                       <Card className="overflow-hidden hover:shadow-xl transition-shadow border-2 w-full flex flex-col">
-                        <div className="relative h-64 shrink-0 bg-gradient-to-br from-green-100 to-green-50">
+                        <div className="relative h-64 bg-gradient-to-br from-green-100 to-green-50 shrink-0">
                           {siteType.imageUrl ? (
                             <Image
                               src={siteType.imageUrl}
@@ -587,8 +593,20 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                               <IconComponent className="h-6 w-6 text-[#2D5A27]" />
                             </div>
                           </div>
-                          <div className="absolute top-4 right-4">
-                            <Badge className="bg-[#2D5A27] text-white text-lg px-4 py-2">From ${siteType.price}/night</Badge>
+                          <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
+                            <Badge
+                              className={cn(
+                                "bg-[#2D5A27] text-white text-lg px-4 py-2",
+                                siteType.discountedPrice != null && "line-through opacity-90"
+                              )}
+                            >
+                              From ${siteType.price}/night
+                            </Badge>
+                            {siteType.discountedPrice != null && siteType.discountEndDate && (
+                              <Badge className="bg-[#2D5A27] text-white text-base px-3 py-1.5">
+                                ${siteType.discountedPrice}/night until {format(new Date(siteType.discountEndDate), "MMM d")}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <CardHeader className="shrink-0">

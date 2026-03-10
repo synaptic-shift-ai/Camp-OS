@@ -17,8 +17,10 @@ interface CancellationNoticeEmailProps {
   siteName: string
   checkInDate: string
   checkOutDate: string
+  cancellationDate: string
   cancellationReason?: string
   refundAmount?: number // in cents, if applicable
+  refundPaymentMethod?: string
   refundStatus?: 'processing' | 'completed' | 'none'
 }
 
@@ -29,8 +31,10 @@ export function CancellationNoticeEmail({
   siteName,
   checkInDate,
   checkOutDate,
+  cancellationDate,
   cancellationReason,
   refundAmount,
+  refundPaymentMethod,
   refundStatus = 'none',
 }: CancellationNoticeEmailProps) {
   const formatMoney = (cents: number) => {
@@ -59,11 +63,11 @@ export function CancellationNoticeEmail({
         <Container style={container}>
           <Heading style={h1}>Reservation Cancelled</Heading>
 
-          <Text style={text}>
+          <Text style={textWithPadding}>
             Dear {guestName},
           </Text>
 
-          <Text style={text}>
+          <Text style={textWithPadding}>
             Your reservation at {propertyName} has been cancelled.
           </Text>
 
@@ -90,6 +94,10 @@ export function CancellationNoticeEmail({
                   <td style={labelCell}>Original Check-out:</td>
                   <td style={valueCell}>{formatDate(checkOutDate)}</td>
                 </tr>
+                <tr>
+                  <td style={labelCell}>Cancellation Date:</td>
+                  <td style={valueCell}>{formatDate(cancellationDate)}</td>
+                </tr>
               </tbody>
             </table>
 
@@ -114,6 +122,12 @@ export function CancellationNoticeEmail({
                     <td style={labelCell}>Refund Amount:</td>
                     <td style={valueCell}><strong>{formatMoney(refundAmount)}</strong></td>
                   </tr>
+                  {refundPaymentMethod ? (
+                    <tr>
+                      <td style={labelCell}>Refund Method:</td>
+                      <td style={valueCell}>{refundPaymentMethod}</td>
+                    </tr>
+                  ) : null}
                   <tr>
                     <td style={labelCell}>Refund Status:</td>
                     <td style={valueCell}>
@@ -183,6 +197,12 @@ const text = {
   color: '#333',
   fontSize: '16px',
   lineHeight: '26px',
+}
+
+const textWithPadding = {
+  color: '#333',
+  fontSize: '16px',
+  lineHeight: '26px',
   padding: '0 40px',
 }
 
@@ -190,7 +210,6 @@ const labelText = {
   color: '#666',
   fontSize: '14px',
   fontWeight: 'bold',
-  padding: '0 40px',
   marginBottom: '8px',
 }
 

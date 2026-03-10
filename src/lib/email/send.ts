@@ -1,5 +1,5 @@
 import { render } from '@react-email/components'
-import { resend, getFrom } from './resend'
+import { sendEmail, getFrom } from './emailit'
 import { BookingConfirmationEmail } from './templates/booking-confirmation'
 import { CancellationNoticeEmail } from './templates/cancellation-notice'
 
@@ -35,8 +35,10 @@ export interface CancellationData {
   siteName: string
   checkInDate: string
   checkOutDate: string
+  cancellationDate: string
   cancellationReason?: string
   refundAmount?: number
+  refundPaymentMethod?: string
   refundStatus?: 'processing' | 'completed' | 'none'
 }
 
@@ -85,14 +87,16 @@ export async function sendBookingConfirmation(data: BookingConfirmationData) {
 
     const emailHtml = await render(BookingConfirmationEmail(emailProps))
 
-    const result = await resend.emails.send({
+    const result = await sendEmail({
       from: getFrom(),
       to: data.guestEmail,
       subject: `Booking Confirmed - ${data.confirmationNumber} at ${data.propertyName}`,
       html: emailHtml,
     })
 
-    return { success: true, data: result }
+    return result.success
+      ? { success: true, data: { id: result.id } }
+      : { success: false, error: result.error }
   } catch (error) {
     console.error('[Email] Failed to send booking confirmation:', error)
     return {
@@ -114,6 +118,8 @@ export async function sendCancellationNotice(data: CancellationData) {
       siteName: data.siteName,
       checkInDate: data.checkInDate,
       checkOutDate: data.checkOutDate,
+      cancellationDate: data.cancellationDate,
+      refundPaymentMethod: data.refundPaymentMethod,
     }
 
     // Only add optional fields if they have values
@@ -123,20 +129,25 @@ export async function sendCancellationNotice(data: CancellationData) {
     if (data.refundAmount !== undefined) {
       emailProps.refundAmount = data.refundAmount
     }
+    if (data.refundPaymentMethod) {
+      emailProps.refundPaymentMethod = data.refundPaymentMethod
+    }
     if (data.refundStatus) {
       emailProps.refundStatus = data.refundStatus
     }
 
     const emailHtml = await render(CancellationNoticeEmail(emailProps))
 
-    const result = await resend.emails.send({
+    const result = await sendEmail({
       from: getFrom(),
       to: data.guestEmail,
       subject: `Reservation Cancelled - ${data.confirmationNumber} at ${data.propertyName}`,
       html: emailHtml,
     })
 
-    return { success: true, data: result }
+    return result.success
+      ? { success: true, data: { id: result.id } }
+      : { success: false, error: result.error }
   } catch (error) {
     console.error('[Email] Failed to send cancellation notice:', error)
     return {

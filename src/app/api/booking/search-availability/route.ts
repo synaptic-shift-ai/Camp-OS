@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { searchAvailableSites } from '@/lib/booking/availability'
+import { getActivePromoDisplay } from '@/lib/config/resolution'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import type { RateDiscountsConfig } from '@/lib/config/types'
 import { z } from 'zod'
 
 const searchParamsSchema = z.object({
@@ -28,11 +31,29 @@ export async function POST(request: NextRequest) {
     // Call availability search function
     const result = await searchAvailableSites(cleanParams as any)
 
+    if (result.success && result.data) {
+      const propertyId = validatedParams.property_id
+      const supabase = createServiceRoleClient()
+      const { data: property } = await supabase
+        .from('properties')
+        .select('rate_discounts_config')
+        .eq('id', propertyId)
+        .single()
+      const activePromos = getActivePromoDisplay(
+        (property?.rate_discounts_config as RateDiscountsConfig | null) ?? null
+      )
+      return NextResponse.json({
+        ...result,
+        data: {
+          ...result.data,
+          active_promos: activePromos,
+        },
+      })
+    }
     if (result.success) {
       return NextResponse.json(result)
-    } else {
-      return NextResponse.json(result, { status: 400 })
     }
+    return NextResponse.json(result, { status: 400 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

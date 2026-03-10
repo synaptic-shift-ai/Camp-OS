@@ -81,6 +81,7 @@ export type RecordPaymentRequest = z.infer<typeof RecordPaymentRequestSchema>
 export const CancelReservationRequestSchema = z.object({
   reason: z.string().max(500).optional().nullable(),
   refundAmountCents: z.number().int().min(0, 'Refund amount cannot be negative'),
+  refundPaymentMethod: z.string().max(100).optional().nullable(),
 })
 
 export type CancelReservationRequest = z.infer<typeof CancelReservationRequestSchema>

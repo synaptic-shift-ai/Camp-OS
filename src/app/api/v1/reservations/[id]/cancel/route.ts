@@ -20,6 +20,7 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
+import { sendCancellationNotice } from '@/lib/email/send'
 
 /**
  * POST /api/v1/reservations/[id]/cancel
@@ -136,6 +137,54 @@ export async function POST(
       reason: validatedRequest.reason ?? null,
       refundAmountCents,
     })
+
+    type CancellationEmailRow = {
+      guest: { first_name: string; last_name: string; email: string }
+      property: { name: string }
+      site: { site_name: string; site_number: string }
+    }
+
+    const { data: rowData, error: rowError } = await supabase
+      .from('reservations')
+      .select(
+        'guest:guests(first_name, last_name, email), property:properties(name), site:sites(site_name, site_number)'
+      )
+      .eq('id', reservationId)
+      .single()
+
+    const reservationRow = rowData as CancellationEmailRow | null
+
+    if (!rowError && reservationRow?.guest && reservationRow?.property && reservationRow?.site) {
+      const guest = reservationRow.guest as { first_name: string; last_name: string; email: string }
+      const propertyRow = reservationRow.property as { name: string }
+      const siteRow = reservationRow.site as { site_name: string; site_number: string }
+      const guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
+      const siteName = siteRow?.site_name ?? (siteRow?.site_number != null ? `Site ${siteRow.site_number}` : 'Site')
+
+      const refundStatus: 'processing' | 'completed' | 'none' =
+        refundAmountCents === 0 
+          ? 'none' 
+          : refundAmountCents >= paidCents
+            ? 'completed'
+            : 'processing'
+
+      sendCancellationNotice({
+        guestName,
+        guestEmail: guest.email,
+        confirmationNumber: reservation.confirmationNumber.value,
+        propertyName: propertyRow.name,
+        siteName,
+        checkInDate: reservation.checkInDate.toISOString(),
+        checkOutDate: reservation.checkOutDate.toISOString(),
+        cancellationDate: new Date().toISOString(),
+        ...(validatedRequest.reason ? { cancellationReason: validatedRequest.reason } : {}),
+        ...(refundAmountCents > 0 ? { refundAmount: refundAmountCents } : {}),
+        ...(validatedRequest.refundPaymentMethod ? { refundPaymentMethod: validatedRequest.refundPaymentMethod } : {}),
+        refundStatus,
+      }).catch((err) => {
+        console.error('[Reservation API v1] Failed to send cancellation notice:', err)
+      })
+    }
 
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)

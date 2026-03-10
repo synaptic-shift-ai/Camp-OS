@@ -36,6 +36,7 @@ function AvailabilityResultsContent() {
   const { toast } = useToast()
 
   const [availableSites, setAvailableSites] = useState<AvailableSite[]>([])
+  const [activePromos, setActivePromos] = useState<Array<{ discountLabel: string; discountCondition: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [propertyName] = useState("Pine Valley Campground")
 
@@ -82,6 +83,7 @@ function AvailabilityResultsContent() {
 
         if (result.success && result.data) {
           setAvailableSites(result.data.sites || [])
+          setActivePromos(result.data.active_promos ?? [])
         } else {
           toast({
             title: "Search Error",
@@ -313,6 +315,11 @@ function AvailabilityResultsContent() {
                               {getSiteTypeLabel(site.site_type)}
                             </Badge>
                             <Badge className="bg-green-500 text-white">Available</Badge>
+                            {activePromos.map((promo, i) => (
+                              <Badge key={i} className="bg-yellow-500 text-white">
+                                {[promo.discountLabel, promo.discountCondition].filter(Boolean).join(" ")}
+                              </Badge>
+                            ))}
                           </div>
                           <h3 className="text-xl font-bold text-gray-900 mb-1">{site.name}</h3>
                           <div className="flex items-center space-x-2 text-sm text-gray-600">

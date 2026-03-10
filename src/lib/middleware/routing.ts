@@ -60,7 +60,7 @@ export function createAuthMiddleware(
     recordRequest('auth-middleware', pathname)
 
     // Redirect authenticated users away from login/signup to dashboard
-    const authOnlyRoutes = ['/login', '/signup']
+    const authOnlyRoutes = ['/login', '/signup', '/forgot-password', '/reset-password']
     const isAuthOnlyRoute = authOnlyRoutes.some(
       (route) => pathname === route || pathname.startsWith(`${route}/`)
     )

@@ -14,11 +14,13 @@ import { render } from '@react-email/components'
 export interface VerificationLinkEmailProps {
   verifyUrl: string
   appName?: string
+  expiresIn?: string
 }
 
 export function VerificationLinkEmail({
   verifyUrl,
   appName = 'CampOS',
+  expiresIn = '24 hours',
 }: VerificationLinkEmailProps) {
   return (
     <Html>
@@ -42,7 +44,7 @@ export function VerificationLinkEmail({
             </Text>
             <Text style={linkUrl}>{verifyUrl}</Text>
             <Text style={footer}>
-              This link expires in 24 hours. If you didn&rsquo;t sign up for{' '}
+              This link expires in {expiresIn}. If you didn&rsquo;t sign up for{' '}
               {appName}, you can safely ignore this email.
             </Text>
           </Section>
@@ -56,9 +58,16 @@ export default VerificationLinkEmail
 
 export async function buildVerificationLinkEmailHtml(
   verifyUrl: string,
-  appName = 'CampOS'
+  appName = 'CampOS',
+  expiresIn?: string
 ): Promise<string> {
-  return render(VerificationLinkEmail({ verifyUrl, appName }))
+  return render(
+    VerificationLinkEmail({
+      verifyUrl,
+      appName,
+      ...(expiresIn !== undefined && { expiresIn }),
+    })
+  )
 }
 
 const main = {

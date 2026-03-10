@@ -36,23 +36,25 @@ export async function GET(request: NextRequest) {
     }
 
     const user = userData.user
-
-    // Already verified via our custom flow — let them through
-    if (user.app_metadata?.custom_email_verified) {
-      return NextResponse.redirect(`${baseUrl}/verify-email?confirmed=true`)
-    }
-
     const appMetadata = user.app_metadata ?? {}
     const storedHash = appMetadata.verification_token_hash
     const expiresAt = appMetadata.verification_expires_at
 
-    if (!storedHash || !expiresAt) {
-      console.error('[ConfirmEmail] No verification token stored for user:', uid)
+    const expiryBufferMs = 60 * 1000
+    const isExpired =
+      expiresAt && new Date(expiresAt).getTime() < Date.now() - expiryBufferMs
+
+    if (isExpired) {
+      console.error('[ConfirmEmail] Token expired for user:', uid)
       return NextResponse.redirect(`${baseUrl}/verify-email?error=expired`)
     }
 
-    if (new Date(expiresAt) < new Date()) {
-      console.error('[ConfirmEmail] Token expired for user:', uid)
+    if (user.app_metadata?.custom_email_verified) {
+      return NextResponse.redirect(`${baseUrl}/verify-email?confirmed=true`)
+    }
+
+    if (!storedHash || !expiresAt) {
+      console.error('[ConfirmEmail] No verification token stored for user:', uid)
       return NextResponse.redirect(`${baseUrl}/verify-email?error=expired`)
     }
 
@@ -69,8 +71,8 @@ export async function GET(request: NextRequest) {
           ...appMetadata,
           custom_email_verified: true,
           verification_token_hash: null,
-          verification_expires_at: null,
           verification_sent_at: null,
+          verification_expires_at: appMetadata.verification_expires_at,
         },
       }
     )

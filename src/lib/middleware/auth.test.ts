@@ -89,7 +89,7 @@ describe('verifyAuthentication', () => {
     it('should handle user with unverified email', async () => {
       const baseUser = createMockUser()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mockUser = { ...baseUser, email_confirmed_at: null } as any
+      const mockUser = { ...baseUser, email_confirmed_at: null, app_metadata: {} } as any
       const supabase = createMockSupabase(mockUser)
       const request = createMockRequest()
 
@@ -101,6 +101,22 @@ describe('verifyAuthentication', () => {
       expect(result.authenticated).toBe(true)
       expect(result.request.middlewareContext.auth?.emailVerified).toBe(false)
       expect(result.request.middlewareContext.auth?.emailConfirmedAt).toBeNull()
+    })
+
+    it('should treat custom_email_verified as verified when email_confirmed_at is null', async () => {
+      const baseUser = createMockUser()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockUser = { ...baseUser, email_confirmed_at: null, app_metadata: { custom_email_verified: true } } as any
+      const supabase = createMockSupabase(mockUser)
+      const request = createMockRequest()
+
+      const result = await verifyAuthentication(request, supabase) as Extract<
+        AuthResult,
+        { authenticated: true }
+      >
+
+      expect(result.authenticated).toBe(true)
+      expect(result.request.middlewareContext.auth?.emailVerified).toBe(true)
     })
 
     it('should handle user with empty metadata', async () => {
@@ -211,10 +227,11 @@ describe('requiresEmailVerification', () => {
   it.each([
     { pathname: '/dashboard', expected: true },
     { pathname: '/dashboard/sites', expected: true },
-    { pathname: '/dashboard/bookings', expected: true },
+    { pathname: '/company-details', expected: true },
+    { pathname: '/choose-plan', expected: true },
+    { pathname: '/onboarding', expected: true },
+    { pathname: '/payment', expected: true },
     { pathname: '/login', expected: false },
-    { pathname: '/onboarding', expected: false },
-    { pathname: '/choose-plan', expected: false },
     { pathname: '/', expected: false },
   ])('should return $expected for pathname $pathname', ({ pathname, expected }) => {
     expect(requiresEmailVerification(pathname)).toBe(expected)

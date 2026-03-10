@@ -66,22 +66,29 @@ export function SignupClient() {
         return
       }
 
-      if (!authData.session) {
-        setError("Failed to create session. Please try again.")
-        setIsLoading(false)
-        return
+      // Send verification email while we may have a brief session
+      if (authData.session) {
+        const verifyRes = await fetch('/api/auth/send-verification', { method: 'POST' })
+        if (!verifyRes.ok) {
+          const body = await verifyRes.json().catch(() => ({}))
+          console.error('[Signup] Failed to send verification email:', body)
+        }
+        await supabase.auth.signOut()
+      } else {
+        // No session: user must use Resend on verify-email page
+        const verifyRes = await fetch('/api/auth/send-verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: data.email }),
+        })
+        if (!verifyRes.ok) {
+          const body = await verifyRes.json().catch(() => ({}))
+          console.error('[Signup] Failed to send verification email:', body)
+        }
       }
 
-      console.log('[Signup] Session created, sending verification email')
-
-      const verifyRes = await fetch('/api/auth/send-verification', { method: 'POST' })
-      if (!verifyRes.ok) {
-        const body = await verifyRes.json().catch(() => ({}))
-        console.error('[Signup] Failed to send verification email:', body)
-        // Still navigate to verify-email so the user can resend from there
-      }
-
-      router.push("/verify-email?redirect=/company-details")
+      const params = new URLSearchParams({ redirect: '/company-details', email: data.email })
+      router.push(`/verify-email?${params.toString()}`)
     } catch (err) {
       console.error("Signup error:", err)
       setError("An unexpected error occurred. Please try again.")

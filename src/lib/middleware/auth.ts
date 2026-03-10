@@ -85,11 +85,14 @@ export async function verifyAuthentication(
     }
   }
 
-  // Create auth context with branded types
+  // Treat as verified only when Supabase confirmed or our custom flow has marked verified
+  const emailVerified =
+    !!user.email_confirmed_at || !!user.app_metadata?.custom_email_verified
+
   const authContext: AuthContext = {
     userId: createUserId(user.id),
     email: user.email ?? '',
-    emailVerified: !!user.email_confirmed_at,
+    emailVerified,
     emailConfirmedAt: user.email_confirmed_at,
     userMetadata: user.user_metadata || {},
   } as AuthContext
@@ -119,8 +122,14 @@ export async function verifyAuthentication(
  * @returns True if email verification is required
  */
 export function requiresEmailVerification(pathname: string): boolean {
-  // Email verification required for dashboard access (security gate)
-  return pathname.startsWith('/dashboard')
+  const verifiedPaths = [
+    '/dashboard',
+    '/company-details',
+    '/choose-plan',
+    '/onboarding',
+    '/payment',
+  ]
+  return verifiedPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
 
 /**

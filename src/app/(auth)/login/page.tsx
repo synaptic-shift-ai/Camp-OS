@@ -40,10 +40,11 @@ export default function LoginPage() {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (user) {
-          // If email is not verified via our custom flow, send a new link and gate access
           if (!user.app_metadata?.custom_email_verified) {
-            fetch('/api/auth/send-verification', { method: 'POST' }).catch(() => {})
-            router.push("/verify-email?redirect=/company-details")
+            await supabase.auth.signOut()
+            const params = new URLSearchParams({ redirect: "/company-details" })
+            if (user.email) params.set("email", user.email)
+            router.push(`/verify-email?${params.toString()}`)
             router.refresh()
             return
           }

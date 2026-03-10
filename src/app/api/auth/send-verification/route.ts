@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { sendEmail } from '@/lib/email/emailit'
 import { buildVerificationLinkEmailHtml } from '@/lib/email/templates/verification-link'
 import { createHash, randomBytes } from 'crypto'
+import type { User } from '@supabase/supabase-js'
 
 const TOKEN_EXPIRY_HOURS = 24
 const RESEND_COOLDOWN_SECONDS = 60
@@ -24,16 +25,36 @@ function getBaseUrl(): string {
   )
 }
 
-export async function POST() {
+async function findUserByEmail(serviceClient: ReturnType<typeof createServiceRoleClient>, email: string): Promise<User | null> {
+  const normalized = email.trim().toLowerCase()
+  const { data: { users } } = await serviceClient.auth.admin.listUsers({ perPage: 500 })
+  return users.find((u) => u.email?.toLowerCase() === normalized) ?? null
+}
+
+export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const { data: { user: sessionUser }, error: userError } = await supabase.auth.getUser()
+
+    let user: User | null = sessionUser
 
     if (userError || !user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
+      const body = await request.json().catch(() => ({}))
+      const email = typeof body?.email === 'string' ? body.email.trim() : null
+      if (!email) {
+        return NextResponse.json(
+          { error: 'Not authenticated. Provide email in body for resend without session.' },
+          { status: 401 }
+        )
+      }
+      const serviceClient = createServiceRoleClient()
+      user = await findUserByEmail(serviceClient, email)
+      if (!user) {
+        return NextResponse.json(
+          { error: 'No account found for this email.' },
+          { status: 404 }
+        )
+      }
     }
 
     if (user.app_metadata?.custom_email_verified) {
@@ -61,7 +82,7 @@ export async function POST() {
 
     const token = generateToken()
     const tokenHash = hashToken(token)
-    const expiresAt = new Date(now + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000).toISOString()
+    const expiresAt = new Date(now + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000)
 
     const serviceClient = createServiceRoleClient()
     const { error: updateError } = await serviceClient.auth.admin.updateUserById(
@@ -90,7 +111,7 @@ export async function POST() {
 
     const baseUrl = getBaseUrl()
     const verifyUrl = `${baseUrl}/api/auth/confirm-email?token=${token}&uid=${user.id}`
-    const html = await buildVerificationLinkEmailHtml(verifyUrl)
+    const html = await buildVerificationLinkEmailHtml(verifyUrl, undefined, `${TOKEN_EXPIRY_HOURS} hours`)
 
     const emailResult = await sendEmail({
       to: user.email!,

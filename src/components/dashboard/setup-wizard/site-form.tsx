@@ -122,6 +122,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
     setValue,
     watch,
     trigger,
+    reset,
   } = useForm<SiteFormData>({
     resolver: zodResolver(siteFormSchema),
     mode: 'onChange',
@@ -172,15 +173,24 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const defaultReservationType = watch("default_reservation_type")
 
   useEffect(() => {
-    if (!site?.availability_rules) return
-    const blocked = (site.availability_rules as any)?.blocked_dates
+    const blocked = (site?.availability_rules as any)?.blocked_dates
     if (blocked?.length > 0) {
       const firstBlock = blocked[0]
       setHouseKeepingFrom(firstBlock.from ?? '')
       setHouseKeepingTo(firstBlock.to ?? '')
       setIsSingleDay(firstBlock.from === firstBlock.to)
+    } else {
+      setHouseKeepingFrom('')
+      setHouseKeepingTo('')
     }
   }, [site])
+
+  useEffect(() => {
+    if (isEditMode && site) {
+      const values = fromApiFormat(site)
+      reset(values as SiteFormData)
+    }
+  }, [isEditMode, site, reset])
 
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
     const current = enabledReservationTypesOverride || []
@@ -209,7 +219,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
       const finalApiData = isBlockingDates
         ? {
           ...apiData,
-          status: site?.status ?? apiData.status,
           availability_rules: {
             blocked_dates: [{
               from: houseKeepingFrom,

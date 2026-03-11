@@ -170,6 +170,16 @@ export async function PUT(
       }
     }
 
+    const newStatus = body.status ?? existingSite.status
+    const isScheduledStatus = newStatus === 'housekeeping' || newStatus === 'maintenance'
+    const existingRules = (existingSite.availability_rules as { blocked_dates?: unknown[] } | null) ?? {}
+    const resolvedAvailabilityRules =
+      body.availability_rules !== undefined
+        ? body.availability_rules
+        : !isScheduledStatus && Array.isArray(existingRules.blocked_dates) && existingRules.blocked_dates.length > 0
+          ? { ...existingRules, blocked_dates: [] }
+          : existingSite.availability_rules
+
     // Update the site
     const { data: updatedSite, error: updateError } = await supabase
       .from('sites')
@@ -187,8 +197,8 @@ export async function PUT(
         size_sqft: body.size_sqft ?? body.sizeSqft ?? existingSite.size_sqft,
         hookups: body.hookups ?? existingSite.hookups,
         site_amenities: body.site_amenities ?? body.amenities ?? existingSite.site_amenities,
-        status: body.status ?? existingSite.status,
-        availability_rules: body.availability_rules ?? existingSite.availability_rules,
+        status: newStatus,
+        availability_rules: resolvedAvailabilityRules,
         site_images: body.images ?? body.site_images ?? existingSite.site_images,
         enabled_reservation_types_override: reservationTypesOverride,
         seasonal_rate_cents: seasonalRateCents,

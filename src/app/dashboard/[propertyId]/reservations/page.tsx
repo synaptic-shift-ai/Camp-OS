@@ -5,11 +5,21 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus } from "lucide-react"
-import { getReservations } from "@/lib/dashboard/queries"
+import { getReservations, getDistinctSiteTypes } from "@/lib/dashboard/queries"
 import type { ReservationStatus } from "@/contracts/booking"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { redirect } from "next/navigation"
 import { ReservationActions } from "@/components/admin/reservation-actions"
+import { SiteTypeFilter } from "@/components/dashboard/reservations/site-type-filter"
+
+const siteTypeLabels: Record<string, string> = {
+  rv: "RV Sites",
+  tent: "Tent Sites",
+  cabin: "Cabins",
+  glamping: "Glamping",
+  yurt: "Yurts",
+  other: "Other Sites",
+}
 
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -41,7 +51,8 @@ function formatDate(dateString: string): string {
   })
 }
 
-async function ReservationsTable({ propertyId }: { propertyId: string }) {
+async function ReservationsTable(props: { propertyId: string; siteType?: string | undefined }) {
+  const { propertyId, siteType } = props
 
   if (!propertyId) {
     return (
@@ -52,7 +63,8 @@ async function ReservationsTable({ propertyId }: { propertyId: string }) {
   }
 
   // Fetch all reservations for this property
-  const { data: reservations } = await getReservations(propertyId, {}, 1, 100)
+  const filters = siteType ? { siteType } : {}
+  const { data: reservations } = await getReservations(propertyId, filters, 1, 100)
 
   if (reservations.length === 0) {
     return (
@@ -76,8 +88,8 @@ async function ReservationsTable({ propertyId }: { propertyId: string }) {
             <TableHead>Guests</TableHead>
             <TableHead>Total Amount</TableHead>
             <TableHead>Paid Amount</TableHead>
-            <TableHead>Refund</TableHead>
-            <TableHead>Balance</TableHead>
+            <TableHead>Balance Owed</TableHead>
+            <TableHead>Refunded Amount</TableHead>
             <TableHead>Status</TableHead>
             <TableHead></TableHead>
           </TableRow>
@@ -112,10 +124,10 @@ async function ReservationsTable({ propertyId }: { propertyId: string }) {
                 <TableCell>{reservation.numAdults + reservation.numChildren}</TableCell>
                 <TableCell>{formatMoney(reservation.totalAmount)}</TableCell>
                 <TableCell>{formatMoney(reservation.paidAmount)}</TableCell>
-                <TableCell>{formatMoney(reservation.refundAmount)}</TableCell>
                 <TableCell>{formatMoney(balanceCents)}</TableCell>
+                <TableCell>{formatMoney(reservation.refundAmount)}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={statusColors[reservation.status]}>
+                  <Badge variant="outline" className={`${statusColors[reservation.status]} whitespace-nowrap`}>
                     {reservation.status.replace("_", " ")}
                   </Badge>
                 </TableCell>
@@ -152,12 +164,19 @@ async function ReservationsTable({ propertyId }: { propertyId: string }) {
   )
 }
 
-type PageProps = { params: Promise<{ propertyId: string }> }
+type PageProps = { 
+  params: Promise<{ propertyId: string }> 
+  searchParams: Promise<{ siteType?: string }>
+}
 
-export default async function ReservationsPage({ params }: PageProps) {
+export default async function ReservationsPage({ params, searchParams }: PageProps) {
   const { propertyId } = await params
+  const { siteType: siteTypeParam } = await searchParams
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
+
+  const siteTypesFromDb = await getDistinctSiteTypes(propertyId)
+  const siteTypeFilter = siteTypeParam && siteTypeParam !== 'all' ? siteTypeParam : undefined
 
   return (
     <div className="space-y-6">
@@ -181,15 +200,20 @@ export default async function ReservationsPage({ params }: PageProps) {
               <CardTitle>All Reservations</CardTitle>
               <CardDescription>View and manage your property reservations</CardDescription>
             </div>
+            <div>
+              <SiteTypeFilter propertyId={propertyId} siteTypesFromDb={siteTypesFromDb} />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading reservations...</p>
-            </div>
-          }>
-            <ReservationsTable propertyId={propertyId} />
+          <Suspense
+            fallback={
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading reservations...</p>
+              </div>
+            }
+          >
+            <ReservationsTable propertyId={propertyId} siteType={siteTypeFilter} />
           </Suspense>
         </CardContent>
       </Card>

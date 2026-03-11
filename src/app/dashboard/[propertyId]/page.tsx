@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink, Home, User } from "lucide-react"
 import { getDashboardStats, getReservations, getTodaysArrivals } from "@/lib/dashboard/queries"
@@ -82,7 +83,17 @@ async function DashboardStats({ propertyId }: { propertyId: string }) {
   )
 }
 
-async function RecentActivity({ propertyId }: { propertyId: string }) {
+const siteTypeLabels: Record<string, string> = {
+  rv: "RV",
+  tent: "Tent",
+  cabin: "Cabin",
+  glamping: "Glamping",
+  yurt: "Yurt",
+  other: "Other",
+}
+const siteTypeOrder = ["rv", "tent", "cabin", "glamping", "yurt", "other"]
+
+async function CurrentlyCheckedIn({ propertyId }: { propertyId: string }) {
   const todayStr = new Date().toISOString().split("T")[0]!
   const { data: allCheckedIn } = await getReservations(
     propertyId,
@@ -91,111 +102,119 @@ async function RecentActivity({ propertyId }: { propertyId: string }) {
     50
   )
   const currentlyCheckedIn = allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr)
-  const currentlyCheckedInIds = new Set(currentlyCheckedIn.map((r) => r.id))
+
+  let countsBySiteType: Record<string, number> = {}
+  if (currentlyCheckedIn.length > 0) {
+    const siteIds = [...new Set(currentlyCheckedIn.map((r) => r.siteId))]
+    const supabase = await createClient()
+    const { data: sites } = await supabase
+      .from("sites")
+      .select("id, site_type")
+      .in("id", siteIds)
+    const siteIdToType = new Map((sites ?? []).map((s) => [s.id, s.site_type ?? "other"]))
+    countsBySiteType = currentlyCheckedIn.reduce<Record<string, number>>((acc, r) => {
+      const type = siteIdToType.get(r.siteId) ?? "other"
+      acc[type] = (acc[type] ?? 0) + 1
+      return acc
+    }, {})
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Currently Checked In</CardTitle>
+        {currentlyCheckedIn.length > 0 && (
+          <CardDescription>
+            {currentlyCheckedIn.length} guest{currentlyCheckedIn.length !== 1 ? "s" : ""} checked in
+          </CardDescription>
+        )}
+      </CardHeader>
+      <CardContent>
+        {currentlyCheckedIn.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-4">
+            {siteTypeOrder.map((type) => {
+              const count = countsBySiteType[type] ?? 0
+              return (
+                <Link
+                  key={type}
+                  href={`/dashboard/${propertyId}/reservations?siteType=${type}`}
+                  className="rounded-lg border bg-muted/50 px-3 py-2 text-center cursor-pointer hover:bg-muted transition-colors"
+                >
+                  <p className="text-lg text-muted-foreground">
+                    {siteTypeLabels[type]} Site
+                  </p>
+                  <p className="text-2xl font-bold">{count}</p>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+async function TodaysArrivalsAndDepartures({ propertyId }: { propertyId: string }) {
+  const todayStr = new Date().toISOString().split("T")[0]!
+  const [arrivals, { data: allCheckedIn }] = await Promise.all([
+    getTodaysArrivals(propertyId),
+    getReservations(propertyId, { status: "checked_in" }, 1, 50),
+  ])
+  const currentlyCheckedInIds = new Set(
+    allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr).map((r) => r.id)
+  )
   const departures = allCheckedIn.filter((r) => !currentlyCheckedInIds.has(r.id))
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Currently Checked In</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {currentlyCheckedIn.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No guests checked in yet</p>
-          ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {currentlyCheckedIn.map((reservation) => {
-                const outstandingBalance = reservation.totalAmount - reservation.paidAmount
-                const hasBalance = outstandingBalance > 0
-                return (
-                  <div
-                    key={reservation.id}
-                    className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium">{reservation.guestName}</p>
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <TodaysArrivalsCard arrivals={arrivals} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Departures</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {departures.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No guests departing today</p>
+            ) : (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {departures.map((reservation) => {
+                  const outstandingBalance = reservation.totalAmount - reservation.paidAmount
+                  const hasBalance = outstandingBalance > 0
+                  return (
+                    <div
+                      key={reservation.id}
+                      className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium">{reservation.guestName}</p>
+                          {hasBalance && (
+                            <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                              Balance Due
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Home className="h-3 w-3" />
+                          {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
+                        </p>
                         {hasBalance && (
-                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
-                            Balance Due
-                          </Badge>
+                          <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Home className="h-3 w-3" />
-                        {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? "night" : "nights"}
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {reservation.numAdults + reservation.numChildren} guests
-                        </span>
-                      </p>
-                      {hasBalance && (
-                        <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
-                      )}
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-3">
-                      <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                      <Badge variant="outline" className={statusColors[reservation.status]}>
-                        {reservation.status}
-                      </Badge>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Departures</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {departures.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No guests departing today</p>
-          ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {departures.map((reservation) => {
-                const outstandingBalance = reservation.totalAmount - reservation.paidAmount
-                const hasBalance = outstandingBalance > 0
-                return (
-                  <div
-                    key={reservation.id}
-                    className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium">{reservation.guestName}</p>
-                        {hasBalance && (
-                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
-                            Balance Due
-                          </Badge>
-                        )}
+                      <div className="text-right flex-shrink-0 ml-3">
+                        <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                        <DepartureCheckOutButton reservationId={reservation.id} />
                       </div>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Home className="h-3 w-3" />
-                        {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? "night" : "nights"}
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {reservation.numAdults + reservation.numChildren} guests
-                        </span>
-                      </p>
-                      {hasBalance && (
-                        <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
-                      )}
                     </div>
-                    <div className="text-right flex-shrink-0 ml-3">
-                      <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                      <DepartureCheckOutButton reservationId={reservation.id} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -263,11 +282,6 @@ async function RecentReservations({ propertyId }: { propertyId: string }) {
       </CardContent>
     </Card>
   )
-}
-
-async function TodaysArrivals({ propertyId }: { propertyId: string }) {
-  const arrivals = await getTodaysArrivals(propertyId)
-  return <TodaysArrivalsCard arrivals={arrivals} />
 }
 
 async function BookingPortalCTA({ propertyId }: { propertyId: string }) {
@@ -385,14 +399,15 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </Card>
         }
       >
-        <TodaysArrivals propertyId={propertyId} />
+        <CurrentlyCheckedIn propertyId={propertyId} />
       </Suspense>
 
       <Suspense
         fallback={
-          <div className="grid gap-4 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => (
-              <Card key={i}>
+          <div className="space-y-4">
+            <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
                 <CardHeader>
                   <CardTitle>Loading...</CardTitle>
                 </CardHeader>
@@ -400,11 +415,19 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
                   <div className="h-32 bg-muted animate-pulse rounded" />
                 </CardContent>
               </Card>
-            ))}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Loading...</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-32 bg-muted animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         }
       >
-        <RecentActivity propertyId={propertyId} />
+        <TodaysArrivalsAndDepartures propertyId={propertyId} />
       </Suspense>
 
       <Suspense

@@ -36,11 +36,21 @@ type SiteWithOverride = DbSite & {
  * Resolve effective display rates for a reservation's site.
  * When the site uses property defaults (enabled_reservation_types_override is null/undefined),
  * use property's reservation_type_config rates; otherwise use the site's base_price and rate fields.
+ *
+ * Note: site can be null when the join fails or the site is missing.
  */
 function getEffectiveRatesForReservation(
-  site: SiteWithOverride,
+  site: SiteWithOverride | null,
   propertyConfig: PropertyReservationTypesConfig | null
 ): { pricePerNight: MoneyCents; weeklyRateCents: number | null; monthlyRateCents: number | null } {
+  if (!site) {
+    return {
+      pricePerNight: 0 as MoneyCents,
+      weeklyRateCents: null,
+      monthlyRateCents: null,
+    }
+  }
+
   const usesPropertyDefaults =
     site.enabled_reservation_types_override === null ||
     site.enabled_reservation_types_override === undefined
@@ -125,6 +135,7 @@ export interface ReservationFilters {
   startDate?: string
   endDate?: string
   checkOutDate?: string
+  siteType?: string
 }
 
 export interface PaymentFilters {
@@ -159,11 +170,33 @@ export async function getReservations(
     ? parseReservationTypesConfigFromDB(propertyRow.reservation_type_config)
     : null
 
+  // If filtering by site type, first resolve matching site IDs for this property
+  let siteIdsFilter: string[] | null = null
+  if (filters.siteType) {
+    const { data: siteRows, error: siteError } = await supabase
+      .from('sites')
+      .select('id')
+      .eq('property_id', propertyId)
+      .eq('site_type', filters.siteType)
+
+    if (siteError) {
+      throw new Error(`Failed to fetch sites for filter: ${siteError.message}`)
+    }
+
+    const ids = (siteRows ?? []).map((s) => s.id as string)
+    if (ids.length === 0) {
+      // No matching sites → no matching reservations
+      return { data: [], total: 0 }
+    }
+
+    siteIdsFilter = ids
+  }
+
   // Build query with tenant isolation
   let query = supabase
-    .from('reservations')
-    .select(
-      `
+  .from('reservations')
+  .select(
+    `
       id,
       confirmation_number,
       guest_id,
@@ -185,20 +218,25 @@ export async function getReservations(
         last_name,
         email
       ),
-      sites (
+      sites!inner (
         site_name,
         site_number,
         base_price,
         weekly_rate_cents,
         monthly_rate_cents,
-        enabled_reservation_types_override
+        enabled_reservation_types_override,
+        site_type
       )
     `,
-      { count: 'exact' }
-    )
-    .eq('property_id', propertyId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+    { count: 'exact' }
+  )
+  .eq('property_id', propertyId)
+  .order('created_at', { ascending: false })
+  .range(offset, offset + limit - 1)
+
+  if (siteIdsFilter) {
+    query = query.in('site_id', siteIdsFilter)
+  }
 
   // Apply filters
   if (filters.status) {
@@ -235,13 +273,18 @@ export async function getReservations(
   // Transform database results to dashboard format
   const reservations: DashboardReservation[] = (data || []).map((reservation) => {
     const guest = reservation.guests as unknown as DbGuest
-    const site = reservation.sites as unknown as SiteWithOverride
+    const site = reservation.sites as unknown as SiteWithOverride | null
     const checkIn = new Date(reservation.check_in_date)
     const checkOut = new Date(reservation.check_out_date)
     const numNights = Math.ceil(
       (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
     )
     const rates = getEffectiveRatesForReservation(site, propertyConfig)
+
+    const siteName =
+      site?.site_name ||
+      (site?.site_number ? `Site ${site.site_number}` : "Unknown site")
+    const siteNumber = site?.site_number ?? ""
 
     return {
       id: reservation.id,
@@ -250,8 +293,8 @@ export async function getReservations(
       guestName: `${guest.first_name} ${guest.last_name}`,
       guestEmail: guest.email,
       siteId: reservation.site_id!,
-      siteName: site.site_name || `Site ${site.site_number}`,
-      siteNumber: site.site_number,
+      siteName,
+      siteNumber,
       pricePerNight: rates.pricePerNight,
       weeklyRateCents: rates.weeklyRateCents,
       monthlyRateCents: rates.monthlyRateCents,
@@ -467,6 +510,24 @@ export async function getPayments(
     data: payments,
     total: count || 0,
   }
+}
+
+/**
+ * Fetch distinct site types that exist for a property (for filters, dropdowns).
+ */
+export async function getDistinctSiteTypes(propertyId: string): Promise<{ siteType: string }[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('sites')
+    .select('site_type')
+    .eq('property_id', propertyId)
+
+  if (error) {
+    throw new Error(`Failed to fetch distinct site types: ${error.message}`)
+  }
+
+  const distinct = [...new Set((data ?? []).map((row) => row.site_type).filter(Boolean))]
+  return distinct.sort().map((siteType) => ({ siteType }))
 }
 
 // ============================================================================

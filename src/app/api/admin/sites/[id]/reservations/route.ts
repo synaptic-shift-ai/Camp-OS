@@ -20,6 +20,8 @@ export async function GET(
   // Optional filters
   const checkInDate = searchParams.get('check_in_date')
   const status = searchParams.get('status')
+  const start = searchParams.get('start')
+  const end = searchParams.get('end')
 
   try {
     const supabase = await createClient()
@@ -90,6 +92,14 @@ export async function GET(
 
     if (status) {
       query = query.eq('status', status)
+    }
+
+    // Date range: reservations that overlap [start, end] (for calendar view)
+    if (start) {
+      query = query.gte('check_out_date', start)
+    }
+    if (end) {
+      query = query.lte('check_in_date', end)
     }
 
     // Order by check-in date descending (most recent first)

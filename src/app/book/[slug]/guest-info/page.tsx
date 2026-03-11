@@ -678,18 +678,14 @@ export default function GuestInfoPage() {
                         </span>
                       </div>
                     )}
-                    {((priceBreakdown.user_discounts?.length ?? 0) === 0 && legacyDiscountCents === 0) && (
+                    {taxesCents > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Discount</span>
-                        <span className="font-medium text-green-700">-$0.00</span>
+                        <span className="text-gray-600">
+                          Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}
+                        </span>
+                        <span className="font-medium">${(taxesCents / 100).toFixed(2)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}
-                      </span>
-                      <span className="font-medium">${(taxesCents / 100).toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between text-lg font-bold border-t pt-2">
                       <span>Total</span>
                       <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>

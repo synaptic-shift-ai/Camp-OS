@@ -561,12 +561,6 @@ export default function PaymentPage() {
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Service fee</span>
-                      <span className="font-medium">
-                        ${((priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0) / 100).toFixed(2)}
-                      </span>
-                    </div>
                     {discountCents > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Discount</span>

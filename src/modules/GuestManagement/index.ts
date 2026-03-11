@@ -10,6 +10,7 @@ export { PersonName } from './domain/value-objects/PersonName'
 
 // Application - Commands
 export { CreateGuestCommandHandler } from './application/commands/CreateGuestCommand'
+export { DeleteGuestCommandHandler } from './application/commands/DeleteGuestCommand'
 export { LinkStripeCustomerCommandHandler } from './application/commands/LinkStripeCustomerCommand'
 export { UpdateGuestCommandHandler } from './application/commands/UpdateGuestCommand'
 

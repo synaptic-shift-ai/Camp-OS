@@ -17,6 +17,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { UpdateGuestRequestSchema, type UpdateGuestRequest } from '@/types/api/v1/schemas/guests'
 import { GetGuestQueryHandler } from '@/modules/GuestManagement/application/queries/GetGuestQuery'
 import { UpdateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/UpdateGuestCommand'
+import { DeleteGuestCommandHandler } from '@/modules/GuestManagement/application/commands/DeleteGuestCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 import { GuestDTOMapper } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
@@ -170,6 +171,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const guest = await commandHandler.execute({
       guestId: id,
+      ...(updateData.firstName !== undefined && { firstName: updateData.firstName }),
+      ...(updateData.lastName !== undefined && { lastName: updateData.lastName }),
       ...(updateData.email !== undefined && { email: updateData.email }),
       ...(updateData.phone !== undefined && { phone: updateData.phone }),
       ...(updateData.address !== undefined && { address: updateData.address }),
@@ -194,6 +197,84 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json(
       error(ErrorCodes.INTERNAL_ERROR, 'Failed to update guest', {
+        message: err.message,
+      }),
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/v1/guests/[id]
+ *
+ * Soft-deletes a guest. Sets deleted_at timestamp, preserving all FK references.
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const supabase = await createClient()
+
+    // Authenticate user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json(error(ErrorCodes.AUTH_001, 'Unauthorized'), { status: 401 })
+    }
+
+    // Verify guest exists
+    const repository = new SupabaseGuestRepository(supabase)
+    const queryHandler = new GetGuestQueryHandler(repository)
+    const existingGuestDTO = await queryHandler.execute({ guestId: id })
+
+    // Verify user has access to this guest's property (BP-4: Multi-tenant isolation)
+    const { data: property, error: propertyError } = await supabase
+      .from('properties')
+      .select('id, company_id')
+      .eq('id', existingGuestDTO.propertyId)
+      .single()
+
+    if (propertyError || !property) {
+      return NextResponse.json(
+        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
+        { status: 404 }
+      )
+    }
+
+    // Verify user owns the company (tenant isolation)
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('id', property.company_id)
+      .eq('owner_id', user.id)
+      .single()
+
+    if (companyError || !company) {
+      return NextResponse.json(
+        error(ErrorCodes.AUTH_003, 'Forbidden - guest belongs to different company'),
+        { status: 403 }
+      )
+    }
+
+    // Execute soft-delete command
+    const commandHandler = new DeleteGuestCommandHandler(repository)
+    await commandHandler.execute({ guestId: id, propertyId: existingGuestDTO.propertyId })
+
+    return new NextResponse(null, { status: 204 })
+  } catch (err: any) {
+    console.error('[Guests API v1] DELETE error:', err)
+
+    if (err.message.includes('not found')) {
+      return NextResponse.json(
+        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Guest not found'),
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json(
+      error(ErrorCodes.INTERNAL_ERROR, 'Failed to delete guest', {
         message: err.message,
       }),
       { status: 500 }

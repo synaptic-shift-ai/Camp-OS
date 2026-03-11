@@ -7,11 +7,14 @@
 import { type Guest } from '../../domain/Guest'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { Address } from '../../domain/value-objects/Address'
+import { PersonName } from '../../domain/value-objects/PersonName'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
 import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface UpdateGuestInput {
   guestId: string
+  firstName?: string | undefined
+  lastName?: string | undefined
   email?: string | undefined
   phone?: string | undefined
   emergencyContactName?: string | undefined
@@ -37,6 +40,15 @@ export class UpdateGuestCommandHandler {
     const guest = await this.repository.findById(input.guestId)
     if (!guest) {
       throw new Error(`Guest not found: ${input.guestId}`)
+    }
+
+    // Update name if provided
+    if (input.firstName !== undefined || input.lastName !== undefined) {
+      const name = PersonName.create({
+        firstName: input.firstName ?? guest.name.firstName,
+        lastName: input.lastName ?? guest.name.lastName,
+      })
+      guest.updateName(name)
     }
 
     // Update contact info if provided

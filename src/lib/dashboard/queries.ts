@@ -808,7 +808,8 @@ export async function getGuests(
         first_name,
         last_name,
         email,
-        phone
+        phone,
+        deleted_at
       )
     `)
     .eq('property_id', propertyId)
@@ -823,8 +824,8 @@ export async function getGuests(
   const guestMap = new Map<string, DashboardGuest>()
 
   reservations?.forEach((reservation) => {
-    const guest = reservation.guests as unknown as DbGuest
-    if (!guest || !guest.email) return
+    const guest = reservation.guests as unknown as DbGuest & { deleted_at?: string | null }
+    if (!guest || !guest.email || guest.deleted_at) return
 
     const guestId = reservation.guest_id!
     const existing = guestMap.get(guestId)

@@ -56,4 +56,12 @@ export interface IGuestRepository {
    * @returns True if exists
    */
   exists(propertyId: string, email: string): Promise<boolean>
+
+  /**
+   * Soft-delete a guest by setting deleted_at timestamp.
+   * Preserves FK references in reservations and other tables.
+   *
+   * @param guestId - Guest ID to soft-delete
+   */
+  softDelete(guestId: string): Promise<void>
 }

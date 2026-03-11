@@ -103,6 +103,8 @@ export type CreateGuestRequest = z.infer<typeof CreateGuestRequestSchema>
  * All fields optional - partial updates supported.
  */
 export const UpdateGuestRequestSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(1).max(20).optional(),
   address: AddressSchema.nullable().optional(),

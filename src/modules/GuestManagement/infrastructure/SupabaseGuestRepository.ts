@@ -42,6 +42,7 @@ type GuestRow = {
   notes: string | null
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
 
 export class SupabaseGuestRepository implements IGuestRepository {
@@ -57,6 +58,7 @@ export class SupabaseGuestRepository implements IGuestRepository {
       .from('guests')
       .select('*') // Complete entity - NO selective fetching! (Oct 30 fix)
       .eq('id', guestId)
+      .is('deleted_at', null)
       .single()
 
     if (error || !data) {
@@ -72,6 +74,7 @@ export class SupabaseGuestRepository implements IGuestRepository {
       .select('*')
       .eq('property_id', propertyId) // BP-4: Tenant isolation
       .eq('email', email)
+      .is('deleted_at', null)
       .single()
 
     if (error || !data) {
@@ -86,6 +89,7 @@ export class SupabaseGuestRepository implements IGuestRepository {
       .from('guests')
       .select('*')
       .eq('property_id', propertyId) // BP-4: Tenant isolation
+      .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (error || !data) {
@@ -100,6 +104,7 @@ export class SupabaseGuestRepository implements IGuestRepository {
       .from('guests')
       .select('*')
       .eq('stripe_customer_id', customerId)
+      .is('deleted_at', null)
       .single()
 
     if (error || !data) {
@@ -115,9 +120,21 @@ export class SupabaseGuestRepository implements IGuestRepository {
       .select('id')
       .eq('property_id', propertyId) // BP-4: Tenant isolation
       .eq('email', email)
+      .is('deleted_at', null)
       .single()
 
     return !error && data !== null
+  }
+
+  async softDelete(guestId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('guests')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', guestId)
+
+    if (error) {
+      throw new Error(`Failed to delete guest: ${error.message}`)
+    }
   }
 
   async save(guest: Guest): Promise<void> {

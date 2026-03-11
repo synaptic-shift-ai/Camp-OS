@@ -1,21 +1,13 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Mail, MoreVertical, Phone } from "lucide-react"
+import { Mail, Phone } from "lucide-react"
 import { getGuests } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { redirect } from "next/navigation"
 import { GuestsPageHeader } from "@/components/dashboard/guests/guests-page-header"
+import { GuestActions } from "@/components/dashboard/guests/guest-actions"
 
 /**
  * Format money from integer cents to dollar display
@@ -107,29 +99,14 @@ async function GuestsList({ propertyId, searchQuery }: GuestsListProps) {
             <TableCell>
               {guest.lastVisit
                 ? new Date(guest.lastVisit).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
                 : 'N/A'}
             </TableCell>
             <TableCell>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>View Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Edit Guest</DropdownMenuItem>
-                  <DropdownMenuItem>View Reservations</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">Delete Guest</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <GuestActions guest={guest} propertyId={propertyId} />
             </TableCell>
           </TableRow>
         ))}

@@ -78,6 +78,9 @@ export function PaymentWelcomeEmail({
                 {onboardingUrl}
               </Link>
             </Text>
+            <Text style={expiresText}>
+              Use this link to finish your property setup. If you&rsquo;ve already completed onboarding, sign in at the app to access your dashboard.
+            </Text>
           </Section>
 
           <Hr style={hr} />
@@ -190,6 +193,12 @@ const linkFallback = {
 const link = {
   color: '#DC2626',
   wordBreak: 'break-all' as const,
+}
+
+const expiresText = {
+  fontSize: '13px',
+  color: '#888',
+  marginTop: '20px',
 }
 
 const hr = {

@@ -58,26 +58,44 @@ export async function POST(request: NextRequest) {
     // Find company by token
     const { data: company, error: companyError } = await supabaseService
       .from("companies")
-      .select("id, owner_id, name, onboarding_token_expires_at, onboarding_token_used_at")
+      .select("id, owner_id, name, onboarding_token_expires_at, onboarding_token_used_at, onboarding_completed")
       .eq("onboarding_token", token)
       .single()
 
     if (companyError || !company) {
       console.error('[Token Verification] ❌ Invalid token:', companyError)
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
+      return NextResponse.json(
+        { error: "Invalid or expired token", reason: "invalid" },
+        { status: 401 }
+      )
     }
 
-    // Check if token has already been used
+    if (company.onboarding_completed) {
+      console.error('[Token Verification] ❌ Onboarding already completed for company:', company.id)
+      return NextResponse.json(
+        {
+          error: "You've already completed onboarding. This link is no longer valid.",
+          reason: "already_completed",
+        },
+        { status: 401 }
+      )
+    }
+
     if (company.onboarding_token_used_at) {
       console.error('[Token Verification] ❌ Token already used at:', company.onboarding_token_used_at)
-      return NextResponse.json({ error: "Token has already been used" }, { status: 401 })
+      return NextResponse.json(
+        { error: "This link has already been used.", reason: "already_used" },
+        { status: 401 }
+      )
     }
 
-    // Check if token has expired
     const expiresAt = new Date(company.onboarding_token_expires_at)
     if (expiresAt < new Date()) {
       console.error('[Token Verification] ❌ Token expired at:', expiresAt)
-      return NextResponse.json({ error: "Token has expired" }, { status: 401 })
+      return NextResponse.json(
+        { error: "This link has expired.", reason: "expired" },
+        { status: 401 }
+      )
     }
 
     console.log('[Token Verification] ✓ Token valid for company:', company.id)

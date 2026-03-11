@@ -1,17 +1,21 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2, AlertCircle } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Loader2, AlertCircle, Clock } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
 import { PropertyProvider } from "@/components/property-context"
 import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-container"
 import type { WizardStep } from "@/components/dashboard/setup-wizard/wizard-progress-bar"
 
 export default function OnboardingContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [error, setError] = useState<string | null>(null)
+  const [linkInvalidReason, setLinkInvalidReason] = useState<"already_completed" | "already_used" | "expired" | "invalid" | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
   const [showWizard, setShowWizard] = useState<{
     propertyId: string
@@ -27,14 +31,43 @@ export default function OnboardingContent() {
 
   useEffect(() => {
     const hash = window.location.hash
+    const token = searchParams.get("token")
 
     if (hash && hash.includes("access_token")) {
-      // Let Supabase handle the hash fragment automatically
       handleHashAuth()
-    } else {
-      resolveAndRedirect()
+      return
     }
-  }, [])
+    if (token) {
+      verifyOnboardingToken(token)
+      return
+    }
+    resolveAndRedirect()
+  }, [searchParams])
+
+  async function verifyOnboardingToken(token: string) {
+    setIsVerifying(true)
+    setError(null)
+    setLinkInvalidReason(null)
+    try {
+      const res = await fetch("/api/auth/verify-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      })
+      const data = await res.json()
+      if (res.ok && data.authUrl) {
+        window.location.href = data.authUrl
+        return
+      }
+      setLinkInvalidReason(data.reason || "invalid")
+      setError(data.error || "This link is no longer valid.")
+    } catch {
+      setLinkInvalidReason("invalid")
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   async function handleHashAuth() {
     setIsVerifying(true)
@@ -109,7 +142,31 @@ export default function OnboardingContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
       <div className="text-center space-y-4 max-w-md px-4">
-        {error ? (
+        {linkInvalidReason ? (
+          <>
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
+              <Clock className="h-10 w-10 text-amber-600 dark:text-amber-500" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">
+              {linkInvalidReason === "already_completed"
+                ? "Onboarding already complete"
+                : linkInvalidReason === "already_used"
+                  ? "Link already used"
+                  : linkInvalidReason === "expired"
+                    ? "Link expired"
+                    : "Link no longer valid"}
+            </h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <p className="text-sm text-muted-foreground mb-6">
+              {linkInvalidReason === "already_completed"
+                ? "Sign in to access your dashboard."
+                : "Please sign in to continue."}
+            </p>
+            <Button asChild className="neumorphic-button-primary">
+              <Link href="/login">Go to Login</Link>
+            </Button>
+          </>
+        ) : error ? (
           <>
             <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
             <div>

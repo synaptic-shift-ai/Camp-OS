@@ -21,30 +21,6 @@ export function PaymentSuccessClient() {
     }
   }, [])
 
-  // Ensure welcome email is sent when user lands on success page (fallback if webhook didn't send it)
-  useEffect(() => {
-    const sessionId = searchParams.get("session_id")
-    if (!sessionId) return
-
-    const send = () => {
-      fetch("/api/onboarding/send-welcome-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.sent) return
-          if (data.retry === true) {
-            setTimeout(send, 3000)
-          }
-        })
-        .catch(() => { })
-    }
-
-    send()
-  }, [searchParams])
-
   const planId = searchParams.get("plan") || "growth"
   const billingCycle = (searchParams.get("billing") as BillingCycle) || "monthly"
   const email = searchParams.get("email")
@@ -127,7 +103,15 @@ export function PaymentSuccessClient() {
               {email ? (
                 <p className="font-mono text-white mb-2">{email}</p>
               ) : null}
-              <p className="text-sm text-gray-400">Check your inbox (and spam folder) for the link</p>
+              <p className="text-sm text-gray-400 mb-2">
+                Check your inbox (and spam folder) for the link, or go directly to onboarding to get started.
+              </p>
+              <Link
+                href="/onboarding"
+                className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors underline"
+              >
+                Go to onboarding →
+              </Link>
             </AlertDescription>
           </Alert>
         </motion.div>

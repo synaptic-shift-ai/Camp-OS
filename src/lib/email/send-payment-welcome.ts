@@ -18,8 +18,8 @@ export async function sendPaymentWelcomeEmail(
   onboardingToken: string
 ): Promise<SendPaymentWelcomeResult> {
   const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
     'http://localhost:3000'
   const onboardingUrl = `${baseUrl}/onboarding?token=${onboardingToken}`
   const planLabel = planId.charAt(0).toUpperCase() + planId.slice(1)

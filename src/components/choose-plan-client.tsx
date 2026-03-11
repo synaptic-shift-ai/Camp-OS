@@ -102,13 +102,13 @@ export function ChoosePlanClient() {
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <Link
+          {/* <Link
             href="/"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
-          </Link>
+          </Link> */}
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Choose Your Plan</h1>
           {siteCount > 0 && (
             <p className="text-gray-400 text-lg">
@@ -260,14 +260,14 @@ export function ChoosePlanClient() {
         </div>
 
         {/* Site Count Info */}
-        <div className="text-center mt-12">
+        {/* <div className="text-center mt-12">
           <p className="text-sm text-gray-500">
             Need to change your site count?{" "}
             <Link href="/signup" className="text-red-500 hover:text-red-400 transition-colors">
               Go back
             </Link>
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   )

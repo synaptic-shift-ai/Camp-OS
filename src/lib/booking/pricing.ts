@@ -68,6 +68,44 @@ export function calculateBaseSubtotalCents(
   return nights * basePriceCents
 }
 
+const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`
+
+/**
+ * Base subtotal and display label for Booking Summary (matches Pricing Summary).
+ * For 7+ nights uses weekly rate; for 28+ nights uses monthly rate when available.
+ */
+export function getBaseSubtotalAndLabel(
+  nights: number,
+  basePriceCents: number,
+  weeklyRateCents: number | null | undefined,
+  monthlyRateCents: number | null | undefined
+): { subtotalCents: number; basePriceLabel: string; rateType: 'nightly' | 'weekly' | 'monthly' } {
+  if (nights >= 28 && monthlyRateCents != null) {
+    const fullMonths = Math.floor(nights / 28)
+    const remainder = nights % 28
+    const subtotalCents = fullMonths * monthlyRateCents + remainder * basePriceCents
+    const basePriceLabel =
+      remainder === 0
+        ? `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyRateCents)}/month)`
+        : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyRateCents)}) + ${remainder} night${remainder !== 1 ? 's' : ''} (${formatMoney(basePriceCents)}/night)`
+    return { subtotalCents, basePriceLabel, rateType: 'monthly' }
+  }
+  if (nights >= 7) {
+    const weeklyCents = weeklyRateCents ?? basePriceCents * 7
+    const fullWeeks = Math.floor(nights / 7)
+    const remainder = nights % 7
+    const subtotalCents = fullWeeks * weeklyCents + remainder * basePriceCents
+    const basePriceLabel =
+      remainder === 0
+        ? `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}/week)`
+        : `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}) + ${remainder} night${remainder !== 1 ? 's' : ''} (${formatMoney(basePriceCents)}/night)`
+    return { subtotalCents, basePriceLabel, rateType: 'weekly' }
+  }
+  const subtotalCents = nights * basePriceCents
+  const basePriceLabel = `${formatMoney(basePriceCents)} × ${nights} night${nights !== 1 ? 's' : ''}`
+  return { subtotalCents, basePriceLabel, rateType: 'nightly' }
+}
+
 /**
  * Calculate number of nights between check-in and check-out
  */

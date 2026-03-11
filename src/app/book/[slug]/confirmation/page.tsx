@@ -136,20 +136,22 @@ export default function ConfirmationPage() {
   }
 
   const numberOfNights = differenceInDays(checkoutData.checkOutDate!, checkoutData.checkInDate!)
+  const taxRate = checkoutData.priceBreakdown?.tax_rate ?? checkoutData.priceBreakdown?.taxRate ?? DEFAULT_TAX_RATE
   const priceBreakdown = checkoutData.priceBreakdown || {
     basePrice: checkoutData.site.base_price_per_night,
     nights: numberOfNights,
     subtotal: checkoutData.site.base_price_per_night * numberOfNights,
     cleaningFee: checkoutData.site.site_type === "cabin" ? 50 : 0,
     serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
-    taxRate: DEFAULT_TAX_RATE,
+    taxRate,
     taxes: 0,
     total: 0,
   }
-  const taxableAmount = priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0)
-  priceBreakdown.taxes = Math.round(taxableAmount * DEFAULT_TAX_RATE)
+  const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+  const taxableAmount = priceBreakdown.subtotal - discountCents
+  priceBreakdown.taxes = Math.round(taxableAmount * taxRate)
   priceBreakdown.total =
-    priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0) + (priceBreakdown.taxes || 0)
+    priceBreakdown.subtotal - discountCents + (priceBreakdown.taxes || 0) + (priceBreakdown.pet_fee || 0)
 
   const handleNewBooking = () => {
     clearCheckoutData()
@@ -331,9 +333,18 @@ export default function ConfirmationPage() {
                         <span className="text-gray-600">Service fee</span>
                         <span className="font-medium">${formatCurrency(priceBreakdown.serviceFee || 0)}</span>
                       </div>
+                      {discountCents > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Discount</span>
+                          <span className="font-medium text-green-700">-${formatCurrency(discountCents)}</span>
+                        </div>
+                      )}
                       {(priceBreakdown.taxes || 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Taxes ({(DEFAULT_TAX_RATE * 100).toFixed(1)}%)</span>
+                          <span className="text-gray-600">
+                            {(priceBreakdown.tax_name || "Taxes")} (
+                            {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE) * 100).toFixed(1)}%)
+                          </span>
                           <span className="font-medium">${formatCurrency(priceBreakdown.taxes!)}</span>
                         </div>
                       )}

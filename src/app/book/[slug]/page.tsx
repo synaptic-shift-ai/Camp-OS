@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { extractPropertyIdFromSlug } from "@/lib/booking/slug-utils"
 import { PropertyBookingPortal } from "@/components/guest/property-booking-portal"
+import { ReservationExpiredHandler } from "@/components/guest/reservation-expired-handler"
 import type { SiteType } from "@/lib/booking/types"
 import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveRateDiscountsConfig } from "@/lib/config/resolution"
 import type { RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
@@ -287,12 +288,17 @@ export default async function PropertyBookingPage({
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
   }
 
-  return <PropertyBookingPortal 
-    property={propertyData} 
-    slug={slug} 
-    siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : [] as SiteTypeSummary[]}
-    recentBookings={recentBookings ?? []}
-    />
+  return (
+    <>
+      <ReservationExpiredHandler />
+      <PropertyBookingPortal
+        property={propertyData}
+        slug={slug}
+        siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : [] as SiteTypeSummary[]}
+        recentBookings={recentBookings ?? []}
+      />
+    </>
+  )
 }
 
 // Generate metadata for SEO

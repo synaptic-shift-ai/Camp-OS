@@ -114,20 +114,33 @@ function PaymentFormInner({ slug }: { slug: string }) {
   }
 
   const numberOfNights = differenceInDays(checkoutData.checkOutDate, checkoutData.checkInDate)
-  const priceBreakdown = checkoutData.priceBreakdown || {
-    basePrice: checkoutData.site.base_price_per_night,
+  const raw = checkoutData.priceBreakdown
+  const taxRate = raw?.tax_rate ?? raw?.taxRate ?? DEFAULT_TAX_RATE
+  const fallback = {
+    basePrice: checkoutData.site?.base_price_per_night ?? 0,
+    base_price_per_night: checkoutData.site?.base_price_per_night ?? 0,
     nights: numberOfNights,
-    subtotal: checkoutData.site.base_price_per_night * numberOfNights,
-    cleaningFee: checkoutData.site.site_type === "cabin" ? 50 : 0,
-    serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
-    taxRate: DEFAULT_TAX_RATE,
+    number_of_nights: numberOfNights,
+    subtotal: (checkoutData.site?.base_price_per_night ?? 0) * numberOfNights,
+    cleaningFee: checkoutData.site?.site_type === "cabin" ? 5000 : 0,
+    serviceFee: Math.round((checkoutData.site?.base_price_per_night ?? 0) * numberOfNights * 0.1),
+    taxRate,
     taxes: 0,
     total: 0,
   }
-  const taxableAmount = priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0)
-  priceBreakdown.taxes = Math.round(taxableAmount * DEFAULT_TAX_RATE)
-  priceBreakdown.total =
-    priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0) + (priceBreakdown.taxes || 0)
+  const priceBreakdown = { ...fallback, ...raw }
+  const basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
+  const nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
+  const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+  const taxesCents =
+    priceBreakdown.taxes ??
+    Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
+  const totalCents =
+    priceBreakdown.total ??
+    priceBreakdown.subtotal -
+      discountCents +
+      taxesCents +
+      (priceBreakdown.pet_fee ?? 0)
 
   console.log('[Payment] PaymentFormInner rendering form with PaymentElement (waiting for onReady)')
 
@@ -214,7 +227,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
             </span>
           ) : (
             <>
-              Complete Booking - ${((priceBreakdown.total || 0) / 100).toFixed(2)}
+              Complete Booking - ${(totalCents / 100).toFixed(2)}
               <ChevronRight className="w-4 h-4 ml-2" />
             </>
           )}
@@ -349,20 +362,33 @@ export default function PaymentPage() {
   }
 
   const numberOfNights = differenceInDays(checkoutData.checkOutDate, checkoutData.checkInDate)
-  const priceBreakdown = checkoutData.priceBreakdown || {
-    basePrice: checkoutData.site.base_price_per_night,
+  const raw = checkoutData.priceBreakdown
+  const taxRate = raw?.tax_rate ?? raw?.taxRate ?? DEFAULT_TAX_RATE
+  const fallback = {
+    basePrice: checkoutData.site?.base_price_per_night ?? 0,
+    base_price_per_night: checkoutData.site?.base_price_per_night ?? 0,
     nights: numberOfNights,
-    subtotal: checkoutData.site.base_price_per_night * numberOfNights,
-    cleaningFee: checkoutData.site.site_type === "cabin" ? 50 : 0,
-    serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
-    taxRate: DEFAULT_TAX_RATE,
+    number_of_nights: numberOfNights,
+    subtotal: (checkoutData.site?.base_price_per_night ?? 0) * numberOfNights,
+    cleaningFee: checkoutData.site?.site_type === "cabin" ? 5000 : 0,
+    serviceFee: Math.round((checkoutData.site?.base_price_per_night ?? 0) * numberOfNights * 0.1),
+    taxRate,
     taxes: 0,
     total: 0,
   }
-  const taxableAmount = priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0)
-  priceBreakdown.taxes = Math.round(taxableAmount * DEFAULT_TAX_RATE)
-  priceBreakdown.total =
-    priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0) + (priceBreakdown.taxes || 0)
+  const priceBreakdown = { ...fallback, ...raw }
+  const basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
+  const nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
+  const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+  const taxesCents =
+    priceBreakdown.taxes ??
+    Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
+  const totalCents =
+    priceBreakdown.total ??
+    priceBreakdown.subtotal -
+      discountCents +
+      taxesCents +
+      (priceBreakdown.pet_fee ?? 0)
 
   const appearance = {
     theme: "stripe" as const,
@@ -451,6 +477,7 @@ export default function PaymentPage() {
             <CheckoutTimer
               reservedUntil={checkoutData.reservedUntil}
               propertySlug={slug}
+              reservationId={checkoutData.reservationId}
             />
           </div>
         )}
@@ -521,30 +548,44 @@ export default function PaymentPage() {
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">
-                        ${((priceBreakdown.basePrice || 0) / 100).toFixed(2)} × {priceBreakdown.nights} night
-                        {priceBreakdown.nights !== 1 ? "s" : ""}
+                        {priceBreakdown.base_price_label ??
+                          `$${(basePriceCents / 100).toFixed(2)} × ${nightsForDisplay} night${nightsForDisplay !== 1 ? "s" : ""}`}
                       </span>
-                      <span className="font-medium">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
+                      <span className="font-medium">${((priceBreakdown.subtotal ?? 0) / 100).toFixed(2)}</span>
                     </div>
-                    {(priceBreakdown.cleaningFee || 0) > 0 && (
+                    {(priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0) > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Cleaning fee</span>
-                        <span className="font-medium">${((priceBreakdown.cleaningFee || 0) / 100).toFixed(2)}</span>
+                        <span className="font-medium">
+                          ${((priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0) / 100).toFixed(2)}
+                        </span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Service fee</span>
-                      <span className="font-medium">${((priceBreakdown.serviceFee || 0) / 100).toFixed(2)}</span>
+                      <span className="font-medium">
+                        ${((priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0) / 100).toFixed(2)}
+                      </span>
                     </div>
-                    {(priceBreakdown.taxes || 0) > 0 && (
+                    {discountCents > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Taxes ({(DEFAULT_TAX_RATE * 100).toFixed(1)}%)</span>
-                        <span className="font-medium">${((priceBreakdown.taxes || 0) / 100).toFixed(2)}</span>
+                        <span className="text-gray-600">Discount</span>
+                        <span className="font-medium text-green-700">-${(discountCents / 100).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {(taxesCents ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          {(priceBreakdown.tax_name || "Taxes")} (
+                          {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE) * 100).toFixed(1)}
+                          %)
+                        </span>
+                        <span className="font-medium">${((taxesCents ?? 0) / 100).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-lg font-bold border-t pt-2">
                       <span>Total Due Today</span>
-                      <span className="text-[#2D5A27]">${((priceBreakdown.total || 0) / 100).toFixed(2)}</span>
+                      <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>
                     </div>
                   </div>
 

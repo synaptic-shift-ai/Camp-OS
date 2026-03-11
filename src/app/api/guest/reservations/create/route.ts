@@ -24,7 +24,14 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { calculatePriceBreakdown } from '@/lib/booking/pricing'
+import { calculatePriceBreakdown, getBaseSubtotalAndLabel } from '@/lib/booking/pricing'
+import { DEFAULT_TAX_RATE } from '@/lib/booking/types'
+import {
+  resolveRateDiscountsConfig,
+  parseReservationTypesConfigFromDB,
+  resolveReservationTypeRate,
+} from '@/lib/config/resolution'
+import type { RateDiscountsConfig } from '@/lib/config/types'
 import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
 
 // Input validation schema
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name, booking_page_slug, onboarding_completed')
+      .select('id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, enabled_reservation_types, reservation_type_config')
       .eq('id', validatedInput.property_id)
       .single()
 
@@ -99,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     const { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, site_number, site_name, site_type, base_price, max_occupancy, max_vehicles')
+      .select('id, site_number, site_name, site_type, base_price, weekly_rate_cents, monthly_rate_cents, max_occupancy, max_vehicles, enabled_reservation_types_override')
       .eq('id', validatedInput.site_id)
       .eq('property_id', validatedInput.property_id) // Tenant isolation
       .eq('status', 'available')
@@ -145,6 +152,42 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
+    // Step 2.5: Resolve effective rates (property default vs site override)
+    // When site uses property default (enabled_reservation_types_override is null),
+    // use property's reservation_type_config nightly rate so pricing matches availability/guest-info.
+    // ========================================================================
+    const reservationTypeConfig = parseReservationTypesConfigFromDB(
+      (property as { reservation_type_config?: unknown } | null)?.reservation_type_config ?? null
+    )
+    const usesPropertyDefaults = (site as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override == null
+    const fallbackRates = {
+      base_price: site.base_price ?? 0,
+      weekly_rate_cents: usesPropertyDefaults ? null : (site.weekly_rate_cents ?? null),
+      monthly_rate_cents: usesPropertyDefaults ? null : (site.monthly_rate_cents ?? null),
+    }
+    const effectiveOverride = usesPropertyDefaults
+      ? null
+      : { nightly: site.base_price ?? 0 }
+    const effectiveNightlyCents = resolveReservationTypeRate(
+      'nightly',
+      reservationTypeConfig,
+      effectiveOverride as Partial<Record<'nightly' | 'weekly' | 'monthly' | 'seasonal', number>> | null,
+      fallbackRates
+    )
+    const effectiveWeeklyCents = resolveReservationTypeRate(
+      'weekly',
+      reservationTypeConfig,
+      effectiveOverride as Partial<Record<'nightly' | 'weekly' | 'monthly' | 'seasonal', number>> | null,
+      fallbackRates
+    )
+    const effectiveMonthlyCents = resolveReservationTypeRate(
+      'monthly',
+      reservationTypeConfig,
+      effectiveOverride as Partial<Record<'nightly' | 'weekly' | 'monthly' | 'seasonal', number>> | null,
+      fallbackRates
+    )
+
+    // ========================================================================
     // Step 3: Check for existing guest by email (need guest_id for next check)
     // ========================================================================
 
@@ -181,12 +224,98 @@ export async function POST(request: NextRequest) {
         const checkOut = new Date(validatedInput.check_out_date)
         const numberOfNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
 
+        const { subtotalCents: existingSubtotalCents, basePriceLabel: existingBasePriceLabel, rateType: existingRateType } = getBaseSubtotalAndLabel(
+          numberOfNights,
+          effectiveNightlyCents,
+          effectiveWeeklyCents !== effectiveNightlyCents * 7 ? effectiveWeeklyCents : null,
+          effectiveMonthlyCents !== effectiveNightlyCents * 28 ? effectiveMonthlyCents : null
+        )
         const priceBreakdown = calculatePriceBreakdown({
-          basePricePerNight: site.base_price,
+          basePricePerNight: effectiveNightlyCents,
           numberOfNights,
           siteType: site.site_type as any,
           numPets: validatedInput.num_pets,
         })
+        priceBreakdown.subtotal = existingSubtotalCents
+        priceBreakdown.base_price_label = existingBasePriceLabel
+        priceBreakdown.rate_type = existingRateType
+        priceBreakdown.total = existingSubtotalCents + (priceBreakdown.pet_fee ?? 0)
+        const cleaningFeeCents = site.site_type === 'cabin' ? 5000 : 0
+        const serviceFeeCents = Math.round(existingSubtotalCents * 0.1)
+        priceBreakdown.cleaningFee = cleaningFeeCents
+        priceBreakdown.serviceFee = serviceFeeCents
+        const subtotalCents = existingSubtotalCents
+        const pricingConfig = (property?.pricing_config as { tax_rate?: number; tax_name?: string } | null) ?? {}
+        const propertyTaxRate =
+          typeof pricingConfig.tax_rate === 'number' && pricingConfig.tax_rate >= 0
+            ? pricingConfig.tax_rate
+            : DEFAULT_TAX_RATE
+        priceBreakdown.tax_rate = propertyTaxRate
+        if (pricingConfig.tax_name) priceBreakdown.tax_name = pricingConfig.tax_name
+        const rateDiscountsConfig = resolveRateDiscountsConfig(
+          (property?.rate_discounts_config as RateDiscountsConfig | null) ?? null
+        )
+        const userDiscounts = rateDiscountsConfig.user_defined_discounts ?? []
+        const appliedDiscounts: {
+          id: string
+          title: string
+          amount: number
+          trigger_type: 'manual' | 'min_nights' | 'min_guests' | 'date_range'
+        }[] = []
+        let discountCents = 0
+        if (userDiscounts.length > 0) {
+          const checkInStr = validatedInput.check_in_date
+          const totalGuests = validatedInput.num_adults + (validatedInput.num_children ?? 0)
+          const taxableBeforeDiscount = subtotalCents + cleaningFeeCents + serviceFeeCents
+          const inDateRange = (start: string | undefined, end: string | undefined) => {
+            if (start && checkInStr < start) return false
+            if (end && checkInStr > end) return false
+            return true
+          }
+          for (const d of userDiscounts) {
+            if (!d.enabled || d.trigger_type === 'manual') continue
+            let shouldApply = false
+            if (d.trigger_type === 'date_range') {
+              shouldApply = inDateRange(d.trigger_conditions?.start_date, d.trigger_conditions?.end_date)
+            } else if (d.trigger_type === 'min_nights') {
+              shouldApply = numberOfNights >= (d.trigger_conditions?.min_nights ?? 0)
+            } else if (d.trigger_type === 'min_guests') {
+              shouldApply = totalGuests >= (d.trigger_conditions?.min_guests ?? 0)
+            }
+            if (!shouldApply) continue
+            let amount = 0
+            if (
+              d.discount_type === 'percentage_of_subtotal' ||
+              d.discount_type === 'percentage_of_total'
+            ) {
+              const pct = (d.value_percentage ?? 0) / 100
+              const base = d.discount_type === 'percentage_of_total' ? taxableBeforeDiscount : subtotalCents
+              amount = Math.round(base * pct)
+              if ((d.max_discount_cents ?? 0) > 0) {
+                amount = Math.min(amount, d.max_discount_cents!)
+              }
+            } else if (d.discount_type === 'flat_amount') {
+              amount = d.value_cents ?? 0
+            }
+            if (amount > 0) {
+              appliedDiscounts.push({
+                id: d.id,
+                title: d.title ?? 'Discount',
+                amount,
+                trigger_type: d.trigger_type,
+              })
+              discountCents += amount
+            }
+          }
+          if (appliedDiscounts.length > 0) {
+            priceBreakdown.user_discounts = appliedDiscounts
+          }
+        }
+        const taxableAmountAfterDiscount = subtotalCents - discountCents
+        priceBreakdown.taxes = Math.round(taxableAmountAfterDiscount * propertyTaxRate)
+        priceBreakdown.total_before_tax = subtotalCents - discountCents
+        priceBreakdown.total =
+          subtotalCents - discountCents + (priceBreakdown.taxes ?? 0) + (priceBreakdown.pet_fee ?? 0)
 
         return NextResponse.json({
           success: true,
@@ -271,12 +400,101 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { subtotalCents, basePriceLabel, rateType } = getBaseSubtotalAndLabel(
+      numberOfNights,
+      effectiveNightlyCents,
+      effectiveWeeklyCents !== effectiveNightlyCents * 7 ? effectiveWeeklyCents : null,
+      effectiveMonthlyCents !== effectiveNightlyCents * 28 ? effectiveMonthlyCents : null
+    )
     const priceBreakdown = calculatePriceBreakdown({
-      basePricePerNight: site.base_price,
+      basePricePerNight: effectiveNightlyCents,
       numberOfNights,
       siteType: site.site_type as any,
       numPets: validatedInput.num_pets,
     })
+    priceBreakdown.subtotal = subtotalCents
+    priceBreakdown.base_price_label = basePriceLabel
+    priceBreakdown.rate_type = rateType
+    priceBreakdown.total = subtotalCents + (priceBreakdown.pet_fee ?? 0)
+
+    // Apply fees, tax, and discounts from property config (match availability-results logic)
+    const cleaningFeeCents = site.site_type === 'cabin' ? 5000 : 0
+    const serviceFeeCents = Math.round((priceBreakdown.subtotal ?? 0) * 0.1)
+    priceBreakdown.cleaningFee = cleaningFeeCents
+    priceBreakdown.serviceFee = serviceFeeCents
+    const taxableBeforeDiscount = subtotalCents + cleaningFeeCents + serviceFeeCents
+    const pricingConfig = (property?.pricing_config as { tax_rate?: number; tax_name?: string } | null) ?? {}
+    const propertyTaxRate =
+      typeof pricingConfig.tax_rate === 'number' && pricingConfig.tax_rate >= 0
+        ? pricingConfig.tax_rate
+        : DEFAULT_TAX_RATE
+    priceBreakdown.tax_rate = propertyTaxRate
+    if (pricingConfig.tax_name) priceBreakdown.tax_name = pricingConfig.tax_name
+
+    let discountCents = 0
+    const rateDiscountsConfig = resolveRateDiscountsConfig(
+      (property?.rate_discounts_config as RateDiscountsConfig | null) ?? null
+    )
+    const userDiscounts = rateDiscountsConfig.user_defined_discounts ?? []
+    const appliedDiscounts: {
+      id: string
+      title: string
+      amount: number
+      trigger_type: 'manual' | 'min_nights' | 'min_guests' | 'date_range'
+    }[] = []
+    if (userDiscounts.length > 0) {
+      const checkInStr = validatedInput.check_in_date
+      const totalGuests = validatedInput.num_adults + (validatedInput.num_children ?? 0)
+      const inDateRange = (start: string | undefined, end: string | undefined) => {
+        if (start && checkInStr < start) return false
+        if (end && checkInStr > end) return false
+        return true
+      }
+      for (const d of userDiscounts) {
+        if (!d.enabled || d.trigger_type === 'manual') continue
+        let shouldApply = false
+        if (d.trigger_type === 'date_range') {
+          shouldApply = inDateRange(d.trigger_conditions?.start_date, d.trigger_conditions?.end_date)
+        } else if (d.trigger_type === 'min_nights') {
+          shouldApply = numberOfNights >= (d.trigger_conditions?.min_nights ?? 0)
+        } else if (d.trigger_type === 'min_guests') {
+          shouldApply = totalGuests >= (d.trigger_conditions?.min_guests ?? 0)
+        }
+        if (!shouldApply) continue
+        let amount = 0
+        if (
+          d.discount_type === 'percentage_of_subtotal' ||
+          d.discount_type === 'percentage_of_total'
+        ) {
+          const pct = (d.value_percentage ?? 0) / 100
+          const base = d.discount_type === 'percentage_of_total' ? taxableBeforeDiscount : subtotalCents
+          amount = Math.round(base * pct)
+          if ((d.max_discount_cents ?? 0) > 0) {
+            amount = Math.min(amount, d.max_discount_cents!)
+          }
+        } else if (d.discount_type === 'flat_amount') {
+          amount = d.value_cents ?? 0
+        }
+        if (amount > 0) {
+          appliedDiscounts.push({
+            id: d.id,
+            title: d.title ?? 'Discount',
+            amount,
+            trigger_type: d.trigger_type,
+          })
+          discountCents += amount
+        }
+      }
+      if (appliedDiscounts.length > 0) {
+        priceBreakdown.user_discounts = appliedDiscounts
+      }
+    }
+    // Tax is applied to subtotal after discounts only (not on fees)
+    const taxableAmountAfterDiscount = subtotalCents - discountCents
+    priceBreakdown.taxes = Math.round(taxableAmountAfterDiscount * propertyTaxRate)
+    priceBreakdown.total_before_tax = subtotalCents - discountCents
+    priceBreakdown.total =
+      subtotalCents - discountCents + (priceBreakdown.taxes ?? 0) + (priceBreakdown.pet_fee ?? 0)
 
     // ========================================================================
     // Step 7: Create or update guest record

@@ -370,7 +370,9 @@ export interface PriceBreakdown {
   subtotal: number // base_price_per_night × number_of_nights (before fees and discounts)
 
   // Rate information
-  rate_type?: 'standard' | 'weekend' | 'weekly' | 'monthly' | 'seasonal' // Which rate was applied
+  rate_type?: 'standard' | 'weekend' | 'nightly' | 'weekly' | 'monthly' | 'seasonal' // Which rate was applied
+  /** Display label for base rate, e.g. "1 week ($200) + 1 night ($30/night)" */
+  base_price_label?: string
   discount_applied?: {
     type: 'weekly' | 'monthly'
     percentage: number

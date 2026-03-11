@@ -250,20 +250,50 @@ export default function GuestInfoPage() {
   }
 
   const numberOfNights = differenceInDays(checkoutData.checkOutDate, checkoutData.checkInDate)
-  const priceBreakdown = checkoutData.priceBreakdown || {
+
+  // Normalize price breakdown so UI always has consistent fields while preferring
+  // server-calculated values from the enhanced pricing engine.
+  const defaultSubtotal = checkoutData.site.base_price_per_night * numberOfNights
+  const rawPriceBreakdown = checkoutData.priceBreakdown
+
+  const fallbackPriceBreakdown = {
+    base_price_per_night: checkoutData.site.base_price_per_night,
     basePrice: checkoutData.site.base_price_per_night,
+    number_of_nights: numberOfNights,
     nights: numberOfNights,
-    subtotal: checkoutData.site.base_price_per_night * numberOfNights,
+    subtotal: defaultSubtotal,
     cleaningFee: checkoutData.site.site_type === "cabin" ? 50 : 0,
-    serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
-    taxRate: DEFAULT_TAX_RATE,
-    taxes: 0,
-    total: 0,
+    serviceFee: Math.round(defaultSubtotal * 0.1),
   }
-  const taxableAmount = priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0)
-  priceBreakdown.taxes = Math.round(taxableAmount * DEFAULT_TAX_RATE)
-  priceBreakdown.total =
-    priceBreakdown.subtotal + (priceBreakdown.cleaningFee || 0) + (priceBreakdown.serviceFee || 0) + (priceBreakdown.taxes || 0)
+
+  const priceBreakdown = {
+    ...fallbackPriceBreakdown,
+    ...rawPriceBreakdown,
+  }
+
+  const nightsForDisplay =
+    priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
+
+  const nightlyRateCents =
+    priceBreakdown.basePrice ??
+    priceBreakdown.base_price_per_night ??
+    (nightsForDisplay > 0 ? Math.round(priceBreakdown.subtotal / nightsForDisplay) : 0)
+
+  const cleaningFeeCents = priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0
+  const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
+  const taxesCents = priceBreakdown.taxes ?? 0
+  const taxRate = priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
+  const legacyDiscountCents = priceBreakdown.discount_applied?.amount_saved ?? 0
+  const userDiscountCents =
+    priceBreakdown.user_discounts?.reduce((sum, discount) => sum + discount.amount, 0) ?? 0
+  const totalDiscountCents = legacyDiscountCents + userDiscountCents
+  const totalCents =
+    priceBreakdown.total ??
+    ((priceBreakdown.total_before_tax ??
+      priceBreakdown.subtotal +
+        cleaningFeeCents +
+        serviceFeeCents) +
+      taxesCents)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -617,30 +647,52 @@ export default function GuestInfoPage() {
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">
-                        ${((priceBreakdown.basePrice || 0) / 100).toFixed(2)} × {priceBreakdown.nights} night
-                        {priceBreakdown.nights !== 1 ? "s" : ""}
+                        {priceBreakdown.base_price_label ??
+                          `${(nightlyRateCents / 100).toFixed(2)} × ${nightsForDisplay} night${nightsForDisplay !== 1 ? "s" : ""}`}
                       </span>
                       <span className="font-medium">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
                     </div>
-                    {(priceBreakdown.cleaningFee || 0) > 0 && (
+                    {cleaningFeeCents > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Cleaning fee</span>
-                        <span className="font-medium">${((priceBreakdown.cleaningFee || 0) / 100).toFixed(2)}</span>
+                        <span className="font-medium">${(cleaningFeeCents / 100).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {/* <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Service fee</span>
+                      <span className="font-medium">${(serviceFeeCents / 100).toFixed(2)}</span>
+                    </div> */}
+                    {priceBreakdown.user_discounts?.map((discount) => (
+                      <div key={discount.id} className="flex justify-between text-sm">
+                        <span className="text-gray-600">{discount.title}</span>
+                        <span className="font-medium text-green-700">
+                          -${(discount.amount / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                    {legacyDiscountCents > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Discount</span>
+                        <span className="font-medium text-green-700">
+                          -${(legacyDiscountCents / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {((priceBreakdown.user_discounts?.length ?? 0) === 0 && legacyDiscountCents === 0) && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Discount</span>
+                        <span className="font-medium text-green-700">-$0.00</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Service fee</span>
-                      <span className="font-medium">${((priceBreakdown.serviceFee || 0) / 100).toFixed(2)}</span>
+                      <span className="text-gray-600">
+                        Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}
+                      </span>
+                      <span className="font-medium">${(taxesCents / 100).toFixed(2)}</span>
                     </div>
-                    {(priceBreakdown.taxes || 0) > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Taxes ({(DEFAULT_TAX_RATE * 100).toFixed(1)}%)</span>
-                        <span className="font-medium">${((priceBreakdown.taxes || 0) / 100).toFixed(2)}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between text-lg font-bold border-t pt-2">
                       <span>Total</span>
-                      <span className="text-[#2D5A27]">${((priceBreakdown.total || 0) / 100).toFixed(2)}</span>
+                      <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>
                     </div>
                   </div>
 

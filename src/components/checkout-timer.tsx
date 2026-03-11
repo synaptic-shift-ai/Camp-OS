@@ -17,10 +17,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 interface CheckoutTimerProps {
   reservedUntil: string // ISO timestamp
   propertySlug: string // For redirect on expiration
-  onExpired?: () => void // Optional callback
+  reservationId?: string | undefined // When set, expire API is called on timeout (fallback when cron is not running)
+  onExpired?: (() => void) | undefined // Optional callback
 }
 
-export function CheckoutTimer({ reservedUntil, propertySlug, onExpired }: CheckoutTimerProps) {
+export function CheckoutTimer({ reservedUntil, propertySlug, reservationId, onExpired }: CheckoutTimerProps) {
   const router = useRouter()
   const [timeLeft, setTimeLeft] = useState<number>(0)
   const [isExpired, setIsExpired] = useState(false)
@@ -46,15 +47,28 @@ export function CheckoutTimer({ reservedUntil, propertySlug, onExpired }: Checko
         setIsExpired(true)
         onExpired?.()
 
-        // Redirect after a brief delay to show the expired message
-        setTimeout(() => {
-          router.push(`/book/${propertySlug}?error=reservation_expired`)
-        }, 3000)
+        const expireAndRedirect = async () => {
+          if (reservationId) {
+            try {
+              await fetch('/api/guest/reservations/expire', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reservation_id: reservationId }),
+              })
+            } catch {
+              // Fire-and-forget; cron will clean up if this fails
+            }
+          }
+          setTimeout(() => {
+            router.push(`/book/${propertySlug}?error=reservation_expired`)
+          }, 3000)
+        }
+        expireAndRedirect()
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [reservedUntil, isExpired, router, propertySlug, onExpired])
+  }, [reservedUntil, isExpired, router, propertySlug, reservationId, onExpired])
 
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60

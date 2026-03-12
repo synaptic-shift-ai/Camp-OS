@@ -85,9 +85,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="fixed inset-0 z-0 flex overflow-hidden bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-card/50">
+      <aside className="hidden lg:flex lg:flex-col lg:shrink-0 lg:w-64 lg:border-r border-border bg-card/50">
         <div className="flex h-16 items-center gap-2 border-b border-border px-6">
           <Building2 className="h-6 w-6 text-primary" />
           <span className="font-heading font-semibold text-lg">CampOS</span>
@@ -160,7 +160,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Mobile Header */}
         <header className="flex h-16 items-center gap-4 border-b border-border bg-card/50 px-4 lg:hidden">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -213,15 +213,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex flex-1 flex-col overflow-y-auto">
-          <div className="flex min-w-0 flex-1 flex-col p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col p-6">
             <QuickTourPrompt />
             {isPending ? (
               <div className="flex min-h-[200px] flex-1 items-center justify-center" aria-busy="true" aria-label="Loading">
                 <Loader2 className="h-12 w-12 animate-spin stroke-[1] text-muted-foreground" />
               </div>
             ) : (
-              children
+              <div className="pb-20">
+                {children}
+              </div>
             )}
           </div>
         </main>

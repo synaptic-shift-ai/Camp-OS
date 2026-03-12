@@ -103,8 +103,8 @@ async function ReservationsTable(props: { propertyId: string; siteType?: string 
             )
             const hasOutstandingBalance = amountDueCents > 0
 
-            const canRefund = 
-              reservation.status === 'cancelled' && 
+            const canRefund =
+              reservation.status === 'cancelled' &&
               reservation.paidAmount > 0 &&
               reservation.refundAmount < reservation.paidAmount
 
@@ -164,8 +164,8 @@ async function ReservationsTable(props: { propertyId: string; siteType?: string 
   )
 }
 
-type PageProps = { 
-  params: Promise<{ propertyId: string }> 
+type PageProps = {
+  params: Promise<{ propertyId: string }>
   searchParams: Promise<{ siteType?: string }>
 }
 

@@ -53,56 +53,25 @@ function validateGuestInput(input: CreateGuestInput): BookingResult<void> {
 }
 
 /**
- * Create a new guest or return existing guest if email already exists
- *
- * Strategy:
- * 1. Check if guest with email already exists for this property
- * 2. If exists, return existing guest (prevents duplicates)
- * 3. If not exists, create new guest record
+ * Always create a new guest record regardless of whether the email already exists.
+ * Used for manual (phone/walk-in) reservations where the operator enters details
+ * fresh for each booking and must not silently reuse an old record.
  *
  * @param property_id - Property ID for multi-tenant isolation
  * @param input - Guest information
- * @returns Created or existing guest record
+ * @returns Newly created guest record
  */
-export async function createOrGetGuest(
+export async function createGuest(
   property_id: string,
   input: CreateGuestInput
 ): Promise<BookingResult<Guest>> {
   const supabase = createServiceRoleClient()
 
-  // Validate input
   const validation = validateGuestInput(input)
   if (!validation.success) {
     return validation as BookingResult<Guest>
   }
 
-  // Check if guest already exists by email for this property
-  const { data: existingGuest, error: lookupError } = await supabase
-    .from('guests')
-    .select('*')
-    .eq('property_id', property_id)
-    .eq('email', input.email.toLowerCase())
-    .maybeSingle()
-
-  if (lookupError) {
-    return {
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Error checking for existing guest',
-      },
-    }
-  }
-
-  // Return existing guest if found
-  if (existingGuest) {
-    return {
-      success: true,
-      data: existingGuest as Guest,
-    }
-  }
-
-  // Create new guest (with optional spouse info)
   const inputWithSpouse = input as CreateGuestWithSpouseInput
   const newGuest = {
     property_id,
@@ -145,6 +114,53 @@ export async function createOrGetGuest(
     success: true,
     data: createdGuest as Guest,
   }
+}
+
+/**
+ * Create a new guest or return existing guest if email already exists.
+ * Used for online/self-service bookings to avoid duplicate records.
+ *
+ * @param property_id - Property ID for multi-tenant isolation
+ * @param input - Guest information
+ * @returns Created or existing guest record
+ */
+export async function createOrGetGuest(
+  property_id: string,
+  input: CreateGuestInput
+): Promise<BookingResult<Guest>> {
+  const supabase = createServiceRoleClient()
+
+  const validation = validateGuestInput(input)
+  if (!validation.success) {
+    return validation as BookingResult<Guest>
+  }
+
+  // Return existing guest if found (prevents duplicates for online bookings)
+  const { data: existingGuest, error: lookupError } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('property_id', property_id)
+    .eq('email', input.email.toLowerCase())
+    .maybeSingle()
+
+  if (lookupError) {
+    return {
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Error checking for existing guest',
+      },
+    }
+  }
+
+  if (existingGuest) {
+    return {
+      success: true,
+      data: existingGuest as Guest,
+    }
+  }
+
+  return createGuest(property_id, input)
 }
 
 /**
@@ -231,19 +247,19 @@ export async function updateGuestSpouse(
 
   const spouseData = spouse
     ? {
-        spouse_first_name: spouse.first_name,
-        spouse_last_name: spouse.last_name,
-        spouse_phone: spouse.phone || null,
-        spouse_email: spouse.email || null,
-        spouse_is_alternate_contact: spouse.is_alternate_contact,
-      }
+      spouse_first_name: spouse.first_name,
+      spouse_last_name: spouse.last_name,
+      spouse_phone: spouse.phone || null,
+      spouse_email: spouse.email || null,
+      spouse_is_alternate_contact: spouse.is_alternate_contact,
+    }
     : {
-        spouse_first_name: null,
-        spouse_last_name: null,
-        spouse_phone: null,
-        spouse_email: null,
-        spouse_is_alternate_contact: false,
-      }
+      spouse_first_name: null,
+      spouse_last_name: null,
+      spouse_phone: null,
+      spouse_email: null,
+      spouse_is_alternate_contact: false,
+    }
 
   const { data, error } = await supabase
     .from('guests')

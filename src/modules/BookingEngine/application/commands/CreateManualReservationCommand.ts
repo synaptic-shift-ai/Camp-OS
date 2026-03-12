@@ -15,10 +15,11 @@
  */
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { createOrGetGuest, updateGuestSpouse } from '@/lib/booking/guest'
+import { createGuest, updateGuestSpouse } from '@/lib/booking/guest'
 import { createReservationChildren } from '@/lib/booking/children'
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
-import { createReservation } from '@/lib/booking/reservation'
+import { checkSiteAvailability } from '@/lib/booking/availability'
+import { generateConfirmationNumber } from '@/lib/booking/api'
 import type { CreateVehicleInputData } from '@/lib/booking/types'
 import type {
   CreateManualReservationRequest,
@@ -50,9 +51,9 @@ export class CreateManualReservationCommandHandler {
   async execute(dto: CreateManualReservationDto): Promise<ManualReservationResult> {
     const supabase = createServiceRoleClient()
 
-    // 1. Create or get guest
+    // 1. Always create a new guest record (manual bookings never reuse existing by email)
     // Build guest input conditionally to avoid undefined values (exactOptionalPropertyTypes)
-    const guestInput: Parameters<typeof createOrGetGuest>[1] = {
+    const guestInput: Parameters<typeof createGuest>[1] = {
       first_name: dto.guest.firstName,
       last_name: dto.guest.lastName,
       email: dto.guest.email,
@@ -63,33 +64,57 @@ export class CreateManualReservationCommandHandler {
     if (dto.guest.state) guestInput.state = dto.guest.state
     if (dto.guest.zipCode) guestInput.zip_code = dto.guest.zipCode
 
-    const guestResult = await createOrGetGuest(dto.propertyId, guestInput)
+    const guestResult = await createGuest(dto.propertyId, guestInput)
     if (!guestResult.success) {
       throw new Error(guestResult.error.message)
     }
     const guest = guestResult.data
 
-    // 2. Create the reservation
-    const reservationInput: any = {
-      property_id: dto.propertyId,
-      site_id: dto.siteId,
-      check_in_date: dto.checkInDate,
-      check_out_date: dto.checkOutDate,
-      num_adults: dto.numAdults,
-      guest: guestInput,
-      source: 'phone',
+    // 2. Check site availability (guard against double-booking)
+    const availabilityResult = await checkSiteAvailability(
+      dto.siteId,
+      dto.checkInDate,
+      dto.checkOutDate
+    )
+    if (!availabilityResult.success) {
+      throw new Error(availabilityResult.error.message)
+    }
+    if (!availabilityResult.data) {
+      throw new Error('Site is not available for the selected dates')
     }
 
-    if (dto.numChildren) reservationInput.num_children = dto.numChildren
-    if (dto.numPets) reservationInput.num_pets = dto.numPets
-    if (dto.numVehicles) reservationInput.num_vehicles = dto.numVehicles
-    if (dto.specialRequests) reservationInput.special_requests = dto.specialRequests
+    // 2a. Insert reservation directly using the already-created guest ID.
+    const { data: reservation, error: reservationError } = await supabase
+      .from('reservations')
+      .insert({
+        property_id: dto.propertyId,
+        site_id: dto.siteId,
+        guest_id: guest.id,
+        confirmation_number: generateConfirmationNumber(),
+        check_in_date: dto.checkInDate,
+        check_out_date: dto.checkOutDate,
+        num_adults: dto.numAdults,
+        num_children: dto.numChildren || 0,
+        num_pets: dto.numPets || 0,
+        num_vehicles: dto.numVehicles || 0,
+        total_amount: 0,
+        paid_amount: 0,
+        status: 'pending',
+        payment_status: 'pending',
+        source: 'phone',
+        booking_type: dto.stayType || 'nightly',
+        special_requests: dto.specialRequests || null,
+        notes: null,
+      })
+      .select('*')
+      .single()
 
-    const reservationResult = await createReservation(reservationInput)
-    if (!reservationResult.success) {
-      throw new Error(reservationResult.error.message)
+    if (reservationError || !reservation) {
+      const detail = reservationError
+        ? `${reservationError.message} (code: ${reservationError.code})`
+        : 'Unknown error'
+      throw new Error(`Failed to create reservation: ${detail}`)
     }
-    const reservation = reservationResult.data
 
     // 2b. Apply client-provided total when present (fixes $0 when site.base_price is unset)
     if (dto.totalAmountCents != null && dto.totalAmountCents > 0) {

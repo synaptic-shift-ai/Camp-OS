@@ -344,12 +344,12 @@ export default function NewReservationPage() {
       // Prepare spouse data (only if filled in) - use camelCase for v1 API
       const spouseData = data.spouse?.first_name && data.spouse?.last_name
         ? {
-            firstName: data.spouse.first_name,
-            lastName: data.spouse.last_name,
-            phone: data.spouse.phone || null,
-            email: data.spouse.email || null,
-            isAlternateContact: data.spouse.is_alternate_contact || false,
-          }
+          firstName: data.spouse.first_name,
+          lastName: data.spouse.last_name,
+          phone: data.spouse.phone || null,
+          email: data.spouse.email || null,
+          isAlternateContact: data.spouse.is_alternate_contact || false,
+        }
         : null
 
       // Prepare children data (filter out empty entries, convert to camelCase)
@@ -387,7 +387,7 @@ export default function NewReservationPage() {
         (new Date(data.checkOutDate).getTime() - new Date(data.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
       )
       const selectedSite = availableSites.find((s) => s.id === data.siteId)
-      const totalAmountCents = 
+      const totalAmountCents =
         summaryTotalCents ??
         (selectedSite ? selectedSite.base_price_per_night * submitNights : 0)
 
@@ -431,10 +431,10 @@ export default function NewReservationPage() {
           vehicles: vehiclesData,
           evacuationContact: data.evacuationContact?.name
             ? {
-                name: data.evacuationContact.name,
-                phone: data.evacuationContact.phone,
-                relationship: data.evacuationContact.relationship || null,
-              }
+              name: data.evacuationContact.name,
+              phone: data.evacuationContact.phone,
+              relationship: data.evacuationContact.relationship || null,
+            }
             : null,
           // Payment
           paymentMode: data.paymentMode,
@@ -457,14 +457,20 @@ export default function NewReservationPage() {
       console.log('[Manual Reservation Form] Response:', { ok: response.ok, status: response.status, result })
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || result.error || "Failed to create reservation")
+        // Prefer the detailed message (buried in details by the API error helper) over the generic SYS_001 message
+        const message =
+          result.error?.details?.message ||
+          result.error?.message ||
+          result.error ||
+          "Failed to create reservation"
+        throw new Error(message)
       }
 
       setSuccess(true)
 
       // Redirect to reservations page after a brief delay
       setTimeout(() => {
-        router.push("/dashboard/reservations")
+        router.push(propertyIdFromUrl ? `/dashboard/${propertyIdFromUrl}/reservations` : "/dashboard")
         router.refresh()
       }, 2000)
     } catch (err) {
@@ -532,575 +538,575 @@ export default function NewReservationPage() {
         {/* Main Form - Left Column */}
         <div className="lg:col-span-2">
           <FormProvider {...methods}>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Date Selection - Priority #1 for phone bookings */}
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Step 1: Stay Type & Dates
-            </CardTitle>
-            <CardDescription>Select the stay type and enter guest&apos;s desired dates</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Stay Type - Moved above dates */}
-            <div>
-              <Label htmlFor="stayType">Stay Type *</Label>
-              <Select
-                value={watch("stayType")}
-                onValueChange={(value) => setValue("stayType", value as BookingType)}
-              >
-                <SelectTrigger id="stayType">
-                  <SelectValue placeholder="Select stay type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enabledReservationTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {BOOKING_TYPE_INFO[type]?.label || type} ({BOOKING_TYPE_INFO[type]?.description || ''})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.stayType && (
-                <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
-              )}
-              {stayType && 
-                totalNights > 0 && 
-                totalNights < STAY_TYPE_MIN_NIGHTS[stayType] && (
-                  <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
-                    You should reserve {STAY_TYPE_MIN_NIGHTS[stayType]} nights to use the{' '}
-                    {BOOKING_TYPE_INFO[stayType]?.label?.toLowerCase() ?? stayType} rate.
-                  </p>
-              )}
-              <p className="text-sm text-muted-foreground mt-1">
-                Determines pricing and discount eligibility
-              </p>
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Date Selection - Priority #1 for phone bookings */}
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Step 1: Stay Type & Dates
+                  </CardTitle>
+                  <CardDescription>Select the stay type and enter guest&apos;s desired dates</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Stay Type - Moved above dates */}
+                  <div>
+                    <Label htmlFor="stayType">Stay Type *</Label>
+                    <Select
+                      value={watch("stayType")}
+                      onValueChange={(value) => setValue("stayType", value as BookingType)}
+                    >
+                      <SelectTrigger id="stayType">
+                        <SelectValue placeholder="Select stay type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {enabledReservationTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {BOOKING_TYPE_INFO[type]?.label || type} ({BOOKING_TYPE_INFO[type]?.description || ''})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.stayType && (
+                      <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
+                    )}
+                    {stayType &&
+                      totalNights > 0 &&
+                      totalNights < STAY_TYPE_MIN_NIGHTS[stayType] && (
+                        <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
+                          You should reserve {STAY_TYPE_MIN_NIGHTS[stayType]} nights to use the{' '}
+                          {BOOKING_TYPE_INFO[stayType]?.label?.toLowerCase() ?? stayType} rate.
+                        </p>
+                      )}
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Determines pricing and discount eligibility
+                    </p>
+                  </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="checkInDate">Check-in Date *</Label>
-                <Input
-                  id="checkInDate"
-                  type="date"
-                  {...register("checkInDate")}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-                {errors.checkInDate && (
-                  <p className="text-sm text-destructive mt-1">{errors.checkInDate.message}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="checkOutDate">Check-out Date *</Label>
-                <Input
-                  id="checkOutDate"
-                  type="date"
-                  {...register("checkOutDate")}
-                  min={checkInDate || new Date().toISOString().split('T')[0]}
-                />
-                {errors.checkOutDate && (
-                  <p className="text-sm text-destructive mt-1">{errors.checkOutDate.message}</p>
-                )}
-              </div>
-            </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="checkInDate">Check-in Date *</Label>
+                      <Input
+                        id="checkInDate"
+                        type="date"
+                        {...register("checkInDate")}
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                      {errors.checkInDate && (
+                        <p className="text-sm text-destructive mt-1">{errors.checkInDate.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="checkOutDate">Check-out Date *</Label>
+                      <Input
+                        id="checkOutDate"
+                        type="date"
+                        {...register("checkOutDate")}
+                        min={checkInDate || new Date().toISOString().split('T')[0]}
+                      />
+                      {errors.checkOutDate && (
+                        <p className="text-sm text-destructive mt-1">{errors.checkOutDate.message}</p>
+                      )}
+                    </div>
+                  </div>
 
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="numAdults">Adults *</Label>
-                <Input
-                  id="numAdults"
-                  type="number"
-                  min="1"
-                  {...register("numAdults", { valueAsNumber: true })}
-                />
-                {errors.numAdults && (
-                  <p className="text-sm text-destructive mt-1">{errors.numAdults.message}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="numChildren">Children</Label>
-                <Input
-                  id="numChildren"
-                  type="number"
-                  min="0"
-                  {...register("numChildren", { valueAsNumber: true })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="numPets">Pets</Label>
-                <Input
-                  id="numPets"
-                  type="number"
-                  min="0"
-                  {...register("numPets", { valueAsNumber: true })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="numVehicles">Vehicles</Label>
-                <Input
-                  id="numVehicles"
-                  type="number"
-                  min="0"
-                  {...register("numVehicles", { valueAsNumber: true })}
-                />
-              </div>
-            </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <Label htmlFor="numAdults">Adults *</Label>
+                      <Input
+                        id="numAdults"
+                        type="number"
+                        min="1"
+                        {...register("numAdults", { valueAsNumber: true })}
+                      />
+                      {errors.numAdults && (
+                        <p className="text-sm text-destructive mt-1">{errors.numAdults.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="numChildren">Children</Label>
+                      <Input
+                        id="numChildren"
+                        type="number"
+                        min="0"
+                        {...register("numChildren", { valueAsNumber: true })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="numPets">Pets</Label>
+                      <Input
+                        id="numPets"
+                        type="number"
+                        min="0"
+                        {...register("numPets", { valueAsNumber: true })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="numVehicles">Vehicles</Label>
+                      <Input
+                        id="numVehicles"
+                        type="number"
+                        min="0"
+                        {...register("numVehicles", { valueAsNumber: true })}
+                      />
+                    </div>
+                  </div>
 
-            {totalNights > 0 && (
-              <Alert>
-                <AlertDescription>
-                  <strong>{totalNights} night{totalNights > 1 ? 's' : ''}</strong> selected
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Site Selection - Visual Cards */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  Step 2: Select Site
-                  {checkingAvailability && (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  {totalNights > 0 && (
+                    <Alert>
+                      <AlertDescription>
+                        <strong>{totalNights} night{totalNights > 1 ? 's' : ''}</strong> selected
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </CardTitle>
-                <CardDescription>
-                  {availableSites.length > 0
-                    ? `${availableSites.length} site${availableSites.length > 1 ? 's' : ''} available for selected dates`
-                    : checkInDate && checkOutDate && !checkingAvailability
-                    ? "No sites available for selected dates"
-                    : "Select dates above to see available sites"}
-                </CardDescription>
-              </div>
-              {selectedSite && (
-                <Badge variant="secondary" className="text-sm">
-                  {selectedSite.name} Selected
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {checkingAvailability ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-                  <p className="text-muted-foreground">Checking availability...</p>
-                </div>
-              </div>
-            ) : availableSites.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {checkInDate && checkOutDate
-                    ? "No sites available for the selected dates. Try different dates."
-                    : "Enter dates and guest count above to see available sites."}
-                </p>
-              </div>
-            ) : (
-              <AvailableSitesAccordion
-                sites={availableSites}
-                selectedSiteId={selectedSiteId}
-                onSiteSelect={(siteId) => setValue("siteId", siteId)}
-                stayType={stayType}
-              />
-            )}
+                </CardContent>
+              </Card>
 
-            {errors.siteId && (
-              <p className="text-sm text-destructive mt-4">{errors.siteId.message}</p>
-            )}
-
-            {selectedSite && estimatedTotal > 0 && (
-              <Alert className="bg-blue-500/10 text-blue-500 border-blue-500/20 mt-6">
-                <DollarSign className="h-4 w-4" />
-                <AlertDescription>
+              {/* Site Selection - Visual Cards */}
+              <Card>
+                <CardHeader>
                   <div className="flex items-center justify-between">
-                  {(() => {
-                    // Use same effective stay type and calculation as Pricing Summary (weekly when 7+ nights, monthly when 28+)
-                    const STAY_MIN: Record<BookingType, number> = {
-                      nightly: 1,
-                      weekly: 7,
-                      monthly: 28,
-                      seasonal: 28,
-                      long_term: 28,
-                    }
-                    const pricingEffectiveStayType: BookingType =
-                      stayType === 'nightly'
-                        ? totalNights >= STAY_MIN.monthly
-                          ? 'monthly'
-                          : totalNights >= STAY_MIN.weekly
-                            ? 'weekly'
-                            : 'nightly'
-                        : stayType === 'monthly' && totalNights >= STAY_MIN.monthly
-                          ? 'monthly'
-                          : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_MIN.weekly
-                            ? 'weekly'
-                            : stayType
-
-                    const nightlyCents = selectedSite.base_price_per_night
-                    let totalCents: number
-                    let detailLabel: string
-
-                    if (pricingEffectiveStayType === 'monthly') {
-                      const monthlyCents = selectedSite.monthly_rate_cents ?? selectedSite.base_price_per_night * 28
-                      const fullMonths = Math.floor(totalNights / 28)
-                      const remainderNights = totalNights % 28
-                      totalCents = fullMonths * monthlyCents + remainderNights * nightlyCents
-                      detailLabel =
-                        remainderNights === 0
-                          ? `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents)}/month)`
-                          : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents)}/night)`
-                    } else if (pricingEffectiveStayType === 'weekly') {
-                      const weeklyCents = selectedSite.weekly_rate_cents ?? selectedSite.base_price_per_night * 7
-                      const fullWeeks = Math.floor(totalNights / 7)
-                      const remainderNights = totalNights % 7
-                      totalCents = fullWeeks * weeklyCents + remainderNights * nightlyCents
-                      detailLabel =
-                        remainderNights === 0
-                          ? `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}/week)`
-                          : `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents)}/night)`
-                    } else {
-                      totalCents = nightlyCents * totalNights
-                      detailLabel = `${formatMoney(nightlyCents)}/night × ${totalNights} night${totalNights !== 1 ? 's' : ''}`
-                    }
-
-                    return (
-                      <>
-                        <div>
-                          <strong>Total for {selectedSite.name}</strong>
-                          <div className="text-xs mt-1">
-                            {detailLabel}
-                          </div>
-                        </div>
-                        <div className="text-2xl font-bold">
-                          {formatMoney(totalCents)}
-                        </div>
-                      </>
-                    )
-                  })()}
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        Step 2: Select Site
+                        {checkingAvailability && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        {availableSites.length > 0
+                          ? `${availableSites.length} site${availableSites.length > 1 ? 's' : ''} available for selected dates`
+                          : checkInDate && checkOutDate && !checkingAvailability
+                            ? "No sites available for selected dates"
+                            : "Select dates above to see available sites"}
+                      </CardDescription>
+                    </div>
+                    {selectedSite && (
+                      <Badge variant="secondary" className="text-sm">
+                        {selectedSite.name} Selected
+                      </Badge>
+                    )}
                   </div>
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+                </CardHeader>
+                <CardContent>
+                  {checkingAvailability ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                        <p className="text-muted-foreground">Checking availability...</p>
+                      </div>
+                    </div>
+                  ) : availableSites.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">
+                        {checkInDate && checkOutDate
+                          ? "No sites available for the selected dates. Try different dates."
+                          : "Enter dates and guest count above to see available sites."}
+                      </p>
+                    </div>
+                  ) : (
+                    <AvailableSitesAccordion
+                      sites={availableSites}
+                      selectedSiteId={selectedSiteId}
+                      onSiteSelect={(siteId) => setValue("siteId", siteId)}
+                      stayType={stayType}
+                    />
+                  )}
 
-        {/* Discounts & Additional Charges Selection */}
-        {(rateDiscountsConfig || pricingConfig) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Discounts & Additional Charges</CardTitle>
-              <CardDescription>
-                Select any manual discounts or additional charges to apply
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Manual Discounts */}
-              {rateDiscountsConfig?.user_defined_discounts && rateDiscountsConfig.user_defined_discounts.filter(d => d.enabled && d.trigger_type === 'manual').length > 0 && (
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Available Discounts</Label>
-                  <div className="space-y-2">
-                    {rateDiscountsConfig.user_defined_discounts
-                      .filter(d => d.enabled && d.trigger_type === 'manual')
-                      .map((discount) => (
-                        <div key={discount.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50">
-                          <Checkbox
-                            id={`discount-${discount.id}`}
-                            checked={selectedDiscountIds.includes(discount.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedDiscountIds([...selectedDiscountIds, discount.id])
-                              } else {
-                                setSelectedDiscountIds(selectedDiscountIds.filter(id => id !== discount.id))
-                              }
-                            }}
-                          />
-                          <div className="flex-1">
-                            <label htmlFor={`discount-${discount.id}`} className="font-medium cursor-pointer">
-                              {discount.title}
-                              <span className="ml-2 text-sm text-muted-foreground">
-                                ({discount.discount_type === 'flat_amount'
-                                  ? `$${((discount.value_cents ?? 0) / 100).toFixed(2)} off`
-                                  : `${discount.value_percentage ?? 0}% off`})
-                              </span>
-                            </label>
-                            {discount.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{discount.description}</p>
-                            )}
-                          </div>
+                  {errors.siteId && (
+                    <p className="text-sm text-destructive mt-4">{errors.siteId.message}</p>
+                  )}
+
+                  {selectedSite && estimatedTotal > 0 && (
+                    <Alert className="bg-blue-500/10 text-blue-500 border-blue-500/20 mt-6">
+                      <DollarSign className="h-4 w-4" />
+                      <AlertDescription>
+                        <div className="flex items-center justify-between">
+                          {(() => {
+                            // Use same effective stay type and calculation as Pricing Summary (weekly when 7+ nights, monthly when 28+)
+                            const STAY_MIN: Record<BookingType, number> = {
+                              nightly: 1,
+                              weekly: 7,
+                              monthly: 28,
+                              seasonal: 28,
+                              long_term: 28,
+                            }
+                            const pricingEffectiveStayType: BookingType =
+                              stayType === 'nightly'
+                                ? totalNights >= STAY_MIN.monthly
+                                  ? 'monthly'
+                                  : totalNights >= STAY_MIN.weekly
+                                    ? 'weekly'
+                                    : 'nightly'
+                                : stayType === 'monthly' && totalNights >= STAY_MIN.monthly
+                                  ? 'monthly'
+                                  : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_MIN.weekly
+                                    ? 'weekly'
+                                    : stayType
+
+                            const nightlyCents = selectedSite.base_price_per_night
+                            let totalCents: number
+                            let detailLabel: string
+
+                            if (pricingEffectiveStayType === 'monthly') {
+                              const monthlyCents = selectedSite.monthly_rate_cents ?? selectedSite.base_price_per_night * 28
+                              const fullMonths = Math.floor(totalNights / 28)
+                              const remainderNights = totalNights % 28
+                              totalCents = fullMonths * monthlyCents + remainderNights * nightlyCents
+                              detailLabel =
+                                remainderNights === 0
+                                  ? `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents)}/month)`
+                                  : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyCents)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents)}/night)`
+                            } else if (pricingEffectiveStayType === 'weekly') {
+                              const weeklyCents = selectedSite.weekly_rate_cents ?? selectedSite.base_price_per_night * 7
+                              const fullWeeks = Math.floor(totalNights / 7)
+                              const remainderNights = totalNights % 7
+                              totalCents = fullWeeks * weeklyCents + remainderNights * nightlyCents
+                              detailLabel =
+                                remainderNights === 0
+                                  ? `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}/week)`
+                                  : `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}) + ${remainderNights} night${remainderNights !== 1 ? 's' : ''} (${formatMoney(nightlyCents)}/night)`
+                            } else {
+                              totalCents = nightlyCents * totalNights
+                              detailLabel = `${formatMoney(nightlyCents)}/night × ${totalNights} night${totalNights !== 1 ? 's' : ''}`
+                            }
+
+                            return (
+                              <>
+                                <div>
+                                  <strong>Total for {selectedSite.name}</strong>
+                                  <div className="text-xs mt-1">
+                                    {detailLabel}
+                                  </div>
+                                </div>
+                                <div className="text-2xl font-bold">
+                                  {formatMoney(totalCents)}
+                                </div>
+                              </>
+                            )
+                          })()}
                         </div>
-                      ))}
-                  </div>
-                </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Discounts & Additional Charges Selection */}
+              {(rateDiscountsConfig || pricingConfig) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Discounts & Additional Charges</CardTitle>
+                    <CardDescription>
+                      Select any manual discounts or additional charges to apply
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Manual Discounts */}
+                    {rateDiscountsConfig?.user_defined_discounts && rateDiscountsConfig.user_defined_discounts.filter(d => d.enabled && d.trigger_type === 'manual').length > 0 && (
+                      <div className="space-y-3">
+                        <Label className="text-base font-medium">Available Discounts</Label>
+                        <div className="space-y-2">
+                          {rateDiscountsConfig.user_defined_discounts
+                            .filter(d => d.enabled && d.trigger_type === 'manual')
+                            .map((discount) => (
+                              <div key={discount.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50">
+                                <Checkbox
+                                  id={`discount-${discount.id}`}
+                                  checked={selectedDiscountIds.includes(discount.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedDiscountIds([...selectedDiscountIds, discount.id])
+                                    } else {
+                                      setSelectedDiscountIds(selectedDiscountIds.filter(id => id !== discount.id))
+                                    }
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <label htmlFor={`discount-${discount.id}`} className="font-medium cursor-pointer">
+                                    {discount.title}
+                                    <span className="ml-2 text-sm text-muted-foreground">
+                                      ({discount.discount_type === 'flat_amount'
+                                        ? `$${((discount.value_cents ?? 0) / 100).toFixed(2)} off`
+                                        : `${discount.value_percentage ?? 0}% off`})
+                                    </span>
+                                  </label>
+                                  {discount.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">{discount.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual Fees (Additional Charges) */}
+                    {pricingConfig?.user_defined_fees && pricingConfig.user_defined_fees.filter(f => f.enabled && f.trigger_type === 'manual').length > 0 && (
+                      <div className="space-y-3">
+                        <Label className="text-base font-medium">Additional Charges</Label>
+                        <div className="space-y-2">
+                          {pricingConfig.user_defined_fees
+                            .filter(f => f.enabled && f.trigger_type === 'manual')
+                            .map((fee) => (
+                              <div key={fee.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50">
+                                <Checkbox
+                                  id={`fee-${fee.id}`}
+                                  checked={selectedFeeIds.includes(fee.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedFeeIds([...selectedFeeIds, fee.id])
+                                    } else {
+                                      setSelectedFeeIds(selectedFeeIds.filter(id => id !== fee.id))
+                                    }
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <label htmlFor={`fee-${fee.id}`} className="font-medium cursor-pointer">
+                                    {fee.title}
+                                    <span className="ml-2 text-sm text-muted-foreground">
+                                      ({fee.fee_type === 'percentage_of_subtotal' || fee.fee_type === 'percentage_of_total'
+                                        ? `${fee.value_percentage ?? 0}%`
+                                        : `$${((fee.value_cents ?? 0) / 100).toFixed(2)}`}
+                                      {fee.fee_type === 'per_night' && '/night'}
+                                      {fee.fee_type === 'per_guest' && '/guest'}
+                                      {fee.fee_type === 'per_guest_per_night' && '/guest/night'})
+                                    </span>
+                                  </label>
+                                  {fee.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">{fee.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show message if no manual discounts/fees available */}
+                    {(!rateDiscountsConfig?.user_defined_discounts?.some(d => d.enabled && d.trigger_type === 'manual') &&
+                      !pricingConfig?.user_defined_fees?.some(f => f.enabled && f.trigger_type === 'manual')) && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No manual discounts or additional charges configured. Automatic discounts and charges will be applied based on booking details.
+                        </p>
+                      )}
+                  </CardContent>
+                </Card>
               )}
 
-              {/* Manual Fees (Additional Charges) */}
-              {pricingConfig?.user_defined_fees && pricingConfig.user_defined_fees.filter(f => f.enabled && f.trigger_type === 'manual').length > 0 && (
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Additional Charges</Label>
-                  <div className="space-y-2">
-                    {pricingConfig.user_defined_fees
-                      .filter(f => f.enabled && f.trigger_type === 'manual')
-                      .map((fee) => (
-                        <div key={fee.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50">
-                          <Checkbox
-                            id={`fee-${fee.id}`}
-                            checked={selectedFeeIds.includes(fee.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedFeeIds([...selectedFeeIds, fee.id])
-                              } else {
-                                setSelectedFeeIds(selectedFeeIds.filter(id => id !== fee.id))
-                              }
-                            }}
-                          />
-                          <div className="flex-1">
-                            <label htmlFor={`fee-${fee.id}`} className="font-medium cursor-pointer">
-                              {fee.title}
-                              <span className="ml-2 text-sm text-muted-foreground">
-                                ({fee.fee_type === 'percentage_of_subtotal' || fee.fee_type === 'percentage_of_total'
-                                  ? `${fee.value_percentage ?? 0}%`
-                                  : `$${((fee.value_cents ?? 0) / 100).toFixed(2)}`}
-                                {fee.fee_type === 'per_night' && '/night'}
-                                {fee.fee_type === 'per_guest' && '/guest'}
-                                {fee.fee_type === 'per_guest_per_night' && '/guest/night'})
-                              </span>
-                            </label>
-                            {fee.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{fee.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+              {/* Guest Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Step 3: Guest Information
+                  </CardTitle>
+                  <CardDescription>Contact details for the primary guest and family members</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Primary Guest */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Primary Guest</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="guestFirstName">First Name *</Label>
+                        <Input
+                          id="guestFirstName"
+                          {...register("guestFirstName")}
+                        />
+                        {errors.guestFirstName && (
+                          <p className="text-sm text-destructive mt-1">{errors.guestFirstName.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="guestLastName">Last Name *</Label>
+                        <Input
+                          id="guestLastName"
+                          {...register("guestLastName")}
+                        />
+                        {errors.guestLastName && (
+                          <p className="text-sm text-destructive mt-1">{errors.guestLastName.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="guestEmail">Email *</Label>
+                        <Input
+                          id="guestEmail"
+                          type="email"
+                          {...register("guestEmail")}
+                        />
+                        {errors.guestEmail && (
+                          <p className="text-sm text-destructive mt-1">{errors.guestEmail.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="guestPhone">Phone *</Label>
+                        <Input
+                          id="guestPhone"
+                          type="tel"
+                          {...register("guestPhone")}
+                        />
+                        {errors.guestPhone && (
+                          <p className="text-sm text-destructive mt-1">{errors.guestPhone.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="guestAddress">Address (Optional)</Label>
+                      <Input
+                        id="guestAddress"
+                        {...register("guestAddress")}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="guestCity">City</Label>
+                        <Input
+                          id="guestCity"
+                          {...register("guestCity")}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="guestState">State</Label>
+                        <Input
+                          id="guestState"
+                          {...register("guestState")}
+                          maxLength={2}
+                          placeholder="CA"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="guestZipCode">Zip Code</Label>
+                        <Input
+                          id="guestZipCode"
+                          {...register("guestZipCode")}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
+
+                  {/* Spouse/Partner Section */}
+                  <SpousePartnerSection
+                    isOpen={spouseOpen}
+                    onOpenChange={setSpouseOpen}
+                  />
+
+                  {/* Children Section */}
+                  <ChildrenList
+                    isOpen={childrenOpen}
+                    onOpenChange={setChildrenOpen}
+                    maxChildren={10}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Step 4: Vehicle Information */}
+              <VehicleInfoStep
+                maxVehicles={5}
+                showRVSection={true}
+              />
+
+              {/* Payment Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Step 5: Payment Information
+                  </CardTitle>
+                  <CardDescription>Payment method and amount</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="paymentMethod">Payment Method *</Label>
+                    <Select
+                      value={paymentMethod || ''}
+                      onValueChange={(value) => setValue("paymentMethod", value as any)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="credit_card">Credit Card</SelectItem>
+                        <SelectItem value="debit_card">Debit Card</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="paidAmount">Amount Paid (Optional)</Label>
+                    <Input
+                      id="paidAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      {...register("paidAmount")}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Leave empty if payment will be collected later
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="notes">Notes (Optional)</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Internal notes about this reservation..."
+                      rows={3}
+                      {...register("notes")}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="specialRequests">Special Requests (Optional)</Label>
+                    <Textarea
+                      id="specialRequests"
+                      placeholder="Guest special requests..."
+                      rows={3}
+                      {...register("specialRequests")}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Error Display */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
 
-              {/* Show message if no manual discounts/fees available */}
-              {(!rateDiscountsConfig?.user_defined_discounts?.some(d => d.enabled && d.trigger_type === 'manual') &&
-                !pricingConfig?.user_defined_fees?.some(f => f.enabled && f.trigger_type === 'manual')) && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No manual discounts or additional charges configured. Automatic discounts and charges will be applied based on booking details.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Guest Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Step 3: Guest Information
-            </CardTitle>
-            <CardDescription>Contact details for the primary guest and family members</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Primary Guest */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Primary Guest</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="guestFirstName">First Name *</Label>
-                  <Input
-                    id="guestFirstName"
-                    {...register("guestFirstName")}
-                  />
-                  {errors.guestFirstName && (
-                    <p className="text-sm text-destructive mt-1">{errors.guestFirstName.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="guestLastName">Last Name *</Label>
-                  <Input
-                    id="guestLastName"
-                    {...register("guestLastName")}
-                  />
-                  {errors.guestLastName && (
-                    <p className="text-sm text-destructive mt-1">{errors.guestLastName.message}</p>
-                  )}
-                </div>
+              {/* Submit Buttons */}
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/${propertyIdFromUrl}/reservations`)}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit"
+                  disabled={
+                    loading ||
+                    !selectedSiteId ||
+                    (totalNights > 0 &&
+                      stayType != null &&
+                      totalNights < STAY_TYPE_MIN_NIGHTS[stayType])
+                  }
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading ? "Creating..." : "Create Reservation"}
+                </Button>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="guestEmail">Email *</Label>
-                  <Input
-                    id="guestEmail"
-                    type="email"
-                    {...register("guestEmail")}
-                  />
-                  {errors.guestEmail && (
-                    <p className="text-sm text-destructive mt-1">{errors.guestEmail.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="guestPhone">Phone *</Label>
-                  <Input
-                    id="guestPhone"
-                    type="tel"
-                    {...register("guestPhone")}
-                  />
-                  {errors.guestPhone && (
-                    <p className="text-sm text-destructive mt-1">{errors.guestPhone.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="guestAddress">Address (Optional)</Label>
-                <Input
-                  id="guestAddress"
-                  {...register("guestAddress")}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="guestCity">City</Label>
-                  <Input
-                    id="guestCity"
-                    {...register("guestCity")}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="guestState">State</Label>
-                  <Input
-                    id="guestState"
-                    {...register("guestState")}
-                    maxLength={2}
-                    placeholder="CA"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="guestZipCode">Zip Code</Label>
-                  <Input
-                    id="guestZipCode"
-                    {...register("guestZipCode")}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Spouse/Partner Section */}
-            <SpousePartnerSection
-              isOpen={spouseOpen}
-              onOpenChange={setSpouseOpen}
-            />
-
-            {/* Children Section */}
-            <ChildrenList
-              isOpen={childrenOpen}
-              onOpenChange={setChildrenOpen}
-              maxChildren={10}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Step 4: Vehicle Information */}
-        <VehicleInfoStep
-          maxVehicles={5}
-          showRVSection={true}
-        />
-
-        {/* Payment Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Step 5: Payment Information
-            </CardTitle>
-            <CardDescription>Payment method and amount</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="paymentMethod">Payment Method *</Label>
-              <Select
-                value={paymentMethod || ''}
-                onValueChange={(value) => setValue("paymentMethod", value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="credit_card">Credit Card</SelectItem>
-                  <SelectItem value="debit_card">Debit Card</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="paidAmount">Amount Paid (Optional)</Label>
-              <Input
-                id="paidAmount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                {...register("paidAmount")}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Leave empty if payment will be collected later
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                placeholder="Internal notes about this reservation..."
-                rows={3}
-                {...register("notes")}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="specialRequests">Special Requests (Optional)</Label>
-              <Textarea
-                id="specialRequests"
-                placeholder="Guest special requests..."
-                rows={3}
-                {...register("specialRequests")}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Error Display */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Submit Buttons */}
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/dashboard/reservations")}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" 
-            disabled={
-              loading || 
-              !selectedSiteId || 
-              (totalNights > 0 &&
-                stayType != null &&
-                totalNights < STAY_TYPE_MIN_NIGHTS[stayType])
-            }
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Creating..." : "Create Reservation"}
-          </Button>
-        </div>
-          </form>
+            </form>
           </FormProvider>
         </div>
 

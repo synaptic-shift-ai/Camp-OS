@@ -194,9 +194,9 @@ export async function getReservations(
 
   // Build query with tenant isolation
   let query = supabase
-  .from('reservations')
-  .select(
-    `
+    .from('reservations')
+    .select(
+      `
       id,
       confirmation_number,
       guest_id,
@@ -228,11 +228,11 @@ export async function getReservations(
         site_type
       )
     `,
-    { count: 'exact' }
-  )
-  .eq('property_id', propertyId)
-  .order('created_at', { ascending: false })
-  .range(offset, offset + limit - 1)
+      { count: 'exact' }
+    )
+    .eq('property_id', propertyId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
   if (siteIdsFilter) {
     query = query.in('site_id', siteIdsFilter)

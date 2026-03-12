@@ -32,6 +32,7 @@ interface ReservationActionsProps {
   numAdults: number
   numChildren: number
   numPets: number
+  specialRequests?: string | null
   siteNumber: string
   siteName?: string | undefined
   pricePerNight: number
@@ -55,6 +56,7 @@ export function ReservationActions({
   numAdults,
   numChildren,
   numPets,
+  specialRequests,
   siteNumber,
   siteName,
   pricePerNight,
@@ -142,6 +144,7 @@ export function ReservationActions({
           numAdults={numAdults}
           numChildren={numChildren}
           numPets={numPets}
+          specialRequests={specialRequests ?? null}
           trigger={
             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
               Edit Reservation

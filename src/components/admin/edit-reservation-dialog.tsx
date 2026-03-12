@@ -27,6 +27,7 @@ interface EditReservationDialogProps {
   numAdults: number
   numChildren: number
   numPets: number
+  specialRequests?: string | null
   trigger?: React.ReactNode
 }
 
@@ -39,6 +40,7 @@ export function EditReservationDialog({
   numAdults,
   numChildren,
   numPets,
+  specialRequests,
   trigger,
 }: EditReservationDialogProps) {
   const [open, setOpen] = useState(false)
@@ -53,7 +55,7 @@ export function EditReservationDialog({
     numAdults: numAdults,
     numChildren: numChildren,
     numPets: numPets,
-    specialRequests: "",
+    specialRequests: specialRequests ?? "",
   })
 
   // Reset form when dialog opens
@@ -65,11 +67,11 @@ export function EditReservationDialog({
         numAdults: numAdults,
         numChildren: numChildren,
         numPets: numPets,
-        specialRequests: "",
+        specialRequests: specialRequests ?? "",
       })
       setError(null)
     }
-  }, [open, checkIn, checkOut, numAdults, numChildren, numPets])
+  }, [open, checkIn, checkOut, numAdults, numChildren, numPets, specialRequests])
 
   const handleSave = async () => {
     try {

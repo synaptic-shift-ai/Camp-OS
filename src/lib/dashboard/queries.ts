@@ -103,6 +103,8 @@ export interface DashboardReservation {
   status: ReservationStatus
   paymentStatus: ReservationPaymentStatus
   createdAt: string
+  specialRequests: string | null
+  checkInNotes: string | null
 }
 
 export interface DashboardPayment {
@@ -206,6 +208,8 @@ export async function getReservations(
       num_adults,
       num_children,
       num_pets,
+      special_requests,
+      check_in_notes,
       total_amount,
       paid_amount,
       refund_amount_cents,
@@ -311,6 +315,8 @@ export async function getReservations(
       status: reservation.status as ReservationStatus,
       paymentStatus: reservation.payment_status as ReservationPaymentStatus,
       createdAt: reservation.created_at!,
+      specialRequests: (reservation as { special_requests?: string | null }).special_requests ?? null,
+      checkInNotes: (reservation as { check_in_notes?: string | null }).check_in_notes ?? null,
     }
   })
 
@@ -422,6 +428,8 @@ export async function getReservation(
     status: data.status as ReservationStatus,
     paymentStatus: data.payment_status as ReservationPaymentStatus,
     createdAt: data.created_at!,
+    specialRequests: (data as { special_requests?: string | null }).special_requests ?? null,
+    checkInNotes: (data as { check_in_notes?: string | null }).check_in_notes ?? null,
   }
 }
 

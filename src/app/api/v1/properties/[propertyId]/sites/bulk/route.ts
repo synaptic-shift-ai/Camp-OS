@@ -75,10 +75,11 @@ export async function POST(
       )
     }
 
-    // BP-4: Verify user has access to this property
+    // BP-4: Verify user has access to this property; also fetch pricing config
+    // for property-defaults substitution (matches single-site POST behaviour)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, reservation_type_config')
       .eq('id', propertyId)
       .single()
 
@@ -136,6 +137,10 @@ export async function POST(
       )
     }
 
+    // Resolve the property's nightly rate for property-defaults substitution
+    const propertyConfig = property.reservation_type_config as Record<string, any> | null
+    const propertyNightlyRate: number = propertyConfig?.nightly?.rate_cents ?? 0
+
     // Execute commands using application layer
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
     const commandHandler = new CreateSiteCommand(repository)
@@ -146,15 +151,26 @@ export async function POST(
     // Process each site (could be optimized with batch operations in future)
     for (const siteRequest of validatedRequest) {
       try {
+        const siteId = crypto.randomUUID()
+
+        // When using property defaults (enabledReservationTypesOverride === null)
+        // and basePrice is 0, substitute the property's nightly rate — mirrors
+        // the single-site POST route behaviour.
+        const isUsingPropertyDefaults = siteRequest.enabledReservationTypesOverride === null
+        const effectiveBasePrice =
+          isUsingPropertyDefaults && siteRequest.basePrice === 0 && propertyNightlyRate > 0
+            ? propertyNightlyRate
+            : siteRequest.basePrice
+
         const site = await commandHandler.execute({
-          id: crypto.randomUUID(),
+          id: siteId,
           propertyId,
           siteNumber: siteRequest.siteNumber,
           siteName: siteRequest.siteName || null,
           siteType: siteRequest.siteType,
           description: siteRequest.description || null,
-          basePrice: siteRequest.basePrice,
-          weekendPrice: siteRequest.weekendPrice || siteRequest.basePrice,
+          basePrice: effectiveBasePrice,
+          weekendPrice: siteRequest.weekendPrice || effectiveBasePrice,
           maxOccupancy: siteRequest.maxOccupancy || null,
           maxVehicles: siteRequest.maxVehicles || null,
           sizeSqft: siteRequest.sizeSqft || null,
@@ -163,6 +179,27 @@ export async function POST(
           images: siteRequest.images || null,
           locationMap: siteRequest.locationMap || null,
         })
+
+        // Save reservation type overrides and rate overrides (mirrors single-site POST)
+        const extras: Record<string, unknown> = {}
+        if (siteRequest.enabledReservationTypesOverride !== undefined) {
+          extras.enabled_reservation_types_override = siteRequest.enabledReservationTypesOverride
+        }
+        if (siteRequest.weeklyRateCents != null) {
+          extras.weekly_rate_cents = siteRequest.weeklyRateCents
+        }
+        if (siteRequest.monthlyRateCents != null) {
+          extras.monthly_rate_cents = siteRequest.monthlyRateCents
+        }
+        if (siteRequest.seasonalRateCents != null) {
+          extras.seasonal_rate_cents = siteRequest.seasonalRateCents
+        }
+        if (siteRequest.defaultReservationType != null) {
+          extras.default_reservation_type = siteRequest.defaultReservationType
+        }
+        if (Object.keys(extras).length > 0) {
+          await supabase.from('sites').update(extras).eq('id', siteId)
+        }
 
         createdSites.push(toSiteDTO(site))
       } catch (siteError: any) {

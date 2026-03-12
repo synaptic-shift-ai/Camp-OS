@@ -135,12 +135,14 @@ function validateSite(site: ParsedSite, rowNumber: number): ParseError[] {
     })
   }
 
-  // Validate base_price is positive (required field)
-  if (site.base_price <= 0) {
+  // Validate base_price only when NOT using property defaults
+  // When use_property_defaults is TRUE, the property's nightly rate is used instead
+  if (site.use_property_defaults !== true && site.base_price <= 0) {
     errors.push({
       row: rowNumber,
       field: 'base_price',
-      message: 'Base price must be greater than $0.00',
+      message:
+        'Base Price must be greater than $0.00 when Use Property Defaults is FALSE',
       value: `$${(site.base_price / 100).toFixed(2)}`,
     })
   }
@@ -221,36 +223,33 @@ function validateSite(site: ParsedSite, rowNumber: number): ParseError[] {
     })
   }
 
-  // Validate seasonal_pricing structure
-  if (site.seasonal_pricing && Array.isArray(site.seasonal_pricing)) {
-    site.seasonal_pricing.forEach((pricing, index) => {
-      if (pricing.price !== undefined && pricing.price !== null && pricing.price < 0) {
-        errors.push({
-          row: rowNumber,
-          field: 'seasonal_pricing',
-          message: `Seasonal pricing entry ${index + 1} has negative price`,
-          value: `$${(pricing.price / 100).toFixed(2)}`,
-        })
-      }
+  // Validate seasonal_rate is non-negative if provided
+  if (site.seasonal_rate !== null && site.seasonal_rate !== undefined && site.seasonal_rate < 0) {
+    errors.push({
+      row: rowNumber,
+      field: 'seasonal_rate',
+      message: 'Seasonal rate cannot be negative',
+      value: `$${(site.seasonal_rate / 100).toFixed(2)}`,
+    })
+  }
 
-      // Validate date format if provided (YYYY-MM-DD)
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-      if (pricing.start_date && !dateRegex.test(pricing.start_date)) {
-        errors.push({
-          row: rowNumber,
-          field: 'seasonal_pricing',
-          message: `Seasonal pricing entry ${index + 1} has invalid start_date format. Use YYYY-MM-DD`,
-          value: pricing.start_date,
-        })
-      }
-      if (pricing.end_date && !dateRegex.test(pricing.end_date)) {
-        errors.push({
-          row: rowNumber,
-          field: 'seasonal_pricing',
-          message: `Seasonal pricing entry ${index + 1} has invalid end_date format. Use YYYY-MM-DD`,
-          value: pricing.end_date,
-        })
-      }
+  // Validate weekly_rate is non-negative if provided
+  if (site.weekly_rate !== null && site.weekly_rate !== undefined && site.weekly_rate < 0) {
+    errors.push({
+      row: rowNumber,
+      field: 'weekly_rate',
+      message: 'Weekly rate cannot be negative',
+      value: `$${(site.weekly_rate / 100).toFixed(2)}`,
+    })
+  }
+
+  // Validate monthly_rate is non-negative if provided
+  if (site.monthly_rate !== null && site.monthly_rate !== undefined && site.monthly_rate < 0) {
+    errors.push({
+      row: rowNumber,
+      field: 'monthly_rate',
+      message: 'Monthly rate cannot be negative',
+      value: `$${(site.monthly_rate / 100).toFixed(2)}`,
     })
   }
 

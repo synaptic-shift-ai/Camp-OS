@@ -2,7 +2,7 @@
  * Site CSV Template Generator
  *
  * Generates downloadable CSV template for bulk site upload.
- * Includes all available fields with example data and descriptions.
+ * Columns match the Add Site form fields (excluding image upload).
  */
 
 export interface CsvColumn {
@@ -16,8 +16,9 @@ export interface CsvColumn {
 }
 
 /**
- * Complete CSV column definitions for site import
- * Ordered logically: identification → type/capacity → pricing → amenities → metadata
+ * Complete CSV column definitions for site import.
+ * Order mirrors the Add Site form: identification → type/capacity → status →
+ * description → pricing/reservation types → hookups → amenities → pets/ADA.
  */
 export const CSV_COLUMNS: readonly CsvColumn[] = [
   // ========== Identification (Required) ==========
@@ -42,7 +43,7 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
   {
     key: 'site_type',
     header: 'Site Type',
-    required: false,
+    required: true,
     description: 'Type of site: tent, rv, cabin, glamping, yurt, or other',
     example: 'rv',
     type: 'enum',
@@ -73,12 +74,63 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     type: 'number',
   },
 
-  // ========== Pricing (in dollars) ==========
+  // ========== Status ==========
+  {
+    key: 'status',
+    header: 'Status',
+    required: false,
+    description:
+      'Site status: available, reserved, booked, occupied, housekeeping, maintenance, or unavailable',
+    example: 'available',
+    type: 'enum',
+    enumValues: [
+      'available',
+      'reserved',
+      'booked',
+      'occupied',
+      'housekeeping',
+      'maintenance',
+      'unavailable',
+    ] as const,
+  },
+
+  // ========== Description ==========
+  {
+    key: 'description',
+    header: 'Description',
+    required: false,
+    description: 'Site description (max 1000 characters)',
+    example: 'Spacious RV site with full hookups and lake view',
+    type: 'string',
+  },
+
+  // ========== Pricing & Reservation Types ==========
+  // use_property_defaults controls whether the site overrides property pricing.
+  // Set FALSE + fill enabled_reservation_types + rate columns to override.
+  {
+    key: 'use_property_defaults',
+    header: 'Use Property Defaults',
+    required: false,
+    description:
+      'TRUE to inherit property pricing/reservation types; FALSE to set custom rates below (default: TRUE)',
+    example: 'FALSE',
+    type: 'boolean',
+  },
+  {
+    key: 'enabled_reservation_types',
+    header: 'Enabled Reservation Types',
+    required: false,
+    description:
+      'Active reservation types when Use Property Defaults is FALSE. JSON array: ["nightly","weekly","monthly","seasonal"]',
+    example: '["nightly","weekly"]',
+    type: 'json_array',
+  },
   {
     key: 'base_price',
     header: 'Base Price ($)',
-    required: true,
-    description: 'Nightly rate in dollars (will be converted to cents)',
+    required: false,
+    description:
+      'Nightly base rate in dollars. Required (> 0) only when Use Property Defaults is FALSE. Leave empty or 0 to inherit the property nightly rate.',
     example: '45.00',
     type: 'number',
   },
@@ -86,23 +138,46 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     key: 'weekend_price',
     header: 'Weekend Price ($)',
     required: false,
-    description: 'Weekend nightly rate in dollars (optional)',
+    description: 'Weekend nightly rate in dollars (Fri/Sat, optional)',
     example: '55.00',
     type: 'number',
   },
-
-  // ========== Status ==========
   {
-    key: 'status',
-    header: 'Status',
+    key: 'weekly_rate',
+    header: 'Weekly Rate ($/night)',
     required: false,
-    description: 'Site status: available, unavailable, or maintenance',
-    example: 'available',
+    description: 'Weekly per-night rate in dollars. Leave empty to use base rate.',
+    example: '40.00',
+    type: 'number',
+  },
+  {
+    key: 'monthly_rate',
+    header: 'Monthly Rate ($/night)',
+    required: false,
+    description: 'Monthly per-night rate in dollars. Leave empty to use base rate.',
+    example: '35.00',
+    type: 'number',
+  },
+  {
+    key: 'seasonal_rate',
+    header: 'Seasonal Rate ($)',
+    required: false,
+    description: 'Seasonal flat rate in dollars. Leave empty to use property seasonal rate.',
+    example: '',
+    type: 'number',
+  },
+  {
+    key: 'default_reservation_type',
+    header: 'Default Reservation Type',
+    required: false,
+    description:
+      'Suggested reservation type when guests book this site: nightly, weekly, monthly, or seasonal',
+    example: 'nightly',
     type: 'enum',
-    enumValues: ['available', 'unavailable', 'maintenance'] as const,
+    enumValues: ['nightly', 'weekly', 'monthly', 'seasonal'] as const,
   },
 
-  // ========== Hookups & Basic Amenities ==========
+  // ========== Hookups ==========
   {
     key: 'hookups',
     header: 'Hookups',
@@ -111,11 +186,14 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     example: '["water","electric","sewer"]',
     type: 'json_array',
   },
+
+  // ========== Amenities ==========
   {
     key: 'amenities',
     header: 'Amenities',
     required: false,
-    description: 'JSON array of amenities: ["fire_pit","picnic_table","grill","shade","pet_friendly","lake_view","waterfront"]',
+    description:
+      'JSON array of amenities: ["fire_pit","picnic_table","grill","shade","pet_friendly","lake_view","waterfront"]',
     example: '["fire_pit","picnic_table","lake_view"]',
     type: 'json_array',
   },
@@ -133,7 +211,7 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     key: 'pet_fee',
     header: 'Pet Fee ($)',
     required: false,
-    description: 'One-time pet fee in dollars (optional)',
+    description: 'One-time pet fee in dollars (optional, only used when Allow Pets is TRUE)',
     example: '15.00',
     type: 'number',
   },
@@ -151,19 +229,10 @@ export const CSV_COLUMNS: readonly CsvColumn[] = [
     key: 'accessibility_features',
     header: 'Accessibility Features',
     required: false,
-    description: 'JSON array of features: ["wheelchair_accessible","wide_paths","accessible_table","accessible_restroom","handrails","level_ground"]',
+    description:
+      'JSON array of features (only when ADA Accessible is TRUE): ["wheelchair_accessible","wide_paths","accessible_table","accessible_restroom","handrails","level_ground"]',
     example: '["wheelchair_accessible","wide_paths","level_ground"]',
     type: 'json_array',
-  },
-
-  // ========== Description ==========
-  {
-    key: 'description',
-    header: 'Description',
-    required: false,
-    description: 'Site description (max 1000 characters)',
-    example: 'Spacious RV site with full hookups and lake view',
-    type: 'string',
   },
 ] as const
 
@@ -179,17 +248,16 @@ export function generateCsvHeader(): string {
  */
 export function generateExampleRow(): string {
   return CSV_COLUMNS.map((col) => {
-    // Wrap strings containing commas or quotes in quotes
     const value = col.example
     if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-      return `"${value.replace(/"/g, '""')}"` // Escape quotes
+      return `"${value.replace(/"/g, '""')}"`
     }
     return value
   }).join(',')
 }
 
 /**
- * Generate second example row with different site type
+ * Generate second example row — tent site using property defaults
  */
 export function generateExampleRow2(): string {
   const examples: Record<string, string> = {
@@ -199,21 +267,26 @@ export function generateExampleRow2(): string {
     max_occupancy: '4',
     max_vehicles: '1',
     size_sqft: '800',
-    base_price: '30.00',
-    weekend_price: '35.00',
     status: 'available',
+    description: 'Shaded tent site with water hookup',
+    use_property_defaults: 'TRUE',
+    enabled_reservation_types: '',
+    base_price: '',
+    weekend_price: '',
+    weekly_rate: '',
+    monthly_rate: '',
+    seasonal_rate: '',
+    default_reservation_type: '',
     hookups: '["water"]',
     amenities: '["fire_pit","picnic_table","shade"]',
     allow_pets: 'TRUE',
-    pet_fee: '15.00',
+    pet_fee: '10.00',
     ada_accessible: 'FALSE',
-    description: 'Shaded tent site with water hookup',
-    accessibility_features: '[]',
-    seasonal_pricing: '[]',
+    accessibility_features: '',
   }
 
   return CSV_COLUMNS.map((col) => {
-    const value = examples[col.key] || ''
+    const value = examples[col.key] ?? ''
     if (value.includes(',') || value.includes('"') || value.includes('\n')) {
       return `"${value.replace(/"/g, '""')}"`
     }
@@ -222,14 +295,10 @@ export function generateExampleRow2(): string {
 }
 
 /**
- * Generate complete CSV template with header and example rows
+ * Generate complete CSV template with header and two example rows
  */
 export function generateCsvTemplate(): string {
-  const lines = [
-    generateCsvHeader(),
-    generateExampleRow(),
-    generateExampleRow2(),
-  ]
+  const lines = [generateCsvHeader(), generateExampleRow(), generateExampleRow2()]
   return lines.join('\n')
 }
 
@@ -243,7 +312,6 @@ export function generateCsvTemplateBlob(): Blob {
 
 /**
  * Download CSV template file
- * @param filename - Name for downloaded file (defaults to "site-import-template.csv")
  */
 export function downloadCsvTemplate(filename: string = 'site-import-template.csv'): void {
   const blob = generateCsvTemplateBlob()
@@ -257,7 +325,6 @@ export function downloadCsvTemplate(filename: string = 'site-import-template.csv
   document.body.appendChild(link)
   link.click()
 
-  // Cleanup
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
 }
@@ -284,9 +351,7 @@ export function validateRequiredColumns(headers: string[]): {
   missing: string[]
 } {
   const requiredKeys = getRequiredColumns()
-  const headerKeys = CSV_COLUMNS.filter((col) =>
-    headers.includes(col.header)
-  ).map((col) => col.key)
+  const headerKeys = CSV_COLUMNS.filter((col) => headers.includes(col.header)).map((col) => col.key)
 
   const missing = requiredKeys.filter((key) => !headerKeys.includes(key))
 

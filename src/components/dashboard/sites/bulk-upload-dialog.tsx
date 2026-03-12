@@ -20,7 +20,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Upload, CheckCircle2, AlertCircle, Loader2, FileText, TriangleAlert } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ import { CsvPreviewTable } from './csv-preview-table'
 import { CsvErrorReport } from './csv-error-report'
 import {
   parseSitesCsv,
+  parsedSiteToApiRequest,
   type ParseError,
   type ParseResult,
 } from '@/lib/csv/parse-sites-csv'
@@ -139,7 +140,7 @@ export function BulkUploadDialog({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(parseResult.data),
+        body: JSON.stringify(parseResult.data.map(parsedSiteToApiRequest)),
       })
 
       const result = await response.json()
@@ -184,7 +185,7 @@ export function BulkUploadDialog({
     setAllErrors([])
   }, [])
 
-  // Get summary text
+  // Summary cards for the preview step
   const getSummary = useCallback(() => {
     if (!parseResult) return null
 
@@ -195,34 +196,58 @@ export function BulkUploadDialog({
     )
 
     return (
-      <div className="grid grid-cols-2 gap-4 rounded-lg border p-4">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Total Rows</p>
-          <p className="text-2xl font-bold">{summary.totalRows}</p>
+      <div className="grid grid-cols-3 gap-3">
+        {/* Total rows */}
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background border">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Total Rows</p>
+            <p className="text-2xl font-bold tabular-nums">{summary.totalRows}</p>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Valid Sites</p>
-          <p className="text-2xl font-bold text-green-600">{summary.validRows}</p>
+
+        {/* Valid sites */}
+        <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          </div>
+          <div>
+            <p className="text-xs text-green-700">Valid Sites</p>
+            <p className="text-2xl font-bold tabular-nums text-green-700">{summary.validRows}</p>
+          </div>
         </div>
-        {summary.errorCount > 0 && (
-          <>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Errors</p>
-              <p className="text-2xl font-bold text-destructive">{summary.errorCount}</p>
-            </div>
-          </>
-        )}
+
+        {/* Errors */}
+        <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${summary.errorCount > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-muted bg-muted/30'}`}>
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${summary.errorCount > 0 ? 'bg-destructive/10' : 'bg-background border'}`}>
+            <TriangleAlert className={`h-4 w-4 ${summary.errorCount > 0 ? 'text-destructive' : 'text-muted-foreground/40'}`} />
+          </div>
+          <div>
+            <p className={`text-xs ${summary.errorCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+              Errors
+            </p>
+            <p className={`text-2xl font-bold tabular-nums ${summary.errorCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {summary.errorCount}
+            </p>
+          </div>
+        </div>
       </div>
     )
   }, [parseResult, hasErrors, allErrors])
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/*
+       * overflow-hidden + flex flex-col keeps the dialog at a fixed height so
+       * only the body area scrolls — header and footer stay pinned.
+       */}
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
         {/* Upload Step */}
         {step === 'upload' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6 pb-4 pr-12 shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5" />
                 Bulk Import Sites
@@ -233,25 +258,25 @@ export function BulkUploadDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-4">
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 py-2 space-y-4">
               <CsvUploadDropzone
                 onFileSelect={handleFileSelect}
                 onClear={() => setSelectedFile(null)}
                 selectedFile={selectedFile}
                 disabled={isProcessing}
               />
+
+              {isProcessing && (
+                <Alert>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <AlertDescription>
+                    Processing CSV file… This may take a few seconds.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
-            {isProcessing && (
-              <Alert>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <AlertDescription>
-                  Processing CSV file... This may take a few seconds.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <DialogFooter>
+            <DialogFooter className="px-6 py-4 border-t shrink-0">
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
@@ -262,7 +287,7 @@ export function BulkUploadDialog({
         {/* Preview Step */}
         {step === 'preview' && parseResult && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6 pb-4 pr-12 shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 {hasErrors ? (
                   <AlertCircle className="h-5 w-5 text-destructive" />
@@ -278,32 +303,37 @@ export function BulkUploadDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-6 py-4">
-              {/* Summary */}
+            {/* Only this area scrolls — header and footer remain fixed */}
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-5">
               {getSummary()}
 
-              {/* Errors */}
               {hasErrors && <CsvErrorReport errors={allErrors} />}
 
-              {/* Preview (only if no errors) */}
               {!hasErrors && (
                 <>
-                  <div>
-                    <h3 className="font-medium mb-3">Preview Sites</h3>
-                    <CsvPreviewTable sites={parseResult.data} />
+                  {/* Section header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold">Preview Sites</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Review data before confirming the import
+                      </p>
+                    </div>
                   </div>
 
-                  <Alert>
-                    <AlertDescription>
-                      <strong>Note:</strong> Import is atomic. All sites will be
-                      imported or none will be imported if any error occurs.
-                    </AlertDescription>
-                  </Alert>
+                  <CsvPreviewTable sites={parseResult.data} />
                 </>
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="px-6 py-3 border-t shrink-0">
+              {/* Atomic note lives in the footer so it's always visible */}
+              {!hasErrors && (
+                <div className="mr-auto flex items-center gap-2 text-xs text-amber-700">
+                  <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <span>Import is atomic. All sites will be imported or none will be imported if any error occurs.</span>
+                </div>
+              )}
               <Button variant="outline" onClick={handleBack}>
                 Back
               </Button>
@@ -320,7 +350,7 @@ export function BulkUploadDialog({
         {/* Importing Step */}
         {step === 'importing' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6 pb-4 pr-12 shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Importing Sites...
@@ -330,7 +360,7 @@ export function BulkUploadDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex items-center justify-center py-12">
+            <div className="flex flex-1 items-center justify-center py-12">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
           </>
@@ -339,7 +369,7 @@ export function BulkUploadDialog({
         {/* Success Step */}
         {step === 'success' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6 pb-4 pr-12 shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
                 Import Successful
@@ -349,7 +379,7 @@ export function BulkUploadDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="flex flex-1 flex-col items-center justify-center py-12 space-y-4">
               <div className="rounded-full bg-green-100 p-6">
                 <CheckCircle2 className="h-12 w-12 text-green-600" />
               </div>
@@ -361,7 +391,7 @@ export function BulkUploadDialog({
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="px-6 py-4 border-t shrink-0">
               <Button onClick={handleComplete}>Done</Button>
             </DialogFooter>
           </>

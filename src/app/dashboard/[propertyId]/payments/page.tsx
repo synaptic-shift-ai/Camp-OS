@@ -1,48 +1,16 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DollarSign, Clock, CreditCard } from "lucide-react"
 import { getPayments, getDashboardStats } from "@/lib/dashboard/queries"
-import type { PaymentStatus } from "@/contracts/booking"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { redirect } from "next/navigation"
+import { PaymentsTable } from "@/components/dashboard/payments/payments-table"
 
-const statusColors: Record<PaymentStatus, string> = {
-  pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  completed: "bg-green-500/10 text-green-500 border-green-500/20",
-  failed: "bg-red-500/10 text-red-500 border-red-500/20",
-  refunded: "bg-gray-500/10 text-gray-500 border-gray-500/20",
-}
-
-/**
- * Format money from integer cents to dollar display
- */
 function formatMoney(cents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(cents / 100)
-}
-
-/**
- * Format date for display
- */
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-/**
- * Format payment method for display
- */
-function formatPaymentMethod(method: string): string {
-  return method.split('_').map(word =>
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ')
 }
 
 async function PaymentStats({ propertyId }: { propertyId: string }) {
@@ -84,59 +52,22 @@ async function PaymentStats({ propertyId }: { propertyId: string }) {
   )
 }
 
-async function PaymentsTable({ propertyId }: { propertyId: string }) {
-  // Fetch all payments for this property
-  const { data: payments } = await getPayments(propertyId, {}, 1, 100)
-
-  if (payments.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No payments yet. Payments will appear here after bookings.</p>
-      </div>
-    )
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>Guest</TableHead>
-          <TableHead>Reservation</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Method</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {payments.map((payment) => (
-          <TableRow key={payment.id}>
-            <TableCell>{formatDate(payment.createdAt)}</TableCell>
-            <TableCell className="font-medium">{payment.guestName}</TableCell>
-            <TableCell>{payment.confirmationNumber}</TableCell>
-            <TableCell>{formatMoney(payment.amount)}</TableCell>
-            <TableCell>{formatPaymentMethod(payment.paymentMethod)}</TableCell>
-            <TableCell>
-              <Badge
-                variant="outline"
-                className={statusColors[payment.paymentStatus]}
-              >
-                {payment.paymentStatus}
-              </Badge>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
+type PageProps = {
+  params: Promise<{ propertyId: string }>
+  searchParams: Promise<{ page?: string }>
 }
 
-type PageProps = { params: Promise<{ propertyId: string }> }
-
-export default async function PaymentsPage({ params }: PageProps) {
+export default async function PaymentsPage({ params, searchParams }: PageProps) {
   const { propertyId } = await params
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
+
+  const { page: pageParam } = await searchParams
+  const currentPage =
+    Number.isNaN(Number(pageParam)) || !pageParam ? 1 : Math.max(1, Number(pageParam))
+  const pageSize = 10
+
+  const { data: payments, total } = await getPayments(propertyId, {}, currentPage, pageSize)
 
   return (
     <div className="space-y-6">
@@ -145,20 +76,22 @@ export default async function PaymentsPage({ params }: PageProps) {
         <p className="text-muted-foreground">Track and manage all transactions</p>
       </div>
 
-      <Suspense fallback={
-        <div className="grid gap-4 md:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <CardTitle className="text-sm">Loading...</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted animate-pulse rounded" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="grid gap-4 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <CardTitle className="text-sm">Loading...</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-8 bg-muted animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        }
+      >
         <PaymentStats propertyId={propertyId} />
       </Suspense>
 
@@ -168,13 +101,13 @@ export default async function PaymentsPage({ params }: PageProps) {
           <CardDescription>View all payment transactions</CardDescription>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading payments...</p>
-            </div>
-          }>
-            <PaymentsTable propertyId={propertyId} />
-          </Suspense>
+          <PaymentsTable
+            propertyId={propertyId}
+            payments={payments}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            total={total}
+          />
         </CardContent>
       </Card>
     </div>

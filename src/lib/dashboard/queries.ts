@@ -798,7 +798,9 @@ export interface GuestFilters {
 
 export async function getGuests(
   propertyId: string,
-  filters: GuestFilters = { search: undefined }
+  filters: GuestFilters = { search: undefined },
+  page = 1,
+  limit = 50
 ): Promise<{ data: DashboardGuest[]; total: number }> {
   const supabase = await createClient()
 
@@ -892,9 +894,13 @@ export async function getGuests(
   // Sort by total spent (highest first)
   guests.sort((a, b) => b.totalSpent - a.totalSpent)
 
+  const total = guests.length
+  const offset = (page - 1) * limit
+  const data = guests.slice(offset, offset + limit)
+
   return {
-    data: guests,
-    total: guests.length,
+    data,
+    total,
   }
 }
 

@@ -15,7 +15,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Loader2, CalendarDays, AlertCircle, Mail, User } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Loader2, CalendarDays, AlertCircle, Mail } from 'lucide-react'
 import type { DashboardGuest } from '@/lib/dashboard/queries'
 
 interface GuestReservationsSheetProps {
@@ -71,6 +72,17 @@ function formatMoney(dollars: number) {
   }).format(dollars)
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const first = parts[0]
+  if (!first) return '?'
+  if (parts.length >= 2) {
+    const second = parts[1]
+    return ((first[0] ?? '') + (second?.[0] ?? '')).toUpperCase().slice(0, 2)
+  }
+  return first.slice(0, 2).toUpperCase() || '?'
+}
+
 export function GuestReservationsSheet({
   open,
   onOpenChange,
@@ -116,13 +128,15 @@ export function GuestReservationsSheet({
 
         <div className="mt-4 rounded-lg border bg-muted/30 p-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-5 w-5 text-primary" strokeWidth={2.5} />
-            </div>
+            <Avatar className="h-10 w-10">
+              <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium">
+                {getInitials(guest.name)}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0 flex-1 space-y-1">
               <p className="font-semibold text-foreground">{guest.name}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-3.5 w-3.5 shrink-0" />
+                <Mail className="h-3.5 w-3.5" />
                 <span className="truncate">{guest.email}</span>
               </div>
               <p className="text-xs text-muted-foreground">

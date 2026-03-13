@@ -99,8 +99,7 @@ export function GuestsTable({
                   <TableCell className="py-1.5">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src="/generic-placeholder-graphic.png?height=40&width=40" />
-                        <AvatarFallback className="text-xs">
+                        <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium">
                           {guest.name.split(" ").map((n) => n[0]).join("")}
                         </AvatarFallback>
                       </Avatar>
@@ -126,10 +125,10 @@ export function GuestsTable({
                   <TableCell className="py-1.5">
                     {guest.lastVisit
                       ? new Date(guest.lastVisit).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
                       : "N/A"}
                   </TableCell>
                   <TableCell className="py-0.5">

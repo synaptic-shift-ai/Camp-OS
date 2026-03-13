@@ -11,17 +11,22 @@ import { ReservationsTable } from "@/components/dashboard/reservations/reservati
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
-  searchParams: Promise<{ siteType?: string; page?: string }>
+  searchParams: Promise<{ siteType?: string; page?: string; pageSize?: string }>
 }
 
 export default async function ReservationsPage({ params, searchParams }: PageProps) {
   const { propertyId } = await params
-  const { siteType: siteTypeParam, page: pageParam } = await searchParams
+  const { siteType: siteTypeParam, page: pageParam, pageSize: pageSizeParam } =
+    await searchParams
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
 
   const currentPage = Number.isNaN(Number(pageParam)) || !pageParam ? 1 : Math.max(1, Number(pageParam))
-  const pageSize = 10
+  const parsedPageSize =
+    Number.isNaN(Number(pageSizeParam)) || !pageSizeParam
+      ? undefined
+      : Number(pageSizeParam)
+  const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
 
   const siteTypesFromDb = await getDistinctSiteTypes(propertyId)
   const siteTypeFilter = siteTypeParam && siteTypeParam !== 'all' ? siteTypeParam : undefined

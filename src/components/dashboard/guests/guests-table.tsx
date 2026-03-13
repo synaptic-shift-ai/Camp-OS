@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { Mail, Phone } from "lucide-react"
 import { GuestActions } from "./guest-actions"
 import type { DashboardGuest } from "@/lib/dashboard/queries"
@@ -59,6 +60,7 @@ export function GuestsTable({
   const buildPageHref = (page: number) => {
     const params = new URLSearchParams()
     params.set("page", String(page))
+    params.set("pageSize", String(pageSize))
     if (searchQuery) params.set("search", searchQuery)
     return `/dashboard/${propertyId}/guests?${params.toString()}`
   }
@@ -66,6 +68,16 @@ export function GuestsTable({
   const goToPage = (page: number) => {
     startTransition(() => {
       router.push(buildPageHref(page))
+    })
+  }
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    startTransition(() => {
+      const params = new URLSearchParams()
+      params.set("page", "1")
+      params.set("pageSize", String(nextPageSize))
+      if (searchQuery) params.set("search", searchQuery)
+      router.push(`/dashboard/${propertyId}/guests?${params.toString()}`)
     })
   }
 
@@ -81,7 +93,7 @@ export function GuestsTable({
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
-        <div className="max-h-[calc(100vh-260px)] overflow-y-auto border rounded-md">
+        <div className="border rounded-md">
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="h-8">
@@ -142,12 +154,19 @@ export function GuestsTable({
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium">
-            {startIndex}–{endIndex}
-          </span>{" "}
-          of <span className="font-medium">{total}</span> guests
+        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium">{total}</span> guests
+          </div>
+          <PageSizeSelector
+            value={pageSize}
+            onChange={handlePageSizeChange}
+            disabled={isPending}
+          />
         </div>
         <Pagination
           currentPage={clampedCurrentPage}

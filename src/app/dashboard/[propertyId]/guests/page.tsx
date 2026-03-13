@@ -7,7 +7,7 @@ import { GuestsTable } from "@/components/dashboard/guests/guests-table"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined; pageSize?: string }>
 }
 
 export default async function GuestsPage({ params, searchParams }: PageProps) {
@@ -20,7 +20,12 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
   const pageParam = search.page
   const currentPage =
     Number.isNaN(Number(pageParam)) || !pageParam ? 1 : Math.max(1, Number(pageParam))
-  const pageSize = 10
+  const pageSizeParam = typeof search.pageSize === "string" ? search.pageSize : undefined
+  const parsedPageSize =
+    Number.isNaN(Number(pageSizeParam)) || !pageSizeParam
+      ? undefined
+      : Number(pageSizeParam)
+  const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
 
   const { data: guests, total } = await getGuests(
     propertyId,

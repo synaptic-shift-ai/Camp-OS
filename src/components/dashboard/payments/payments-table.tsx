@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import type { PaymentStatus } from "@/contracts/booking"
 import type { DashboardPayment } from "@/lib/dashboard/queries"
 
@@ -78,12 +79,22 @@ export function PaymentsTable({
   const buildPageHref = (page: number) => {
     const params = new URLSearchParams()
     params.set("page", String(page))
+    params.set("pageSize", String(pageSize))
     return `/dashboard/${propertyId}/payments?${params.toString()}`
   }
 
   const goToPage = (page: number) => {
     startTransition(() => {
       router.push(buildPageHref(page))
+    })
+  }
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    startTransition(() => {
+      const params = new URLSearchParams()
+      params.set("page", "1")
+      params.set("pageSize", String(nextPageSize))
+      router.push(`/dashboard/${propertyId}/payments?${params.toString()}`)
     })
   }
 
@@ -145,12 +156,19 @@ export function PaymentsTable({
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium">
-            {startIndex}–{endIndex}
-          </span>{" "}
-          of <span className="font-medium">{total}</span> payments
+        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium">{total}</span> payments
+          </div>
+          <PageSizeSelector
+            value={pageSize}
+            onChange={handlePageSizeChange}
+            disabled={isPending}
+          />
         </div>
         <Pagination
           currentPage={clampedCurrentPage}

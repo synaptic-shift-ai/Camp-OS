@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { ReservationActions } from "@/components/admin/reservation-actions"
 import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import type { ReservationStatus } from "@/contracts/booking"
 import type { DashboardReservation } from "@/lib/dashboard/queries"
 import { RateDiscountsConfig } from "@/lib/config/types"
@@ -70,9 +71,36 @@ export function ReservationsTable({
   const [isPending, startTransition] = useTransition()
   const [selectedReservation, setSelectedReservation] = useState<DashboardReservation | null>(null)
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const clampedCurrentPage = Math.min(Math.max(currentPage, 1), totalPages)
+  const startIndex = (clampedCurrentPage - 1) * pageSize + 1
+  const endIndex = Math.min(total, clampedCurrentPage * pageSize)
+
+  const buildPageHref = (page: number) => {
+    const params = new URLSearchParams()
+    params.set("page", String(page))
+    params.set("pageSize", String(pageSize))
+    if (siteType) {
+      params.set("siteType", siteType)
+    }
+    return `/dashboard/${propertyId}/reservations?${params.toString()}`
+  }
+
   const goToPage = (page: number) => {
     startTransition(() => {
       router.push(buildPageHref(page))
+    })
+  }
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    startTransition(() => {
+      const params = new URLSearchParams()
+      params.set("page", "1")
+      params.set("pageSize", String(nextPageSize))
+      if (siteType) {
+        params.set("siteType", siteType)
+      }
+      router.push(`/dashboard/${propertyId}/reservations?${params.toString()}`)
     })
   }
 
@@ -82,20 +110,6 @@ export function ReservationsTable({
         No reservations found for this view.
       </div>
     )
-  }
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const clampedCurrentPage = Math.min(Math.max(currentPage, 1), totalPages)
-  const startIndex = (clampedCurrentPage - 1) * pageSize + 1
-  const endIndex = Math.min(total, clampedCurrentPage * pageSize)
-
-  const buildPageHref = (page: number) => {
-    const params = new URLSearchParams()
-    params.set("page", String(page))
-    if (siteType) {
-      params.set("siteType", siteType)
-    }
-    return `/dashboard/${propertyId}/reservations?${params.toString()}`
   }
 
   return (
@@ -110,7 +124,7 @@ export function ReservationsTable({
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
-        <div className="max-h-[calc(100vh-260px)] overflow-y-auto border rounded-md">
+        <div className="border rounded-md">
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="h-8">
@@ -235,12 +249,19 @@ export function ReservationsTable({
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium">
-            {startIndex}–{endIndex}
-          </span>{" "}
-          of <span className="font-medium">{total}</span> reservations
+        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium">{total}</span> reservations
+          </div>
+          <PageSizeSelector
+            value={pageSize}
+            onChange={handlePageSizeChange}
+            disabled={isPending}
+          />
         </div>
         <Pagination
           currentPage={clampedCurrentPage}

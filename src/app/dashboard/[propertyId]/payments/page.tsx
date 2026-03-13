@@ -54,7 +54,7 @@ async function PaymentStats({ propertyId }: { propertyId: string }) {
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; pageSize?: string }>
 }
 
 export default async function PaymentsPage({ params, searchParams }: PageProps) {
@@ -62,10 +62,14 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
 
-  const { page: pageParam } = await searchParams
+  const { page: pageParam, pageSize: pageSizeParam } = await searchParams
   const currentPage =
     Number.isNaN(Number(pageParam)) || !pageParam ? 1 : Math.max(1, Number(pageParam))
-  const pageSize = 10
+  const parsedPageSize =
+    Number.isNaN(Number(pageSizeParam)) || !pageSizeParam
+      ? undefined
+      : Number(pageSizeParam)
+  const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
 
   const { data: payments, total } = await getPayments(propertyId, {}, currentPage, pageSize)
 

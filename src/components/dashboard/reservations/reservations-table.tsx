@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -19,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ReservationActions } from "@/components/admin/reservation-actions"
+import { Pagination } from "@/components/ui/pagination"
 import type { ReservationStatus } from "@/contracts/booking"
 import type { DashboardReservation } from "@/lib/dashboard/queries"
 
@@ -63,7 +63,15 @@ export function ReservationsTable({
   total,
   siteType,
 }: ReservationsTableProps) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [selectedReservation, setSelectedReservation] = useState<DashboardReservation | null>(null)
+
+  const goToPage = (page: number) => {
+    startTransition(() => {
+      router.push(buildPageHref(page))
+    })
+  }
 
   if (!reservations.length) {
     return (
@@ -89,168 +97,154 @@ export function ReservationsTable({
 
   return (
     <>
-      <div className="max-h-[calc(100vh-260px)] overflow-y-auto border rounded-md">
-        <Table className="text-xs">
-          <TableHeader className="sticky top-0 z-10 bg-background">
-            <TableRow className="h-8">
-              <TableHead className="py-1.5">Confirmation</TableHead>
-              <TableHead className="py-1.5">Guest</TableHead>
-              <TableHead className="py-1.5">Site</TableHead>
-              <TableHead className="py-1.5">Check-in</TableHead>
-              <TableHead className="py-1.5">Check-out</TableHead>
-              <TableHead className="py-1.5">Nights</TableHead>
-              <TableHead className="py-1.5">Guests</TableHead>
-              <TableHead className="py-1.5">Total</TableHead>
-              <TableHead className="py-1.5">Paid</TableHead>
-              <TableHead className="py-1.5">Balance</TableHead>
-              <TableHead className="py-1.5">Refunded</TableHead>
-              <TableHead className="py-1.5">Status</TableHead>
-              <TableHead className="w-10 py-1.5" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {reservations.map((reservation) => {
-              const amountDueCents = Math.max(
-                0,
-                reservation.totalAmount - reservation.paidAmount
-              )
-              const balanceCents = Math.max(
-                0,
-                reservation.totalAmount - reservation.paidAmount
-              )
-              const hasOutstandingBalance = amountDueCents > 0
+      <div className="relative">
+        {isPending && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-background/60"
+            aria-busy="true"
+            aria-label="Loading reservations"
+          >
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        )}
+        <div className="max-h-[calc(100vh-260px)] overflow-y-auto border rounded-md">
+          <Table className="text-xs">
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow className="h-8">
+                <TableHead className="py-1.5">Confirmation</TableHead>
+                <TableHead className="py-1.5">Guest</TableHead>
+                <TableHead className="py-1.5">Site</TableHead>
+                <TableHead className="py-1.5">Check-in</TableHead>
+                <TableHead className="py-1.5">Check-out</TableHead>
+                <TableHead className="py-1.5">Nights</TableHead>
+                <TableHead className="py-1.5">Guests</TableHead>
+                <TableHead className="py-1.5">Total</TableHead>
+                <TableHead className="py-1.5">Paid</TableHead>
+                <TableHead className="py-1.5">Balance</TableHead>
+                <TableHead className="py-1.5">Refunded</TableHead>
+                <TableHead className="py-1.5">Status</TableHead>
+                <TableHead className="w-10 py-1.5" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reservations.map((reservation) => {
+                const amountDueCents = Math.max(
+                  0,
+                  reservation.totalAmount - reservation.paidAmount
+                )
+                const balanceCents = Math.max(
+                  0,
+                  reservation.totalAmount - reservation.paidAmount
+                )
+                const hasOutstandingBalance = amountDueCents > 0
 
-              const canRefund =
-                reservation.status === "cancelled" &&
-                reservation.paidAmount > 0 &&
-                reservation.refundAmount < reservation.paidAmount
+                const canRefund =
+                  reservation.status === "cancelled" &&
+                  reservation.paidAmount > 0 &&
+                  reservation.refundAmount < reservation.paidAmount
 
-              const maxRefundableCents = Math.max(
-                0,
-                reservation.paidAmount - reservation.refundAmount
-              )
+                const maxRefundableCents = Math.max(
+                  0,
+                  reservation.paidAmount - reservation.refundAmount
+                )
 
-              return (
-                <TableRow
-                  key={reservation.id}
-                  className="h-8 cursor-pointer hover:bg-muted/60"
-                  onClick={() => setSelectedReservation(reservation)}
-                >
-                  <TableCell className="py-1.5 font-medium whitespace-nowrap">
-                    {reservation.confirmationNumber}
-                  </TableCell>
-                  <TableCell className="py-1.5 whitespace-nowrap">
-                    {reservation.guestName}
-                  </TableCell>
-                  <TableCell className="py-1.5 whitespace-nowrap">
-                    {reservation.siteName}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    {formatDate(reservation.checkIn)}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    {formatDate(reservation.checkOut)}
-                  </TableCell>
-                  <TableCell className="py-1.5">{reservation.numNights}</TableCell>
-                  <TableCell className="py-1.5">
-                    {reservation.numAdults + reservation.numChildren}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    {formatMoney(reservation.totalAmount)}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    {formatMoney(reservation.paidAmount)}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    {formatMoney(balanceCents)}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    {formatMoney(reservation.refundAmount)}
-                  </TableCell>
-                  <TableCell className="py-1.5">
-                    <span
-                      className={`${statusTextColors[reservation.status]} whitespace-nowrap text-xs font-medium capitalize`}
-                    >
-                      {reservation.status.replace("_", " ")}
-                    </span>
-                  </TableCell>
-                  <TableCell
-                    className="py-0.5"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                    }}
+                return (
+                  <TableRow
+                    key={reservation.id}
+                    className="h-8 cursor-pointer hover:bg-muted/60"
+                    onClick={() => setSelectedReservation(reservation)}
                   >
-                    <ReservationActions
-                      reservationId={reservation.id}
-                      confirmationNumber={reservation.confirmationNumber}
-                      guestName={reservation.guestName}
-                      status={reservation.status}
-                      checkIn={reservation.checkIn}
-                      checkOut={reservation.checkOut}
-                      numAdults={reservation.numAdults}
-                      numChildren={reservation.numChildren}
-                      numPets={reservation.numPets}
-                      specialRequests={reservation.specialRequests}
-                      siteNumber={reservation.siteNumber}
-                      siteName={reservation.siteName}
-                      pricePerNight={reservation.pricePerNight}
-                      weeklyRateCents={reservation.weeklyRateCents ?? null}
-                      monthlyRateCents={reservation.monthlyRateCents ?? null}
-                      bookingType={reservation.bookingType}
-                      totalAmount={reservation.totalAmount}
-                      paidAmount={reservation.paidAmount}
-                      hasOutstandingBalance={hasOutstandingBalance}
-                      canRefund={canRefund}
-                      maxRefundableCents={maxRefundableCents}
-                    />
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+                    <TableCell className="py-1.5 font-medium whitespace-nowrap">
+                      {reservation.confirmationNumber}
+                    </TableCell>
+                    <TableCell className="py-1.5 whitespace-nowrap">
+                      {reservation.guestName}
+                    </TableCell>
+                    <TableCell className="py-1.5 whitespace-nowrap">
+                      {reservation.siteName}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {formatDate(reservation.checkIn)}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {formatDate(reservation.checkOut)}
+                    </TableCell>
+                    <TableCell className="py-1.5">{reservation.numNights}</TableCell>
+                    <TableCell className="py-1.5">
+                      {reservation.numAdults + reservation.numChildren}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {formatMoney(reservation.totalAmount)}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {formatMoney(reservation.paidAmount)}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {formatMoney(balanceCents)}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {formatMoney(reservation.refundAmount)}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <span
+                        className={`${statusTextColors[reservation.status]} whitespace-nowrap text-xs font-medium capitalize`}
+                      >
+                        {reservation.status.replace("_", " ")}
+                      </span>
+                    </TableCell>
+                    <TableCell
+                      className="py-0.5"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                      }}
+                    >
+                      <ReservationActions
+                        reservationId={reservation.id}
+                        confirmationNumber={reservation.confirmationNumber}
+                        guestName={reservation.guestName}
+                        status={reservation.status}
+                        checkIn={reservation.checkIn}
+                        checkOut={reservation.checkOut}
+                        numAdults={reservation.numAdults}
+                        numChildren={reservation.numChildren}
+                        numPets={reservation.numPets}
+                        specialRequests={reservation.specialRequests}
+                        siteNumber={reservation.siteNumber}
+                        siteName={reservation.siteName}
+                        pricePerNight={reservation.pricePerNight}
+                        weeklyRateCents={reservation.weeklyRateCents ?? null}
+                        monthlyRateCents={reservation.monthlyRateCents ?? null}
+                        bookingType={reservation.bookingType}
+                        totalAmount={reservation.totalAmount}
+                        paidAmount={reservation.paidAmount}
+                        hasOutstandingBalance={hasOutstandingBalance}
+                        canRefund={canRefund}
+                        maxRefundableCents={maxRefundableCents}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-        <div>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-xs text-muted-foreground">
           Showing{" "}
           <span className="font-medium">
             {startIndex}–{endIndex}
           </span>{" "}
           of <span className="font-medium">{total}</span> reservations
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-            disabled={clampedCurrentPage <= 1}
-          >
-            {clampedCurrentPage <= 1 ? (
-              <span>Previous</span>
-            ) : (
-              <Link href={buildPageHref(clampedCurrentPage - 1)}>Previous</Link>
-            )}
-          </Button>
-          <span>
-            Page{" "}
-            <span className="font-medium">
-              {clampedCurrentPage} / {totalPages}
-            </span>
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-            disabled={clampedCurrentPage >= totalPages}
-          >
-            {clampedCurrentPage >= totalPages ? (
-              <span>Next</span>
-            ) : (
-              <Link href={buildPageHref(clampedCurrentPage + 1)}>Next</Link>
-            )}
-          </Button>
-        </div>
+        <Pagination
+          currentPage={clampedCurrentPage}
+          totalPages={totalPages}
+          onPageChange={goToPage}
+          disabled={isPending}
+          windowSize={4}
+        />
       </div>
 
       <Dialog
@@ -369,7 +363,7 @@ export function ReservationsTable({
                           Math.max(
                             0,
                             selectedReservation.totalAmount -
-                              selectedReservation.paidAmount
+                            selectedReservation.paidAmount
                           )
                         )}
                       </dd>

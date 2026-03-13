@@ -24,6 +24,7 @@ describe('GetGuestQueryHandler', () => {
       findByPropertyId: vi.fn(),
       findByStripeCustomerId: vi.fn(),
       exists: vi.fn(),
+      softDelete: vi.fn(),
     }
 
     handler = new GetGuestQueryHandler(mockRepository)
@@ -154,6 +155,7 @@ describe('ListGuestsQueryHandler', () => {
       findByPropertyId: vi.fn(),
       findByStripeCustomerId: vi.fn(),
       exists: vi.fn(),
+      softDelete: vi.fn(),
     }
 
     handler = new ListGuestsQueryHandler(mockRepository)

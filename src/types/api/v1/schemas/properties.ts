@@ -189,6 +189,10 @@ export const UpdatePropertyRequestSchema = z.object({
   // Settings (partial updates allowed - not all fields required)
   settings: PropertySettingsSchema.partial().optional(),
 
+  // Cancellation Policy
+  cancellation_policy: z.string().max(5000).nullable().optional(),
+  cancellation_policy_config: z.record(z.string(), z.any()).nullable().optional(),
+
   // Amenities
   amenities: z.array(z.string()).nullable().optional(),
 

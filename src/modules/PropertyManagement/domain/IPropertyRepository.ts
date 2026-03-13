@@ -58,9 +58,10 @@ export interface IPropertyRepository {
   findByOwnerId(ownerId: string): Promise<Property | null>
 
   /**
-   * Save a property (create or update)
+   * Save a property (create or update).
+   * Optional columnOverrides are merged into the update payload (e.g. cancellation_policy, cancellation_policy_config).
    */
-  save(property: Property): Promise<void>
+  save(property: Property, columnOverrides?: Record<string, unknown>): Promise<void>
 
   /**
    * Delete a property

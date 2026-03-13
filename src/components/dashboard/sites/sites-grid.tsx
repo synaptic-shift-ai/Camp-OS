@@ -58,20 +58,7 @@ const statusColors: Record<SiteStatus, string> = {
   unavailable: "bg-red-500/10 text-red-500 border-red-500/20",
 }
 
-/**
- * Extended Site type that includes columns added in migration
- * 20251214000000_add_reservation_type_pricing.sql
- *
- * These columns may not be in generated types if:
- * - Migration was applied but types weren't regenerated
- * - There's a sync issue between local and linked database
- */
-type BaseSite = Database['public']['Tables']['sites']['Row']
-type Site = BaseSite & {
-  enabled_reservation_types_override?: string[] | null
-  seasonal_rate_cents?: number | null
-  default_reservation_type?: string | null
-}
+type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesGridProps {
   sites: Site[]

@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PropertySettings } from "@/components/dashboard/settings/property-settings"
 import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
+import type { CancellationRule } from "@/components/dashboard/settings/cancellation-rule-dialog"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 import type {
@@ -139,7 +140,9 @@ export default async function SettingsPage({ params }: PageProps) {
           <CancellationPolicySettings
             propertyId={property.id}
             initialCancellationPolicy={
-              (property.settings as Record<string, any> | null)?.cancellationPolicy ?? null
+              property.cancellation_policy ??
+              (property.settings as Record<string, any> | null)?.cancellationPolicy ??
+              null
             }
             initialFreeCancellationWindow={
               (property.settings as Record<string, any> | null)?.freeCancellationWindow ?? null
@@ -153,6 +156,13 @@ export default async function SettingsPage({ params }: PageProps) {
             initialRefundEligiblePeriod={
               (property.settings as Record<string, any> | null)?.refundEligiblePeriod ?? null
             }
+            initialCancellationRules={(
+              (property.cancellation_policy_config as { refund_tiers?: Array<{ id?: string; refund_percentage?: number; days_before_reservation?: number; days_operator?: unknown }> } | null)?.refund_tiers ?? []
+            ).map((r) => ({
+              id: r.id ?? crypto.randomUUID(),
+              refund_percentage: r.refund_percentage ?? 0,
+              days_before_reservation: r.days_before_reservation ?? 0,
+            }))}
             currentSettings={(property.settings as Record<string, unknown> | null) ?? null}
           />
         </TabsContent>

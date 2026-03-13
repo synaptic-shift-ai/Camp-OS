@@ -119,29 +119,50 @@ export async function processExtension(
     const numChildren = (currentRes as { num_children?: number }).num_children ?? 0
     const numPets = (currentRes as { num_pets?: number }).num_pets ?? 0
 
-    let newTotalCents: number
+    const pricingOptions = {
+      num_adults: numAdults,
+      num_children: numChildren,
+      num_pets: numPets,
+      for_extension: true,
+    }
     const fullPriceResult = await calculateReservationPriceEnhanced(
       siteId,
       extensionCheckIn,
       extensionCheckOut,
-      { num_adults: numAdults, num_children: numChildren, num_pets: numPets }
+      pricingOptions
     )
-    if (fullPriceResult.success && fullPriceResult.data) {
-      newTotalCents = fullPriceResult.data.total
+    const originalPriceResult = await calculateReservationPriceEnhanced(
+      siteId,
+      currentCheckIn,
+      currentCheckOut,
+      pricingOptions
+    )
+
+    let priceChange: number
+    if (
+      fullPriceResult.success &&
+      fullPriceResult.data &&
+      originalPriceResult.success &&
+      originalPriceResult.data
+    ) {
+      // Extension pricing: additional charge = cost of added nights only; new total = current total + that
+      priceChange = fullPriceResult.data.total - originalPriceResult.data.total
+    } else if (fullPriceResult.success && fullPriceResult.data) {
+      priceChange = fullPriceResult.data.total - currentRes.total_amount
     } else {
       const site = currentRes.site as {
         base_price: number
         weekly_rate_cents?: number | null
         monthly_rate_cents?: number | null
       }
-      newTotalCents = calculateBaseSubtotalCents(
+      const newTotalCents = calculateBaseSubtotalCents(
         newNights,
         site.base_price,
         site.weekly_rate_cents,
         site.monthly_rate_cents
       )
+      priceChange = newTotalCents - currentRes.total_amount
     }
-    const priceChange = newTotalCents - currentRes.total_amount
 
     // 4. Capture state snapshot before changes
     const previousState: Record<string, unknown> = {

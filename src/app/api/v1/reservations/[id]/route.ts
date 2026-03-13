@@ -14,7 +14,6 @@ import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
-import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
 
 /**
  * GET /api/v1/reservations/[id]
@@ -73,7 +72,7 @@ export async function GET(
     // Check if property belongs to user's company
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id, settings')
+      .select('id, company_id, settings, cancellation_policy_config')
       .eq('id', reservation.propertyId)
       .single()
 
@@ -84,20 +83,23 @@ export async function GET(
       )
     }
 
-    const settings = PropertySettings.fromJson(property.settings ?? null)
-    const policy = {
-      freeCancellationWindow: settings.freeCancellationWindow,
-      refundEligiblePeriod: settings.refundEligiblePeriod,
-      cancellationRefundPercentage: settings.cancellationRefundPercentage,
-      cancellationNonRefundableDays: settings.cancellationNonRefundableDays,
-    }
+    const config = property.cancellation_policy_config as { refund_tiers?: Array<{ id?: string; refund_percentage?: number; days_before_reservation?: number }> } | null
+    const refund_tiers = config?.refund_tiers?.filter(
+      (t): t is { id: string; refund_percentage: number; days_before_reservation: number } =>
+        typeof t.refund_percentage === 'number' && typeof t.days_before_reservation === 'number'
+    ).map((t) => ({
+      id: t.id ?? '',
+      refund_percentage: t.refund_percentage,
+      days_before_reservation: t.days_before_reservation,
+    })) ?? null
+
     const paidCents = reservation.paidAmount.amountInCents
     const totalCents = reservation.totalAmount.amountInCents
     let suggestedRefundCents = computeRefundCentsFromCancellationPolicy(
       reservation.checkInDate,
       new Date(),
       paidCents,
-      policy
+      { refund_tiers: (refund_tiers != null && refund_tiers.length > 0) ? refund_tiers : undefined }
     )
     if (
       suggestedRefundCents === 0 &&

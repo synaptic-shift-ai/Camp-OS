@@ -33,6 +33,8 @@ export type UpdatePropertyDto = {
   checkInInstructions?: string | null | undefined
   checkOutInstructions?: string | null | undefined
   houseRules?: string | null | undefined
+  cancellation_policy?: string | null | undefined
+  cancellation_policy_config?: Record<string, any> | null | undefined
 }
 
 export class UpdatePropertyCommandHandler {
@@ -118,8 +120,13 @@ export class UpdatePropertyCommandHandler {
       })
     }
 
+    // Column overrides for dedicated cancellation columns (not part of settings)
+    const columnOverrides: { cancellation_policy?: string | null; cancellation_policy_config?: Record<string, unknown> | null } = {}
+    if (dto.cancellation_policy !== undefined) columnOverrides.cancellation_policy = dto.cancellation_policy
+    if (dto.cancellation_policy_config !== undefined) columnOverrides.cancellation_policy_config = dto.cancellation_policy_config as Record<string, unknown> | null
+
     // Save to database
-    await this.repository.save(property)
+    await this.repository.save(property, Object.keys(columnOverrides).length > 0 ? columnOverrides : undefined)
 
     // Publish domain events
     const eventBus = getEventBus()

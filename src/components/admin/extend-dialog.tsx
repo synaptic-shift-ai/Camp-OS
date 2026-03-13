@@ -134,6 +134,7 @@ export function ExtendDialog({
   const [error, setError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [projectedTotalCents, setProjectedTotalCents] = useState<number | null>(null)
+  const [originalPeriodTotalCents, setOriginalPeriodTotalCents] = useState<number | null>(null)
   const router = useRouter()
 
   // Form state
@@ -149,6 +150,7 @@ export function ExtendDialog({
       setNotes('')
       setError(null)
       setProjectedTotalCents(null)
+      setOriginalPeriodTotalCents(null)
     }
   }, [open, currentCheckIn, currentCheckOut])
 
@@ -180,11 +182,13 @@ export function ExtendDialog({
   useEffect(() => {
     if (!hasChanges || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn) {
       setProjectedTotalCents(null)
+      setOriginalPeriodTotalCents(null)
       return
     }
     let cancelled = false
     setPreviewLoading(true)
     setProjectedTotalCents(null)
+    setOriginalPeriodTotalCents(null)
     fetch(`/api/v1/reservations/${reservationId}/extend-preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -195,10 +199,15 @@ export function ExtendDialog({
         if (cancelled) return
         if (data?.success && typeof data?.data?.projectedTotalCents === 'number') {
           setProjectedTotalCents(data.data.projectedTotalCents)
+          const orig = data?.data?.originalPeriodTotalCents
+          setOriginalPeriodTotalCents(typeof orig === 'number' ? orig : null)
         }
       })
       .catch(() => {
-        if (!cancelled) setProjectedTotalCents(null)
+        if (!cancelled) {
+          setProjectedTotalCents(null)
+          setOriginalPeriodTotalCents(null)
+        }
       })
       .finally(() => {
         if (!cancelled) setPreviewLoading(false)
@@ -208,9 +217,15 @@ export function ExtendDialog({
     }
   }, [reservationId, hasChanges, newCheckIn, newCheckOut])
 
-  // Use full projected total when available, else base-only
-  const displayNewTotalCents = projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0
-  const displayPriceChange = displayNewTotalCents - totalAmount
+  // When extension pricing applies: additional charge = cost of added nights only; new total = current total + additional charge
+  const useExtensionPricing =
+    projectedTotalCents != null && originalPeriodTotalCents != null
+  const displayPriceChange = useExtensionPricing
+    ? projectedTotalCents - originalPeriodTotalCents
+    : (projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0) - totalAmount
+  const displayNewTotalCents = useExtensionPricing
+    ? totalAmount + displayPriceChange
+    : projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0
 
   // Real-time availability checking
   const { checking, result, error: availError } = useActionAvailability(

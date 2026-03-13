@@ -28,6 +28,7 @@ describe('LinkStripeCustomerCommandHandler', () => {
       findByPropertyId: vi.fn(),
       findByStripeCustomerId: vi.fn(),
       exists: vi.fn(),
+      softDelete: vi.fn(),
     }
 
     // Create mock event bus

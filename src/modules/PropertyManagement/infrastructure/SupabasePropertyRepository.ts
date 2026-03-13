@@ -151,17 +151,18 @@ export class SupabasePropertyRepository implements IPropertyRepository {
     return this.toDomain(data)
   }
 
-  async save(property: Property): Promise<void> {
+  async save(property: Property, columnOverrides?: Partial<PropertyRow>): Promise<void> {
     const persistence = property.toPersistence()
 
     // Check if exists
     const existing = await this.findById(property.id)
 
     if (existing) {
-      // Update
+      // Update (merge columnOverrides for dedicated columns e.g. cancellation_policy, cancellation_policy_config)
+      const updatePayload = { ...persistence, ...columnOverrides }
       const { error } = await this.getClient()
         .from('properties')
-        .update(persistence)
+        .update(updatePayload)
         .eq('id', property.id)
 
       if (error) {

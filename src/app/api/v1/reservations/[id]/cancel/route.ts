@@ -19,7 +19,6 @@ import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
-import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
 import { sendCancellationNotice } from '@/lib/email/send'
 
 /**
@@ -77,7 +76,7 @@ export async function POST(
     // Verify tenant access (BP-4)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id, settings')
+      .select('id, company_id, settings, cancellation_policy_config')
       .eq('id', existingReservation.propertyId)
       .single()
 
@@ -103,14 +102,15 @@ export async function POST(
       )
     }
 
-    // Apply cancellation policy to property settings
-    const settings = PropertySettings.fromJson(property.settings ?? null)
-    const policy = {
-      freeCancellationWindow: settings.freeCancellationWindow,
-      refundEligiblePeriod: settings.refundEligiblePeriod,
-      cancellationRefundPercentage: settings.cancellationRefundPercentage,
-      cancellationNonRefundableDays: settings.cancellationNonRefundableDays,
-    }
+    const config = property.cancellation_policy_config as { refund_tiers?: Array<{ id?: string; refund_percentage?: number; days_before_reservation?: number }> } | null
+    const refund_tiers = config?.refund_tiers?.filter(
+      (t): t is { id: string; refund_percentage: number; days_before_reservation: number } =>
+        typeof t.refund_percentage === 'number' && typeof t.days_before_reservation === 'number'
+    ).map((t) => ({
+      id: t.id ?? '',
+      refund_percentage: t.refund_percentage,
+      days_before_reservation: t.days_before_reservation,
+    })) ?? null
 
     const paidCents = existingReservation.paidAmount.amountInCents
     const totalCents = existingReservation.totalAmount.amountInCents
@@ -118,7 +118,7 @@ export async function POST(
       existingReservation.checkInDate,
       new Date(),
       paidCents,
-      policy,
+      { refund_tiers: (refund_tiers != null && refund_tiers.length > 0) ? refund_tiers : undefined },
     )
     const effectivePolicyRefundCents =
       policyRefundCents === 0 && paidCents > 0 && paidCents < totalCents

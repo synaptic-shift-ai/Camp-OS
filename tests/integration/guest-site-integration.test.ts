@@ -154,6 +154,8 @@ class MockGuestRepository implements IGuestRepository {
     );
   }
 
+  async softDelete(_guestId: string): Promise<void> {}
+
   async delete(id: string): Promise<void> {
     this.guests.delete(id)
   }

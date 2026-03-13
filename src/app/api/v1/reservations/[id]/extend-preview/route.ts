@@ -41,13 +41,16 @@ export async function POST(
 
     const { data: reservation, error: resError } = await supabase
       .from('reservations')
-      .select('property_id, site_id, num_adults, num_children, num_pets')
+      .select('property_id, site_id, num_adults, num_children, num_pets, check_in_date, check_out_date')
       .eq('id', reservationId)
       .single()
 
     if (resError || !reservation?.site_id) {
       return error(ErrorCodes.RES_001, request)
     }
+
+    const originalCheckIn = reservation.check_in_date as string
+    const originalCheckOut = reservation.check_out_date as string
 
     const { data: property } = await supabase
       .from('properties')
@@ -75,6 +78,7 @@ export async function POST(
         num_adults: reservation.num_adults ?? 1,
         num_children: reservation.num_children ?? 0,
         num_pets: reservation.num_pets ?? 0,
+        for_extension: true,
       }
     )
 
@@ -84,9 +88,27 @@ export async function POST(
       })
     }
 
+    const originalPriceResult = await calculateReservationPriceEnhanced(
+      reservation.site_id,
+      originalCheckIn,
+      originalCheckOut,
+      {
+        num_adults: reservation.num_adults ?? 1,
+        num_children: reservation.num_children ?? 0,
+        num_pets: reservation.num_pets ?? 0,
+        for_extension: true,
+      }
+    )
+
+    const originalPeriodTotalCents =
+      originalPriceResult.success && originalPriceResult.data
+        ? originalPriceResult.data.total
+        : null
+
     return success(
       {
         projectedTotalCents: priceResult.data.total,
+        originalPeriodTotalCents,
         breakdown: priceResult.data,
       },
       request

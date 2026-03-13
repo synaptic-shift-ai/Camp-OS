@@ -573,7 +573,7 @@ export async function POST(request: NextRequest) {
 
     // Set reservation expiration to 15 minutes from now (airline-style checkout timer)
     const reservedUntil = new Date()
-    reservedUntil.setMinutes(reservedUntil.getMinutes() + 15)
+    reservedUntil.setMinutes(reservedUntil.getMinutes() + 1)
 
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')

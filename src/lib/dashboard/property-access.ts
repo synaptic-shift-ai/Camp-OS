@@ -72,6 +72,8 @@ export async function getPropertyForUser(propertyId: string): Promise<{
   enabled_reservation_types: unknown
   reservation_type_config: unknown
   settings: unknown
+  cancellation_policy: string | null
+  cancellation_policy_config: unknown
 } | null> {
   const supabase = await createClient()
 
@@ -103,7 +105,9 @@ export async function getPropertyForUser(propertyId: string): Promise<{
       rate_discounts_config,
       enabled_reservation_types,
       reservation_type_config,
-      settings
+      settings,
+      cancellation_policy,
+      cancellation_policy_config
     `)
     .eq("id", propertyId)
     .maybeSingle()

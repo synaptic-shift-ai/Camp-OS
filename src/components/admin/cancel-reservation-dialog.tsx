@@ -164,7 +164,7 @@ export function CancelReservationDialog({
 
   const isRefundable = suggestedRefundCents != null && suggestedRefundCents > 0
 
-  const refundMessage = 
+  const refundMessage =
     suggestedRefundCents != null && paidAmountCents > 0
       ? suggestedRefundCents >= paidAmountCents
         ? 'Your Cancellation is Eligible for full refund.'
@@ -178,7 +178,7 @@ export function CancelReservationDialog({
       <SheetTrigger asChild>
         {trigger || <Button variant="destructive" size="sm">Cancel Reservation</Button>}
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent className="flex max-h-[100dvh] flex-col overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Cancel Reservation</SheetTitle>
           <SheetDescription>
@@ -226,13 +226,13 @@ export function CancelReservationDialog({
 
               <div className="space-y-2">
                 <Label>Refund method</Label>
-                <Select 
+                <Select
                   value={refundPaymentMethod}
                   onValueChange={setRefundPaymentMethod}
                   disabled={loading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select refund method..."/>
+                    <SelectValue placeholder="Select refund method..." />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="check">Check</SelectItem>
@@ -245,7 +245,7 @@ export function CancelReservationDialog({
               {/* Refund Amount */}
               <div className="space-y-2">
                 <Label htmlFor="refund-amount">Refund Amount</Label>
-                <Input 
+                <Input
                   id="refundAmount"
                   type="number"
                   min="0"
@@ -304,25 +304,24 @@ export function CancelReservationDialog({
               Email notifications will be added in a future update.
             </AlertDescription>
           </Alert>
+          <SheetFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={loading}
+            >
+              Keep Reservation
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={loading || (isRefundable && !refundPaymentMethod)}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading ? "Cancelling..." : "Cancel Reservation"}
+            </Button>
+          </SheetFooter>
         </div>
-
-        <SheetFooter>
-          <Button
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={loading}
-          >
-            Keep Reservation
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleCancel}
-            disabled={loading || (isRefundable && !refundPaymentMethod)}
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Cancelling..." : "Cancel Reservation"}
-          </Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   )

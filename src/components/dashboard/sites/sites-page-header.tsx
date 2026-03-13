@@ -4,7 +4,7 @@
  * Sites Page Header Component
  *
  * Client component for sites page header with actions.
- * Includes Add Site and Import Sites buttons.
+ * Includes Import Sites, Add Site, and Export buttons.
  */
 
 import { useState } from 'react'
@@ -12,14 +12,36 @@ import { Plus, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AddSiteDialog } from './add-site-dialog'
 import { BulkUploadDialog } from './bulk-upload-dialog'
+import { ExportMenu } from '@/components/ui/export-menu'
+import { buildExportFilename, exportToCsv } from '@/lib/csv/export'
+import type { Database } from '@/contracts/db'
+
+type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesPageHeaderProps {
   propertyId: string | null
+  sites: Site[]
 }
 
-export function SitesPageHeader({ propertyId }: SitesPageHeaderProps) {
+export function SitesPageHeader({ propertyId, sites }: SitesPageHeaderProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+
+  const handleExport = (format: string) => {
+    if (format !== 'csv') return
+    if (!sites.length) return
+
+    const filename = buildExportFilename('ST')
+
+    exportToCsv<Site>(filename, sites, [
+      { key: 'site_number', header: 'Site Number' },
+      { key: 'site_name', header: 'Site Name' },
+      { key: 'site_type', header: 'Site Type' },
+      { key: 'status', header: 'Status' },
+      { key: 'max_occupancy', header: 'Max Occupancy' },
+      { key: 'max_vehicles', header: 'Max Vehicles' },
+    ])
+  }
 
   return (
     <>
@@ -31,6 +53,11 @@ export function SitesPageHeader({ propertyId }: SitesPageHeaderProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportMenu
+            onExport={handleExport}
+            disabled={!sites.length}
+            aria-label="Export sites"
+          />
           <Button
             variant="outline"
             className="gap-2"
@@ -38,7 +65,7 @@ export function SitesPageHeader({ propertyId }: SitesPageHeaderProps) {
             disabled={!propertyId}
           >
             <Upload className="h-4 w-4" />
-            Import Sites
+            Import
           </Button>
           <Button
             className="gap-2"

@@ -5,6 +5,7 @@ import { getPayments, getDashboardStats } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { redirect } from "next/navigation"
 import { PaymentsTable } from "@/components/dashboard/payments/payments-table"
+import { PaymentsPageHeader } from "@/components/dashboard/payments/payments-page-header"
 
 function formatMoney(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -75,10 +76,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-heading font-bold tracking-tight">Payments</h1>
-        <p className="text-muted-foreground">Track and manage all transactions</p>
-      </div>
+      <PaymentsPageHeader payments={payments} currentPage={currentPage} />
 
       <Suspense
         fallback={

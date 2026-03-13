@@ -2,6 +2,7 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { Mail, Phone } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Table,
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
-import { Mail, Phone } from "lucide-react"
 import { GuestActions } from "./guest-actions"
 import type { DashboardGuest } from "@/lib/dashboard/queries"
 
@@ -47,7 +47,9 @@ export function GuestsTable({
   if (!guests.length) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground">
-        {searchQuery ? "No guests found matching your search." : "No guests yet. Your first reservation will appear here!"}
+        {searchQuery
+          ? "No guests found matching your search."
+          : "No guests yet. Your first reservation will appear here!"}
       </div>
     )
   }
@@ -133,7 +135,9 @@ export function GuestsTable({
                     </div>
                   </TableCell>
                   <TableCell className="py-1.5">{guest.totalStays}</TableCell>
-                  <TableCell className="py-1.5">{formatMoney(guest.totalSpent)}</TableCell>
+                  <TableCell className="py-1.5">
+                    {formatMoney(guest.totalSpent)}
+                  </TableCell>
                   <TableCell className="py-1.5">
                     {guest.lastVisit
                       ? new Date(guest.lastVisit).toLocaleDateString("en-US", {

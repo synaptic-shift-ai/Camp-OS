@@ -85,14 +85,22 @@ async function SitesView({ propertyId }: { propertyId: string }) {
 
   if (!sites || sites.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No sites yet. Add your first site!</p>
-      </div>
+      <>
+        <SitesPageHeader propertyId={property.id} sites={[]} />
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No sites yet. Add your first site!</p>
+        </div>
+      </>
     )
   }
 
   // Pass sites and property pricing config to client component
-  return <SitesContent sites={sites} propertyPricingConfig={property.pricingConfig} />
+  return (
+    <>
+      <SitesPageHeader propertyId={property.id} sites={sites} />
+      <SitesContent sites={sites} propertyPricingConfig={property.pricingConfig} />
+    </>
+  )
 }
 
 type PageProps = {
@@ -114,9 +122,7 @@ export default async function SitesPage({ params, searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <SitesPageHeader propertyId={propertyId} />
-
-      {/* Sites View with Stats + Filtered Accordion */}
+      {/* Sites View with Header + Stats + Filtered Accordion */}
       <Suspense
         fallback={
           <div className="space-y-6">

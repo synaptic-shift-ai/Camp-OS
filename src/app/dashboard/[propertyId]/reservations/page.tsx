@@ -1,13 +1,11 @@
-import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { getReservations, getDistinctSiteTypes } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import type { RateDiscountsConfig } from "@/lib/config/types"
 import { redirect } from "next/navigation"
 import { SiteTypeFilter } from "@/components/dashboard/reservations/site-type-filter"
 import { ReservationsTable } from "@/components/dashboard/reservations/reservations-table"
+import { ReservationsPageHeader } from "@/components/dashboard/reservations/reservations-page-header"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -35,18 +33,11 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Reservations</h1>
-          <p className="text-muted-foreground">Manage all your property bookings</p>
-        </div>
-        <Link href={`/dashboard/${propertyId}/reservations/new`}>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Reservation
-          </Button>
-        </Link>
-      </div>
+      <ReservationsPageHeader
+        propertyId={propertyId}
+        reservations={reservations}
+        currentPage={currentPage}
+      />
 
       <Card>
         <CardHeader>

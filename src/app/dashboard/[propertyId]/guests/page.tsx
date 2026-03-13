@@ -36,7 +36,11 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <GuestsPageHeader propertyId={propertyId} />
+      <GuestsPageHeader
+        propertyId={propertyId}
+        guests={guests}
+        currentPage={currentPage}
+      />
 
       <Card>
         <CardHeader>

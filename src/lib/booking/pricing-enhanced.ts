@@ -132,6 +132,13 @@ export interface CalculatePriceOptions {
   booking_type?: BookingType
   paid_in_full?: boolean // Guest paying full amount upfront
   for_extension?: boolean
+  /** When set, manual discounts with these IDs are applied (e.g. extend flow, admin booking) */
+  selected_discount_ids?: string[]
+  /**
+   * For extension: subtotal (cents) of the additional nights only.
+   * When set, percentage discounts are applied to this amount instead of the full period subtotal.
+   */
+  extension_additional_subtotal_cents?: number
 }
 
 /**
@@ -532,20 +539,26 @@ export async function calculateReservationPriceEnhanced(
     }
   }
 
-  // ===== APPLY USER-DEFINED DISCOUNTS (auto-triggered) =====
-  if (!options.for_extension) {
-    const userDefinedDiscounts = rateDiscountsConfig.user_defined_discounts || []
+  // ===== APPLY USER-DEFINED DISCOUNTS (auto-triggered + manual when selected) =====
+  const userDefinedDiscounts = rateDiscountsConfig.user_defined_discounts || []
+  const selectedDiscountIds = options.selected_discount_ids ?? []
 
-    if (userDefinedDiscounts.length > 0) {
-      breakdown.user_discounts = []
+  // For extension: only apply discounts that are explicitly selected (no auto-apply).
+  // So staff chooses exactly which discounts apply; additional charge = (new total with selected discounts) - (original total).
+  const extensionMode = options.for_extension === true
 
-      for (const discount of userDefinedDiscounts) {
-        if (!discount.enabled) continue
-        if (discount.trigger_type === 'manual') continue // Skip manual discounts
+  if (userDefinedDiscounts.length > 0) {
+    if (!breakdown.user_discounts) breakdown.user_discounts = []
 
-        // Check if trigger conditions are met
-        let shouldApply = false
+    for (const discount of userDefinedDiscounts) {
+      if (!discount.enabled) continue
 
+      let shouldApply: boolean
+      if (extensionMode) {
+        shouldApply = selectedDiscountIds.includes(discount.id)
+      } else if (discount.trigger_type === 'manual') {
+        shouldApply = selectedDiscountIds.includes(discount.id)
+      } else {
         switch (discount.trigger_type) {
           case 'min_nights':
             shouldApply = totalNights >= (discount.trigger_conditions?.min_nights ?? 0)
@@ -559,41 +572,50 @@ export async function calculateReservationPriceEnhanced(
               const startStr = String(discount.trigger_conditions.start_date).slice(0, 10)
               const endStr = String(discount.trigger_conditions.end_date).slice(0, 10)
               shouldApply = checkInStr >= startStr && checkInStr <= endStr
+            } else {
+              shouldApply = false
             }
             break
+          default:
+            shouldApply = false
         }
+      }
 
-        if (!shouldApply) continue
+      if (!shouldApply) continue
 
-        // Calculate discount amount
-        let discountAmount = 0
+      // For extension: percentage discounts apply only to the additional nights' subtotal
+      const discountBaseCents =
+        extensionMode && options.extension_additional_subtotal_cents != null
+          ? options.extension_additional_subtotal_cents
+          : breakdown.subtotal
 
-        switch (discount.discount_type) {
-          case 'flat_amount':
-            discountAmount = discount.value_cents ?? 0
-            break
-          case 'percentage_of_subtotal':
-            discountAmount = Math.round(breakdown.subtotal * (discount.value_percentage ?? 0) / 100)
-            break
-          case 'percentage_of_total':
-            discountAmount = Math.round(breakdown.total * (discount.value_percentage ?? 0) / 100)
-            break
-        }
+      let discountAmount = 0
 
-        // Apply max discount cap if set
-        if (discount.max_discount_cents && discountAmount > discount.max_discount_cents) {
-          discountAmount = discount.max_discount_cents
-        }
+      switch (discount.discount_type) {
+        case 'flat_amount':
+          discountAmount = discount.value_cents ?? 0
+          break
+        case 'percentage_of_subtotal':
+          discountAmount = Math.round(discountBaseCents * (discount.value_percentage ?? 0) / 100)
+          break
+        case 'percentage_of_total':
+          discountAmount = Math.round(discountBaseCents * (discount.value_percentage ?? 0) / 100)
+          break
+      }
 
-        if (discountAmount > 0) {
-          breakdown.user_discounts.push({
-            id: discount.id,
-            title: discount.title,
-            amount: discountAmount,
-            trigger_type: discount.trigger_type,
-          })
-          breakdown.total -= discountAmount
-        }
+      // Apply max discount cap if set
+      if (discount.max_discount_cents && discountAmount > discount.max_discount_cents) {
+        discountAmount = discount.max_discount_cents
+      }
+
+      if (discountAmount > 0) {
+        breakdown.user_discounts.push({
+          id: discount.id,
+          title: discount.title,
+          amount: discountAmount,
+          trigger_type: discount.trigger_type,
+        })
+        breakdown.total -= discountAmount
       }
     }
   }

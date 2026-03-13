@@ -63,7 +63,8 @@ export async function processExtension(
   newCheckOut?: string,
   newCheckIn?: string,
   performedBy?: string,
-  notes?: string
+  notes?: string,
+  selectedDiscountIds?: string[]
 ): Promise<ProcessActionResponse> {
   const supabase = createServiceRoleClient()
 
@@ -119,24 +120,61 @@ export async function processExtension(
     const numChildren = (currentRes as { num_children?: number }).num_children ?? 0
     const numPets = (currentRes as { num_pets?: number }).num_pets ?? 0
 
-    const pricingOptions = {
+    const basePricingOptions = {
       num_adults: numAdults,
       num_children: numChildren,
       num_pets: numPets,
       for_extension: true,
     }
-    const fullPriceResult = await calculateReservationPriceEnhanced(
-      siteId,
-      extensionCheckIn,
-      extensionCheckOut,
-      pricingOptions
-    )
+
     const originalPriceResult = await calculateReservationPriceEnhanced(
       siteId,
       currentCheckIn,
       currentCheckOut,
-      pricingOptions
+      basePricingOptions
     )
+
+    const selectedIds = selectedDiscountIds ?? []
+    let fullPriceResult: Awaited<ReturnType<typeof calculateReservationPriceEnhanced>>
+
+    if (selectedIds.length > 0 && originalPriceResult.success && originalPriceResult.data) {
+      const newNoDiscountResult = await calculateReservationPriceEnhanced(
+        siteId,
+        extensionCheckIn,
+        extensionCheckOut,
+        basePricingOptions
+      )
+
+      if (!newNoDiscountResult.success || !newNoDiscountResult.data) {
+        fullPriceResult = newNoDiscountResult
+      } else {
+        const extensionAdditionalSubtotalCents = Math.max(
+          0,
+          newNoDiscountResult.data.subtotal - originalPriceResult.data.subtotal
+        )
+
+        fullPriceResult = await calculateReservationPriceEnhanced(
+          siteId,
+          extensionCheckIn,
+          extensionCheckOut,
+          {
+            ...basePricingOptions,
+            selected_discount_ids: selectedIds,
+            extension_additional_subtotal_cents: extensionAdditionalSubtotalCents,
+          }
+        )
+      }
+    } else {
+      fullPriceResult = await calculateReservationPriceEnhanced(
+        siteId,
+        extensionCheckIn,
+        extensionCheckOut,
+        {
+          ...basePricingOptions,
+          selected_discount_ids: selectedIds,
+        }
+      )
+    }
 
     let priceChange: number
     if (

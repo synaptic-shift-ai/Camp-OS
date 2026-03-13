@@ -802,6 +802,7 @@ export interface ProcessActionRequest {
     // For extend
     newCheckOut?: string | undefined
     newCheckIn?: string | undefined
+    selectedDiscountIds?: string[] | undefined
 
     // For renew
     nextPeriod?: BookingPeriod | undefined

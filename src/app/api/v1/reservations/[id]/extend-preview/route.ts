@@ -23,6 +23,10 @@ export async function POST(
 
     const newCheckIn = body?.newCheckIn
     const newCheckOut = body?.newCheckOut
+    const selectedDiscountIds = Array.isArray(body?.selectedDiscountIds)
+      ? (body.selectedDiscountIds as string[]).filter((id): id is string => typeof id === 'string')
+      : []
+
     if (!newCheckIn || !newCheckOut) {
       return error(ErrorCodes.VAL_001, request, {
         message: 'newCheckIn and newCheckOut are required',
@@ -70,40 +74,86 @@ export async function POST(
       return error(ErrorCodes.AUTH_002, request)
     }
 
-    const priceResult = await calculateReservationPriceEnhanced(
-      reservation.site_id,
-      newCheckIn,
-      newCheckOut,
-      {
-        num_adults: reservation.num_adults ?? 1,
-        num_children: reservation.num_children ?? 0,
-        num_pets: reservation.num_pets ?? 0,
-        for_extension: true,
-      }
-    )
-
-    if (!priceResult.success) {
-      return error(ErrorCodes.SYS_001, request, {
-        message: priceResult.error?.message ?? 'Failed to calculate projected price',
-      })
+    const baseOptions = {
+      num_adults: reservation.num_adults ?? 1,
+      num_children: reservation.num_children ?? 0,
+      num_pets: reservation.num_pets ?? 0,
+      for_extension: true,
     }
 
     const originalPriceResult = await calculateReservationPriceEnhanced(
       reservation.site_id,
       originalCheckIn,
       originalCheckOut,
-      {
-        num_adults: reservation.num_adults ?? 1,
-        num_children: reservation.num_children ?? 0,
-        num_pets: reservation.num_pets ?? 0,
-        for_extension: true,
-      }
+      baseOptions
     )
 
-    const originalPeriodTotalCents =
-      originalPriceResult.success && originalPriceResult.data
-        ? originalPriceResult.data.total
-        : null
+    if (!originalPriceResult.success || !originalPriceResult.data) {
+      const errMsg =
+        !originalPriceResult.success && 'error' in originalPriceResult
+          ? originalPriceResult.error?.message
+          : undefined
+      return error(ErrorCodes.SYS_001, request, {
+        message: errMsg ?? 'Failed to calculate original period price',
+      })
+    }
+
+    const originalPeriodTotalCents = originalPriceResult.data.total
+    const originalSubtotalCents = originalPriceResult.data.subtotal
+
+    let priceResult: Awaited<ReturnType<typeof calculateReservationPriceEnhanced>>
+
+    if (selectedDiscountIds.length > 0) {
+      const newNoDiscountResult = await calculateReservationPriceEnhanced(
+        reservation.site_id,
+        newCheckIn,
+        newCheckOut,
+        baseOptions
+      )
+
+      if (!newNoDiscountResult.success || !newNoDiscountResult.data) {
+        const errMsg =
+          !newNoDiscountResult.success && 'error' in newNoDiscountResult
+            ? newNoDiscountResult.error?.message
+            : undefined
+        return error(ErrorCodes.SYS_001, request, {
+          message: errMsg ?? 'Failed to calculate new period price',
+        })
+      }
+
+      const extensionAdditionalSubtotalCents = Math.max(
+        0,
+        newNoDiscountResult.data.subtotal - originalSubtotalCents
+      )
+
+      priceResult = await calculateReservationPriceEnhanced(
+        reservation.site_id,
+        newCheckIn,
+        newCheckOut,
+        {
+          ...baseOptions,
+          selected_discount_ids: selectedDiscountIds,
+          extension_additional_subtotal_cents: extensionAdditionalSubtotalCents,
+        }
+      )
+    } else {
+      priceResult = await calculateReservationPriceEnhanced(
+        reservation.site_id,
+        newCheckIn,
+        newCheckOut,
+        baseOptions
+      )
+    }
+
+    if (!priceResult.success || !priceResult.data) {
+      const errMsg =
+        !priceResult.success && 'error' in priceResult
+          ? priceResult.error?.message
+          : undefined
+      return error(ErrorCodes.SYS_001, request, {
+        message: errMsg ?? 'Failed to calculate projected price',
+      })
+    }
 
     return success(
       {

@@ -21,6 +21,7 @@ import { RenewDialog } from "./renew-dialog"
 import { ManualPaymentDialog } from "./manual-payment-dialog"
 import { RefundReservationDialog } from "./refund-reservation-dialog"
 import { useToast } from "@/hooks/use-toast"
+import type { RateDiscountsConfig } from "@/lib/config/types"
 
 interface ReservationActionsProps {
   reservationId: string
@@ -44,6 +45,7 @@ interface ReservationActionsProps {
   hasOutstandingBalance?: boolean
   canRefund?: boolean
   maxRefundableCents?: number
+  rateDiscountsConfig?: RateDiscountsConfig | null | undefined
 }
 
 export function ReservationActions({
@@ -68,6 +70,7 @@ export function ReservationActions({
   hasOutstandingBalance = false,
   canRefund = false,
   maxRefundableCents = 0,
+  rateDiscountsConfig,
 }: ReservationActionsProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -181,6 +184,7 @@ export function ReservationActions({
               monthlyRateCents={monthlyRateCents ?? null}
               totalAmount={totalAmount}
               status={status}
+              rateDiscountsConfig={rateDiscountsConfig}
               trigger={
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   Extend Stay

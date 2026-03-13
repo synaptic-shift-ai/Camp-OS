@@ -28,6 +28,10 @@ import { useRouter } from 'next/navigation'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
 import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { format } from 'date-fns'
+import type { RateDiscountsConfig, UserDefinedDiscount } from '@/lib/config/types'
+import { resolveRateDiscountsConfig } from '@/lib/config/resolution'
 
 interface ExtendDialogProps {
   reservationId: string
@@ -42,6 +46,7 @@ interface ExtendDialogProps {
   weeklyRateCents: number | null
   monthlyRateCents: number | null
   status: string
+  rateDiscountsConfig?: RateDiscountsConfig | null | undefined
   trigger?: React.ReactNode
 }
 
@@ -114,6 +119,29 @@ function formatNightsWithBreakdown(
   return breakdown
 }
 
+function formatDiscountOptionLabel(d: UserDefinedDiscount): string {
+  const valuePart =
+    d.discount_type === 'flat_amount'
+      ? `$${((d.value_cents ?? 0) / 100).toFixed(2)} off`
+      : `${d.value_percentage ?? 0}% off`
+
+  let triggerPart = ''
+  if (d.trigger_type === 'manual') {
+    triggerPart = 'Manual'
+  } else if (d.trigger_type === 'min_nights' && d.trigger_conditions?.min_nights != null) {
+    triggerPart = `${d.trigger_conditions.min_nights}+ nights`
+  } else if (d.trigger_type === 'min_guests' && d.trigger_conditions?.min_guests != null) {
+    triggerPart = `${d.trigger_conditions.min_guests}+ guests`
+  } else if (d.trigger_type === 'date_range' && d.trigger_conditions?.end_date) {
+    triggerPart = `until ${format(new Date(d.trigger_conditions.end_date), 'MMM d')}`
+  }
+
+  if (triggerPart) {
+    return `${d.title} (${valuePart}) — ${triggerPart}`
+  }
+  return `${d.title} (${valuePart})`
+}
+
 export function ExtendDialog({
   reservationId,
   confirmationNumber,
@@ -127,6 +155,7 @@ export function ExtendDialog({
   weeklyRateCents,
   monthlyRateCents,
   status,
+  rateDiscountsConfig,
   trigger,
 }: ExtendDialogProps) {
   const [open, setOpen] = useState(false)
@@ -135,12 +164,16 @@ export function ExtendDialog({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [projectedTotalCents, setProjectedTotalCents] = useState<number | null>(null)
   const [originalPeriodTotalCents, setOriginalPeriodTotalCents] = useState<number | null>(null)
+  const [previewBreakdown, setPreviewBreakdown] = useState<{
+    user_discounts?: Array<{ id: string; title: string; amount: number; trigger_type: string }>
+  } | null>(null)
   const router = useRouter()
 
   // Form state
   const [newCheckIn, setNewCheckIn] = useState(currentCheckIn)
   const [newCheckOut, setNewCheckOut] = useState(currentCheckOut)
   const [notes, setNotes] = useState('')
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string | undefined>(undefined)
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -151,6 +184,8 @@ export function ExtendDialog({
       setError(null)
       setProjectedTotalCents(null)
       setOriginalPeriodTotalCents(null)
+      setSelectedDiscountId(undefined)
+      setPreviewBreakdown(null)
     }
   }, [open, currentCheckIn, currentCheckOut])
 
@@ -189,10 +224,12 @@ export function ExtendDialog({
     setPreviewLoading(true)
     setProjectedTotalCents(null)
     setOriginalPeriodTotalCents(null)
+    setPreviewBreakdown(null)
+    const selectedDiscountIds = selectedDiscountId ? [selectedDiscountId] : []
     fetch(`/api/v1/reservations/${reservationId}/extend-preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newCheckIn, newCheckOut }),
+      body: JSON.stringify({ newCheckIn, newCheckOut, selectedDiscountIds }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -201,12 +238,23 @@ export function ExtendDialog({
           setProjectedTotalCents(data.data.projectedTotalCents)
           const orig = data?.data?.originalPeriodTotalCents
           setOriginalPeriodTotalCents(typeof orig === 'number' ? orig : null)
+          const breakdown = data?.data?.breakdown
+          setPreviewBreakdown(
+            breakdown && typeof breakdown === 'object'
+              ? {
+                  user_discounts: Array.isArray(breakdown.user_discounts)
+                    ? breakdown.user_discounts
+                    : undefined,
+                }
+              : null
+          )
         }
       })
       .catch(() => {
         if (!cancelled) {
           setProjectedTotalCents(null)
           setOriginalPeriodTotalCents(null)
+          setPreviewBreakdown(null)
         }
       })
       .finally(() => {
@@ -215,7 +263,7 @@ export function ExtendDialog({
     return () => {
       cancelled = true
     }
-  }, [reservationId, hasChanges, newCheckIn, newCheckOut])
+  }, [reservationId, hasChanges, newCheckIn, newCheckOut, selectedDiscountId])
 
   // When extension pricing applies: additional charge = cost of added nights only; new total = current total + additional charge
   const useExtensionPricing =
@@ -276,6 +324,7 @@ export function ExtendDialog({
             newCheckIn: newCheckIn !== currentCheckIn ? newCheckIn : undefined,
             newCheckOut: newCheckOut !== currentCheckOut ? newCheckOut : undefined,
             notes: notes.trim() || undefined,
+            selectedDiscountIds: selectedDiscountId ? [selectedDiscountId] : [],
           },
         }),
       })
@@ -296,6 +345,24 @@ export function ExtendDialog({
       setLoading(false)
     }
   }
+
+  const availableDiscounts = useMemo<UserDefinedDiscount[]>(() => {
+    const resolved = resolveRateDiscountsConfig(rateDiscountsConfig)
+    const all = resolved.user_defined_discounts ?? []
+    return all
+      .filter(
+        (d) =>
+          d.enabled &&
+          ['manual', 'min_nights', 'min_guests', 'date_range'].includes(d.trigger_type)
+      )
+      .sort((a, b) => {
+        const order = (t: UserDefinedDiscount['trigger_type']) =>
+          t === 'manual' ? 0 : t === 'min_nights' ? 1 : t === 'min_guests' ? 2 : 3
+        const byTrigger = order(a.trigger_type) - order(b.trigger_type)
+        if (byTrigger !== 0) return byTrigger
+        return (a.display_order ?? 0) - (b.display_order ?? 0)
+      })
+  }, [rateDiscountsConfig])
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -389,6 +456,37 @@ export function ExtendDialog({
             />
           </div>
 
+          <div>
+            <Label htmlFor="discounts">Discounts</Label>
+            <Select
+              value={selectedDiscountId ?? ''}
+              onValueChange={(value) => setSelectedDiscountId(value || undefined)}
+              disabled={loading || availableDiscounts.length === 0}
+            >
+              <SelectTrigger id="discounts">
+                <SelectValue
+                  placeholder={
+                    availableDiscounts.length === 0
+                      ? 'No discounts configured for this property'
+                      : 'Select a discount'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {availableDiscounts.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {formatDiscountOptionLabel(d)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {availableDiscounts.length === 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Configure discounts under Settings → Discounts.
+              </p>
+            )}
+          </div>
+
           {/* Pricing Impact - amounts only shown after full pricing loads (or fallback if API fails) */}
           {pricingImpact && (
             <div className="rounded-lg border bg-blue-500/5 border-blue-500/20 p-3 space-y-2">
@@ -423,6 +521,23 @@ export function ExtendDialog({
                   </div>
                 ) : (
                   <>
+                    {previewBreakdown?.user_discounts &&
+                      previewBreakdown.user_discounts.length > 0 && (
+                        <div className="pt-2 border-t space-y-1">
+                          <span className="text-xs font-medium text-muted-foreground uppercase">
+                            Discounts applied
+                          </span>
+                          {previewBreakdown.user_discounts.map((d) => (
+                            <div
+                              key={d.id}
+                              className="flex justify-between text-sm text-green-600"
+                            >
+                              <span>{d.title}</span>
+                              <span>-{formatMoney(d.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     <div className="flex justify-between pt-2 border-t font-medium">
                       <span>
                         {pricingImpact.nightsAdded > 0 ? 'Additional Charge:' : 'Refund:'}

@@ -74,7 +74,7 @@ export async function POST(
 
     switch (body.action) {
       case 'extend': {
-        const { newCheckIn, newCheckOut, notes } = body.params
+        const { newCheckIn, newCheckOut, notes, selectedDiscountIds } = body.params
 
         if (!newCheckIn && !newCheckOut) {
           return error(ErrorCodes.VAL_001, request, {
@@ -87,7 +87,8 @@ export async function POST(
           newCheckOut,
           newCheckIn,
           user.id,
-          notes
+          notes,
+          selectedDiscountIds
         )
         break
       }

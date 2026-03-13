@@ -21,6 +21,7 @@ import { ReservationActions } from "@/components/admin/reservation-actions"
 import { Pagination } from "@/components/ui/pagination"
 import type { ReservationStatus } from "@/contracts/booking"
 import type { DashboardReservation } from "@/lib/dashboard/queries"
+import { RateDiscountsConfig } from "@/lib/config/types"
 
 const statusTextColors: Record<ReservationStatus, string> = {
   pending: "text-yellow-600",
@@ -53,6 +54,7 @@ type ReservationsTableProps = {
   pageSize: number
   total: number
   siteType: string | null
+  rateDiscountsConfig?: RateDiscountsConfig | null | undefined
 }
 
 export function ReservationsTable({
@@ -62,6 +64,7 @@ export function ReservationsTable({
   pageSize,
   total,
   siteType,
+  rateDiscountsConfig,
 }: ReservationsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -118,10 +121,10 @@ export function ReservationsTable({
                 <TableHead className="py-1.5">Check-out</TableHead>
                 <TableHead className="py-1.5">Nights</TableHead>
                 <TableHead className="py-1.5">Guests</TableHead>
-                <TableHead className="py-1.5">Total</TableHead>
-                <TableHead className="py-1.5">Paid</TableHead>
-                <TableHead className="py-1.5">Balance</TableHead>
-                <TableHead className="py-1.5">Refunded</TableHead>
+                <TableHead className="py-1.5">Total Amount</TableHead>
+                <TableHead className="py-1.5">Paid Amount</TableHead>
+                <TableHead className="py-1.5">Balance Owed</TableHead>
+                <TableHead className="py-1.5">Refunded Amount</TableHead>
                 <TableHead className="py-1.5">Status</TableHead>
                 <TableHead className="w-10 py-1.5" />
               </TableRow>
@@ -220,6 +223,7 @@ export function ReservationsTable({
                         hasOutstandingBalance={hasOutstandingBalance}
                         canRefund={canRefund}
                         maxRefundableCents={maxRefundableCents}
+                        rateDiscountsConfig={rateDiscountsConfig}
                       />
                     </TableCell>
                   </TableRow>

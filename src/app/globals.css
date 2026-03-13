@@ -320,4 +320,28 @@
   .font-sans {
     font-family: var(--font-sans);
   }
+
+  /* Rounded scrollbar for dialogs and overlay content */
+  .scrollbar-rounded {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+  }
+
+  .scrollbar-rounded::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-rounded::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  .scrollbar-rounded::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.35);
+    border-radius: 4px;
+  }
+
+  .scrollbar-rounded::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 }

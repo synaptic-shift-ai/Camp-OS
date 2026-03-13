@@ -138,7 +138,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                      <p className="font-medium truncate">
+                      <p className="font-medium truncate capitalize">
                         {reservation.guest?.first_name} {reservation.guest?.last_name}
                       </p>
                       <Badge variant="destructive" className="text-xs">
@@ -191,7 +191,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Clock className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                      <p className="font-medium truncate">
+                      <p className="font-medium truncate capitalize">
                         {reservation.guest?.first_name} {reservation.guest?.last_name}
                       </p>
                       {hasBalance && (
@@ -237,7 +237,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <p className="font-medium truncate">
+                    <p className="font-medium truncate capitalize">
                       {reservation.guest?.first_name} {reservation.guest?.last_name}
                     </p>
                   </div>

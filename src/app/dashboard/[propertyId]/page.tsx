@@ -188,7 +188,7 @@ async function TodaysArrivalsAndDepartures({ propertyId }: { propertyId: string 
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">{reservation.guestName}</p>
+                          <p className="font-medium capitalize">{reservation.guestName}</p>
                           {hasBalance && (
                             <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
                               Balance Due
@@ -248,7 +248,7 @@ async function RecentReservations({ propertyId }: { propertyId: string }) {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium">{reservation.guestName}</p>
+                        <p className="font-medium capitalize">{reservation.guestName}</p>
                         {hasBalance && (
                           <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
                             Balance Due

@@ -34,10 +34,10 @@ export type SiteTypeConfig = {
   site_type_rates?: Record<
     string,
     {
-      nightly?: { rate_cents: number | null; [k: string]: unknown }
-      weekly?: { rate_cents: number | null; [k: string]: unknown }
-      monthly?: { rate_cents: number | null; [k: string]: unknown }
-      seasonal?: { rate_cents: number | null; [k: string]: unknown }
+      nightly?: { rate_cents: number | null;[k: string]: unknown }
+      weekly?: { rate_cents: number | null;[k: string]: unknown }
+      monthly?: { rate_cents: number | null;[k: string]: unknown }
+      seasonal?: { rate_cents: number | null;[k: string]: unknown }
     }
   >
 }
@@ -263,7 +263,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
         })
         const result = await response.json()
         if (!response.ok || !result.success) {
-          throw new Error(result.error?.message || "Failed to update site")
+          const msg =
+            (result.error?.details && typeof result.error.details === 'object' && 'message' in result.error.details
+              ? (result.error.details as { message?: string }).message
+              : null) || result.error?.message
+          throw new Error(msg || "Failed to update site")
         }
         onSave(result.data)
       } else {
@@ -274,7 +278,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
         })
         const result = await response.json()
         if (!response.ok || !result.success) {
-          throw new Error(result.error?.message || "Failed to create site")
+          const msg =
+            (result.error?.details && typeof result.error.details === 'object' && 'message' in result.error.details
+              ? (result.error.details as { message?: string }).message
+              : null) || result.error?.message
+          throw new Error(msg || "Failed to create site")
         }
         onSave(result.data)
       }

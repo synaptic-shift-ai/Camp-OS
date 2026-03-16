@@ -107,6 +107,7 @@ export type SiteFormData = z.infer<typeof siteFormSchema>
  */
 export function toApiFormat(data: SiteFormData) {
   const isManual = data.pricing_source === "manual"
+  const basePriceCents = isManual ? Math.round(data.base_price * 100) : 0
   return {
     // Basic info (camelCase for v1 API)
     siteNumber: data.site_number,
@@ -117,16 +118,15 @@ export function toApiFormat(data: SiteFormData) {
     maxOccupancy: data.max_occupancy,
     maxVehicles: data.max_vehicles,
     sizeSqft: data.size_sqft || undefined,
-    // Only send rate fields when manual so saving "property default" or "site type default" doesn't overwrite stored rates
-    ...(isManual
-      ? {
-          basePrice: Math.round(data.base_price * 100),
-          weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
-          weeklyRateCents: data.weekly_rate ? Math.round(data.weekly_rate * 100) : undefined,
-          monthlyRateCents: data.monthly_rate ? Math.round(data.monthly_rate * 100) : undefined,
-          seasonalRateCents: data.seasonal_rate ? Math.round(data.seasonal_rate * 100) : undefined,
-        }
-      : {}),
+    // Always send basePrice; API will derive property defaults when non-manual and amount is 0
+    basePrice: basePriceCents,
+    // Only send additional rate fields when manual so saving "property default" or "site type default" doesn't overwrite stored rates
+    ...(isManual && {
+      weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
+      weeklyRateCents: data.weekly_rate ? Math.round(data.weekly_rate * 100) : undefined,
+      monthlyRateCents: data.monthly_rate ? Math.round(data.monthly_rate * 100) : undefined,
+      seasonalRateCents: data.seasonal_rate ? Math.round(data.seasonal_rate * 100) : undefined,
+    }),
     status: data.status,
     // Convert boolean objects to arrays of keys where value is true
     amenities: Object.entries(data.amenities)

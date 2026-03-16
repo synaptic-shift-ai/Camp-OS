@@ -321,11 +321,21 @@ export async function POST(
   } catch (err: any) {
     console.error('[v1/sites] Create site error:', err)
 
-    // Handle specific business rule violations
+    // Duplicate site number: return specific message (SITE_004)
     if (err.message?.includes('already exists')) {
-      return error(ErrorCodes.VALIDATION_002, undefined, { message: err.message })
+      return error(
+        ErrorCodes.SITE_004.code,
+        err.message,
+        ErrorCodes.SITE_004.status,
+        request
+      )
     }
 
-    return error(ErrorCodes.SERVER_001, undefined, { message: err.message || 'Unknown error' })
+    return NextResponse.json(
+      createErrorResponse(ErrorCodes.SERVER_001, request, {
+        message: err.message || 'Unknown error',
+      }),
+      { status: ErrorCodes.SERVER_001.status }
+    )
   }
 }

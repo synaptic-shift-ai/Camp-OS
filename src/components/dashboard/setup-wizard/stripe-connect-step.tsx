@@ -195,23 +195,40 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
     )
   }
 
+  const features = [
+    {
+      title: "Secure & Trusted",
+      description: "Powered by Stripe - trusted by millions worldwide",
+    },
+    {
+      title: "Fast Payouts",
+      description: "Funds to your bank in 2-3 business days",
+    },
+    {
+      title: "Simple Pricing",
+      description: "2.9% + $0.30 per transaction",
+    },
+    {
+      title: "Your Control",
+      description: "Payments go directly to your account",
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <CreditCard className="h-6 w-6 text-primary" />
+      {/* Header: title + subtitle + badge */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-xl font-semibold">Payment setup</h2>
+          {totalCount > 0 && (
+            <Badge variant="outline" className="text-sm px-3 py-1 shrink-0">
+              {connectedCount} of {totalCount} connected
+            </Badge>
+          )}
         </div>
-        <div className="flex-1">
-          <h2 className="text-xl font-semibold">Payment Setup</h2>
-          <p className="text-muted-foreground">
-            Connect Stripe to accept payments for your {totalCount === 1 ? "property" : "properties"}
-          </p>
-        </div>
-        {totalCount > 0 && (
-          <Badge variant="outline" className="text-base px-4 py-2">
-            {connectedCount} of {totalCount} Connected
-          </Badge>
-        )}
+        <p className="text-sm text-muted-foreground">
+          Connect Stripe to accept payments for your {totalCount === 1 ? "property" : "properties"}
+        </p>
       </div>
 
       {/* Error Alert */}
@@ -241,79 +258,38 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
         </Alert>
       )}
 
-      {/* Info Card */}
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+      {/* Features block — horizontal strip, 4 items */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4 md:p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {features.map((item) => (
+            <div key={item.title} className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
               </div>
-              <div>
-                <h3 className="font-semibold text-sm">Secure & Trusted</h3>
-                <p className="text-xs text-muted-foreground">
-                  Powered by Stripe - trusted by millions worldwide
-                </p>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-sm">{item.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
               </div>
             </div>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground mt-4 text-center">
+          Don&apos;t have a Stripe account?{" "}
+          <a
+            href="https://stripe.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            Create one for free
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </p>
+      </div>
 
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Fast Payouts</h3>
-                <p className="text-xs text-muted-foreground">
-                  Funds to your bank in 2-3 business days
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Simple Pricing</h3>
-                <p className="text-xs text-muted-foreground">
-                  2.9% + $0.30 per transaction
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Your Control</h3>
-                <p className="text-xs text-muted-foreground">
-                  Payments go directly to your account
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center pt-2">
-            <p className="text-sm text-muted-foreground">
-              Don't have a Stripe account?{" "}
-              <a
-                href="https://stripe.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                Create one for free
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Properties List - same grid as sites so card width matches site items */}
+      {/* Properties List */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Your Properties</h3>
+        <h3 className="text-lg font-semibold">Your properties</h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {properties.map((prop) => {
             const isConnected = prop.stripeConnected
@@ -393,13 +369,6 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Alert className="flex-1 min-w-0 border-blue-500/30 bg-blue-500/10 [&>svg]:text-blue-600 dark:[&>svg]:text-blue-400">
-          {/* <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
-            <strong>Note:</strong> You can skip this step and connect Stripe later from your property
-            settings. However, you won&apos;t be able to accept online bookings until Stripe is connected.
-            {connectedCount > 0 && connectedCount < totalCount && (
-              <> You&apos;ve connected {connectedCount} of {totalCount} properties - you can connect the remaining properties now or later.</>
-            )}
-          </AlertDescription> */}
           <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
             <strong>Note:</strong> You won&apos;t be able to accept online bookings until Stripe is
             connected for a property. Connect Stripe for each property above, or connect later from
@@ -409,9 +378,6 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
             )}
           </AlertDescription>
         </Alert>
-        {/* <Button variant="outline" onClick={onSkip} className="shrink-0">
-          Skip for Now
-        </Button> */}
       </div>
     </div>
   )

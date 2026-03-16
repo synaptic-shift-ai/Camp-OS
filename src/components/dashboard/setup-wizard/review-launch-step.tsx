@@ -1,18 +1,33 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Property } from "@/components/property-context"
-import { Button } from "@/components/ui/button"
-import { Rocket, CheckCircle2, XCircle, MapPin, Tent, CreditCard, Phone, Building2, AlertCircle, ArrowLeft } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  CheckCircle2,
+  MapPin,
+  Tent,
+  Phone,
+  AlertCircle,
+  ArrowRight,
+  Car,
+  Home,
+  Sparkles,
+  Circle,
+  Building2,
+  CreditCard,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface ReviewLaunchStepProps {
   property: Property
   onComplete: () => void
   onBack?: () => void
+  onReadyChange?: (ready: boolean) => void
+  onFixNow?: () => void
 }
 
 interface Site {
@@ -54,7 +69,27 @@ interface CompletionData {
   }
 }
 
-export function ReviewLaunchStep({ property: _property, onComplete, onBack }: ReviewLaunchStepProps) {
+const SITE_TYPE_ICONS: Record<string, LucideIcon> = {
+  tent: Tent,
+  rv: Car,
+  cabin: Home,
+  glamping: Sparkles,
+  yurt: Circle,
+  other: Circle,
+}
+
+function getSiteTypeCounts(sites: Site[]): Array<{ type: string; count: number }> {
+  const counts: Record<string, number> = {}
+  sites.forEach((s) => {
+    const t = s.site_type || "other"
+    counts[t] = (counts[t] || 0) + 1
+  })
+  return Object.entries(counts)
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => a.type.localeCompare(b.type))
+}
+
+export function ReviewLaunchStep({ property: _property, onComplete, onBack, onReadyChange, onFixNow }: ReviewLaunchStepProps) {
   const [completionData, setCompletionData] = useState<CompletionData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -104,6 +139,25 @@ export function ReviewLaunchStep({ property: _property, onComplete, onBack }: Re
     fetchData()
   }, []) // Run once on mount — fetches all properties, not scoped to a single property.id
 
+  // All hooks must run on every render (before any early return)
+  const allPropertiesReady =
+    completionData?.properties.every(
+      (prop) =>
+        Boolean(prop.address && prop.city && prop.state && prop.totalSites > 0 && prop.stripeConnected)
+    ) ?? false
+
+  const prevReadyRef = useRef<boolean | null>(null)
+  useEffect(() => {
+    if (loading || !completionData) {
+      onReadyChange?.(false)
+      return
+    }
+    if (prevReadyRef.current !== allPropertiesReady) {
+      prevReadyRef.current = allPropertiesReady
+      onReadyChange?.(allPropertiesReady)
+    }
+  }, [loading, completionData, allPropertiesReady, onReadyChange])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -125,306 +179,238 @@ export function ReviewLaunchStep({ property: _property, onComplete, onBack }: Re
 
   const { properties, summary } = completionData
 
-  // Check if all properties are ready to launch
-  const allPropertiesReady = properties.every(
-    (prop) =>
-      prop.address &&
-      prop.city &&
-      prop.state &&
-      prop.totalSites > 0 &&
-      prop.stripeConnected
-  )
-
   // Count incomplete properties
   const incompleteProperties = properties.filter(
     (prop) => !prop.address || !prop.city || !prop.state || prop.totalSites === 0 || !prop.stripeConnected
   )
 
+  const paymentNeedsCount = summary.totalProperties - summary.propertiesWithStripe
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Rocket className="h-6 w-6 text-primary" />
+      {/* Header */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-xl font-semibold">Review & launch</h2>
+          {summary.totalProperties > 0 && (
+            <Badge variant="secondary" className="text-sm px-3 py-1 shrink-0">
+              {summary.totalProperties} {summary.totalProperties === 1 ? "property" : "properties"}
+            </Badge>
+          )}
         </div>
-        <div className="flex-1">
-          <h2 className="text-xl font-semibold">Review & Launch</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Review your setup and launch your {summary.totalProperties === 1 ? "property" : "properties"}
-          </p>
-        </div>
-        {summary.totalProperties > 0 && (
-          <Badge variant="outline" className="text-base px-4 py-2">
-            {summary.totalProperties} {summary.totalProperties === 1 ? "Property" : "Properties"}
-          </Badge>
-        )}
+        <p className="text-sm text-muted-foreground">
+          Check your setup and go live when ready
+        </p>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{summary.totalProperties}</p>
-                <p className="text-sm text-muted-foreground">
-                  {summary.totalProperties === 1 ? "Property" : "Properties"}
-                </p>
-              </div>
+      {/* Overview — 3 cards with icons on left, light border, white background */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border border-border bg-background rounded-lg shadow-sm">
+          <CardContent className="pt-6 flex items-start gap-4">
+            <Building2 className="h-8 w-8 text-destructive shrink-0" />
+            <div className="min-w-0">
+              <p className="text-2xl font-bold">{summary.totalProperties}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Properties</p>
+              <p className="text-xs text-muted-foreground">configured</p>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Tent className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{summary.totalSites}</p>
-                <p className="text-sm text-muted-foreground">
-                  Total {summary.totalSites === 1 ? "Site" : "Sites"}
-                </p>
-              </div>
+        <Card className="border border-border bg-background rounded-lg shadow-sm">
+          <CardContent className="pt-6 flex items-start gap-4">
+            <Tent className="h-8 w-8 text-destructive shrink-0" />
+            <div className="min-w-0">
+              <p className="text-2xl font-bold">{summary.totalSites}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Total sites</p>
+              <p className="text-xs text-muted-foreground">across all properties</p>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div
-                className={`h-12 w-12 rounded-full flex items-center justify-center ${summary.allStripeConnected
-                  ? "bg-green-100 dark:bg-green-900/20"
-                  : "bg-amber-100 dark:bg-amber-900/20"
-                  }`}
-              >
-                <CreditCard
-                  className={`h-6 w-6 ${summary.allStripeConnected ? "text-green-600" : "text-amber-600"
-                    }`}
-                />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {summary.propertiesWithStripe}/{summary.totalProperties}
-                </p>
-                <p className="text-sm text-muted-foreground">Payment Ready</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Properties List */}
-      <div className="space-y-6">
-        <h3 className="text-base font-semibold">Your Properties</h3>
-        {properties.map((prop) => {
-          const hasBasicInfo = !!(prop.address && prop.city && prop.state)
-          const hasSites = prop.totalSites > 0
-          const hasStripe = prop.stripeConnected
-          const isComplete = hasBasicInfo && hasSites && hasStripe
-
-          return (
-            <Card
-              key={prop.id}
-              className={
-                isComplete
-                  ? "border-green-200 dark:border-green-800"
-                  : "border-amber-200 dark:border-amber-800"
-              }
-            >
-              <CardHeader className="bg-muted/50">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{prop.name}</CardTitle>
-                  {isComplete ? (
-                    <Badge variant="default" className="bg-green-600">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Ready to Launch
-                    </Badge>
-                  ) : (
-                    <Badge variant="default" className="bg-amber-600">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Incomplete
-                    </Badge>
-                  )}
-                </div>
-                {prop.description && (
-                  <CardDescription className="mt-2">{prop.description}</CardDescription>
+        <Card className="border border-border bg-background rounded-lg shadow-sm">
+          <CardContent className="pt-6 flex items-start gap-4">
+            <CreditCard className="h-8 w-8 text-destructive shrink-0" />
+            <div className="min-w-0">
+              <p className="text-2xl font-bold">
+                {!summary.allStripeConnected ? (
+                  <>
+                    <span className="text-destructive">{summary.propertiesWithStripe}</span>
+                    <span className="text-foreground">/{summary.totalProperties}</span>
+                  </>
+                ) : (
+                  `${summary.propertiesWithStripe}/${summary.totalProperties}`
                 )}
-              </CardHeader>
-
-              <CardContent className="pt-6 space-y-4">
-                {/* Property Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Address</p>
-                      {hasBasicInfo ? (
-                        <p className="text-muted-foreground">
-                          {prop.address}
-                          <br />
-                          {prop.city}, {prop.state} {prop.zipCode}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-amber-600 dark:text-amber-400">Not configured</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Contact</p>
-                      {prop.phone && <p className="text-muted-foreground">{prop.phone}</p>}
-                      {prop.email && <p className="text-muted-foreground">{prop.email}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Sites */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <Tent className="h-4 w-4" />
-                      Sites ({prop.totalSites})
-                    </h4>
-                    {hasSites ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-amber-600" />
-                    )}
-                  </div>
-                  {hasSites ? (
-                    <p className="text-sm text-muted-foreground">{prop.siteBreakdown}</p>
-                  ) : (
-                    <p className="text-sm text-amber-600 dark:text-amber-400">No sites configured</p>
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* Payment */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      Payment Processing
-                    </h4>
-                    {hasStripe ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-amber-600" />
-                    )}
-                  </div>
-                  {hasStripe ? (
-                    <p className="text-sm text-muted-foreground">Stripe connected and ready</p>
-                  ) : (
-                    <p className="text-sm text-amber-600 dark:text-amber-400">Stripe not connected</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">Payment ready</p>
+              <p className={`text-xs ${!summary.allStripeConnected ? "text-destructive" : "text-muted-foreground"}`}>
+                {!summary.allStripeConnected
+                  ? `${paymentNeedsCount} still ${paymentNeedsCount === 1 ? "needs" : "need"} Stripe`
+                  : "All connected"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Launch Status */}
-      {allPropertiesReady ? (
-        <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-semibold text-lg text-green-900 dark:text-green-100">
-                  {summary.totalProperties === 1 ? "Your property is" : "All properties are"} ready to launch!
+      {/* Setup incomplete banner — with Fix now */}
+      {!allPropertiesReady && (
+        <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900 dark:text-amber-100">
+                  Setup incomplete — fix before launching
                 </p>
-                <p className="text-sm text-green-700 dark:text-green-300 mt-2">
-                  All required setup steps are complete. Click "Complete Setup" below to start accepting bookings for{" "}
-                  {summary.totalProperties === 1 ? "your property" : `all ${summary.totalProperties} properties`}.
-                </p>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>
-                      {summary.totalProperties}{" "}
-                      {summary.totalProperties === 1 ? "property" : "properties"} configured
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>
-                      {summary.totalSites} {summary.totalSites === 1 ? "site" : "sites"} ready for booking
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Payment processing enabled for all properties</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>Booking pages published</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-semibold text-lg text-amber-900 dark:text-amber-100">
-                  Setup incomplete
-                </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-                  {incompleteProperties.length === 1
-                    ? "1 property needs"
-                    : `${incompleteProperties.length} properties need`}{" "}
-                  additional configuration. Please complete the required steps for all properties before launching.
-                </p>
-                <div className="mt-4 space-y-2">
+                <ul className="mt-2 space-y-1 text-sm text-amber-800 dark:text-amber-200">
                   {incompleteProperties.map((prop) => (
-                    <div key={prop.id} className="flex items-center gap-2 text-sm">
-                      <XCircle className="h-4 w-4 text-amber-600" />
-                      <span>
-                        {prop.name} —{" "}
-                        {!prop.address || !prop.city || !prop.state
-                          ? "Missing property details"
-                          : !prop.totalSites
-                            ? "No sites configured"
-                            : "Stripe not connected"}
-                      </span>
-                    </div>
+                    <li key={prop.id}>
+                      • {prop.name} —{" "}
+                      {!prop.address || !prop.city || !prop.state
+                        ? "Missing property details"
+                        : prop.totalSites === 0
+                          ? "No sites configured"
+                          : "Stripe not connected"}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            {onFixNow && (
+              <Button variant="outline" size="sm" onClick={onFixNow} className="shrink-0 border-amber-300 dark:border-amber-700">
+                Fix now
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </Alert>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between gap-4">
-        {onBack ? (
-          <Button variant="outline" onClick={onBack} size="lg">
-            <ArrowLeft className="mr-2 h-5 w-5" />
-            Previous
-          </Button>
-        ) : (
-          <span />
-        )}
-        <Button type="button" onClick={onComplete} disabled={!allPropertiesReady} size="lg">
-          <Rocket className="mr-2 h-5 w-5" />
-          Complete Setup
-        </Button>
+      {/* Your properties */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Your properties</h3>
+        <div className="space-y-4">
+          {properties.map((prop) => {
+            const hasBasicInfo = !!(prop.address && prop.city && prop.state)
+            const hasSites = prop.totalSites > 0
+            const hasStripe = prop.stripeConnected
+            const isComplete = hasBasicInfo && hasSites && hasStripe
+
+            return (
+              <Card
+                key={prop.id}
+                className={
+                  isComplete
+                    ? "border-2 border-green-500/60 dark:border-green-500/50 bg-green-50/40 dark:bg-green-950/30 shadow-sm"
+                    : "border-2 border-amber-500/60 dark:border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/30 shadow-sm"
+                }
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-medium text-foreground">
+                      {prop.name}
+                    </CardTitle>
+                    {isComplete ? (
+                      <Badge className="bg-green-600 text-white hover:bg-green-600 border-0">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Ready to launch
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Incomplete
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Address
+                        </p>
+                        {hasBasicInfo ? (
+                          <p className="text-muted-foreground mt-0.5">
+                            {prop.address}
+                            <br />
+                            {prop.city}, {prop.state} {prop.zipCode}
+                          </p>
+                        ) : (
+                          <p className="text-destructive/80 text-xs mt-0.5">Not configured</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Contact
+                        </p>
+                        <div className="text-muted-foreground mt-0.5">
+                          {prop.phone && <p>{prop.phone}</p>}
+                          {prop.email && <p>{prop.email}</p>}
+                          {!prop.phone && !prop.email && <p className="text-xs">—</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-border space-y-3">
+                    {/* Sites included — check + count + type pills */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {hasSites ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                      )}
+                      <span className="text-sm text-muted-foreground">
+                        {hasSites ? `${prop.totalSites} site${prop.totalSites === 1 ? "" : "s"}` : "No sites"}
+                      </span>
+                      {hasSites && prop.sites?.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 ml-1">
+                          {getSiteTypeCounts(prop.sites).map(({ type, count }) => {
+                            const Icon = SITE_TYPE_ICONS[type] || Circle
+                            const label = type.charAt(0).toUpperCase() + type.slice(1)
+                            return (
+                              <span
+                                key={type}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-700 px-2.5 py-0.5 text-xs font-medium text-white"
+                              >
+                                <Icon className="h-3 w-3" />
+                                {label}
+                                <span className="text-white/80">x{count}</span>
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {/* Payment processing */}
+                    <div className="flex items-center gap-2 text-sm">
+                      {hasStripe ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                      )}
+                      <span className="text-muted-foreground">
+                        Payment processing:{" "}
+                        {hasStripe ? "Stripe connected and ready" : "Stripe not connected"}
+                      </span>
+                    </div>
+                    {!isComplete && onFixNow && (
+                      <div className="flex justify-end pt-1">
+                        <Button variant="ghost" size="sm" onClick={onFixNow}>
+                          Fix
+                          <ArrowRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

@@ -8,38 +8,39 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCheckout } from "@/lib/booking/checkout-context"
+import { downloadConfirmationPdf } from "@/lib/booking/confirmation-pdf"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 
 // API response types
 type ConfirmPaymentResponse =
   | {
-      success: true
-      data: {
-        reservation_id: string
-        confirmation_number: string
-        status: string
-        payment_status: string
-        guest_name: string
-        guest_email: string
-        property_name: string
-        site_name: string
-        check_in_date: string
-        check_out_date: string
-        total_amount_cents: number
-        paid_amount_cents: number
-        email_sent: boolean
-      }
-      message: string
+    success: true
+    data: {
+      reservation_id: string
+      confirmation_number: string
+      status: string
+      payment_status: string
+      guest_name: string
+      guest_email: string
+      property_name: string
+      site_name: string
+      check_in_date: string
+      check_out_date: string
+      total_amount_cents: number
+      paid_amount_cents: number
+      email_sent: boolean
     }
+    message: string
+  }
   | {
-      success: false
-      error: {
-        code: string
-        message: string
-        details?: unknown
-      }
+    success: false
+    error: {
+      code: string
+      message: string
+      details?: unknown
     }
+  }
 
 export default function ConfirmationPage() {
   const params = useParams()
@@ -53,6 +54,7 @@ export default function ConfirmationPage() {
   const [_isConfirming, setIsConfirming] = useState(false)
   const [hasAttemptedConfirmation, setHasAttemptedConfirmation] = useState(false)
   const [_confirmationError, setConfirmationError] = useState<string | null>(null)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   // Helper to format cents as dollars
   const formatCurrency = (cents: number) => {
@@ -153,6 +155,66 @@ export default function ConfirmationPage() {
   priceBreakdown.total =
     priceBreakdown.subtotal - discountCents + (priceBreakdown.taxes || 0) + (priceBreakdown.pet_fee || 0)
 
+  function handleDownloadPdf() {
+    setIsDownloadingPdf(true)
+    try {
+      const basePriceCents =
+        priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
+      const taxRate =
+        priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
+      const taxLabel =
+        priceBreakdown.tax_name ??
+        `Taxes (${(taxRate * 100).toFixed(1)}%)`
+      const cleaningFee =
+        priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0
+      const taxes = priceBreakdown.taxes ?? 0
+
+      downloadConfirmationPdf({
+        confirmationNumber: checkoutData.confirmationNumber!,
+        site: {
+          name: checkoutData.site!.name,
+          site_type: checkoutData.site!.site_type,
+        },
+        checkInDate: checkoutData.checkInDate!,
+        checkOutDate: checkoutData.checkOutDate!,
+        guest: {
+          first_name: checkoutData.guestInfo!.first_name,
+          last_name: checkoutData.guestInfo!.last_name,
+          email: checkoutData.guestInfo!.email,
+          phone: checkoutData.guestInfo!.phone,
+        },
+        nights: priceBreakdown.nights ?? numberOfNights,
+        basePriceCents,
+        subtotalCents: priceBreakdown.subtotal,
+        ...(cleaningFee > 0 && { cleaningFeeCents: cleaningFee }),
+        serviceFeeCents:
+          priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0,
+        ...(discountCents > 0 && { discountCents }),
+        ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
+        totalCents: priceBreakdown.total,
+      })
+
+      const filename = `${checkoutData.confirmationNumber!.toUpperCase()}.pdf`
+      toast({
+        title: "PDF downloaded",
+        description: `Saved as ${filename}`,
+      })
+    } catch (err) {
+      console.error("[Confirmation] PDF download failed:", err)
+      toast({
+        title: "Download failed",
+        description: "Could not generate PDF. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDownloadingPdf(false)
+    }
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
   const handleNewBooking = () => {
     clearCheckoutData()
     router.push(`/book/${slug}`)
@@ -161,7 +223,7 @@ export default function ConfirmationPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-emerald-50 to-white relative overflow-hidden">
       {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-50">
+        <div className="fixed inset-0 pointer-events-none z-50 print:hidden">
           {[...Array(50)].map((_, i) => (
             <div
               key={i}
@@ -210,9 +272,8 @@ export default function ConfirmationPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <div
-              className={`inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-4 shadow-lg transition-all duration-700 ${
-                showCheckmark ? "scale-100 opacity-100" : "scale-0 opacity-0"
-              }`}
+              className={`inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-4 shadow-lg transition-all duration-700 ${showCheckmark ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                }`}
             >
               <Check className="h-12 w-12 text-white animate-bounce" />
             </div>
@@ -359,7 +420,7 @@ export default function ConfirmationPage() {
             </CardContent>
           </Card>
 
-          <div className="grid md:grid-cols-3 gap-4 mb-8">
+          <div className="grid md:grid-cols-3 gap-4 mb-8 print:hidden">
             <Button
               variant="outline"
               className="h-12 bg-white hover:bg-green-50 hover:border-green-300 transition-all duration-300 hover:scale-105"
@@ -370,13 +431,16 @@ export default function ConfirmationPage() {
             <Button
               variant="outline"
               className="h-12 bg-white hover:bg-green-50 hover:border-green-300 transition-all duration-300 hover:scale-105"
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf}
             >
               <Download className="w-4 h-4 mr-2" />
-              Download PDF
+              {isDownloadingPdf ? "Downloading…" : "Download PDF"}
             </Button>
             <Button
               variant="outline"
               className="h-12 bg-white hover:bg-green-50 hover:border-green-300 transition-all duration-300 hover:scale-105"
+              onClick={handlePrint}
             >
               <Printer className="w-4 h-4 mr-2" />
               Print
@@ -419,7 +483,7 @@ export default function ConfirmationPage() {
             </CardContent>
           </Card>
 
-          <div className="text-center mt-8">
+          <div className="text-center mt-8 print:hidden">
             <Button
               onClick={handleNewBooking}
               className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white h-12 px-8 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"

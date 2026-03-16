@@ -94,27 +94,48 @@ export function GuestReservationsSheet({
   const [fetchError, setFetchError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open || !propertyId || !guest?.id) return
 
+    let cancelled = false
     setIsLoading(true)
     setFetchError(null)
     setReservations([])
 
-    fetch(`/api/v1/properties/${propertyId}/reservations?guestId=${guest.id}&limit=50`)
+    const url = `/api/v1/properties/${propertyId}/reservations?guestId=${encodeURIComponent(guest.id)}&limit=50`
+    fetch(url)
       .then(async (res) => {
-        const json = await res.json()
-        if (!res.ok) {
-          throw new Error(json?.error?.message ?? 'Failed to load reservations')
+        let json: { data?: { reservations?: unknown }; error?: { message?: string; details?: { message?: string } } }
+        try {
+          json = await res.json()
+        } catch {
+          throw new Error('Invalid response from server')
         }
-        setReservations(json.data.reservations ?? [])
+        if (cancelled) return
+        if (!res.ok) {
+          const msg =
+            json?.error?.details && typeof json.error.details === 'object' && 'message' in json.error.details
+              ? (json.error.details as { message?: string }).message
+              : json?.error?.message
+          throw new Error(msg ?? 'Failed to load reservations')
+        }
+        const list = json?.data?.reservations
+        if (!cancelled) {
+          setReservations(Array.isArray(list) ? (list as ReservationItem[]) : [])
+        }
       })
       .catch((err) => {
-        setFetchError(err instanceof Error ? err.message : 'Failed to load reservations')
+        if (!cancelled) {
+          setFetchError(err instanceof Error ? err.message : 'Failed to load reservations')
+        }
       })
       .finally(() => {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       })
-  }, [open, guest.id, propertyId])
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, guest?.id, propertyId])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

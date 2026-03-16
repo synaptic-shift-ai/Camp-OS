@@ -599,7 +599,7 @@ export function SiteTypeRateSettings({
                                 <Label htmlFor={`${siteType}-${type}-rate`}>
                                     {type === 'nightly'
                                     ? 'Nightly Rate'
-                                    : `${RESERVATION_TYPE_LABELS[type].title} Rate (per night)`}
+                                    : `${RESERVATION_TYPE_LABELS[type].title} Rate`}
                                 </Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -637,9 +637,9 @@ export function SiteTypeRateSettings({
                                 <p className="text-xs text-muted-foreground">
                                     {type === 'nightly' && 'Base rate per night for short stays'}
                                     {type === 'weekly' &&
-                                    `Per-night rate for ${rates.weekly.min_nights}-${rates.weekly.max_nights ?? '∞'} night stays`}
+                                    `Weekly rate for every ${rates.weekly.min_nights} night stay`}
                                     {type === 'monthly' &&
-                                    `Per-night rate for ${rates.monthly.min_nights}+ night stays`}
+                                    `Monthly rate for every ${rates.monthly.min_nights} night stay`}
                                 </p>
                                 </div>
                                 <div className="space-y-2">

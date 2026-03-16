@@ -49,7 +49,9 @@ function AvailabilityResultsContent() {
   const adults = Number.parseInt(searchParams.get("adults") || "2")
   const children = Number.parseInt(searchParams.get("children") || "0")
   const pets = Number.parseInt(searchParams.get("pets") || "0")
-  const siteTypeFilter = searchParams.get("siteType") as SiteType | null
+  const rawSiteType = searchParams.get("siteType")
+  const siteTypeFilter =
+    rawSiteType === "all" || rawSiteType === "" ? null : (rawSiteType as SiteType | null)
   const [rateDiscountsConfig, setRateDiscountsConfig] = useState<RateDiscountsConfig | null>(null)
   const [pricingConfig, setPricingConfig] = useState<{ tax_rate?: number; tax_name?: string } | null>(null)
 

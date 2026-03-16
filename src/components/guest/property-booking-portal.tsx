@@ -105,7 +105,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
   const [pets, setPets] = useState(0)
-  const [selectedSiteType, setSelectedSiteType] = useState<SiteType | ("")>("")
+  const [selectedSiteType, setSelectedSiteType] = useState<SiteType | "" | "all">("")
   const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
   const [isSearching, _setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -164,7 +164,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       pets: pets.toString(),
     })
 
-    if (selectedSiteType) {
+    if (selectedSiteType && selectedSiteType !== "all") {
       params.append("siteType", selectedSiteType)
     }
 
@@ -435,7 +435,10 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 {/* Site Type Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-[#2D5A27]">Site Type</label>
-                  <Select value={selectedSiteType} onValueChange={(value) => setSelectedSiteType(value as SiteType)}>
+                  <Select
+                    value={selectedSiteType}
+                    onValueChange={(value) => setSelectedSiteType(value as SiteType | "" | "all")}
+                  >
                     <SelectTrigger className="border-2">
                       <SelectValue placeholder="All Site Types" />
                     </SelectTrigger>

@@ -105,7 +105,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
                 {lateArrivals.length > 0 && (
                   <span className="text-red-600">{lateArrivals.length} late • </span>
                 )}
-                {todaysPendingCheckIns.length} today • {completedCheckIns.length} checked in
+                {todaysPendingCheckIns.length} today
               </CardDescription>
             </div>
             <div className="flex gap-2">

@@ -60,7 +60,7 @@ export function AddSiteDialog({
     }
   }, [propertyId])
 
-  const fetchSettings = useCallback(async () => {
+  const fetchSiteTypeConfig = useCallback(async () => {
     if (!propertyId) return
     try {
       const res = await fetch(`/api/properties/${propertyId}/settings`)
@@ -69,16 +69,16 @@ export function AddSiteDialog({
         setSiteTypeConfig(json.property.site_type_config as SiteTypeConfig)
       }
     } catch (e) {
-      console.error("Error fetching property settings:", e)
+      console.error("Error fetching site type config:", e)
     }
   }, [propertyId])
 
   useEffect(() => {
     if (open) {
       fetchPropertyDefaults()
-      fetchSettings()
+      fetchSiteTypeConfig()
     }
-  }, [open, fetchPropertyDefaults, fetchSettings])
+  }, [open, fetchPropertyDefaults, fetchSiteTypeConfig])
 
   const handleSave = (site: any) => {
     toast({

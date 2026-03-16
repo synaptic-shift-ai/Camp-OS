@@ -35,8 +35,14 @@ function formatDate(dateString: string): string {
   })
 }
 
-async function DashboardStats({ propertyId }: { propertyId: string }) {
-  const stats = await getDashboardStats(propertyId)
+async function DashboardStats({
+  propertyId,
+  allowedSiteTypes,
+}: {
+  propertyId: string
+  allowedSiteTypes?: string[] | null
+}) {
+  const stats = await getDashboardStats(propertyId, allowedSiteTypes?.length ? { allowedSiteTypes } : undefined)
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -93,17 +99,26 @@ const siteTypeLabels: Record<string, string> = {
 }
 const siteTypeOrder = ["rv", "tent", "cabin", "glamping", "yurt", "other"]
 
-async function CurrentlyCheckedIn({ propertyId }: { propertyId: string }) {
+async function CurrentlyCheckedIn({
+  propertyId,
+  allowedSiteTypes,
+}: {
+  propertyId: string
+  allowedSiteTypes?: string[] | null
+}) {
   const todayStr = new Date().toISOString().split("T")[0]!
-  const { data: allCheckedIn } = await getReservations(
-    propertyId,
-    { status: "checked_in" },
-    1,
-    50
-  )
+  const filters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
+  if (allowedSiteTypes?.length) filters.allowedSiteTypes = allowedSiteTypes
+  const { data: allCheckedIn } = await getReservations(propertyId, filters, 1, 50)
   const currentlyCheckedIn = allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr)
 
   let countsBySiteType: Record<string, number> = {}
+  const siteTypesToShow =
+    allowedSiteTypes && allowedSiteTypes.length > 0
+      ? siteTypeOrder.filter((t) =>
+          (allowedSiteTypes as string[]).map((a) => a.toLowerCase()).includes(t)
+        )
+      : siteTypeOrder
   if (currentlyCheckedIn.length > 0) {
     const siteIds = [...new Set(currentlyCheckedIn.map((r) => r.siteId))]
     const supabase = await createClient()
@@ -132,7 +147,7 @@ async function CurrentlyCheckedIn({ propertyId }: { propertyId: string }) {
       <CardContent>
         {currentlyCheckedIn.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-4">
-            {siteTypeOrder.map((type) => {
+            {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
               return (
                 <Link
@@ -154,11 +169,19 @@ async function CurrentlyCheckedIn({ propertyId }: { propertyId: string }) {
   )
 }
 
-async function TodaysArrivalsAndDepartures({ propertyId }: { propertyId: string }) {
+async function TodaysArrivalsAndDepartures({
+  propertyId,
+  allowedSiteTypes,
+}: {
+  propertyId: string
+  allowedSiteTypes?: string[] | null
+}) {
   const todayStr = new Date().toISOString().split("T")[0]!
+  const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
+  if (allowedSiteTypes?.length) resFilters.allowedSiteTypes = allowedSiteTypes
   const [arrivals, { data: allCheckedIn }] = await Promise.all([
-    getTodaysArrivals(propertyId),
-    getReservations(propertyId, { status: "checked_in" }, 1, 50),
+    getTodaysArrivals(propertyId, allowedSiteTypes?.length ? { allowedSiteTypes } : undefined),
+    getReservations(propertyId, resFilters, 1, 50),
   ])
   const currentlyCheckedInIds = new Set(
     allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr).map((r) => r.id)
@@ -219,13 +242,18 @@ async function TodaysArrivalsAndDepartures({ propertyId }: { propertyId: string 
   )
 }
 
-async function RecentReservations({ propertyId }: { propertyId: string }) {
-  const { data: recentReservations } = await getReservations(
-    propertyId,
-    { status: ["confirmed", "pending"] },
-    1,
-    10
-  )
+async function RecentReservations({
+  propertyId,
+  allowedSiteTypes,
+}: {
+  propertyId: string
+  allowedSiteTypes?: string[] | null
+}) {
+  const filters: { status: ("confirmed" | "pending")[]; allowedSiteTypes?: string[] } = {
+    status: ["confirmed", "pending"],
+  }
+  if (allowedSiteTypes?.length) filters.allowedSiteTypes = allowedSiteTypes
+  const { data: recentReservations } = await getReservations(propertyId, filters, 1, 10)
   return (
     <Card>
       <CardHeader>
@@ -356,10 +384,18 @@ async function BookingPortalCTA({ propertyId }: { propertyId: string }) {
 
 type PageProps = { params: Promise<{ propertyId: string }> }
 
+function getAllowedSiteTypes(property: { site_type_config?: unknown }): string[] | null {
+  const raw = (property?.site_type_config ?? null) as { allowed_site_types?: string[] } | null
+  if (!Array.isArray(raw?.allowed_site_types) || raw.allowed_site_types.length === 0) return null
+  return raw.allowed_site_types
+}
+
 export default async function DashboardOverviewPage({ params }: PageProps) {
   const { propertyId } = await params
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
+
+  const allowedSiteTypes = getAllowedSiteTypes(property)
 
   return (
     <div className="space-y-6">
@@ -384,7 +420,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </div>
         }
       >
-        <DashboardStats propertyId={propertyId} />
+        <DashboardStats propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
       </Suspense>
 
       <Suspense
@@ -399,7 +435,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </Card>
         }
       >
-        <CurrentlyCheckedIn propertyId={propertyId} />
+        <CurrentlyCheckedIn propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
       </Suspense>
 
       <Suspense
@@ -427,7 +463,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </div>
         }
       >
-        <TodaysArrivalsAndDepartures propertyId={propertyId} />
+        <TodaysArrivalsAndDepartures propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
       </Suspense>
 
       <Suspense
@@ -446,7 +482,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </div>
         }
       >
-        <RecentReservations propertyId={propertyId} />
+        <RecentReservations propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
       </Suspense>
 
       <Suspense

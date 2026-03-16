@@ -51,6 +51,7 @@ const TYPE_LABELS: Record<string, string> = {
 async function getPropertyWithPricing(propertyId: string): Promise<{
   id: string
   pricingConfig: PropertyPricingConfig
+  allowedSiteTypes: string[] | null
 } | null> {
   const property = await getPropertyForUser(propertyId)
   if (!property) return null
@@ -72,8 +73,13 @@ async function getPropertyWithPricing(propertyId: string): Promise<{
   }))
 
   const rawSiteTypeConfig = (property.site_type_config ?? null) as
-    | { site_type_rates?: SiteTypeRatesConfig }
+    | { site_type_rates?: SiteTypeRatesConfig; allowed_site_types?: string[] }
     | null
+
+  const allowedSiteTypes =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) && rawSiteTypeConfig.allowed_site_types.length > 0
+      ? rawSiteTypeConfig.allowed_site_types
+      : null
 
   return {
     id: property.id,
@@ -82,6 +88,7 @@ async function getPropertyWithPricing(propertyId: string): Promise<{
       rates,
       siteTypeConfig: rawSiteTypeConfig ?? null,
     },
+    allowedSiteTypes,
   }
 }
 
@@ -115,11 +122,21 @@ async function SitesView({ propertyId }: { propertyId: string }) {
     )
   }
 
+  const allowedSiteTypes = property.allowedSiteTypes
+  const sitesForDisplay =
+    allowedSiteTypes && allowedSiteTypes.length > 0
+      ? sites.filter((site) =>
+          allowedSiteTypes
+            .map((t) => t.toLowerCase())
+            .includes((site.site_type || 'other').toLowerCase())
+        )
+      : sites
+
   // Pass sites and property pricing config to client component
   return (
     <>
-      <SitesPageHeader propertyId={property.id} sites={sites} />
-      <SitesContent sites={sites} propertyPricingConfig={property.pricingConfig} />
+      <SitesPageHeader propertyId={property.id} sites={sitesForDisplay} />
+      <SitesContent sites={sitesForDisplay} propertyPricingConfig={property.pricingConfig} />
     </>
   )
 }

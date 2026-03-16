@@ -137,6 +137,7 @@ export interface ReservationFilters {
   endDate?: string
   checkOutDate?: string
   siteType?: string
+  allowedSiteTypes?: string[]
 }
 
 export interface PaymentFilters {
@@ -190,6 +191,22 @@ export async function getReservations(
       return { data: [], total: 0 }
     }
 
+    siteIdsFilter = ids
+  } else if (Array.isArray(filters.allowedSiteTypes) && filters.allowedSiteTypes.length > 0) {
+    const allowedLower = new Set(filters.allowedSiteTypes.map((t) => t.toLowerCase()))
+    const { data: siteRows, error: siteError } = await supabase
+      .from('sites')
+      .select('id, site_type')
+      .eq('property_id', propertyId)
+    if (siteError) {
+      throw new Error(`Failed to fetch sites for allowed types filter: ${siteError.message}`)
+    }
+    const ids = (siteRows ?? [])
+      .filter((s) => s.site_type && allowedLower.has((s.site_type as string).toLowerCase()))
+      .map((s) => s.id as string)
+    if (ids.length === 0) {
+      return { data: [], total: 0 }
+    }
     siteIdsFilter = ids
   }
 
@@ -545,15 +562,40 @@ export async function getDistinctSiteTypes(propertyId: string): Promise<{ siteTy
  * Calculate dashboard statistics for a property
  */
 export async function getDashboardStats(
-  propertyId: string
+  propertyId: string,
+  options?: { allowedSiteTypes?: string[] }
 ): Promise<DashboardStats> {
   const supabase = await createClient()
 
-  // Fetch all reservations for stats calculation
-  const { data: reservations, error: reservationsError } = await supabase
+  let siteIdsFilter: string[] | null = null
+  if (Array.isArray(options?.allowedSiteTypes) && options.allowedSiteTypes.length > 0) {
+    const allowedLower = new Set(options.allowedSiteTypes.map((t) => t.toLowerCase()))
+    const { data: siteRows } = await supabase
+      .from('sites')
+      .select('id, site_type')
+      .eq('property_id', propertyId)
+    const ids = (siteRows ?? [])
+      .filter((s) => s.site_type && allowedLower.has((s.site_type as string).toLowerCase()))
+      .map((s) => s.id as string)
+    if (ids.length > 0) siteIdsFilter = ids
+    else
+      return {
+        totalRevenue: 0 as MoneyCents,
+        totalReservations: 0,
+        occupancyRate: 0,
+        totalGuests: 0,
+        pendingPayments: 0 as MoneyCents,
+        completedPayments: 0 as MoneyCents,
+        cancelledPayments: 0 as MoneyCents,
+      }
+  }
+
+  let reservationsQuery = supabase
     .from('reservations')
     .select('total_amount, paid_amount, status, payment_status')
     .eq('property_id', propertyId)
+  if (siteIdsFilter) reservationsQuery = reservationsQuery.in('site_id', siteIdsFilter)
+  const { data: reservations, error: reservationsError } = await reservationsQuery
 
   if (reservationsError) {
     throw new Error(`Failed to fetch reservation stats: ${reservationsError.message}`)
@@ -581,11 +623,13 @@ export async function getDashboardStats(
   ).length
 
   // Calculate total guests (sum of adults + children from confirmed/checked in reservations)
-  const { data: activeReservations } = await supabase
+  let activeReservationsQuery = supabase
     .from('reservations')
     .select('num_adults, num_children')
     .eq('property_id', propertyId)
     .in('status', ['confirmed', 'checked_in'])
+  if (siteIdsFilter) activeReservationsQuery = activeReservationsQuery.in('site_id', siteIdsFilter)
+  const { data: activeReservations } = await activeReservationsQuery
 
   const totalGuests = (activeReservations || []).reduce(
     (sum, r) => sum + (r.num_adults || 0) + (r.num_children || 0),
@@ -596,18 +640,22 @@ export async function getDashboardStats(
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  const { data: recentReservations } = await supabase
+  let recentReservationsQuery = supabase
     .from('reservations')
     .select('check_in_date, check_out_date')
     .eq('property_id', propertyId)
     .gte('check_in_date', thirtyDaysAgo.toISOString().split('T')[0])
     .in('status', ['confirmed', 'checked_in', 'checked_out'])
+  if (siteIdsFilter) recentReservationsQuery = recentReservationsQuery.in('site_id', siteIdsFilter)
+  const { data: recentReservations } = await recentReservationsQuery
 
-  const { data: sites } = await supabase
+  let sitesQuery = supabase
     .from('sites')
     .select('id')
     .eq('property_id', propertyId)
     .eq('status', 'available')
+  if (siteIdsFilter) sitesQuery = sitesQuery.in('id', siteIdsFilter)
+  const { data: sites } = await sitesQuery
 
   const totalSites = sites?.length || 1 // Avoid division by zero
   const totalNightsPossible = totalSites * 30
@@ -1389,15 +1437,31 @@ export async function getOccupancyByMonth(
  * - Reservations with check_in_date = today (confirmed or checked_in)
  * - Late arrivals: confirmed reservations with check_in_date before today
  */
-export async function getTodaysArrivals(propertyId: string) {
+export async function getTodaysArrivals(
+  propertyId: string,
+  options?: { allowedSiteTypes?: string[] }
+) {
   const supabase = await createClient()
+
+  let siteIdsFilter: string[] | null = null
+  if (Array.isArray(options?.allowedSiteTypes) && options.allowedSiteTypes.length > 0) {
+    const allowedLower = new Set(options.allowedSiteTypes.map((t) => t.toLowerCase()))
+    const { data: siteRows } = await supabase
+      .from('sites')
+      .select('id, site_type')
+      .eq('property_id', propertyId)
+    const ids = (siteRows ?? [])
+      .filter((s) => s.site_type && allowedLower.has((s.site_type as string).toLowerCase()))
+      .map((s) => s.id as string)
+    if (ids.length === 0) return []
+    siteIdsFilter = ids
+  }
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]!
 
-  // Get today's arrivals (scheduled for today, any status that's pending or completed)
-  const { data: todaysData, error: todaysError } = await supabase
+  let todaysQuery = supabase
     .from('reservations')
     .select(
       `
@@ -1410,6 +1474,8 @@ export async function getTodaysArrivals(propertyId: string) {
     .eq('check_in_date', todayStr)
     .eq('status', 'confirmed')
     .order('checked_in_at', { ascending: false, nullsFirst: false })
+  if (siteIdsFilter) todaysQuery = todaysQuery.in('site_id', siteIdsFilter)
+  const { data: todaysData, error: todaysError } = await todaysQuery
 
   if (todaysError) {
     console.error('Error fetching todays arrivals:', todaysError)
@@ -1417,7 +1483,7 @@ export async function getTodaysArrivals(propertyId: string) {
   }
 
   // Get late arrivals (check-in date before today, still in confirmed status)
-  const { data: lateData, error: lateError } = await supabase
+  let lateQuery = supabase
     .from('reservations')
     .select(
       `
@@ -1430,6 +1496,8 @@ export async function getTodaysArrivals(propertyId: string) {
     .lt('check_in_date', todayStr)
     .eq('status', 'confirmed')
     .order('check_in_date', { ascending: true })
+  if (siteIdsFilter) lateQuery = lateQuery.in('site_id', siteIdsFilter)
+  const { data: lateData, error: lateError } = await lateQuery
 
   if (lateError) {
     console.error('Error fetching late arrivals:', lateError)

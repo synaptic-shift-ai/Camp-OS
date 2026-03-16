@@ -42,6 +42,8 @@ interface AvailableSitesAccordionProps {
   selectedSiteId: string | null
   onSiteSelect: (siteId: string) => void
   stayType?: BookingType
+  /** Optional: when provided, accordion sections are limited to allowed_site_types (empty = show all). */
+  propertyPricingConfig?: { site_type_config?: { allowed_site_types?: string[] } } | null
 }
 
 export function getDisplayPrice(
@@ -100,7 +102,25 @@ export function AvailableSitesAccordion({
   selectedSiteId,
   onSiteSelect,
   stayType = 'nightly',
+  propertyPricingConfig,
 }: AvailableSitesAccordionProps) {
+  const rawSiteTypeConfig = (propertyPricingConfig?.site_type_config ?? null) as
+    | { allowed_site_types?: string[] }
+    | null
+
+  const allowedSiteTypesFromConfig =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) &&
+    rawSiteTypeConfig.allowed_site_types.length > 0
+      ? rawSiteTypeConfig.allowed_site_types
+      : []
+
+  const typesToRender =
+    allowedSiteTypesFromConfig.length > 0
+      ? siteTypeOrder.filter((t) =>
+          allowedSiteTypesFromConfig.map((a) => a.toLowerCase()).includes(t)
+        )
+      : siteTypeOrder
+
   // Group sites by type
   const sitesByType = sites.reduce((acc, site) => {
     const type = site.site_type || 'other'
@@ -114,7 +134,7 @@ export function AvailableSitesAccordion({
   // Initialize expanded state - all sections closed by default for cleaner UI
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
-    siteTypeOrder.forEach((type) => {
+    typesToRender.forEach((type) => {
       initial[type] = false
     })
     return initial
@@ -141,7 +161,7 @@ export function AvailableSitesAccordion({
 
   return (
     <div className="space-y-3">
-      {siteTypeOrder.map((type) => {
+      {typesToRender.map((type) => {
         const typeSites = sitesByType[type] || []
         const isEmpty = typeSites.length === 0
         const isExpanded = expanded[type]

@@ -57,9 +57,26 @@ export function SitesAccordion({ sites, totalSitesByType, propertyPricingConfig 
     setExpanded((prev) => ({ ...prev, [type]: !prev[type] }))
   }
 
+  const rawSiteTypeConfig = (propertyPricingConfig?.siteTypeConfig ?? null) as
+    | { allowed_site_types?: string[] }
+    | null
+
+  const allowedSiteTypesFromConfig =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) &&
+    rawSiteTypeConfig!.allowed_site_types.length > 0
+      ? rawSiteTypeConfig!.allowed_site_types
+      : []
+
+  const typesToRender =
+    allowedSiteTypesFromConfig.length > 0
+      ? siteTypeOrder.filter((type) =>
+        allowedSiteTypesFromConfig.map((a) => a.toLowerCase()).includes(type)
+        )
+      : siteTypeOrder
+
   return (
     <div className="space-y-3">
-      {siteTypeOrder.map((type) => {
+      {typesToRender.map((type) => {
         const typeSites = sitesByType[type] || []
         const filteredCount = typeSites.length
         const totalCount = totalSitesByType[type] || 0

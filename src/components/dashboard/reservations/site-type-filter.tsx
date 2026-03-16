@@ -20,21 +20,29 @@ const siteTypeLabels: Record<string, string> = {
 
 type SiteTypeFilterProps = {
   propertyId: string
+  allowedSiteTypes?: string[] | null
   siteTypesFromDb: { siteType: string }[]
 }
 
-export function SiteTypeFilter({ propertyId, siteTypesFromDb }: SiteTypeFilterProps) {
+export function SiteTypeFilter({ propertyId, allowedSiteTypes, siteTypesFromDb }: SiteTypeFilterProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const current = searchParams.get('siteType') ?? 'all'
 
-  const options =
+  const baseOptions =
     siteTypesFromDb.length > 0
       ? siteTypesFromDb
       : (['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other'] as const).map((t) => ({
           siteType: t,
         }))
+
+  const options =
+    Array.isArray(allowedSiteTypes) && allowedSiteTypes.length > 0
+      ? baseOptions.filter(({ siteType }) =>
+          allowedSiteTypes.map((t) => t.toLowerCase()).includes(siteType.toLowerCase())
+        )
+      : baseOptions
 
   function handleChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())

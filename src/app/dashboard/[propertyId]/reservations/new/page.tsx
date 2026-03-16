@@ -154,6 +154,7 @@ export default function NewReservationPage() {
   const [rateDiscountsConfig, setRateDiscountsConfig] = useState<RateDiscountsConfig | null>(null)
   const [depositConfig, setDepositConfig] = useState<DepositConfig | null>(null)
   const [enabledReservationTypes, setEnabledReservationTypes] = useState<BookingType[]>(['nightly', 'weekly', 'monthly', 'seasonal'])
+  const [siteTypeConfig, setSiteTypeConfig] = useState<{ allowed_site_types?: string[] } | null>(null)
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
   const [summaryTotalCents, setSummaryTotalCents] = useState<number | null>(null)
@@ -224,7 +225,7 @@ export default function NewReservationPage() {
 
       const { data: property, error: propertyError } = await supabase
         .from("properties")
-        .select("id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types")
+        .select("id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types, site_type_config")
         .eq("id", propertyIdFromUrl)
         .maybeSingle()
 
@@ -237,6 +238,9 @@ export default function NewReservationPage() {
       setPricingConfig(property.pricing_config as PricingConfig | null)
       setRateDiscountsConfig(property.rate_discounts_config as RateDiscountsConfig | null)
       setDepositConfig(property.deposit_config as DepositConfig | null)
+      setSiteTypeConfig(
+        (property as { site_type_config?: { allowed_site_types?: string[] } }).site_type_config ?? null
+      )
 
       const parsedEnabledTypes = parseEnabledReservationTypesFromDB(property.enabled_reservation_types)
       setEnabledReservationTypes(parsedEnabledTypes)
@@ -710,6 +714,7 @@ export default function NewReservationPage() {
                       selectedSiteId={selectedSiteId}
                       onSiteSelect={(siteId) => setValue("siteId", siteId)}
                       stayType={stayType}
+                      propertyPricingConfig={siteTypeConfig ? { site_type_config: siteTypeConfig } : null}
                     />
                   )}
 

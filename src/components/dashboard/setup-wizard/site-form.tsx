@@ -30,6 +30,7 @@ export interface PropertyDefaults {
 }
 
 export type SiteTypeConfig = {
+  allowed_site_types?: string[]
   site_type_rates?: Record<
     string,
     {
@@ -44,6 +45,15 @@ export type SiteTypeConfig = {
 const SITE_IMAGES_BUCKET = "site-property-images"
 const MAX_SITE_IMAGES = 1
 const MAX_SITE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+
+const ALL_SITE_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'tent', label: 'Tent' },
+  { value: 'rv', label: 'RV' },
+  { value: 'cabin', label: 'Cabin' },
+  { value: 'glamping', label: 'Glamping' },
+  { value: 'yurt', label: 'Yurt' },
+  { value: 'other', label: 'Other' },
+]
 
 interface SiteFormProps {
   propertyId: string
@@ -276,6 +286,13 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     }
   }
 
+  const siteTypeOptions = useMemo(() => {
+    const allowed = siteTypeConfig?.allowed_site_types
+    if (!Array.isArray(allowed) || allowed.length === 0) return ALL_SITE_TYPE_OPTIONS
+    const allowedLower = new Set(allowed.map((t) => t.toLowerCase()))
+    return ALL_SITE_TYPE_OPTIONS.filter((opt) => allowedLower.has(opt.value))
+  }, [siteTypeConfig?.allowed_site_types])
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {error && (
@@ -310,12 +327,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
               <Select value={siteType} onValueChange={(value) => setValue("site_type", value as any)}>
                 <SelectTrigger id="site_type"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tent">Tent</SelectItem>
-                  <SelectItem value="rv">RV</SelectItem>
-                  <SelectItem value="cabin">Cabin</SelectItem>
-                  <SelectItem value="glamping">Glamping</SelectItem>
-                  <SelectItem value="yurt">Yurt</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {siteTypeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.site_type && <p className="text-sm text-destructive mt-1">{errors.site_type.message}</p>}

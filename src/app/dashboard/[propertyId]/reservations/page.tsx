@@ -19,6 +19,12 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
 
+  const rawSiteTypeConfig = (property as { site_type_config?: { allowed_site_types?: string[] } } | null)?.site_type_config ?? null
+  const allowedSiteTypes =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) && rawSiteTypeConfig.allowed_site_types.length > 0
+      ? rawSiteTypeConfig.allowed_site_types.map((t) => t.toLowerCase())
+      : null
+
   const currentPage = Number.isNaN(Number(pageParam)) || !pageParam ? 1 : Math.max(1, Number(pageParam))
   const parsedPageSize =
     Number.isNaN(Number(pageSizeParam)) || !pageSizeParam
@@ -28,7 +34,13 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
 
   const siteTypesFromDb = await getDistinctSiteTypes(propertyId)
   const siteTypeFilter = siteTypeParam && siteTypeParam !== 'all' ? siteTypeParam : undefined
-  const filters = siteTypeFilter ? { siteType: siteTypeFilter } : {}
+  
+  const filters = siteTypeFilter
+    ? { siteType: siteTypeFilter }
+    : allowedSiteTypes && allowedSiteTypes.length > 0
+      ? { allowedSiteTypes  }
+      : {}
+
   const { data: reservations, total } = await getReservations(propertyId, filters, currentPage, pageSize)
 
   return (
@@ -47,7 +59,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
               <CardDescription>View and manage your property reservations</CardDescription>
             </div>
             <div>
-              <SiteTypeFilter propertyId={propertyId} siteTypesFromDb={siteTypesFromDb} />
+              <SiteTypeFilter propertyId={propertyId} allowedSiteTypes={allowedSiteTypes ?? null} siteTypesFromDb={siteTypesFromDb} />
             </div>
           </div>
         </CardHeader>

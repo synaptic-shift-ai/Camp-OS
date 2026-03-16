@@ -315,7 +315,16 @@ export async function searchAvailableSites(
     }
   }
 
-  if (!allSites || allSites.length === 0) {
+  const rawSiteTypeConfig = (property as { site_type_config?: { allowed_site_types?: string[] } }).site_type_config ?? null
+  const allowedSiteTypes =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) && rawSiteTypeConfig.allowed_site_types.length > 0
+      ? rawSiteTypeConfig.allowed_site_types.map((t) => t.toLowerCase())
+      : null
+  const sitesToSearch = allowedSiteTypes
+    ? (allSites ?? []).filter((s) => allowedSiteTypes.includes((s.site_type || 'other').toLowerCase()))
+    : (allSites ?? [])
+
+  if (!sitesToSearch || sitesToSearch.length === 0) {
     return {
       success: true,
       data: {
@@ -334,7 +343,7 @@ export async function searchAvailableSites(
   }
 
   // Get all site IDs
-  const siteIds = allSites.map((site) => site.id)
+  const siteIds = sitesToSearch.map((site) => site.id)
 
   // Find sites with overlapping reservations
   const { data: overlappingReservations, error: reservationError } = await supabase
@@ -359,7 +368,7 @@ export async function searchAvailableSites(
   const occupiedSiteIds = new Set(overlappingReservations?.map((r) => r.site_id) || [])
 
   // Filter out occupied sites and optionally filter by reservation type
-  let filteredSites = allSites.filter(
+  let filteredSites = sitesToSearch.filter(
     (site) => 
       !occupiedSiteIds.has(site.id) &&
       !hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)

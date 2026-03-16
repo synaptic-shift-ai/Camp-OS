@@ -215,7 +215,17 @@ export default async function PropertyBookingPage({
 
   const siteTypeRatesMap = (property as { site_type_config?: { site_type_rates?: Record<string, { nightly?: { rate_cents: number | null } }> } } | null)?.site_type_config?.site_type_rates ?? {}
 
-  const siteTypeSummaries: SiteTypeSummary[] = (sites ?? []).map((s) => {
+  const rawSiteTypeConfig = (property as { site_type_config?: { allowed_site_types?: string[] } } | null)?.site_type_config ?? null
+  const allowedSiteTypes =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) && rawSiteTypeConfig.allowed_site_types.length > 0
+      ? rawSiteTypeConfig.allowed_site_types.map((t) => t.toLowerCase())
+      : null
+
+  const sitesToShow = allowedSiteTypes
+    ? (sites ?? []).filter((s) => allowedSiteTypes.includes((s.site_type || "other").toLowerCase()))
+    : (sites ?? [])
+
+  const siteTypeSummaries: SiteTypeSummary[] = sitesToShow.map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
     const amenities = Array.isArray(s.amenities)
       ? (s.amenities as string[]).slice(0, 6)

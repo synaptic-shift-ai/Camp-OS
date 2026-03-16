@@ -64,11 +64,25 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
     }
   }, [site?.property_id])
 
+  const fetchSiteTypeConfig = useCallback(async () => {
+    if (!site?.property_id) return
+    try {
+      const res = await fetch(`/api/properties/${site.property_id}/settings`)
+      const json = await res.json()
+      if (res.ok && json.success && json.property?.site_type_config) {
+        setSiteTypeConfig(json.property.site_type_config as SiteTypeConfig)
+      }
+    } catch (e) {
+      console.error("Error fetching site type config:", e)
+    }
+  }, [site?.property_id])
+
   useEffect(() => {
     if (open) {
       fetchPropertyDefaults()
+      fetchSiteTypeConfig()
     }
-  }, [open, fetchPropertyDefaults])
+  }, [open, fetchPropertyDefaults, fetchSiteTypeConfig])
 
   const handleSave = async (updatedSite: any) => {
     // Set flag BEFORE setCurrentSite so the prop-sync useEffect skips one cycle

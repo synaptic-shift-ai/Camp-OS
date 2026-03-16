@@ -221,7 +221,7 @@ export default function ConfirmationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 via-emerald-50 to-white relative overflow-hidden">
+    <div className="min-h-screen bg-[#282B24] relative overflow-hidden">
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50 print:hidden">
           {[...Array(50)].map((_, i) => (
@@ -249,7 +249,7 @@ export default function ConfirmationPage() {
         </div>
       )}
 
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+      <header className="bg-[#282B24] border-b border-gray-600/80 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -257,11 +257,11 @@ export default function ConfirmationPage() {
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">Pine Lake Campground</h1>
-                <p className="text-xs text-gray-600">Booking Confirmed</p>
+                <h1 className="text-xl font-bold text-green-400">Pine Lake Campground</h1>
+                <p className="text-xs text-gray-400">Booking Confirmed</p>
               </div>
             </div>
-            <Button variant="ghost" onClick={() => router.push("/")}>
+            <Button variant="ghost" onClick={() => router.push("/")} className="text-gray-200 hover:bg-gray-700/50 hover:text-white">
               Back to Home
             </Button>
           </div>
@@ -279,20 +279,20 @@ export default function ConfirmationPage() {
             </div>
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
-              <h1 className="text-4xl font-bold text-gray-900 animate-fade-in">Booking Confirmed!</h1>
+              <h1 className="text-4xl font-bold text-white animate-fade-in">Booking Confirmed!</h1>
               <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
             </div>
-            <p className="text-lg text-gray-600 animate-fade-in-delay">
+            <p className="text-lg text-gray-300 animate-fade-in-delay">
               Your adventure awaits! We've sent a confirmation email to{" "}
-              <span className="font-medium text-[#2D5A27]">{checkoutData.guestInfo.email}</span>
+              <span className="font-medium text-green-400">{checkoutData.guestInfo.email}</span>
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium animate-fade-in-delay-2">
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-900/40 text-green-200 rounded-full text-sm font-medium animate-fade-in-delay-2">
               <Check className="h-4 w-4" />
               Payment processed successfully
             </div>
           </div>
 
-          <Card className="shadow-xl mb-6 animate-slide-up border-2 border-green-100">
+          <Card className="shadow-xl mb-6 animate-slide-up border-2 border-gray-600/80 bg-[#282B24]">
             <CardHeader className="bg-gradient-to-r from-[#2D5A27] to-[#1e3d1a] text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -305,7 +305,7 @@ export default function ConfirmationPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-6 space-y-6 bg-[#282B24]">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   {checkoutData.site.image_url && (
@@ -318,100 +318,100 @@ export default function ConfirmationPage() {
                       />
                     </div>
                   )}
-                  <h3 className="font-semibold text-xl text-gray-900 mb-1">{checkoutData.site.name}</h3>
-                  <p className="text-gray-600 capitalize mb-4">{checkoutData.site.site_type} Site</p>
+                  <h3 className="font-semibold text-xl text-gray-100 mb-1">{checkoutData.site.name}</h3>
+                  <p className="text-gray-400 capitalize mb-4">{checkoutData.site.site_type} Site</p>
 
                   <div className="space-y-3">
                     <div className="flex items-start space-x-3">
-                      <Calendar className="h-5 w-5 text-[#2D5A27] mt-0.5" />
+                      <Calendar className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-900">Check-in</p>
-                        <p className="text-gray-600">{format(checkoutData.checkInDate!, "EEEE, MMMM dd, yyyy")}</p>
-                        <p className="text-sm text-gray-500">After 2:00 PM</p>
+                        <p className="font-medium text-gray-100">Check-in</p>
+                        <p className="text-gray-300">{format(checkoutData.checkInDate!, "EEEE, MMMM dd, yyyy")}</p>
+                        <p className="text-sm text-gray-400">After 2:00 PM</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <Calendar className="h-5 w-5 text-[#2D5A27] mt-0.5" />
+                      <Calendar className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-900">Check-out</p>
-                        <p className="text-gray-600">{format(checkoutData.checkOutDate!, "EEEE, MMMM dd, yyyy")}</p>
-                        <p className="text-sm text-gray-500">Before 11:00 AM</p>
+                        <p className="font-medium text-gray-100">Check-out</p>
+                        <p className="text-gray-300">{format(checkoutData.checkOutDate!, "EEEE, MMMM dd, yyyy")}</p>
+                        <p className="text-sm text-gray-400">Before 11:00 AM</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <MapPin className="h-5 w-5 text-[#2D5A27] mt-0.5" />
+                      <MapPin className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-900">Location</p>
-                        <p className="text-gray-600">Pine Lake Campground</p>
-                        <p className="text-sm text-gray-500">123 Forest Road, Pine Valley, CA 95000</p>
+                        <p className="font-medium text-gray-100">Location</p>
+                        <p className="text-gray-300">Pine Lake Campground</p>
+                        <p className="text-sm text-gray-400">123 Forest Road, Pine Valley, CA 95000</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-lg text-gray-900 mb-4">Guest Information</h4>
+                  <h4 className="font-semibold text-lg text-gray-100 mb-4">Guest Information</h4>
                   <div className="space-y-3 text-sm">
                     <div>
-                      <p className="text-gray-600">Name</p>
-                      <p className="font-medium text-gray-900">
+                      <p className="text-gray-400">Name</p>
+                      <p className="font-medium text-gray-100">
                         {checkoutData.guestInfo.first_name} {checkoutData.guestInfo.last_name}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Email</p>
-                      <p className="font-medium text-gray-900">{checkoutData.guestInfo.email}</p>
+                      <p className="text-gray-400">Email</p>
+                      <p className="font-medium text-gray-100">{checkoutData.guestInfo.email}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Phone</p>
-                      <p className="font-medium text-gray-900">{checkoutData.guestInfo.phone}</p>
+                      <p className="text-gray-400">Phone</p>
+                      <p className="font-medium text-gray-100">{checkoutData.guestInfo.phone}</p>
                     </div>
                     {checkoutData.numVehicles && (
                       <div>
-                        <p className="text-gray-600">Vehicles</p>
-                        <p className="font-medium text-gray-900">{checkoutData.numVehicles}</p>
+                        <p className="text-gray-400">Vehicles</p>
+                        <p className="font-medium text-gray-100">{checkoutData.numVehicles}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-6 pt-6 border-t">
-                    <h4 className="font-semibold text-lg text-gray-900 mb-3">Payment Summary</h4>
+                  <div className="mt-6 pt-6 border-t border-gray-600">
+                    <h4 className="font-semibold text-lg text-gray-100 mb-3">Payment Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">
+                        <span className="text-gray-400">
                           ${formatCurrency(priceBreakdown.basePrice || 0)} × {priceBreakdown.nights} night
                           {priceBreakdown.nights !== 1 ? "s" : ""}
                         </span>
-                        <span className="font-medium">${formatCurrency(priceBreakdown.subtotal)}</span>
+                        <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.subtotal)}</span>
                       </div>
                       {(priceBreakdown.cleaningFee || 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Cleaning fee</span>
-                          <span className="font-medium">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
+                          <span className="text-gray-400">Cleaning fee</span>
+                          <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Service fee</span>
-                        <span className="font-medium">${formatCurrency(priceBreakdown.serviceFee || 0)}</span>
+                        <span className="text-gray-400">Service fee</span>
+                        <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.serviceFee || 0)}</span>
                       </div>
                       {discountCents > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Discount</span>
-                          <span className="font-medium text-green-700">-${formatCurrency(discountCents)}</span>
+                          <span className="text-gray-400">Discount</span>
+                          <span className="font-medium text-green-400">-${formatCurrency(discountCents)}</span>
                         </div>
                       )}
                       {(priceBreakdown.taxes || 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">
+                          <span className="text-gray-400">
                             {(priceBreakdown.tax_name || "Taxes")} (
                             {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE) * 100).toFixed(1)}%)
                           </span>
-                          <span className="font-medium">${formatCurrency(priceBreakdown.taxes!)}</span>
+                          <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.taxes!)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-lg font-bold border-t pt-2">
-                        <span>Total Paid</span>
-                        <span className="text-[#2D5A27]">${formatCurrency(priceBreakdown.total)}</span>
+                      <div className="flex justify-between text-lg font-bold border-t border-gray-600 pt-2">
+                        <span className="text-gray-100">Total Paid</span>
+                        <span className="text-green-400">${formatCurrency(priceBreakdown.total)}</span>
                       </div>
                     </div>
                   </div>
@@ -423,14 +423,14 @@ export default function ConfirmationPage() {
           <div className="grid md:grid-cols-3 gap-4 mb-8 print:hidden">
             <Button
               variant="outline"
-              className="h-12 bg-white hover:bg-green-50 hover:border-green-300 transition-all duration-300 hover:scale-105"
+              className="h-12 bg-[#383D36] border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-green-500 transition-all duration-300 hover:scale-105"
             >
               <Mail className="w-4 h-4 mr-2" />
               Email Confirmation
             </Button>
             <Button
               variant="outline"
-              className="h-12 bg-white hover:bg-green-50 hover:border-green-300 transition-all duration-300 hover:scale-105"
+              className="h-12 bg-[#383D36] border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-green-500 transition-all duration-300 hover:scale-105"
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
             >
@@ -439,7 +439,7 @@ export default function ConfirmationPage() {
             </Button>
             <Button
               variant="outline"
-              className="h-12 bg-white hover:bg-green-50 hover:border-green-300 transition-all duration-300 hover:scale-105"
+              className="h-12 bg-[#383D36] border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-green-500 transition-all duration-300 hover:scale-105"
               onClick={handlePrint}
             >
               <Printer className="w-4 h-4 mr-2" />
@@ -447,35 +447,35 @@ export default function ConfirmationPage() {
             </Button>
           </div>
 
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-md">
+          <Card className="bg-[#282B24] border-gray-600/80 shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg text-[#2D5A27] flex items-center gap-2">
+              <CardTitle className="text-lg text-green-400 flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
                 What's Next?
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start space-x-3">
-                <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                <Check className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-gray-900">Check your email</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-100">Check your email</p>
+                  <p className="text-sm text-gray-400">
                     We've sent detailed directions and check-in instructions to your email
                   </p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                <Check className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-gray-900">Prepare for your trip</p>
-                  <p className="text-sm text-gray-600">Review our packing list and campground rules</p>
+                  <p className="font-medium text-gray-100">Prepare for your trip</p>
+                  <p className="text-sm text-gray-400">Review our packing list and campground rules</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <Phone className="h-5 w-5 text-green-600 mt-0.5" />
+                <Phone className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-gray-900">Questions?</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-100">Questions?</p>
+                  <p className="text-sm text-gray-400">
                     Call us at (555) 123-4567 or email support@pinelakecampground.com
                   </p>
                 </div>

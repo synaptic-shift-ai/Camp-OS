@@ -19,6 +19,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { getPricingSourceType } from '@/lib/site-pricing-source'
 import { CreateSiteRequestSchema } from '@/types/api/v1/schemas/sites'
 import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteManagement/application/commands/CreateSiteCommand'
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
@@ -153,10 +154,9 @@ export async function POST(
       try {
         const siteId = crypto.randomUUID()
 
-        // When using property defaults (enabledReservationTypesOverride === null)
-        // and basePrice is 0, substitute the property's nightly rate — mirrors
-        // the single-site POST route behaviour.
-        const isUsingPropertyDefaults = siteRequest.enabledReservationTypesOverride === null
+        // When not manual pricing (property_default or site_type_default) and basePrice is 0,
+        // substitute the property's nightly rate — mirrors the single-site POST route behaviour.
+        const isUsingPropertyDefaults = getPricingSourceType(siteRequest.enabledReservationTypesOverride) !== 'manual'
         const effectiveBasePrice =
           isUsingPropertyDefaults && siteRequest.basePrice === 0 && propertyNightlyRate > 0
             ? propertyNightlyRate

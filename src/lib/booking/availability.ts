@@ -14,6 +14,7 @@ import {
   parseEnabledReservationTypesFromDB,
   resolveReservationTypeRate,
 } from '@/lib/config/resolution'
+import { getPricingSourceType, getManualOverrideTypes } from '@/lib/site-pricing-source'
 import type {
   Site,
   AvailableSite,
@@ -229,10 +230,10 @@ export async function searchAvailableSites(
 
   const totalNights = calculateNights(params.check_in_date, params.check_out_date)
 
-  // Fetch property config for reservation types
+  // Fetch property config for reservation types and site type rates
   const { data: property, error: propertyError } = await supabase
     .from('properties')
-    .select('id, enabled_reservation_types, reservation_type_config')
+    .select('id, enabled_reservation_types, reservation_type_config, site_type_config')
     .eq('id', params.property_id)
     .single()
 
@@ -369,7 +370,7 @@ export async function searchAvailableSites(
     filteredSites = filteredSites.filter((site) => {
       const siteEnabledTypes = resolveEnabledReservationTypes(
         propertyEnabledTypes,
-        site.enabled_reservation_types_override as BookingType[] | null
+        (getManualOverrideTypes(site.enabled_reservation_types_override) ?? null) as BookingType[] | null
       )
       return siteEnabledTypes.includes(params.reservation_type!)
     })
@@ -382,21 +383,36 @@ export async function searchAvailableSites(
     pricing_override?: { reservation_type_rates_override?: Partial<Record<BookingType, number>> | null }
   }
   const fallbackRates = (row: SiteRow) => {
-    const usesPropertyDefaults = row.enabled_reservation_types_override == null
+    const usesManual = getPricingSourceType(row.enabled_reservation_types_override) === 'manual'
     return {
       base_price: row.base_price ?? 0,
-      weekly_rate_cents: usesPropertyDefaults ? null : (row.weekly_rate_cents ?? null),
-      monthly_rate_cents: usesPropertyDefaults ? null : (row.monthly_rate_cents ?? null),
+      weekly_rate_cents: usesManual ? (row.weekly_rate_cents ?? null) : null,
+      monthly_rate_cents: usesManual ? (row.monthly_rate_cents ?? null) : null,
     }
   }
 
+  type SiteTypeRatesMap = Record<string, { nightly?: { rate_cents: number | null }; weekly?: { rate_cents: number | null }; monthly?: { rate_cents: number | null }; seasonal?: { rate_cents: number | null } }>
+  const siteTypeRatesMap = (property as { site_type_config?: { site_type_rates?: SiteTypeRatesMap } } | null)?.site_type_config?.site_type_rates ?? {}
+
   const availableSites = filteredSites.map((site) => {
     const row = site as SiteRow
-    const usesPropertyDefaults = row.enabled_reservation_types_override == null
+    const pricingSource = getPricingSourceType(row.enabled_reservation_types_override)
     const override = row.pricing_override?.reservation_type_rates_override ?? null
-    const effectiveOverride = usesPropertyDefaults
-      ? override
-      : { ...(override ?? {}), nightly: row.base_price ?? 0 }
+    let effectiveOverride: Partial<Record<BookingType, number>> | null = override
+    if (pricingSource === 'site_type_default') {
+      const st = (row.site_type ?? '').toLowerCase()
+      const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (row.site_type ?? '')
+      const rates = key ? siteTypeRatesMap[key] : null
+      if (rates) {
+        effectiveOverride = { ...(override ?? {}) }
+        if (rates.nightly?.rate_cents != null) effectiveOverride.nightly = rates.nightly.rate_cents
+        if (rates.weekly?.rate_cents != null) effectiveOverride.weekly = rates.weekly.rate_cents
+        if (rates.monthly?.rate_cents != null) effectiveOverride.monthly = rates.monthly.rate_cents
+        if (rates.seasonal?.rate_cents != null) effectiveOverride.seasonal = rates.seasonal.rate_cents
+      }
+    } else if (pricingSource === 'manual') {
+      effectiveOverride = { ...(override ?? {}), nightly: row.base_price ?? 0 }
+    }
     const nightlyCents = resolveReservationTypeRate('nightly', reservationTypeConfig, effectiveOverride, fallbackRates(row))
     const weeklyCents = resolveReservationTypeRate('weekly', reservationTypeConfig, effectiveOverride, fallbackRates(row))
     const monthlyCents = resolveReservationTypeRate('monthly', reservationTypeConfig, effectiveOverride, fallbackRates(row))

@@ -5,7 +5,7 @@ import type { Property } from "@/components/property-context"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tent, Plus, Loader2, CheckCircle, AlertTriangle } from "lucide-react"
-import { SiteForm, type PropertyDefaults } from "./site-form"
+import { SiteForm, type PropertyDefaults, type SiteTypeConfig } from "./site-form"
 import { ExistingSitesList } from "./existing-sites-list"
 import { useToast } from "@/hooks/use-toast"
 
@@ -41,6 +41,7 @@ const SitesSetupStepComponent = (
   const [error, setError] = useState<string | null>(null)
   const [noSiteError, setNoSiteError] = useState<string | null>(null)
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
+  const [siteTypeConfig, setSiteTypeConfig] = useState<SiteTypeConfig | undefined>(undefined)
   const loadingRef = useRef(true)
   const sitesRef = useRef<any[]>([])
   const { toast } = useToast()
@@ -64,6 +65,18 @@ const SitesSetupStepComponent = (
       }
     } catch (err) {
       console.error("Error fetching property defaults:", err)
+    }
+  }, [property.id])
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/properties/${property.id}/settings`)
+      const json = await res.json()
+      if (res.ok && json.success && json.property?.site_type_config) {
+        setSiteTypeConfig(json.property.site_type_config as SiteTypeConfig)
+      }
+    } catch (e) {
+      console.error("Error fetching property settings:", e)
     }
   }, [property.id])
 
@@ -99,7 +112,8 @@ const SitesSetupStepComponent = (
   useEffect(() => {
     fetchSites()
     fetchPropertyDefaults()
-  }, [fetchSites, fetchPropertyDefaults])
+    fetchSettings()
+  }, [fetchSites, fetchPropertyDefaults, fetchSettings])
 
 
   useImperativeHandle(ref, () => ({
@@ -265,6 +279,7 @@ const SitesSetupStepComponent = (
           propertyId={property.id}
           site={editingSite}
           propertyDefaults={propertyDefaults}
+          siteTypeConfig={siteTypeConfig}
           onSave={handleSiteSaved}
           onCancel={handleCancel}
         />

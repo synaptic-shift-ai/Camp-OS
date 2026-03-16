@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SiteForm, type PropertyDefaults } from '@/components/dashboard/setup-wizard/site-form'
+import { SiteForm, type PropertyDefaults, type SiteTypeConfig } from '@/components/dashboard/setup-wizard/site-form'
 import { useToast } from '@/hooks/use-toast'
 
 interface AddSiteDialogProps {
@@ -33,6 +33,7 @@ export function AddSiteDialog({
   const router = useRouter()
   const { toast } = useToast()
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
+  const [siteTypeConfig, setSiteTypeConfig] = useState<SiteTypeConfig | undefined>(undefined)
 
   // Fetch property defaults for reservation types
   const fetchPropertyDefaults = useCallback(async () => {
@@ -59,11 +60,25 @@ export function AddSiteDialog({
     }
   }, [propertyId])
 
+  const fetchSettings = useCallback(async () => {
+    if (!propertyId) return
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/settings`)
+      const json = await res.json()
+      if (res.ok && json.success && json.property?.site_type_config) {
+        setSiteTypeConfig(json.property.site_type_config as SiteTypeConfig)
+      }
+    } catch (e) {
+      console.error("Error fetching property settings:", e)
+    }
+  }, [propertyId])
+
   useEffect(() => {
     if (open) {
       fetchPropertyDefaults()
+      fetchSettings()
     }
-  }, [open, fetchPropertyDefaults])
+  }, [open, fetchPropertyDefaults, fetchSettings])
 
   const handleSave = (site: any) => {
     toast({
@@ -92,6 +107,7 @@ export function AddSiteDialog({
         <SiteForm
           propertyId={propertyId}
           propertyDefaults={propertyDefaults}
+          siteTypeConfig={siteTypeConfig}
           onSave={handleSave}
           onCancel={handleCancel}
         />

@@ -1,8 +1,11 @@
 import * as z from "zod"
+import { parsePricingSourceOverride, serializePricingSourceOverride } from "@/lib/site-pricing-source"
 
 export const siteTypes = ["tent", "rv", "cabin", "glamping", "yurt", "other"] as const
 export const siteStatuses = ["available", "reserved", "booked", "occupied", "housekeeping", "maintenance", "unavailable"] as const
 export const reservationTypes = ["nightly", "weekly", "monthly", "seasonal"] as const
+export const pricingSourceOptions = ["manual", "property_defaults", "site_type_defaults"] as const
+export type PricingSource = (typeof pricingSourceOptions)[number]
 
 export const siteFormSchema = z.object({
   // Basic Info
@@ -68,6 +71,8 @@ export const siteFormSchema = z.object({
     })
     .optional(),
 
+  // Pricing source: manual (form fields), property_defaults (reservation_type_config), site_type_defaults (site_type_config)
+  pricing_source: z.enum(pricingSourceOptions).default("property_defaults"),
   // Reservation type overrides (null = use property defaults)
   use_property_reservation_types: z.boolean().default(true),
   enabled_reservation_types_override: z.array(z.enum(reservationTypes)).optional(),
@@ -77,14 +82,10 @@ export const siteFormSchema = z.object({
   seasonal_rate: z.coerce.number().min(0).optional(),
 }).refine(
   (data) => {
-    // Only require base_price >= 0.01 when NOT using property defaults
-    // and nightly reservation type is enabled
-    if (!data.use_property_reservation_types) {
-      const hasNightly = data.enabled_reservation_types_override?.includes('nightly')
-      if (hasNightly && data.base_price < 0.01) {
-        return false
-      }
-    }
+    // Require base_price >= 0.01 only when pricing is manual and nightly is enabled
+    if (data.pricing_source !== "manual") return true
+    const hasNightly = data.enabled_reservation_types_override?.includes("nightly")
+    if (hasNightly && data.base_price < 0.01) return false
     return true
   },
   {
@@ -105,6 +106,7 @@ export type SiteFormData = z.infer<typeof siteFormSchema>
  * NOTE: Optional fields should be undefined (not null) for Zod validation
  */
 export function toApiFormat(data: SiteFormData) {
+  const isManual = data.pricing_source === "manual"
   return {
     // Basic info (camelCase for v1 API)
     siteNumber: data.site_number,
@@ -115,11 +117,16 @@ export function toApiFormat(data: SiteFormData) {
     maxOccupancy: data.max_occupancy,
     maxVehicles: data.max_vehicles,
     sizeSqft: data.size_sqft || undefined,
-    // Convert dollars to cents (camelCase)
-    basePrice: Math.round(data.base_price * 100),
-    weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
-    weeklyRateCents: data.weekly_rate ? Math.round(data.weekly_rate * 100) : undefined,
-    monthlyRateCents: data.monthly_rate ? Math.round(data.monthly_rate * 100) : undefined,
+    // Only send rate fields when manual so saving "property default" or "site type default" doesn't overwrite stored rates
+    ...(isManual
+      ? {
+          basePrice: Math.round(data.base_price * 100),
+          weekendPrice: data.weekend_price ? Math.round(data.weekend_price * 100) : undefined,
+          weeklyRateCents: data.weekly_rate ? Math.round(data.weekly_rate * 100) : undefined,
+          monthlyRateCents: data.monthly_rate ? Math.round(data.monthly_rate * 100) : undefined,
+          seasonalRateCents: data.seasonal_rate ? Math.round(data.seasonal_rate * 100) : undefined,
+        }
+      : {}),
     status: data.status,
     // Convert boolean objects to arrays of keys where value is true
     amenities: Object.entries(data.amenities)
@@ -128,14 +135,17 @@ export function toApiFormat(data: SiteFormData) {
     hookups: Object.entries(data.hookups)
       .filter(([_, v]) => v)
       .map(([k]) => k),
-    // Reservation type overrides (null means use property defaults)
-    enabledReservationTypesOverride: data.use_property_reservation_types
-      ? null
-      : data.enabled_reservation_types_override || null,
+    // Serialize pricing source: object for defaults, array for manual
+    enabledReservationTypesOverride: serializePricingSourceOverride(
+      isManual
+        ? "manual"
+        : data.pricing_source === "site_type_defaults"
+          ? "site_type_default"
+          : "property_default",
+      isManual ? data.enabled_reservation_types_override ?? undefined : undefined
+    ),
     // Default reservation type for this site
     defaultReservationType: data.default_reservation_type || undefined,
-    // Seasonal rate in cents (null means use property default)
-    seasonalRateCents: data.seasonal_rate ? Math.round(data.seasonal_rate * 100) : undefined,
   }
 }
 
@@ -213,12 +223,26 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
       handrails: site.accessibilityFeatures?.includes("handrails") || site.accessibility_features?.includes("handrails") || false,
       level_ground: site.accessibilityFeatures?.includes("level_ground") || site.accessibility_features?.includes("level_ground") || false,
     },
-    // Reservation type overrides
-    use_property_reservation_types:
-      (site.enabledReservationTypesOverride === null || site.enabledReservationTypesOverride === undefined) &&
-      (site.enabled_reservation_types_override === null || site.enabled_reservation_types_override === undefined),
-    enabled_reservation_types_override:
-      site.enabledReservationTypesOverride || site.enabled_reservation_types_override || undefined,
+    // Parse stored override into pricing_source + override array
+    ...(function () {
+      const raw = site.enabledReservationTypesOverride ?? site.enabled_reservation_types_override
+      const parsed = parsePricingSourceOverride(raw)
+      const useProperty = parsed.source !== "manual"
+      return {
+        pricing_source:
+          site.pricing_source ??
+          (parsed.source === "site_type_default"
+            ? "site_type_defaults"
+            : parsed.source === "manual"
+              ? "manual"
+              : "property_defaults"),
+        use_property_reservation_types: useProperty,
+        enabled_reservation_types_override:
+          parsed.source === "manual"
+            ? (parsed.types as ("nightly" | "weekly" | "monthly" | "seasonal")[])
+            : undefined,
+      }
+    })(),
     // Default reservation type for this site
     default_reservation_type:
       site.defaultReservationType || site.default_reservation_type || undefined,

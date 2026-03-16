@@ -32,6 +32,7 @@ import {
   getEffectiveNightlyRate,
   getApplicableDiscountTier,
 } from '@/lib/config/resolution'
+import { getPricingSourceType } from '@/lib/site-pricing-source'
 import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
 // =====================================================
@@ -217,10 +218,10 @@ export async function calculateReservationPriceEnhanced(
     property.reservation_type_config as PropertyReservationTypesConfig | null
   )
 
-  // When site uses property defaults (enabled_reservation_types_override is null/undefined),
+  // When site does not use manual pricing (property_default or site_type_default),
   // use property's reservation_type_config rates for base, weekly, and monthly pricing
   const usesPropertyDefaults =
-    (typedSite as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override == null
+    getPricingSourceType((typedSite as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override) !== 'manual'
   const propertyNightlyCents = reservationTypesConfig?.nightly?.rate_cents ?? null
   const propertyWeeklyCents = reservationTypesConfig?.weekly?.rate_cents ?? null
   const propertyMonthlyCents = reservationTypesConfig?.monthly?.rate_cents ?? null

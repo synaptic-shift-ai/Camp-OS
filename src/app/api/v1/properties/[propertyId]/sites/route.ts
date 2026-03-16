@@ -24,6 +24,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes, createErrorResponse } from '@/lib/api/errors'
+import { getPricingSourceType } from '@/lib/site-pricing-source'
 import {
   CreateSiteRequestSchema,
   ListSitesQuerySchema,
@@ -250,10 +251,10 @@ export async function POST(
     }
 
     // Determine effective base price:
-    // If using property defaults (enabledReservationTypesOverride is null) and basePrice is 0,
+    // If not manual pricing (property_default or site_type_default) and basePrice is 0,
     // use the property's nightly rate from reservation_type_config
     let effectiveBasePrice = validatedRequest.basePrice
-    const isUsingPropertyDefaults = validatedRequest.enabledReservationTypesOverride === null
+    const isUsingPropertyDefaults = getPricingSourceType(validatedRequest.enabledReservationTypesOverride) !== 'manual'
 
     if (isUsingPropertyDefaults && effectiveBasePrice === 0) {
       const config = property.reservation_type_config as Record<string, any> | null

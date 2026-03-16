@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SiteForm, type PropertyDefaults } from '@/components/dashboard/setup-wizard/site-form'
+import { SiteForm, type PropertyDefaults, type SiteTypeConfig } from '@/components/dashboard/setup-wizard/site-form'
 import { useToast } from '@/hooks/use-toast'
 
 interface EditSiteDialogProps {
@@ -22,6 +22,7 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
   const router = useRouter()
   const { toast } = useToast()
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
+  const [siteTypeConfig, setSiteTypeConfig] = useState<SiteTypeConfig | undefined>(undefined)
 
   // Track the latest site data locally so SiteForm always gets fresh data
   const [currentSite, setCurrentSite] = useState<any>(site)
@@ -99,6 +100,7 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
             propertyId={currentSite?.property_id}
             site={currentSite}
             propertyDefaults={propertyDefaults}
+            siteTypeConfig={siteTypeConfig}
             onSave={handleSave}
             onCancel={handleCancel}
           />

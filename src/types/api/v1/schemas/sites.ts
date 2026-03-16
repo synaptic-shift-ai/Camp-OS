@@ -129,8 +129,15 @@ export const CreateSiteRequestSchema = z.object({
   hookups: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
   locationMap: z.record(z.any()).optional(),
-  // Reservation type override: null means use property defaults
-  enabledReservationTypesOverride: z.array(ReservationTypeSchema).nullable().optional(),
+  // Reservation type override: { source: "property_default" } | { source: "site_type_default" } | types[] | null
+  enabledReservationTypesOverride: z
+    .union([
+      z.object({ source: z.literal('property_default') }),
+      z.object({ source: z.literal('site_type_default') }),
+      z.array(ReservationTypeSchema),
+    ])
+    .nullable()
+    .optional(),
   // Default reservation type for this site (overrides property default)
   defaultReservationType: ReservationTypeSchema.nullable().optional(),
   // Rate overrides in cents
@@ -157,8 +164,15 @@ export const UpdateSiteRequestSchema = z.object({
   hookups: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
   locationMap: z.record(z.any()).optional(),
-  // Reservation type override: null means use property defaults
-  enabledReservationTypesOverride: z.array(ReservationTypeSchema).nullable().optional(),
+  // Reservation type override: { source: "property_default" } | { source: "site_type_default" } | types[] | null
+  enabledReservationTypesOverride: z
+    .union([
+      z.object({ source: z.literal('property_default') }),
+      z.object({ source: z.literal('site_type_default') }),
+      z.array(ReservationTypeSchema),
+    ])
+    .nullable()
+    .optional(),
   // Default reservation type for this site (overrides property default)
   defaultReservationType: ReservationTypeSchema.nullable().optional(),
   // Rate overrides in cents

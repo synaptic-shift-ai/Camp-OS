@@ -14,7 +14,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Save, X, ImageIcon, Trash2 } from "lucide-react"
 import { siteFormSchema, siteStatuses, toApiFormat, fromApiFormat } from "./site-form-schema"
 import type { SiteFormData, reservationTypes } from "./site-form-schema"
-import { Switch } from "@/components/ui/switch"
 import { Dropzone, DropzoneEmptyState, DropzoneContent } from "@/components/dropzone"
 import { useSupabaseUpload } from "@/hooks/use-supabase-upload"
 import { createClient } from "@/lib/supabase/client"
@@ -30,6 +29,18 @@ export interface PropertyDefaults {
   weekend_price?: number | null
 }
 
+export type SiteTypeConfig = {
+  site_type_rates?: Record<
+    string,
+    {
+      nightly?: { rate_cents: number | null; [k: string]: unknown }
+      weekly?: { rate_cents: number | null; [k: string]: unknown }
+      monthly?: { rate_cents: number | null; [k: string]: unknown }
+      seasonal?: { rate_cents: number | null; [k: string]: unknown }
+    }
+  >
+}
+
 const SITE_IMAGES_BUCKET = "site-property-images"
 const MAX_SITE_IMAGES = 1
 const MAX_SITE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
@@ -38,11 +49,12 @@ interface SiteFormProps {
   propertyId: string
   site?: any
   propertyDefaults?: PropertyDefaults | undefined
+  siteTypeConfig?: SiteTypeConfig | undefined
   onSave: (site: any) => void
   onCancel: () => void
 }
 
-export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel }: SiteFormProps) {
+export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, onSave, onCancel }: SiteFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isEditMode = !!site
@@ -157,6 +169,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
         level_ground: false,
       },
       use_property_reservation_types: true,
+      pricing_source: "property_defaults",
       enabled_reservation_types_override: undefined,
       seasonal_rate: undefined,
     },
@@ -169,6 +182,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
   const adaAccessible = watch("ada_accessible")
   const accessibilityFeatures = watch("accessibility_features")
   const usePropertyReservationTypes = watch("use_property_reservation_types")
+  const pricingSource = watch("pricing_source")
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const defaultReservationType = watch("default_reservation_type")
 
@@ -456,44 +470,75 @@ export function SiteForm({ propertyId, site, propertyDefaults, onSave, onCancel 
           <CardDescription>Configure pricing and available reservation types for this site</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-            <div className="space-y-0.5">
-              <Label htmlFor="use_property_defaults" className="font-medium">Use Property Defaults</Label>
-              <p className="text-sm text-muted-foreground">Inherit pricing and reservation types from property settings</p>
-            </div>
-            <Switch
-              id="use_property_defaults"
-              checked={usePropertyReservationTypes}
-              onCheckedChange={async (checked) => {
-                setValue("use_property_reservation_types", checked, { shouldDirty: true })
-                if (checked) {
+          <div className="space-y-2">
+            <Label htmlFor="pricing_source" className="font-medium">Pricing source</Label>
+            <Select
+              value={pricingSource}
+              onValueChange={async (value: "manual" | "property_defaults" | "site_type_defaults") => {
+                setValue("pricing_source", value, { shouldDirty: true })
+                const useProperty = value !== "manual"
+                setValue("use_property_reservation_types", useProperty, { shouldDirty: true })
+                if (value === "property_defaults") {
                   setValue("enabled_reservation_types_override", undefined)
                   setValue("default_reservation_type", undefined)
+                  if (propertyDefaults?.nightly_rate_cents != null || propertyDefaults?.base_price_cents != null) {
+                    setValue("base_price", (propertyDefaults.nightly_rate_cents ?? propertyDefaults.base_price_cents ?? 0) / 100, { shouldDirty: true })
+                  }
+                  if (propertyDefaults?.weekend_price != null) setValue("weekend_price", propertyDefaults.weekend_price / 100)
+                  if (propertyDefaults?.weekly_rate_cents != null) setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
+                  if (propertyDefaults?.monthly_rate_cents != null) setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
+                  if (propertyDefaults?.seasonal_rate_cents != null) setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
+                } else if (value === "site_type_defaults") {
+                  setValue("enabled_reservation_types_override", undefined)
+                  setValue("default_reservation_type", undefined)
+                  const ratesKey = Object.keys(siteTypeConfig?.site_type_rates ?? {}).find((k) => k.toLowerCase() === siteType) ?? siteType
+                  const rates = siteTypeConfig?.site_type_rates?.[ratesKey]
+                  const nightlyCents = rates?.nightly?.rate_cents ?? rates?.weekly?.rate_cents ?? rates?.monthly?.rate_cents ?? 0
+                  if (nightlyCents) setValue("base_price", nightlyCents / 100, { shouldDirty: true })
+                  if (rates?.weekly?.rate_cents != null) setValue("weekly_rate", rates.weekly.rate_cents / 100)
+                  if (rates?.monthly?.rate_cents != null) setValue("monthly_rate", rates.monthly.rate_cents / 100)
+                  if (rates?.seasonal?.rate_cents != null) setValue("seasonal_rate", rates.seasonal.rate_cents / 100)
                 } else {
+                  // Switching to manual: use site's stored rates in edit mode so we don't overwrite with property default
                   const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
                   setValue("enabled_reservation_types_override", defaultTypes, { shouldDirty: true })
                   setValue("default_reservation_type", propertyDefaults?.default_reservation_type)
-                  const currentBasePrice = watch("base_price")
-                  if (!currentBasePrice || currentBasePrice === 0) {
-                    if (propertyDefaults?.nightly_rate_cents || propertyDefaults?.base_price_cents) {
-                      setValue("base_price", (propertyDefaults.nightly_rate_cents || propertyDefaults.base_price_cents || 0) / 100, { shouldDirty: true })
+                  if (site) {
+                    const base = site.base_price ?? site.pricing?.basePrice ?? 0
+                    const weekend = site.weekend_price ?? site.pricing?.weekendPrice
+                    if (base > 0) setValue("base_price", base / 100, { shouldDirty: true })
+                    if (weekend != null && weekend > 0) setValue("weekend_price", weekend / 100)
+                    if (site.weekly_rate_cents != null) setValue("weekly_rate", site.weekly_rate_cents / 100)
+                    if (site.monthly_rate_cents != null) setValue("monthly_rate", site.monthly_rate_cents / 100)
+                    if (site.seasonal_rate_cents != null) setValue("seasonal_rate", site.seasonal_rate_cents / 100)
+                  } else {
+                    if (propertyDefaults?.nightly_rate_cents != null || propertyDefaults?.base_price_cents != null) {
+                      setValue("base_price", (propertyDefaults.nightly_rate_cents ?? propertyDefaults.base_price_cents ?? 0) / 100, { shouldDirty: true })
                     }
+                    if (propertyDefaults?.weekend_price != null) setValue("weekend_price", propertyDefaults.weekend_price / 100)
+                    if (propertyDefaults?.weekly_rate_cents != null) setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
+                    if (propertyDefaults?.monthly_rate_cents != null) setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
+                    if (propertyDefaults?.seasonal_rate_cents != null) setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
                   }
-                  if (!watch("weekend_price") && propertyDefaults?.weekend_price)
-                    setValue("weekend_price", propertyDefaults.weekend_price / 100)
-                  if (!watch("weekly_rate") && propertyDefaults?.weekly_rate_cents)
-                    setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
-                  if (!watch("monthly_rate") && propertyDefaults?.monthly_rate_cents)
-                    setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
-                  if (!watch("seasonal_rate") && propertyDefaults?.seasonal_rate_cents)
-                    setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
                 }
                 await trigger()
               }}
-            />
+            >
+              <SelectTrigger id="pricing_source"><SelectValue placeholder="Select pricing source" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="property_defaults">Use Property Defaults</SelectItem>
+                <SelectItem value="site_type_defaults">Use Property Site Type Defaults</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              {pricingSource === "manual" && "Use only the rates entered below (base, weekend, weekly, monthly, seasonal)."}
+              {pricingSource === "property_defaults" && "Inherit from property rate type configuration (Reservation Types tab)."}
+              {pricingSource === "site_type_defaults" && "Inherit from property site type rates (Site Types Rates tab) for this site type."}
+            </p>
           </div>
 
-          {!usePropertyReservationTypes && (
+          {pricingSource === "manual" && (
             <div className="space-y-6">
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold text-foreground">Select reservation types and set rates for this site:</h4>

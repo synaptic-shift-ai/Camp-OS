@@ -20,12 +20,25 @@ export type ReservationTypeConfig = {
   label: string
 }
 
+/** Site type rates from property.site_type_config (per site type: nightly, weekly, monthly, seasonal) */
+export type SiteTypeRatesConfig = Record<
+  string,
+  {
+    nightly?: { rate_cents: number | null }
+    weekly?: { rate_cents: number | null }
+    monthly?: { rate_cents: number | null }
+    seasonal?: { rate_cents: number | null }
+  }
+>
+
 /**
  * Property pricing configuration including enabled types and rates
  */
 export type PropertyPricingConfig = {
   enabledTypes: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
   rates: ReservationTypeConfig[]
+  /** From property.site_type_config.site_type_rates; used when site pricing source is site_type_default */
+  siteTypeConfig?: { site_type_rates?: SiteTypeRatesConfig } | null
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -58,9 +71,17 @@ async function getPropertyWithPricing(propertyId: string): Promise<{
     label: TYPE_LABELS[type] ?? type.charAt(0).toUpperCase() + type.slice(1),
   }))
 
+  const rawSiteTypeConfig = (property.site_type_config ?? null) as
+    | { site_type_rates?: SiteTypeRatesConfig }
+    | null
+
   return {
     id: property.id,
-    pricingConfig: { enabledTypes, rates },
+    pricingConfig: {
+      enabledTypes,
+      rates,
+      siteTypeConfig: rawSiteTypeConfig ?? null,
+    },
   }
 }
 

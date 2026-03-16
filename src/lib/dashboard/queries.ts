@@ -16,6 +16,7 @@ import type {
 } from '@/contracts/booking'
 import { parseReservationTypesConfigFromDB } from '@/lib/config/resolution'
 import type { PropertyReservationTypesConfig } from '@/lib/config/types'
+import { getPricingSourceType } from '@/lib/site-pricing-source'
 
 // ============================================================================
 // Types
@@ -51,9 +52,7 @@ function getEffectiveRatesForReservation(
     }
   }
 
-  const usesPropertyDefaults =
-    site.enabled_reservation_types_override === null ||
-    site.enabled_reservation_types_override === undefined
+  const usesPropertyDefaults = getPricingSourceType(site.enabled_reservation_types_override) !== 'manual'
 
   if (usesPropertyDefaults && propertyConfig) {
     const nightly =

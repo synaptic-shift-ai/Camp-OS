@@ -5,6 +5,7 @@ import { PropertyBookingPortal } from "@/components/guest/property-booking-porta
 import { ReservationExpiredHandler } from "@/components/guest/reservation-expired-handler"
 import type { SiteType } from "@/lib/booking/types"
 import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveRateDiscountsConfig } from "@/lib/config/resolution"
+import { getPricingSourceType } from "@/lib/site-pricing-source"
 import type { RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
 import { format } from "date-fns"
 
@@ -57,6 +58,7 @@ export default async function PropertyBookingPage({
       amenities,
       enabled_reservation_types,
       reservation_type_config,
+      site_type_config,
       rate_discounts_config
     `)
     .eq("booking_page_slug", slug)
@@ -211,6 +213,8 @@ export default async function PropertyBookingPage({
     property.reservation_type_config ?? null
   )
 
+  const siteTypeRatesMap = (property as { site_type_config?: { site_type_rates?: Record<string, { nightly?: { rate_cents: number | null } }> } } | null)?.site_type_config?.site_type_rates ?? {}
+
   const siteTypeSummaries: SiteTypeSummary[] = (sites ?? []).map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
     const amenities = Array.isArray(s.amenities)
@@ -218,13 +222,18 @@ export default async function PropertyBookingPage({
       : ["See availability for details"]
     const imageUrl = s.site_images?.[0] ?? s.images?.[0]
 
-    const usesPropertyDefaults =
-      (s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override ==
-      null
-
-    const effectiveNightlyCents = usesPropertyDefaults
-      ? reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
-      : (s.base_price ?? 0)
+    const pricingSource = getPricingSourceType((s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override)
+    let effectiveNightlyCents: number
+    if (pricingSource === 'site_type_default') {
+      const st = (s.site_type ?? '').toLowerCase()
+      const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (s.site_type ?? '')
+      const rates = key ? siteTypeRatesMap[key] : null
+      effectiveNightlyCents = rates?.nightly?.rate_cents ?? reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+    } else if (pricingSource === 'property_default') {
+      effectiveNightlyCents = reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+    } else {
+      effectiveNightlyCents = s.base_price ?? 0
+    }
 
     const priceDollars = effectiveNightlyCents / 100
     let discountedPrice: number | undefined

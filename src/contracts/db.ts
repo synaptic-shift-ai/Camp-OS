@@ -938,6 +938,7 @@ export type Database = {
           reservation_type_config: Json | null
           settings: Json | null
           site_count: number | null
+          site_type_config: Json | null
           slug: string
           special_instructions: string | null
           state: string | null
@@ -1005,6 +1006,7 @@ export type Database = {
           reservation_type_config?: Json | null
           settings?: Json | null
           site_count?: number | null
+          site_type_config?: Json | null
           slug: string
           special_instructions?: string | null
           state?: string | null
@@ -1072,6 +1074,7 @@ export type Database = {
           reservation_type_config?: Json | null
           settings?: Json | null
           site_count?: number | null
+          site_type_config?: Json | null
           slug?: string
           special_instructions?: string | null
           state?: string | null

@@ -13,6 +13,7 @@ import { PropertySettings } from "@/components/dashboard/settings/property-setti
 import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
 import type { CancellationRule } from "@/components/dashboard/settings/cancellation-rule-dialog"
+import { SiteTypeRateSettings } from "@/components/dashboard/settings/site-type-rate"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 import type {
@@ -52,6 +53,20 @@ export default async function SettingsPage({ params }: PageProps) {
     redirect("/auth/login")
   }
 
+  const rawSiteTypeConfig = (property.site_type_config ?? null) as
+    | { allowed_site_types?: string[]; site_type_rates?: Record<string, any> }
+    | null
+  
+  const siteypeRatesFromConfig = rawSiteTypeConfig?.site_type_rates ?? {}
+
+  const allowedSiteTypesFromConfig =
+    Array.isArray(rawSiteTypeConfig?.allowed_site_types) &&
+    rawSiteTypeConfig!.allowed_site_types.length > 0
+      ? rawSiteTypeConfig!.allowed_site_types
+      : []
+
+  const siteTypes = allowedSiteTypesFromConfig.map((siteType) => ({ siteType }))
+
   return (
     <div className="space-y-6">
       <div>
@@ -69,10 +84,11 @@ export default async function SettingsPage({ params }: PageProps) {
       </Alert>
 
       <Tabs defaultValue="property" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
           <TabsTrigger value="property">Property</TabsTrigger>
           <TabsTrigger value="fees">Additional Charges</TabsTrigger>
           <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
+          <TabsTrigger value="site-types-rates">Site Types Rates</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
           <TabsTrigger value="cancellation-policy">Cancellation Policy</TabsTrigger>
@@ -115,6 +131,15 @@ export default async function SettingsPage({ params }: PageProps) {
             initialConfig={parseReservationTypesConfigFromDB(property.reservation_type_config)}
             initialEnabledTypes={parseEnabledReservationTypesFromDB(property.enabled_reservation_types)}
             initialSeasonalPeriods={property.seasonalPeriods as SeasonalPeriod[]}
+          />
+        </TabsContent>
+
+        <TabsContent value="site-types-rates" className="space-y-4">
+          <SiteTypeRateSettings
+            propertyId={property.id}
+            initialSiteTypes={siteTypes}
+            initialAllowedSiteTypes={allowedSiteTypesFromConfig}
+            initialSiteTypeRates={siteypeRatesFromConfig}
           />
         </TabsContent>
 

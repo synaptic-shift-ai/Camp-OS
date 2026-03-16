@@ -13,6 +13,7 @@ import { updatePropertyConfigSchema } from "@/lib/config/schemas"
  * - pricing_config
  * - booking_rules_config
  * - rate_discounts_config
+ * - site_type_config
  */
 export async function PATCH(
   request: Request,
@@ -95,6 +96,10 @@ export async function PATCH(
       updateData.rate_discounts_config = configUpdates.rate_discounts_config
     }
 
+    if (configUpdates.site_type_config !== undefined) {
+      updateData.site_type_config = configUpdates.site_type_config
+    }
+
     // Add updated timestamp
     updateData.updated_at = new Date().toISOString()
 
@@ -161,7 +166,8 @@ export async function GET(
         deposit_config,
         pricing_config,
         booking_rules_config,
-        rate_discounts_config
+        rate_discounts_config,
+        site_type_config
       `)
       .eq("id", propertyId)
       .single()

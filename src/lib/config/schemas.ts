@@ -813,6 +813,8 @@ export const updatePropertyConfigSchema = z.object({
   pricing_config: pricingConfigSchema.optional(),
   booking_rules_config: bookingRulesConfigSchema.optional(),
   rate_discounts_config: rateDiscountsConfigSchema.optional(),
+  // Site type configuration (allowed types, per-site-type rules, etc.)
+  site_type_config: z.unknown().optional(),
 })
 
 /**

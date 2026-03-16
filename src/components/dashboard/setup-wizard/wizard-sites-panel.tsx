@@ -119,6 +119,7 @@ const DEFAULT_SITE_FORM_VALUES: SiteFormData = {
   status: "available",
   description: "",
   base_price: 0,
+  pricing_source: "property_defaults",
   hookups: { water: false, electric: false, sewer: false },
   amenities: {
     fire_pit: false,

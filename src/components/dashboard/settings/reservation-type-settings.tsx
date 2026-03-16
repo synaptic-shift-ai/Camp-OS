@@ -366,7 +366,7 @@ export function ReservationTypeSettings({
                 <div className="grid gap-4 md:grid-cols-3 pl-4 border-l-2 border-muted">
                   <div className="space-y-2">
                     <Label htmlFor={`${type}-rate`}>
-                      {type === 'nightly' ? 'Nightly Rate' : `${RESERVATION_TYPE_LABELS[type].title} Rate (per night)`}
+                      {type === 'nightly' ? 'Nightly Rate' : `${RESERVATION_TYPE_LABELS[type].title} Rate`}
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -398,8 +398,8 @@ export function ReservationTypeSettings({
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {type === 'nightly' && 'Base rate per night for short stays'}
-                      {type === 'weekly' && `Per-night rate for ${config.weekly.min_nights}-${config.weekly.max_nights || '∞'} night stays`}
-                      {type === 'monthly' && `Per-night rate for ${config.monthly.min_nights}+ night stays`}
+                      {type === 'weekly' && `Weekly rate for every ${config.weekly.min_nights} night stay`}
+                      {type === 'monthly' && `Monthly rate for every ${config.monthly.min_nights} night stay`}
                     </p>
                   </div>
                   <div className="space-y-2">

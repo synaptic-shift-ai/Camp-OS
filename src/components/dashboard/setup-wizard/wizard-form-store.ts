@@ -1,4 +1,4 @@
-import { create } from "zustand"
+import { create, type StateCreator } from "zustand"
 
 export type PropertyDetailsDraft = {
   address?: string | undefined
@@ -25,15 +25,19 @@ type WizardFormStore = {
   clearDraft: (propertyId: string) => void
 }
 
-export const useWizardFormStore = create<WizardFormStore>((set, get) => ({
+const wizardFormStoreCreator: StateCreator<WizardFormStore> = (set, get) => ({
   drafts: {},
-  saveDraft: (propertyId, data) =>
-    set((state) => ({ drafts: { ...state.drafts, [propertyId]: data } })),
-  getDraft: (propertyId) => get().drafts[propertyId],
-  clearDraft: (propertyId) =>
+  saveDraft: (propertyId: string, data: PropertyDetailsDraft) =>
+    set((state) => ({
+      drafts: { ...state.drafts, [propertyId]: data },
+    })),
+  getDraft: (propertyId: string) => get().drafts[propertyId],
+  clearDraft: (propertyId: string) =>
     set((state) => {
       const next = { ...state.drafts }
       delete next[propertyId]
       return { drafts: next }
     }),
-}))
+})
+
+export const useWizardFormStore = create<WizardFormStore>(wizardFormStoreCreator)

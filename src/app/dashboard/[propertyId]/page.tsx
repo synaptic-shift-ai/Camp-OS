@@ -145,7 +145,7 @@ async function CurrentlyCheckedIn({
         )}
       </CardHeader>
       <CardContent>
-        {currentlyCheckedIn.length > 0 && (
+        {currentlyCheckedIn.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-4">
             {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
@@ -163,6 +163,8 @@ async function CurrentlyCheckedIn({
               )
             })}
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">No guests checked in today</p>
         )}
       </CardContent>
     </Card>

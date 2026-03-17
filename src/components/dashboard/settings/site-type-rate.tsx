@@ -446,18 +446,20 @@ export function SiteTypeRateSettings({
     return `$${(cents / 100).toFixed(2)}`
   }
 
-  const orderedSiteTypes = [...initialSiteTypes].sort((a, b) => {
-    const norm = (s: string) => s.trim().toLowerCase()
-    const indexA = SITE_TYPE_DISPLAY_ORDER.findIndex(
-      (ordered) => norm(ordered) === norm(a.siteType)
-    )
-    const indexB = SITE_TYPE_DISPLAY_ORDER.findIndex(
-      (ordered) => norm(ordered) === norm(b.siteType)
-    )
-    const orderA = indexA === -1 ? SITE_TYPE_DISPLAY_ORDER.length : indexA
-    const orderB = indexB === -1 ? SITE_TYPE_DISPLAY_ORDER.length : indexB
-    return orderA - orderB
-  })
+  const orderedSiteTypes = allowedSiteTypes
+    .map((siteType) => ({ siteType }))
+    .sort((a, b) => {
+      const norm = (s: string) => s.trim().toLowerCase()
+      const indexA = SITE_TYPE_DISPLAY_ORDER.findIndex(
+        (ordered) => norm(ordered) === norm(a.siteType)
+      )
+      const indexB = SITE_TYPE_DISPLAY_ORDER.findIndex(
+        (ordered) => norm(ordered) === norm(b.siteType)
+      )
+      const orderA = indexA === -1 ? SITE_TYPE_DISPLAY_ORDER.length : indexA
+      const orderB = indexB === -1 ? SITE_TYPE_DISPLAY_ORDER.length : indexB
+      return orderA - orderB
+    })
 
   return (
     <div className="space-y-6">
@@ -556,139 +558,154 @@ export function SiteTypeRateSettings({
             </CardContent>
         </Card>
         
-        <Card>
-            <CardHeader>
-                <CardTitle>Rate Configuration</CardTitle>
-                <CardDescription>
-                Set nightly, weekly, and monthly rates for each site type
-                </CardDescription>
-            </CardHeader>
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold">Rate Configuration</h3>
+          <p className="text-sm text-muted-foreground">
+            Set nightly, weekly, and monthly rates for each site type
+          </p>
+        </div>
+
+        {initialSiteTypes.length === 0 ? (
+          <Card>
             <CardContent>
-                {initialSiteTypes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                    <p>No site types found for this property.</p>
-                    <p className="text-sm">Add sites from the Sites page to configure rates by site type.</p>
-                </div>
-                ) : (
-                <Accordion type="single" collapsible className="w-full">
-                    {orderedSiteTypes.map(({ siteType }) => {
-                    const rates = siteTypeRates[siteType] ?? {
-                        nightly: {
-                        rate_cents: null,
-                        min_nights: 1,
-                        max_nights: 6,
-                        },
-                        weekly: {
-                        rate_cents: null,
-                        min_nights: 7,
-                        max_nights: 27,
-                        },
-                        monthly: {
-                        rate_cents: null,
-                        min_nights: 28,
-                        max_nights: null,
-                        },
-                    }
-                    return (
-                        <AccordionItem key={siteType} value={siteType}>
-                        <AccordionTrigger>{siteType.charAt(0).toUpperCase() + siteType.slice(1)} Site</AccordionTrigger>
-                        <AccordionContent className="space-y-6">
-                            {(['nightly', 'weekly', 'monthly'] as const).map((type) => (
-                            <div key={type} className="grid gap-4 md:grid-cols-3 pl-4 border-l-2 border-muted">
-                                <div className="space-y-2">
-                                <Label htmlFor={`${siteType}-${type}-rate`}>
-                                    {type === 'nightly'
-                                    ? 'Nightly Rate'
-                                    : `${RESERVATION_TYPE_LABELS[type].title} Rate`}
-                                </Label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                    $
-                                    </span>
-                                    <Input
-                                    id={`${siteType}-${type}-rate`}
-                                    type="number"
-                                    step="1"
-                                    min="0"
-                                    className="pl-7"
-                                    placeholder="Enter rate"
-                                    value={
-                                        focusedSiteTypeRateField === `${siteType}-${type}`
-                                        ? siteRateInputValue
-                                        : formatCentsToInput(rates[type].rate_cents)
-                                    }
-                                    onFocus={() => {
-                                        setFocusedSiteTypeRateField(`${siteType}-${type}`)
-                                        setSiteRateInputValue(formatCentsToInput(rates[type].rate_cents))
-                                    }}
-                                    onChange={(e) => setSiteRateInputValue(e.target.value)}
-                                    onBlur={() => {
-                                        const cents = parseDollarsToCents(siteRateInputValue)
-                                        updateSiteTypeConfig(
-                                        siteType,
-                                        type,
-                                        'rate_cents',
-                                        cents ?? null
-                                        )
-                                        setFocusedSiteTypeRateField(null)
-                                    }}
-                                    />
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    {type === 'nightly' && 'Base rate per night for short stays'}
-                                    {type === 'weekly' &&
-                                    `Weekly rate for every ${rates.weekly.min_nights} night stay`}
-                                    {type === 'monthly' &&
-                                    `Monthly rate for every ${rates.monthly.min_nights} night stay`}
-                                </p>
-                                </div>
-                                <div className="space-y-2">
-                                <Label htmlFor={`${siteType}-${type}-min`}>Minimum Nights</Label>
-                                <Input
-                                    id={`${siteType}-${type}-min`}
-                                    type="number"
-                                    min="1"
-                                    max="365"
-                                    value={rates[type].min_nights}
-                                    onChange={(e) =>
-                                    updateSiteTypeConfig(
-                                        siteType,
-                                        type,
-                                        'min_nights',
-                                        parseInt(e.target.value) || 1
-                                    )
-                                    }
-                                />
-                                </div>
-                                <div className="space-y-2">
-                                <Label htmlFor={`${siteType}-${type}-max`}>Maximum Nights</Label>
-                                <Input
-                                    id={`${siteType}-${type}-max`}
-                                    type="number"
-                                    min="1"
-                                    max="365"
-                                    placeholder="No limit"
-                                    value={rates[type].max_nights ?? ''}
-                                    onChange={(e) =>
-                                    updateSiteTypeConfig(
-                                        siteType,
-                                        type,
-                                        'max_nights',
-                                        e.target.value ? parseInt(e.target.value) : null
-                                    )
-                                    }
-                                />
-                                </div>
-                            </div>
-                            ))}
-                        </AccordionContent>
-                        </AccordionItem>
-                    )
-                    })}
-                </Accordion>
-                )}
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No site types found for this property.</p>
+                <p className="text-sm">
+                  Add sites from the Sites page to configure rates by site type.
+                </p>
+              </div>
             </CardContent>
-        </Card>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {orderedSiteTypes.map(({ siteType }) => {
+              const rates = siteTypeRates[siteType] ?? {
+                nightly: {
+                  rate_cents: null,
+                  min_nights: 1,
+                  max_nights: 6,
+                },
+                weekly: {
+                  rate_cents: null,
+                  min_nights: 7,
+                  max_nights: 27,
+                },
+                monthly: {
+                  rate_cents: null,
+                  min_nights: 28,
+                  max_nights: null,
+                },
+              }
+
+              return (
+                <Card key={siteType}>
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value={siteType}>
+                      <AccordionTrigger className="px-6">
+                        {siteType.charAt(0).toUpperCase() + siteType.slice(1)} Site
+                      </AccordionTrigger>
+                      <AccordionContent className="space-y-6 px-6 pb-6">
+                        {(['nightly', 'weekly', 'monthly'] as const).map((type) => (
+                          <div
+                            key={type}
+                            className="grid gap-4 md:grid-cols-3 pl-4 border-l-2 border-muted"
+                          >
+                            <div className="space-y-2">
+                              <Label htmlFor={`${siteType}-${type}-rate`}>
+                                {type === 'nightly'
+                                  ? 'Nightly Rate'
+                                  : `${RESERVATION_TYPE_LABELS[type].title} Rate`}
+                              </Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                  $
+                                </span>
+                                <Input
+                                  id={`${siteType}-${type}-rate`}
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  className="pl-7"
+                                  placeholder="Enter rate"
+                                  value={
+                                    focusedSiteTypeRateField === `${siteType}-${type}`
+                                      ? siteRateInputValue
+                                      : formatCentsToInput(rates[type].rate_cents)
+                                  }
+                                  onFocus={() => {
+                                    setFocusedSiteTypeRateField(`${siteType}-${type}`)
+                                    setSiteRateInputValue(
+                                      formatCentsToInput(rates[type].rate_cents)
+                                    )
+                                  }}
+                                  onChange={(e) => setSiteRateInputValue(e.target.value)}
+                                  onBlur={() => {
+                                    const cents = parseDollarsToCents(siteRateInputValue)
+                                    updateSiteTypeConfig(
+                                      siteType,
+                                      type,
+                                      'rate_cents',
+                                      cents ?? null
+                                    )
+                                    setFocusedSiteTypeRateField(null)
+                                  }}
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {type === 'nightly' && 'Base rate per night for short stays'}
+                                {type === 'weekly' &&
+                                  `Weekly rate for every ${rates.weekly.min_nights} night stay`}
+                                {type === 'monthly' &&
+                                  `Monthly rate for every ${rates.monthly.min_nights} night stay`}
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`${siteType}-${type}-min`}>Minimum Nights</Label>
+                              <Input
+                                id={`${siteType}-${type}-min`}
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={rates[type].min_nights}
+                                onChange={(e) =>
+                                  updateSiteTypeConfig(
+                                    siteType,
+                                    type,
+                                    'min_nights',
+                                    parseInt(e.target.value) || 1
+                                  )
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`${siteType}-${type}-max`}>Maximum Nights</Label>
+                              <Input
+                                id={`${siteType}-${type}-max`}
+                                type="number"
+                                min="1"
+                                max="365"
+                                placeholder="No limit"
+                                value={rates[type].max_nights ?? ''}
+                                onChange={(e) =>
+                                  updateSiteTypeConfig(
+                                    siteType,
+                                    type,
+                                    'max_nights',
+                                    e.target.value ? parseInt(e.target.value) : null
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </Card>
+              )
+            })}
+          </div>
+        )}
 
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">

@@ -109,6 +109,9 @@ export default async function SettingsPage({ params }: PageProps) {
               checkInTime: property.check_in_time,
               checkOutTime: property.check_out_time,
             }}
+            stripeConnected={Boolean(property.stripe_account_id)}
+            stripeConnectedAt={property.stripe_connected_at}
+            stripeAccountId={property.stripe_account_id}
           />
           <PropertyImagesSection
             propertyId={property.id}

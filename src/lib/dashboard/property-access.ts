@@ -75,6 +75,8 @@ export async function getPropertyForUser(propertyId: string): Promise<{
   settings: unknown
   cancellation_policy: string | null
   cancellation_policy_config: unknown
+  stripe_account_id: string | null
+  stripe_connected_at: string | null
 } | null> {
   const supabase = await createClient()
 
@@ -109,7 +111,9 @@ export async function getPropertyForUser(propertyId: string): Promise<{
       site_type_config,
       settings,
       cancellation_policy,
-      cancellation_policy_config
+      cancellation_policy_config,
+      stripe_account_id,
+      stripe_connected_at
     `)
     .eq("id", propertyId)
     .maybeSingle()

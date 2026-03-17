@@ -109,6 +109,7 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
       const state = JSON.stringify({
         propertyId,
         timestamp: Date.now(),
+        redirectPath: "/onboarding?step=stripe_connect",
       })
 
       // Get Stripe Connect client ID from environment

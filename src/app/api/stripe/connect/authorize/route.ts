@@ -47,10 +47,12 @@ export async function GET(request: NextRequest) {
   }
 
   let propertyId: string
+  let redirectPath: string | undefined
   try {
     // State should be JSON with propertyId
     const stateData = JSON.parse(state)
     propertyId = stateData.propertyId
+    redirectPath = typeof stateData.redirectPath === "string" ? stateData.redirectPath : undefined
 
     if (!propertyId) {
       throw new Error("Missing propertyId in state")
@@ -131,10 +133,10 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // Success - redirect back to wizard Stripe step
-      return NextResponse.redirect(
-        new URL("/onboarding?step=stripe_connect&stripe_connected=true", baseUrl)
-      )
+      // Success - redirect back to caller (settings page or wizard)
+      const successUrl = new URL(redirectPath || "/onboarding?step=stripe_connect", baseUrl)
+      successUrl.searchParams.set("stripe_connected", "true")
+      return NextResponse.redirect(successUrl)
     } catch (error) {
       console.error("Error exchanging Stripe code:", error)
       return NextResponse.redirect(

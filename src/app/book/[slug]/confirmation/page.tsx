@@ -137,36 +137,64 @@ export default function ConfirmationPage() {
     return null
   }
 
-  const numberOfNights = differenceInDays(checkoutData.checkOutDate!, checkoutData.checkInDate!)
-  const taxRate = checkoutData.priceBreakdown?.tax_rate ?? checkoutData.priceBreakdown?.taxRate ?? DEFAULT_TAX_RATE
-  const priceBreakdown = checkoutData.priceBreakdown || {
-    basePrice: checkoutData.site.base_price_per_night,
-    nights: numberOfNights,
-    subtotal: checkoutData.site.base_price_per_night * numberOfNights,
-    cleaningFee: checkoutData.site.site_type === "cabin" ? 50 : 0,
-    serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
-    taxRate,
-    taxes: 0,
-    total: 0,
+  const numberOfNights = checkoutData.priceBreakdown?.number_of_nights
+    ?? differenceInDays(checkoutData.checkOutDate!, checkoutData.checkInDate!)
+
+  const rawPriceBreakdown = checkoutData.priceBreakdown
+  const taxRate =
+    rawPriceBreakdown?.tax_rate ??
+    rawPriceBreakdown?.taxRate ??
+    DEFAULT_TAX_RATE
+
+  // Normalize price breakdown so it matches what we show in the booking summary.
+  const priceBreakdown =
+    rawPriceBreakdown
+    ? {
+        basePrice: rawPriceBreakdown.base_price_per_night ?? 0,
+        nights: rawPriceBreakdown.number_of_nights ?? numberOfNights,
+        subtotal: rawPriceBreakdown.subtotal ?? 0,
+        cleaningFee: rawPriceBreakdown.cleaningFee ?? rawPriceBreakdown.cleaning_fee ?? 0,
+        serviceFee: rawPriceBreakdown.serviceFee ?? rawPriceBreakdown.service_fee ?? 0,
+        pet_fee: rawPriceBreakdown.pet_fee ?? 0,
+        taxRate,
+        taxes: rawPriceBreakdown.taxes ?? 0,
+        total: rawPriceBreakdown.total ?? 0,
+        tax_name: rawPriceBreakdown.tax_name,
+        user_discounts: rawPriceBreakdown.user_discounts,
+      }
+    : {
+        basePrice: checkoutData.site.base_price_per_night,
+        nights: numberOfNights,
+        subtotal: checkoutData.site.base_price_per_night * numberOfNights,
+        cleaningFee: checkoutData.site.site_type === "cabin" ? 5000 : 0,
+        serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
+        pet_fee: 0,
+        taxRate,
+        taxes: 0,
+        total: 0,
+        user_discounts: [],
+      }
+
+  const discountCents =
+    priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+
+  // Only recompute taxes/total when we didn't get a full breakdown from the API.
+  if (!rawPriceBreakdown) {
+    const taxableAmount = priceBreakdown.subtotal - discountCents
+    priceBreakdown.taxes = Math.round(taxableAmount * taxRate)
+    priceBreakdown.total =
+      priceBreakdown.subtotal - discountCents + (priceBreakdown.taxes || 0) + (priceBreakdown.pet_fee || 0)
   }
-  const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
-  const taxableAmount = priceBreakdown.subtotal - discountCents
-  priceBreakdown.taxes = Math.round(taxableAmount * taxRate)
-  priceBreakdown.total =
-    priceBreakdown.subtotal - discountCents + (priceBreakdown.taxes || 0) + (priceBreakdown.pet_fee || 0)
 
   function handleDownloadPdf() {
     setIsDownloadingPdf(true)
     try {
-      const basePriceCents =
-        priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
-      const taxRate =
-        priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
+      const basePriceCents = priceBreakdown.basePrice
+      const taxRate = priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
       const taxLabel =
         priceBreakdown.tax_name ??
         `Taxes (${(taxRate * 100).toFixed(1)}%)`
-      const cleaningFee =
-        priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0
+      const cleaningFee = priceBreakdown.cleaningFee ?? 0
       const taxes = priceBreakdown.taxes ?? 0
 
       downloadConfirmationPdf({
@@ -187,8 +215,7 @@ export default function ConfirmationPage() {
         basePriceCents,
         subtotalCents: priceBreakdown.subtotal,
         ...(cleaningFee > 0 && { cleaningFeeCents: cleaningFee }),
-        serviceFeeCents:
-          priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0,
+        serviceFeeCents: priceBreakdown.serviceFee ?? 0,
         ...(discountCents > 0 && { discountCents }),
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
         totalCents: priceBreakdown.total,
@@ -390,10 +417,6 @@ export default function ConfirmationPage() {
                           <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Service fee</span>
-                        <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.serviceFee || 0)}</span>
-                      </div>
                       {discountCents > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-400">Discount</span>
@@ -404,7 +427,7 @@ export default function ConfirmationPage() {
                         <div className="flex justify-between">
                           <span className="text-gray-400">
                             {(priceBreakdown.tax_name || "Taxes")} (
-                            {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE) * 100).toFixed(1)}%)
+                            {(priceBreakdown.taxRate * 100).toFixed(1)}%)
                           </span>
                           <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.taxes!)}</span>
                         </div>

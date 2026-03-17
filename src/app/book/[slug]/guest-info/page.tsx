@@ -133,7 +133,7 @@ export default function GuestInfoPage() {
       country: checkoutData.guestInfo?.country || "United States",
       emergency_contact_name: checkoutData.guestInfo?.emergency_contact_name || "",
       emergency_contact_phone: checkoutData.guestInfo?.emergency_contact_phone || "",
-      num_vehicles: checkoutData.numVehicles?.toString() || "1",
+      num_vehicles: checkoutData.numVehicles?.toString() ?? "0",
       special_requests: checkoutData.specialRequests || "",
       agree_terms: false,
       agree_cancellation: false,
@@ -157,7 +157,13 @@ export default function GuestInfoPage() {
         num_adults: checkoutData.numAdults || 1,
         num_children: checkoutData.numChildren || 0,
         num_pets: 0,
-        num_vehicles: data.num_vehicles ? Number.parseInt(data.num_vehicles) : 1,
+        num_vehicles: (() => {
+          const raw =
+            data.num_vehicles != null && data.num_vehicles !== ''
+              ? Number.parseInt(String(data.num_vehicles), 10)
+              : 0
+          return Number.isNaN(raw) ? 0 : Math.max(0, raw)
+        })(),
         special_requests: data.special_requests || undefined,
         guest: {
           first_name: data.first_name,
@@ -291,8 +297,8 @@ export default function GuestInfoPage() {
     priceBreakdown.total ??
     ((priceBreakdown.total_before_tax ??
       priceBreakdown.subtotal +
-        cleaningFeeCents +
-        serviceFeeCents) +
+      cleaningFeeCents +
+      serviceFeeCents) +
       taxesCents)
 
   return (

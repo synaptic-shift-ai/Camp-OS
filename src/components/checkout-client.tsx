@@ -178,7 +178,7 @@ export function CheckoutClient() {
         num_adults: checkoutData.numAdults || 1,
         num_children: checkoutData.numChildren || 0,
         num_pets: checkoutData.numPets || 0,
-        num_vehicles: checkoutData.numVehicles || 1,
+        num_vehicles: checkoutData.numVehicles ?? 0,
         vehicle_info: checkoutData.vehicleInfo || [],
         special_requests: data.special_requests || undefined,
         guest: {

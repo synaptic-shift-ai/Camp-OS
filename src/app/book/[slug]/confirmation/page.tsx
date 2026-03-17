@@ -366,7 +366,7 @@ export default function ConfirmationPage() {
                       <p className="text-gray-400">Phone</p>
                       <p className="font-medium text-gray-100">{checkoutData.guestInfo.phone}</p>
                     </div>
-                    {checkoutData.numVehicles && (
+                    {checkoutData.numVehicles != null && (
                       <div>
                         <p className="text-gray-400">Vehicles</p>
                         <p className="font-medium text-gray-100">{checkoutData.numVehicles}</p>

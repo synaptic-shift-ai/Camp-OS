@@ -2,6 +2,7 @@ import { render } from '@react-email/components'
 import { sendEmail, getFrom } from './emailit'
 import { BookingConfirmationEmail } from './templates/booking-confirmation'
 import { CancellationNoticeEmail } from './templates/cancellation-notice'
+import { RefundIssuedEmail } from './templates/refund-issued'
 
 export interface BookingConfirmationData {
   guestName: string
@@ -40,6 +41,15 @@ export interface CancellationData {
   refundAmount?: number
   refundPaymentMethod?: string
   refundStatus?: 'processing' | 'completed' | 'none'
+}
+
+export interface RefundIssuedData {
+  guestName: string
+  guestEmail: string
+  confirmationNumber: string
+  propertyName: string
+  refundAmountCents: number
+  refundPaymentMethod?: string
 }
 
 /**
@@ -150,6 +160,40 @@ export async function sendCancellationNotice(data: CancellationData) {
       : { success: false, error: result.error }
   } catch (error) {
     console.error('[Email] Failed to send cancellation notice:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send email',
+    }
+  }
+}
+
+/**
+ * Send a refund-issued confirmation email to the guest
+ */
+export async function sendRefundIssuedEmail(data: RefundIssuedData) {
+  try {
+    const emailProps = {
+      guestName: data.guestName,
+      confirmationNumber: data.confirmationNumber,
+      propertyName: data.propertyName,
+      refundAmountCents: data.refundAmountCents,
+      ...(data.refundPaymentMethod ? { refundPaymentMethod: data.refundPaymentMethod } : {}),
+    }
+
+    const emailHtml = await render(RefundIssuedEmail(emailProps))
+
+    const result = await sendEmail({
+      from: getFrom(),
+      to: data.guestEmail,
+      subject: `Refund Issued - ${data.confirmationNumber} at ${data.propertyName}`,
+      html: emailHtml,
+    })
+
+    return result.success
+      ? { success: true, data: { id: result.id } }
+      : { success: false, error: result.error }
+  } catch (error) {
+    console.error('[Email] Failed to send refund-issued email:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send email',

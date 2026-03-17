@@ -19,6 +19,7 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { sendRefundIssuedEmail } from '@/lib/email/send'
 
 /**
  * POST /api/v1/reservations/[id]/refund
@@ -147,6 +148,39 @@ export async function POST(
     const eventBus = getEventBus()
     await eventBus.publishAll([...reservation.getDomainEvents()])
     reservation.clearDomainEvents()
+
+    type RefundEmailRow = {
+      guest: { first_name: string; last_name: string; email: string }
+      property: { name: string }
+    }
+
+    const { data: rowData, error: rowError } = await supabase
+      .from('reservations')
+      .select('guest:guests(first_name, last_name, email), property:properties(name)')
+      .eq('id', reservationId)
+      .single()
+
+    const row = rowData as RefundEmailRow | null
+
+    if (!rowError && row?.guest && row?.property) {
+      const guest = row.guest as { first_name: string; last_name: string; email: string }
+      const propertyRow = row.property as { name: string }
+      const guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
+
+      const refundMethodMatch = validatedRequest.notes?.match(/Refund method:\s*(\S+)/i)
+      const refundPaymentMethod = refundMethodMatch?.[1] ?? undefined
+
+      sendRefundIssuedEmail({
+        guestName,
+        guestEmail: guest.email,
+        confirmationNumber: reservation.confirmationNumber.value,
+        propertyName: propertyRow.name,
+        refundAmountCents: validatedRequest.amountCents,
+        ...(refundPaymentMethod ? { refundPaymentMethod } : {}),
+      }).catch((err) => {
+        console.error('[Reservations API v1] Failed to send refund-issued email:', err)
+      })
+    }
 
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)

@@ -128,17 +128,30 @@ export function CancelReservationDialog({
       const data = await response.json()
 
       if (!response.ok) {
+        // For server errors, show a simple, specific message
+        if (response.status === 500) {
+          setError(
+            "Failed to cancel reservation. Can't find PaymentIntent ID in Stripe. Choose different refund method."
+          )
+          return
+        }
+
         const errorPayload = data?.error ?? data
-        const details = errorPayload?.details as { errors?: Array<{ path?: string[]; message?: string }> } | undefined
+        const details = errorPayload?.details as
+          | { errors?: Array<{ path?: string[]; message?: string }>; message?: string }
+          | undefined
         console.warn("[Cancel Reservation] API error response", {
           status: response.status,
           statusText: response.statusText,
           data,
         })
+        const baseMessage = errorPayload?.message ?? "Failed to cancel reservation"
         const errorMessage =
           details?.errors?.length
             ? `Validation failed: ${details.errors.map((e) => e.message ?? String(e)).join(", ")}`
-            : errorPayload?.message ?? "Failed to cancel reservation"
+            : typeof details?.message === "string" && details.message.length > 0
+              ? `${baseMessage} ${details.message}`
+              : baseMessage
         throw new Error(errorMessage)
       }
 

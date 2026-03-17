@@ -20,12 +20,15 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 import { sendCancellationNotice } from '@/lib/email/send'
+import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
 
 /**
  * POST /api/v1/reservations/[id]/cancel
  *
  * Cancel a reservation and process refund if applicable.
  */
+const LOG_PREFIX = '[CancelReservation]'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -41,10 +44,7 @@ export async function POST(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_001, 'Unauthorized'),
-        { status: 401 }
-      )
+      return error(ErrorCodes.AUTH_001, 'Unauthorized', 401)
     }
 
     // Get user's company (BP-4: Multi-tenant isolation)
@@ -55,10 +55,7 @@ export async function POST(
       .single()
 
     if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found', 404)
     }
 
     // Verify reservation exists and belongs to company
@@ -67,10 +64,7 @@ export async function POST(
     const existingReservation = await queryHandler.execute({ id: reservationId })
 
     if (!existingReservation) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Reservation not found'),
-        { status: 404 }
-      )
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, 'Reservation not found', 404)
     }
 
     // Verify tenant access (BP-4)
@@ -81,10 +75,7 @@ export async function POST(
       .single()
 
     if (propertyError || !property || property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
-        { status: 403 }
-      )
+      return error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company', 403)
     }
 
     // Parse and validate request body
@@ -94,13 +85,17 @@ export async function POST(
     try {
       validatedRequest = CancelReservationRequestSchema.parse(body)
     } catch (validationError: any) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, 'Invalid request body', {
-          errors: validationError.errors,
-        }),
-        { status: 400 }
-      )
+      return error('VALIDATION_ERROR', 'Invalid request body', 400, undefined, {
+        errors: validationError.errors,
+      })
     }
+
+    console.log(LOG_PREFIX, 'Cancel requested', {
+      reservationId,
+      reason: validatedRequest.reason ?? null,
+      refundAmountCents: validatedRequest.refundAmountCents,
+      refundPaymentMethod: validatedRequest.refundPaymentMethod ?? null,
+    })
 
     const config = property.cancellation_policy_config as { refund_tiers?: Array<{ id?: string; refund_percentage?: number; days_before_reservation?: number }> } | null
     const refund_tiers = config?.refund_tiers?.filter(
@@ -129,6 +124,146 @@ export async function POST(
       effectivePolicyRefundCents
     )
 
+    console.log(LOG_PREFIX, 'Refund amount computed', {
+      reservationId,
+      paidCents,
+      totalCents,
+      policyRefundCents,
+      effectivePolicyRefundCents,
+      refundAmountCents,
+    })
+
+    let stripeRefundId: string | null = null
+
+    // If refund is requested to card and amount > 0, attempt Stripe refund
+    if (refundAmountCents > 0 && validatedRequest.refundPaymentMethod === 'card') {
+      // Look up the latest Stripe PaymentIntent ID for this reservation
+      const { data: paymentRow, error: paymentError } = await supabase
+        .from('payments')
+        .select('stripe_payment_id')
+        .eq('reservation_id', reservationId)
+        .not('stripe_payment_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      let paymentIntentId: string | null = null
+      let paymentIntentSource: 'payments_table' | 'reservation_notes' | null = null
+
+      if (!paymentError && paymentRow?.stripe_payment_id) {
+        paymentIntentId = paymentRow.stripe_payment_id as string
+        paymentIntentSource = 'payments_table'
+      } else {
+        // Fallback: parse PaymentIntent ID from reservation notes (e.g. "Stripe PaymentIntent: pi_xxx")
+        const { data: reservationRow, error: reservationRowError } = await supabase
+          .from('reservations')
+          .select('notes')
+          .eq('id', reservationId)
+          .single()
+
+        if (!reservationRowError && typeof reservationRow?.notes === 'string') {
+          const notes = reservationRow.notes as string
+          const match =
+            notes.match(/Stripe PaymentIntent:\s*(pi_[A-Za-z0-9_]+)/i) ??
+            notes.match(/PaymentIntent:\s*(pi_[A-Za-z0-9_]+)/i)
+          if (match) {
+            paymentIntentId = match[1]!
+            paymentIntentSource = 'reservation_notes'
+          }
+        }
+      }
+
+      if (!paymentIntentId) {
+        console.log(LOG_PREFIX, 'Stripe refund skipped: no PaymentIntent found', {
+          reservationId,
+          refundPaymentMethod: validatedRequest.refundPaymentMethod,
+        })
+        return error(
+          'VALIDATION_ERROR',
+          "Failed to cancel reservation. Can't find PaymentIntent ID in Stripe. Choose different refund method.",
+          400
+        )
+      }
+
+      console.log(LOG_PREFIX, 'Stripe refund: PaymentIntent resolved', {
+        reservationId,
+        paymentIntentId,
+        paymentIntentSource,
+        refundAmountCents,
+      })
+
+      // Get tenant-aware Stripe client (ensures property has connected Stripe account)
+      const tenantStripeResult = await getTenantStripeClient(existingReservation.propertyId)
+      if (!tenantStripeResult.success) {
+        console.warn(LOG_PREFIX, 'Stripe refund skipped: tenant Stripe not connected', {
+          reservationId,
+          propertyId: existingReservation.propertyId,
+          error: tenantStripeResult.error,
+        })
+        return error('VALIDATION_ERROR', tenantStripeResult.error, 400)
+      }
+
+      const { stripe } = tenantStripeResult
+
+      try {
+        // Ensure PaymentIntent exists and succeeded before refunding
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+        if (paymentIntent.status !== 'succeeded') {
+          console.warn(LOG_PREFIX, 'Stripe refund skipped: PaymentIntent not succeeded', {
+            reservationId,
+            paymentIntentId,
+            status: paymentIntent.status,
+          })
+          return error(
+            'VALIDATION_ERROR',
+            `Cannot refund payment with status "${paymentIntent.status}".`,
+            400
+          )
+        }
+
+        const refund = await stripe.refunds.create({
+          payment_intent: paymentIntentId,
+          amount: refundAmountCents,
+          reason: 'requested_by_customer',
+        })
+
+        stripeRefundId = refund.id
+        console.log(LOG_PREFIX, 'Stripe refund created successfully', {
+          reservationId,
+          paymentIntentId,
+          stripeRefundId: refund.id,
+          amountCents: refundAmountCents,
+          refundStatus: refund.status,
+        })
+      } catch (stripeError: any) {
+        console.error(LOG_PREFIX, 'Stripe refund error', {
+          reservationId,
+          paymentIntentId,
+          refundAmountCents,
+          error: stripeError?.message,
+        })
+        return error(
+          ErrorCodes.INTERNAL_ERROR,
+          'Failed to process Stripe refund. Reservation was not cancelled.',
+          500,
+          undefined,
+          { message: stripeError?.message }
+        )
+      }
+    } else {
+      console.log(LOG_PREFIX, 'Stripe refund not attempted', {
+        reservationId,
+        reason:
+          refundAmountCents === 0
+            ? 'refund amount is zero'
+            : validatedRequest.refundPaymentMethod !== 'card'
+              ? `refund method is "${validatedRequest.refundPaymentMethod ?? 'none'}"`
+              : 'unknown',
+        refundAmountCents,
+        refundPaymentMethod: validatedRequest.refundPaymentMethod ?? null,
+      })
+    }
+
     // Execute command using application layer
     const commandHandler = new CancelReservationCommandHandler(repository)
 
@@ -136,6 +271,13 @@ export async function POST(
       reservationId,
       reason: validatedRequest.reason ?? null,
       refundAmountCents,
+    })
+
+    console.log(LOG_PREFIX, 'Reservation cancelled in DB', {
+      reservationId,
+      confirmationNumber: reservation.confirmationNumber.value,
+      refundAmountCents,
+      stripeRefundId,
     })
 
     type CancellationEmailRow = {
@@ -189,30 +331,32 @@ export async function POST(
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)
 
+    console.log(LOG_PREFIX, 'Cancel completed successfully', {
+      reservationId,
+      confirmationNumber: reservation.confirmationNumber.value,
+      stripeRefunded: stripeRefundId != null,
+      stripeRefundId,
+    })
+
     return success(reservationDTO)
   } catch (err: any) {
-    console.error('[Reservations API v1] Cancel error:', err)
+    console.error(LOG_PREFIX, 'Cancel error', err)
 
     // Handle domain validation errors
     if (err.message.includes('already cancelled')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, err.message),
-        { status: 409 }
-      )
+      return error(ErrorCodes.VALIDATION_ERROR, err.message, 409)
     }
 
     if (err.message.includes('exceeds')) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, err.message),
-        { status: 400 }
-      )
+      return error(ErrorCodes.VALIDATION_ERROR, err.message, 400)
     }
 
-    return NextResponse.json(
-      error(ErrorCodes.INTERNAL_ERROR, 'Failed to cancel reservation', {
-        message: err.message,
-      }),
-      { status: 500 }
+    return error(
+      ErrorCodes.INTERNAL_ERROR,
+      'Failed to cancel reservation',
+      500,
+      undefined,
+      { message: err.message }
     )
   }
 }

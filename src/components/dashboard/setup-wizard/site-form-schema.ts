@@ -115,9 +115,9 @@ export function toApiFormat(data: SiteFormData) {
     siteType: data.site_type,
     description: data.description || undefined,
     // Capacity (camelCase)
-    maxOccupancy: data.max_occupancy,
-    maxVehicles: data.max_vehicles,
-    sizeSqft: data.size_sqft || undefined,
+    maxOccupancy: Number(data.max_occupancy),
+    maxVehicles: Number(data.max_vehicles),
+    sizeSqft: data.size_sqft != null ? Number(data.size_sqft) : undefined,
     // Always send basePrice; API will derive property defaults when non-manual and amount is 0
     basePrice: basePriceCents,
     // Only send additional rate fields when manual so saving "property default" or "site type default" doesn't overwrite stored rates

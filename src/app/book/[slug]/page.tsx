@@ -108,10 +108,13 @@ export default async function PropertyBookingPage({
   }
 
   type SiteTypeSummary = {
+    id?: string
     type: SiteType
     name: string
     description: string
     price: number
+    priceWeekly?: number
+    priceMonthly?: number
     capacity: string
     amenities: string[]
     imageUrl?: string | null
@@ -225,6 +228,20 @@ export default async function PropertyBookingPage({
     ? (sites ?? []).filter((s) => allowedSiteTypes.includes((s.site_type || "other").toLowerCase()))
     : (sites ?? [])
 
+  function effectiveNightlyCentsForSite(s: (typeof sitesToShow)[number]): number {
+    const pricingSource = getPricingSourceType((s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override)
+    if (pricingSource === 'site_type_default') {
+      const st = (s.site_type ?? '').toLowerCase()
+      const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (s.site_type ?? '')
+      const rates = key ? siteTypeRatesMap[key] : null
+      return rates?.nightly?.rate_cents ?? reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+    }
+    if (pricingSource === 'property_default') {
+      return reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+    }
+    return s.base_price ?? 0
+  }
+
   const siteTypeSummaries: SiteTypeSummary[] = sitesToShow.map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
     const amenities = Array.isArray(s.amenities)
@@ -232,20 +249,14 @@ export default async function PropertyBookingPage({
       : ["See availability for details"]
     const imageUrl = s.site_images?.[0] ?? s.images?.[0]
 
-    const pricingSource = getPricingSourceType((s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override)
-    let effectiveNightlyCents: number
-    if (pricingSource === 'site_type_default') {
-      const st = (s.site_type ?? '').toLowerCase()
-      const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (s.site_type ?? '')
-      const rates = key ? siteTypeRatesMap[key] : null
-      effectiveNightlyCents = rates?.nightly?.rate_cents ?? reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
-    } else if (pricingSource === 'property_default') {
-      effectiveNightlyCents = reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
-    } else {
-      effectiveNightlyCents = s.base_price ?? 0
-    }
+    const priceDollars = effectiveNightlyCentsForSite(s) / 100
+    const weeklyCents = (s as { weekly_rate_cents?: number | null }).weekly_rate_cents
+    const monthlyCents = (s as { monthly_rate_cents?: number | null }).monthly_rate_cents
+    const priceWeekly =
+      weeklyCents != null && weeklyCents > 0 ? weeklyCents / 100 : Math.round(priceDollars * 7 * 100) / 100
+    const priceMonthly =
+      monthlyCents != null && monthlyCents > 0 ? monthlyCents / 100 : Math.round(priceDollars * 30 * 100) / 100
 
-    const priceDollars = effectiveNightlyCents / 100
     let discountedPrice: number | undefined
     let discountEndDate: string | undefined
     let discountLabel: string | undefined
@@ -271,10 +282,13 @@ export default async function PropertyBookingPage({
     }
 
     return {
+      id: s.id,
       type: siteType,
       name: s.site_name ?? `Site ${s.site_number}`,
       description: s.description ?? SITE_TYPE_DESCRIPTIONS[siteType] ?? "",
       price: priceDollars,
+      priceWeekly,
+      priceMonthly,
       capacity: s.max_occupancy ? String(s.max_occupancy) : "-",
       amenities,
       imageUrl: imageUrl ?? null,

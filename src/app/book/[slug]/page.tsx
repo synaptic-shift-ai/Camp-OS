@@ -75,7 +75,6 @@ export default async function PropertyBookingPage({
     .from("sites")
     .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description, site_images, images, enabled_reservation_types_override, weekly_rate_cents, monthly_rate_cents")
     .eq("property_id", property.id)
-    .eq("status", "available")
 
   const { data: recentReservations } = await supabase
     .from("reservations")

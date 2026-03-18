@@ -29,3 +29,14 @@ export function dayOfWeekFromYyyyMmDd(yyyyMmDd: string): string {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
   return days[d.getDay()]!
 }
+
+export function formatMoney(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(cents / 100)
+}
+
+export function getInitials(name: string): string {
+  return name.split(' ').map((n) => n[0]).join('')
+}

@@ -256,7 +256,7 @@ export function ReservationsTable({
                     <TableCell className="py-1.5 font-medium whitespace-nowrap">
                       {reservation.confirmationNumber}
                     </TableCell>
-                    <TableCell className="py-1.5 whitespace-nowrap">
+                    <TableCell className="py-1.5 whitespace-nowrap capitalize">
                       {reservation.guestName}
                     </TableCell>
                     <TableCell className="py-1.5 whitespace-nowrap">
@@ -372,7 +372,7 @@ export function ReservationsTable({
                 <DialogTitle>
                   Reservation {selectedReservation.confirmationNumber}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="capitalize">
                   Detailed information for {selectedReservation.guestName}
                 </DialogDescription>
               </DialogHeader>
@@ -383,7 +383,7 @@ export function ReservationsTable({
                     <div className="text-xs font-medium text-muted-foreground">
                       Guest
                     </div>
-                    <div className="mt-1 font-medium">
+                    <div className="mt-1 font-medium capitalize">
                       {selectedReservation.guestName}
                     </div>
                     <div className="text-xs text-muted-foreground">

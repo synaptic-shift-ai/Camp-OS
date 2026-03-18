@@ -16,13 +16,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { GuestActions } from "./guest-actions"
 import type { DashboardGuest } from "@/lib/dashboard/queries"
-
-function formatMoney(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100)
-}
+import { formatMoney, getInitials } from "@/lib/utils"
 
 type GuestsTableProps = {
   propertyId: string
@@ -113,11 +107,11 @@ export function GuestsTable({
                   <TableCell className="py-1.5">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium">
-                          {guest.name.split(" ").map((n) => n[0]).join("")}
+                        <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium uppercase">
+                          {getInitials(guest.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-medium">{guest.name}</span>
+                      <span className="font-medium capitalize">{guest.name}</span>
                     </div>
                   </TableCell>
                   <TableCell className="py-1.5">

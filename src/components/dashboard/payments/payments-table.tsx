@@ -128,7 +128,7 @@ export function PaymentsTable({
                   <TableCell className="py-1.5">
                     {formatDate(payment.createdAt)}
                   </TableCell>
-                  <TableCell className="py-1.5 font-medium">
+                  <TableCell className="py-1.5 font-medium capitalize">
                     {payment.guestName}
                   </TableCell>
                   <TableCell className="py-1.5">

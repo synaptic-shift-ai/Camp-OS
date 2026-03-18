@@ -216,7 +216,7 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
                           {dayReservations.slice(0, 2).map((reservation) => (
                             <div
                               key={reservation.id}
-                              className={`text-xs leading-tight px-1 py-0.5 rounded truncate ${reservationStatusColors[statusKey(reservation)] || 'bg-gray-500 text-white'
+                              className={`text-xs leading-tight px-1 py-0.5 rounded truncate ${reservationStatusColors[statusKey(reservation)] || 'bg-gray-500 text-white capitalize'
                                 }`}
                             >
                               {guestDisplayName(reservation)}
@@ -272,7 +272,7 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                    <span className="text-sm font-medium truncate">{guestDisplayName(reservation)}</span>
+                                    <span className="text-sm font-medium truncate capitalize">{guestDisplayName(reservation)}</span>
                                   </div>
                                   <Badge
                                     variant="outline"

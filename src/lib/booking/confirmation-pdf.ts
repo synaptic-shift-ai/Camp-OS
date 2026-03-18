@@ -146,10 +146,17 @@ export function generateConfirmationPdf(input: ConfirmationPdfInput): { doc: jsP
   yRight += 10
 
   const guestName = `${input.guest.first_name} ${input.guest.last_name}`
+  const formattedName = guestName
+    ? guestName
+      .trim()
+      .split(/\s+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ")
+    : "";
   doc.setTextColor(100, 100, 100)
   doc.text("Name", COL2_X, yRight)
   doc.setTextColor(0, 0, 0)
-  doc.text(guestName, COL2_X, yRight + 5)
+  doc.text(formattedName, COL2_X, yRight + 5);
   yRight += 12
 
   doc.setTextColor(100, 100, 100)

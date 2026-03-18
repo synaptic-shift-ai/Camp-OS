@@ -231,7 +231,7 @@ export function GuestReservationsSheet({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="font-semibold text-foreground">{guest.name}</p>
+              <p className="font-semibold text-foreground capitalize">{guest.name}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-3.5 w-3.5" />
                 <span className="truncate">{guest.email}</span>
@@ -241,25 +241,25 @@ export function GuestReservationsSheet({
               </p>
             </div>
           </div>
-          
+
           <div className="text-md">
-              {previewLoading ? (
-                <span className="text-muted-foreground">Loading…</span>
-              ) : paymentCard ? (
-                <div className="inline-flex items-center gap-2">
-                  <span className="inline-flex h-7 w-10 items-center justify-center">
-                    <PaymentCardLogo brand={paymentCard.brand} />
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    **** **** **** {paymentCard.last4}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-muted-foreground">
-                  No card payment on file for this guest
+            {previewLoading ? (
+              <span className="text-muted-foreground">Loading…</span>
+            ) : paymentCard ? (
+              <div className="inline-flex items-center gap-2">
+                <span className="inline-flex h-7 w-10 items-center justify-center">
+                  <PaymentCardLogo brand={paymentCard.brand} />
                 </span>
-              )}
-            </div>
+                <span className="font-mono text-xs text-muted-foreground">
+                  **** **** **** {paymentCard.last4}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">
+                No card payment on file for this guest
+              </span>
+            )}
+          </div>
         </div>
 
         {isLoading && (

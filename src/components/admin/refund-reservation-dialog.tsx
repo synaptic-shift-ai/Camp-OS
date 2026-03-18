@@ -168,7 +168,7 @@ export function RefundReservationDialog({
             </div>
             <div className="text-sm">
               <span className="font-medium">Guest:</span>{" "}
-              <span className="text-muted-foreground">{guestName}</span>
+              <span className="text-muted-foreground capitalize">{guestName}</span>
             </div>
           </div>
 
@@ -198,13 +198,13 @@ export function RefundReservationDialog({
 
           <div className="space-y-2">
             <Label>Refund method</Label>
-            <Select 
+            <Select
               value={refundPaymentMethod}
               onValueChange={setRefundPaymentMethod}
               disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select refund method..."/>
+                <SelectValue placeholder="Select refund method..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="check">Check</SelectItem>

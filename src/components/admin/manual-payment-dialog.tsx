@@ -129,7 +129,7 @@ export function ManualPaymentDialog({
             </div>
             <div>
               <span className="font-medium">Guest:</span>{" "}
-              <span className="text-muted-foreground">{guestName}</span>
+              <span className="text-muted-foreground capitalize">{guestName}</span>
             </div>
           </div>
 

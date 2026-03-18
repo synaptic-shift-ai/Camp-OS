@@ -137,6 +137,9 @@ export default function ConfirmationPage() {
     return null
   }
 
+  const displayPropertyName =
+    checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+
   const numberOfNights = checkoutData.priceBreakdown?.number_of_nights
     ?? differenceInDays(checkoutData.checkOutDate!, checkoutData.checkInDate!)
 
@@ -284,7 +287,7 @@ export default function ConfirmationPage() {
                 <TreePine className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">Pine Lake Campground</h1>
+                <h1 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{displayPropertyName}</h1>
                 <p className="text-xs text-muted-foreground">Booking Confirmed</p>
               </div>
             </div>
@@ -369,7 +372,7 @@ export default function ConfirmationPage() {
                       <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium text-foreground">Location</p>
-                        <p className="text-muted-foreground">Pine Lake Campground</p>
+                        <p className="text-muted-foreground">{displayPropertyName}</p>
                         <p className="text-sm text-muted-foreground">123 Forest Road, Pine Valley, CA 95000</p>
                       </div>
                     </div>

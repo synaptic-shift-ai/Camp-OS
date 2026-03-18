@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       const supabase = createServiceRoleClient()
       const { data: property } = await supabase
         .from('properties')
-        .select('rate_discounts_config, pricing_config')
+        .select('name, rate_discounts_config, pricing_config')
         .eq('id', propertyId)
         .single()
       const activePromos = getActivePromoDisplay(
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         ...result,
         data: {
           ...result.data,
+          property_name: property?.name ?? null,
           active_promos: activePromos,
           rate_discounts_config: property?.rate_discounts_config ?? null,
           pricing_config: property?.pricing_config ?? null,

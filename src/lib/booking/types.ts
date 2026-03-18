@@ -480,6 +480,7 @@ export interface AvailabilitySearchResult {
 export interface CheckoutData {
   // Property context
   propertyId?: string
+  propertyName?: string
 
   // Site selection
   site?: AvailableSite

@@ -257,6 +257,8 @@ export default function PaymentPage() {
   const { toast } = useToast()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const displayPropertyName =
+    checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
 
   useEffect(() => {
     // Don't validate until hydration is complete
@@ -418,7 +420,7 @@ export default function PaymentPage() {
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">Pine Lake Campground</h1>
+                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
                 <p className="text-xs text-gray-600">Secure Booking Portal</p>
               </div>
             </div>

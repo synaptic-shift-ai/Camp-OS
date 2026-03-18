@@ -40,7 +40,7 @@ function AvailabilityResultsContent() {
   const [availableSites, setAvailableSites] = useState<AvailableSite[]>([])
   const [activePromos, setActivePromos] = useState<Array<{ discountLabel: string; discountCondition: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [propertyName] = useState("Pine Valley Campground")
+  const [propertyName, setPropertyName] = useState<string>("")
 
   const slug = searchParams.get("slug") || ""
   const propertyId = searchParams.get("propertyId")
@@ -90,6 +90,9 @@ function AvailabilityResultsContent() {
         if (result.success && result.data) {
           setAvailableSites(result.data.sites || [])
           setActivePromos(result.data.active_promos ?? [])
+          if (typeof result.data.property_name === "string" && result.data.property_name.trim().length > 0) {
+            setPropertyName(result.data.property_name)
+          }
           if (result.data.rate_discounts_config) {
             setRateDiscountsConfig(result.data.rate_discounts_config)
           }
@@ -255,6 +258,7 @@ function AvailabilityResultsContent() {
       subtotalCents - discountCents + (priceBreakdown.taxes ?? 0) + (priceBreakdown.pet_fee ?? 0)
     setCheckoutData({
       propertyId,
+      propertyName: displayPropertyName,
       site,
       checkInDate: checkIn,
       checkOutDate: checkOut,
@@ -271,6 +275,8 @@ function AvailabilityResultsContent() {
 
     router.push(`/book/${slug}/guest-info`)
   }
+
+  const displayPropertyName = propertyName || (slug ? slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ') : "")
 
   if (!checkIn || !checkOut || !propertyId) {
     return (
@@ -297,7 +303,7 @@ function AvailabilityResultsContent() {
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{propertyName}</h1>
+                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
                 <p className="text-xs text-gray-600">Searching...</p>
               </div>
             </div>
@@ -322,7 +328,7 @@ function AvailabilityResultsContent() {
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{propertyName}</h1>
+                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
                 <p className="text-xs text-gray-600">Availability Results</p>
               </div>
             </div>

@@ -142,12 +142,14 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     handleSubmit,
     formState: { errors },
     setValue,
+    getValues,
     watch,
     trigger,
     reset,
   } = useForm<SiteFormData>({
     resolver: zodResolver(siteFormSchema),
     mode: 'onChange',
+    shouldUnregister: false,
     defaultValues: defaultFormValues || {
       site_number: "",
       site_name: "",
@@ -253,7 +255,13 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
         }
         : apiData
 
-      const payload = { ...finalApiData, images: siteImageUrls.length > 0 ? siteImageUrls : undefined }
+      const payloadBase = { ...finalApiData, images: siteImageUrls.length > 0 ? siteImageUrls : undefined }
+      // Important: when editing and using defaults pricing, don't overwrite the site's stored manual base price.
+      // The v1 update route will otherwise persist `basePrice: 0` and clobber the existing DB value.
+      const payload =
+        isEditMode && data.pricing_source !== "manual"
+          ? (({ basePrice: _basePrice, base_price: _basePriceSnake, ...rest }) => rest)(payloadBase as any)
+          : payloadBase
 
       if (isEditMode) {
         const response = await fetch(`/api/v1/sites/${site.id}`, {
@@ -500,51 +508,19 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
               value={pricingSource}
               onValueChange={async (value: "manual" | "property_defaults" | "site_type_defaults") => {
                 setValue("pricing_source", value, { shouldDirty: true })
-                const useProperty = value !== "manual"
-                setValue("use_property_reservation_types", useProperty, { shouldDirty: true })
-                if (value === "property_defaults") {
+                setValue("use_property_reservation_types", value !== "manual", { shouldDirty: true })
+
+                if (value !== "manual") {
                   setValue("enabled_reservation_types_override", undefined)
                   setValue("default_reservation_type", undefined)
-                  if (propertyDefaults?.nightly_rate_cents != null || propertyDefaults?.base_price_cents != null) {
-                    setValue("base_price", (propertyDefaults.nightly_rate_cents ?? propertyDefaults.base_price_cents ?? 0) / 100, { shouldDirty: true })
-                  }
-                  if (propertyDefaults?.weekend_price != null) setValue("weekend_price", propertyDefaults.weekend_price / 100)
-                  if (propertyDefaults?.weekly_rate_cents != null) setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
-                  if (propertyDefaults?.monthly_rate_cents != null) setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
-                  if (propertyDefaults?.seasonal_rate_cents != null) setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
-                } else if (value === "site_type_defaults") {
-                  setValue("enabled_reservation_types_override", undefined)
-                  setValue("default_reservation_type", undefined)
-                  const ratesKey = Object.keys(siteTypeConfig?.site_type_rates ?? {}).find((k) => k.toLowerCase() === siteType) ?? siteType
-                  const rates = siteTypeConfig?.site_type_rates?.[ratesKey]
-                  const nightlyCents = rates?.nightly?.rate_cents ?? rates?.weekly?.rate_cents ?? rates?.monthly?.rate_cents ?? 0
-                  if (nightlyCents) setValue("base_price", nightlyCents / 100, { shouldDirty: true })
-                  if (rates?.weekly?.rate_cents != null) setValue("weekly_rate", rates.weekly.rate_cents / 100)
-                  if (rates?.monthly?.rate_cents != null) setValue("monthly_rate", rates.monthly.rate_cents / 100)
-                  if (rates?.seasonal?.rate_cents != null) setValue("seasonal_rate", rates.seasonal.rate_cents / 100)
-                } else {
-                  // Switching to manual: use site's stored rates in edit mode so we don't overwrite with property default
-                  const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
-                  setValue("enabled_reservation_types_override", defaultTypes, { shouldDirty: true })
-                  setValue("default_reservation_type", propertyDefaults?.default_reservation_type)
-                  if (site) {
-                    const base = site.base_price ?? site.pricing?.basePrice ?? 0
-                    const weekend = site.weekend_price ?? site.pricing?.weekendPrice
-                    if (base > 0) setValue("base_price", base / 100, { shouldDirty: true })
-                    if (weekend != null && weekend > 0) setValue("weekend_price", weekend / 100)
-                    if (site.weekly_rate_cents != null) setValue("weekly_rate", site.weekly_rate_cents / 100)
-                    if (site.monthly_rate_cents != null) setValue("monthly_rate", site.monthly_rate_cents / 100)
-                    if (site.seasonal_rate_cents != null) setValue("seasonal_rate", site.seasonal_rate_cents / 100)
-                  } else {
-                    if (propertyDefaults?.nightly_rate_cents != null || propertyDefaults?.base_price_cents != null) {
-                      setValue("base_price", (propertyDefaults.nightly_rate_cents ?? propertyDefaults.base_price_cents ?? 0) / 100, { shouldDirty: true })
-                    }
-                    if (propertyDefaults?.weekend_price != null) setValue("weekend_price", propertyDefaults.weekend_price / 100)
-                    if (propertyDefaults?.weekly_rate_cents != null) setValue("weekly_rate", propertyDefaults.weekly_rate_cents / 100)
-                    if (propertyDefaults?.monthly_rate_cents != null) setValue("monthly_rate", propertyDefaults.monthly_rate_cents / 100)
-                    if (propertyDefaults?.seasonal_rate_cents != null) setValue("seasonal_rate", propertyDefaults.seasonal_rate_cents / 100)
-                  }
+                  await trigger()
+                  return
                 }
+
+                // Manual: set reservation types defaults. Keep manual pricing fields as-is (don't overwrite).
+                const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
+                setValue("enabled_reservation_types_override", defaultTypes, { shouldDirty: true })
+                setValue("default_reservation_type", propertyDefaults?.default_reservation_type)
                 await trigger()
               }}
             >

@@ -13,7 +13,7 @@
  */
 
 import * as React from 'react'
-import { format, isToday, differenceInCalendarDays } from 'date-fns'
+import { addDays, format, isToday } from 'date-fns'
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   DayPicker,
@@ -43,17 +43,38 @@ export interface BookingDateRangePickerProps {
   onChange: (range: DateRangeValue) => void
   sameDayBookingEnabled?: boolean
   blackoutDates?: string[]
+  bookingWindowDays?: number
+  advanceNoticeDays?: number
   disabled?: boolean
   className?: string
   numberOfMonths?: number
 }
 
 /* ── Helpers ─────────────────────────────────────────────── */
-function isDateDisabled(date: Date, sameDayOk: boolean, blackout: string[]) {
+function isDateDisabled(
+  date: Date,
+  sameDayOk: boolean,
+  blackout: string[],
+  bookingWindowDays?: number,
+  advanceNoticeDays?: number,
+) {
   const d = new Date(date); d.setHours(0, 0, 0, 0)
   const t = new Date(); t.setHours(0, 0, 0, 0)
   if (d < t) return true
-  if (!sameDayOk && d.getTime() === t.getTime()) return true
+
+  const minDaysBySameDay = sameDayOk ? 0 : 1
+  const minDaysByAdvanceNotice =
+    typeof advanceNoticeDays === 'number' && Number.isFinite(advanceNoticeDays)
+      ? Math.max(0, Math.floor(advanceNoticeDays))
+      : 0
+  const minDays = Math.max(minDaysBySameDay, minDaysByAdvanceNotice)
+  if (d < addDays(t, minDays)) return true
+
+  if (typeof bookingWindowDays === 'number' && Number.isFinite(bookingWindowDays)) {
+    const windowDays = Math.max(0, Math.floor(bookingWindowDays))
+    const maxDate = addDays(t, windowDays)
+    if (d > maxDate) return true
+  }
   return blackout.includes(format(date, 'yyyy-MM-dd'))
 }
 
@@ -172,6 +193,8 @@ export function BookingDateRangePicker({
   onChange,
   sameDayBookingEnabled = true,
   blackoutDates = [],
+  bookingWindowDays,
+  advanceNoticeDays,
   disabled = false,
   className,
   numberOfMonths = 1,
@@ -190,8 +213,8 @@ export function BookingDateRangePicker({
   }, [open])
 
   const disabledFn = React.useCallback(
-    (d: Date) => isDateDisabled(d, sameDayBookingEnabled, blackoutDates),
-    [sameDayBookingEnabled, blackoutDates],
+    (d: Date) => isDateDisabled(d, sameDayBookingEnabled, blackoutDates, bookingWindowDays, advanceNoticeDays),
+    [sameDayBookingEnabled, blackoutDates, bookingWindowDays, advanceNoticeDays],
   )
 
   const hasValue = Boolean(value?.from)

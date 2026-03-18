@@ -412,6 +412,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     onChange={setDateRange}
                     sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
                     blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                    {...(bookingRulesConfig?.booking_window_days != null
+                      ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
+                      : {})}
+                    {...(bookingRulesConfig?.advance_notice_days != null
+                      ? { advanceNoticeDays: bookingRulesConfig.advance_notice_days }
+                      : {})}
                     numberOfMonths={1}
                   />
                 </div>

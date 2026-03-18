@@ -17,9 +17,14 @@ import type { Reservation } from '@/lib/booking/types'
 interface CheckOutButtonProps {
   reservationId: string
   status: string
+  allowedCheckOutDays?: string[] | undefined
 }
 
-export function CheckOutButton({ reservationId, status }: CheckOutButtonProps) {
+export function CheckOutButton({
+  reservationId,
+  status,
+  allowedCheckOutDays,
+}: CheckOutButtonProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -83,6 +88,7 @@ export function CheckOutButton({ reservationId, status }: CheckOutButtonProps) {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           reservation={reservationData}
+          allowedCheckOutDays={allowedCheckOutDays}
         />
       )}
     </>

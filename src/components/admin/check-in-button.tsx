@@ -13,13 +13,14 @@ import { CheckCircle, Loader2 } from 'lucide-react'
 import { CheckInDialog } from '@/components/dashboard/reservations/check-in-dialog'
 import { useToast } from '@/hooks/use-toast'
 import type { Reservation } from '@/lib/booking/types'
-import { asYyyyMmDd, normalizeDateString } from '@/lib/utils'
+import { normalizeDateString } from '@/lib/utils'
 
 interface CheckInButtonProps {
   reservationId: string
   status: string
   reservationCheckInDate?: string | undefined
   blackoutDates?: string[] | undefined
+  allowedCheckInDays?: string[] | undefined
 }
 
 export function CheckInButton({
@@ -27,6 +28,7 @@ export function CheckInButton({
   status,
   reservationCheckInDate,
   blackoutDates,
+  allowedCheckInDays,
 }: CheckInButtonProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -92,6 +94,7 @@ export function CheckInButton({
           onOpenChange={setDialogOpen}
           reservation={reservationData}
           blackoutDates={blackoutDates}
+          allowedCheckInDays={allowedCheckInDays}
         />
       )}
     </>

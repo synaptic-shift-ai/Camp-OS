@@ -18,6 +18,7 @@ import { CheckInGuestCommandHandler } from '@/modules/BookingEngine/application/
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { asYyyyMmDd, dayOfWeekFromYyyyMmDd } from '@/lib/utils'
 
 /**
  * POST /api/v1/reservations/[id]/check-in
@@ -74,7 +75,7 @@ export async function POST(
     // Verify tenant access (BP-4)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, booking_rules_config')
       .eq('id', existingReservation.propertyId)
       .single()
 
@@ -82,6 +83,43 @@ export async function POST(
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
         { status: 403 }
+      )
+    }
+
+    // Booking rules for check-in day restrictions
+    const todayStr = asYyyyMmDd(new Date())
+    const reservationStartStr = asYyyyMmDd(existingReservation.checkInDate)
+
+    const bookingRulesConfig = (property as any)?.booking_rules_config
+    const blackoutDates: string[] = Array.isArray(bookingRulesConfig?.blackout_dates)
+      ? bookingRulesConfig.blackout_dates
+      : []
+    const allowedCheckInDays: string[] = Array.isArray(bookingRulesConfig?.allowed_checkin_days)
+      ? bookingRulesConfig.allowed_checkin_days
+      : []
+
+    if (blackoutDates.includes(todayStr) && reservationStartStr === todayStr) {
+      return NextResponse.json(
+        error(
+          ErrorCodes.VALIDATION_ERROR,
+          `Check-in is not allowed on ${todayStr} due to blackout date restrictions.`,
+          { code: 'BLACKOUT_DATE' }
+        ),
+        { status: 400 }
+      )
+    }
+
+    const todayDay = dayOfWeekFromYyyyMmDd(todayStr)
+    const isAllowedCheckInDay = allowedCheckInDays.length === 0 || allowedCheckInDays.includes(todayDay)
+
+    if (!isAllowedCheckInDay && reservationStartStr <= todayStr) {
+      return NextResponse.json(
+        error(
+          ErrorCodes.VALIDATION_ERROR,
+          `Check-in is not allowed on ${todayStr} due to check-in day restrictions.`,
+          { code: 'CHECKIN_DAY_NOT_ALLOWED' }
+        ),
+        { status: 400 }
       )
     }
 

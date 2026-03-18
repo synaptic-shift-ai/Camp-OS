@@ -321,6 +321,8 @@ export function ReservationsTable({
                         maxRefundableCents={maxRefundableCents}
                         rateDiscountsConfig={rateDiscountsConfig}
                         blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                        allowedCheckInDays={bookingRulesConfig?.allowed_checkin_days ?? []}
+                        allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
                       />
                     </TableCell>
                   </TableRow>

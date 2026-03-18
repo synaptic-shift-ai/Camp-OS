@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { AlertCircle, Loader2, LogOut, DollarSign, Calendar, Users, Home, AlertTriangle } from 'lucide-react'
 import type { Reservation } from '@/lib/booking/types'
+import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
 
 interface CheckOutDialogProps {
   open: boolean
@@ -34,15 +35,30 @@ interface CheckOutDialogProps {
     guest?: { first_name: string; last_name: string; email: string }
     site?: { site_number: string; site_name: string | null }
   }
+  allowedCheckOutDays?: string[] | undefined
 }
 
-export function CheckOutDialog({ open, onOpenChange, reservation }: CheckOutDialogProps) {
+export function CheckOutDialog({
+  open,
+  onOpenChange,
+  reservation,
+  allowedCheckOutDays,
+}: CheckOutDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkOutNotes, setCheckOutNotes] = useState('')
   const [hasDamages, setHasDamages] = useState(false)
+
+  const todayStr = asYyyyMmDd(new Date())
+  const reservationEndStr = normalizeDateString(reservation.check_out_date)
+  const todayLabel = formatDisplayDate(todayStr)
+  const todayDay = dayOfWeekFromYyyyMmDd(todayStr)
+  const isBlockedByCheckOutDay =
+    (allowedCheckOutDays ?? []).length > 0 &&
+    !(allowedCheckOutDays ?? []).includes(todayDay) &&
+    reservationEndStr >= todayStr
 
   // Calculate outstanding balance
   const outstandingBalance = Math.max(0, reservation.total_amount - reservation.paid_amount)
@@ -54,6 +70,13 @@ export function CheckOutDialog({ open, onOpenChange, reservation }: CheckOutDial
     setError(null)
 
     try {
+      if (isBlockedByCheckOutDay) {
+        setError(
+          `Check-out is not allowed today (${todayLabel}) due to check-out day restrictions.`
+        )
+        return
+      }
+
       const response = await fetch(`/api/v1/reservations/${reservation.id}/check-out`, {
         method: 'POST',
         headers: {
@@ -98,7 +121,7 @@ export function CheckOutDialog({ open, onOpenChange, reservation }: CheckOutDial
   const checkOutDate = new Date(reservation.check_out_date).toLocaleDateString()
   const nights = Math.ceil(
     (new Date(reservation.check_out_date).getTime() - new Date(reservation.check_in_date).getTime()) /
-      (1000 * 60 * 60 * 24)
+    (1000 * 60 * 60 * 24)
   )
 
   return (

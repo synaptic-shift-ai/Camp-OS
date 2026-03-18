@@ -23,3 +23,9 @@ export function formatDisplayDate(yyyyMmDd: string): string {
     year: 'numeric',
   })
 }
+
+export function dayOfWeekFromYyyyMmDd(yyyyMmDd: string): string {
+  const d = new Date(yyyyMmDd + 'T00:00:00')
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  return days[d.getDay()]!
+}

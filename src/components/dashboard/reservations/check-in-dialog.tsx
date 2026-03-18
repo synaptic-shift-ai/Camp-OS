@@ -32,7 +32,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText } from 'lucide-react'
 import type { Reservation } from '@/lib/booking/types'
-import { asYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
+import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
 
 interface CheckInDialogProps {
   open: boolean
@@ -42,6 +42,7 @@ interface CheckInDialogProps {
     site?: { site_number: string; site_name: string | null }
   }
   blackoutDates?: string[] | undefined
+  allowedCheckInDays?: string[] | undefined
 }
 
 export function CheckInDialog({
@@ -49,6 +50,7 @@ export function CheckInDialog({
   onOpenChange,
   reservation,
   blackoutDates,
+  allowedCheckInDays,
 }: CheckInDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -59,12 +61,15 @@ export function CheckInDialog({
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationStartStr = normalizeDateString(reservation.check_in_date)
-  const isLateArrival = reservationStartStr < todayStr
   const isBlockedByBlackout =
     (blackoutDates ?? []).includes(todayStr) &&
-    reservationStartStr === todayStr &&
-    !isLateArrival
+    reservationStartStr === todayStr
   const todayDateLabel = formatDisplayDate(todayStr)
+  const todayDay = dayOfWeekFromYyyyMmDd(todayStr)
+  const isBlockedByCheckInDay =
+    (allowedCheckInDays ?? []).length > 0 &&
+    !(allowedCheckInDays ?? []).includes(todayDay) &&
+    reservationStartStr <= todayStr
 
   // Calculate outstanding balance
   const outstandingBalance = Math.max(0, reservation.total_amount - reservation.paid_amount)
@@ -78,7 +83,14 @@ export function CheckInDialog({
     try {
       if (isBlockedByBlackout) {
         setError(
-          `Check-in is not allowed today ${todayDateLabel} due to blackout date restrictions. Guests may only be checked in today if their reservation started before today.`
+          `Check-in is not allowed today (${todayDateLabel}) due to blackout date restrictions.`
+        )
+        return
+      }
+
+      if (isBlockedByCheckInDay) {
+        setError(
+          `Check-in is not allowed today (${todayDateLabel}) due to check-in day restrictions.`
         )
         return
       }

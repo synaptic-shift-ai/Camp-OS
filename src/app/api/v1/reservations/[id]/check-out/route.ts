@@ -18,6 +18,7 @@ import { CheckOutGuestCommandHandler } from '@/modules/BookingEngine/application
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { asYyyyMmDd, dayOfWeekFromYyyyMmDd } from '@/lib/utils'
 
 /**
  * POST /api/v1/reservations/[id]/check-out
@@ -74,7 +75,7 @@ export async function POST(
     // Verify tenant access (BP-4)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, booking_rules_config')
       .eq('id', existingReservation.propertyId)
       .single()
 
@@ -82,6 +83,29 @@ export async function POST(
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
         { status: 403 }
+      )
+    }
+
+    // Booking rules for check-out day restrictions
+    const todayStr = asYyyyMmDd(new Date())
+    const reservationEndStr = asYyyyMmDd(existingReservation.checkOutDate)
+
+    const bookingRulesConfig = (property as any)?.booking_rules_config
+    const allowedCheckOutDays: string[] = Array.isArray(bookingRulesConfig?.allowed_checkout_days)
+      ? bookingRulesConfig.allowed_checkout_days
+      : []
+
+    const todayDay = dayOfWeekFromYyyyMmDd(todayStr)
+    const isAllowedCheckOutDay = allowedCheckOutDays.length === 0 || allowedCheckOutDays.includes(todayDay)
+
+    if (!isAllowedCheckOutDay && reservationEndStr >= todayStr) {
+      return NextResponse.json(
+        error(
+          ErrorCodes.VALIDATION_ERROR,
+          `Check-out is not allowed on ${todayStr} due to check-out day restrictions.`,
+          { code: 'CHECKOUT_DAY_NOT_ALLOWED' }
+        ),
+        { status: 400 }
       )
     }
 

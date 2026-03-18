@@ -57,9 +57,32 @@ export function RefundReservationDialog({
   const [notes, setNotes] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null)
+  const [eligibilityLoading, setEligibilityLoading] = useState(false)
   const router = useRouter()
 
   const maxRefundDollars = maxRefundableCents > 0 ? (maxRefundableCents / 100).toFixed(2) : "0.00"
+
+  const handleOpenChange = async (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) {
+      setEligibilityMessage(null)
+      setEligibilityLoading(false)
+      return
+    }
+
+    setEligibilityLoading(true)
+    try {
+      const response = await fetch(`/api/v1/reservations/${reservationId}`)
+      const data = await response.json()
+      const message = data?.data?.refund_eligibility?.message
+      setEligibilityMessage(typeof message === "string" && message.length > 0 ? message : null)
+    } catch {
+      setEligibilityMessage(null)
+    } finally {
+      setEligibilityLoading(false)
+    }
+  }
 
   const handleRefund = async () => {
     try {
@@ -125,7 +148,7 @@ export function RefundReservationDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(nextOpen) => { void handleOpenChange(nextOpen) }}>
       <SheetTrigger asChild>
         {trigger ?? <Button variant="outline" size="sm">Issue Refund</Button>}
       </SheetTrigger>
@@ -148,6 +171,18 @@ export function RefundReservationDialog({
               <span className="text-muted-foreground">{guestName}</span>
             </div>
           </div>
+
+          {eligibilityLoading ? (
+            <Alert>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertDescription>Checking refund eligibility...</AlertDescription>
+            </Alert>
+          ) : eligibilityMessage ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{eligibilityMessage}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="space-y-2">
             <Label>Remaining Amount To be Refunded</Label>

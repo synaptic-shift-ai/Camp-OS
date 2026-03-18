@@ -15,6 +15,47 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 
+const REFUND_ELIGIBILITY_SNAPSHOT_PREFIX = '[REFUND_ELIGIBILITY_SNAPSHOT]'
+
+type RefundEligibilityStatus = 'full' | 'partial' | 'none'
+
+type RefundEligibilitySnapshot = {
+  status: RefundEligibilityStatus
+  percentage: number
+  suggested_refund_cents: number
+  message: string
+  evaluated_at: string
+}
+
+function parsePersistedRefundEligibility(notes: string | null): RefundEligibilitySnapshot | null {
+  if (notes == null || notes.length === 0) return null
+
+  const lines = notes.split('\n')
+  const snapshotLine = [...lines]
+    .reverse()
+    .find((line) => line.trim().startsWith(REFUND_ELIGIBILITY_SNAPSHOT_PREFIX))
+
+  if (!snapshotLine) return null
+
+  const json = snapshotLine.replace(REFUND_ELIGIBILITY_SNAPSHOT_PREFIX, '').trim()
+  try {
+    const parsed = JSON.parse(json) as Partial<RefundEligibilitySnapshot>
+    if (
+      (parsed.status === 'full' || parsed.status === 'partial' || parsed.status === 'none') &&
+      typeof parsed.percentage === 'number' &&
+      typeof parsed.suggested_refund_cents === 'number' &&
+      typeof parsed.message === 'string' &&
+      typeof parsed.evaluated_at === 'string'
+    ) {
+      return parsed as RefundEligibilitySnapshot
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 /**
  * GET /api/v1/reservations/[id]
  *
@@ -95,6 +136,7 @@ export async function GET(
 
     const paidCents = reservation.paidAmount.amountInCents
     const totalCents = reservation.totalAmount.amountInCents
+    const persistedRefundEligibility = parsePersistedRefundEligibility(reservation.notes)
     let suggestedRefundCents = computeRefundCentsFromCancellationPolicy(
       reservation.checkInDate,
       new Date(),
@@ -107,6 +149,12 @@ export async function GET(
       paidCents < totalCents
     ) {
       suggestedRefundCents = paidCents
+    }
+    if (persistedRefundEligibility != null) {
+      suggestedRefundCents = Math.max(
+        0,
+        Math.min(persistedRefundEligibility.suggested_refund_cents, paidCents)
+      )
     }
 
     // Fetch guest info
@@ -136,6 +184,7 @@ export async function GET(
       total_amount: reservationDTO.totalAmountCents,
       paid_amount: reservationDTO.paidAmountCents,
       suggested_refund_cents: suggestedRefundCents,
+      refund_eligibility: persistedRefundEligibility,
       num_adults: reservationDTO.occupancy.numAdults,
       num_children: reservationDTO.occupancy.numChildren,
       num_pets: reservationDTO.occupancy.numPets,

@@ -28,6 +28,61 @@ import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
  * Cancel a reservation and process refund if applicable.
  */
 const LOG_PREFIX = '[CancelReservation]'
+const REFUND_ELIGIBILITY_SNAPSHOT_PREFIX = '[REFUND_ELIGIBILITY_SNAPSHOT]'
+
+type RefundEligibilityStatus = 'full' | 'partial' | 'none'
+
+function getRefundEligibilitySnapshot(
+  paidCents: number,
+  suggestedRefundCents: number
+): {
+  status: RefundEligibilityStatus
+  percentage: number
+  suggested_refund_cents: number
+  message: string
+  evaluated_at: string
+} {
+  const safePaidCents = Math.max(0, paidCents)
+  const safeSuggestedRefundCents = Math.max(0, Math.min(suggestedRefundCents, safePaidCents))
+  const percentage =
+    safePaidCents > 0 ? Math.round((safeSuggestedRefundCents / safePaidCents) * 100) : 0
+
+  if (safeSuggestedRefundCents <= 0) {
+    return {
+      status: 'none',
+      percentage: 0,
+      suggested_refund_cents: 0,
+      message: 'Your Cancellation is not eligible for a refund due to late cancellation.',
+      evaluated_at: new Date().toISOString(),
+    }
+  }
+
+  if (safeSuggestedRefundCents >= safePaidCents) {
+    return {
+      status: 'full',
+      percentage: 100,
+      suggested_refund_cents: safePaidCents,
+      message: 'Your Cancellation is Eligible for full refund.',
+      evaluated_at: new Date().toISOString(),
+    }
+  }
+
+  return {
+    status: 'partial',
+    percentage,
+    suggested_refund_cents: safeSuggestedRefundCents,
+    message: `Your Cancellation is Eligible for ${percentage}% refund.`,
+    evaluated_at: new Date().toISOString(),
+  }
+}
+
+function appendRefundEligibilitySnapshotToNotes(
+  existingNotes: string | null,
+  snapshot: ReturnType<typeof getRefundEligibilitySnapshot>
+): string {
+  const snapshotLine = `${REFUND_ELIGIBILITY_SNAPSHOT_PREFIX} ${JSON.stringify(snapshot)}`
+  return existingNotes?.trim() ? `${existingNotes}\n${snapshotLine}` : snapshotLine
+}
 
 export async function POST(
   request: NextRequest,
@@ -122,6 +177,14 @@ export async function POST(
     const refundAmountCents = Math.min(
       validatedRequest.refundAmountCents,
       effectivePolicyRefundCents
+    )
+    const refundEligibilitySnapshot = getRefundEligibilitySnapshot(
+      paidCents,
+      effectivePolicyRefundCents
+    )
+    const notesWithSnapshot = appendRefundEligibilitySnapshotToNotes(
+      existingReservation.notes,
+      refundEligibilitySnapshot
     )
 
     console.log(LOG_PREFIX, 'Refund amount computed', {
@@ -271,6 +334,7 @@ export async function POST(
       reservationId,
       reason: validatedRequest.reason ?? null,
       refundAmountCents,
+      notes: notesWithSnapshot,
     })
 
     console.log(LOG_PREFIX, 'Reservation cancelled in DB', {

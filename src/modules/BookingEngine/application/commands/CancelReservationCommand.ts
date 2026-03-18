@@ -13,6 +13,7 @@ export type CancelReservationDto = {
   reservationId: string
   reason?: string | null | undefined
   refundAmountCents: number
+  notes?: string | null | undefined
 }
 
 export class CancelReservationCommandHandler {
@@ -31,6 +32,9 @@ export class CancelReservationCommandHandler {
 
     // Cancel reservation (will throw if not cancellable or refund invalid)
     reservation.cancel(dto.reason || null, refundAmount)
+    if (dto.notes != null) {
+      reservation.updateNotes(dto.notes)
+    }
 
     // Save updated reservation
     await this.repository.save(reservation)

@@ -15,9 +15,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Loader2, CalendarDays, AlertCircle, Mail } from 'lucide-react'
 import type { DashboardGuest } from '@/lib/dashboard/queries'
+import {
+  AmericanExpressFlatRoundedIcon,
+  DiscoverFlatRoundedIcon,
+  GenericFlatRoundedIcon,
+  MastercardFlatRoundedIcon,
+  VisaFlatRoundedIcon,
+} from 'react-svg-credit-card-payment-icons'
 
 interface GuestReservationsSheetProps {
   open: boolean
@@ -37,6 +44,31 @@ type ReservationItem = {
   balanceDollars: number
   status: string
   paymentStatus: string | null
+}
+
+type PaymentCardDisplay = {
+  brand: string
+  last4: string
+  exp_month: number
+  exp_year: number
+}
+
+function PaymentCardLogo({ brand }: { brand: string }) {
+  const normalized = brand.trim().toLowerCase()
+  switch (normalized) {
+    case 'visa':
+      return <VisaFlatRoundedIcon width={56} />
+    case 'mastercard':
+      return <MastercardFlatRoundedIcon width={56} />
+    case 'amex':
+    case 'american express':
+    case 'americanexpress':
+      return <AmericanExpressFlatRoundedIcon width={56} />
+    case 'discover':
+      return <DiscoverFlatRoundedIcon width={56} />
+    default:
+      return <GenericFlatRoundedIcon width={56} />
+  }
 }
 
 const statusLabels: Record<string, string> = {
@@ -92,6 +124,8 @@ export function GuestReservationsSheet({
   const [reservations, setReservations] = useState<ReservationItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
 
   useEffect(() => {
     if (!open || !propertyId || !guest?.id) return
@@ -100,6 +134,7 @@ export function GuestReservationsSheet({
     setIsLoading(true)
     setFetchError(null)
     setReservations([])
+    setPaymentCard(null)
 
     const url = `/api/v1/properties/${propertyId}/reservations?guestId=${encodeURIComponent(guest.id)}&limit=50`
     fetch(url)
@@ -137,6 +172,47 @@ export function GuestReservationsSheet({
     }
   }, [open, guest?.id, propertyId])
 
+  useEffect(() => {
+    const firstReservationId = reservations[0]?.id
+    if (!open || !firstReservationId) return
+
+    let cancelled = false
+    setPreviewLoading(true)
+    setPaymentCard(null)
+
+    fetch(`/api/v1/reservations/${firstReservationId}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        const pc = json?.data?.payment_card
+        if (
+          json?.success === true &&
+          pc &&
+          typeof pc.last4 === 'string' &&
+          typeof pc.brand === 'string' &&
+          typeof pc.exp_month === 'number' &&
+          typeof pc.exp_year === 'number'
+        ) {
+          setPaymentCard({
+            brand: pc.brand,
+            last4: pc.last4,
+            exp_month: pc.exp_month,
+            exp_year: pc.exp_year,
+          })
+        }
+      })
+      .catch(() => {
+        // Keep paymentCard null
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, reservations])
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
@@ -147,7 +223,7 @@ export function GuestReservationsSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+        <div className="mt-4 rounded-lg border bg-muted/30 p-4 flex items-center justify-between">
           <div className="flex items-start gap-3">
             <Avatar className="h-10 w-10">
               <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium">
@@ -165,6 +241,25 @@ export function GuestReservationsSheet({
               </p>
             </div>
           </div>
+          
+          <div className="text-md">
+              {previewLoading ? (
+                <span className="text-muted-foreground">Loading…</span>
+              ) : paymentCard ? (
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-7 w-10 items-center justify-center">
+                    <PaymentCardLogo brand={paymentCard.brand} />
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    **** **** **** {paymentCard.last4}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">
+                  No card payment on file for this guest
+                </span>
+              )}
+            </div>
         </div>
 
         {isLoading && (

@@ -17,6 +17,13 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useRouter } from "next/navigation"
+import {
+  AmericanExpressFlatRoundedIcon,
+  DiscoverFlatRoundedIcon,
+  GenericFlatRoundedIcon,
+  MastercardFlatRoundedIcon,
+  VisaFlatRoundedIcon,
+} from "react-svg-credit-card-payment-icons"
 
 interface EditReservationDialogProps {
   reservationId: string
@@ -29,6 +36,31 @@ interface EditReservationDialogProps {
   numPets: number
   specialRequests?: string | null
   trigger?: React.ReactNode
+}
+
+type PaymentCardDisplay = {
+  brand: string
+  last4: string
+  exp_month: number
+  exp_year: number
+}
+
+function PaymentCardLogo({ brand }: { brand: string }) {
+  const normalized = brand.trim().toLowerCase()
+  switch (normalized) {
+    case "visa":
+      return <VisaFlatRoundedIcon width={56} />
+    case "mastercard":
+      return <MastercardFlatRoundedIcon width={56} />
+    case "amex":
+    case "american express":
+    case "americanexpress":
+      return <AmericanExpressFlatRoundedIcon width={56} />
+    case "discover":
+      return <DiscoverFlatRoundedIcon width={56} />
+    default:
+      return <GenericFlatRoundedIcon width={56} />
+  }
 }
 
 export function EditReservationDialog({
@@ -46,6 +78,8 @@ export function EditReservationDialog({
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
   const router = useRouter()
 
   // Form state
@@ -72,6 +106,36 @@ export function EditReservationDialog({
       setError(null)
     }
   }, [open, checkIn, checkOut, numAdults, numChildren, numPets, specialRequests])
+
+  useEffect(() => {
+    if (!open || !reservationId) return
+    setPreviewLoading(true)
+    setPaymentCard(null)
+    fetch(`/api/v1/reservations/${reservationId}`)
+      .then((res) => res.json())
+      .then((json) => {
+        const pc = json?.data?.payment_card
+        if (
+          json?.success === true &&
+          pc &&
+          typeof pc.last4 === "string" &&
+          typeof pc.brand === "string" &&
+          typeof pc.exp_month === "number" &&
+          typeof pc.exp_year === "number"
+        ) {
+          setPaymentCard({
+            brand: pc.brand,
+            last4: pc.last4,
+            exp_month: pc.exp_month,
+            exp_year: pc.exp_year,
+          })
+        }
+      })
+      .catch(() => {
+        // Keep paymentCard null
+      })
+      .finally(() => setPreviewLoading(false))
+  }, [open, reservationId])
 
   const handleSave = async () => {
     try {
@@ -148,6 +212,25 @@ export function EditReservationDialog({
             <div className="text-sm">
               <span className="font-medium">Guest:</span>{" "}
               <span className="text-muted-foreground">{guestName}</span>
+            </div>
+            <div className="flex flex-nowrap items-center gap-2 text-sm">
+              <span className="font-medium shrink-0">Payment card:</span>
+              {previewLoading ? (
+                <span className="text-muted-foreground">Loading…</span>
+              ) : paymentCard ? (
+                <span className="inline-flex min-w-0 items-center gap-3 align-middle">
+                  <span className="inline-flex h-10 w-14 shrink-0 items-center justify-center">
+                    <PaymentCardLogo brand={paymentCard.brand} />
+                  </span>
+                  <span className="min-w-0 truncate font-mono text-base text-foreground">
+                    **** **** **** {paymentCard.last4}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  No card payment on file for this booking
+                </span>
+              )}
             </div>
           </div>
 

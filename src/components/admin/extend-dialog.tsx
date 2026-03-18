@@ -33,6 +33,13 @@ import { format } from 'date-fns'
 import type { RateDiscountsConfig, UserDefinedDiscount } from '@/lib/config/types'
 import { resolveRateDiscountsConfig } from '@/lib/config/resolution'
 import type { PriceBreakdown } from '@/lib/booking/types'
+import {
+  AmericanExpressFlatRoundedIcon,
+  DiscoverFlatRoundedIcon,
+  GenericFlatRoundedIcon,
+  MastercardFlatRoundedIcon,
+  VisaFlatRoundedIcon,
+} from 'react-svg-credit-card-payment-icons'
 
 interface ExtendDialogProps {
   reservationId: string
@@ -49,6 +56,31 @@ interface ExtendDialogProps {
   status: string
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined
   trigger?: React.ReactNode
+}
+
+type PaymentCardDisplay = {
+  brand: string
+  last4: string
+  exp_month: number
+  exp_year: number
+}
+
+function PaymentCardLogo({ brand }: { brand: string }) {
+  const normalized = brand.trim().toLowerCase()
+  switch (normalized) {
+    case 'visa':
+      return <VisaFlatRoundedIcon width={56} />
+    case 'mastercard':
+      return <MastercardFlatRoundedIcon width={56} />
+    case 'amex':
+    case 'american express':
+    case 'americanexpress':
+      return <AmericanExpressFlatRoundedIcon width={56} />
+    case 'discover':
+      return <DiscoverFlatRoundedIcon width={56} />
+    default:
+      return <GenericFlatRoundedIcon width={56} />
+  }
 }
 
 /**
@@ -169,6 +201,8 @@ export function ExtendDialog({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [cardPreviewLoading, setCardPreviewLoading] = useState(false)
+  const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
   const [projectedTotalCents, setProjectedTotalCents] = useState<number | null>(null)
   const [originalPeriodTotalCents, setOriginalPeriodTotalCents] = useState<number | null>(null)
   const [projectedBreakdown, setProjectedBreakdown] = useState<PriceBreakdown | null>(null)
@@ -188,6 +222,7 @@ export function ExtendDialog({
       setNewCheckOut(currentCheckOut)
       setNotes('')
       setError(null)
+      setPaymentCard(null)
       setProjectedTotalCents(null)
       setOriginalPeriodTotalCents(null)
       setSelectedDiscountId(undefined)
@@ -195,6 +230,36 @@ export function ExtendDialog({
       setOriginalBreakdown(null)
     }
   }, [open, currentCheckIn, currentCheckOut])
+
+  useEffect(() => {
+    if (!open || !reservationId) return
+    setCardPreviewLoading(true)
+    setPaymentCard(null)
+    fetch(`/api/v1/reservations/${reservationId}`)
+      .then((res) => res.json())
+      .then((json) => {
+        const pc = json?.data?.payment_card
+        if (
+          json?.success === true &&
+          pc &&
+          typeof pc.last4 === 'string' &&
+          typeof pc.brand === 'string' &&
+          typeof pc.exp_month === 'number' &&
+          typeof pc.exp_year === 'number'
+        ) {
+          setPaymentCard({
+            brand: pc.brand,
+            last4: pc.last4,
+            exp_month: pc.exp_month,
+            exp_year: pc.exp_year,
+          })
+        }
+      })
+      .catch(() => {
+        // Keep paymentCard null
+      })
+      .finally(() => setCardPreviewLoading(false))
+  }, [open, reservationId])
 
   // Check if dates have changed
   const hasChanges = newCheckIn !== currentCheckIn || newCheckOut !== currentCheckOut
@@ -497,6 +562,25 @@ export function ExtendDialog({
             <div className="text-sm">
               <span className="font-medium">Guest:</span>{' '}
               <span className="text-muted-foreground">{guestName}</span>
+            </div>
+            <div className="flex flex-nowrap items-center gap-2 text-sm">
+              <span className="font-medium shrink-0">Payment card:</span>
+              {cardPreviewLoading ? (
+                <span className="text-muted-foreground">Loading…</span>
+              ) : paymentCard ? (
+                <span className="inline-flex min-w-0 items-center gap-3 align-middle">
+                  <span className="inline-flex h-10 w-14 shrink-0 items-center justify-center">
+                    <PaymentCardLogo brand={paymentCard.brand} />
+                  </span>
+                  <span className="min-w-0 truncate font-mono text-base text-foreground">
+                    **** **** **** {paymentCard.last4}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  No card payment on file for this booking
+                </span>
+              )}
             </div>
             <div className="text-sm">
               <span className="font-medium">Site:</span>{' '}

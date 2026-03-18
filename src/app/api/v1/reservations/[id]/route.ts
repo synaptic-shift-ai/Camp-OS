@@ -14,6 +14,10 @@ import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
+import {
+  fetchPaymentCardDisplay,
+  resolvePaymentIntentIdForReservation,
+} from '@/lib/stripe/payment-intent-card-display'
 
 const REFUND_ELIGIBILITY_SNAPSHOT_PREFIX = '[REFUND_ELIGIBILITY_SNAPSHOT]'
 
@@ -171,6 +175,37 @@ export async function GET(
       .eq('id', reservation.siteId)
       .single()
 
+    const { data: latestPayment } = await supabase
+      .from('payments')
+      .select('stripe_payment_id, payment_method')
+      .eq('reservation_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const paymentIntentId = resolvePaymentIntentIdForReservation(
+      latestPayment?.stripe_payment_id,
+      reservation.notes
+    )
+
+    let payment_card: {
+      brand: string
+      last4: string
+      exp_month: number
+      exp_year: number
+    } | null = null
+
+    if (paymentIntentId != null) {
+      try {
+        payment_card = await fetchPaymentCardDisplay(
+          paymentIntentId,
+          reservation.propertyId
+        )
+      } catch (cardErr) {
+        console.warn('[Reservations API v1] GET payment card metadata failed', cardErr)
+      }
+    }
+
     // Convert to DTO and add guest/site info
     const reservationDTO = toReservationDTO(reservation)
 
@@ -191,12 +226,14 @@ export async function GET(
       checked_in_at: reservationDTO.checkedInAt,
       guest: guest || undefined,
       site: site || undefined,
+      payment_card,
+      payment_method: latestPayment?.payment_method ?? null,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Reservations API v1] GET by ID error:', err)
     return NextResponse.json(
       error(ErrorCodes.INTERNAL_ERROR, 'Failed to fetch reservation', {
-        message: err.message,
+        message: err instanceof Error ? err.message : undefined,
       }),
       { status: 500 }
     )

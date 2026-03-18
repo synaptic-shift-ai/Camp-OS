@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Table,
@@ -22,7 +22,14 @@ import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import type { ReservationStatus } from "@/contracts/booking"
 import type { DashboardReservation } from "@/lib/dashboard/queries"
-import { RateDiscountsConfig } from "@/lib/config/types"
+import type { RateDiscountsConfig } from "@/lib/config/types"
+import {
+  AmericanExpressFlatRoundedIcon,
+  DiscoverFlatRoundedIcon,
+  GenericFlatRoundedIcon,
+  MastercardFlatRoundedIcon,
+  VisaFlatRoundedIcon,
+} from "react-svg-credit-card-payment-icons"
 
 const statusTextColors: Record<ReservationStatus, string> = {
   pending: "text-yellow-600",
@@ -48,6 +55,31 @@ function formatDate(dateString: string): string {
   })
 }
 
+type PaymentCardDisplay = {
+  brand: string
+  last4: string
+  exp_month: number
+  exp_year: number
+}
+
+function PaymentCardLogo({ brand }: { brand: string }) {
+  const normalized = brand.trim().toLowerCase()
+  switch (normalized) {
+    case "visa":
+      return <VisaFlatRoundedIcon width={56} />
+    case "mastercard":
+      return <MastercardFlatRoundedIcon width={56} />
+    case "amex":
+    case "american express":
+    case "americanexpress":
+      return <AmericanExpressFlatRoundedIcon width={56} />
+    case "discover":
+      return <DiscoverFlatRoundedIcon width={56} />
+    default:
+      return <GenericFlatRoundedIcon width={56} />
+  }
+}
+
 type ReservationsTableProps = {
   propertyId: string
   reservations: DashboardReservation[]
@@ -70,6 +102,54 @@ export function ReservationsTable({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedReservation, setSelectedReservation] = useState<DashboardReservation | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedReservation?.id) return
+
+    let cancelled = false
+    setPreviewLoading(true)
+    setPaymentCard(null)
+    setPaymentMethod(null)
+
+    fetch(`/api/v1/reservations/${selectedReservation.id}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        const method = json?.data?.payment_method
+        if (typeof method === "string" && method.length > 0) {
+          setPaymentMethod(method)
+        }
+        const pc = json?.data?.payment_card
+        if (
+          json?.success === true &&
+          pc &&
+          typeof pc.last4 === "string" &&
+          typeof pc.brand === "string" &&
+          typeof pc.exp_month === "number" &&
+          typeof pc.exp_year === "number"
+        ) {
+          setPaymentCard({
+            brand: pc.brand,
+            last4: pc.last4,
+            exp_month: pc.exp_month,
+            exp_year: pc.exp_year,
+          })
+        }
+      })
+      .catch(() => {
+        // Keep paymentCard null
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedReservation?.id])
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const clampedCurrentPage = Math.min(Math.max(currentPage, 1), totalPages)
@@ -352,6 +432,27 @@ export function ReservationsTable({
                       {formatDate(selectedReservation.createdAt)}
                     </div>
                   </div>
+                </div>
+
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Payment Method
+                  </div>
+                  <div className="mt-1 font-medium">
+                    {paymentMethod ?? "—"}
+                  </div>
+                  {previewLoading ? (
+                    <div className="mt-2 text-xs text-muted-foreground">Loading card…</div>
+                  ) : paymentCard ? (
+                    <div className="mt-2 inline-flex items-center gap-3 align-middle">
+                      <span className="inline-flex h-10 w-14 shrink-0 items-center justify-center">
+                        <PaymentCardLogo brand={paymentCard.brand} />
+                      </span>
+                      <span className="font-mono text-base text-foreground">
+                        **** **** **** {paymentCard.last4}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="rounded-md border bg-muted/40 p-3">

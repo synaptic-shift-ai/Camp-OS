@@ -22,7 +22,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import type { ReservationStatus } from "@/contracts/booking"
 import type { DashboardReservation } from "@/lib/dashboard/queries"
-import type { RateDiscountsConfig } from "@/lib/config/types"
+import type { BookingRulesConfig, RateDiscountsConfig } from "@/lib/config/types"
 import {
   AmericanExpressFlatRoundedIcon,
   DiscoverFlatRoundedIcon,
@@ -88,6 +88,7 @@ type ReservationsTableProps = {
   total: number
   siteType: string | null
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined
+  bookingRulesConfig?: BookingRulesConfig | null | undefined
 }
 
 export function ReservationsTable({
@@ -98,6 +99,7 @@ export function ReservationsTable({
   total,
   siteType,
   rateDiscountsConfig,
+  bookingRulesConfig,
 }: ReservationsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -318,6 +320,7 @@ export function ReservationsTable({
                         canRefund={canRefund}
                         maxRefundableCents={maxRefundableCents}
                         rateDiscountsConfig={rateDiscountsConfig}
+                        blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
                       />
                     </TableCell>
                   </TableRow>

@@ -32,6 +32,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText } from 'lucide-react'
 import type { Reservation } from '@/lib/booking/types'
+import { asYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
 
 interface CheckInDialogProps {
   open: boolean
@@ -40,15 +41,30 @@ interface CheckInDialogProps {
     guest?: { first_name: string; last_name: string; email: string }
     site?: { site_number: string; site_name: string | null }
   }
+  blackoutDates?: string[] | undefined
 }
 
-export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialogProps) {
+export function CheckInDialog({
+  open,
+  onOpenChange,
+  reservation,
+  blackoutDates,
+}: CheckInDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkInNotes, setCheckInNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
+
+  const todayStr = asYyyyMmDd(new Date())
+  const reservationStartStr = normalizeDateString(reservation.check_in_date)
+  const isLateArrival = reservationStartStr < todayStr
+  const isBlockedByBlackout =
+    (blackoutDates ?? []).includes(todayStr) &&
+    reservationStartStr === todayStr &&
+    !isLateArrival
+  const todayDateLabel = formatDisplayDate(todayStr)
 
   // Calculate outstanding balance
   const outstandingBalance = Math.max(0, reservation.total_amount - reservation.paid_amount)
@@ -60,6 +76,13 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
     setError(null)
 
     try {
+      if (isBlockedByBlackout) {
+        setError(
+          `Check-in is not allowed today ${todayDateLabel} due to blackout date restrictions. Guests may only be checked in today if their reservation started before today.`
+        )
+        return
+      }
+
       // Determine if payment is being collected
       const isCollectingPayment = hasBalance && paymentMethod && paymentMethod !== 'skip'
 
@@ -107,7 +130,7 @@ export function CheckInDialog({ open, onOpenChange, reservation }: CheckInDialog
   const checkOutDate = new Date(reservation.check_out_date).toLocaleDateString()
   const nights = Math.ceil(
     (new Date(reservation.check_out_date).getTime() - new Date(reservation.check_in_date).getTime()) /
-      (1000 * 60 * 60 * 24)
+    (1000 * 60 * 60 * 24)
   )
 
   return (

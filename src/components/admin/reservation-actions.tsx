@@ -46,6 +46,7 @@ interface ReservationActionsProps {
   canRefund?: boolean
   maxRefundableCents?: number
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined
+  blackoutDates?: string[] | undefined
 }
 
 export function ReservationActions({
@@ -71,6 +72,7 @@ export function ReservationActions({
   canRefund = false,
   maxRefundableCents = 0,
   rateDiscountsConfig,
+  blackoutDates,
 }: ReservationActionsProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -133,6 +135,8 @@ export function ReservationActions({
         <CheckInButton
           reservationId={reservationId}
           status={status}
+          reservationCheckInDate={checkIn}
+          blackoutDates={blackoutDates}
         />
         <CheckOutButton
           reservationId={reservationId}

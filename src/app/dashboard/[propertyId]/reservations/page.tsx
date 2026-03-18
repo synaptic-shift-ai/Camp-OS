@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getReservations, getDistinctSiteTypes } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import type { RateDiscountsConfig } from "@/lib/config/types"
+import type { BookingRulesConfig, RateDiscountsConfig } from "@/lib/config/types"
 import { redirect } from "next/navigation"
 import { SiteTypeFilter } from "@/components/dashboard/reservations/site-type-filter"
 import { ReservationsTable } from "@/components/dashboard/reservations/reservations-table"
@@ -72,6 +72,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
             total={total}
             siteType={siteTypeFilter ?? null}
             rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
+            bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
           />
         </CardContent>
       </Card>

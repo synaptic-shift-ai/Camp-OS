@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { format, differenceInDays } from "date-fns"
 import { Check, Download, Mail, Calendar, MapPin, Phone, TreePine, Printer, Sparkles } from "lucide-react"
@@ -49,6 +49,7 @@ export default function ConfirmationPage() {
   const { checkoutData, clearCheckoutData, isHydrated } = useCheckout()
   const router = useRouter()
   const { toast } = useToast()
+  const isStartingNewBookingRef = useRef(false)
   const [showConfetti, setShowConfetti] = useState(true)
   const [showCheckmark, setShowCheckmark] = useState(false)
   const [_isConfirming, setIsConfirming] = useState(false)
@@ -110,6 +111,7 @@ export default function ConfirmationPage() {
   useEffect(() => {
     // Wait for sessionStorage to hydrate before checking
     if (!isHydrated) return
+    if (isStartingNewBookingRef.current) return
 
     if (!checkoutData.confirmationNumber) {
       toast({
@@ -246,6 +248,7 @@ export default function ConfirmationPage() {
   }
 
   const handleNewBooking = () => {
+    isStartingNewBookingRef.current = true
     clearCheckoutData()
     router.push(`/book/${slug}`)
   }

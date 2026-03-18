@@ -149,7 +149,7 @@ export default function ConfirmationPage() {
   // Normalize price breakdown so it matches what we show in the booking summary.
   const priceBreakdown =
     rawPriceBreakdown
-    ? {
+      ? {
         basePrice: rawPriceBreakdown.base_price_per_night ?? 0,
         nights: rawPriceBreakdown.number_of_nights ?? numberOfNights,
         subtotal: rawPriceBreakdown.subtotal ?? 0,
@@ -162,7 +162,7 @@ export default function ConfirmationPage() {
         tax_name: rawPriceBreakdown.tax_name,
         user_discounts: rawPriceBreakdown.user_discounts,
       }
-    : {
+      : {
         basePrice: checkoutData.site.base_price_per_night,
         nights: numberOfNights,
         subtotal: checkoutData.site.base_price_per_night * numberOfNights,
@@ -248,7 +248,7 @@ export default function ConfirmationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#282B24] relative overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50 print:hidden">
           {[...Array(50)].map((_, i) => (
@@ -276,19 +276,19 @@ export default function ConfirmationPage() {
         </div>
       )}
 
-      <header className="bg-[#282B24] border-b border-gray-600/80 sticky top-0 z-40 shadow-sm">
+      <header className="bg-background border-b border-border sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center">
-                <TreePine className="h-6 w-6 text-white" />
+              <div className="w-10 h-10 bg-emerald-700 rounded-lg flex items-center justify-center">
+                <TreePine className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-green-400">Pine Lake Campground</h1>
-                <p className="text-xs text-gray-400">Booking Confirmed</p>
+                <h1 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">Pine Lake Campground</h1>
+                <p className="text-xs text-muted-foreground">Booking Confirmed</p>
               </div>
             </div>
-            <Button variant="ghost" onClick={() => router.push("/")} className="text-gray-200 hover:bg-gray-700/50 hover:text-white">
+            <Button variant="ghost" onClick={() => router.push("/")} className="text-foreground hover:bg-muted">
               Back to Home
             </Button>
           </div>
@@ -306,33 +306,33 @@ export default function ConfirmationPage() {
             </div>
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
-              <h1 className="text-4xl font-bold text-white animate-fade-in">Booking Confirmed!</h1>
+              <h1 className="text-4xl font-bold text-foreground animate-fade-in">Booking Confirmed!</h1>
               <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
             </div>
-            <p className="text-lg text-gray-300 animate-fade-in-delay">
+            <p className="text-lg text-muted-foreground animate-fade-in-delay">
               Your adventure awaits! We've sent a confirmation email to{" "}
-              <span className="font-medium text-green-400">{checkoutData.guestInfo.email}</span>
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">{checkoutData.guestInfo.email}</span>
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-900/40 text-green-200 rounded-full text-sm font-medium animate-fade-in-delay-2">
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 rounded-full text-sm font-medium animate-fade-in-delay-2">
               <Check className="h-4 w-4" />
               Payment processed successfully
             </div>
           </div>
 
-          <Card className="shadow-xl mb-6 animate-slide-up border-2 border-gray-600/80 bg-[#282B24]">
-            <CardHeader className="bg-gradient-to-r from-[#2D5A27] to-[#1e3d1a] text-white">
+          <Card className="shadow-xl mb-6 animate-slide-up border-2 border-border bg-card">
+            <CardHeader className="bg-gradient-to-r from-emerald-700 to-emerald-900 text-primary-foreground">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-2xl">Confirmation Details</CardTitle>
-                  <CardDescription className="text-gray-200">Save this for your records</CardDescription>
+                  <CardDescription className="text-primary-foreground/80">Save this for your records</CardDescription>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-200">Confirmation Number</p>
+                  <p className="text-sm text-primary-foreground/80">Confirmation Number</p>
                   <p className="text-2xl font-bold">{checkoutData.confirmationNumber}</p>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-6 bg-[#282B24]">
+            <CardContent className="p-6 space-y-6 bg-card">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   {checkoutData.site.image_url && (
@@ -345,96 +345,96 @@ export default function ConfirmationPage() {
                       />
                     </div>
                   )}
-                  <h3 className="font-semibold text-xl text-gray-100 mb-1">{checkoutData.site.name}</h3>
-                  <p className="text-gray-400 capitalize mb-4">{checkoutData.site.site_type} Site</p>
+                  <h3 className="font-semibold text-xl text-foreground mb-1">{checkoutData.site.name}</h3>
+                  <p className="text-muted-foreground capitalize mb-4">{checkoutData.site.site_type} Site</p>
 
                   <div className="space-y-3">
                     <div className="flex items-start space-x-3">
-                      <Calendar className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                      <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-100">Check-in</p>
-                        <p className="text-gray-300">{format(checkoutData.checkInDate!, "EEEE, MMMM dd, yyyy")}</p>
-                        <p className="text-sm text-gray-400">After 2:00 PM</p>
+                        <p className="font-medium text-foreground">Check-in</p>
+                        <p className="text-muted-foreground">{format(checkoutData.checkInDate!, "EEEE, MMMM dd, yyyy")}</p>
+                        <p className="text-sm text-muted-foreground">After 2:00 PM</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <Calendar className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                      <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-100">Check-out</p>
-                        <p className="text-gray-300">{format(checkoutData.checkOutDate!, "EEEE, MMMM dd, yyyy")}</p>
-                        <p className="text-sm text-gray-400">Before 11:00 AM</p>
+                        <p className="font-medium text-foreground">Check-out</p>
+                        <p className="text-muted-foreground">{format(checkoutData.checkOutDate!, "EEEE, MMMM dd, yyyy")}</p>
+                        <p className="text-sm text-muted-foreground">Before 11:00 AM</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <MapPin className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                      <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-100">Location</p>
-                        <p className="text-gray-300">Pine Lake Campground</p>
-                        <p className="text-sm text-gray-400">123 Forest Road, Pine Valley, CA 95000</p>
+                        <p className="font-medium text-foreground">Location</p>
+                        <p className="text-muted-foreground">Pine Lake Campground</p>
+                        <p className="text-sm text-muted-foreground">123 Forest Road, Pine Valley, CA 95000</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-lg text-gray-100 mb-4">Guest Information</h4>
+                  <h4 className="font-semibold text-lg text-foreground mb-4">Guest Information</h4>
                   <div className="space-y-3 text-sm">
                     <div>
-                      <p className="text-gray-400">Name</p>
-                      <p className="font-medium text-gray-100">
+                      <p className="text-muted-foreground">Name</p>
+                      <p className="font-medium text-foreground">
                         {checkoutData.guestInfo.first_name} {checkoutData.guestInfo.last_name}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-400">Email</p>
-                      <p className="font-medium text-gray-100">{checkoutData.guestInfo.email}</p>
+                      <p className="text-muted-foreground">Email</p>
+                      <p className="font-medium text-foreground">{checkoutData.guestInfo.email}</p>
                     </div>
                     <div>
-                      <p className="text-gray-400">Phone</p>
-                      <p className="font-medium text-gray-100">{checkoutData.guestInfo.phone}</p>
+                      <p className="text-muted-foreground">Phone</p>
+                      <p className="font-medium text-foreground">{checkoutData.guestInfo.phone}</p>
                     </div>
                     {checkoutData.numVehicles != null && (
                       <div>
-                        <p className="text-gray-400">Vehicles</p>
-                        <p className="font-medium text-gray-100">{checkoutData.numVehicles}</p>
+                        <p className="text-muted-foreground">Vehicles</p>
+                        <p className="font-medium text-foreground">{checkoutData.numVehicles}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-6 pt-6 border-t border-gray-600">
-                    <h4 className="font-semibold text-lg text-gray-100 mb-3">Payment Summary</h4>
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <h4 className="font-semibold text-lg text-foreground mb-3">Payment Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">
+                        <span className="text-muted-foreground">
                           ${formatCurrency(priceBreakdown.basePrice || 0)} × {priceBreakdown.nights} night
                           {priceBreakdown.nights !== 1 ? "s" : ""}
                         </span>
-                        <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.subtotal)}</span>
+                        <span className="font-medium text-foreground">${formatCurrency(priceBreakdown.subtotal)}</span>
                       </div>
                       {(priceBreakdown.cleaningFee || 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Cleaning fee</span>
-                          <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
+                          <span className="text-muted-foreground">Cleaning fee</span>
+                          <span className="font-medium text-foreground">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
                         </div>
                       )}
                       {discountCents > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Discount</span>
-                          <span className="font-medium text-green-400">-${formatCurrency(discountCents)}</span>
+                          <span className="text-muted-foreground">Discount</span>
+                          <span className="font-medium text-emerald-600 dark:text-emerald-400">-${formatCurrency(discountCents)}</span>
                         </div>
                       )}
                       {(priceBreakdown.taxes || 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-400">
+                          <span className="text-muted-foreground">
                             {(priceBreakdown.tax_name || "Taxes")} (
                             {(priceBreakdown.taxRate * 100).toFixed(1)}%)
                           </span>
-                          <span className="font-medium text-gray-100">${formatCurrency(priceBreakdown.taxes!)}</span>
+                          <span className="font-medium text-foreground">${formatCurrency(priceBreakdown.taxes!)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-lg font-bold border-t border-gray-600 pt-2">
-                        <span className="text-gray-100">Total Paid</span>
-                        <span className="text-green-400">${formatCurrency(priceBreakdown.total)}</span>
+                      <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
+                        <span className="text-foreground">Total Paid</span>
+                        <span className="text-emerald-600 dark:text-emerald-400">${formatCurrency(priceBreakdown.total)}</span>
                       </div>
                     </div>
                   </div>
@@ -446,14 +446,14 @@ export default function ConfirmationPage() {
           <div className="grid md:grid-cols-3 gap-4 mb-8 print:hidden">
             <Button
               variant="outline"
-              className="h-12 bg-[#383D36] border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-green-500 transition-all duration-300 hover:scale-105"
+              className="h-12 bg-background border-border text-foreground hover:bg-muted hover:border-emerald-500 transition-all duration-300 hover:scale-105"
             >
               <Mail className="w-4 h-4 mr-2" />
               Email Confirmation
             </Button>
             <Button
               variant="outline"
-              className="h-12 bg-[#383D36] border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-green-500 transition-all duration-300 hover:scale-105"
+              className="h-12 bg-background border-border text-foreground hover:bg-muted hover:border-emerald-500 transition-all duration-300 hover:scale-105"
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
             >
@@ -462,7 +462,7 @@ export default function ConfirmationPage() {
             </Button>
             <Button
               variant="outline"
-              className="h-12 bg-[#383D36] border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-green-500 transition-all duration-300 hover:scale-105"
+              className="h-12 bg-background border-border text-foreground hover:bg-muted hover:border-emerald-500 transition-all duration-300 hover:scale-105"
               onClick={handlePrint}
             >
               <Printer className="w-4 h-4 mr-2" />
@@ -470,35 +470,35 @@ export default function ConfirmationPage() {
             </Button>
           </div>
 
-          <Card className="bg-[#282B24] border-gray-600/80 shadow-md">
+          <Card className="bg-card border-border shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg text-green-400 flex items-center gap-2">
+              <CardTitle className="text-lg text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
                 What's Next?
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start space-x-3">
-                <Check className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-gray-100">Check your email</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="font-medium text-foreground">Check your email</p>
+                  <p className="text-sm text-muted-foreground">
                     We've sent detailed directions and check-in instructions to your email
                   </p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <Check className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-gray-100">Prepare for your trip</p>
-                  <p className="text-sm text-gray-400">Review our packing list and campground rules</p>
+                  <p className="font-medium text-foreground">Prepare for your trip</p>
+                  <p className="text-sm text-muted-foreground">Review our packing list and campground rules</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <Phone className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                <Phone className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-gray-100">Questions?</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="font-medium text-foreground">Questions?</p>
+                  <p className="text-sm text-muted-foreground">
                     Call us at (555) 123-4567 or email support@pinelakecampground.com
                   </p>
                 </div>
@@ -509,7 +509,7 @@ export default function ConfirmationPage() {
           <div className="text-center mt-8 print:hidden">
             <Button
               onClick={handleNewBooking}
-              className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white h-12 px-8 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              className="bg-emerald-700 hover:bg-emerald-800 text-primary-foreground h-12 px-8 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
             >
               Make Another Booking
             </Button>

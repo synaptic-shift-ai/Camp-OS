@@ -100,6 +100,7 @@ export async function POST(
 
     const originalPeriodTotalCents = originalPriceResult.data.total
     const originalSubtotalCents = originalPriceResult.data.subtotal
+    const originalBreakdown = originalPriceResult.data
 
     let priceResult: Awaited<ReturnType<typeof calculateReservationPriceEnhanced>>
 
@@ -159,6 +160,7 @@ export async function POST(
       {
         projectedTotalCents: priceResult.data.total,
         originalPeriodTotalCents,
+        originalBreakdown,
         breakdown: priceResult.data,
       },
       request

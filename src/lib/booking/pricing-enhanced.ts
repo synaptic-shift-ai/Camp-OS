@@ -398,8 +398,6 @@ export async function calculateReservationPriceEnhanced(
   const totalGuests = (options.num_adults || 1) + (options.num_children || 0)
   const numPets = options.num_pets || 0
 
-  if (!options.for_extension) {
-
     // Check if we have user-defined fees (new system)
     const userDefinedFees = pricingConfig.user_defined_fees || []
 
@@ -538,7 +536,6 @@ export async function calculateReservationPriceEnhanced(
         }
       }
     }
-  }
 
   // ===== APPLY USER-DEFINED DISCOUNTS (auto-triggered + manual when selected) =====
   const userDefinedDiscounts = rateDiscountsConfig.user_defined_discounts || []

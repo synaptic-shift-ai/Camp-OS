@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns'
 import type { RateDiscountsConfig, UserDefinedDiscount } from '@/lib/config/types'
 import { resolveRateDiscountsConfig } from '@/lib/config/resolution'
+import type { PriceBreakdown } from '@/lib/booking/types'
 
 interface ExtendDialogProps {
   reservationId: string
@@ -68,6 +69,12 @@ function formatMoney(cents: number): string {
     style: 'currency',
     currency: 'USD',
   }).format(cents / 100)
+}
+
+function formatSignedMoney(cents: number): string {
+  const abs = Math.abs(cents)
+  const prefix = cents > 0 ? '+' : cents < 0 ? '-' : ''
+  return `${prefix}${formatMoney(abs)}`
 }
 
 /**
@@ -164,9 +171,8 @@ export function ExtendDialog({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [projectedTotalCents, setProjectedTotalCents] = useState<number | null>(null)
   const [originalPeriodTotalCents, setOriginalPeriodTotalCents] = useState<number | null>(null)
-  const [previewBreakdown, setPreviewBreakdown] = useState<{
-    user_discounts?: Array<{ id: string; title: string; amount: number; trigger_type: string }>
-  } | null>(null)
+  const [projectedBreakdown, setProjectedBreakdown] = useState<PriceBreakdown | null>(null)
+  const [originalBreakdown, setOriginalBreakdown] = useState<PriceBreakdown | null>(null)
   const router = useRouter()
 
   // Form state
@@ -185,7 +191,8 @@ export function ExtendDialog({
       setProjectedTotalCents(null)
       setOriginalPeriodTotalCents(null)
       setSelectedDiscountId(undefined)
-      setPreviewBreakdown(null)
+      setProjectedBreakdown(null)
+      setOriginalBreakdown(null)
     }
   }, [open, currentCheckIn, currentCheckOut])
 
@@ -218,13 +225,16 @@ export function ExtendDialog({
     if (!hasChanges || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn) {
       setProjectedTotalCents(null)
       setOriginalPeriodTotalCents(null)
+      setProjectedBreakdown(null)
+      setOriginalBreakdown(null)
       return
     }
     let cancelled = false
     setPreviewLoading(true)
     setProjectedTotalCents(null)
     setOriginalPeriodTotalCents(null)
-    setPreviewBreakdown(null)
+    setProjectedBreakdown(null)
+    setOriginalBreakdown(null)
     const selectedDiscountIds = selectedDiscountId ? [selectedDiscountId] : []
     fetch(`/api/v1/reservations/${reservationId}/extend-preview`, {
       method: 'POST',
@@ -239,13 +249,13 @@ export function ExtendDialog({
           const orig = data?.data?.originalPeriodTotalCents
           setOriginalPeriodTotalCents(typeof orig === 'number' ? orig : null)
           const breakdown = data?.data?.breakdown
-          setPreviewBreakdown(
-            breakdown && typeof breakdown === 'object'
-              ? {
-                  user_discounts: Array.isArray(breakdown.user_discounts)
-                    ? breakdown.user_discounts
-                    : undefined,
-                }
+          const origBreakdown = data?.data?.originalBreakdown
+          setProjectedBreakdown(
+            breakdown && typeof breakdown === 'object' ? (breakdown as PriceBreakdown) : null
+          )
+          setOriginalBreakdown(
+            origBreakdown && typeof origBreakdown === 'object'
+              ? (origBreakdown as PriceBreakdown)
               : null
           )
         }
@@ -254,7 +264,8 @@ export function ExtendDialog({
         if (!cancelled) {
           setProjectedTotalCents(null)
           setOriginalPeriodTotalCents(null)
-          setPreviewBreakdown(null)
+          setProjectedBreakdown(null)
+          setOriginalBreakdown(null)
         }
       })
       .finally(() => {
@@ -269,11 +280,105 @@ export function ExtendDialog({
   const useExtensionPricing =
     projectedTotalCents != null && originalPeriodTotalCents != null
   const displayPriceChange = useExtensionPricing
-    ? projectedTotalCents - originalPeriodTotalCents
+    ? (projectedBreakdown?.total ?? projectedTotalCents) -
+    (originalBreakdown?.total ?? originalPeriodTotalCents)
     : (projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0) - totalAmount
+
   const displayNewTotalCents = useExtensionPricing
     ? totalAmount + displayPriceChange
     : projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0
+
+  const additionalFeesDelta = useMemo(() => {
+    if (!useExtensionPricing || !projectedBreakdown || !originalBreakdown) return []
+    const projectedFees = Array.isArray(projectedBreakdown.user_fees) ? projectedBreakdown.user_fees : []
+    const originalFees = Array.isArray(originalBreakdown.user_fees) ? originalBreakdown.user_fees : []
+    const originalById = new Map(originalFees.map((f) => [f.id, f.amount]))
+    return projectedFees
+      .map((f) => ({
+        id: f.id,
+        title: f.title,
+        amount: f.amount - (originalById.get(f.id) ?? 0),
+      }))
+      .filter((f) => f.amount !== 0)
+  }, [useExtensionPricing, projectedBreakdown, originalBreakdown])
+
+  const additionalDiscountsDelta = useMemo(() => {
+    if (!useExtensionPricing || !projectedBreakdown || !originalBreakdown) return []
+    const projectedDiscounts = Array.isArray(projectedBreakdown.user_discounts)
+      ? projectedBreakdown.user_discounts
+      : []
+    const originalDiscounts = Array.isArray(originalBreakdown.user_discounts)
+      ? originalBreakdown.user_discounts
+      : []
+    const originalById = new Map(originalDiscounts.map((d) => [d.id, d.amount]))
+    return projectedDiscounts
+      .map((d) => ({
+        id: d.id,
+        title: d.title,
+        // Discounts are positive cents but subtract from total — delta shown as negative when added
+        amount: (d.amount - (originalById.get(d.id) ?? 0)) * -1,
+      }))
+      .filter((d) => d.amount !== 0)
+  }, [useExtensionPricing, projectedBreakdown, originalBreakdown])
+
+  const additionalTaxDelta = useMemo(() => {
+    if (!useExtensionPricing || !projectedBreakdown || !originalBreakdown) return null
+    const projectedTax = projectedBreakdown.taxes ?? 0
+    const originalTax = originalBreakdown.taxes ?? 0
+    return projectedTax - originalTax
+  }, [useExtensionPricing, projectedBreakdown, originalBreakdown])
+
+  const additionalLodgingDelta = useMemo(() => {
+    if (!useExtensionPricing || !projectedBreakdown || !originalBreakdown) return null
+    return (projectedBreakdown.subtotal ?? 0) - (originalBreakdown.subtotal ?? 0)
+  }, [useExtensionPricing, projectedBreakdown, originalBreakdown])
+
+  const adjustmentLineItems = useMemo(() => {
+    if (!useExtensionPricing) return []
+    const items: Array<{ key: string; label: string; amount: number; tone?: 'positive' | 'negative' }> = []
+
+    if ((additionalLodgingDelta ?? 0) !== 0) {
+      items.push({
+        key: 'lodging',
+        label: pricingImpact?.nightsAdded && pricingImpact.nightsAdded > 0
+          ? `Lodging (${pricingImpact.nightsAdded} night${pricingImpact.nightsAdded !== 1 ? 's' : ''})`
+          : 'Lodging adjustment',
+        amount: additionalLodgingDelta ?? 0,
+      })
+    }
+
+    for (const fee of additionalFeesDelta) {
+      items.push({ key: `fee:${fee.id}`, label: fee.title, amount: fee.amount })
+    }
+
+    for (const discount of additionalDiscountsDelta) {
+      items.push({
+        key: `discount:${discount.id}`,
+        label: discount.title,
+        amount: discount.amount,
+        tone: 'negative',
+      })
+    }
+
+    if ((additionalTaxDelta ?? 0) !== 0) {
+      const taxRate = projectedBreakdown?.tax_rate
+      const taxLabel =
+        taxRate != null && typeof taxRate === 'number'
+          ? `${projectedBreakdown?.tax_name || 'Tax'} (${(taxRate * 100).toFixed(2)}%)`
+          : projectedBreakdown?.tax_name || 'Tax'
+      items.push({ key: 'tax', label: taxLabel, amount: additionalTaxDelta ?? 0 })
+    }
+
+    return items
+  }, [
+    useExtensionPricing,
+    additionalLodgingDelta,
+    additionalFeesDelta,
+    additionalDiscountsDelta,
+    additionalTaxDelta,
+    projectedBreakdown,
+    pricingImpact?.nightsAdded,
+  ])
 
   // Real-time availability checking
   const { checking, result, error: availError } = useActionAvailability(
@@ -521,23 +626,38 @@ export function ExtendDialog({
                   </div>
                 ) : (
                   <>
-                    {previewBreakdown?.user_discounts &&
-                      previewBreakdown.user_discounts.length > 0 && (
-                        <div className="pt-2 border-t space-y-1">
-                          <span className="text-xs font-medium text-muted-foreground uppercase">
-                            Discounts applied
-                          </span>
-                          {previewBreakdown.user_discounts.map((d) => (
-                            <div
-                              key={d.id}
-                              className="flex justify-between text-sm text-green-600"
+                    {adjustmentLineItems.length > 0 && (
+                      <div className="pt-2 border-t space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground uppercase">
+                          Adjustment breakdown
+                        </span>
+                        {adjustmentLineItems.map((item) => (
+                          <div
+                            key={item.key}
+                            className="flex justify-between text-sm"
+                          >
+                            <span
+                              className={
+                                item.tone === 'negative'
+                                  ? 'text-green-700'
+                                  : undefined
+                              }
                             >
-                              <span>{d.title}</span>
-                              <span>-{formatMoney(d.amount)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                              {item.label}
+                            </span>
+                            <span
+                              className={
+                                item.tone === 'negative'
+                                  ? 'text-green-700'
+                                  : undefined
+                              }
+                            >
+                              {formatSignedMoney(item.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex justify-between pt-2 border-t font-medium">
                       <span>
                         {pricingImpact.nightsAdded > 0 ? 'Additional Charge:' : 'Refund:'}

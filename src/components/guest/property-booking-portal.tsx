@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -10,7 +10,6 @@ import {
   Home,
   TreePine,
   MapPin,
-  CalendarIcon,
   Wifi,
   Droplets,
   Flame,
@@ -28,11 +27,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { SiteType } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
+import type { BookingRulesConfig } from "@/lib/config/types"
+import { BookingDateRangePicker, type DateRangeValue } from "@/components/guest/booking-date-range-picker"
 import { useToast } from "@/hooks/use-toast"
 import {
   Carousel,
@@ -97,14 +97,17 @@ interface PropertyBookingPortalProps {
     siteType: string
     timeAgo: string
   }[]
+  /** Property booking rules (same-day booking, blackout dates, etc.) */
+  bookingRulesConfig?: BookingRulesConfig | null
 }
 
-export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recentBookings = [] }: PropertyBookingPortalProps) {
+export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recentBookings = [], bookingRulesConfig }: PropertyBookingPortalProps) {
   const router = useRouter()
   const { toast } = useToast()
 
   const [checkInDate, setCheckInDate] = useState<Date>()
   const [checkOutDate, setCheckOutDate] = useState<Date>()
+  const [dateRange, setDateRange] = useState<DateRangeValue>()
   const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
   const [pets, setPets] = useState(0)
@@ -112,6 +115,19 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
   const [isSearching, _setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Clear check-out when it becomes invalid after check-in change
+  useEffect(() => {
+    if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
+      setCheckOutDate(undefined)
+    }
+  }, [checkInDate, checkOutDate])
+
+  // Keep single-date state in sync with range picker
+  useEffect(() => {
+    setCheckInDate(dateRange?.from)
+    setCheckOutDate(dateRange?.to)
+  }, [dateRange])
 
   // Get available reservation types from property config (default to nightly, weekly, monthly)
   const availableReservationTypes: BookingType[] = property.enabled_reservation_types || ['nightly', 'weekly', 'monthly']
@@ -389,50 +405,15 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 </div>
 
                 {/* Date Range Picker */}
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[#2D5A27]">Check-in Date</label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal border-2",
-                              !checkInDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-[#2D5A27]" />
-                            {checkInDate ? format(checkInDate, "MMM dd") : "Select"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar mode="single" selected={checkInDate} onSelect={setCheckInDate} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[#2D5A27]">Check-out Date</label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal border-2",
-                              !checkOutDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-[#2D5A27]" />
-                            {checkOutDate ? format(checkOutDate, "MMM dd") : "Select"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar mode="single" selected={checkOutDate} onSelect={setCheckOutDate} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
+                <div className="lg:col-span-2 space-y-2 self-end">
+                  <BookingDateRangePicker
+                    label="Check-in & Check-out"
+                    value={dateRange}
+                    onChange={setDateRange}
+                    sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
+                    blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                    numberOfMonths={1}
+                  />
                 </div>
 
                 {/* Site Type Filter */}
@@ -533,7 +514,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-[#2D5A27] opacity-0">Action</label>
                   <Button
-                    className="w-full bg-[#8FBC8F] hover:bg-[#7aa87a] text-white text-lg py-6 border-2 border-[#8FBC8F]"
+                    className={cn(
+                      "w-full rounded-xl bg-[#2D5A27] text-white text-sm py-4",
+                      "shadow-md hover:bg-[#23451f] hover:shadow-lg transition-colors transition-shadow",
+                      "border border-[#23451f]"
+                    )}
                     onClick={searchAvailability}
                     disabled={isSearching}
                   >

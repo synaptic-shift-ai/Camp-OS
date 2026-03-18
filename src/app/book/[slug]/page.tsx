@@ -4,9 +4,9 @@ import { extractPropertyIdFromSlug } from "@/lib/booking/slug-utils"
 import { PropertyBookingPortal } from "@/components/guest/property-booking-portal"
 import { ReservationExpiredHandler } from "@/components/guest/reservation-expired-handler"
 import type { SiteType } from "@/lib/booking/types"
-import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveRateDiscountsConfig } from "@/lib/config/resolution"
+import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveBookingRulesConfig, resolveRateDiscountsConfig } from "@/lib/config/resolution"
 import { getPricingSourceType } from "@/lib/site-pricing-source"
-import type { RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
+import type { BookingRulesConfig, RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
 import { format } from "date-fns"
 
 export default async function PropertyBookingPage({
@@ -59,7 +59,8 @@ export default async function PropertyBookingPage({
       enabled_reservation_types,
       reservation_type_config,
       site_type_config,
-      rate_discounts_config
+      rate_discounts_config,
+      booking_rules_config
     `)
     .eq("booking_page_slug", slug)
     .eq("onboarding_completed", true)
@@ -148,6 +149,11 @@ export default async function PropertyBookingPage({
     }
     return ''
   }
+
+  const bookingRules = resolveBookingRulesConfig(
+    (property as { booking_rules_config?: BookingRulesConfig | null }).booking_rules_config ?? null,
+    null
+  ).config
 
   const rateDiscounts = resolveRateDiscountsConfig(
     (property as { rate_discounts_config?: RateDiscountsConfig | null }).rate_discounts_config ?? null
@@ -328,6 +334,7 @@ export default async function PropertyBookingPage({
         slug={slug}
         siteTypeSummaries={siteTypeSummaries.length > 0 ? siteTypeSummaries : [] as SiteTypeSummary[]}
         recentBookings={recentBookings ?? []}
+        bookingRulesConfig={bookingRules}
       />
     </>
   )

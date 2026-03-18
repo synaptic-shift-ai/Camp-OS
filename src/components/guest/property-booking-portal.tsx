@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { format } from "date-fns"
+import { differenceInCalendarDays, format } from "date-fns"
 import Link from "next/link"
 import Image from "next/image"
 import {
@@ -158,6 +158,28 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       toast({
         title: "Invalid dates",
         description: "Check-out date must be after check-in date",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const numberOfNights = differenceInCalendarDays(checkOutDate, checkInDate)
+    const minStayNights = bookingRulesConfig?.min_stay_nights ?? 1
+    const maxStayNights = bookingRulesConfig?.max_stay_nights ?? null
+
+    if (minStayNights > 1 && numberOfNights < minStayNights) {
+      toast({
+        title: "Minimum stay required",
+        description: `You must book at least ${minStayNights} night${minStayNights === 1 ? "" : "s"}.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (typeof maxStayNights === "number" && Number.isFinite(maxStayNights) && numberOfNights > maxStayNights) {
+      toast({
+        title: "Maximum stay exceeded",
+        description: `You can only book up to ${maxStayNights} night${maxStayNights === 1 ? "" : "s"} per booking.`,
         variant: "destructive",
       })
       return

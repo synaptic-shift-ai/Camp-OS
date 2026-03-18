@@ -14,11 +14,14 @@ import { AddGuestDialog } from './add-guest-dialog'
 import { ExportMenu } from '@/components/ui/export-menu'
 import { buildExportFilename, exportToCsv } from '@/lib/csv/export'
 import type { DashboardGuest } from '@/lib/dashboard/queries'
+import { useToast } from '@/hooks/use-toast'
 
 interface GuestsPageHeaderProps {
   propertyId: string | null
   guests: DashboardGuest[]
   currentPage: number
+  total: number
+  searchQuery: string | null
 }
 
 function formatMoney(cents: number): string {
@@ -28,38 +31,79 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-export function GuestsPageHeader({ propertyId, guests, currentPage }: GuestsPageHeaderProps) {
+export function GuestsPageHeader({ propertyId, total, searchQuery }: GuestsPageHeaderProps) {
   const [addGuestOpen, setAddGuestOpen] = useState(false)
+  const { toast } = useToast()
+  const [isExporting, setIsExporting] = useState(false)
 
   const handleExport = (format: string) => {
     if (format !== 'csv') return
-    if (!guests.length) return
+    if (!propertyId) return
+    if (!total || total <= 0) return
+    if (isExporting) return
 
-    const filename = buildExportFilename('GST')
+    void (async () => {
+      try {
+        setIsExporting(true)
+        const filename = buildExportFilename('GST')
 
-    exportToCsv<DashboardGuest>(filename, guests, [
-      { key: 'name', header: 'Name' },
-      { key: 'email', header: 'Email' },
-      { key: 'phone', header: 'Phone' },
-      { key: 'totalStays', header: 'Total Stays' },
-      {
-        key: 'totalSpent',
-        header: 'Total Spent',
-        accessor: (guest) => formatMoney(guest.totalSpent),
-      },
-      {
-        key: 'lastVisit',
-        header: 'Last Visit',
-        accessor: (guest) =>
-          guest.lastVisit
-            ? new Date(guest.lastVisit).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })
-            : 'N/A',
-      },
-    ])
+        const res = await fetch('/api/v1/exports/guests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            filters:
+              searchQuery && searchQuery.trim().length > 0
+                ? { search: searchQuery }
+                : {},
+          }),
+        })
+
+        const json: any = await res.json()
+        if (!res.ok || json?.success !== true) {
+          throw new Error(json?.error?.message ?? 'Export failed')
+        }
+
+        const exportedGuests = json.data as DashboardGuest[]
+
+        exportToCsv<DashboardGuest>(filename, exportedGuests, [
+          { key: 'name', header: 'Name' },
+          { key: 'email', header: 'Email' },
+          { key: 'phone', header: 'Phone' },
+          { key: 'totalStays', header: 'Total Stays' },
+          {
+            key: 'totalSpent',
+            header: 'Total Spent',
+            accessor: (guest) => formatMoney(guest.totalSpent),
+          },
+          {
+            key: 'lastVisit',
+            header: 'Last Visit',
+            accessor: (guest) =>
+              guest.lastVisit
+                ? new Date(guest.lastVisit).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+                : 'N/A',
+          },
+        ])
+
+        toast({
+          title: 'Export ready',
+          description: 'Guests CSV has been downloaded.',
+        })
+      } catch (err) {
+        toast({
+          title: 'Export failed',
+          description: err instanceof Error ? err.message : 'Please try again.',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsExporting(false)
+      }
+    })()
   }
 
   return (
@@ -72,7 +116,7 @@ export function GuestsPageHeader({ propertyId, guests, currentPage }: GuestsPage
         <div className="flex items-center gap-2">
           <ExportMenu
             onExport={handleExport}
-            disabled={!guests.length}
+            disabled={isExporting || total <= 0}
             aria-label="Export guests"
           />
           <Button

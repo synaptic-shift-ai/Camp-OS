@@ -40,6 +40,8 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
         propertyId={propertyId}
         guests={guests}
         currentPage={currentPage}
+        total={total}
+        searchQuery={searchQuery ?? null}
       />
 
       <Card>

@@ -49,6 +49,8 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
         propertyId={propertyId}
         reservations={reservations}
         currentPage={currentPage}
+        total={total}
+        siteType={siteTypeFilter ?? null}
       />
 
       <Card>

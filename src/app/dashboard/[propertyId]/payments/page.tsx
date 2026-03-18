@@ -76,7 +76,12 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
 
   return (
     <div className="space-y-6">
-      <PaymentsPageHeader payments={payments} currentPage={currentPage} />
+      <PaymentsPageHeader
+        propertyId={propertyId}
+        payments={payments}
+        currentPage={currentPage}
+        total={total}
+      />
 
       <Suspense
         fallback={

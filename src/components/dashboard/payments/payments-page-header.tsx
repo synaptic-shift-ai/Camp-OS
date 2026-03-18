@@ -1,12 +1,16 @@
 "use client"
 
+import { useState } from "react"
 import type { DashboardPayment } from "@/lib/dashboard/queries"
 import { ExportMenu } from "@/components/ui/export-menu"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
+import { useToast } from "@/hooks/use-toast"
 
 type PaymentsPageHeaderProps = {
+  propertyId: string
   payments: DashboardPayment[]
   currentPage: number
+  total: number
 }
 
 function formatMoney(cents: number): string {
@@ -24,32 +28,64 @@ function formatDate(dateString: string): string {
   })
 }
 
-export function PaymentsPageHeader({
-  payments,
-  currentPage,
-}: PaymentsPageHeaderProps) {
+export function PaymentsPageHeader({ propertyId, total }: PaymentsPageHeaderProps) {
+  const { toast } = useToast()
+  const [isExporting, setIsExporting] = useState(false)
+
   const handleExport = (format: string) => {
     if (format !== "csv") return
-    if (!payments.length) return
+    if (!total || total <= 0) return
+    if (isExporting) return
 
-    const filename = buildExportFilename("PAY")
+    void (async () => {
+      try {
+        setIsExporting(true)
+        const filename = buildExportFilename("PAY")
 
-    exportToCsv<DashboardPayment>(filename, payments, [
-      {
-        key: "createdAt",
-        header: "Date",
-        accessor: (payment) => formatDate(payment.createdAt),
-      },
-      { key: "guestName", header: "Guest" },
-      { key: "confirmationNumber", header: "Reservation" },
-      {
-        key: "amount",
-        header: "Amount",
-        accessor: (payment) => formatMoney(payment.amount),
-      },
-      { key: "paymentMethod", header: "Method" },
-      { key: "paymentStatus", header: "Status" },
-    ])
+        const res = await fetch("/api/v1/exports/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId }),
+        })
+
+        const json: any = await res.json()
+        if (!res.ok || json?.success !== true) {
+          throw new Error(json?.error?.message ?? "Export failed")
+        }
+
+        const exportedPayments = json.data as DashboardPayment[]
+
+        exportToCsv<DashboardPayment>(filename, exportedPayments, [
+          {
+            key: "createdAt",
+            header: "Date",
+            accessor: (payment) => formatDate(payment.createdAt),
+          },
+          { key: "guestName", header: "Guest" },
+          { key: "confirmationNumber", header: "Reservation" },
+          {
+            key: "amount",
+            header: "Amount",
+            accessor: (payment) => formatMoney(payment.amount),
+          },
+          { key: "paymentMethod", header: "Method" },
+          { key: "paymentStatus", header: "Status" },
+        ])
+
+        toast({
+          title: "Export ready",
+          description: "Payments CSV has been downloaded.",
+        })
+      } catch (err) {
+        toast({
+          title: "Export failed",
+          description: err instanceof Error ? err.message : "Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsExporting(false)
+      }
+    })()
   }
 
   return (
@@ -64,7 +100,7 @@ export function PaymentsPageHeader({
       </div>
       <ExportMenu
         onExport={handleExport}
-        disabled={!payments.length}
+        disabled={isExporting || total <= 0}
         aria-label="Export payments"
       />
     </div>

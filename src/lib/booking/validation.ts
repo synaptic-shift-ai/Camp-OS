@@ -292,6 +292,7 @@ export async function validateBookingRules(
       .from('sites')
       .select('*')
       .eq('id', options.site_id)
+      .is('deleted_at', null)
       .single()
 
     if (siteError || !siteData) {

@@ -67,6 +67,7 @@ export async function GET(
       .from('sites')
       .select('id, property_id, site_number, site_name, site_type, base_price, status')
       .eq('property_id', propertyId)
+      .is('deleted_at', null)
       .order('site_number', { ascending: true })
 
     if (sitesError) {

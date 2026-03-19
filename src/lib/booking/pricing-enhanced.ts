@@ -185,6 +185,7 @@ export async function calculateReservationPriceEnhanced(
       )
     `)
     .eq('id', siteId)
+    .is('deleted_at', null)
     .single()
 
   if (siteError || !site || !site.property) {

@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
             .from('sites')
             .select('id, status, availability_rules')
             .not('availability_rules', 'is', null)
+            .is('deleted_at', null)
 
         if (fetchError) {
             console.error('[Housekeeping] Error fetching sites:', fetchError)

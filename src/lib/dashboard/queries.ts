@@ -545,6 +545,7 @@ export async function getDistinctSiteTypes(propertyId: string): Promise<{ siteTy
     .from('sites')
     .select('site_type')
     .eq('property_id', propertyId)
+    .is('deleted_at', null)
 
   if (error) {
     throw new Error(`Failed to fetch distinct site types: ${error.message}`)
@@ -574,6 +575,7 @@ export async function getDashboardStats(
       .from('sites')
       .select('id, site_type')
       .eq('property_id', propertyId)
+      .is('deleted_at', null)
     const ids = (siteRows ?? [])
       .filter((s) => s.site_type && allowedLower.has((s.site_type as string).toLowerCase()))
       .map((s) => s.id as string)

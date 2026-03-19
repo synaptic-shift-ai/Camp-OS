@@ -38,6 +38,7 @@ export async function GET(
       .from('sites')
       .select('*, properties!inner(id, company_id)')
       .eq('id', siteId)
+      .is('deleted_at', null)
       .single()
 
     if (siteError || !site) {
@@ -92,6 +93,7 @@ export async function PUT(
       .from('sites')
       .select('*, properties!inner(id, company_id)')
       .eq('id', siteId)
+      .is('deleted_at', null)
       .single()
 
     if (siteError || !existingSite) {
@@ -239,7 +241,7 @@ export async function DELETE(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(error(ErrorCodes.AUTH_001, 'Unauthorized'), { status: 401 })
+      return error(ErrorCodes.AUTH_001, request)
     }
 
     // Fetch existing site for tenant validation
@@ -247,10 +249,11 @@ export async function DELETE(
       .from('sites')
       .select('*, properties!inner(id, company_id)')
       .eq('id', siteId)
+      .is('deleted_at', null)
       .single()
 
     if (siteError || !existingSite) {
-      return NextResponse.json(error(ErrorCodes.RESOURCE_NOT_FOUND, 'Site not found'), { status: 404 })
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, request)
     }
 
     // BP-4: Verify user owns this property's company
@@ -262,23 +265,52 @@ export async function DELETE(
       .single()
 
     if (!company) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+      return error(ErrorCodes.AUTH_002, request)
     }
 
-    // Delete the site
+    // Check for active or future reservations before attempting delete.
+    // These reservations block deletion due to integrity/business rules.
+    const todayISODate = new Date().toISOString().split('T')[0]
+    const { data: reservations, error: reservationsError } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('site_id', siteId)
+      .in('status', ['confirmed', 'checked_in', 'pending'])
+      .gte('check_out_date', todayISODate)
+
+    if (reservationsError) {
+      console.error('[v1/sites] Delete reservation check error:', reservationsError)
+      return error('SYS_003', 'Failed to validate site delete constraints', 500, request, reservationsError)
+    }
+
+    if (reservations && reservations.length > 0) {
+      return error(ErrorCodes.SITE_005.code, ErrorCodes.SITE_005.message, ErrorCodes.SITE_005.status, request, {
+        siteId,
+        today: todayISODate,
+      })
+    }
+
+    // Soft delete the site (do not hard delete)
+    const now = new Date().toISOString()
     const { error: deleteError } = await supabase
       .from('sites')
-      .delete()
+      .update({ deleted_at: now, updated_at: now })
       .eq('id', siteId)
+      .is('deleted_at', null)
 
     if (deleteError) {
       console.error('[v1/sites] Delete error:', deleteError)
-      return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Failed to delete site'), { status: 500 })
+      const status = deleteError.code === '23503' ? 409 : 500
+      const message =
+        deleteError.code === '23503'
+          ? 'Cannot delete site because it is referenced by other records.'
+          : deleteError.message || 'Failed to delete site'
+      return error('SITE_DELETE_FAILED', message, status, request, deleteError)
     }
 
     return success({ deleted: true, id: siteId })
   } catch (err: any) {
     console.error('[v1/sites] DELETE error:', err)
-    return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Internal server error'), { status: 500 })
+    return error(ErrorCodes.INTERNAL_ERROR, request)
   }
 }

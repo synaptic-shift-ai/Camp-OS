@@ -20,6 +20,7 @@ export async function getSiteById(siteId: string): Promise<BookingResult<Availab
     .from('sites')
     .select('*')
     .eq('id', siteId)
+    .is('deleted_at', null)
     .single()
 
   if (error || !site) {
@@ -68,6 +69,7 @@ export async function getSimilarSites(
     .from('sites')
     .select('property_id, site_type')
     .eq('id', siteId)
+    .is('deleted_at', null)
     .single()
 
   if (siteError || !currentSite) {
@@ -87,6 +89,7 @@ export async function getSimilarSites(
     .eq('property_id', currentSite.property_id)
     .eq('site_type', currentSite.site_type)
     .eq('status', 'available')
+    .is('deleted_at', null)
     .neq('id', siteId)
     .limit(limit)
 

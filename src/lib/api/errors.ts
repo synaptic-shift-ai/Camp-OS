@@ -141,7 +141,7 @@ export const ErrorCodes = {
   },
   SITE_005: {
     code: 'SITE_005',
-    message: 'Cannot delete site with active reservations',
+    message: 'Cannot delete site with active or future reservations',
     status: 409,
   },
   SITE_006: {

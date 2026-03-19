@@ -173,6 +173,7 @@ export async function GET(
       .from('sites')
       .select('site_number, site_name')
       .eq('id', reservation.siteId)
+      .is('deleted_at', null)
       .single()
 
     const { data: latestPayment } = await supabase

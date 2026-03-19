@@ -126,6 +126,7 @@ export async function POST(
       .from('sites')
       .select('site_number')
       .eq('property_id', propertyId)
+      .is('deleted_at', null)
       .in('site_number', siteNumbers)
 
     if (existingSites && existingSites.length > 0) {

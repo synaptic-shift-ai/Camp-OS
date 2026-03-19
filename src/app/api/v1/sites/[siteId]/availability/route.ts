@@ -52,6 +52,7 @@ export async function GET(
       .from('sites')
       .select('id, property_id')
       .eq('id', siteId)
+      .is('deleted_at', null)
       .single()
 
     if (siteError || !site) {

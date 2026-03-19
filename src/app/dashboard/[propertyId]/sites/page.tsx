@@ -109,6 +109,7 @@ async function SitesView({ propertyId }: { propertyId: string }) {
     .from('sites')
     .select('*')
     .eq('property_id', property.id)
+    .is('deleted_at', null)
     .order('site_number', { ascending: true })
 
   if (!sites || sites.length === 0) {

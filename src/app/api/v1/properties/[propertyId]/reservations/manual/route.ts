@@ -93,6 +93,7 @@ export async function POST(
       .from('sites')
       .select('id, site_name, property_id')
       .eq('id', data.siteId)
+      .is('deleted_at', null)
       .single()
 
     console.log('[Manual Reservation v1] Site lookup result:', { siteCheck, siteCheckError })

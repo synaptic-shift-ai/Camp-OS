@@ -307,6 +307,7 @@ export async function POST(
         .from('sites')
         .update(siteExtras)
         .eq('id', siteId)
+        .is('deleted_at', null)
     }
 
     // Convert domain entity to DTO

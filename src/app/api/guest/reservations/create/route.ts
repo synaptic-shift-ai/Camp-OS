@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       .eq('id', validatedInput.site_id)
       .eq('property_id', validatedInput.property_id) // Tenant isolation
       .eq('status', 'available')
+      .is('deleted_at', null)
       .single()
 
     if (siteError || !site) {

@@ -186,6 +186,7 @@ export async function calculateReservationPrice(
     .from('sites')
     .select('*')
     .eq('id', siteId)
+    .is('deleted_at', null)
     .single()
 
   if (siteError || !site) {

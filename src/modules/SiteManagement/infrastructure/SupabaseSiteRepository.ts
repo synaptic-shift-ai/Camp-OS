@@ -33,6 +33,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       .from('sites')
       .select('*') // Complete entity - NO selective fetching!
       .eq('id', id)
+      .is('deleted_at', null)
       .single()
 
     if (error || !data) {
@@ -51,6 +52,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       .select('*')
       .eq('property_id', propertyId)
       .eq('site_number', siteNumber)
+      .is('deleted_at', null)
       .single()
 
     if (error || !data) {
@@ -65,6 +67,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       .from('sites')
       .select('*')
       .eq('property_id', propertyId)
+      .is('deleted_at', null)
       .order('site_number', { ascending: true })
 
     if (error || !data) {
@@ -89,6 +92,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       .from('sites')
       .select('*', { count: 'exact' })
       .eq('property_id', propertyId)
+      .is('deleted_at', null)
 
     // Apply filters
     if (filters.status) {
@@ -130,6 +134,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       .select('*')
       .eq('property_id', propertyId)
       .eq('status', SiteStatus.AVAILABLE)
+      .is('deleted_at', null)
       .order('site_number', { ascending: true })
 
     if (error || !data) {
@@ -168,7 +173,12 @@ export class SupabaseSiteRepository implements ISiteRepository {
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await this.supabase.from('sites').delete().eq('id', id)
+    const now = new Date().toISOString()
+    const { error } = await this.supabase
+      .from('sites')
+      .update({ deleted_at: now, updated_at: now })
+      .eq('id', id)
+      .is('deleted_at', null)
 
     if (error) {
       throw new Error(`Failed to delete site: ${error.message}`)
@@ -184,6 +194,7 @@ export class SupabaseSiteRepository implements ISiteRepository {
       .select('id')
       .eq('property_id', propertyId)
       .eq('site_number', siteNumber)
+      .is('deleted_at', null)
       .single()
 
     return !error && data !== null

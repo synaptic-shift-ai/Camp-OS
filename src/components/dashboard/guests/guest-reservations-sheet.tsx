@@ -12,11 +12,23 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetHeader,
-  SheetTitle,
 } from '@/components/ui/sheet'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Loader2, CalendarDays, AlertCircle, Mail } from 'lucide-react'
+import {
+  Loader2,
+  CalendarDays,
+  AlertCircle,
+  BadgeCheck,
+  Calendar,
+  Phone,
+  MapPin,
+  Tent,
+  CreditCard,
+  UserRound,
+  Heart,
+  Baby,
+  TriangleAlert,
+} from 'lucide-react'
 import type { DashboardGuest } from '@/lib/dashboard/queries'
 import {
   AmericanExpressFlatRoundedIcon,
@@ -51,6 +63,60 @@ type PaymentCardDisplay = {
   last4: string
   exp_month: number
   exp_year: number
+}
+
+type ReservationPreview = {
+  siteName: string | null
+  siteNumber: string | null
+}
+
+type EmergencyContactDisplay = {
+  name: string
+  phone: string
+}
+
+type GuestAddressDisplay = {
+  street: string
+  city: string
+  state: string
+  zipCode: string
+  country: string
+}
+
+type SpousePartnerDisplay = {
+  firstName: string | null
+  lastName: string | null
+  email: string | null
+  phone: string | null
+  isAlternateContact: boolean
+}
+
+type ChildDisplay = {
+  firstName: string
+  dateOfBirth: string | null
+  specialNeedsAllergies: string | null
+}
+
+function mapChildren(value: unknown): ChildDisplay[] {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .filter((child) => child && typeof child === 'object' && typeof (child as { first_name?: unknown }).first_name === 'string')
+    .map((child) => {
+      const c = child as {
+        first_name: string
+        date_of_birth?: unknown
+        special_needs_allergies?: unknown
+      }
+      return {
+        firstName: c.first_name,
+        dateOfBirth: typeof c.date_of_birth === 'string' ? c.date_of_birth : null,
+        specialNeedsAllergies:
+          typeof c.special_needs_allergies === 'string'
+            ? c.special_needs_allergies
+            : null,
+      }
+    })
 }
 
 function PaymentCardLogo({ brand }: { brand: string }) {
@@ -97,6 +163,13 @@ function formatDate(iso: string) {
   })
 }
 
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 function formatMoney(dollars: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -125,7 +198,13 @@ export function GuestReservationsSheet({
   const [isLoading, setIsLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [guestDetailsLoading, setGuestDetailsLoading] = useState(false)
   const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
+  const [reservationPreview, setReservationPreview] = useState<ReservationPreview | null>(null)
+  const [emergencyContact, setEmergencyContact] = useState<EmergencyContactDisplay | null>(null)
+  const [guestAddress, setGuestAddress] = useState<GuestAddressDisplay | null>(null)
+  const [spousePartner, setSpousePartner] = useState<SpousePartnerDisplay | null>(null)
+  const [children, setChildren] = useState<ChildDisplay[]>([])
 
   useEffect(() => {
     if (!open || !propertyId || !guest?.id) return
@@ -135,6 +214,11 @@ export function GuestReservationsSheet({
     setFetchError(null)
     setReservations([])
     setPaymentCard(null)
+    setReservationPreview(null)
+    setEmergencyContact(null)
+    setGuestAddress(null)
+    setSpousePartner(null)
+    setChildren([])
 
     const url = `/api/v1/properties/${propertyId}/reservations?guestId=${encodeURIComponent(guest.id)}&limit=50`
     fetch(url)
@@ -173,36 +257,153 @@ export function GuestReservationsSheet({
   }, [open, guest?.id, propertyId])
 
   useEffect(() => {
-    const firstReservationId = reservations[0]?.id
+    if (!open || !guest?.id) return
+
+    let cancelled = false
+    setGuestDetailsLoading(true)
+
+    fetch(`/api/v1/guests/${guest.id}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        const ec = json?.data?.emergencyContact
+        if (
+          json?.success === true &&
+          ec &&
+          typeof ec.name === 'string' &&
+          ec.name.trim().length > 0 &&
+          typeof ec.phone === 'string' &&
+          ec.phone.trim().length > 0
+        ) {
+          setEmergencyContact({
+            name: ec.name,
+            phone: ec.phone,
+          })
+        }
+
+        const address = json?.data?.address
+        if (
+          json?.success === true &&
+          address &&
+          typeof address.street === 'string' &&
+          typeof address.city === 'string' &&
+          typeof address.state === 'string' &&
+          typeof address.zipCode === 'string' &&
+          typeof address.country === 'string' &&
+          [
+            address.street,
+            address.city,
+            address.state,
+            address.zipCode,
+            address.country,
+          ].some((value) => value.trim().length > 0)
+        ) {
+          setGuestAddress({
+            street: address.street,
+            city: address.city,
+            state: address.state,
+            zipCode: address.zipCode,
+            country: address.country,
+          })
+        }
+
+        const spouseFromGuest = json?.data?.spousePartner
+        if (
+          json?.success === true &&
+          spouseFromGuest &&
+          (typeof spouseFromGuest.firstName === 'string' ||
+            typeof spouseFromGuest.lastName === 'string' ||
+            typeof spouseFromGuest.email === 'string' ||
+            typeof spouseFromGuest.phone === 'string')
+        ) {
+          setSpousePartner({
+            firstName: typeof spouseFromGuest.firstName === 'string' ? spouseFromGuest.firstName : null,
+            lastName: typeof spouseFromGuest.lastName === 'string' ? spouseFromGuest.lastName : null,
+            email: typeof spouseFromGuest.email === 'string' ? spouseFromGuest.email : null,
+            phone: typeof spouseFromGuest.phone === 'string' ? spouseFromGuest.phone : null,
+            isAlternateContact: spouseFromGuest.isAlternateContact === true,
+          })
+        }
+      })
+      .catch(() => {
+        // Keep emergency contact null
+      })
+      .finally(() => {
+        if (!cancelled) setGuestDetailsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, guest?.id])
+
+  useEffect(() => {
+    const reservationIds = reservations.map((reservation) => reservation.id).filter(Boolean)
+    const firstReservationId = reservationIds[0]
     if (!open || !firstReservationId) return
 
     let cancelled = false
     setPreviewLoading(true)
     setPaymentCard(null)
+    setReservationPreview(null)
+    setChildren([])
 
-    fetch(`/api/v1/reservations/${firstReservationId}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (cancelled) return
-        const pc = json?.data?.payment_card
-        if (
-          json?.success === true &&
-          pc &&
-          typeof pc.last4 === 'string' &&
-          typeof pc.brand === 'string' &&
-          typeof pc.exp_month === 'number' &&
-          typeof pc.exp_year === 'number'
-        ) {
-          setPaymentCard({
-            brand: pc.brand,
-            last4: pc.last4,
-            exp_month: pc.exp_month,
-            exp_year: pc.exp_year,
-          })
+    const loadReservationPreview = async () => {
+      let childrenFromAnyReservation: ChildDisplay[] = []
+
+      for (let index = 0; index < reservationIds.length; index += 1) {
+        const reservationId = reservationIds[index]
+        try {
+          const res = await fetch(`/api/v1/reservations/${reservationId}`)
+          const json = await res.json()
+          if (cancelled || json?.success !== true) continue
+
+          if (index === 0) {
+            const pc = json?.data?.payment_card
+            if (
+              pc &&
+              typeof pc.last4 === 'string' &&
+              typeof pc.brand === 'string' &&
+              typeof pc.exp_month === 'number' &&
+              typeof pc.exp_year === 'number'
+            ) {
+              setPaymentCard({
+                brand: pc.brand,
+                last4: pc.last4,
+                exp_month: pc.exp_month,
+                exp_year: pc.exp_year,
+              })
+            }
+
+            const site = json?.data?.site
+            if (site && (typeof site.site_name === 'string' || typeof site.site_number === 'string')) {
+              setReservationPreview({
+                siteName: typeof site.site_name === 'string' ? site.site_name : null,
+                siteNumber: typeof site.site_number === 'string' ? site.site_number : null,
+              })
+            }
+          }
+
+          if (childrenFromAnyReservation.length === 0) {
+            childrenFromAnyReservation = mapChildren(json?.data?.children)
+          }
+
+          if (childrenFromAnyReservation.length > 0 && index > 0) {
+            break
+          }
+        } catch {
+          // Ignore detail failures and try next reservation
         }
-      })
+      }
+
+      if (!cancelled) {
+        setChildren(childrenFromAnyReservation)
+      }
+    }
+
+    loadReservationPreview()
       .catch(() => {
-        // Keep paymentCard null
+        // Keep preview values null on failure
       })
       .finally(() => {
         if (!cancelled) setPreviewLoading(false)
@@ -213,131 +414,328 @@ export function GuestReservationsSheet({
     }
   }, [open, reservations])
 
+  const latestReservation = reservations[0] ?? null
+  const guestStatus = latestReservation?.status === 'cancelled' ? 'Cancelled' : 'Verified'
+  const guestStatusClass =
+    latestReservation?.status === 'cancelled'
+      ? 'text-red-600 border-red-200 bg-red-50'
+      : 'text-emerald-700 border-emerald-200 bg-emerald-50'
+  const tripNights = latestReservation?.nights ?? 0
+  const siteLabel =
+    reservationPreview?.siteName?.trim() ||
+    reservationPreview?.siteNumber?.trim() ||
+    (latestReservation ? 'Site assigned' : 'No site')
+  const showInitialLoader =
+    open &&
+    (isLoading || guestDetailsLoading || (reservations.length > 0 && previewLoading))
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Reservations</SheetTitle>
-          <SheetDescription>
-            All bookings for this guest
-          </SheetDescription>
-        </SheetHeader>
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto p-0">
+        <SheetDescription className="sr-only">
+          Guest reservation profile details
+        </SheetDescription>
 
-        <div className="mt-4 rounded-lg border bg-muted/30 p-4 flex items-center justify-between">
-          <div className="flex items-start gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium">
-                {getInitials(guest.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="font-semibold text-foreground capitalize">{guest.name}</p>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-3.5 w-3.5" />
-                <span className="truncate">{guest.email}</span>
+        <div className="min-h-full bg-slate-100/80 p-4">
+          <div className="px-1 pb-2 pt-1">
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="text-xs bg-slate-700 text-white font-semibold uppercase">
+                  {getInitials(guest.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 justify-between">
+                  <p className="truncate text-xl font-semibold text-slate-900 capitalize">{guest.name}</p>
+                  <div className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${guestStatusClass}`}>
+                    <BadgeCheck className="h-3 w-3" />
+                    {guestStatus}
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">Guest Profile</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {guest.totalStays} stay{guest.totalStays !== 1 ? 's' : ''} total
-              </p>
             </div>
           </div>
 
-          <div className="text-md">
-            {previewLoading ? (
-              <span className="text-muted-foreground">Loading…</span>
-            ) : paymentCard ? (
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-flex h-7 w-10 items-center justify-center">
-                  <PaymentCardLogo brand={paymentCard.brand} />
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  **** **** **** {paymentCard.last4}
-                </span>
+          {showInitialLoader && (
+            <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          <div className={showInitialLoader ? 'hidden' : 'space-y-3'}>
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Trip Details</p>
+                {latestReservation ? (
+                  <p className={`text-xs font-medium ${statusTextColors[latestReservation.status] ?? 'text-slate-500'}`}>
+                    {statusLabels[latestReservation.status] ?? latestReservation.status.replace('_', ' ')}
+                  </p>
+                ) : null}
               </div>
-            ) : (
-              <span className="text-muted-foreground">
-                No card payment on file for this guest
-              </span>
-            )}
-          </div>
-        </div>
-
-        {isLoading && (
-          <div className="mt-6 flex flex-col items-center justify-center gap-3 py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading reservations…</p>
-          </div>
-        )}
-
-        {fetchError && (
-          <div className="mt-6 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {fetchError}
-          </div>
-        )}
-
-        {!isLoading && !fetchError && reservations.length === 0 && (
-          <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-            <CalendarDays className="mb-3 h-12 w-12 text-muted-foreground/50" />
-            <p className="text-sm font-medium text-foreground">No reservations</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              This guest has no reservations yet.
-            </p>
-          </div>
-        )}
-
-        {!isLoading && reservations.length > 0 && (
-          <div className="mt-6 space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Reservations ({reservations.length})
-            </h3>
-            <div className="space-y-3">
-              {reservations.map((res) => (
-                <div
-                  key={res.id}
-                  className="rounded-lg border bg-card p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
+              {latestReservation ? (
+                <div className="mt-3 space-y-3">
+                  <div className="flex items-start gap-2 text-sm text-slate-700">
+                    <Calendar className="mt-0.5 h-4 w-4 text-slate-500" />
                     <div>
-                      <p className="font-mono text-sm font-semibold tracking-wide text-foreground">
-                        {res.confirmationNumber}
+                      <p className="font-medium text-slate-900">
+                        {formatDate(latestReservation.checkInDate)} - {formatDate(latestReservation.checkOutDate)}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(res.checkInDate)} – {formatDate(res.checkOutDate)}
-                        <span className="ml-1.5 text-muted-foreground/80">
-                          · {res.nights} night{res.nights !== 1 ? 's' : ''}
-                        </span>
+                      <p className="text-xs text-slate-500">
+                        {tripNights} night{tripNights !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    <span
-                      className={`shrink-0 text-xs font-medium capitalize ${statusTextColors[res.status] ?? 'text-muted-foreground'}`}
-                    >
-                      {statusLabels[res.status] ?? res.status.replace('_', ' ')}
-                    </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-3 rounded-md bg-muted/40 p-3 text-sm">
+                  <div className="flex items-start gap-2 text-sm text-slate-700">
+                    <Tent className="mt-0.5 h-4 w-4 text-slate-500" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Total</p>
-                      <p className="font-medium">{formatMoney(res.totalAmountDollars)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Paid</p>
-                      <p className="font-medium">{formatMoney(res.paidAmountDollars)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Balance</p>
-                      <p className={`font-medium ${res.balanceDollars > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
-                        {res.balanceDollars > 0
-                          ? `${formatMoney(res.balanceDollars)} owed`
-                          : '—'}
-                      </p>
+                      <p className="font-medium text-slate-900">{siteLabel}</p>
+                      <p className="text-xs text-slate-500">{latestReservation.confirmationNumber}</p>
                     </div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">No reservation details available.</p>
+              )}
             </div>
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Emergency Contact</p>
+              {emergencyContact ? (
+                <div className="mt-3 space-y-1 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <UserRound className="h-4 w-4 text-slate-500" />
+                    <p className="font-medium text-slate-900">{emergencyContact.name}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Phone className="h-4 w-4 text-slate-500" />
+                    <p className="font-medium text-slate-900">{emergencyContact.phone}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-500">No emergency contact on file.</p>
+              )}
+            </div>
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Address</p>
+              {guestAddress ? (
+                <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                  <MapPin className="mt-0.5 h-4 w-4 text-slate-500" />
+                  <div className="leading-5">
+                    {guestAddress.street.trim().length > 0 ? (
+                      <p className="text-slate-900">{guestAddress.street}</p>
+                    ) : null}
+                    {(guestAddress.city.trim().length > 0 ||
+                      guestAddress.state.trim().length > 0 ||
+                      guestAddress.zipCode.trim().length > 0) ? (
+                      <p className="text-slate-700">
+                        {[guestAddress.city, guestAddress.state]
+                          .map((value) => value.trim())
+                          .filter(Boolean)
+                          .join(', ')}
+                        {guestAddress.zipCode.trim().length > 0
+                          ? ` ${guestAddress.zipCode.trim()}`
+                          : ''}
+                      </p>
+                    ) : null}
+                    {guestAddress.country.trim().length > 0 ? (
+                      <p className="text-slate-500">{guestAddress.country}</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                  <MapPin className="mt-0.5 h-4 w-4 text-slate-500" />
+                  <p className="text-slate-500">Address not available.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Primary Guest</p>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-[11px] text-slate-500">Name</p>
+                  <p className="text-sm font-medium text-slate-900 capitalize">{guest.name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-500">Stays</p>
+                  <p className="text-sm font-medium text-slate-900">{guest.totalStays}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[11px] text-slate-500">Email</p>
+                  <p className="text-sm font-medium text-slate-900 break-all">{guest.email}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Payment Card</p>
+              <div className="mt-3">
+                {previewLoading ? (
+                  <span className="text-sm text-slate-500">Loading card...</span>
+                ) : paymentCard ? (
+                  <div className="inline-flex items-center gap-2">
+                    <span className="inline-flex h-7 w-10 items-center justify-center">
+                      <PaymentCardLogo brand={paymentCard.brand} />
+                    </span>
+                    <span className="font-mono text-xs text-slate-600">
+                      **** **** **** {paymentCard.last4}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+                    <CreditCard className="h-4 w-4" />
+                    No card payment on file
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-50">
+                    <Heart className="h-4 w-4 text-rose-500" />
+                  </span>
+                  <p className="text-sm font-semibold text-slate-800">Spouse / Partner</p>
+                </div>
+                {spousePartner?.isAlternateContact ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                    Primary Alternate
+                  </span>
+                ) : null}
+              </div>
+              {spousePartner ? (
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-[11px] text-slate-500">First Name</p>
+                    <p className="text-sm font-medium text-slate-900">{spousePartner.firstName ?? '--'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-slate-500">Last Name</p>
+                    <p className="text-sm font-medium text-slate-900">{spousePartner.lastName ?? '--'}</p>
+                  </div>
+                  {spousePartner.phone ? (
+                    <div>
+                      <p className="text-[11px] text-slate-500">Phone</p>
+                      <p className="text-sm font-medium text-slate-900">{spousePartner.phone}</p>
+                    </div>
+                  ) : null}
+                  {spousePartner.email ? (
+                    <div>
+                      <p className="text-[11px] text-slate-500">Email</p>
+                      <p className="text-sm font-medium text-slate-900 break-all">{spousePartner.email}</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-500">No spouse / partner on file.</p>
+              )}
+            </div>
+
+            {children.length > 0 && (
+              <div className="rounded-xl border bg-white p-4 shadow-sm">
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-50">
+                    <Baby className="h-4 w-4 text-violet-500" />
+                  </span>
+                  <p className="text-sm font-semibold text-slate-800">Children ({children.length})</p>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {children.map((child, index) => (
+                    <div
+                      key={`${child.firstName}-${index}`}
+                      className={`rounded-lg border p-3 ${child.specialNeedsAllergies ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200 bg-white'}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-900">{child.firstName}</p>
+                      </div>
+                      {child.dateOfBirth ? (
+                        <p className="text-xs text-slate-500">DOB: {formatDate(child.dateOfBirth)}</p>
+                      ) : null}
+                      {child.specialNeedsAllergies ? (
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-900">
+                          <TriangleAlert className="h-3 w-3" />
+                          {child.specialNeedsAllergies}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {!showInitialLoader && fetchError && (
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {fetchError}
+            </div>
+          )}
+
+          {!showInitialLoader && !isLoading && !fetchError && reservations.length === 0 && (
+            <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+              <CalendarDays className="mb-3 h-12 w-12 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-foreground">No reservations</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This guest has no reservations yet.
+              </p>
+            </div>
+          )}
+
+          {!showInitialLoader && !isLoading && reservations.length > 0 && (
+            <div className="mt-3 rounded-xl border bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-800">
+                Reservations ({reservations.length})
+              </h3>
+              <div className="mt-3 space-y-3">
+                {reservations.map((res) => (
+                  <div
+                    key={res.id}
+                    className="rounded-lg border border-slate-200 bg-slate-50/40 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-sm font-semibold tracking-wide text-slate-900">
+                          {res.confirmationNumber}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {formatDateShort(res.checkInDate)} - {formatDateShort(res.checkOutDate)} · {res.nights}{' '}
+                          night{res.nights !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-xs font-medium capitalize ${statusTextColors[res.status] ?? 'text-muted-foreground'}`}
+                      >
+                        {statusLabels[res.status] ?? res.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-white p-2 text-sm">
+                      <div>
+                        <p className="text-[11px] text-slate-500">Total</p>
+                        <p className="font-semibold text-slate-900">{formatMoney(res.totalAmountDollars)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-slate-500">Paid</p>
+                        <p className="font-semibold text-slate-900">{formatMoney(res.paidAmountDollars)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-slate-500">Balance</p>
+                        <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                          {res.balanceDollars > 0
+                            ? `${formatMoney(res.balanceDollars)}`
+                            : '--'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   )

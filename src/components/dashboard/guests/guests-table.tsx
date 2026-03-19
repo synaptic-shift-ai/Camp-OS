@@ -1,9 +1,9 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Mail, Phone } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Table,
   TableBody,
@@ -15,6 +15,7 @@ import {
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { GuestActions } from "./guest-actions"
+import { GuestReservationsSheet } from "./guest-reservations-sheet"
 import type { DashboardGuest } from "@/lib/dashboard/queries"
 import { formatMoney, getInitials } from "@/lib/utils"
 
@@ -37,6 +38,8 @@ export function GuestsTable({
 }: GuestsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [selectedGuest, setSelectedGuest] = useState<DashboardGuest | null>(null)
+  const [reservationsOpen, setReservationsOpen] = useState(false)
 
   if (!guests.length) {
     return (
@@ -77,6 +80,11 @@ export function GuestsTable({
     })
   }
 
+  const handleViewReservations = (guest: DashboardGuest) => {
+    setSelectedGuest(guest)
+    setReservationsOpen(true)
+  }
+
   return (
     <>
       <div className="relative">
@@ -103,7 +111,11 @@ export function GuestsTable({
             </TableHeader>
             <TableBody>
               {guests.map((guest) => (
-                <TableRow key={guest.id} className="h-8">
+                <TableRow
+                  key={guest.id}
+                  className="h-8 cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleViewReservations(guest)}
+                >
                   <TableCell className="py-1.5">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -141,8 +153,12 @@ export function GuestsTable({
                       })
                       : "N/A"}
                   </TableCell>
-                  <TableCell className="py-0.5">
-                    <GuestActions guest={guest} propertyId={propertyId} />
+                  <TableCell className="py-0.5" onClick={(event) => event.stopPropagation()}>
+                    <GuestActions
+                      guest={guest}
+                      propertyId={propertyId}
+                      onViewReservations={handleViewReservations}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -174,6 +190,15 @@ export function GuestsTable({
           windowSize={4}
         />
       </div>
+
+      {selectedGuest && (
+        <GuestReservationsSheet
+          open={reservationsOpen}
+          onOpenChange={setReservationsOpen}
+          guest={selectedGuest}
+          propertyId={propertyId}
+        />
+      )}
     </>
   )
 }

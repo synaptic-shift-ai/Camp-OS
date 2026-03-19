@@ -25,9 +25,10 @@ import type { DashboardGuest } from '@/lib/dashboard/queries'
 interface GuestActionsProps {
   guest: DashboardGuest
   propertyId: string
+  onViewReservations?: (guest: DashboardGuest) => void
 }
 
-export function GuestActions({ guest, propertyId }: GuestActionsProps) {
+export function GuestActions({ guest, propertyId, onViewReservations }: GuestActionsProps) {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [reservationsOpen, setReservationsOpen] = useState(false)
@@ -36,14 +37,22 @@ export function GuestActions({ guest, propertyId }: GuestActionsProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={(event) => event.stopPropagation()}>
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setReservationsOpen(true)}>
+          <DropdownMenuItem
+            onSelect={() => {
+              if (onViewReservations) {
+                onViewReservations(guest)
+                return
+              }
+              setReservationsOpen(true)
+            }}
+          >
             View Reservations
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setEditOpen(true)}>
@@ -59,12 +68,14 @@ export function GuestActions({ guest, propertyId }: GuestActionsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <GuestReservationsSheet
-        open={reservationsOpen}
-        onOpenChange={setReservationsOpen}
-        guest={guest}
-        propertyId={propertyId}
-      />
+      {!onViewReservations && (
+        <GuestReservationsSheet
+          open={reservationsOpen}
+          onOpenChange={setReservationsOpen}
+          guest={guest}
+          propertyId={propertyId}
+        />
+      )}
       <EditGuestDialog open={editOpen} onOpenChange={setEditOpen} guest={guest} />
       <DeleteGuestDialog open={deleteOpen} onOpenChange={setDeleteOpen} guest={guest} />
     </>

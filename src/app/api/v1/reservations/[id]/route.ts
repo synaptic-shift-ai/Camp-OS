@@ -184,6 +184,20 @@ export async function GET(
       .limit(1)
       .maybeSingle()
 
+    const { data: reservationHousehold } = await supabase
+      .from('reservations')
+      .select('spouse_first_name, spouse_last_name, spouse_email, spouse_phone, spouse_is_alternate_contact')
+      .eq('id', id)
+      .eq('property_id', reservation.propertyId)
+      .maybeSingle()
+
+    const { data: reservationChildren } = await supabase
+      .from('reservation_children')
+      .select('first_name, date_of_birth, special_needs_allergies')
+      .eq('reservation_id', id)
+      .eq('property_id', reservation.propertyId)
+      .order('created_at', { ascending: true })
+
     const paymentIntentId = resolvePaymentIntentIdForReservation(
       latestPayment?.stripe_payment_id,
       reservation.notes
@@ -229,6 +243,16 @@ export async function GET(
       site: site || undefined,
       payment_card,
       payment_method: latestPayment?.payment_method ?? null,
+      spouse_partner: reservationHousehold
+        ? {
+          first_name: reservationHousehold.spouse_first_name,
+          last_name: reservationHousehold.spouse_last_name,
+          email: reservationHousehold.spouse_email,
+          phone: reservationHousehold.spouse_phone,
+          is_alternate_contact: reservationHousehold.spouse_is_alternate_contact,
+        }
+        : null,
+      children: reservationChildren ?? [],
     })
   } catch (err: unknown) {
     console.error('[Reservations API v1] GET by ID error:', err)

@@ -77,7 +77,46 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       )
     }
 
-    return success(guestDTO)
+    const { data: guestRow } = await supabase
+      .from('guests')
+      .select('address, city, state, zip_code, country, spouse_first_name, spouse_last_name, spouse_email, spouse_phone, spouse_is_alternate_contact')
+      .eq('id', id)
+      .eq('property_id', guestDTO.propertyId)
+      .maybeSingle()
+
+    const fallbackAddress = guestRow
+      ? {
+          street: guestRow.address ?? '',
+          city: guestRow.city ?? '',
+          state: guestRow.state ?? '',
+          zipCode: guestRow.zip_code ?? '',
+          country: guestRow.country ?? '',
+        }
+      : null
+
+    const hasFallbackAddress = fallbackAddress
+      ? [
+          fallbackAddress.street,
+          fallbackAddress.city,
+          fallbackAddress.state,
+          fallbackAddress.zipCode,
+          fallbackAddress.country,
+        ].some((value) => value.trim().length > 0)
+      : false
+
+    return success({
+      ...guestDTO,
+      address: guestDTO.address ?? (hasFallbackAddress ? fallbackAddress : null),
+      spousePartner: guestRow
+        ? {
+            firstName: guestRow.spouse_first_name,
+            lastName: guestRow.spouse_last_name,
+            email: guestRow.spouse_email,
+            phone: guestRow.spouse_phone,
+            isAlternateContact: guestRow.spouse_is_alternate_contact ?? false,
+          }
+        : null,
+    })
   } catch (err: any) {
     console.error('[Guests API v1] GET by ID error:', err)
 

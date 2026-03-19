@@ -80,6 +80,7 @@ function AvailabilityResultsContent() {
             num_adults: adults,
             num_children: children,
             site_type: siteTypeFilter || undefined,
+            respect_property_enabled_rate_types: true,
           }),
         })
 

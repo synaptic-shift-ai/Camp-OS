@@ -728,7 +728,7 @@ export default function NewReservationPage() {
                       <AlertDescription>
                         <div className="flex items-center justify-between">
                           {(() => {
-                            // Use same effective stay type and calculation as Pricing Summary (weekly when 7+ nights, monthly when 28+)
+                            // Use same effective stay type and calculation as Pricing Summary.
                             const STAY_MIN: Record<BookingType, number> = {
                               nightly: 1,
                               weekly: 7,
@@ -736,17 +736,20 @@ export default function NewReservationPage() {
                               seasonal: 28,
                               long_term: 28,
                             }
+                            const hasWeekly = (selectedSite.weekly_rate_cents ?? 0) > 0
+                            const hasMonthly = (selectedSite.monthly_rate_cents ?? 0) > 0
+
                             const pricingEffectiveStayType: BookingType =
                               stayType === 'nightly'
                                 ? totalNights >= STAY_MIN.monthly
-                                  ? 'monthly'
+                                  ? (hasMonthly ? 'monthly' : hasWeekly ? 'weekly' : 'nightly')
                                   : totalNights >= STAY_MIN.weekly
-                                    ? 'weekly'
+                                    ? (hasWeekly ? 'weekly' : 'nightly')
                                     : 'nightly'
                                 : stayType === 'monthly' && totalNights >= STAY_MIN.monthly
-                                  ? 'monthly'
+                                  ? (hasMonthly ? 'monthly' : hasWeekly ? 'weekly' : 'nightly')
                                   : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_MIN.weekly
-                                    ? 'weekly'
+                                    ? (hasWeekly ? 'weekly' : 'nightly')
                                     : stayType
 
                             const nightlyCents = selectedSite.base_price_per_night
@@ -754,7 +757,7 @@ export default function NewReservationPage() {
                             let detailLabel: string
 
                             if (pricingEffectiveStayType === 'monthly') {
-                              const monthlyCents = selectedSite.monthly_rate_cents ?? selectedSite.base_price_per_night * 28
+                              const monthlyCents = selectedSite.monthly_rate_cents ?? 0
                               const fullMonths = Math.floor(totalNights / 28)
                               const remainderNights = totalNights % 28
                               totalCents = fullMonths * monthlyCents + remainderNights * nightlyCents

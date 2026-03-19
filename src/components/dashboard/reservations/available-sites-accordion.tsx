@@ -56,11 +56,14 @@ export function getDisplayPrice(
         amountCents: site.weekly_rate_cents ?? site.base_price_per_night * 7,
         unitLabel: '/week',
       }
-    case 'monthly':
-      return {
-        amountCents: site.monthly_rate_cents ?? site.base_price_per_night * 28,
-        unitLabel: '/month',
-      }
+    case 'monthly': {
+      const monthly = site.monthly_rate_cents ?? 0
+      if (monthly <= 0) return { amountCents: monthly, unitLabel: '/month' }
+      
+      // fallback to weekly display when monthly is missing/0
+      const weekly = site.weekly_rate_cents ?? site.base_price_per_night * 7
+      return { amountCents: weekly, unitLabel: '/week' }
+    }
     default:
       return { amountCents: site.base_price_per_night, unitLabel: '/night' }
   }

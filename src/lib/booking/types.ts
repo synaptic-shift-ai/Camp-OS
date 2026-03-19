@@ -452,6 +452,12 @@ export interface AvailabilitySearchParams {
   amenities?: string[] // Match against DB amenities array
   /** Filter by reservation type (nightly, weekly, monthly, seasonal) */
   reservation_type?: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
+  /**
+   * Guest search: when true, weekly/monthly amounts from site_type_config are only used if the
+   * property also has weekly/monthly enabled in Rate Types. Prevents public UI from showing
+   * weekly/monthly breakdown when the campground only sells nightly at the property level.
+   */
+  respect_property_enabled_rate_types?: boolean
 }
 
 /**

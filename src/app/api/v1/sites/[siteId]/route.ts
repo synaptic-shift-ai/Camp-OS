@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { getPricingSourceType, serializePricingSourceForPricingOverride } from '@/lib/site-pricing-source'
 
 /**
  * GET /api/v1/sites/[siteId]
@@ -114,14 +115,66 @@ export async function PUT(
 
     const body = await request.json()
 
-    // Handle enabled_reservation_types_override - null means use property defaults
+    // Handle enabled_reservation_types_override - in the new encoding this is the
+    // manual checkbox array. Backward compat: legacy encoding may contain {source: ...}.
     // Accept both camelCase and snake_case from client
-    const reservationTypesOverride =
+    let reservationTypesOverride =
       body.enabledReservationTypesOverride !== undefined
         ? body.enabledReservationTypesOverride
         : body.enabled_reservation_types_override !== undefined
           ? body.enabled_reservation_types_override
           : existingSite.enabled_reservation_types_override
+
+    // Handle pricing_override (new source selector)
+    const pricingOverride =
+      body.pricingOverride !== undefined
+        ? body.pricingOverride
+        : body.pricing_override !== undefined
+          ? body.pricing_override
+          : existingSite.pricing_override
+
+    const existingPricingOverride =
+      existingSite.pricing_override != null && typeof existingSite.pricing_override === 'object'
+        ? (existingSite.pricing_override as Record<string, unknown>)
+        : null
+
+    // Backward compat: if pricingOverride is missing but enabledReservationTypesOverride
+    // was using the legacy "{ source: ... }" encoding, derive pricing_override.source.
+    let effectivePricingOverride = pricingOverride
+    if (body.pricingOverride === undefined && body.pricing_override === undefined) {
+      const derivedSource = (() => {
+        const parsedSource = getPricingSourceType(reservationTypesOverride)
+        return parsedSource
+      })()
+
+      // If reservationTypesOverride is an object (legacy non-manual), we can't infer manual types.
+      // Store the derived pricing source and normalize enabled_reservation_types_override to [].
+      if (!Array.isArray(reservationTypesOverride) && derivedSource !== 'manual') {
+        effectivePricingOverride = {
+          ...(existingPricingOverride ?? {}),
+          ...serializePricingSourceForPricingOverride(derivedSource),
+        }
+        reservationTypesOverride = []
+      }
+    }
+
+    // Merge the new `source` field into existing pricing_override JSON (if any),
+    // to avoid clobbering unrelated pricing override keys.
+    if (
+      body.pricingOverride !== undefined ||
+      body.pricing_override !== undefined
+    ) {
+      const overrideObj =
+        pricingOverride != null && typeof pricingOverride === 'object'
+          ? (pricingOverride as Record<string, unknown>)
+          : null
+      if (overrideObj) {
+        effectivePricingOverride = {
+          ...(existingPricingOverride ?? {}),
+          ...overrideObj,
+        }
+      }
+    }
 
     // Handle seasonal_rate_cents - accept camelCase or snake_case
     const seasonalRateCents =
@@ -203,6 +256,7 @@ export async function PUT(
         availability_rules: resolvedAvailabilityRules,
         site_images: body.images ?? body.site_images ?? existingSite.site_images,
         enabled_reservation_types_override: reservationTypesOverride,
+        pricing_override: effectivePricingOverride,
         seasonal_rate_cents: seasonalRateCents,
         default_reservation_type: defaultReservationType,
         updated_at: new Date().toISOString(),

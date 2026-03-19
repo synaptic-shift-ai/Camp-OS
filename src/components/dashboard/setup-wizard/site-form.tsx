@@ -511,15 +511,17 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
                 setValue("use_property_reservation_types", value !== "manual", { shouldDirty: true })
 
                 if (value !== "manual") {
-                  setValue("enabled_reservation_types_override", undefined)
                   setValue("default_reservation_type", undefined)
                   await trigger()
                   return
                 }
 
                 // Manual: set reservation types defaults. Keep manual pricing fields as-is (don't overwrite).
-                const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
-                setValue("enabled_reservation_types_override", defaultTypes, { shouldDirty: true })
+                const current = enabledReservationTypesOverride ?? []
+                if (current.length === 0) {
+                  const defaultTypes = propertyDefaults?.enabled_reservation_types || ["nightly"]
+                  setValue("enabled_reservation_types_override", defaultTypes, { shouldDirty: true })
+                }
                 setValue("default_reservation_type", propertyDefaults?.default_reservation_type)
                 await trigger()
               }}

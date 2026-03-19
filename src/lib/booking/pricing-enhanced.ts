@@ -222,7 +222,7 @@ export async function calculateReservationPriceEnhanced(
   // When site does not use manual pricing (property_default or site_type_default),
   // use property's reservation_type_config rates for base, weekly, and monthly pricing
   const usesPropertyDefaults =
-    getPricingSourceType((typedSite as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override) !== 'manual'
+    getPricingSourceType((typedSite as { pricing_override?: unknown }).pricing_override, (typedSite as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override) !== 'manual'
   const propertyNightlyCents = reservationTypesConfig?.nightly?.rate_cents ?? null
   const propertyWeeklyCents = reservationTypesConfig?.weekly?.rate_cents ?? null
   const propertyMonthlyCents = reservationTypesConfig?.monthly?.rate_cents ?? null

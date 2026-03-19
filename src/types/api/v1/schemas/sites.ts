@@ -138,6 +138,13 @@ export const CreateSiteRequestSchema = z.object({
     ])
     .nullable()
     .optional(),
+  // Pricing source selector stored in `sites.pricing_override`
+  pricingOverride: z
+    .object({
+      source: z.enum(['manual', 'property_default', 'site_type_default']),
+    })
+    .nullable()
+    .optional(),
   // Default reservation type for this site (overrides property default)
   defaultReservationType: ReservationTypeSchema.nullable().optional(),
   // Rate overrides in cents
@@ -171,6 +178,13 @@ export const UpdateSiteRequestSchema = z.object({
       z.object({ source: z.literal('site_type_default') }),
       z.array(ReservationTypeSchema),
     ])
+    .nullable()
+    .optional(),
+  // Pricing source selector stored in `sites.pricing_override`
+  pricingOverride: z
+    .object({
+      source: z.enum(['manual', 'property_default', 'site_type_default']),
+    })
     .nullable()
     .optional(),
   // Default reservation type for this site (overrides property default)

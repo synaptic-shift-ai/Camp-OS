@@ -30,8 +30,9 @@ import {
   resolveRateDiscountsConfig,
   parseReservationTypesConfigFromDB,
   resolveReservationTypeRate,
+  parseEnabledReservationTypesFromDB,
 } from '@/lib/config/resolution'
-import { getPricingSourceType } from '@/lib/site-pricing-source'
+import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
 import type { RateDiscountsConfig } from '@/lib/config/types'
 import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
 
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, site_number, site_name, site_type, base_price, weekly_rate_cents, monthly_rate_cents, max_occupancy, max_vehicles, enabled_reservation_types_override')
+      .select('id, site_number, site_name, site_type, base_price, weekly_rate_cents, monthly_rate_cents, max_occupancy, max_vehicles, enabled_reservation_types_override, pricing_override')
       .eq('id', validatedInput.site_id)
       .eq('property_id', validatedInput.property_id) // Tenant isolation
       .eq('status', 'available')
@@ -162,10 +163,12 @@ export async function POST(request: NextRequest) {
     const reservationTypeConfig = parseReservationTypesConfigFromDB(
       (property as { reservation_type_config?: unknown } | null)?.reservation_type_config ?? null
     )
-    const pricingSource = getPricingSourceType((site as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override)
+    const pricingSource = getPricingSourceType((site as { pricing_override?: unknown }).pricing_override, (site as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override)
     const usesManual = pricingSource === 'manual'
     const usesSiteTypeDefault = pricingSource === 'site_type_default'
 
+    let siteTypeHasWeekly = false
+    let siteTypeHasMonthly = false
     let effectiveOverride: Partial<Record<'nightly' | 'weekly' | 'monthly' | 'seasonal', number>> | null = null
     if (usesSiteTypeDefault) {
       type SiteTypeRates = Record<string, { nightly?: { rate_cents: number | null }; weekly?: { rate_cents: number | null }; monthly?: { rate_cents: number | null }; seasonal?: { rate_cents: number | null } }>
@@ -175,6 +178,8 @@ export async function POST(request: NextRequest) {
       const ratesKey = Object.keys(map).find((k) => k.toLowerCase() === st) ?? (site.site_type ?? '')
       const rates = ratesKey ? map[ratesKey] : null
       if (rates) {
+        siteTypeHasWeekly = rates.weekly?.rate_cents != null && rates.weekly.rate_cents > 0
+        siteTypeHasMonthly = rates.monthly?.rate_cents != null && rates.monthly.rate_cents > 0
         effectiveOverride = {}
         if (rates.nightly?.rate_cents != null) effectiveOverride.nightly = rates.nightly.rate_cents
         if (rates.weekly?.rate_cents != null) effectiveOverride.weekly = rates.weekly.rate_cents
@@ -208,6 +213,26 @@ export async function POST(request: NextRequest) {
       effectiveOverride,
       fallbackRates
     )
+
+    const propertyEnabledTypes = parseEnabledReservationTypesFromDB(
+      (property as { enabled_reservation_types?: unknown }).enabled_reservation_types
+    )
+    const manualTypes = getManualOverrideTypes(
+      (site as { pricing_override?: unknown }).pricing_override,
+      (site as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override
+    )
+    const weeklyEnabled = usesManual
+      ? (manualTypes?.includes('weekly') ?? false)
+      : usesSiteTypeDefault
+        ? siteTypeHasWeekly || propertyEnabledTypes.includes('weekly')
+        : propertyEnabledTypes.includes('weekly')
+    const monthlyEnabled = usesManual
+      ? (manualTypes?.includes('monthly') ?? false)
+      : usesSiteTypeDefault
+        ? siteTypeHasMonthly || propertyEnabledTypes.includes('monthly')
+        : propertyEnabledTypes.includes('monthly')
+    const weeklyForGuestLabel = weeklyEnabled ? effectiveWeeklyCents : effectiveNightlyCents * 7
+    const monthlyForGuestLabel = monthlyEnabled ? effectiveMonthlyCents : effectiveNightlyCents * 28
 
     // ========================================================================
     // Step 3: Check for existing guest by email (need guest_id for next check)
@@ -249,8 +274,8 @@ export async function POST(request: NextRequest) {
         const { subtotalCents: existingSubtotalCents, basePriceLabel: existingBasePriceLabel, rateType: existingRateType } = getBaseSubtotalAndLabel(
           numberOfNights,
           effectiveNightlyCents,
-          effectiveWeeklyCents !== effectiveNightlyCents * 7 ? effectiveWeeklyCents : null,
-          effectiveMonthlyCents !== effectiveNightlyCents * 28 ? effectiveMonthlyCents : null
+          weeklyForGuestLabel !== effectiveNightlyCents * 7 ? weeklyForGuestLabel : null,
+          monthlyForGuestLabel !== effectiveNightlyCents * 28 ? monthlyForGuestLabel : null
         )
         const priceBreakdown = calculatePriceBreakdown({
           basePricePerNight: effectiveNightlyCents,
@@ -425,8 +450,8 @@ export async function POST(request: NextRequest) {
     const { subtotalCents, basePriceLabel, rateType } = getBaseSubtotalAndLabel(
       numberOfNights,
       effectiveNightlyCents,
-      effectiveWeeklyCents !== effectiveNightlyCents * 7 ? effectiveWeeklyCents : null,
-      effectiveMonthlyCents !== effectiveNightlyCents * 28 ? effectiveMonthlyCents : null
+      weeklyForGuestLabel !== effectiveNightlyCents * 7 ? weeklyForGuestLabel : null,
+      monthlyForGuestLabel !== effectiveNightlyCents * 28 ? monthlyForGuestLabel : null
     )
     const priceBreakdown = calculatePriceBreakdown({
       basePricePerNight: effectiveNightlyCents,

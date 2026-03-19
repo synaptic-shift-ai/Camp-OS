@@ -74,7 +74,7 @@ export default async function PropertyBookingPage({
 
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description, site_images, images, enabled_reservation_types_override, weekly_rate_cents, monthly_rate_cents")
+    .select("id, site_name, site_number, site_type, base_price, max_occupancy, amenities, description, site_images, images, enabled_reservation_types_override, weekly_rate_cents, monthly_rate_cents, pricing_override")
     .eq("property_id", property.id)
 
   const { data: recentReservations } = await supabase
@@ -233,16 +233,29 @@ export default async function PropertyBookingPage({
     ? (sites ?? []).filter((s) => allowedSiteTypes.includes((s.site_type || "other").toLowerCase()))
     : (sites ?? [])
 
+  const enabledTypesRaw = (property as { enabled_reservation_types?: unknown }).enabled_reservation_types
+  const enabledTypes = Array.isArray(enabledTypesRaw) ? (enabledTypesRaw as string[]) : []
+  const propertyNightlyEnabled = enabledTypes.includes('nightly')
+
   function effectiveNightlyCentsForSite(s: (typeof sitesToShow)[number]): number {
-    const pricingSource = getPricingSourceType((s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override)
+    const pricingSource = getPricingSourceType(
+      (s as { pricing_override?: unknown }).pricing_override,
+      (s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override
+    )
     if (pricingSource === 'site_type_default') {
       const st = (s.site_type ?? '').toLowerCase()
       const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (s.site_type ?? '')
       const rates = key ? siteTypeRatesMap[key] : null
-      return rates?.nightly?.rate_cents ?? reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+      return (
+        rates?.nightly?.rate_cents ??
+        (propertyNightlyEnabled ? reservationTypeConfig.nightly?.rate_cents : null) ??
+        (s.base_price ?? 0)
+      )
     }
     if (pricingSource === 'property_default') {
-      return reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0)
+      return propertyNightlyEnabled
+        ? (reservationTypeConfig.nightly?.rate_cents ?? (s.base_price ?? 0))
+        : (s.base_price ?? 0)
     }
     return s.base_price ?? 0
   }

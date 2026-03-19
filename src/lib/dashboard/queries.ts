@@ -29,6 +29,7 @@ type DbGuest = Database['public']['Tables']['guests']['Row']
 /** Site row as returned from join; may include enabled_reservation_types_override from migration */
 type SiteWithOverride = DbSite & {
   enabled_reservation_types_override?: string[] | null
+  pricing_override?: unknown
   weekly_rate_cents?: number | null
   monthly_rate_cents?: number | null
 }
@@ -52,7 +53,10 @@ function getEffectiveRatesForReservation(
     }
   }
 
-  const usesPropertyDefaults = getPricingSourceType(site.enabled_reservation_types_override) !== 'manual'
+  const usesPropertyDefaults = getPricingSourceType(
+    site.pricing_override,
+    site.enabled_reservation_types_override
+  ) !== 'manual'
 
   if (usesPropertyDefaults && propertyConfig) {
     const nightly =
@@ -244,6 +248,7 @@ export async function getReservations(
         base_price,
         weekly_rate_cents,
         monthly_rate_cents,
+        pricing_override,
         enabled_reservation_types_override,
         site_type
       )
@@ -390,6 +395,7 @@ export async function getReservation(
         base_price,
         weekly_rate_cents,
         monthly_rate_cents,
+        pricing_override,
         enabled_reservation_types_override
       )
     `

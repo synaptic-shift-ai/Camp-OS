@@ -155,11 +155,28 @@ export async function GET(
     // Convert domain entities to DTOs
     const siteDTOs = toSiteDTOs(result.sites)
 
+    // Include site-level pricing source selector + manual reservation type indicator.
+    // These live on raw DB columns and are not part of the modular domain DTO.
+    const siteIds = siteDTOs.map((s) => s.id)
+    const { data: extraSiteRows } = await supabase
+      .from('sites')
+      .select('id, enabled_reservation_types_override, pricing_override')
+      .in('id', siteIds)
+      .eq('property_id', propertyId)
+
+    const extraById = new Map(
+      (extraSiteRows ?? []).map((r: any) => [r.id as string, r as any])
+    )
+    const items = siteDTOs.map((dto) => ({
+      ...dto,
+      ...(extraById.get(dto.id) ?? {}),
+    }))
+
     // Calculate pagination metadata
     const totalPages = Math.ceil(result.total / perPage)
 
     return success({
-      items: siteDTOs,
+      items,
       pagination: {
         page: page,
         per_page: perPage,
@@ -254,7 +271,10 @@ export async function POST(
     // If not manual pricing (property_default or site_type_default) and basePrice is 0,
     // use the property's nightly rate from reservation_type_config
     let effectiveBasePrice = validatedRequest.basePrice
-    const isUsingPropertyDefaults = getPricingSourceType(validatedRequest.enabledReservationTypesOverride) !== 'manual'
+    const isUsingPropertyDefaults = getPricingSourceType(
+      validatedRequest.pricingOverride,
+      validatedRequest.enabledReservationTypesOverride
+    ) !== 'manual'
 
     if (isUsingPropertyDefaults && effectiveBasePrice === 0) {
       const config = property.reservation_type_config as Record<string, any> | null
@@ -291,6 +311,9 @@ export async function POST(
     const siteExtras: Record<string, any> = {}
     if (validatedRequest.enabledReservationTypesOverride !== undefined) {
       siteExtras.enabled_reservation_types_override = validatedRequest.enabledReservationTypesOverride
+    }
+    if (validatedRequest.pricingOverride !== undefined) {
+      siteExtras.pricing_override = validatedRequest.pricingOverride
     }
     if ((validatedRequest as any).seasonalRateCents !== undefined) {
       siteExtras.seasonal_rate_cents = (validatedRequest as any).seasonalRateCents

@@ -1,5 +1,9 @@
 import * as z from "zod"
-import { parsePricingSourceOverride, serializePricingSourceOverride } from "@/lib/site-pricing-source"
+import {
+  parsePricingSourceFromPricingOverride,
+  parsePricingSourceOverride,
+  serializePricingSourceForPricingOverride,
+} from "@/lib/site-pricing-source"
 
 export const siteTypes = ["tent", "rv", "cabin", "glamping", "yurt", "other"] as const
 export const siteStatuses = ["available", "reserved", "booked", "occupied", "housekeeping", "maintenance", "unavailable"] as const
@@ -108,6 +112,13 @@ export type SiteFormData = z.infer<typeof siteFormSchema>
 export function toApiFormat(data: SiteFormData) {
   const isManual = data.pricing_source === "manual"
   const basePriceCents = isManual ? Math.round(data.base_price * 100) : 0
+
+  const pricingSourceType = data.pricing_source === "manual"
+    ? "manual"
+    : data.pricing_source === "site_type_defaults"
+      ? "site_type_default"
+      : "property_default"
+
   return {
     // Basic info (camelCase for v1 API)
     siteNumber: data.site_number,
@@ -138,15 +149,10 @@ export function toApiFormat(data: SiteFormData) {
     hookups: Object.entries(data.hookups)
       .filter(([_, v]) => v)
       .map(([k]) => k),
-    // Serialize pricing source: object for defaults, array for manual
-    enabledReservationTypesOverride: serializePricingSourceOverride(
-      isManual
-        ? "manual"
-        : data.pricing_source === "site_type_defaults"
-          ? "site_type_default"
-          : "property_default",
-      isManual ? data.enabled_reservation_types_override ?? undefined : undefined
-    ),
+    // Manual checkbox selection is always stored as an array (indicator only).
+    enabledReservationTypesOverride: data.enabled_reservation_types_override ?? [],
+    // Pricing source selector is stored in `sites.pricing_override` (new encoding).
+    pricingOverride: serializePricingSourceForPricingOverride(pricingSourceType),
     // Default reservation type for this site
     defaultReservationType: data.default_reservation_type || undefined,
   }
@@ -202,7 +208,7 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
     size_sqft: site.sizeSqft || site.size_sqft || undefined,
     status: site.status || "available",
     description: site.description || "",
-    // Convert cents to dollars
+  // Convert cents to dollars
     base_price: basePrice ? basePrice / 100 : 0,
     weekend_price: weekendPrice ? weekendPrice / 100 : undefined,
     weekly_rate: (site.weeklyRateCents || site.weekly_rate_cents)
@@ -226,24 +232,27 @@ export function fromApiFormat(site: any): Partial<SiteFormData> {
       handrails: site.accessibilityFeatures?.includes("handrails") || site.accessibility_features?.includes("handrails") || false,
       level_ground: site.accessibilityFeatures?.includes("level_ground") || site.accessibility_features?.includes("level_ground") || false,
     },
-    // Parse stored override into pricing_source + override array
     ...(function () {
-      const raw = site.enabledReservationTypesOverride ?? site.enabled_reservation_types_override
-      const parsed = parsePricingSourceOverride(raw)
-      const useProperty = parsed.source !== "manual"
+      const enabledRaw = site.enabledReservationTypesOverride ?? site.enabled_reservation_types_override
+      const enabledManualTypes = Array.isArray(enabledRaw) ? enabledRaw : undefined
+
+      const pricingOverrideRaw = site.pricingOverride ?? site.pricing_override
+      const sourceFromNew = parsePricingSourceFromPricingOverride(pricingOverrideRaw)
+      const legacyParsed = !sourceFromNew ? parsePricingSourceOverride(enabledRaw) : null
+      const effectiveSource =
+        sourceFromNew ??
+        // Backward compat: legacy parsing lives in `enabled_reservation_types_override`
+        (legacyParsed?.source ?? "property_default")
+
       return {
         pricing_source:
-          site.pricing_source ??
-          (parsed.source === "site_type_default"
-            ? "site_type_defaults"
-            : parsed.source === "manual"
-              ? "manual"
-              : "property_defaults"),
-        use_property_reservation_types: useProperty,
-        enabled_reservation_types_override:
-          parsed.source === "manual"
-            ? (parsed.types as ("nightly" | "weekly" | "monthly" | "seasonal")[])
-            : undefined,
+          effectiveSource === "manual"
+            ? "manual"
+            : effectiveSource === "site_type_default"
+              ? "site_type_defaults"
+              : "property_defaults",
+        use_property_reservation_types: effectiveSource !== "manual",
+        enabled_reservation_types_override: enabledManualTypes as any,
       }
     })(),
     // Default reservation type for this site

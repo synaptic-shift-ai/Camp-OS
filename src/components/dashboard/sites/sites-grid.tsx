@@ -86,16 +86,29 @@ function getDisplayRates(site: Site, config?: PropertyPricingConfig): RateDispla
   if (!config) return []
 
   const rates: RateDisplay[] = []
-  const rawOverride = site.enabled_reservation_types_override
-  const sourceType = getPricingSourceType(rawOverride)
-  const manualTypes = getManualOverrideTypes(rawOverride)
+  const pricingOverrideRaw = (site as any).pricing_override
+  const sourceType = getPricingSourceType(pricingOverrideRaw, site.enabled_reservation_types_override)
+  const manualTypes = getManualOverrideTypes(pricingOverrideRaw, site.enabled_reservation_types_override)
   const usesManual = sourceType === 'manual'
   const usesSiteTypeDefault = sourceType === 'site_type_default'
 
-  const typesToShow =
-    usesManual && manualTypes?.length
-      ? manualTypes
-      : config.rates.filter((r) => r.enabled).map((r) => r.type)
+  // property_default is still gated by property reservation-type enablement.
+  // If the property has no enabled types, show no rates so the UI can display
+  // the explicit "Please configure..." message.
+  if (!usesManual && !usesSiteTypeDefault && config.enabledTypes.length === 0) {
+    const nightly = site.base_price ?? 0
+    if (nightly > 0) {
+      return [
+        {
+          type: 'nightly',
+          label: 'Nightly',
+          rateCents: nightly,
+          isOverride: false,
+        }
+      ]
+    }
+    return []
+  }
 
   // Resolve site-type rates when source is site_type_default (case-insensitive key)
   const siteTypeRates = usesSiteTypeDefault
@@ -108,45 +121,71 @@ function getDisplayRates(site: Site, config?: PropertyPricingConfig): RateDispla
     : null
 
   for (const typeConfig of config.rates) {
-    if (!typesToShow.includes(typeConfig.type)) continue
+    // Manual mode: only show types explicitly enabled for this site.
+    if (usesManual && !manualTypes?.includes(typeConfig.type)) continue
 
-    let rateCents = typeConfig.rateCents ?? 0
-    let isOverride = false
-
-    if (usesSiteTypeDefault && siteTypeRates) {
-      const typeRate = siteTypeRates[typeConfig.type]?.rate_cents
+    // Site type defaults: show a type only if site_type_config has a positive rate.
+    if (usesSiteTypeDefault) {
+      const typeRate = siteTypeRates?.[typeConfig.type]?.rate_cents
       if (typeRate != null && typeRate > 0) {
-        rateCents = typeRate
+        rates.push({
+          type: typeConfig.type,
+          label: typeConfig.label,
+          rateCents: typeRate,
+          isOverride: false,
+        })
       }
-    } else if (usesManual) {
-      switch (typeConfig.type) {
-        case 'nightly':
-          if (site.base_price > 0) {
-            rateCents = site.base_price
-            isOverride = typeConfig.rateCents != null && site.base_price !== typeConfig.rateCents
-          }
-          break
-        case 'weekly':
-          if (site.weekly_rate_cents != null) {
-            rateCents = site.weekly_rate_cents
-            isOverride = typeConfig.rateCents != null && site.weekly_rate_cents !== typeConfig.rateCents
-          }
-          break
-        case 'monthly':
-          if (site.monthly_rate_cents != null) {
-            rateCents = site.monthly_rate_cents
-            isOverride = typeConfig.rateCents != null && site.monthly_rate_cents !== typeConfig.rateCents
-          }
-          break
-        case 'seasonal':
-          if (site.seasonal_rate_cents != null) {
-            rateCents = site.seasonal_rate_cents
-            isOverride = typeConfig.rateCents != null && site.seasonal_rate_cents !== typeConfig.rateCents
-          }
-          break
+      continue
+    }
+
+    // Property defaults: show a type only if reservation_type_config has a positive rate.
+    if (!usesManual) {
+      if (!config.enabledTypes.includes(typeConfig.type)) continue
+      const rateCents = typeConfig.rateCents ?? 0
+      if (rateCents > 0) {
+        rates.push({
+          type: typeConfig.type,
+          label: typeConfig.label,
+          rateCents,
+          isOverride: false,
+        })
+      }
+      continue
+    }
+
+    // Manual mode: show type only if the site's corresponding manual rate field is positive.
+    let rateCents = 0
+    let isOverride = false
+    switch (typeConfig.type) {
+      case 'nightly': {
+        const nightly = site.base_price ?? 0
+        if (nightly <= 0) continue
+        rateCents = nightly
+        isOverride = typeConfig.rateCents != null && nightly !== typeConfig.rateCents
+        break
+      }
+      case 'weekly': {
+        const weekly = site.weekly_rate_cents ?? 0
+        if (weekly <= 0) continue
+        rateCents = weekly
+        isOverride = typeConfig.rateCents != null && weekly !== typeConfig.rateCents
+        break
+      }
+      case 'monthly': {
+        const monthly = site.monthly_rate_cents ?? 0
+        if (monthly <= 0) continue
+        rateCents = monthly
+        isOverride = typeConfig.rateCents != null && monthly !== typeConfig.rateCents
+        break
+      }
+      case 'seasonal': {
+        const seasonal = (site as any).seasonal_rate_cents ?? 0
+        if (seasonal <= 0) continue
+        rateCents = seasonal
+        isOverride = typeConfig.rateCents != null && seasonal !== typeConfig.rateCents
+        break
       }
     }
-    // else: property_default → rateCents already from typeConfig.rateCents
 
     if (rateCents > 0) {
       rates.push({
@@ -254,7 +293,7 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
           const Icon = siteTypeIcons[site.site_type as SiteType] || MapPin
           const displayRates = getDisplayRates(site, propertyPricingConfig)
           const hasAnyOverride = displayRates.some((r) => r.isOverride)
-          const sourceType = getPricingSourceType(site.enabled_reservation_types_override)
+          const sourceType = getPricingSourceType((site as any).pricing_override, site.enabled_reservation_types_override)
           const usesPropertyDefaults = sourceType === 'property_default'
           const usesSiteTypeDefaults = sourceType === 'site_type_default'
           const usesManualPricing = sourceType === 'manual'
@@ -402,8 +441,10 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                     </div>
                   ) : (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Base Price</span>
-                      <span className="font-medium">{formatMoney(site.base_price ?? 0)}/night</span>
+                      <span className="text-muted-foreground">Rates</span>
+                      <span className="font-medium text-right text-sm text-muted-foreground/90">
+                        Please configure your rate type or enable the rate type at the settings.
+                      </span>
                     </div>
                   )}
 

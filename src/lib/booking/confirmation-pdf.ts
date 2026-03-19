@@ -16,6 +16,8 @@ export type ConfirmationPdfInput = {
   nights: number
   /** Amounts in cents */
   basePriceCents: number
+  /** When set (e.g. weekly/monthly breakdown), overrides the default "$X × N nights" subtotal line */
+  basePriceLineLabel?: string
   subtotalCents: number
   cleaningFeeCents?: number
   serviceFeeCents: number
@@ -184,9 +186,13 @@ export function generateConfirmationPdf(input: ConfirmationPdfInput): { doc: jsP
   yRight += 10
 
   const lineH = 6
-  doc.text(`$${toDollars(input.basePriceCents)} × ${input.nights} night(s)`, COL2_X, yRight)
+  const subtotalLineLeft =
+    input.basePriceLineLabel ?? `$${toDollars(input.basePriceCents)} × ${input.nights} night(s)`
+  const subtotalLabelMaxW = PAGE_W - MARGIN - COL2_X - 28
+  const subtotalLines = doc.splitTextToSize(subtotalLineLeft, subtotalLabelMaxW)
+  doc.text(subtotalLines, COL2_X, yRight)
   doc.text(`$${toDollars(input.subtotalCents)}`, PAGE_W - MARGIN, yRight, { align: "right" })
-  yRight += lineH
+  yRight += Math.max(subtotalLines.length, 1) * lineH
 
   if ((input.cleaningFeeCents ?? 0) > 0) {
     doc.text("Cleaning fee", COL2_X, yRight)

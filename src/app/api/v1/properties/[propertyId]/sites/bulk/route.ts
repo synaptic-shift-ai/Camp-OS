@@ -157,7 +157,10 @@ export async function POST(
 
         // When not manual pricing (property_default or site_type_default) and basePrice is 0,
         // substitute the property's nightly rate — mirrors the single-site POST route behaviour.
-        const isUsingPropertyDefaults = getPricingSourceType(siteRequest.enabledReservationTypesOverride) !== 'manual'
+        const isUsingPropertyDefaults = getPricingSourceType(
+          siteRequest.pricingOverride,
+          siteRequest.enabledReservationTypesOverride
+        ) !== 'manual'
         const effectiveBasePrice =
           isUsingPropertyDefaults && siteRequest.basePrice === 0 && propertyNightlyRate > 0
             ? propertyNightlyRate
@@ -185,6 +188,9 @@ export async function POST(
         const extras: Record<string, unknown> = {}
         if (siteRequest.enabledReservationTypesOverride !== undefined) {
           extras.enabled_reservation_types_override = siteRequest.enabledReservationTypesOverride
+        }
+        if (siteRequest.pricingOverride !== undefined) {
+          extras.pricing_override = siteRequest.pricingOverride
         }
         if (siteRequest.weeklyRateCents != null) {
           extras.weekly_rate_cents = siteRequest.weeklyRateCents

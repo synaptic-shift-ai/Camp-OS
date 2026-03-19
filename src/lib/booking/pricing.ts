@@ -54,13 +54,13 @@ export function calculateBaseSubtotalCents(
   weeklyRateCents: number | null | undefined,
   monthlyRateCents: number | null | undefined
 ): number {
-  if (nights >= 28 && monthlyRateCents != null) {
+  if (nights >= 28 && monthlyRateCents != null && monthlyRateCents > 0) {
     const fullMonths = Math.floor(nights / 28)
     const remainder = nights % 28
     return fullMonths * monthlyRateCents + remainder * basePriceCents
   }
-  if (nights >= 7) {
-    const weeklyCents = weeklyRateCents ?? basePriceCents * 7
+  if (nights >= 7 && weeklyRateCents != null && weeklyRateCents > 0) {
+    const weeklyCents = weeklyRateCents
     const fullWeeks = Math.floor(nights / 7)
     const remainder = nights % 7
     return fullWeeks * weeklyCents + remainder * basePriceCents
@@ -80,7 +80,7 @@ export function getBaseSubtotalAndLabel(
   weeklyRateCents: number | null | undefined,
   monthlyRateCents: number | null | undefined
 ): { subtotalCents: number; basePriceLabel: string; rateType: 'nightly' | 'weekly' | 'monthly' } {
-  if (nights >= 28 && monthlyRateCents != null) {
+  if (nights >= 28 && monthlyRateCents != null && monthlyRateCents > 0) {
     const fullMonths = Math.floor(nights / 28)
     const remainder = nights % 28
     const subtotalCents = fullMonths * monthlyRateCents + remainder * basePriceCents
@@ -90,8 +90,8 @@ export function getBaseSubtotalAndLabel(
         : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyRateCents)}) + ${remainder} night${remainder !== 1 ? 's' : ''} (${formatMoney(basePriceCents)}/night)`
     return { subtotalCents, basePriceLabel, rateType: 'monthly' }
   }
-  if (nights >= 7) {
-    const weeklyCents = weeklyRateCents ?? basePriceCents * 7
+  if (nights >= 7 && weeklyRateCents != null && weeklyRateCents > 0) {
+    const weeklyCents = weeklyRateCents
     const fullWeeks = Math.floor(nights / 7)
     const remainder = nights % 7
     const subtotalCents = fullWeeks * weeklyCents + remainder * basePriceCents
@@ -102,7 +102,7 @@ export function getBaseSubtotalAndLabel(
     return { subtotalCents, basePriceLabel, rateType: 'weekly' }
   }
   const subtotalCents = nights * basePriceCents
-  const basePriceLabel = `${formatMoney(basePriceCents)} × ${nights} night${nights !== 1 ? 's' : ''}`
+  const basePriceLabel = `${formatMoney(basePriceCents)}/night × ${nights} night${nights !== 1 ? 's' : ''}`
   return { subtotalCents, basePriceLabel, rateType: 'nightly' }
 }
 

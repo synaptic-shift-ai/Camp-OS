@@ -122,6 +122,7 @@ export function CampgroundSearch({
           num_adults: guests,
           ...(siteTypeFilter !== "all" && { site_type: siteTypeFilter }),
           amenities: Object.keys(selectedAmenities).filter(key => selectedAmenities[key]),
+          respect_property_enabled_rate_types: true,
         }),
       })
 

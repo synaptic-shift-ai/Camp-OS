@@ -183,6 +183,10 @@ export default function ConfirmationPage() {
   const discountCents =
     priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
 
+  const basePriceLineLabel =
+    rawPriceBreakdown?.base_price_label ??
+    `$${formatCurrency(priceBreakdown.basePrice || 0)} × ${priceBreakdown.nights} night${priceBreakdown.nights !== 1 ? "s" : ""}`
+
   // Only recompute taxes/total when we didn't get a full breakdown from the API.
   if (!rawPriceBreakdown) {
     const taxableAmount = priceBreakdown.subtotal - discountCents
@@ -218,6 +222,7 @@ export default function ConfirmationPage() {
         },
         nights: priceBreakdown.nights ?? numberOfNights,
         basePriceCents,
+        basePriceLineLabel,
         subtotalCents: priceBreakdown.subtotal,
         ...(cleaningFee > 0 && { cleaningFeeCents: cleaningFee }),
         serviceFeeCents: priceBreakdown.serviceFee ?? 0,
@@ -410,12 +415,11 @@ export default function ConfirmationPage() {
                   <div className="mt-6 pt-6 border-t border-border">
                     <h4 className="font-semibold text-lg text-foreground mb-3">Payment Summary</h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          ${formatCurrency(priceBreakdown.basePrice || 0)} × {priceBreakdown.nights} night
-                          {priceBreakdown.nights !== 1 ? "s" : ""}
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground text-left min-w-0 shrink">
+                          {basePriceLineLabel}
                         </span>
-                        <span className="font-medium text-foreground">${formatCurrency(priceBreakdown.subtotal)}</span>
+                        <span className="font-medium text-foreground shrink-0">${formatCurrency(priceBreakdown.subtotal)}</span>
                       </div>
                       {(priceBreakdown.cleaningFee || 0) > 0 && (
                         <div className="flex justify-between">

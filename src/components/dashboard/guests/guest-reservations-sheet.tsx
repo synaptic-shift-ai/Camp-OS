@@ -28,6 +28,7 @@ import {
   Heart,
   Baby,
   TriangleAlert,
+  Car,
 } from 'lucide-react'
 import type { DashboardGuest } from '@/lib/dashboard/queries'
 import {
@@ -37,6 +38,7 @@ import {
   MastercardFlatRoundedIcon,
   VisaFlatRoundedIcon,
 } from 'react-svg-credit-card-payment-icons'
+import { Separator } from '@/components/ui/separator'
 
 interface GuestReservationsSheetProps {
   open: boolean
@@ -95,6 +97,20 @@ type ChildDisplay = {
   firstName: string
   dateOfBirth: string | null
   specialNeedsAllergies: string | null
+}
+
+type VehicleDisplay = {
+  id: string
+  vehicleType: string
+  rvType: string | null
+  personalVehicleType: string | null
+  year: number | null
+  make: string | null
+  model: string | null
+  color: string | null
+  licensePlate: string | null
+  licensePlateState: string | null
+  isPrimary: boolean
 }
 
 function mapChildren(value: unknown): ChildDisplay[] {
@@ -205,6 +221,7 @@ export function GuestReservationsSheet({
   const [guestAddress, setGuestAddress] = useState<GuestAddressDisplay | null>(null)
   const [spousePartner, setSpousePartner] = useState<SpousePartnerDisplay | null>(null)
   const [children, setChildren] = useState<ChildDisplay[]>([])
+  const [vehicles, setVehicles] = useState<VehicleDisplay[]>([])
 
   useEffect(() => {
     if (!open || !propertyId || !guest?.id) return
@@ -219,6 +236,7 @@ export function GuestReservationsSheet({
     setGuestAddress(null)
     setSpousePartner(null)
     setChildren([])
+    setVehicles([])
 
     const url = `/api/v1/properties/${propertyId}/reservations?guestId=${encodeURIComponent(guest.id)}&limit=50`
     fetch(url)
@@ -323,6 +341,26 @@ export function GuestReservationsSheet({
             phone: typeof spouseFromGuest.phone === 'string' ? spouseFromGuest.phone : null,
             isAlternateContact: spouseFromGuest.isAlternateContact === true,
           })
+        }
+
+        const rawVehicles = json?.data?.vehicles
+        if (Array.isArray(rawVehicles)) {
+          const mappedVehicles = rawVehicles
+            .filter((vehicle) => vehicle && typeof vehicle.id === 'string' && typeof vehicle.vehicle_type === 'string')
+            .map((vehicle) => ({
+              id: vehicle.id as string,
+              vehicleType: vehicle.vehicle_type as string,
+              rvType: typeof vehicle.rv_type === 'string' ? vehicle.rv_type : null,
+              personalVehicleType: typeof vehicle.personal_vehicle_type === 'string' ? vehicle.personal_vehicle_type : null,
+              year: typeof vehicle.year === 'number' ? vehicle.year : null,
+              make: typeof vehicle.make === 'string' ? vehicle.make : null,
+              model: typeof vehicle.model === 'string' ? vehicle.model : null,
+              color: typeof vehicle.color === 'string' ? vehicle.color : null,
+              licensePlate: typeof vehicle.license_plate === 'string' ? vehicle.license_plate : null,
+              licensePlateState: typeof vehicle.license_plate_state === 'string' ? vehicle.license_plate_state : null,
+              isPrimary: vehicle.is_primary === true,
+            }))
+          setVehicles(mappedVehicles)
         }
       })
       .catch(() => {
@@ -457,11 +495,15 @@ export function GuestReservationsSheet({
             </div>
           </div>
 
+          <Separator className="my-4" />
+
           {showInitialLoader && (
             <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
+
+
 
           <div className={showInitialLoader ? 'hidden' : 'space-y-3'}>
             <div className="rounded-xl border bg-white p-4 shadow-sm">
@@ -666,6 +708,45 @@ export function GuestReservationsSheet({
                 </div>
               </div>
             )}
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="inline-flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky-50">
+                  <Car className="h-4 w-4 text-sky-600" />
+                </span>
+                <p className="text-sm font-semibold text-slate-800">Vehicles ({vehicles.length})</p>
+              </div>
+              {vehicles.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {vehicles.map((vehicle) => (
+                    <div key={vehicle.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.vehicleType}
+                        </p>
+                        {vehicle.isPrimary ? (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                            Primary
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {[vehicle.vehicleType, vehicle.rvType ?? vehicle.personalVehicleType].filter(Boolean).join(' · ')}
+                      </p>
+                      {(vehicle.licensePlate || vehicle.color) ? (
+                        <p className="mt-1 text-xs text-slate-500">
+                          {vehicle.licensePlate ? `Plate: ${vehicle.licensePlate}${vehicle.licensePlateState ? ` (${vehicle.licensePlateState})` : ''}` : ''}
+                          {vehicle.licensePlate && vehicle.color ? ' · ' : ''}
+                          {vehicle.color ? `Color: ${vehicle.color}` : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-500">No vehicles on file.</p>
+              )}
+            </div>
           </div>
 
           {!showInitialLoader && fetchError && (

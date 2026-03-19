@@ -84,6 +84,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq('property_id', guestDTO.propertyId)
       .maybeSingle()
 
+    const { data: vehicles } = await supabase
+      .from('guest_vehicles')
+      .select('id, vehicle_type, rv_type, personal_vehicle_type, year, make, model, color, license_plate, license_plate_state, is_primary')
+      .eq('guest_id', id)
+      .eq('property_id', guestDTO.propertyId)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true })
+
     const fallbackAddress = guestRow
       ? {
           street: guestRow.address ?? '',
@@ -116,6 +124,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             isAlternateContact: guestRow.spouse_is_alternate_contact ?? false,
           }
         : null,
+      vehicles: vehicles ?? [],
     })
   } catch (err: any) {
     console.error('[Guests API v1] GET by ID error:', err)

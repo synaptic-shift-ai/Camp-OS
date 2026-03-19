@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
 import {
@@ -61,6 +61,7 @@ const steps = [
 
 export function ConfirmationClient() {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const { checkoutData, clearCheckoutData } = useCheckout()
   const [copied, setCopied] = useState(false)
@@ -90,12 +91,22 @@ export function ConfirmationClient() {
         }),
       })
         .then((response) => response.json())
-        .then((result) => {
-          if (!result.success) {
+        .then((result: { success: boolean; error?: { code?: string; message?: string } }) => {
+          const alreadyConfirmed =
+            !result.success &&
+            result.error?.code === "RESERVATION_NOT_PENDING" &&
+            (result.error?.message ?? "").toLowerCase().includes("confirmed")
+
+          if (result.success || alreadyConfirmed) {
+            if (!result.success) {
+              console.log("[Confirmation] Payment already finalized (idempotent)")
+            } else {
+              console.log("[Confirmation] Payment confirmed successfully")
+            }
+            router.replace(pathname)
+          } else if (!result.success) {
             console.error("[Confirmation] Payment confirmation failed:", result.error)
             setConfirmationError(result.error?.message || "Failed to confirm payment")
-          } else {
-            console.log("[Confirmation] Payment confirmed successfully")
           }
         })
         .catch((error) => {
@@ -106,7 +117,7 @@ export function ConfirmationClient() {
           setIsConfirming(false)
         })
     }
-  }, [searchParams, checkoutData.reservationId, isConfirming, confirmationNumber])
+  }, [searchParams, checkoutData.reservationId, isConfirming, confirmationNumber, router, pathname])
 
   useEffect(() => {
     if (!checkoutData.site || !checkoutData.guestInfo) {

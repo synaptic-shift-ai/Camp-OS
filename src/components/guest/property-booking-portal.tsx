@@ -621,6 +621,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                             >
                               From ${siteType.price}/night
                             </Badge>
+                            {siteType.discountedPrice != null && siteType.discountEndDate && (
+                              <Badge className="bg-[#2D5A27] text-white text-base px-3 py-1.5">
+                                ${siteType.discountedPrice}/night until {format(new Date(siteType.discountEndDate), "MMM d")}
+                              </Badge>
+                            )}
                             {siteType.priceWeekly != null && siteType.priceWeekly > 0 && (
                               <Badge className="bg-[#2D5A27] text-white text-sm px-3 py-1">
                                 ${siteType.priceWeekly.toFixed(0)}/week
@@ -629,11 +634,6 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                             {siteType.priceMonthly != null && siteType.priceMonthly > 0 && (
                               <Badge className="bg-[#2D5A27] text-white text-sm px-3 py-1">
                                 ${siteType.priceMonthly.toFixed(0)}/month
-                              </Badge>
-                            )}
-                            {siteType.discountedPrice != null && siteType.discountEndDate && (
-                              <Badge className="bg-[#2D5A27] text-white text-base px-3 py-1.5">
-                                ${siteType.discountedPrice}/night until {format(new Date(siteType.discountEndDate), "MMM d")}
                               </Badge>
                             )}
                           </div>

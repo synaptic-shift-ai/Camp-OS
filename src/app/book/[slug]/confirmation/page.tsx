@@ -42,6 +42,14 @@ type ConfirmPaymentResponse =
     }
   }
 
+function isPaymentAlreadyFinalized(result: ConfirmPaymentResponse): boolean {
+  return (
+    !result.success &&
+    result.error.code === "RESERVATION_NOT_PENDING" &&
+    result.error.message.toLowerCase().includes("confirmed")
+  )
+}
+
 export default function ConfirmationPage() {
   const params = useParams()
   const slug = params.slug as string
@@ -81,7 +89,14 @@ export default function ConfirmationPage() {
       })
         .then((response) => response.json())
         .then((result: ConfirmPaymentResponse) => {
-          if (!result.success) {
+          if (result.success || isPaymentAlreadyFinalized(result)) {
+            if (!result.success) {
+              console.log("[Confirmation] Payment already finalized (idempotent)")
+            } else {
+              console.log("[Confirmation] Payment confirmed successfully")
+            }
+            router.replace(`/book/${slug}/confirmation`)
+          } else {
             console.error("[Confirmation] Payment confirmation failed:", result.error)
             setConfirmationError(result.error.message || "Failed to confirm payment")
             toast({
@@ -89,8 +104,6 @@ export default function ConfirmationPage() {
               description: result.error.message || "There was an issue confirming your payment.",
               variant: "destructive",
             })
-          } else {
-            console.log("[Confirmation] Payment confirmed successfully")
           }
         })
         .catch((error) => {
@@ -106,7 +119,7 @@ export default function ConfirmationPage() {
           setIsConfirming(false)
         })
     }
-  }, [searchParams, checkoutData.reservationId, checkoutData.confirmationNumber, toast, hasAttemptedConfirmation])
+  }, [searchParams, checkoutData.reservationId, checkoutData.confirmationNumber, toast, hasAttemptedConfirmation, router, slug])
 
   useEffect(() => {
     // Wait for sessionStorage to hydrate before checking

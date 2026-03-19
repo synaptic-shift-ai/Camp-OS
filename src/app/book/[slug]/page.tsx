@@ -221,7 +221,14 @@ export default async function PropertyBookingPage({
     property.reservation_type_config ?? null
   )
 
-  const siteTypeRatesMap = (property as { site_type_config?: { site_type_rates?: Record<string, { nightly?: { rate_cents: number | null } }> } } | null)?.site_type_config?.site_type_rates ?? {}
+  type SiteTypeRateBundle = {
+    nightly?: { rate_cents: number | null }
+    weekly?: { rate_cents: number | null }
+    monthly?: { rate_cents: number | null }
+  }
+
+  const siteTypeRatesMap = 
+    (property as { site_type_config?: { site_type_rates?: Record<string, SiteTypeRateBundle> } } | null)?.site_type_config?.site_type_rates ?? {}
 
   const rawSiteTypeConfig = (property as { site_type_config?: { allowed_site_types?: string[] } } | null)?.site_type_config ?? null
   const allowedSiteTypes =
@@ -236,6 +243,8 @@ export default async function PropertyBookingPage({
   const enabledTypesRaw = (property as { enabled_reservation_types?: unknown }).enabled_reservation_types
   const enabledTypes = Array.isArray(enabledTypesRaw) ? (enabledTypesRaw as string[]) : []
   const propertyNightlyEnabled = enabledTypes.includes('nightly')
+  const propertyWeeklyEnabled = enabledTypes.includes('weekly')
+  const propertyMonthlyEnabled = enabledTypes.includes('monthly')
 
   function effectiveNightlyCentsForSite(s: (typeof sitesToShow)[number]): number {
     const pricingSource = getPricingSourceType(
@@ -260,6 +269,55 @@ export default async function PropertyBookingPage({
     return s.base_price ?? 0
   }
 
+  function effectiveWeeklyMonthlyDollarsForSite(
+    s: (typeof sitesToShow)[number],
+    nightlyDollars: number
+  ): { priceWeekly: number; priceMonthly: number } {
+    const pricingSource = getPricingSourceType(
+      (s as { pricing_override?: unknown }).pricing_override,
+      (s as { enabled_reservation_types_override?: unknown }).enabled_reservation_types_override
+    )
+
+    const fallbackWeekly = Math.round(nightlyDollars * 7 * 100) / 100
+    const fallbackMonthly = Math.round(nightlyDollars * 30 * 100) / 100
+
+    if (pricingSource === "property_default")  {
+      const weeklyCents =
+        propertyWeeklyEnabled ? reservationTypeConfig.weekly?.rate_cents : null
+      const monthlyCents =
+        propertyMonthlyEnabled ? reservationTypeConfig.monthly?.rate_cents : null
+      return {
+        priceWeekly:
+          weeklyCents != null && weeklyCents > 0 ? weeklyCents / 100 : fallbackWeekly,
+        priceMonthly:
+          monthlyCents != null && monthlyCents > 0 ? monthlyCents / 100 : fallbackMonthly,
+      }
+    }
+
+    if (pricingSource === "site_type_default") {
+      const st = (s.site_type ?? "").toLowerCase()
+      const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (s.site_type ?? "")
+      const rates = key ? siteTypeRatesMap[key] : null
+      const weeklyCents = rates?.weekly?.rate_cents
+      const monthlyCents = rates?.monthly?.rate_cents
+      return {
+        priceWeekly:
+          weeklyCents != null && weeklyCents > 0 ? weeklyCents / 100 : fallbackWeekly,
+        priceMonthly:
+          monthlyCents != null && monthlyCents > 0 ? monthlyCents / 100 : fallbackMonthly,
+      }
+    }
+
+    const weeklyCents = (s as { weekly_rate_cents?: number | null }).weekly_rate_cents
+    const monthlyCents = (s as { monthly_rate_cents?: number | null }).monthly_rate_cents
+    return {
+      priceWeekly:
+        weeklyCents != null && weeklyCents > 0 ? weeklyCents / 100 : fallbackWeekly,
+      priceMonthly:
+        monthlyCents != null && monthlyCents > 0 ? monthlyCents / 100 : fallbackMonthly,
+    }
+  }
+
   const siteTypeSummaries: SiteTypeSummary[] = sitesToShow.map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
     const amenities = Array.isArray(s.amenities)
@@ -268,12 +326,7 @@ export default async function PropertyBookingPage({
     const imageUrl = s.site_images?.[0] ?? s.images?.[0]
 
     const priceDollars = effectiveNightlyCentsForSite(s) / 100
-    const weeklyCents = (s as { weekly_rate_cents?: number | null }).weekly_rate_cents
-    const monthlyCents = (s as { monthly_rate_cents?: number | null }).monthly_rate_cents
-    const priceWeekly =
-      weeklyCents != null && weeklyCents > 0 ? weeklyCents / 100 : Math.round(priceDollars * 7 * 100) / 100
-    const priceMonthly =
-      monthlyCents != null && monthlyCents > 0 ? monthlyCents / 100 : Math.round(priceDollars * 30 * 100) / 100
+    const { priceWeekly, priceMonthly } = effectiveWeeklyMonthlyDollarsForSite(s, priceDollars)
 
     let discountedPrice: number | undefined
     let discountEndDate: string | undefined

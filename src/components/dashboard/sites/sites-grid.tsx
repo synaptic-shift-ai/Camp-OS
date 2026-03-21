@@ -9,7 +9,7 @@
 
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { MoreVertical, Tent, Home, TreePine, Sparkles, Circle, MapPin, Edit, Calendar, Trash2 } from 'lucide-react'
+import { MoreVertical, Tent, Home, TreePine, Sparkles, Circle, MapPin, Edit, Calendar, Trash2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -113,11 +113,11 @@ function getDisplayRates(site: Site, config?: PropertyPricingConfig): RateDispla
   // Resolve site-type rates when source is site_type_default (case-insensitive key)
   const siteTypeRates = usesSiteTypeDefault
     ? (() => {
-        const st = (site.site_type ?? '').toLowerCase()
-        const map = config.siteTypeConfig?.site_type_rates ?? {}
-        const key = Object.keys(map).find((k) => k.toLowerCase() === st) ?? (site.site_type ?? '')
-        return key ? map[key] : null
-      })()
+      const st = (site.site_type ?? '').toLowerCase()
+      const map = config.siteTypeConfig?.site_type_rates ?? {}
+      const key = Object.keys(map).find((k) => k.toLowerCase() === st) ?? (site.site_type ?? '')
+      return key ? map[key] : null
+    })()
     : null
 
   for (const typeConfig of config.rates) {
@@ -325,6 +325,12 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <SiteCheckInButton siteId={site.id} siteStatus={site.status || 'unavailable'} />
+                      {(site.status === 'housekeeping' || site.status === 'maintenance') && (
+                        <DropdownMenuItem onClick={(e) => handleStatusChange(site, 'available', e)}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Mark as Available
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={(e) => handleEditClick(site, e)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Site
@@ -388,8 +394,8 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                     <Badge
                       variant="outline"
                       className={`text-xs w-full justify-center ${(site as any).availability_rules.blocked_dates[0].reason === 'maintenance'
-                          ? 'bg-blue-50 border-blue-200 text-blue-700'
-                          : 'bg-orange-50 border-orange-200 text-orange-700'
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-orange-50 border-orange-200 text-orange-700'
                         }`}
                     >
                       🗓 {(site as any).availability_rules.blocked_dates[0].reason === 'maintenance' ? 'Scheduled Maintenance' : 'Scheduled Housekeeping'}: {(site as any).availability_rules.blocked_dates[0].from}

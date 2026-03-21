@@ -199,7 +199,12 @@ function PaymentFormInner({ slug }: { slug: string }) {
       </div>
 
       <div className="flex items-start space-x-3">
-        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked as boolean)} />
+        <Checkbox
+          variant="booking"
+          id="terms"
+          checked={termsAccepted}
+          onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+        />
         <div className="space-y-1">
           <Label htmlFor="terms" className="text-sm font-normal cursor-pointer">
             I agree to the terms and conditions and cancellation policy <span className="text-red-500">*</span>

@@ -634,6 +634,7 @@ export default function GuestInfoPage() {
                     <div className="space-y-3">
                       <div className="flex items-start space-x-3">
                         <Checkbox
+                          variant="booking"
                           id="agree_terms"
                           checked={form.watch("agree_terms")}
                           onCheckedChange={(checked) => form.setValue("agree_terms", checked as boolean)}
@@ -653,6 +654,7 @@ export default function GuestInfoPage() {
                       </div>
                       <div className="flex items-start space-x-3">
                         <Checkbox
+                          variant="booking"
                           id="agree_cancellation"
                           checked={form.watch("agree_cancellation")}
                           onCheckedChange={(checked) => form.setValue("agree_cancellation", checked as boolean)}

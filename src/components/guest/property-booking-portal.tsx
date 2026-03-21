@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
-import Link from "next/link"
 import Image from "next/image"
 import {
   Tent,
@@ -150,6 +149,22 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     lastScrollYRef.current = window.scrollY
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    setIsMobileMenuOpen(false)
+    setHeaderHidden(false)
+    window.requestAnimationFrame(() => {
+      const el = document.getElementById(sectionId)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" })
+        try {
+          window.history.replaceState(null, "", `#${sectionId}`)
+        } catch {
+          /* ignore */
+        }
+      }
+    })
   }, [])
 
   // Clear check-out when it becomes invalid after check-in change
@@ -350,19 +365,53 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
-              <Link href="#sites" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+              <button
+                type="button"
+                onClick={() => scrollToSection("sites")}
+                className={cn(
+                  "rounded-sm bg-transparent p-0 font-inherit text-foreground/80 transition-colors",
+                  "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-emerald-400"
+                )}
+              >
                 Sites
-              </Link>
-              <Link href="#amenities" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection("amenities")}
+                className={cn(
+                  "rounded-sm bg-transparent p-0 font-inherit text-foreground/80 transition-colors",
+                  "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-emerald-400"
+                )}
+              >
                 Amenities
-              </Link>
-              <Link href="#gallery" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection("gallery")}
+                className={cn(
+                  "rounded-sm bg-transparent p-0 font-inherit text-foreground/80 transition-colors",
+                  "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-emerald-400"
+                )}
+              >
                 Gallery
-              </Link>
-              <Link href="#contact" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection("contact")}
+                className={cn(
+                  "rounded-sm bg-transparent p-0 font-inherit text-foreground/80 transition-colors",
+                  "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:text-emerald-400"
+                )}
+              >
                 Contact
-              </Link>
-              <Button className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}>Book Now</Button>
+              </button>
+              <Button
+                type="button"
+                className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}
+                onClick={() => scrollToSection("booking-widget")}
+              >
+                Book Now
+              </Button>
             </nav>
 
             {/* Mobile Menu Button */}
@@ -379,19 +428,53 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           {isMobileMenuOpen && (
             <nav className="md:hidden mt-4 border-t border-border pb-4 pt-4">
               <div className="flex flex-col space-y-3">
-                <Link href="#sites" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("sites")}
+                  className={cn(
+                    "w-full rounded-sm bg-transparent py-1 text-left font-inherit text-foreground/80 transition-colors",
+                    "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-emerald-400"
+                  )}
+                >
                   Sites
-                </Link>
-                <Link href="#amenities" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("amenities")}
+                  className={cn(
+                    "w-full rounded-sm bg-transparent py-1 text-left font-inherit text-foreground/80 transition-colors",
+                    "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-emerald-400"
+                  )}
+                >
                   Amenities
-                </Link>
-                <Link href="#gallery" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("gallery")}
+                  className={cn(
+                    "w-full rounded-sm bg-transparent py-1 text-left font-inherit text-foreground/80 transition-colors",
+                    "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-emerald-400"
+                  )}
+                >
                   Gallery
-                </Link>
-                <Link href="#contact" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("contact")}
+                  className={cn(
+                    "w-full rounded-sm bg-transparent py-1 text-left font-inherit text-foreground/80 transition-colors",
+                    "hover:text-[#2D5A27] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-emerald-400"
+                  )}
+                >
                   Contact
-                </Link>
-                <Button className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "w-full text-white")}>Book Now</Button>
+                </button>
+                <Button
+                  type="button"
+                  className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "w-full text-white")}
+                  onClick={() => scrollToSection("booking-widget")}
+                >
+                  Book Now
+                </Button>
               </div>
             </nav>
           )}
@@ -422,7 +505,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             <Button
               size="lg"
               className="bg-white text-[#2D5A27] hover:bg-gray-100 dark:bg-zinc-100 dark:text-emerald-950 dark:hover:bg-white text-lg px-8 py-3"
-              onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
+              type="button"
+              onClick={() => scrollToSection("booking-widget")}
             >
               Book Your Stay
             </Button>
@@ -430,7 +514,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               size="lg"
               variant="outline"
               className="border-white text-white hover:bg-white hover:text-[#2D5A27] dark:hover:text-emerald-950 text-lg px-8 py-3 bg-transparent"
-              onClick={() => document.getElementById("sites")?.scrollIntoView({ behavior: "smooth" })}
+              type="button"
+              onClick={() => scrollToSection("sites")}
             >
               View Sites
             </Button>
@@ -439,7 +524,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </section>
 
       {/* Quick Booking Widget */}
-      <section id="booking-widget" className="py-8 bg-muted/50 dark:bg-muted/20">
+      <section id="booking-widget" className="scroll-mt-24 py-8 bg-muted/50 md:scroll-mt-28 dark:bg-muted/20">
         <div className="container mx-auto px-4">
           <Card className="mx-auto max-w-5xl shadow-lg">
             <CardHeader className="bg-[#2D5A27] text-white dark:bg-emerald-950">
@@ -617,7 +702,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       {/* Search Results */}
 
       {/* Site Types Section */}
-      <section id="sites" className="py-16 w-full min-w-0">
+      <section id="sites" className="scroll-mt-24 py-16 w-full min-w-0 md:scroll-mt-28">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className={cn("mb-4 text-3xl font-bold md:text-4xl", "text-[#2D5A27] dark:text-emerald-400")}>Choose Your Camping Style</h2>
@@ -626,7 +711,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
-          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full">
+          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full px-1 sm:px-2">
             <CarouselContent className="-ml-2 sm:-ml-4">
               {(
                 (siteTypeSummaries?.length
@@ -642,49 +727,55 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 return (
                   <CarouselItem
                     key={siteType.id ?? siteType.name}
-                    className="min-w-0 pl-2 sm:pl-4 basis-[88%] sm:basis-1/2 md:basis-1/3"
+                    className="min-w-0 basis-[88%] pl-2 sm:basis-1/2 sm:pl-4 lg:basis-1/3"
                   >
                     <div className="h-full flex">
                       <Card className="flex h-full w-full flex-col overflow-hidden border-2 transition-shadow hover:shadow-xl">
-                        <div className="flex min-h-28 shrink-0 items-stretch gap-1 bg-gradient-to-br from-green-100 to-green-50 dark:from-emerald-950/50 dark:to-zinc-900/80 sm:min-h-36 md:min-h-44 lg:min-h-52">
-                          <div className="relative min-h-28 min-w-0 flex-1 sm:min-h-36 md:min-h-44 lg:min-h-52">
-                            {siteType.imageUrl ? (
-                              <Image
-                                src={siteType.imageUrl}
-                                alt={siteType.name}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 33vw"
-                              />
-                            ) : null}
-                            <div className="absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
-                              <div className="rounded-full bg-white/95 p-2.5 shadow-lg dark:bg-zinc-900/95 sm:p-3">
-                                <IconComponent className={cn("h-5 w-5 sm:h-6 sm:w-6", "text-[#2D5A27] dark:text-emerald-400")} />
-                              </div>
+                        <div className="relative min-h-28 w-full shrink-0 overflow-hidden sm:min-h-36 md:min-h-44 lg:min-h-52">
+                          {siteType.imageUrl ? (
+                            <Image
+                              src={siteType.imageUrl}
+                              alt={siteType.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 88vw, (max-width: 1024px) 50vw, 33vw"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-green-50 dark:from-emerald-950/50 dark:to-zinc-900/80" />
+                          )}
+                          {siteType.imageUrl ? (
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent dark:from-black/55"
+                              aria-hidden
+                            />
+                          ) : null}
+                          <div className="absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
+                            <div className="rounded-full bg-white/95 p-2.5 shadow-lg dark:bg-zinc-900/95 sm:p-3">
+                              <IconComponent className={cn("h-5 w-5 sm:h-6 sm:w-6", "text-[#2D5A27] dark:text-emerald-400")} />
                             </div>
                           </div>
-                          <div className="flex max-w-[52%] shrink-0 flex-col items-end justify-start gap-1 py-2.5 pr-2 pl-0 sm:max-w-[50%] sm:py-3 sm:pr-3">
+                          <div className="absolute right-2 top-2 z-10 flex max-w-[min(100%-4rem,14rem)] flex-col items-end gap-1 sm:right-3 sm:top-3 sm:max-w-[min(100%-5rem,16rem)]">
                             <Badge
                               className={cn(
                                 "bg-[#2D5A27] dark:bg-emerald-800",
-                                "px-2.5 py-1.5 text-right text-xs text-white sm:px-4 sm:py-2 sm:text-lg",
+                                "px-2.5 py-1.5 text-right text-xs text-white shadow-md sm:px-4 sm:py-2 sm:text-lg",
                                 siteType.discountedPrice != null && "line-through opacity-90"
                               )}
                             >
                               From ${siteType.price}/night
                             </Badge>
                             {siteType.discountedPrice != null && siteType.discountEndDate && (
-                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-[10px] leading-tight text-white sm:px-3 sm:py-1.5 sm:text-base")}>
+                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-[10px] leading-tight text-white shadow-md sm:px-3 sm:py-1.5 sm:text-base")}>
                                 ${siteType.discountedPrice}/night until {format(new Date(siteType.discountEndDate), "MMM d")}
                               </Badge>
                             )}
                             {siteType.priceWeekly != null && siteType.priceWeekly > 0 && (
-                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm")}>
+                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-xs text-white shadow-md sm:px-3 sm:text-sm")}>
                                 ${siteType.priceWeekly.toFixed(0)}/week
                               </Badge>
                             )}
                             {siteType.priceMonthly != null && siteType.priceMonthly > 0 && (
-                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm")}>
+                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-xs text-white shadow-md sm:px-3 sm:text-sm")}>
                                 ${siteType.priceMonthly.toFixed(0)}/month
                               </Badge>
                             )}
@@ -708,8 +799,9 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                             </div>
                           </div>
                           <Button
+                            type="button"
                             className={cn("w-full text-white", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}
-                            onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
+                            onClick={() => scrollToSection("booking-widget")}
                           >
                             View Sites
                           </Button>
@@ -720,8 +812,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 )
               })}
             </CarouselContent>
-            <CarouselPrevious className="left-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-[-3rem] sm:h-10 sm:w-10 sm:-translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
-            <CarouselNext className="right-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-[-3rem] sm:h-10 sm:w-10 sm:translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
+            <CarouselPrevious className="left-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-2 sm:h-10 sm:w-10 md:left-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselNext className="right-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-2 sm:h-10 sm:w-10 md:right-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
           </Carousel>
         </div>
       </section>
@@ -773,7 +865,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </section>
 
       {/* Amenities Grid */}
-      <section id="amenities" className="bg-muted/50 py-16 dark:bg-muted/20">
+      <section id="amenities" className="scroll-mt-24 bg-muted/50 py-16 md:scroll-mt-28 dark:bg-muted/20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className={cn("mb-4 text-3xl font-bold md:text-4xl", "text-[#2D5A27] dark:text-emerald-400")}>Campground Amenities</h2>
@@ -804,7 +896,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
       {/* Photo Gallery */}
       {galleryImages.length > 0 && (
-        <section id="gallery" className="py-16">
+        <section id="gallery" className="scroll-mt-24 py-16 md:scroll-mt-28">
           <div className="container mx-auto px-4">
             <div className="mb-12 text-center">
               <h2 className={cn("mb-4 text-3xl font-bold md:text-4xl", "text-[#2D5A27] dark:text-emerald-400")}>Experience {property.name}</h2>
@@ -898,15 +990,16 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       {/* Call-to-Action Footer Section */}
       <section
         id="contact"
-        className="bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F] py-16 text-white dark:from-emerald-950 dark:to-emerald-900"
+        className="scroll-mt-24 bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F] py-16 text-white md:scroll-mt-28 dark:from-emerald-950 dark:to-emerald-900"
       >
         <div className="container mx-auto px-4 text-center">
           <h2 className="mb-4 text-3xl font-bold md:text-4xl">Ready to Book Your Adventure?</h2>
           <p className="mb-8 text-xl opacity-90">Start planning your perfect camping getaway today</p>
           <Button
             size="lg"
+            type="button"
             className="bg-white text-[#2D5A27] hover:bg-gray-100 dark:bg-zinc-100 dark:text-emerald-950 dark:hover:bg-white text-lg"
-            onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() => scrollToSection("booking-widget")}
           >
             Check Availability
           </Button>
@@ -941,19 +1034,31 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               <h3 className="mb-4 text-lg font-semibold">Quick Links</h3>
               <ul className="space-y-2 text-emerald-100/90">
                 <li>
-                  <Link href="#sites" className="transition-colors hover:text-white">
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection("sites")}
+                    className="text-left transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2D5A27]"
+                  >
                     Site Types
-                  </Link>
+                  </button>
                 </li>
                 <li>
-                  <Link href="#amenities" className="transition-colors hover:text-white">
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection("amenities")}
+                    className="text-left transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2D5A27]"
+                  >
                     Amenities
-                  </Link>
+                  </button>
                 </li>
                 <li>
-                  <Link href="#gallery" className="transition-colors hover:text-white">
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection("gallery")}
+                    className="text-left transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2D5A27]"
+                  >
                     Gallery
-                  </Link>
+                  </button>
                 </li>
               </ul>
             </div>

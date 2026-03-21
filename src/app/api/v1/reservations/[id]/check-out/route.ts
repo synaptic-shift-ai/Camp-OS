@@ -134,19 +134,19 @@ export async function POST(
       notes: validatedRequest.notes ?? null,
     })
 
-    // If damages were reported during check-out, move site to maintenance.
-    if (validatedRequest.hasDamages && reservation.siteId) {
+    // After check-out the site needs turnover to housekeeping
+    if (reservation.siteId) {
       const { error: siteUpdateError } = await supabase
         .from('sites')
         .update({
-          status: 'maintenance',
+          status: 'housekeeping',
           updated_at: new Date().toISOString(),
         })
         .eq('id', reservation.siteId)
         .eq('property_id', reservation.propertyId)
 
       if (siteUpdateError) {
-        console.error('[Reservations API v1] Site maintenance update error:', siteUpdateError)
+        console.error('[Reservations API v1] Site housekeeping status update error:', siteUpdateError)
         return NextResponse.json(
           error(ErrorCodes.INTERNAL_ERROR, 'Guest was checked out but failed to update site status'),
           { status: 500 }

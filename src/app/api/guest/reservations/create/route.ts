@@ -35,6 +35,7 @@ import {
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
 import type { RateDiscountsConfig } from '@/lib/config/types'
 import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
+import { GUEST_BOOKABLE_SITE_STATUSES } from '@/lib/constants'
 
 // Input validation schema
 const createGuestReservationSchema = z.object({
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
-    // Step 2: Verify site exists and is available
+    // Step 2: Verify site exists based on guest bookable statuses
     // ========================================================================
 
     const { data: site, error: siteError } = await supabase
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
       .select('id, site_number, site_name, site_type, base_price, weekly_rate_cents, monthly_rate_cents, max_occupancy, max_vehicles, enabled_reservation_types_override, pricing_override')
       .eq('id', validatedInput.site_id)
       .eq('property_id', validatedInput.property_id) // Tenant isolation
-      .eq('status', 'available')
+      .in('status', [...GUEST_BOOKABLE_SITE_STATUSES])
       .is('deleted_at', null)
       .single()
 
@@ -382,7 +383,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================================================
-    // Step 5: Check availability (no overlapping confirmed/checked-in reservations)
+    // Step 5: Check availability (no overlapping blocking reservations)
     // ========================================================================
 
     const { data: existingReservations, error: availError } = await supabase
@@ -403,18 +404,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Filter out pending reservations from OTHER guests (allow same guest to continue)
-    const blockingReservations = existingReservations?.filter(res => {
-      // Allow confirmed/checked-in from anyone to block
-      if (res.status === 'confirmed' || res.status === 'checked_in') {
+    // Block overlaps with active holds and stays; allow same guest to resume their pending checkout
+    const blockingReservations = existingReservations?.filter((res) => {
+      if (res.status === 'confirmed' || res.status === 'checked_in' || res.status === 'reserved' || res.status === 'booked') {
         return true
       }
-      // For pending reservations, only block if it's from a DIFFERENT guest
       if (res.status === 'pending' && existingGuestForCheck && res.guest_id !== existingGuestForCheck.id) {
         return true
       }
       return false
-    }) || []
+    }) ?? []
 
     if (blockingReservations.length > 0) {
       return NextResponse.json(

@@ -28,12 +28,35 @@ import { AlertCircle, Loader2, LogOut, DollarSign, Calendar, Users, Home, AlertT
 import type { Reservation } from '@/lib/booking/types'
 import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
 
+type SiteStatusForBadge =
+  | 'available'
+  | 'reserved'
+  | 'booked'
+  | 'occupied'
+  | 'housekeeping'
+  | 'maintenance'
+  | 'unavailable'
+
+const SITE_STATUS_BADGE_CLASS: Record<SiteStatusForBadge, string> = {
+  available: 'bg-green-500/10 text-green-600 border-green-500/20',
+  reserved: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  booked: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+  occupied: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  housekeeping: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+  maintenance: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  unavailable: 'bg-red-500/10 text-red-600 border-red-500/20',
+}
+
+function siteStatusLabel(status: string): string {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())
+}
+
 interface CheckOutDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   reservation: Reservation & {
     guest?: { first_name: string; last_name: string; email: string }
-    site?: { site_number: string; site_name: string | null }
+    site?: { site_number: string; site_name: string | null; status?: string | null }
   }
   allowedCheckOutDays?: string[] | undefined
 }
@@ -64,6 +87,12 @@ export function CheckOutDialog({
   const outstandingBalance = Math.max(0, reservation.total_amount - reservation.paid_amount)
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
+
+  const rawSiteStatus = reservation.site?.status ?? null
+  const siteStatusForUi =
+    rawSiteStatus && rawSiteStatus in SITE_STATUS_BADGE_CLASS
+      ? (rawSiteStatus as SiteStatusForBadge)
+      : null
 
   const handleCheckOut = async () => {
     setIsProcessing(true)
@@ -172,12 +201,25 @@ export function CheckOutDialog({
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-start gap-3 p-3 rounded-lg border">
-                <Home className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Site</p>
-                  <p className="font-medium">
-                    {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
-                  </p>
+                <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground">Site</p>
+                    <p className="font-medium mt-0.5">
+                      {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
+                    </p>
+                  </div>
+                  {rawSiteStatus ? (
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 ${siteStatusForUi
+                        ? SITE_STATUS_BADGE_CLASS[siteStatusForUi]
+                        : 'text-muted-foreground'
+                        }`}
+                    >
+                      {siteStatusLabel(rawSiteStatus)}
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 rounded-lg border">

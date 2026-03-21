@@ -30,16 +30,39 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText } from 'lucide-react'
+import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText, AlertTriangle } from 'lucide-react'
 import type { Reservation } from '@/lib/booking/types'
 import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
+
+type SiteStatusForBadge =
+  | 'available'
+  | 'reserved'
+  | 'booked'
+  | 'occupied'
+  | 'housekeeping'
+  | 'maintenance'
+  | 'unavailable'
+
+const SITE_STATUS_BADGE_CLASS: Record<SiteStatusForBadge, string> = {
+  available: 'bg-green-500/10 text-green-600 border-green-500/20',
+  reserved: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  booked: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+  occupied: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  housekeeping: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+  maintenance: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  unavailable: 'bg-red-500/10 text-red-600 border-red-500/20',
+}
+
+function siteStatusLabel(status: string): string {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())
+}
 
 interface CheckInDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   reservation: Reservation & {
     guest?: { first_name: string; last_name: string; email: string }
-    site?: { site_number: string; site_name: string | null }
+    site?: { site_number: string; site_name: string | null; status?: string | null }
   }
   blackoutDates?: string[] | undefined
   allowedCheckInDays?: string[] | undefined
@@ -76,11 +99,25 @@ export function CheckInDialog({
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
+  const rawSiteStatus = reservation.site?.status ?? null
+  const siteStatusForUi =
+    rawSiteStatus && rawSiteStatus in SITE_STATUS_BADGE_CLASS
+      ? (rawSiteStatus as SiteStatusForBadge)
+      : null
+  const isSiteHousekeeping = rawSiteStatus === 'housekeeping'
+  const housekeepingBlockMessage =
+    'Cannot check in while the site is in housekeeping. Complete housekeeping first.'
+
   const handleCheckIn = async () => {
     setIsProcessing(true)
     setError(null)
 
     try {
+      if (isSiteHousekeeping) {
+        setError(housekeepingBlockMessage)
+        return
+      }
+
       if (isBlockedByBlackout) {
         setError(
           `Check-in is not allowed today (${todayDateLabel}) due to blackout date restrictions.`
@@ -193,12 +230,26 @@ export function CheckInDialog({
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-start gap-3 p-3 rounded-lg border">
-                <Home className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Site</p>
-                  <p className="font-medium">
-                    {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
-                  </p>
+                <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground">Site</p>
+                    <p className="font-medium mt-0.5">
+                      {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
+                    </p>
+                  </div>
+                  {rawSiteStatus ? (
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 ${
+                        siteStatusForUi
+                          ? SITE_STATUS_BADGE_CLASS[siteStatusForUi]
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {siteStatusLabel(rawSiteStatus)}
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 rounded-lg border">
@@ -291,9 +342,9 @@ export function CheckInDialog({
           )}
 
           {!hasBalance && (
-            <Alert className="bg-green-50 border-green-200">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
+            <Alert className="border-green-200 bg-green-50 dark:border-emerald-800/60 dark:bg-emerald-950/40 [&>svg]:text-green-600 dark:[&>svg]:text-emerald-400">
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription className="text-green-800 dark:text-emerald-100">
                 Reservation is fully paid. No additional payment required.
               </AlertDescription>
             </Alert>
@@ -318,13 +369,20 @@ export function CheckInDialog({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          {isSiteHousekeeping && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{housekeepingBlockMessage}</AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isProcessing}>
             Cancel
           </Button>
-          <Button onClick={handleCheckIn} disabled={isProcessing}>
+          <Button onClick={handleCheckIn} disabled={isProcessing || isSiteHousekeeping}>
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -171,7 +171,7 @@ export async function GET(
     // Fetch site info
     const { data: site } = await supabase
       .from('sites')
-      .select('site_number, site_name')
+      .select('site_number, site_name, status')
       .eq('id', reservation.siteId)
       .is('deleted_at', null)
       .single()

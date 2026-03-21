@@ -24,6 +24,7 @@ import type {
   SiteAmenities,
 } from './types'
 import type { BookingType, SeasonalPeriod } from '@/lib/config/types'
+import { GUEST_BOOKABLE_SITE_STATUSES } from '@/lib/constants'
 
 type AvailableSiteRate = {
   nightlyCents: number
@@ -131,8 +132,8 @@ function hasBlockedDateOverlap(
  *
  * Rules:
  * - Site must exist
- * - Site status must be 'available' (not maintenance or unavailable)
- * - No overlapping reservations
+ * - Site status must be in GUEST_BOOKABLE_SITE_STATUSES (available, housekeeping, or occupied)
+ * - No overlapping blocking reservations (incl. reserved/booked on overlapping dates)
  * - Same-day turnover allowed (checkout day = checkin day)
  *
  * @param siteId - Site to check
@@ -171,8 +172,7 @@ export async function checkSiteAvailability(
     }
   }
 
-  // Check site status
-  if (site.status !== 'available') {
+  if (!(GUEST_BOOKABLE_SITE_STATUSES as readonly string[]).includes(site.status)) {
     return {
       success: true,
       data: false,
@@ -190,7 +190,7 @@ export async function checkSiteAvailability(
     .from('reservations')
     .select('id')
     .eq('site_id', siteId)
-    .in('status', ['pending', 'confirmed', 'checked_in'])
+    .in('status', ['pending', 'confirmed', 'checked_in', 'reserved', 'booked'])
     .lt('check_in_date', checkOutDate) // Existing check-in before new checkout
     .gt('check_out_date', checkInDate) // Existing check-out after new checkin
 
@@ -284,7 +284,7 @@ export async function searchAvailableSites(
     .from('sites')
     .select('*, enabled_reservation_types_override, availability_rules')
     .eq('property_id', params.property_id)
-    .in('status', ['available', 'housekeeping', 'maintenance'])
+    .in('status', [...GUEST_BOOKABLE_SITE_STATUSES])
 
   // Apply filters
   if (params.site_type) {

@@ -19,7 +19,7 @@ interface TodaysArrivalsCardProps {
   arrivals: Array<
     Reservation & {
       guest?: { first_name: string; last_name: string; email: string }
-      site?: { site_number: string; site_name: string | null }
+      site?: { site_number: string; site_name: string | null; status?: string | null }
     }
   >
 }
@@ -28,7 +28,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
   const [selectedReservation, setSelectedReservation] = useState<
     (Reservation & {
       guest?: { first_name: string; last_name: string; email: string }
-      site?: { site_number: string; site_name: string | null }
+      site?: { site_number: string; site_name: string | null; status?: string | null }
     }) | null
   >(null)
   const [dialogOpen, setDialogOpen] = useState(false)

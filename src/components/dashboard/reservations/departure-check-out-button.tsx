@@ -18,7 +18,7 @@ export function DepartureCheckOutButton({ reservationId }: DepartureCheckOutButt
     const [reservationData, setReservationData] = useState<
         | (Reservation & {
             guest?: { first_name: string; last_name: string; email: string }
-            site?: { site_number: string; site_name: string | null }
+            site?: { site_number: string; site_name: string | null; status?: string | null }
             })
         | null
     >(null)

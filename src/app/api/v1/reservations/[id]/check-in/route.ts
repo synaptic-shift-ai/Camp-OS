@@ -123,6 +123,32 @@ export async function POST(
       )
     }
 
+    const { data: siteRow, error: siteLookupError } = await supabase
+      .from('sites')
+      .select('id, status')
+      .eq('id', existingReservation.siteId)
+      .eq('property_id', existingReservation.propertyId)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (siteLookupError || !siteRow) {
+      return error(
+        ErrorCodes.RESOURCE_NOT_FOUND.code,
+        'Site not found for this reservation',
+        ErrorCodes.RESOURCE_NOT_FOUND.status
+      )
+    }
+
+    if (siteRow.status === 'housekeeping') {
+      return error(
+        ErrorCodes.RESOURCE_004.code,
+        'Cannot check in while the site is in housekeeping. Complete housekeeping first.',
+        ErrorCodes.RESOURCE_004.status,
+        undefined,
+        { code: 'SITE_HOUSEKEEPING' }
+      )
+    }
+
     // Parse and validate request body
     const body = await request.json()
 
@@ -147,6 +173,26 @@ export async function POST(
       balancePaidCents: validatedRequest.balancePaidCents,
       notes: validatedRequest.notes ?? null,
     })
+
+    if (reservation.siteId) {
+      const { error: siteUpdateError } = await supabase
+        .from('sites')
+        .update({
+          status: 'occupied',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', reservation.siteId)
+        .eq('property_id', reservation.propertyId)
+
+      if (siteUpdateError) {
+        console.error('[Reservations API v1] Site occupied status update error:', siteUpdateError)
+        return error(
+          ErrorCodes.INTERNAL_ERROR.code,
+          'Guest was checked in but failed to update site status',
+          ErrorCodes.INTERNAL_ERROR.status
+        )
+      }
+    }
 
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)

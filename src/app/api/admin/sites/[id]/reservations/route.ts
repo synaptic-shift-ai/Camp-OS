@@ -78,7 +78,8 @@ export async function GET(
           id,
           site_number,
           site_name,
-          site_type
+          site_type,
+          status
         )
       `
       )

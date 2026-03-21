@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import {
   Tent,
   Car,
@@ -318,6 +319,38 @@ function AvailabilityResultsContent() {
     )
   }
 
+  const yourSearchDetailRows = (
+    <>
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">Check-in:</span>
+        <span className="font-medium">{checkIn && format(checkIn, "MMM dd, yyyy")}</span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">Check-out:</span>
+        <span className="font-medium">{checkOut && format(checkOut, "MMM dd, yyyy")}</span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">Guests:</span>
+        <span className="font-medium">
+          {adults + children} ({adults}A, {children}C)
+        </span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">Nights:</span>
+        <span className="font-medium">{nights}</span>
+      </div>
+    </>
+  )
+
+  const yourSearchCard = (
+    <Card>
+      <CardHeader className="bg-[#2D5A27] text-white">
+        <CardTitle>Your Search Details</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 p-6">{yourSearchDetailRows}</CardContent>
+    </Card>
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
@@ -360,9 +393,26 @@ function AvailabilityResultsContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Results Section */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            {/* Mobile: collapsible so details don’t push the site list down */}
+            <div className="lg:hidden">
+              <Accordion
+                type="single"
+                collapsible
+                className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-sm"
+              >
+                <AccordionItem value="your-search" className="border-0">
+                  <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none [&>svg]:text-white">
+                    Your Search
+                  </AccordionTrigger>
+                  <AccordionContent className="px-0">
+                    <div className="space-y-3 border-t border-gray-100 px-4 py-4">{yourSearchDetailRows}</div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+
             {/* Search Summary */}
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="p-6">
@@ -419,13 +469,21 @@ function AvailabilityResultsContent() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge className="bg-[#2D5A27] text-white">
+                            <Badge className="bg-[#2D5A27] text-white hover:bg-[#2D5A27] hover:text-white">
                               <Icon className="h-3 w-3 mr-1" />
                               {getSiteTypeLabel(site.site_type)}
                             </Badge>
-                            <Badge className="bg-green-500 text-white">Available</Badge>
+                            <Badge
+                              variant="outline"
+                              className="border border-green-300 bg-green-50 font-semibold text-green-800 shadow-none hover:border-green-300 hover:bg-green-50 hover:text-green-800"
+                            >
+                              Available
+                            </Badge>
                             {activePromos.map((promo, i) => (
-                              <Badge key={i} className="bg-yellow-500 text-white">
+                              <Badge
+                                key={i}
+                                className="bg-yellow-500 text-white hover:bg-yellow-500 hover:text-white"
+                              >
                                 {[promo.discountLabel, promo.discountCondition].filter(Boolean).join(" ")}
                               </Badge>
                             ))}
@@ -482,7 +540,7 @@ function AvailabilityResultsContent() {
                           onClick={() => handleSelectSite(site)}
                           className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white"
                         >
-                          Select This Site
+                          Select
                         </Button>
                       </div>
                     </div>
@@ -505,35 +563,9 @@ function AvailabilityResultsContent() {
             )}
           </div>
 
-          {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
-              {/* Search Details */}
-              <Card>
-                <CardHeader className="bg-[#2D5A27] text-white">
-                  <CardTitle>Your Search</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Check-in:</span>
-                    <span className="font-medium">{checkIn && format(checkIn, "MMM dd, yyyy")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Check-out:</span>
-                    <span className="font-medium">{checkOut && format(checkOut, "MMM dd, yyyy")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Guests:</span>
-                    <span className="font-medium">
-                      {adults + children} ({adults}A, {children}C)
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Nights:</span>
-                    <span className="font-medium">{nights}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="hidden lg:block">{yourSearchCard}</div>
 
               {/* Why Book With Us */}
               <Card>

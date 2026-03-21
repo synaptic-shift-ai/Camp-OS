@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
@@ -303,6 +304,107 @@ export default function GuestInfoPage() {
       serviceFeeCents) +
       taxesCents)
 
+  const bookingSummaryMain = (
+    <>
+      {checkoutData.site.image_url && (
+        <div className="relative h-48 overflow-hidden rounded-lg">
+          <Image
+            src={checkoutData.site.image_url || "/placeholder.svg"}
+            alt={checkoutData.site.name}
+            fill
+            className="object-cover"
+          />
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900">{checkoutData.site.name}</h3>
+        <p className="text-sm capitalize text-gray-600">{checkoutData.site.site_type} Site</p>
+      </div>
+
+      <div className="space-y-2 border-t pt-4 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-gray-600">Check-in:</span>
+          <span className="font-medium">{format(checkoutData.checkInDate, "MMM dd, yyyy")}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-600">Check-out:</span>
+          <span className="font-medium">{format(checkoutData.checkOutDate, "MMM dd, yyyy")}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-600">Nights:</span>
+          <span className="font-medium">{numberOfNights}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-600">Guests:</span>
+          <span className="font-medium">
+            {(checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)} ({checkoutData.numAdults || 0}A,{" "}
+            {checkoutData.numChildren || 0}C)
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2 border-t pt-4">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">
+            {priceBreakdown.base_price_label ??
+              `${(nightlyRateCents / 100).toFixed(2)} × ${nightsForDisplay} night${nightsForDisplay !== 1 ? "s" : ""}`}
+          </span>
+          <span className="font-medium">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
+        </div>
+        {cleaningFeeCents > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Cleaning fee</span>
+            <span className="font-medium">${(cleaningFeeCents / 100).toFixed(2)}</span>
+          </div>
+        )}
+        {priceBreakdown.user_discounts?.map((discount) => (
+          <div key={discount.id} className="flex justify-between text-sm">
+            <span className="text-gray-600">{discount.title}</span>
+            <span className="font-medium text-green-700">-${(discount.amount / 100).toFixed(2)}</span>
+          </div>
+        ))}
+        {legacyDiscountCents > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Discount</span>
+            <span className="font-medium text-green-700">-${(legacyDiscountCents / 100).toFixed(2)}</span>
+          </div>
+        )}
+        {taxesCents > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}</span>
+            <span className="font-medium">${(taxesCents / 100).toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between border-t pt-2 text-lg font-bold">
+          <span>Total</span>
+          <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>
+        </div>
+      </div>
+
+      <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/book")}>
+        Edit Reservation
+      </Button>
+    </>
+  )
+
+  const bookingSummaryFooter = (
+    <div className="mt-4 space-y-3">
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <Check className="h-4 w-4 text-green-600" />
+        <span>Free cancellation within 24 hours</span>
+      </div>
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <Check className="h-4 w-4 text-green-600" />
+        <span>Instant booking confirmation</span>
+      </div>
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <Check className="h-4 w-4 text-green-600" />
+        <span>Secure payment processing</span>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
@@ -325,7 +427,7 @@ export default function GuestInfoPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 sm:mb-6">
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
             <div className="flex items-center space-x-2 text-green-700">
               <Shield className="h-5 w-5" />
@@ -342,31 +444,35 @@ export default function GuestInfoPage() {
           </div>
         </div>
 
-        <div className="mb-8">
-          <div className="flex items-center space-x-2 text-sm max-w-2xl mx-auto">
-            <div className="flex items-center space-x-2 text-gray-600">
-              <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">
-                <Check className="h-4 w-4" />
+        <div className="mb-3 sm:mb-4">
+          <div className="-mx-1 flex justify-center overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex flex-nowrap items-center gap-0.5 text-[10px] font-medium sm:gap-1 sm:text-xs md:gap-1.5 md:text-sm">
+              <div className="flex shrink-0 items-center gap-1 text-gray-600">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+                  <Check className="h-3 w-3" aria-hidden />
+                </div>
+                <span className="whitespace-nowrap leading-none">Select Dates & Site</span>
               </div>
-              <span className="font-medium">Select Dates & Site</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-            <div className="flex items-center space-x-2 text-[#2D5A27] font-medium">
-              <div className="w-6 h-6 bg-[#2D5A27] text-white rounded-full flex items-center justify-center text-xs">
-                2
+              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
+              <div className="flex shrink-0 items-center gap-1 text-[#2D5A27]">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2D5A27] text-[10px] font-semibold tabular-nums leading-none text-white">
+                  2
+                </div>
+                <span className="whitespace-nowrap leading-none">Guest Info</span>
               </div>
-              <span>Guest Info</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-            <div className="flex items-center space-x-2 text-gray-400">
-              <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">3</div>
-              <span>Payment</span>
+              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
+              <div className="flex shrink-0 items-center gap-1 text-gray-400">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-semibold tabular-nums leading-none text-gray-600">
+                  3
+                </div>
+                <span className="whitespace-nowrap leading-none">Payment</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 lg:gap-8">
+          <div className="order-2 lg:order-1 lg:col-span-2">
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="text-2xl text-[#2D5A27]">Guest Information</CardTitle>
@@ -606,119 +712,42 @@ export default function GuestInfoPage() {
             </Card>
           </div>
 
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              <Card className="shadow-lg">
-                <CardHeader className="bg-[#2D5A27] text-white">
-                  <CardTitle>Booking Summary</CardTitle>
-                  <CardDescription className="text-gray-200">Review your reservation</CardDescription>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  {checkoutData.site.image_url && (
-                    <div className="relative h-48 rounded-lg overflow-hidden">
-                      <Image
-                        src={checkoutData.site.image_url || "/placeholder.svg"}
-                        alt={checkoutData.site.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-900">{checkoutData.site.name}</h3>
-                    <p className="text-sm text-gray-600 capitalize">{checkoutData.site.site_type} Site</p>
-                  </div>
-
-                  <div className="space-y-2 text-sm border-t pt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Check-in:</span>
-                      <span className="font-medium">{format(checkoutData.checkInDate, "MMM dd, yyyy")}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Check-out:</span>
-                      <span className="font-medium">{format(checkoutData.checkOutDate, "MMM dd, yyyy")}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Nights:</span>
-                      <span className="font-medium">{numberOfNights}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Guests:</span>
-                      <span className="font-medium">
-                        {(checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)} ({checkoutData.numAdults || 0}
-                        A, {checkoutData.numChildren || 0}C)
+          <div className="order-1 lg:order-2 lg:col-span-1">
+            <div className="lg:sticky lg:top-24">
+              <div className="mb-2 lg:hidden">
+                <Accordion
+                  type="single"
+                  collapsible
+                  className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+                >
+                  <AccordionItem value="booking-summary" className="border-0">
+                    <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none [&>svg]:text-white">
+                      <span className="flex flex-col items-start gap-0.5">
+                        <span>Booking Summary</span>
+                        <span className="text-xs font-normal text-white/80">
+                          Review your reservation
+                        </span>
                       </span>
-                    </div>
-                  </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-0">
+                      <div className="space-y-4 border-t border-gray-100 px-4 py-4">
+                        {bookingSummaryMain}
+                        {bookingSummaryFooter}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
 
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        {priceBreakdown.base_price_label ??
-                          `${(nightlyRateCents / 100).toFixed(2)} × ${nightsForDisplay} night${nightsForDisplay !== 1 ? "s" : ""}`}
-                      </span>
-                      <span className="font-medium">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
-                    </div>
-                    {cleaningFeeCents > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Cleaning fee</span>
-                        <span className="font-medium">${(cleaningFeeCents / 100).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {/* <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Service fee</span>
-                      <span className="font-medium">${(serviceFeeCents / 100).toFixed(2)}</span>
-                    </div> */}
-                    {priceBreakdown.user_discounts?.map((discount) => (
-                      <div key={discount.id} className="flex justify-between text-sm">
-                        <span className="text-gray-600">{discount.title}</span>
-                        <span className="font-medium text-green-700">
-                          -${(discount.amount / 100).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                    {legacyDiscountCents > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Discount</span>
-                        <span className="font-medium text-green-700">
-                          -${(legacyDiscountCents / 100).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {taxesCents > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">
-                          Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}
-                        </span>
-                        <span className="font-medium">${(taxesCents / 100).toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-lg font-bold border-t pt-2">
-                      <span>Total</span>
-                      <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/book")}>
-                    Edit Reservation
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span>Free cancellation within 24 hours</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span>Instant booking confirmation</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span>Secure payment processing</span>
-                </div>
+              <div className="hidden lg:block">
+                <Card className="shadow-lg">
+                  <CardHeader className="bg-[#2D5A27] text-white">
+                    <CardTitle>Booking Summary</CardTitle>
+                    <CardDescription className="text-gray-200">Review your reservation</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
+                </Card>
+                {bookingSummaryFooter}
               </div>
             </div>
           </div>

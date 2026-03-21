@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
 import Link from "next/link"
@@ -115,6 +115,42 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   const [selectedReservationType, setSelectedReservationType] = useState<"" | "nightly" | "weekly" | "monthly" | "seasonal">("")
   const [isSearching, _setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [headerHidden, setHeaderHidden] = useState(false)
+  const lastScrollYRef = useRef(0)
+  const scrollTickingRef = useRef(false)
+
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      setHeaderHidden(false)
+    }
+  }, [isMobileMenuOpen])
+
+  useEffect(() => {
+    const delta = 10
+    const onScroll = () => {
+      if (scrollTickingRef.current) return
+      scrollTickingRef.current = true
+      requestAnimationFrame(() => {
+        const y = window.scrollY
+        const last = lastScrollYRef.current
+
+        if (y < 48) {
+          setHeaderHidden(false)
+        } else if (y > last + delta) {
+          setHeaderHidden(true)
+        } else if (y < last - delta) {
+          setHeaderHidden(false)
+        }
+
+        lastScrollYRef.current = y
+        scrollTickingRef.current = false
+      })
+    }
+
+    lastScrollYRef.current = window.scrollY
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   // Clear check-out when it becomes invalid after check-in change
   useEffect(() => {
@@ -290,9 +326,14 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   ]
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen w-full min-w-0 max-w-full bg-white">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 z-50 w-full max-w-full border-b border-gray-100 bg-white shadow-sm transition-transform duration-300 ease-out will-change-transform",
+          headerHidden ? "-translate-y-full" : "translate-y-0"
+        )}
+      >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -354,7 +395,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </header>
 
       {/* Hero Section */}
-      <section className="relative h-[70vh] flex items-center justify-center text-white">
+      <section className="relative w-full min-w-0 h-[70vh] flex items-center justify-center text-white">
         {property.hero_image_url ? (
           <Image
             src={property.hero_image_url || "/placeholder.svg"}
@@ -366,7 +407,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           <div className="absolute inset-0 bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F]" />
         )}
         <div className="absolute inset-0 bg-black/30"></div>
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+        <div className="relative z-10 mx-auto max-w-4xl px-4 pt-24 text-center md:pt-28">
           <h1 className="text-4xl md:text-6xl font-bold mb-4">{property.tagline || "Create Memories in Nature"}</h1>
           <p className="text-xl md:text-2xl mb-2 opacity-90">{property.name}</p>
           <p className="text-lg mb-8 opacity-80">
@@ -572,7 +613,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       {/* Search Results */}
 
       {/* Site Types Section */}
-      <section id="sites" className="py-16">
+      <section id="sites" className="py-16 w-full min-w-0">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-[#2D5A27] mb-4">Choose Your Camping Style</h2>
@@ -581,8 +622,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
-          <Carousel opts={{ align: "start", loop: false }} className="w-full">
-            <CarouselContent className="-ml-4">
+          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full">
+            <CarouselContent className="-ml-2 sm:-ml-4">
               {(
                 (siteTypeSummaries?.length
                   ? siteTypeSummaries
@@ -595,44 +636,50 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               ).map((siteType) => {
                 const IconComponent = getSiteTypeIcon(siteType.type)
                 return (
-                  <CarouselItem key={siteType.id ?? siteType.name} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                    <div className="h-full" style={{ display: "flex" }}>
-                      <Card className="overflow-hidden hover:shadow-xl transition-shadow border-2 w-full flex flex-col">
-                        <div className="relative h-64 bg-gradient-to-br from-green-100 to-green-50 shrink-0">
-                          {siteType.imageUrl ? (
-                            <Image
-                              src={siteType.imageUrl}
-                              alt={siteType.name}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : null}
-                          <div className="absolute top-4 left-4">
-                            <div className="bg-white/95 p-3 rounded-full shadow-lg">
-                              <IconComponent className="h-6 w-6 text-[#2D5A27]" />
+                  <CarouselItem
+                    key={siteType.id ?? siteType.name}
+                    className="min-w-0 pl-2 sm:pl-4 basis-[88%] sm:basis-1/2 md:basis-1/3"
+                  >
+                    <div className="h-full flex">
+                      <Card className="overflow-hidden hover:shadow-xl transition-shadow border-2 w-full h-full flex flex-col">
+                        <div className="flex min-h-28 shrink-0 items-stretch gap-1 bg-gradient-to-br from-green-100 to-green-50 sm:min-h-36 md:min-h-44 lg:min-h-52">
+                          <div className="relative min-h-28 min-w-0 flex-1 sm:min-h-36 md:min-h-44 lg:min-h-52">
+                            {siteType.imageUrl ? (
+                              <Image
+                                src={siteType.imageUrl}
+                                alt={siteType.name}
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 33vw"
+                              />
+                            ) : null}
+                            <div className="absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
+                              <div className="rounded-full bg-white/95 p-2.5 shadow-lg sm:p-3">
+                                <IconComponent className="h-5 w-5 text-[#2D5A27] sm:h-6 sm:w-6" />
+                              </div>
                             </div>
                           </div>
-                          <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
+                          <div className="flex max-w-[52%] shrink-0 flex-col items-end justify-start gap-1 py-2.5 pr-2 pl-0 sm:max-w-[50%] sm:py-3 sm:pr-3">
                             <Badge
                               className={cn(
-                                "bg-[#2D5A27] text-white text-lg px-4 py-2",
+                                "bg-[#2D5A27] px-2.5 py-1.5 text-right text-xs text-white sm:px-4 sm:py-2 sm:text-lg",
                                 siteType.discountedPrice != null && "line-through opacity-90"
                               )}
                             >
                               From ${siteType.price}/night
                             </Badge>
                             {siteType.discountedPrice != null && siteType.discountEndDate && (
-                              <Badge className="bg-[#2D5A27] text-white text-base px-3 py-1.5">
+                              <Badge className="bg-[#2D5A27] px-2 py-1 text-right text-[10px] leading-tight text-white sm:px-3 sm:py-1.5 sm:text-base">
                                 ${siteType.discountedPrice}/night until {format(new Date(siteType.discountEndDate), "MMM d")}
                               </Badge>
                             )}
                             {siteType.priceWeekly != null && siteType.priceWeekly > 0 && (
-                              <Badge className="bg-[#2D5A27] text-white text-sm px-3 py-1">
+                              <Badge className="bg-[#2D5A27] px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm">
                                 ${siteType.priceWeekly.toFixed(0)}/week
                               </Badge>
                             )}
                             {siteType.priceMonthly != null && siteType.priceMonthly > 0 && (
-                              <Badge className="bg-[#2D5A27] text-white text-sm px-3 py-1">
+                              <Badge className="bg-[#2D5A27] px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm">
                                 ${siteType.priceMonthly.toFixed(0)}/month
                               </Badge>
                             )}
@@ -641,10 +688,10 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                         <CardHeader className="shrink-0">
                           <CardTitle className="text-2xl">{`${siteType.type.toLocaleUpperCase()} Sites`}</CardTitle>
                           <CardTitle className="text-xl text-[#2D5A27]">{siteType.name}</CardTitle>
-                          <CardDescription className="text-base">{siteType.description}</CardDescription>
+                          <CardDescription className="line-clamp-3 text-base">{siteType.description}</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col flex-1 justify-between gap-4">
-                          <div>
+                        <CardContent className="flex flex-1 flex-col gap-4">
+                          <div className="flex-1">
                             <p className="text-sm font-semibold text-gray-600 mb-2">Sleeps {siteType.capacity}</p>
                             <div className="grid grid-cols-2 gap-2">
                               {siteType.amenities.map((amenity) => (
@@ -668,16 +715,16 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 )
               })}
             </CarouselContent>
-            <CarouselPrevious className="-translate-x-1/2 h-10 w-10 [&_svg]:size-6" />
-            <CarouselNext className="translate-x-1/2 h-10 w-10 [&_svg]:size-6" />
+            <CarouselPrevious className="left-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-white/80 bg-white/90 shadow-md sm:left-[-3rem] sm:h-10 sm:w-10 sm:-translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
+            <CarouselNext className="right-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-white/80 bg-white/90 shadow-md sm:right-[-3rem] sm:h-10 sm:w-10 sm:translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
           </Carousel>
         </div>
       </section>
 
       {/* Trust & Social Proof */}
-      <section className="py-12 bg-gradient-to-r from-[#8FBC8F]/10 to-[#2D5A27]/10">
+      <section className="w-full min-w-0 overflow-x-hidden py-12 bg-gradient-to-r from-[#8FBC8F]/10 to-[#2D5A27]/10">
 
-        <div className="bg-white shadow-sm p-4 mb-8 overflow-hidden w-full">
+        <div className="bg-white shadow-sm p-4 mb-8 overflow-hidden w-full max-w-full min-w-0">
           <Marquee speed={80} gradient={false} pauseOnHover>
             <div className="flex items-center justify-center space-x-8 text-sm animate-marquee">
               {recentBookings.map((booking, index) => (
@@ -693,7 +740,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           </Marquee>
         </div>
 
-        <div className="container mx-auto px-4 w-full">
+        <div className="container mx-auto px-4 w-full max-w-full min-w-0">
           {/* Trust Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -730,7 +777,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 sm:gap-4 gap-3">
             {defaultAmenities.map((amenity) => {
               const IconComponent = amenityIcons[amenity.key] || Coffee
               return (
@@ -759,9 +806,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">See what makes our campground special</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {galleryImages.map((image, index) => (
-                <div key={`${image.src}-${index}`} className="relative h-64 rounded-lg overflow-hidden group cursor-pointer">
+                <div
+                  key={`${image.src}-${index}`}
+                  className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-64 rounded-lg overflow-hidden group cursor-pointer"
+                >
                   <Image
                     src={image.src}
                     alt={image.alt}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { format } from "date-fns"
 import { useRouter, useParams } from "next/navigation"
 import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -27,8 +28,9 @@ import { PricingSummary } from "@/components/dashboard/reservations/pricing-summ
 import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-info-step"
-import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
-import { parseEnabledReservationTypesFromDB } from '@/lib/config/resolution'
+import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType, BookingRulesConfig } from '@/lib/config/types'
+import { parseEnabledReservationTypesFromDB, resolveBookingRulesConfig } from '@/lib/config/resolution'
+import { BookingDateRangePicker, type DateRangeValue } from '@/components/guest/booking-date-range-picker'
 import { Checkbox } from '@/components/ui/checkbox'
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
@@ -158,6 +160,8 @@ export default function NewReservationPage() {
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
   const [summaryTotalCents, setSummaryTotalCents] = useState<number | null>(null)
+  const [bookingRulesConfig, setBookingRulesConfig] = useState<BookingRulesConfig | null>(null)
+  const [dateRange, setDateRange] = useState<DateRangeValue>()
 
   // Collapsible section states
   const [spouseOpen, setSpouseOpen] = useState(false)
@@ -166,6 +170,8 @@ export default function NewReservationPage() {
   const methods = useForm<ManualBookingFormData>({
     resolver: zodResolver(manualBookingSchema),
     defaultValues: {
+      checkInDate: '',
+      checkOutDate: '',
       numAdults: 1,
       numChildren: 0,
       numPets: 0,
@@ -207,6 +213,19 @@ export default function NewReservationPage() {
     void trigger(['stayType', 'checkInDate', 'checkOutDate'])
   }, [stayType, checkInDate, checkOutDate, trigger])
 
+  useEffect(() => {
+    if (dateRange?.from) {
+      setValue('checkInDate', format(dateRange.from, 'yyyy-MM-dd'), { shouldValidate: true })
+    } else {
+      setValue('checkInDate', '', { shouldValidate: true })
+    }
+    if (dateRange?.to) {
+      setValue('checkOutDate', format(dateRange.to, 'yyyy-MM-dd'), { shouldValidate: true })
+    } else {
+      setValue('checkOutDate', '', { shouldValidate: true })
+    }
+  }, [dateRange, setValue])
+
   // Fetch property config from URL propertyId
   useEffect(() => {
     if (!propertyIdFromUrl) {
@@ -225,7 +244,7 @@ export default function NewReservationPage() {
 
       const { data: property, error: propertyError } = await supabase
         .from("properties")
-        .select("id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types, site_type_config")
+        .select("id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types, site_type_config, booking_rules_config")
         .eq("id", propertyIdFromUrl)
         .maybeSingle()
 
@@ -235,6 +254,12 @@ export default function NewReservationPage() {
       }
 
       setPropertyId(property.id)
+      setBookingRulesConfig(
+        resolveBookingRulesConfig(
+          (property as { booking_rules_config?: BookingRulesConfig | null }).booking_rules_config ?? null,
+          null
+        ).config
+      )
       setPricingConfig(property.pricing_config as PricingConfig | null)
       setRateDiscountsConfig(property.rate_discounts_config as RateDiscountsConfig | null)
       setDepositConfig(property.deposit_config as DepositConfig | null)
@@ -553,64 +578,80 @@ export default function NewReservationPage() {
                   <CardDescription>Select the stay type and enter guest&apos;s desired dates</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Stay Type - Moved above dates */}
-                  <div>
-                    <Label htmlFor="stayType">Stay Type *</Label>
-                    <Select
-                      value={watch("stayType")}
-                      onValueChange={(value) => setValue("stayType", value as BookingType)}
-                    >
-                      <SelectTrigger id="stayType">
-                        <SelectValue placeholder="Select stay type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {enabledReservationTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {BOOKING_TYPE_INFO[type]?.label || type} ({BOOKING_TYPE_INFO[type]?.description || ''})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.stayType && (
-                      <p className="text-sm text-destructive mt-1">{errors.stayType.message}</p>
-                    )}
-                    {stayType &&
-                      totalNights > 0 &&
-                      totalNights < STAY_TYPE_MIN_NIGHTS[stayType] && (
-                        <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
-                          You should reserve {STAY_TYPE_MIN_NIGHTS[stayType]} nights to use the{' '}
-                          {BOOKING_TYPE_INFO[stayType]?.label?.toLowerCase() ?? stayType} rate.
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="stayType">Stay Type *</Label>
+                      <Select
+                        value={watch("stayType")}
+                        onValueChange={(value) => setValue("stayType", value as BookingType)}
+                      >
+                        <SelectTrigger id="stayType" className="w-full">
+                          <SelectValue placeholder="Select stay type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {enabledReservationTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {BOOKING_TYPE_INFO[type]?.label || type} ({BOOKING_TYPE_INFO[type]?.description || ''})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.stayType && (
+                        <p className="text-sm text-destructive">{errors.stayType.message}</p>
+                      )}
+                      {stayType &&
+                        totalNights > 0 &&
+                        totalNights < STAY_TYPE_MIN_NIGHTS[stayType] && (
+                          <p className="text-sm text-amber-600 dark:text-amber-500">
+                            You should reserve {STAY_TYPE_MIN_NIGHTS[stayType]} nights to use the{' '}
+                            {BOOKING_TYPE_INFO[stayType]?.label?.toLowerCase() ?? stayType} rate.
+                          </p>
+                        )}
+                      <p className="text-sm text-muted-foreground">
+                        Determines pricing and discount eligibility
+                      </p>
+                    </div>
+
+                    <div className="min-w-0 space-y-2">
+                      <input type="hidden" {...register('checkInDate')} />
+                      <input type="hidden" {...register('checkOutDate')} />
+                      <BookingDateRangePicker
+                        variant="dashboard"
+                        label="Check-in & Check-out"
+                        value={dateRange}
+                        onChange={setDateRange}
+                        sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
+                        blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                        {...(bookingRulesConfig?.booking_window_days != null
+                          ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
+                          : {})}
+                        {...(bookingRulesConfig?.advance_notice_days != null
+                          ? { advanceNoticeDays: bookingRulesConfig.advance_notice_days }
+                          : {})}
+                        numberOfMonths={1}
+                      />
+                      {(errors.checkInDate || errors.checkOutDate) && (
+                        <p className="text-sm text-destructive">
+                          {errors.checkInDate?.message ?? errors.checkOutDate?.message}
                         </p>
                       )}
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Determines pricing and discount eligibility
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="checkInDate">Check-in Date *</Label>
-                      <Input
-                        id="checkInDate"
-                        type="date"
-                        {...register("checkInDate")}
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                      {errors.checkInDate && (
-                        <p className="text-sm text-destructive mt-1">{errors.checkInDate.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="checkOutDate">Check-out Date *</Label>
-                      <Input
-                        id="checkOutDate"
-                        type="date"
-                        {...register("checkOutDate")}
-                        min={checkInDate || new Date().toISOString().split('T')[0]}
-                      />
-                      {errors.checkOutDate && (
-                        <p className="text-sm text-destructive mt-1">{errors.checkOutDate.message}</p>
-                      )}
+                      {bookingRulesConfig &&
+                        totalNights > 0 &&
+                        totalNights < bookingRulesConfig.min_stay_nights && (
+                          <p className="text-sm text-amber-600 dark:text-amber-500">
+                            Property booking rules require at least {bookingRulesConfig.min_stay_nights} night
+                            {bookingRulesConfig.min_stay_nights === 1 ? '' : 's'}.
+                          </p>
+                        )}
+                      {bookingRulesConfig?.max_stay_nights != null &&
+                        Number.isFinite(bookingRulesConfig.max_stay_nights) &&
+                        totalNights > 0 &&
+                        totalNights > bookingRulesConfig.max_stay_nights && (
+                          <p className="text-sm text-amber-600 dark:text-amber-500">
+                            Property booking rules allow at most {bookingRulesConfig.max_stay_nights} night
+                            {bookingRulesConfig.max_stay_nights === 1 ? '' : 's'} per booking.
+                          </p>
+                        )}
                     </div>
                   </div>
 
@@ -1107,7 +1148,13 @@ export default function NewReservationPage() {
                     !selectedSiteId ||
                     (totalNights > 0 &&
                       stayType != null &&
-                      totalNights < STAY_TYPE_MIN_NIGHTS[stayType])
+                      totalNights < STAY_TYPE_MIN_NIGHTS[stayType]) ||
+                    (bookingRulesConfig != null &&
+                      totalNights > 0 &&
+                      totalNights < bookingRulesConfig.min_stay_nights) ||
+                    (bookingRulesConfig?.max_stay_nights != null &&
+                      Number.isFinite(bookingRulesConfig.max_stay_nights) &&
+                      totalNights > bookingRulesConfig.max_stay_nights)
                   }
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

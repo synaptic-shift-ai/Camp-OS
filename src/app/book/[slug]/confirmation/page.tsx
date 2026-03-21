@@ -11,6 +11,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { downloadConfirmationPdf } from "@/lib/booking/confirmation-pdf"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
+import { cn } from "@/lib/utils"
 
 // API response types
 type ConfirmPaymentResponse =
@@ -304,11 +305,11 @@ export default function ConfirmationPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-emerald-700 rounded-lg flex items-center justify-center">
-                <TreePine className="h-6 w-6 text-primary-foreground" />
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
+                <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{displayPropertyName}</h1>
+                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
                 <p className="text-xs text-muted-foreground">Booking Confirmed</p>
               </div>
             </div>
@@ -323,36 +324,36 @@ export default function ConfirmationPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <div
-              className={`inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-4 shadow-lg transition-all duration-700 ${showCheckmark ? "scale-100 opacity-100" : "scale-0 opacity-0"
+              className={`mb-4 inline-flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#2D5A27] to-[#1e3d1a] shadow-lg transition-all duration-700 dark:from-emerald-800 dark:to-emerald-950 ${showCheckmark ? "scale-100 opacity-100" : "scale-0 opacity-0"
                 }`}
             >
               <Check className="h-12 w-12 text-white animate-bounce" />
             </div>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
-              <h1 className="text-4xl font-bold text-foreground animate-fade-in">Booking Confirmed!</h1>
-              <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
+            <div className="mb-2 flex items-center justify-center gap-2">
+              <Sparkles className="h-6 w-6 animate-pulse text-amber-500 dark:text-amber-400" />
+              <h1 className="animate-fade-in text-4xl font-bold text-foreground">Booking Confirmed!</h1>
+              <Sparkles className="h-6 w-6 animate-pulse text-amber-500 dark:text-amber-400" />
             </div>
             <p className="text-lg text-muted-foreground animate-fade-in-delay">
               Your adventure awaits! We've sent a confirmation email to{" "}
-              <span className="font-medium text-emerald-600 dark:text-emerald-400">{checkoutData.guestInfo.email}</span>
+              <span className={cn("font-medium", "text-[#2D5A27] dark:text-emerald-400")}>{checkoutData.guestInfo.email}</span>
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 rounded-full text-sm font-medium animate-fade-in-delay-2">
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#2D5A27]/15 bg-[#e7f2e6] px-4 py-2 text-sm font-medium text-[#2D5A27] animate-fade-in-delay-2 dark:border-emerald-700/40 dark:bg-emerald-950/50 dark:text-emerald-100">
               <Check className="h-4 w-4" />
               Payment processed successfully
             </div>
           </div>
 
           <Card className="shadow-xl mb-6 animate-slide-up border-2 border-border bg-card">
-            <CardHeader className="bg-gradient-to-r from-emerald-700 to-emerald-900 text-primary-foreground">
+            <CardHeader className="bg-gradient-to-r from-[#2D5A27] to-[#1e3d1a] text-white dark:from-emerald-950 dark:to-emerald-900">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl">Confirmation Details</CardTitle>
-                  <CardDescription className="text-primary-foreground/80">Save this for your records</CardDescription>
+                  <CardTitle className="text-2xl text-white">Confirmation Details</CardTitle>
+                  <CardDescription className="text-white/80">Save this for your records</CardDescription>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-primary-foreground/80">Confirmation Number</p>
-                  <p className="text-2xl font-bold">{checkoutData.confirmationNumber}</p>
+                  <p className="text-sm text-white/80">Confirmation Number</p>
+                  <p className="text-2xl font-bold text-white">{checkoutData.confirmationNumber}</p>
                 </div>
               </div>
             </CardHeader>
@@ -374,7 +375,7 @@ export default function ConfirmationPage() {
 
                   <div className="space-y-3">
                     <div className="flex items-start space-x-3">
-                      <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                      <Calendar className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                       <div>
                         <p className="font-medium text-foreground">Check-in</p>
                         <p className="text-muted-foreground">{format(checkoutData.checkInDate!, "EEEE, MMMM dd, yyyy")}</p>
@@ -382,7 +383,7 @@ export default function ConfirmationPage() {
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                      <Calendar className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                       <div>
                         <p className="font-medium text-foreground">Check-out</p>
                         <p className="text-muted-foreground">{format(checkoutData.checkOutDate!, "EEEE, MMMM dd, yyyy")}</p>
@@ -390,7 +391,7 @@ export default function ConfirmationPage() {
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
-                      <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                      <MapPin className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                       <div>
                         <p className="font-medium text-foreground">Location</p>
                         <p className="text-muted-foreground">{displayPropertyName}</p>
@@ -443,7 +444,7 @@ export default function ConfirmationPage() {
                       {discountCents > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Discount</span>
-                          <span className="font-medium text-emerald-600 dark:text-emerald-400">-${formatCurrency(discountCents)}</span>
+                          <span className={cn("font-medium", "text-[#2D5A27] dark:text-emerald-400")}>-${formatCurrency(discountCents)}</span>
                         </div>
                       )}
                       {(priceBreakdown.taxes || 0) > 0 && (
@@ -457,7 +458,7 @@ export default function ConfirmationPage() {
                       )}
                       <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
                         <span className="text-foreground">Total Paid</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">${formatCurrency(priceBreakdown.total)}</span>
+                        <span className="text-[#2D5A27] dark:text-emerald-400">${formatCurrency(priceBreakdown.total)}</span>
                       </div>
                     </div>
                   </div>
@@ -469,14 +470,14 @@ export default function ConfirmationPage() {
           <div className="grid md:grid-cols-3 gap-4 mb-8 print:hidden">
             <Button
               variant="outline"
-              className="h-12 bg-background border-border text-foreground hover:bg-muted hover:border-emerald-500 transition-all duration-300 hover:scale-105"
+              className="h-12 border-border bg-background text-foreground transition-all duration-300 hover:scale-105 hover:border-[#2D5A27] hover:bg-muted dark:hover:border-emerald-500"
             >
-              <Mail className="w-4 h-4 mr-2" />
+              <Mail className="mr-2 h-4 w-4" />
               Email Confirmation
             </Button>
             <Button
               variant="outline"
-              className="h-12 bg-background border-border text-foreground hover:bg-muted hover:border-emerald-500 transition-all duration-300 hover:scale-105"
+              className="h-12 border-border bg-background text-foreground transition-all duration-300 hover:scale-105 hover:border-[#2D5A27] hover:bg-muted dark:hover:border-emerald-500"
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
             >
@@ -485,7 +486,7 @@ export default function ConfirmationPage() {
             </Button>
             <Button
               variant="outline"
-              className="h-12 bg-background border-border text-foreground hover:bg-muted hover:border-emerald-500 transition-all duration-300 hover:scale-105"
+              className="h-12 border-border bg-background text-foreground transition-all duration-300 hover:scale-105 hover:border-[#2D5A27] hover:bg-muted dark:hover:border-emerald-500"
               onClick={handlePrint}
             >
               <Printer className="w-4 h-4 mr-2" />
@@ -495,14 +496,14 @@ export default function ConfirmationPage() {
 
           <Card className="bg-card border-border shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+              <CardTitle className={cn("flex items-center gap-2 text-lg", "text-[#2D5A27] dark:text-emerald-400")}>
                 <Sparkles className="h-5 w-5" />
                 What's Next?
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start space-x-3">
-                <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                <Check className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                 <div>
                   <p className="font-medium text-foreground">Check your email</p>
                   <p className="text-sm text-muted-foreground">
@@ -511,14 +512,14 @@ export default function ConfirmationPage() {
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                <Check className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                 <div>
                   <p className="font-medium text-foreground">Prepare for your trip</p>
                   <p className="text-sm text-muted-foreground">Review our packing list and campground rules</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <Phone className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                <Phone className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                 <div>
                   <p className="font-medium text-foreground">Questions?</p>
                   <p className="text-sm text-muted-foreground">
@@ -532,7 +533,10 @@ export default function ConfirmationPage() {
           <div className="text-center mt-8 print:hidden">
             <Button
               onClick={handleNewBooking}
-              className="bg-emerald-700 hover:bg-emerald-800 text-primary-foreground h-12 px-8 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              className={cn(
+                "h-12 px-8 text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl",
+                "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900",
+              )}
             >
               Make Another Booking
             </Button>

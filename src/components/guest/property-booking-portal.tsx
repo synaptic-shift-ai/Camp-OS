@@ -326,23 +326,23 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   ]
 
   return (
-    <div className="min-h-screen w-full min-w-0 max-w-full bg-white">
+    <div className="min-h-screen w-full min-w-0 max-w-full bg-background text-foreground">
       {/* Header */}
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-50 w-full max-w-full border-b border-gray-100 bg-white shadow-sm transition-transform duration-300 ease-out will-change-transform",
+          "fixed inset-x-0 top-0 z-50 w-full max-w-full border-b border-gray-100 bg-white shadow-sm transition-transform duration-300 ease-out will-change-transform dark:border-border dark:bg-background",
           headerHidden ? "-translate-y-full" : "translate-y-0"
         )}
       >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center">
+              <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{property.name}</h1>
-                <p className="text-sm text-gray-600">
+                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{property.name}</h1>
+                <p className="text-sm text-muted-foreground">
                   {property.city}, {property.state}
                 </p>
               </div>
@@ -350,44 +350,48 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
-              <Link href="#sites" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+              <Link href="#sites" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                 Sites
               </Link>
-              <Link href="#amenities" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+              <Link href="#amenities" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                 Amenities
               </Link>
-              <Link href="#gallery" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+              <Link href="#gallery" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                 Gallery
               </Link>
-              <Link href="#contact" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+              <Link href="#contact" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                 Contact
               </Link>
-              <Button className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white">Book Now</Button>
+              <Button className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}>Book Now</Button>
             </nav>
 
             {/* Mobile Menu Button */}
-            <button className="md:hidden p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            <button
+              type="button"
+              className="md:hidden p-2 text-foreground"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
 
           {/* Mobile Navigation */}
           {isMobileMenuOpen && (
-            <nav className="md:hidden mt-4 pb-4 border-t pt-4">
+            <nav className="md:hidden mt-4 border-t border-border pb-4 pt-4">
               <div className="flex flex-col space-y-3">
-                <Link href="#sites" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+                <Link href="#sites" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                   Sites
                 </Link>
-                <Link href="#amenities" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+                <Link href="#amenities" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                   Amenities
                 </Link>
-                <Link href="#gallery" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+                <Link href="#gallery" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                   Gallery
                 </Link>
-                <Link href="#contact" className="text-gray-700 hover:text-[#2D5A27] transition-colors">
+                <Link href="#contact" className={cn("text-foreground/80 transition-colors", "hover:text-[#2D5A27] dark:hover:text-emerald-400")}>
                   Contact
                 </Link>
-                <Button className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white w-full">Book Now</Button>
+                <Button className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "w-full text-white")}>Book Now</Button>
               </div>
             </nav>
           )}
@@ -404,7 +408,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             className="object-cover"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F] dark:from-emerald-950 dark:to-emerald-900" />
         )}
         <div className="absolute inset-0 bg-black/30"></div>
         <div className="relative z-10 mx-auto max-w-4xl px-4 pt-24 text-center md:pt-28">
@@ -417,7 +421,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              className="bg-white text-[#2D5A27] hover:bg-gray-100 text-lg px-8 py-3"
+              className="bg-white text-[#2D5A27] hover:bg-gray-100 dark:bg-zinc-100 dark:text-emerald-950 dark:hover:bg-white text-lg px-8 py-3"
               onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
             >
               Book Your Stay
@@ -425,7 +429,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             <Button
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-[#2D5A27] text-lg px-8 py-3 bg-transparent"
+              className="border-white text-white hover:bg-white hover:text-[#2D5A27] dark:hover:text-emerald-950 text-lg px-8 py-3 bg-transparent"
               onClick={() => document.getElementById("sites")?.scrollIntoView({ behavior: "smooth" })}
             >
               View Sites
@@ -435,12 +439,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </section>
 
       {/* Quick Booking Widget */}
-      <section id="booking-widget" className="py-8 bg-gray-50">
+      <section id="booking-widget" className="py-8 bg-muted/50 dark:bg-muted/20">
         <div className="container mx-auto px-4">
-          <Card className="max-w-5xl mx-auto shadow-lg">
-            <CardHeader className="bg-[#2D5A27] text-white">
-              <CardTitle className="text-center text-2xl">Find Your Perfect Campsite</CardTitle>
-              <CardDescription className="text-center text-gray-200">
+          <Card className="mx-auto max-w-5xl shadow-lg">
+            <CardHeader className="bg-[#2D5A27] text-white dark:bg-emerald-950">
+              <CardTitle className="text-center text-2xl text-white">Find Your Perfect Campsite</CardTitle>
+              <CardDescription className="text-center text-gray-200 dark:text-emerald-100/90">
                 Check availability and get instant pricing
               </CardDescription>
             </CardHeader>
@@ -448,12 +452,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
                 {/* Reservation Type Filter - FIRST POSITION */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#2D5A27]">Rate Type</label>
+                  <label className={cn("text-sm font-medium", "text-[#2D5A27] dark:text-emerald-400")}>Rate Type</label>
                   <Select
                     value={selectedReservationType}
                     onValueChange={(value) => setSelectedReservationType(value as "" | "nightly" | "weekly" | "monthly" | "seasonal")}
                   >
-                    <SelectTrigger className="border-2">
+                    <SelectTrigger className="border-2 border-input bg-background">
                       <SelectValue placeholder="Auto-detect" />
                     </SelectTrigger>
                     <SelectContent>
@@ -487,12 +491,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
                 {/* Site Type Filter */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#2D5A27]">Site Type</label>
+                  <label className={cn("text-sm font-medium", "text-[#2D5A27] dark:text-emerald-400")}>Site Type</label>
                   <Select
                     value={selectedSiteType}
                     onValueChange={(value) => setSelectedSiteType(value as SiteType | "" | "all")}
                   >
-                    <SelectTrigger className="border-2">
+                    <SelectTrigger className="border-2 border-input bg-background">
                       <SelectValue placeholder="All Site Types" />
                     </SelectTrigger>
                     <SelectContent>
@@ -508,15 +512,15 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
                 {/* Guest Count */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#2D5A27]">Guests</label>
+                  <label className={cn("text-sm font-medium", "text-[#2D5A27] dark:text-emerald-400")}>Guests</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between border-2 bg-transparent">
+                      <Button variant="outline" className="w-full justify-between border-2 border-input bg-background">
                         <span>
                           {adults + children} Guest{adults + children !== 1 ? "s" : ""}
                           {pets > 0 && `, ${pets} Pet${pets !== 1 ? "s" : ""}`}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           {adults}A {children > 0 && `${children}C`} {pets > 0 && `${pets}P`}
                         </span>
                       </Button>
@@ -581,12 +585,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
                 {/* Check Availability Button */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#2D5A27] opacity-0">Action</label>
+                  <label className={cn("text-sm font-medium opacity-0", "text-[#2D5A27] dark:text-emerald-400")}>Action</label>
                   <Button
                     className={cn(
-                      "w-full rounded-xl bg-[#2D5A27] text-white text-sm py-4",
-                      "shadow-md hover:bg-[#23451f] hover:shadow-lg transition-colors transition-shadow",
-                      "border border-[#23451f]"
+                      "w-full rounded-xl text-sm py-4 text-white shadow-md transition-colors transition-shadow",
+                      "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900",
+                      "hover:shadow-lg border border-[#23451f] dark:border-emerald-900"
                     )}
                     onClick={searchAvailability}
                     disabled={isSearching}
@@ -597,9 +601,9 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               </div>
 
               {/* Trust Badges */}
-              <div className="flex flex-wrap justify-center gap-4 pt-4 border-t">
+              <div className="flex flex-wrap justify-center gap-4 border-t border-border pt-4">
                 {trustBadges.map((badge, index) => (
-                  <div key={index} className="flex items-center space-x-1 text-sm text-gray-600">
+                  <div key={index} className="flex items-center space-x-1 text-sm text-muted-foreground">
                     <span>{badge.icon}</span>
                     <span>{badge.text}</span>
                   </div>
@@ -616,8 +620,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       <section id="sites" className="py-16 w-full min-w-0">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-[#2D5A27] mb-4">Choose Your Camping Style</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <h2 className={cn("mb-4 text-3xl font-bold md:text-4xl", "text-[#2D5A27] dark:text-emerald-400")}>Choose Your Camping Style</h2>
+            <p className="mx-auto max-w-2xl text-xl text-muted-foreground">
               From rustic tent camping to comfortable cabins, find your perfect outdoor experience
             </p>
           </div>
@@ -641,8 +645,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     className="min-w-0 pl-2 sm:pl-4 basis-[88%] sm:basis-1/2 md:basis-1/3"
                   >
                     <div className="h-full flex">
-                      <Card className="overflow-hidden hover:shadow-xl transition-shadow border-2 w-full h-full flex flex-col">
-                        <div className="flex min-h-28 shrink-0 items-stretch gap-1 bg-gradient-to-br from-green-100 to-green-50 sm:min-h-36 md:min-h-44 lg:min-h-52">
+                      <Card className="flex h-full w-full flex-col overflow-hidden border-2 transition-shadow hover:shadow-xl">
+                        <div className="flex min-h-28 shrink-0 items-stretch gap-1 bg-gradient-to-br from-green-100 to-green-50 dark:from-emerald-950/50 dark:to-zinc-900/80 sm:min-h-36 md:min-h-44 lg:min-h-52">
                           <div className="relative min-h-28 min-w-0 flex-1 sm:min-h-36 md:min-h-44 lg:min-h-52">
                             {siteType.imageUrl ? (
                               <Image
@@ -654,32 +658,33 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                               />
                             ) : null}
                             <div className="absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
-                              <div className="rounded-full bg-white/95 p-2.5 shadow-lg sm:p-3">
-                                <IconComponent className="h-5 w-5 text-[#2D5A27] sm:h-6 sm:w-6" />
+                              <div className="rounded-full bg-white/95 p-2.5 shadow-lg dark:bg-zinc-900/95 sm:p-3">
+                                <IconComponent className={cn("h-5 w-5 sm:h-6 sm:w-6", "text-[#2D5A27] dark:text-emerald-400")} />
                               </div>
                             </div>
                           </div>
                           <div className="flex max-w-[52%] shrink-0 flex-col items-end justify-start gap-1 py-2.5 pr-2 pl-0 sm:max-w-[50%] sm:py-3 sm:pr-3">
                             <Badge
                               className={cn(
-                                "bg-[#2D5A27] px-2.5 py-1.5 text-right text-xs text-white sm:px-4 sm:py-2 sm:text-lg",
+                                "bg-[#2D5A27] dark:bg-emerald-800",
+                                "px-2.5 py-1.5 text-right text-xs text-white sm:px-4 sm:py-2 sm:text-lg",
                                 siteType.discountedPrice != null && "line-through opacity-90"
                               )}
                             >
                               From ${siteType.price}/night
                             </Badge>
                             {siteType.discountedPrice != null && siteType.discountEndDate && (
-                              <Badge className="bg-[#2D5A27] px-2 py-1 text-right text-[10px] leading-tight text-white sm:px-3 sm:py-1.5 sm:text-base">
+                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-[10px] leading-tight text-white sm:px-3 sm:py-1.5 sm:text-base")}>
                                 ${siteType.discountedPrice}/night until {format(new Date(siteType.discountEndDate), "MMM d")}
                               </Badge>
                             )}
                             {siteType.priceWeekly != null && siteType.priceWeekly > 0 && (
-                              <Badge className="bg-[#2D5A27] px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm">
+                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm")}>
                                 ${siteType.priceWeekly.toFixed(0)}/week
                               </Badge>
                             )}
                             {siteType.priceMonthly != null && siteType.priceMonthly > 0 && (
-                              <Badge className="bg-[#2D5A27] px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm">
+                              <Badge className={cn("bg-[#2D5A27] dark:bg-emerald-800", "px-2 py-1 text-right text-xs text-white sm:px-3 sm:text-sm")}>
                                 ${siteType.priceMonthly.toFixed(0)}/month
                               </Badge>
                             )}
@@ -687,23 +692,23 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                         </div>
                         <CardHeader className="shrink-0">
                           <CardTitle className="text-2xl">{`${siteType.type.toLocaleUpperCase()} Sites`}</CardTitle>
-                          <CardTitle className="text-xl text-[#2D5A27]">{siteType.name}</CardTitle>
+                          <CardTitle className={cn("text-xl", "text-[#2D5A27] dark:text-emerald-400")}>{siteType.name}</CardTitle>
                           <CardDescription className="line-clamp-3 text-base">{siteType.description}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-1 flex-col gap-4">
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-600 mb-2">Sleeps {siteType.capacity}</p>
+                            <p className="mb-2 text-sm font-semibold text-muted-foreground">Sleeps {siteType.capacity}</p>
                             <div className="grid grid-cols-2 gap-2">
                               {siteType.amenities.map((amenity) => (
                                 <div key={amenity} className="flex items-center space-x-2">
-                                  <div className="w-2 h-2 bg-[#8FBC8F] rounded-full"></div>
-                                  <span className="text-sm text-gray-700">{amenity}</span>
+                                  <div className="h-2 w-2 rounded-full bg-[#8FBC8F] dark:bg-emerald-600" />
+                                  <span className="text-sm text-foreground/90">{amenity}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                           <Button
-                            className="w-full bg-[#2D5A27] hover:bg-[#1e3d1a] text-white"
+                            className={cn("w-full text-white", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}
                             onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
                           >
                             View Sites
@@ -715,25 +720,25 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 )
               })}
             </CarouselContent>
-            <CarouselPrevious className="left-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-white/80 bg-white/90 shadow-md sm:left-[-3rem] sm:h-10 sm:w-10 sm:-translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
-            <CarouselNext className="right-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-white/80 bg-white/90 shadow-md sm:right-[-3rem] sm:h-10 sm:w-10 sm:translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
+            <CarouselPrevious className="left-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-[-3rem] sm:h-10 sm:w-10 sm:-translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
+            <CarouselNext className="right-1 top-1/2 z-10 h-9 w-9 -translate-y-1/2 translate-x-0 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-[-3rem] sm:h-10 sm:w-10 sm:translate-x-1/2 [&_svg]:size-5 sm:[&_svg]:size-6" />
           </Carousel>
         </div>
       </section>
 
       {/* Trust & Social Proof */}
-      <section className="w-full min-w-0 overflow-x-hidden py-12 bg-gradient-to-r from-[#8FBC8F]/10 to-[#2D5A27]/10">
+      <section className="w-full min-w-0 overflow-x-hidden bg-gradient-to-r from-[#8FBC8F]/10 to-[#2D5A27]/10 py-12 dark:from-emerald-950/30 dark:to-emerald-950/50">
 
-        <div className="bg-white shadow-sm p-4 mb-8 overflow-hidden w-full max-w-full min-w-0">
+        <div className="mb-8 w-full max-w-full min-w-0 overflow-hidden bg-card p-4 shadow-sm">
           <Marquee speed={80} gradient={false} pauseOnHover>
-            <div className="flex items-center justify-center space-x-8 text-sm animate-marquee">
+            <div className="flex animate-marquee items-center justify-center space-x-8 text-sm">
               {recentBookings.map((booking, index) => (
-                <div key={index} className="flex items-center space-x-2 text-gray-700 whitespace-nowrap">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div key={index} className="flex items-center space-x-2 whitespace-nowrap text-foreground/90">
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-green-500 dark:bg-emerald-500" />
                   <span className="font-medium">{booking.name}</span>
                   {/* <span>from {booking.siteType}</span> */}
                   <span>booked a {booking.siteType} Site for {booking.numberOfNights} nights</span>
-                  <span className="text-gray-500">{booking.timeAgo}</span>
+                  <span className="text-muted-foreground">{booking.timeAgo}</span>
                 </div>
               ))}
             </div>
@@ -743,36 +748,36 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
         <div className="container mx-auto px-4 w-full max-w-full min-w-0">
           {/* Trust Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <div className="text-3xl font-bold text-[#2D5A27] mb-2">4.8★</div>
-              <div className="text-sm text-gray-600">Average Rating</div>
-              <div className="text-xs text-gray-500 mt-1">From verified guests</div>
+            <div className="rounded-lg bg-card p-6 shadow-sm">
+              <div className={cn("mb-2 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>4.8★</div>
+              <div className="text-sm text-muted-foreground">Average Rating</div>
+              <div className="mt-1 text-xs text-muted-foreground">From verified guests</div>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <div className="text-3xl font-bold text-[#2D5A27] mb-2">5,000+</div>
-              <div className="text-sm text-gray-600">Happy Campers</div>
-              <div className="text-xs text-gray-500 mt-1">This year alone</div>
+            <div className="rounded-lg bg-card p-6 shadow-sm">
+              <div className={cn("mb-2 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>5,000+</div>
+              <div className="text-sm text-muted-foreground">Happy Campers</div>
+              <div className="mt-1 text-xs text-muted-foreground">This year alone</div>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <div className="text-3xl font-bold text-[#2D5A27] mb-2">24hr</div>
-              <div className="text-sm text-gray-600">Free Cancellation</div>
-              <div className="text-xs text-gray-500 mt-1">No questions asked</div>
+            <div className="rounded-lg bg-card p-6 shadow-sm">
+              <div className={cn("mb-2 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>24hr</div>
+              <div className="text-sm text-muted-foreground">Free Cancellation</div>
+              <div className="mt-1 text-xs text-muted-foreground">No questions asked</div>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <div className="text-3xl font-bold text-[#2D5A27] mb-2">100%</div>
-              <div className="text-sm text-gray-600">Secure Booking</div>
-              <div className="text-xs text-gray-500 mt-1">SSL encrypted</div>
+            <div className="rounded-lg bg-card p-6 shadow-sm">
+              <div className={cn("mb-2 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>100%</div>
+              <div className="text-sm text-muted-foreground">Secure Booking</div>
+              <div className="mt-1 text-xs text-muted-foreground">SSL encrypted</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Amenities Grid */}
-      <section id="amenities" className="py-16 bg-gray-50">
+      <section id="amenities" className="bg-muted/50 py-16 dark:bg-muted/20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-[#2D5A27] mb-4">Campground Amenities</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <div className="mb-12 text-center">
+            <h2 className={cn("mb-4 text-3xl font-bold md:text-4xl", "text-[#2D5A27] dark:text-emerald-400")}>Campground Amenities</h2>
+            <p className="mx-auto max-w-2xl text-xl text-muted-foreground">
               Everything you need for a comfortable camping experience
             </p>
           </div>
@@ -783,13 +788,13 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               return (
                 <div
                   key={amenity.key}
-                  className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                  className="rounded-lg bg-card p-6 text-center shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <div className="w-16 h-16 bg-[#8FBC8F] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#8FBC8F] dark:bg-emerald-700">
                     <IconComponent className="h-8 w-8 text-white" />
                   </div>
-                  <h3 className="font-semibold text-[#2D5A27] mb-2">{amenity.name}</h3>
-                  <p className="text-sm text-gray-600">{amenity.description}</p>
+                  <h3 className={cn("mb-2 font-semibold", "text-[#2D5A27] dark:text-emerald-400")}>{amenity.name}</h3>
+                  <p className="text-sm text-muted-foreground">{amenity.description}</p>
                 </div>
               )
             })}
@@ -801,9 +806,9 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       {galleryImages.length > 0 && (
         <section id="gallery" className="py-16">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-[#2D5A27] mb-4">Experience {property.name}</h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">See what makes our campground special</p>
+            <div className="mb-12 text-center">
+              <h2 className={cn("mb-4 text-3xl font-bold md:text-4xl", "text-[#2D5A27] dark:text-emerald-400")}>Experience {property.name}</h2>
+              <p className="mx-auto max-w-2xl text-xl text-muted-foreground">See what makes our campground special</p>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
@@ -829,44 +834,44 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       )}
 
       {/* Property Information */}
-      <section className="py-16 bg-gray-50">
+      <section className="bg-muted/50 py-16 dark:bg-muted/20">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold text-[#2D5A27] mb-6">About {property.name}</h2>
-              <p className="text-gray-700 leading-relaxed mb-6">
+              <h2 className={cn("mb-6 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>About {property.name}</h2>
+              <p className="mb-6 leading-relaxed text-foreground/90">
                 {property.description ||
                   "Welcome to our beautiful campground! We offer a perfect blend of nature and comfort, with modern amenities and stunning natural surroundings. Whether you're looking for a peaceful retreat or an adventure-filled getaway, we have everything you need for an unforgettable camping experience."}
               </p>
             </div>
 
             <div>
-              <h2 className="text-3xl font-bold text-[#2D5A27] mb-6">Important Information</h2>
+              <h2 className={cn("mb-6 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>Important Information</h2>
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
-                  <Clock className="h-5 w-5 text-[#2D5A27] mt-1" />
+                  <Clock className={cn("mt-1 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                   <div>
-                    <p className="font-semibold text-gray-900">Check-in: {formatTime(property.check_in_time)}</p>
-                    <p className="font-semibold text-gray-900">Check-out: {formatTime(property.check_out_time)}</p>
+                    <p className="font-semibold text-foreground">Check-in: {formatTime(property.check_in_time)}</p>
+                    <p className="font-semibold text-foreground">Check-out: {formatTime(property.check_out_time)}</p>
                   </div>
                 </div>
 
                 {property.cancellation_policy && (
                   <div className="flex items-start space-x-3">
-                    <div className="text-[#2D5A27] mt-1">📋</div>
+                    <div className={cn("mt-1", "text-[#2D5A27] dark:text-emerald-400")}>📋</div>
                     <div>
-                      <p className="font-semibold text-gray-900">Cancellation Policy</p>
-                      <p className="text-gray-700 text-sm">{property.cancellation_policy}</p>
+                      <p className="font-semibold text-foreground">Cancellation Policy</p>
+                      <p className="text-sm text-muted-foreground">{property.cancellation_policy}</p>
                     </div>
                   </div>
                 )}
 
                 {property.phone && (
                   <div className="flex items-start space-x-3">
-                    <Phone className="h-5 w-5 text-[#2D5A27] mt-1" />
+                    <Phone className={cn("mt-1 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                     <div>
-                      <p className="font-semibold text-gray-900">Phone</p>
-                      <a href={`tel:${property.phone}`} className="text-[#2D5A27] hover:underline">
+                      <p className="font-semibold text-foreground">Phone</p>
+                      <a href={`tel:${property.phone}`} className={cn("hover:underline", "text-[#2D5A27] dark:text-emerald-400")}>
                         {property.phone}
                       </a>
                     </div>
@@ -875,10 +880,10 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
                 {property.email && (
                   <div className="flex items-start space-x-3">
-                    <Mail className="h-5 w-5 text-[#2D5A27] mt-1" />
+                    <Mail className={cn("mt-1 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                     <div>
-                      <p className="font-semibold text-gray-900">Email</p>
-                      <a href={`mailto:${property.email}`} className="text-[#2D5A27] hover:underline">
+                      <p className="font-semibold text-foreground">Email</p>
+                      <a href={`mailto:${property.email}`} className={cn("hover:underline", "text-[#2D5A27] dark:text-emerald-400")}>
                         {property.email}
                       </a>
                     </div>
@@ -891,13 +896,16 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </section>
 
       {/* Call-to-Action Footer Section */}
-      <section id="contact" className="py-16 bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F] text-white">
+      <section
+        id="contact"
+        className="bg-gradient-to-r from-[#2D5A27] to-[#8FBC8F] py-16 text-white dark:from-emerald-950 dark:to-emerald-900"
+      >
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Book Your Adventure?</h2>
-          <p className="text-xl mb-8 opacity-90">Start planning your perfect camping getaway today</p>
+          <h2 className="mb-4 text-3xl font-bold md:text-4xl">Ready to Book Your Adventure?</h2>
+          <p className="mb-8 text-xl opacity-90">Start planning your perfect camping getaway today</p>
           <Button
             size="lg"
-            className="bg-white text-[#2D5A27] hover:bg-gray-100 text-lg"
+            className="bg-white text-[#2D5A27] hover:bg-gray-100 dark:bg-zinc-100 dark:text-emerald-950 dark:hover:bg-white text-lg"
             onClick={() => document.getElementById("booking-widget")?.scrollIntoView({ behavior: "smooth" })}
           >
             Check Availability
@@ -914,36 +922,36 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#2D5A27] text-white py-12">
+      <footer className="bg-[#2D5A27] py-12 text-white dark:bg-emerald-950">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                  <TreePine className="h-5 w-5 text-[#2D5A27]" />
+              <div className="mb-4 flex items-center space-x-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-zinc-100">
+                  <TreePine className="h-5 w-5 text-[#2D5A27] dark:text-emerald-900" />
                 </div>
                 <span className="text-xl font-bold">{property.name}</span>
               </div>
-              <p className="text-gray-300 mb-4">
+              <p className="mb-4 text-emerald-100/90">
                 {property.city}, {property.state}
               </p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
-              <ul className="space-y-2 text-gray-300">
+              <h3 className="mb-4 text-lg font-semibold">Quick Links</h3>
+              <ul className="space-y-2 text-emerald-100/90">
                 <li>
-                  <Link href="#sites" className="hover:text-white transition-colors">
+                  <Link href="#sites" className="transition-colors hover:text-white">
                     Site Types
                   </Link>
                 </li>
                 <li>
-                  <Link href="#amenities" className="hover:text-white transition-colors">
+                  <Link href="#amenities" className="transition-colors hover:text-white">
                     Amenities
                   </Link>
                 </li>
                 <li>
-                  <Link href="#gallery" className="hover:text-white transition-colors">
+                  <Link href="#gallery" className="transition-colors hover:text-white">
                     Gallery
                   </Link>
                 </li>
@@ -951,8 +959,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
-              <div className="space-y-2 text-gray-300">
+              <h3 className="mb-4 text-lg font-semibold">Contact Info</h3>
+              <div className="space-y-2 text-emerald-100/90">
                 {property.phone && (
                   <p className="flex items-center">
                     <Phone className="h-4 w-4 mr-2" /> {property.phone}
@@ -970,7 +978,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </div>
           </div>
 
-          <div className="border-t border-gray-600 mt-8 pt-8 text-center text-gray-300">
+          <div className="mt-8 border-t border-white/20 pt-8 text-center text-emerald-100/80">
             <p>
               &copy; {new Date().getFullYear()} {property.name}. All rights reserved.
             </p>

@@ -20,6 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
+import { cn } from "@/lib/utils"
 
 const US_STATES = [
   "Alabama",
@@ -318,67 +319,67 @@ export default function GuestInfoPage() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{checkoutData.site.name}</h3>
-        <p className="text-sm capitalize text-gray-600">{checkoutData.site.site_type} Site</p>
+        <h3 className="text-lg font-semibold text-foreground">{checkoutData.site.name}</h3>
+        <p className="text-sm capitalize text-muted-foreground">{checkoutData.site.site_type} Site</p>
       </div>
 
-      <div className="space-y-2 border-t pt-4 text-sm">
+      <div className="space-y-2 border-t border-border pt-4 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Check-in:</span>
-          <span className="font-medium">{format(checkoutData.checkInDate, "MMM dd, yyyy")}</span>
+          <span className="text-muted-foreground">Check-in:</span>
+          <span className="font-medium text-foreground">{format(checkoutData.checkInDate, "MMM dd, yyyy")}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Check-out:</span>
-          <span className="font-medium">{format(checkoutData.checkOutDate, "MMM dd, yyyy")}</span>
+          <span className="text-muted-foreground">Check-out:</span>
+          <span className="font-medium text-foreground">{format(checkoutData.checkOutDate, "MMM dd, yyyy")}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Nights:</span>
-          <span className="font-medium">{numberOfNights}</span>
+          <span className="text-muted-foreground">Nights:</span>
+          <span className="font-medium text-foreground">{numberOfNights}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Guests:</span>
-          <span className="font-medium">
+          <span className="text-muted-foreground">Guests:</span>
+          <span className="font-medium text-foreground">
             {(checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)} ({checkoutData.numAdults || 0}A,{" "}
             {checkoutData.numChildren || 0}C)
           </span>
         </div>
       </div>
 
-      <div className="space-y-2 border-t pt-4">
+      <div className="space-y-2 border-t border-border pt-4">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">
+          <span className="text-muted-foreground">
             {priceBreakdown.base_price_label ??
               `${(nightlyRateCents / 100).toFixed(2)} × ${nightsForDisplay} night${nightsForDisplay !== 1 ? "s" : ""}`}
           </span>
-          <span className="font-medium">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
+          <span className="font-medium text-foreground">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
         </div>
         {cleaningFeeCents > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Cleaning fee</span>
-            <span className="font-medium">${(cleaningFeeCents / 100).toFixed(2)}</span>
+            <span className="text-muted-foreground">Cleaning fee</span>
+            <span className="font-medium text-foreground">${(cleaningFeeCents / 100).toFixed(2)}</span>
           </div>
         )}
         {priceBreakdown.user_discounts?.map((discount) => (
           <div key={discount.id} className="flex justify-between text-sm">
-            <span className="text-gray-600">{discount.title}</span>
-            <span className="font-medium text-green-700">-${(discount.amount / 100).toFixed(2)}</span>
+            <span className="text-muted-foreground">{discount.title}</span>
+            <span className="font-medium text-green-700 dark:text-emerald-400">-${(discount.amount / 100).toFixed(2)}</span>
           </div>
         ))}
         {legacyDiscountCents > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Discount</span>
-            <span className="font-medium text-green-700">-${(legacyDiscountCents / 100).toFixed(2)}</span>
+            <span className="text-muted-foreground">Discount</span>
+            <span className="font-medium text-green-700 dark:text-emerald-400">-${(legacyDiscountCents / 100).toFixed(2)}</span>
           </div>
         )}
         {taxesCents > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}</span>
-            <span className="font-medium">${(taxesCents / 100).toFixed(2)}</span>
+            <span className="text-muted-foreground">Taxes {taxRate != null ? `(${(taxRate * 100).toFixed(1)}%)` : ""}</span>
+            <span className="font-medium text-foreground">${(taxesCents / 100).toFixed(2)}</span>
           </div>
         )}
-        <div className="flex justify-between border-t pt-2 text-lg font-bold">
-          <span>Total</span>
-          <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>
+        <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
+          <span className="text-foreground">Total</span>
+          <span className="text-[#2D5A27] dark:text-emerald-400">${(totalCents / 100).toFixed(2)}</span>
         </div>
       </div>
 
@@ -390,33 +391,33 @@ export default function GuestInfoPage() {
 
   const bookingSummaryFooter = (
     <div className="mt-4 space-y-3">
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Check className="h-4 w-4 text-green-600" />
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
         <span>Free cancellation within 24 hours</span>
       </div>
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Check className="h-4 w-4 text-green-600" />
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
         <span>Instant booking confirmation</span>
       </div>
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Check className="h-4 w-4 text-green-600" />
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
         <span>Secure payment processing</span>
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background text-foreground dark:from-muted/20">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center">
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
-                <p className="text-xs text-gray-600">Secure Booking Portal</p>
+                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
+                <p className="text-xs text-muted-foreground">Secure Booking Portal</p>
               </div>
             </div>
             <Button variant="ghost" onClick={() => router.push("/")}>
@@ -427,17 +428,17 @@ export default function GuestInfoPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 sm:mb-6">
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 sm:mb-6">
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Shield className="h-5 w-5" />
               <span className="font-medium">Secure Checkout</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Lock className="h-5 w-5" />
               <span className="font-medium">SSL Encrypted</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Check className="h-5 w-5" />
               <span className="font-medium">No Payment Required Yet</span>
             </div>
@@ -447,22 +448,22 @@ export default function GuestInfoPage() {
         <div className="mb-3 sm:mb-4">
           <div className="-mx-1 flex justify-center overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex flex-nowrap items-center gap-0.5 text-[10px] font-medium sm:gap-1 sm:text-xs md:gap-1.5 md:text-sm">
-              <div className="flex shrink-0 items-center gap-1 text-gray-600">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+              <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white dark:bg-emerald-600">
                   <Check className="h-3 w-3" aria-hidden />
                 </div>
                 <span className="whitespace-nowrap leading-none">Select Dates & Site</span>
               </div>
-              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
-              <div className="flex shrink-0 items-center gap-1 text-[#2D5A27]">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2D5A27] text-[10px] font-semibold tabular-nums leading-none text-white">
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+              <div className={cn("flex shrink-0 items-center gap-1", "text-[#2D5A27] dark:text-emerald-400")}>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2D5A27] text-[10px] font-semibold tabular-nums leading-none text-white dark:bg-emerald-800">
                   2
                 </div>
                 <span className="whitespace-nowrap leading-none">Guest Info</span>
               </div>
-              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
-              <div className="flex shrink-0 items-center gap-1 text-gray-400">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-semibold tabular-nums leading-none text-gray-600">
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold tabular-nums leading-none text-muted-foreground">
                   3
                 </div>
                 <span className="whitespace-nowrap leading-none">Payment</span>
@@ -475,14 +476,14 @@ export default function GuestInfoPage() {
           <div className="order-2 lg:order-1 lg:col-span-2">
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="text-2xl text-[#2D5A27]">Guest Information</CardTitle>
+                <CardTitle className={cn("text-2xl", "text-[#2D5A27] dark:text-emerald-400")}>Guest Information</CardTitle>
                 <CardDescription>Please provide your contact details for the reservation</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg text-gray-900 flex items-center space-x-2">
-                      <Users className="h-5 w-5 text-[#2D5A27]" />
+                    <h3 className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                      <Users className={cn("h-5 w-5", "text-[#2D5A27] dark:text-emerald-400")} />
                       <span>Contact Information</span>
                     </h3>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -547,7 +548,7 @@ export default function GuestInfoPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg text-gray-900">Address (Optional)</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Address (Optional)</h3>
                     <div className="space-y-2">
                       <Label htmlFor="address">Street Address</Label>
                       <Input id="address" {...form.register("address")} />
@@ -584,7 +585,7 @@ export default function GuestInfoPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg text-gray-900">Trip Details</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Trip Details</h3>
                     <div className="space-y-2">
                       <Label htmlFor="num_vehicles">Number of Vehicles</Label>
                       <Select
@@ -615,7 +616,7 @@ export default function GuestInfoPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg text-gray-900">Emergency Contact (Optional)</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Emergency Contact (Optional)</h3>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="emergency_contact_name">Contact Name</Label>
@@ -628,8 +629,8 @@ export default function GuestInfoPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4 border-t pt-6">
-                    <h3 className="font-semibold text-lg text-gray-900">Terms & Policies</h3>
+                  <div className="space-y-4 border-t border-border pt-6">
+                    <h3 className="text-lg font-semibold text-foreground">Terms & Policies</h3>
                     <div className="space-y-3">
                       <div className="flex items-start space-x-3">
                         <Checkbox
@@ -640,7 +641,7 @@ export default function GuestInfoPage() {
                         <div className="space-y-1">
                           <Label htmlFor="agree_terms" className="text-sm font-normal cursor-pointer">
                             I agree to the{" "}
-                            <Link href="/terms" className="text-[#2D5A27] underline">
+                            <Link href="/terms" className="text-[#2D5A27] underline dark:text-emerald-400">
                               terms and conditions
                             </Link>{" "}
                             <span className="text-red-500">*</span>
@@ -659,7 +660,7 @@ export default function GuestInfoPage() {
                         <div className="space-y-1">
                           <Label htmlFor="agree_cancellation" className="text-sm font-normal cursor-pointer">
                             I agree to the{" "}
-                            <Link href="/cancellation-policy" className="text-[#2D5A27] underline">
+                            <Link href="/cancellation-policy" className="text-[#2D5A27] underline dark:text-emerald-400">
                               cancellation policy
                             </Link>{" "}
                             <span className="text-red-500">*</span>
@@ -670,23 +671,23 @@ export default function GuestInfoPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <p className="text-sm text-gray-700">
+                    <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+                      <p className="text-sm text-foreground/90">
                         <strong>Cancellation Policy:</strong> Free cancellation up to 7 days before check-in. 50% refund
                         for cancellations 3-7 days before. No refund for cancellations within 3 days of check-in.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
+                  <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row">
                     <Button type="button" variant="outline" onClick={() => router.push("/book")} className="sm:w-auto">
-                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      <ArrowLeft className="mr-2 h-4 w-4" />
                       Back to Booking
                     </Button>
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex-1 bg-[#2D5A27] hover:bg-[#1e3d1a] text-white h-12"
+                      className={cn("h-12 flex-1 text-white", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}
                     >
                       {isSubmitting ? (
                         "Processing..."
@@ -699,12 +700,12 @@ export default function GuestInfoPage() {
                     </Button>
                   </div>
 
-                  <div className="flex items-center justify-center gap-6 text-sm text-gray-600 pt-4">
+                  <div className="flex items-center justify-center gap-6 pt-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-green-600" />
+                      <Lock className="h-4 w-4 text-green-600 dark:text-emerald-500" />
                       <span>Secure & Encrypted</span>
                     </div>
-                    <div className="hidden sm:block text-gray-300">•</div>
+                    <div className="hidden sm:block text-border">•</div>
                     <span className="hidden sm:inline">No payment required yet</span>
                   </div>
                 </form>
@@ -718,10 +719,10 @@ export default function GuestInfoPage() {
                 <Accordion
                   type="single"
                   collapsible
-                  className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+                  className="overflow-hidden rounded-lg border-2 border-border bg-card shadow-lg"
                 >
                   <AccordionItem value="booking-summary" className="border-0">
-                    <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none [&>svg]:text-white">
+                    <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none dark:bg-emerald-950 [&>svg]:text-white">
                       <span className="flex flex-col items-start gap-0.5">
                         <span>Booking Summary</span>
                         <span className="text-xs font-normal text-white/80">
@@ -730,7 +731,7 @@ export default function GuestInfoPage() {
                       </span>
                     </AccordionTrigger>
                     <AccordionContent className="px-0">
-                      <div className="space-y-4 border-t border-gray-100 px-4 py-4">
+                      <div className="space-y-4 border-t border-border px-4 py-4">
                         {bookingSummaryMain}
                         {bookingSummaryFooter}
                       </div>
@@ -741,9 +742,9 @@ export default function GuestInfoPage() {
 
               <div className="hidden lg:block">
                 <Card className="shadow-lg">
-                  <CardHeader className="bg-[#2D5A27] text-white">
-                    <CardTitle>Booking Summary</CardTitle>
-                    <CardDescription className="text-gray-200">Review your reservation</CardDescription>
+                  <CardHeader className="bg-[#2D5A27] text-white dark:bg-emerald-950">
+                    <CardTitle className="text-white">Booking Summary</CardTitle>
+                    <CardDescription className="text-gray-200 dark:text-emerald-100/90">Review your reservation</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
                 </Card>

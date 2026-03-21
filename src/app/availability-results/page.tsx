@@ -31,6 +31,7 @@ import type { AvailableSite, SiteType } from "@/lib/booking/types"
 import { calculatePriceBreakdown, getBaseSubtotalAndLabel } from "@/lib/booking/pricing"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import type { RateDiscountsConfig } from "@/lib/config/types"
+import { cn } from "@/lib/utils"
 
 function AvailabilityResultsContent() {
   const router = useRouter()
@@ -282,12 +283,12 @@ function AvailabilityResultsContent() {
 
   if (!checkIn || !checkOut || !propertyId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Card className="p-8 text-center">
-          <TreePine className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Invalid Search</h2>
-          <p className="text-gray-600 mb-4">Missing required search parameters</p>
-          <Button onClick={() => router.push(`/book/${slug}`)} className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white">
+          <TreePine className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+          <h2 className="mb-2 text-xl font-bold text-foreground">Invalid Search</h2>
+          <p className="mb-4 text-muted-foreground">Missing required search parameters</p>
+          <Button onClick={() => router.push(`/book/${slug}`)} className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}>
             Back to Search
           </Button>
         </Card>
@@ -297,23 +298,23 @@ function AvailabilityResultsContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background dark:from-muted/20">
+        <header className="sticky top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center">
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
-                <p className="text-xs text-gray-600">Searching...</p>
+                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
+                <p className="text-xs text-muted-foreground">Searching...</p>
               </div>
             </div>
           </div>
         </header>
         <div className="container mx-auto px-4 py-16 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2D5A27] mx-auto mb-4"></div>
-          <p className="text-gray-600">Searching for available sites...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#2D5A27] dark:border-emerald-500" />
+          <p className="text-muted-foreground">Searching for available sites...</p>
         </div>
       </div>
     )
@@ -322,52 +323,52 @@ function AvailabilityResultsContent() {
   const yourSearchDetailRows = (
     <>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">Check-in:</span>
-        <span className="font-medium">{checkIn && format(checkIn, "MMM dd, yyyy")}</span>
+        <span className="text-muted-foreground">Check-in:</span>
+        <span className="font-medium text-foreground">{checkIn && format(checkIn, "MMM dd, yyyy")}</span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">Check-out:</span>
-        <span className="font-medium">{checkOut && format(checkOut, "MMM dd, yyyy")}</span>
+        <span className="text-muted-foreground">Check-out:</span>
+        <span className="font-medium text-foreground">{checkOut && format(checkOut, "MMM dd, yyyy")}</span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">Guests:</span>
-        <span className="font-medium">
+        <span className="text-muted-foreground">Guests:</span>
+        <span className="font-medium text-foreground">
           {adults + children} ({adults}A, {children}C)
         </span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">Nights:</span>
-        <span className="font-medium">{nights}</span>
+        <span className="text-muted-foreground">Nights:</span>
+        <span className="font-medium text-foreground">{nights}</span>
       </div>
     </>
   )
 
   const yourSearchCard = (
     <Card>
-      <CardHeader className="bg-[#2D5A27] text-white">
-        <CardTitle>Your Search Details</CardTitle>
+      <CardHeader className="bg-[#2D5A27] text-white dark:bg-emerald-950">
+        <CardTitle className="text-white">Your Search Details</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-6">{yourSearchDetailRows}</CardContent>
     </Card>
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background text-foreground dark:from-muted/20">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center">
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
-                <p className="text-xs text-gray-600">Availability Results</p>
+                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
+                <p className="text-xs text-muted-foreground">Availability Results</p>
               </div>
             </div>
             <Button variant="ghost" onClick={() => router.push(`/book/${slug}`)}>
-              <ChevronLeft className="h-4 w-4 mr-1" />
+              <ChevronLeft className="mr-1 h-4 w-4" />
               Back to Search
             </Button>
           </div>
@@ -376,17 +377,17 @@ function AvailabilityResultsContent() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Trust Bar */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+        <div className="mb-8 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Shield className="h-5 w-5" />
               <span className="font-medium">Secure Booking</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Zap className="h-5 w-5" />
               <span className="font-medium">Instant Confirmation</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Clock className="h-5 w-5" />
               <span className="font-medium">Easy Cancellation</span>
             </div>
@@ -400,43 +401,43 @@ function AvailabilityResultsContent() {
               <Accordion
                 type="single"
                 collapsible
-                className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-sm"
+                className="overflow-hidden rounded-lg border-2 border-border bg-card shadow-sm"
               >
                 <AccordionItem value="your-search" className="border-0">
-                  <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none [&>svg]:text-white">
+                  <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none dark:bg-emerald-950 [&>svg]:text-white">
                     Your Search
                   </AccordionTrigger>
                   <AccordionContent className="px-0">
-                    <div className="space-y-3 border-t border-gray-100 px-4 py-4">{yourSearchDetailRows}</div>
+                    <div className="space-y-3 border-t border-border px-4 py-4">{yourSearchDetailRows}</div>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
             </div>
 
             {/* Search Summary */}
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/35">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    <h2 className="mb-2 text-xl font-bold text-foreground">
                       {availableSites.length} Available Site{availableSites.length !== 1 ? "s" : ""} Found
                     </h2>
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+                    <div className="flex flex-wrap gap-4 text-sm text-foreground/90">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-[#2D5A27]" />
+                        <Calendar className={cn("h-4 w-4", "text-[#2D5A27] dark:text-emerald-400")} />
                         <span>
                           {checkIn && format(checkIn, "MMM dd")} - {checkOut && format(checkOut, "MMM dd")}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4 text-[#2D5A27]" />
+                        <Users className={cn("h-4 w-4", "text-[#2D5A27] dark:text-emerald-400")} />
                         <span>
                           {adults + children} Guest{adults + children !== 1 ? "s" : ""}
                         </span>
                       </div>
                       {nights > 0 && (
                         <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-[#2D5A27]" />
+                          <Clock className={cn("h-4 w-4", "text-[#2D5A27] dark:text-emerald-400")} />
                           <span>
                             {nights} Night{nights !== 1 ? "s" : ""}
                           </span>
@@ -444,7 +445,7 @@ function AvailabilityResultsContent() {
                       )}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => router.push(`/book/${slug}`)}>
+                  <Button size="sm" className={cn("shrink-0", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")} onClick={() => router.push(`/book/${slug}`)}>
                     Modify Search
                   </Button>
                 </div>
@@ -469,27 +470,32 @@ function AvailabilityResultsContent() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge className="bg-[#2D5A27] text-white hover:bg-[#2D5A27] hover:text-white">
-                              <Icon className="h-3 w-3 mr-1" />
+                            <Badge
+                              className={cn(
+                                "bg-[#2D5A27] dark:bg-emerald-800",
+                                "text-white hover:bg-[#2D5A27] hover:text-white dark:hover:bg-emerald-800",
+                              )}
+                            >
+                              <Icon className="mr-1 h-3 w-3" />
                               {getSiteTypeLabel(site.site_type)}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="border border-green-300 bg-green-50 font-semibold text-green-800 shadow-none hover:border-green-300 hover:bg-green-50 hover:text-green-800"
+                              className="border border-green-300 bg-green-50 font-semibold text-green-800 shadow-none hover:border-green-300 hover:bg-green-50 hover:text-green-800 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-200"
                             >
                               Available
                             </Badge>
                             {activePromos.map((promo, i) => (
                               <Badge
                                 key={i}
-                                className="bg-yellow-500 text-white hover:bg-yellow-500 hover:text-white"
+                                className="bg-yellow-500 text-white hover:bg-yellow-500 hover:text-white dark:bg-amber-600 dark:hover:bg-amber-600"
                               >
                                 {[promo.discountLabel, promo.discountCondition].filter(Boolean).join(" ")}
                               </Badge>
                             ))}
                           </div>
-                          <h3 className="text-xl font-bold text-gray-900 mb-1">{site.name}</h3>
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <h3 className="mb-1 text-xl font-bold text-foreground">{site.name}</h3>
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                             <MapPin className="h-4 w-4" />
                             <span>Site {site.site_number}</span>
                             <span>•</span>
@@ -498,8 +504,8 @@ function AvailabilityResultsContent() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-[#2D5A27]">${totalPrice.toFixed(2)}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className={cn("text-2xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>${totalPrice.toFixed(2)}</div>
+                          <div className="text-xs text-muted-foreground">
                             {basePriceLabel}
                           </div>
                         </div>
@@ -512,8 +518,8 @@ function AvailabilityResultsContent() {
                             {Object.entries(site.amenities).map(
                               ([key, value]) =>
                                 value && (
-                                  <div key={key} className="flex items-center space-x-1 text-xs text-gray-600">
-                                    <Check className="h-3 w-3 text-green-600" />
+                                  <div key={key} className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                    <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
                                     <span className="capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
                                   </div>
                                 )
@@ -526,20 +532,17 @@ function AvailabilityResultsContent() {
 
                       {/* CTA */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
-                            <Check className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
                             <span>Easy cancellation</span>
                           </div>
                           <div className="flex items-center space-x-1">
-                            <Zap className="h-4 w-4 text-green-600" />
+                            <Zap className="h-4 w-4 text-green-600 dark:text-emerald-500" />
                             <span>Instant confirmation</span>
                           </div>
                         </div>
-                        <Button
-                          onClick={() => handleSelectSite(site)}
-                          className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white"
-                        >
+                        <Button onClick={() => handleSelectSite(site)} className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}>
                           Select
                         </Button>
                       </div>
@@ -551,12 +554,12 @@ function AvailabilityResultsContent() {
 
             {availableSites.length === 0 && (
               <Card className="p-12 text-center">
-                <TreePine className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No sites available</h3>
-                <p className="text-gray-600 mb-6">
+                <TreePine className="mx-auto mb-4 h-16 w-16 text-muted-foreground/50" />
+                <h3 className="mb-2 text-xl font-semibold text-foreground">No sites available</h3>
+                <p className="mb-6 text-muted-foreground">
                   We couldn't find any available sites for your selected dates. Try adjusting your search criteria.
                 </p>
-                <Button onClick={() => router.push(`/book/${slug}`)} className="bg-[#2D5A27] hover:bg-[#1e3d1a] text-white">
+                <Button onClick={() => router.push(`/book/${slug}`)} className={cn("bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}>
                   Modify Search
                 </Button>
               </Card>
@@ -574,35 +577,35 @@ function AvailabilityResultsContent() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-start space-x-3">
-                    <Shield className="h-5 w-5 text-[#2D5A27] mt-0.5" />
+                    <Shield className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                     <div>
-                      <p className="font-medium text-sm">Best Price Guarantee</p>
-                      <p className="text-xs text-gray-600">Lowest rates, guaranteed</p>
+                      <p className="text-sm font-medium">Best Price Guarantee</p>
+                      <p className="text-xs text-muted-foreground">Lowest rates, guaranteed</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
-                    <Clock className="h-5 w-5 text-[#2D5A27] mt-0.5" />
+                    <Clock className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                     <div>
-                      <p className="font-medium text-sm">Easy Cancellation</p>
-                      <p className="text-xs text-gray-600">Flexible cancellation policy</p>
+                      <p className="text-sm font-medium">Easy Cancellation</p>
+                      <p className="text-xs text-muted-foreground">Flexible cancellation policy</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
-                    <Star className="h-5 w-5 text-[#2D5A27] mt-0.5" />
+                    <Star className={cn("mt-0.5 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
                     <div>
-                      <p className="font-medium text-sm">Secure Booking</p>
-                      <p className="text-xs text-gray-600">Your information is safe</p>
+                      <p className="text-sm font-medium">Secure Booking</p>
+                      <p className="text-xs text-muted-foreground">Your information is safe</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Need Help */}
-              <Card className="bg-gray-50">
+              <Card className="bg-muted/50 dark:bg-muted/20">
                 <CardContent className="p-6 text-center">
-                  <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
-                  <p className="text-sm text-gray-600 mb-4">Our team is here to assist you</p>
-                  <Button variant="outline" className="w-full bg-white">
+                  <h3 className="mb-2 font-semibold text-foreground">Need Help?</h3>
+                  <p className="mb-4 text-sm text-muted-foreground">Our team is here to assist you</p>
+                  <Button className={cn("w-full", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900", "text-white")}>
                     Contact Support
                   </Button>
                 </CardContent>
@@ -619,8 +622,8 @@ export default function AvailabilityResultsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2D5A27]"></div>
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#2D5A27] dark:border-emerald-500" />
         </div>
       }
     >

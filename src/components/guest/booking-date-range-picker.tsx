@@ -109,23 +109,23 @@ function StyledDayButton({
       className={cn(
         'relative flex items-center justify-center w-full h-full aspect-square',
         'text-[0.9rem] outline-none transition-all duration-100 border-0 appearance-none',
-        isDashboard ? 'focus-visible:ring-2 focus-visible:ring-primary' : 'focus-visible:ring-2 focus-visible:ring-[#2D5A27]',
+        isDashboard ? 'focus-visible:ring-2 focus-visible:ring-primary' : 'focus-visible:ring-2 focus-visible:ring-[#2D5A27] dark:focus-visible:ring-emerald-500',
 
         !filled && !isMiddle && cn(
           'rounded-none font-normal',
-          isDashboard ? 'text-foreground hover:bg-muted' : 'text-[#1a202c] hover:bg-[#f2f7f1]',
+          isDashboard ? 'text-foreground hover:bg-muted' : 'text-[#1a202c] hover:bg-[#f2f7f1] dark:text-foreground dark:hover:bg-muted',
         ),
 
         isMiddle && cn(
           'rounded-none font-semibold',
           isDashboard
             ? 'text-primary bg-primary/10 hover:bg-primary/10'
-            : 'text-[#2D5A27] bg-[#e7f2e6] hover:bg-[#e7f2e6]',
+            : 'text-[#2D5A27] bg-[#e7f2e6] hover:bg-[#e7f2e6] dark:text-emerald-400 dark:bg-emerald-950/50 dark:hover:bg-emerald-950/50',
         ),
 
         filled && cn(
           'rounded-none border-0 font-bold shadow-sm',
-          isDashboard ? 'bg-primary text-primary-foreground' : 'bg-[#2D5A27] text-white',
+          isDashboard ? 'bg-primary text-primary-foreground' : 'bg-[#2D5A27] text-white dark:bg-emerald-800',
         ),
 
         className,
@@ -155,7 +155,7 @@ function StyledCalendar({
   const isDashboard = variant === 'dashboard'
   const navBtn = isDashboard
     ? 'flex items-center justify-center w-7 h-7 rounded-[4px] bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all aria-disabled:opacity-30 aria-disabled:pointer-events-none'
-    : 'flex items-center justify-center w-7 h-7 rounded-[4px] bg-[#2D5A27] text-white hover:bg-[#1e3d1a] active:scale-95 transition-all aria-disabled:opacity-30 aria-disabled:pointer-events-none'
+    : 'flex items-center justify-center w-7 h-7 rounded-[4px] bg-[#2D5A27] text-white hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 transition-all aria-disabled:opacity-30 aria-disabled:pointer-events-none'
 
   return (
     <DayPicker
@@ -173,14 +173,14 @@ function StyledCalendar({
         month_caption: cn('relative flex items-center h-10 pr-20 pt-1', dc.month_caption),
         caption_label: cn(
           'pointer-events-none text-[1.1rem] font-bold',
-          isDashboard ? 'text-foreground' : 'text-[#1a202c]',
+          isDashboard ? 'text-foreground' : 'text-[#1a202c] dark:text-foreground',
           dc.caption_label,
         ),
 
         weekdays: cn('flex', dc.weekdays),
         weekday: cn(
           'flex-1 text-center text-[0.72rem] font-semibold uppercase tracking-wider pb-1',
-          isDashboard ? 'text-muted-foreground' : 'text-[#9ca3af]',
+          isDashboard ? 'text-muted-foreground' : 'text-[#9ca3af] dark:text-muted-foreground',
           dc.weekday,
         ),
 
@@ -253,7 +253,7 @@ export function BookingDateRangePicker({
         <p
           className={cn(
             'm-0 text-sm font-medium',
-            isDashboard ? '' : 'text-[#2D5A27]',
+            isDashboard ? '' : 'text-[#2D5A27] dark:text-emerald-400',
           )}
         >
           {label}
@@ -272,8 +272,8 @@ export function BookingDateRangePicker({
               ? 'border-primary'
               : 'border-input hover:border-primary'
             : open
-              ? 'border-[#2D5A27]'
-              : 'border-input hover:border-[#2D5A27]',
+              ? 'border-[#2D5A27] dark:border-emerald-500'
+              : 'border-input hover:border-[#2D5A27] dark:hover:border-emerald-500',
           disabled && 'pointer-events-none opacity-50',
         )}
       >
@@ -284,7 +284,7 @@ export function BookingDateRangePicker({
               hasValue
                 ? isDashboard
                   ? ''
-                  : 'text-[#2D5A27]'
+                  : 'text-[#2D5A27] dark:text-emerald-400'
                 : 'text-muted-foreground',
             )}
           />
@@ -296,7 +296,7 @@ export function BookingDateRangePicker({
           <span
             className={cn(
               'text-[0.65rem] font-extrabold uppercase tracking-widest',
-              isDashboard ? '' : 'text-[#2D5A27]',
+              isDashboard ? '' : 'text-[#2D5A27] dark:text-emerald-400',
             )}
           >
             SET
@@ -310,7 +310,7 @@ export function BookingDateRangePicker({
           'rounded-2xl border shadow-lg',
           isDashboard
             ? 'bg-popover text-popover-foreground border-border'
-            : 'bg-white border-[#e2e8f0] shadow-2xl shadow-black/10',
+            : 'bg-white border-[#e2e8f0] shadow-2xl shadow-black/10 dark:bg-popover dark:text-popover-foreground dark:border-border',
           'origin-top transition-all duration-200',
           open
             ? 'scale-100 opacity-100 pointer-events-auto'
@@ -333,7 +333,7 @@ export function BookingDateRangePicker({
         <div
           className={cn(
             'flex items-center justify-between border-t px-4 py-3',
-            isDashboard ? 'border-border' : 'border-[#e2e8f0]',
+            isDashboard ? 'border-border' : 'border-[#e2e8f0] dark:border-border',
           )}
         >
           <button
@@ -354,8 +354,8 @@ export function BookingDateRangePicker({
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
                   : 'bg-primary/30 text-primary-foreground cursor-not-allowed'
                 : hasRange
-                  ? 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] active:scale-95 shadow-sm'
-                  : 'text-white bg-[#2D5A27]/30 cursor-not-allowed',
+                  ? 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm'
+                  : 'text-white bg-[#2D5A27]/30 dark:bg-emerald-800/40 cursor-not-allowed',
             )}
           >
             Confirm

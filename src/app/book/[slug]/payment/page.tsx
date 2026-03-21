@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useState, useMemo, type FormEvent } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { useTheme } from "next-themes"
 import { format, differenceInDays } from "date-fns"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
@@ -17,6 +18,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
+import { cn } from "@/lib/utils"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -165,9 +167,9 @@ function PaymentFormInner({ slug }: { slug: string }) {
         </Alert>
       )}
 
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
-        <h4 className="font-semibold text-sm text-gray-900">Billing Information</h4>
-        <div className="text-sm text-gray-700">
+      <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-4 dark:bg-muted/20">
+        <h4 className="text-sm font-semibold text-foreground">Billing Information</h4>
+        <div className="text-sm text-foreground/90">
           <p>
             {checkoutData.guestInfo.first_name} {checkoutData.guestInfo.last_name}
           </p>
@@ -183,11 +185,11 @@ function PaymentFormInner({ slug }: { slug: string }) {
         </div>
       </div>
 
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
         <div className="flex items-start space-x-3">
-          <Lock className="h-5 w-5 text-green-600 mt-0.5" />
-          <div className="text-sm text-gray-700">
-            <p className="font-semibold text-gray-900 mb-1">Your payment is secure</p>
+          <Lock className="mt-0.5 h-5 w-5 text-green-600 dark:text-emerald-500" />
+          <div className="text-sm text-foreground/90">
+            <p className="mb-1 font-semibold text-foreground">Your payment is secure</p>
             <p>
               We use industry-standard encryption to protect your payment information. Your card details are never
               stored on our servers.
@@ -205,7 +207,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
+      <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row">
         <Button
           type="button"
           variant="outline"
@@ -216,11 +218,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Guest Info
         </Button>
-        <Button
-          type="submit"
-          disabled={submitDisabled}
-          className="flex-1 bg-[#2D5A27] hover:bg-[#1e3d1a] text-white h-12"
-        >
+        <Button type="submit" disabled={submitDisabled} className={cn("h-12 flex-1 text-white", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
           {isProcessing ? (
             <span className="flex items-center">
               <Loader2 className="animate-spin mr-2 h-5 w-5" />
@@ -235,14 +233,14 @@ function PaymentFormInner({ slug }: { slug: string }) {
         </Button>
       </div>
 
-      <div className="flex items-center justify-center gap-6 text-sm text-gray-600 pt-4">
+      <div className="flex items-center justify-center gap-6 pt-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-green-600" />
+          <Shield className="h-4 w-4 text-green-600 dark:text-emerald-500" />
           <span>PCI Compliant</span>
         </div>
-        <div className="hidden sm:block text-gray-300">•</div>
+        <div className="hidden sm:block text-border">•</div>
         <div className="flex items-center gap-2">
-          <Lock className="w-4 h-4 text-green-600" />
+          <Lock className="h-4 w-4 text-green-600 dark:text-emerald-500" />
           <span>256-bit Encryption</span>
         </div>
       </div>
@@ -253,6 +251,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
 export default function PaymentPage() {
   const params = useParams()
   const slug = params.slug as string
+  const { resolvedTheme } = useTheme()
   const { checkoutData, setCheckoutData, isHydrated } = useCheckout()
   const router = useRouter()
   const { toast } = useToast()
@@ -260,6 +259,42 @@ export default function PaymentPage() {
   const [isLoading, setIsLoading] = useState(true)
   const displayPropertyName =
     checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+
+  const isDarkMode = resolvedTheme === "dark"
+  const stripeAppearance = useMemo(
+    () =>
+      isDarkMode
+        ? {
+          theme: "night" as const,
+          variables: {
+            colorPrimary: "#34d399",
+            colorBackground: "#0a0a0a",
+            colorText: "#fafafa",
+            colorDanger: "#f87171",
+            fontFamily: "system-ui, sans-serif",
+            spacingUnit: "4px",
+            borderRadius: "8px",
+          },
+        }
+        : {
+          theme: "stripe" as const,
+          variables: {
+            colorPrimary: "#2D5A27",
+            colorBackground: "#ffffff",
+            colorText: "#1f2937",
+            colorDanger: "#ef4444",
+            fontFamily: "system-ui, sans-serif",
+            spacingUnit: "4px",
+            borderRadius: "8px",
+          },
+        },
+    [isDarkMode],
+  )
+
+  const stripeElementsOptions = useMemo(
+    () => (clientSecret ? { clientSecret, appearance: stripeAppearance } : null),
+    [clientSecret, stripeAppearance],
+  )
 
   useEffect(() => {
     // Don't validate until hydration is complete
@@ -351,10 +386,10 @@ export default function PaymentPage() {
 
   if (isLoading || !clientSecret) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-muted/50 to-background dark:from-muted/20">
         <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 mx-auto mb-4 text-[#2D5A27]" />
-          <p className="text-gray-600">Preparing secure checkout...</p>
+          <Loader2 className={cn("mx-auto mb-4 h-12 w-12 animate-spin", "text-[#2D5A27] dark:text-emerald-400")} />
+          <p className="text-muted-foreground">Preparing secure checkout...</p>
         </div>
       </div>
     )
@@ -407,85 +442,85 @@ export default function PaymentPage() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{checkoutData.site.name}</h3>
-        <p className="text-sm capitalize text-gray-600">{checkoutData.site.site_type} Site</p>
+        <h3 className="text-lg font-semibold text-foreground">{checkoutData.site.name}</h3>
+        <p className="text-sm capitalize text-muted-foreground">{checkoutData.site.site_type} Site</p>
       </div>
 
-      <div className="space-y-2 border-t pt-4 text-sm">
+      <div className="space-y-2 border-t border-border pt-4 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Check-in:</span>
-          <span className="font-medium">{format(checkoutData.checkInDate, "MMM dd, yyyy")}</span>
+          <span className="text-muted-foreground">Check-in:</span>
+          <span className="font-medium text-foreground">{format(checkoutData.checkInDate, "MMM dd, yyyy")}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Check-out:</span>
-          <span className="font-medium">{format(checkoutData.checkOutDate, "MMM dd, yyyy")}</span>
+          <span className="text-muted-foreground">Check-out:</span>
+          <span className="font-medium text-foreground">{format(checkoutData.checkOutDate, "MMM dd, yyyy")}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Nights:</span>
-          <span className="font-medium">{numberOfNights}</span>
+          <span className="text-muted-foreground">Nights:</span>
+          <span className="font-medium text-foreground">{numberOfNights}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-600">Guest:</span>
-          <span className="font-medium">
+          <span className="text-muted-foreground">Guest:</span>
+          <span className="font-medium text-foreground">
             {checkoutData.guestInfo.first_name} {checkoutData.guestInfo.last_name}
           </span>
         </div>
       </div>
 
-      <div className="space-y-2 border-t pt-4">
+      <div className="space-y-2 border-t border-border pt-4">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">
+          <span className="text-muted-foreground">
             {priceBreakdown.base_price_label ??
               `$${(basePriceCents / 100).toFixed(2)} × ${nightsForDisplay} night${nightsForDisplay !== 1 ? "s" : ""}`}
           </span>
-          <span className="font-medium">${((priceBreakdown.subtotal ?? 0) / 100).toFixed(2)}</span>
+          <span className="font-medium text-foreground">${((priceBreakdown.subtotal ?? 0) / 100).toFixed(2)}</span>
         </div>
         {(priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0) > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Cleaning fee</span>
-            <span className="font-medium">
+            <span className="text-muted-foreground">Cleaning fee</span>
+            <span className="font-medium text-foreground">
               ${((priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0) / 100).toFixed(2)}
             </span>
           </div>
         )}
         {discountCents > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Discount</span>
-            <span className="font-medium text-green-700">-${(discountCents / 100).toFixed(2)}</span>
+            <span className="text-muted-foreground">Discount</span>
+            <span className="font-medium text-green-700 dark:text-emerald-400">-${(discountCents / 100).toFixed(2)}</span>
           </div>
         )}
         {(taxesCents ?? 0) > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">
+            <span className="text-muted-foreground">
               {priceBreakdown.tax_name || "Taxes"} (
               {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE) * 100).toFixed(1)}%)
             </span>
-            <span className="font-medium">${((taxesCents ?? 0) / 100).toFixed(2)}</span>
+            <span className="font-medium text-foreground">${((taxesCents ?? 0) / 100).toFixed(2)}</span>
           </div>
         )}
-        <div className="flex justify-between border-t pt-2 text-lg font-bold">
-          <span>Total Due Today</span>
-          <span className="text-[#2D5A27]">${(totalCents / 100).toFixed(2)}</span>
+        <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
+          <span className="text-foreground">Total Due Today</span>
+          <span className="text-[#2D5A27] dark:text-emerald-400">${(totalCents / 100).toFixed(2)}</span>
         </div>
       </div>
 
-      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-gray-700">
-        <p className="mb-1 font-semibold">What&apos;s included:</p>
+      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-foreground/90 dark:border-emerald-900 dark:bg-emerald-950/30">
+        <p className="mb-1 font-semibold text-foreground">What&apos;s included:</p>
         <ul className="space-y-1 text-xs">
           <li className="flex items-center space-x-2">
-            <Check className="h-3 w-3 text-green-600" />
+            <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
             <span>Full campsite access</span>
           </li>
           <li className="flex items-center space-x-2">
-            <Check className="h-3 w-3 text-green-600" />
+            <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
             <span>All listed amenities</span>
           </li>
           <li className="flex items-center space-x-2">
-            <Check className="h-3 w-3 text-green-600" />
+            <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
             <span>24/7 customer support</span>
           </li>
           <li className="flex items-center space-x-2">
-            <Check className="h-3 w-3 text-green-600" />
+            <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
             <span>Free cancellation (7+ days)</span>
           </li>
         </ul>
@@ -495,51 +530,33 @@ export default function PaymentPage() {
 
   const bookingSummaryFooter = (
     <div className="mt-4 space-y-3">
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Check className="h-4 w-4 text-green-600" />
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
         <span>Instant booking confirmation</span>
       </div>
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Check className="h-4 w-4 text-green-600" />
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
         <span>Email receipt & details</span>
       </div>
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Check className="h-4 w-4 text-green-600" />
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
         <span>Secure payment guarantee</span>
       </div>
     </div>
   )
 
-  const appearance = {
-    theme: "stripe" as const,
-    variables: {
-      colorPrimary: "#2D5A27",
-      colorBackground: "#ffffff",
-      colorText: "#1f2937",
-      colorDanger: "#ef4444",
-      fontFamily: "system-ui, sans-serif",
-      spacingUnit: "4px",
-      borderRadius: "8px",
-    },
-  }
-
-  const options = {
-    clientSecret,
-    appearance,
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background text-foreground dark:from-muted/20">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center">
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
                 <TreePine className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2D5A27]">{displayPropertyName}</h1>
-                <p className="text-xs text-gray-600">Secure Booking Portal</p>
+                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
+                <p className="text-xs text-muted-foreground">Secure Booking Portal</p>
               </div>
             </div>
             <Button variant="ghost" onClick={() => router.push("/")}>
@@ -550,17 +567,17 @@ export default function PaymentPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 sm:mb-6">
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 sm:mb-6">
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Shield className="h-5 w-5" />
               <span className="font-medium">256-bit SSL Encryption</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Lock className="h-5 w-5" />
               <span className="font-medium">PCI Compliant</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700">
+            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Check className="h-5 w-5" />
               <span className="font-medium">Secure Payment Processing</span>
             </div>
@@ -570,22 +587,22 @@ export default function PaymentPage() {
         <div className="mb-3 sm:mb-4">
           <div className="-mx-1 flex justify-center overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex flex-nowrap items-center gap-0.5 text-[10px] font-medium sm:gap-1 sm:text-xs md:gap-1.5 md:text-sm">
-              <div className="flex shrink-0 items-center gap-1 text-gray-600">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+              <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white dark:bg-emerald-600">
                   <Check className="h-3 w-3" aria-hidden />
                 </div>
                 <span className="whitespace-nowrap leading-none">Select Dates & Site</span>
               </div>
-              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
-              <div className="flex shrink-0 items-center gap-1 text-gray-600">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white dark:bg-emerald-600">
                   <Check className="h-3 w-3" aria-hidden />
                 </div>
                 <span className="whitespace-nowrap leading-none">Guest Info</span>
               </div>
-              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
-              <div className="flex shrink-0 items-center gap-1 text-[#2D5A27]">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2D5A27] text-[10px] font-semibold tabular-nums leading-none text-white">
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+              <div className={cn("flex shrink-0 items-center gap-1", "text-[#2D5A27] dark:text-emerald-400")}>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2D5A27] text-[10px] font-semibold tabular-nums leading-none text-white dark:bg-emerald-800">
                   3
                 </div>
                 <span className="whitespace-nowrap leading-none">Payment</span>
@@ -609,16 +626,18 @@ export default function PaymentPage() {
           <div className="order-2 space-y-6 lg:order-1 lg:col-span-2">
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-2xl text-[#2D5A27]">
+                <CardTitle className={cn("flex items-center space-x-2 text-2xl", "text-[#2D5A27] dark:text-emerald-400")}>
                   <CreditCard className="h-6 w-6" />
                   <span>Payment Information</span>
                 </CardTitle>
                 <CardDescription>Complete your reservation with secure payment</CardDescription>
               </CardHeader>
               <CardContent>
-                <Elements stripe={stripePromise} options={options}>
-                  <PaymentFormInner slug={slug} />
-                </Elements>
+                {stripeElementsOptions ? (
+                  <Elements key={resolvedTheme ?? "light"} stripe={stripePromise} options={stripeElementsOptions}>
+                    <PaymentFormInner slug={slug} />
+                  </Elements>
+                ) : null}
               </CardContent>
             </Card>
           </div>
@@ -630,10 +649,10 @@ export default function PaymentPage() {
                 <Accordion
                   type="single"
                   collapsible
-                  className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+                  className="overflow-hidden rounded-lg border-2 border-border bg-card shadow-lg"
                 >
                   <AccordionItem value="booking-summary" className="border-0">
-                    <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none [&>svg]:text-white">
+                    <AccordionTrigger className="rounded-t-lg bg-[#2D5A27] px-4 py-3 text-left text-base font-semibold text-white hover:no-underline data-[state=open]:rounded-b-none dark:bg-emerald-950 [&>svg]:text-white">
                       <span className="flex flex-col items-start gap-0.5">
                         <span>Booking Summary</span>
                         <span className="text-xs font-normal text-white/80">
@@ -642,7 +661,7 @@ export default function PaymentPage() {
                       </span>
                     </AccordionTrigger>
                     <AccordionContent className="px-0">
-                      <div className="space-y-4 border-t border-gray-100 px-4 py-4">
+                      <div className="space-y-4 border-t border-border px-4 py-4">
                         {bookingSummaryMain}
                         {bookingSummaryFooter}
                       </div>
@@ -654,9 +673,9 @@ export default function PaymentPage() {
               {/* Desktop: full card in sidebar */}
               <div className="hidden lg:block">
                 <Card className="shadow-lg">
-                  <CardHeader className="bg-[#2D5A27] text-white">
-                    <CardTitle>Booking Summary</CardTitle>
-                    <CardDescription className="text-gray-200">Final charges</CardDescription>
+                  <CardHeader className="bg-[#2D5A27] text-white dark:bg-emerald-950">
+                    <CardTitle className="text-white">Booking Summary</CardTitle>
+                    <CardDescription className="text-gray-200 dark:text-emerald-100/90">Final charges</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
                 </Card>

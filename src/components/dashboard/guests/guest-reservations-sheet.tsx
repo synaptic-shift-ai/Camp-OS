@@ -456,8 +456,8 @@ export function GuestReservationsSheet({
   const guestStatus = latestReservation?.status === 'cancelled' ? 'Cancelled' : 'Verified'
   const guestStatusClass =
     latestReservation?.status === 'cancelled'
-      ? 'text-red-600 border-red-200 bg-red-50'
-      : 'text-emerald-700 border-emerald-200 bg-emerald-50'
+      ? 'text-red-600 border-red-200 bg-red-50 dark:text-red-300 dark:border-red-900/60 dark:bg-red-950/40'
+      : 'text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-900/60 dark:bg-emerald-950/40'
   const tripNights = latestReservation?.nights ?? 0
   const siteLabel =
     reservationPreview?.siteName?.trim() ||
@@ -474,23 +474,23 @@ export function GuestReservationsSheet({
           Guest reservation profile details
         </SheetDescription>
 
-        <div className="min-h-full bg-slate-100/80 p-4">
+        <div className="min-h-full bg-muted/30 p-4">
           <div className="px-1 pb-2 pt-1">
             <div className="flex min-w-0 items-center gap-3">
               <Avatar className="h-9 w-9">
-                <AvatarFallback className="text-xs bg-slate-700 text-white font-semibold uppercase">
+                <AvatarFallback className="text-xs bg-primary text-primary-foreground font-semibold uppercase">
                   {getInitials(guest.name)}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 justify-between">
-                  <p className="truncate text-xl font-semibold text-slate-900 capitalize">{guest.name}</p>
+                  <p className="truncate text-xl font-semibold text-foreground capitalize">{guest.name}</p>
                   <div className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${guestStatusClass}`}>
                     <BadgeCheck className="h-3 w-3" />
                     {guestStatus}
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Guest Profile</p>
+                <p className="text-xs text-muted-foreground">Guest Profile</p>
               </div>
             </div>
           </div>
@@ -506,72 +506,72 @@ export function GuestReservationsSheet({
 
 
           <div className={showInitialLoader ? 'hidden' : 'space-y-3'}>
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Trip Details</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Trip Details</p>
                 {latestReservation ? (
-                  <p className={`text-xs font-medium ${statusTextColors[latestReservation.status] ?? 'text-slate-500'}`}>
+                  <p className={`text-xs font-medium ${statusTextColors[latestReservation.status] ?? 'text-muted-foreground'}`}>
                     {statusLabels[latestReservation.status] ?? latestReservation.status.replace('_', ' ')}
                   </p>
                 ) : null}
               </div>
               {latestReservation ? (
                 <div className="mt-3 space-y-3">
-                  <div className="flex items-start gap-2 text-sm text-slate-700">
-                    <Calendar className="mt-0.5 h-4 w-4 text-slate-500" />
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Calendar className="mt-0.5 h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-foreground">
                         {formatDate(latestReservation.checkInDate)} - {formatDate(latestReservation.checkOutDate)}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         {tripNights} night{tripNights !== 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-slate-700">
-                    <Tent className="mt-0.5 h-4 w-4 text-slate-500" />
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Tent className="mt-0.5 h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium text-slate-900">{siteLabel}</p>
-                      <p className="text-xs text-slate-500">{latestReservation.confirmationNumber}</p>
+                      <p className="font-medium text-foreground">{siteLabel}</p>
+                      <p className="text-xs text-muted-foreground">{latestReservation.confirmationNumber}</p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">No reservation details available.</p>
+                <p className="mt-2 text-sm text-muted-foreground">No reservation details available.</p>
               )}
             </div>
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Emergency Contact</p>
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Emergency Contact</p>
               {emergencyContact ? (
                 <div className="mt-3 space-y-1 text-sm">
                   <div className="flex items-center space-x-2">
-                    <UserRound className="h-4 w-4 text-slate-500" />
-                    <p className="font-medium text-slate-900">{emergencyContact.name}</p>
+                    <UserRound className="h-4 w-4 text-muted-foreground" />
+                    <p className="font-medium text-foreground">{emergencyContact.name}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Phone className="h-4 w-4 text-slate-500" />
-                    <p className="font-medium text-slate-900">{emergencyContact.phone}</p>
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <p className="font-medium text-foreground">{emergencyContact.phone}</p>
                   </div>
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-slate-500">No emergency contact on file.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No emergency contact on file.</p>
               )}
             </div>
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Address</p>
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Address</p>
               {guestAddress ? (
-                <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
-                  <MapPin className="mt-0.5 h-4 w-4 text-slate-500" />
+                <div className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
+                  <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div className="leading-5">
                     {guestAddress.street.trim().length > 0 ? (
-                      <p className="text-slate-900">{guestAddress.street}</p>
+                      <p className="text-foreground">{guestAddress.street}</p>
                     ) : null}
                     {(guestAddress.city.trim().length > 0 ||
                       guestAddress.state.trim().length > 0 ||
                       guestAddress.zipCode.trim().length > 0) ? (
-                      <p className="text-slate-700">
+                      <p className="text-foreground/80">
                         {[guestAddress.city, guestAddress.state]
                           .map((value) => value.trim())
                           .filter(Boolean)
@@ -582,52 +582,52 @@ export function GuestReservationsSheet({
                       </p>
                     ) : null}
                     {guestAddress.country.trim().length > 0 ? (
-                      <p className="text-slate-500">{guestAddress.country}</p>
+                      <p className="text-muted-foreground">{guestAddress.country}</p>
                     ) : null}
                   </div>
                 </div>
               ) : (
-                <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
-                  <MapPin className="mt-0.5 h-4 w-4 text-slate-500" />
-                  <p className="text-slate-500">Address not available.</p>
+                <div className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
+                  <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Address not available.</p>
                 </div>
               )}
             </div>
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Primary Guest</p>
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Primary Guest</p>
               <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-[11px] text-slate-500">Name</p>
-                  <p className="text-sm font-medium text-slate-900 capitalize">{guest.name}</p>
+                  <p className="text-[11px] text-muted-foreground">Name</p>
+                  <p className="text-sm font-medium text-foreground capitalize">{guest.name}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-slate-500">Stays</p>
-                  <p className="text-sm font-medium text-slate-900">{guest.totalStays}</p>
+                  <p className="text-[11px] text-muted-foreground">Stays</p>
+                  <p className="text-sm font-medium text-foreground">{guest.totalStays}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-[11px] text-slate-500">Email</p>
-                  <p className="text-sm font-medium text-slate-900 break-all">{guest.email}</p>
+                  <p className="text-[11px] text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium text-foreground break-all">{guest.email}</p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Payment Card</p>
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment Card</p>
               <div className="mt-3">
                 {previewLoading ? (
-                  <span className="text-sm text-slate-500">Loading card...</span>
+                  <span className="text-sm text-muted-foreground">Loading card...</span>
                 ) : paymentCard ? (
                   <div className="inline-flex items-center gap-2">
                     <span className="inline-flex h-7 w-10 items-center justify-center">
                       <PaymentCardLogo brand={paymentCard.brand} />
                     </span>
-                    <span className="font-mono text-xs text-slate-600">
+                    <span className="font-mono text-xs text-muted-foreground">
                       **** **** **** {paymentCard.last4}
                     </span>
                   </div>
                 ) : (
-                  <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+                  <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <CreditCard className="h-4 w-4" />
                     No card payment on file
                   </div>
@@ -635,16 +635,16 @@ export function GuestReservationsSheet({
               </div>
             </div>
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="inline-flex items-center gap-2">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-50">
-                    <Heart className="h-4 w-4 text-rose-500" />
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/40">
+                    <Heart className="h-4 w-4 text-rose-500 dark:text-rose-300" />
                   </span>
-                  <p className="text-sm font-semibold text-slate-800">Spouse / Partner</p>
+                  <p className="text-sm font-semibold text-foreground">Spouse / Partner</p>
                 </div>
                 {spousePartner?.isAlternateContact ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                  <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-foreground">
                     Primary Alternate
                   </span>
                 ) : null}
@@ -652,53 +652,53 @@ export function GuestReservationsSheet({
               {spousePartner ? (
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-[11px] text-slate-500">First Name</p>
-                    <p className="text-sm font-medium text-slate-900">{spousePartner.firstName ?? '--'}</p>
+                    <p className="text-[11px] text-muted-foreground">First Name</p>
+                    <p className="text-sm font-medium text-foreground">{spousePartner.firstName ?? '--'}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-slate-500">Last Name</p>
-                    <p className="text-sm font-medium text-slate-900">{spousePartner.lastName ?? '--'}</p>
+                    <p className="text-[11px] text-muted-foreground">Last Name</p>
+                    <p className="text-sm font-medium text-foreground">{spousePartner.lastName ?? '--'}</p>
                   </div>
                   {spousePartner.phone ? (
                     <div>
-                      <p className="text-[11px] text-slate-500">Phone</p>
-                      <p className="text-sm font-medium text-slate-900">{spousePartner.phone}</p>
+                      <p className="text-[11px] text-muted-foreground">Phone</p>
+                      <p className="text-sm font-medium text-foreground">{spousePartner.phone}</p>
                     </div>
                   ) : null}
                   {spousePartner.email ? (
                     <div>
-                      <p className="text-[11px] text-slate-500">Email</p>
-                      <p className="text-sm font-medium text-slate-900 break-all">{spousePartner.email}</p>
+                      <p className="text-[11px] text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium text-foreground break-all">{spousePartner.email}</p>
                     </div>
                   ) : null}
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-slate-500">No spouse / partner on file.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No spouse / partner on file.</p>
               )}
             </div>
 
             {children.length > 0 && (
-              <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
                 <div className="inline-flex items-center gap-2">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-50">
-                    <Baby className="h-4 w-4 text-violet-500" />
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-50 dark:bg-violet-950/40">
+                    <Baby className="h-4 w-4 text-violet-500 dark:text-violet-300" />
                   </span>
-                  <p className="text-sm font-semibold text-slate-800">Children ({children.length})</p>
+                  <p className="text-sm font-semibold text-foreground">Children ({children.length})</p>
                 </div>
                 <div className="mt-3 space-y-2">
                   {children.map((child, index) => (
                     <div
                       key={`${child.firstName}-${index}`}
-                      className={`rounded-lg border p-3 ${child.specialNeedsAllergies ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200 bg-white'}`}
+                      className={`rounded-lg border p-3 ${child.specialNeedsAllergies ? 'border-amber-300 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/20' : 'border-border bg-background/70'}`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-slate-900">{child.firstName}</p>
+                        <p className="text-sm font-semibold text-foreground">{child.firstName}</p>
                       </div>
                       {child.dateOfBirth ? (
-                        <p className="text-xs text-slate-500">DOB: {formatDate(child.dateOfBirth)}</p>
+                        <p className="text-xs text-muted-foreground">DOB: {formatDate(child.dateOfBirth)}</p>
                       ) : null}
                       {child.specialNeedsAllergies ? (
-                        <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-900">
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-900 dark:bg-amber-900/50 dark:text-amber-100">
                           <TriangleAlert className="h-3 w-3" />
                           {child.specialNeedsAllergies}
                         </div>
@@ -709,32 +709,32 @@ export function GuestReservationsSheet({
               </div>
             )}
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
               <div className="inline-flex items-center gap-2">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky-50">
-                  <Car className="h-4 w-4 text-sky-600" />
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky-50 dark:bg-sky-950/40">
+                  <Car className="h-4 w-4 text-sky-600 dark:text-sky-300" />
                 </span>
-                <p className="text-sm font-semibold text-slate-800">Vehicles ({vehicles.length})</p>
+                <p className="text-sm font-semibold text-foreground">Vehicles ({vehicles.length})</p>
               </div>
               {vehicles.length > 0 ? (
                 <div className="mt-3 space-y-2">
                   {vehicles.map((vehicle) => (
-                    <div key={vehicle.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                    <div key={vehicle.id} className="rounded-lg border border-border bg-background/70 p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-slate-900">
+                        <p className="text-sm font-semibold text-foreground">
                           {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.vehicleType}
                         </p>
                         {vehicle.isPrimary ? (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                             Primary
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {[vehicle.vehicleType, vehicle.rvType ?? vehicle.personalVehicleType].filter(Boolean).join(' · ')}
                       </p>
                       {(vehicle.licensePlate || vehicle.color) ? (
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {vehicle.licensePlate ? `Plate: ${vehicle.licensePlate}${vehicle.licensePlateState ? ` (${vehicle.licensePlateState})` : ''}` : ''}
                           {vehicle.licensePlate && vehicle.color ? ' · ' : ''}
                           {vehicle.color ? `Color: ${vehicle.color}` : ''}
@@ -744,7 +744,7 @@ export function GuestReservationsSheet({
                   ))}
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-slate-500">No vehicles on file.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No vehicles on file.</p>
               )}
             </div>
           </div>
@@ -767,22 +767,22 @@ export function GuestReservationsSheet({
           )}
 
           {!showInitialLoader && !isLoading && reservations.length > 0 && (
-            <div className="mt-3 rounded-xl border bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-800">
+            <div className="mt-3 rounded-xl border border-border bg-background p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-foreground">
                 Reservations ({reservations.length})
               </h3>
               <div className="mt-3 space-y-3">
                 {reservations.map((res) => (
                   <div
                     key={res.id}
-                    className="rounded-lg border border-slate-200 bg-slate-50/40 p-3"
+                    className="rounded-lg border border-border bg-muted/30 p-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-mono text-sm font-semibold tracking-wide text-slate-900">
+                        <p className="font-mono text-sm font-semibold tracking-wide text-foreground">
                           {res.confirmationNumber}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {formatDateShort(res.checkInDate)} - {formatDateShort(res.checkOutDate)} · {res.nights}{' '}
                           night{res.nights !== 1 ? 's' : ''}
                         </p>
@@ -793,18 +793,18 @@ export function GuestReservationsSheet({
                         {statusLabels[res.status] ?? res.status.replace('_', ' ')}
                       </span>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-white p-2 text-sm">
+                    <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-background p-2 text-sm">
                       <div>
-                        <p className="text-[11px] text-slate-500">Total</p>
-                        <p className="font-semibold text-slate-900">{formatMoney(res.totalAmountDollars)}</p>
+                        <p className="text-[11px] text-muted-foreground">Total</p>
+                        <p className="font-semibold text-foreground">{formatMoney(res.totalAmountDollars)}</p>
                       </div>
                       <div>
-                        <p className="text-[11px] text-slate-500">Paid</p>
-                        <p className="font-semibold text-slate-900">{formatMoney(res.paidAmountDollars)}</p>
+                        <p className="text-[11px] text-muted-foreground">Paid</p>
+                        <p className="font-semibold text-foreground">{formatMoney(res.paidAmountDollars)}</p>
                       </div>
                       <div>
-                        <p className="text-[11px] text-slate-500">Balance</p>
-                        <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                        <p className="text-[11px] text-muted-foreground">Balance</p>
+                        <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
                           {res.balanceDollars > 0
                             ? `${formatMoney(res.balanceDollars)}`
                             : '--'}

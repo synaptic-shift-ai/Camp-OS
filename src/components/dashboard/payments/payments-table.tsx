@@ -175,7 +175,7 @@ export function PaymentsTable({
           totalPages={totalPages}
           onPageChange={goToPage}
           disabled={isPending}
-          windowSize={4}
+          windowSize={2}
         />
       </div>
     </>

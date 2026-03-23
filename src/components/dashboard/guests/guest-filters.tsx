@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, SlidersHorizontal } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -51,6 +51,7 @@ const searchByOptions = [
 export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const currentSearch = searchParams.get('search') ?? ''
@@ -106,7 +107,13 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
         ? `/dashboard/${propertyId}/guests?${query}`
         : `/dashboard/${propertyId}/guests`
 
-    router.push(href)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('dashboard-table-loading-start'))
+    }
+
+    startTransition(() => {
+      router.push(href)
+    })
   }
 
   const applyDraftFilters = () => {
@@ -129,6 +136,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
               <Select
                 value={currentSearchBy}
                 onValueChange={(value) => updateParams({ searchBy: value === 'name' ? null : value })}
+                disabled={isPending}
               >
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Name" />
@@ -145,7 +153,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
             <div className="sm:hidden">
               <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                 <DialogTrigger asChild>
-                  <Button type="button" variant="outline" size="icon" className="h-9 w-9">
+                  <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={isPending}>
                     <SlidersHorizontal className="h-4 w-4" />
                     <span className="sr-only">Open filters</span>
                   </Button>
@@ -163,6 +171,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                       <Select
                         value={draftSiteType}
                         onValueChange={(value) => setDraftSiteType(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="All site types" />
@@ -184,6 +193,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                       <Select
                         value={draftSortBy}
                         onValueChange={(value) => setDraftSortBy(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="Sort by" />
@@ -204,6 +214,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                       <Select
                         value={draftSortOrder}
                         onValueChange={(value) => setDraftSortOrder(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="Order" />
@@ -219,12 +230,14 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={isPending}
                       onClick={() => setMobileFiltersOpen(false)}
                     >
                       Cancel
                     </Button>
                     <Button
                       type="button"
+                      disabled={isPending}
                       onClick={() => {
                         applyDraftFilters()
                         setMobileFiltersOpen(false)
@@ -248,6 +261,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
               defaultValue={currentSearch}
               placeholder={searchPlaceholder}
               className="h-9 pl-8 text-sm"
+              disabled={isPending}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 const value = (event.currentTarget as HTMLInputElement).value.trim()
@@ -259,6 +273,11 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                 updateParams({ search: value.length > 0 ? value : null })
               }}
             />
+            {isPending && (
+              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -266,7 +285,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
       <div className="hidden sm:block xl:hidden">
         <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9">
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={isPending}>
               <SlidersHorizontal className="h-4 w-4" />
               <span className="sr-only">Open filters</span>
             </Button>
@@ -284,6 +303,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                 <Select
                   value={draftSiteType}
                   onValueChange={(value) => setDraftSiteType(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="All site types" />
@@ -305,6 +325,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                 <Select
                   value={draftSortBy}
                   onValueChange={(value) => setDraftSortBy(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="Sort by" />
@@ -325,6 +346,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                 <Select
                   value={draftSortOrder}
                   onValueChange={(value) => setDraftSortOrder(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="Order" />
@@ -340,12 +362,14 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
               <Button
                 type="button"
                 variant="outline"
+                disabled={isPending}
                 onClick={() => setMobileFiltersOpen(false)}
               >
                 Cancel
               </Button>
               <Button
                 type="button"
+                disabled={isPending}
                 onClick={() => {
                   applyDraftFilters()
                   setMobileFiltersOpen(false)
@@ -366,6 +390,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
             onValueChange={(value) => {
               updateParams({ siteType: value === 'all' ? null : value })
             }}
+            disabled={isPending}
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="All site types" />
@@ -390,6 +415,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
             onValueChange={(value) => {
               updateParams({ sortBy: value })
             }}
+            disabled={isPending}
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="Sort by" />
@@ -413,6 +439,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
             onValueChange={(value) => {
               updateParams({ sortOrder: value })
             }}
+            disabled={isPending}
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="Order" />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, SlidersHorizontal } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -73,6 +73,7 @@ export function ReservationFilters({
 }: ReservationFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const currentSearch = searchParams.get('search') ?? ''
@@ -130,7 +131,12 @@ export function ReservationFilters({
       query.length > 0
         ? `/dashboard/${propertyId}/reservations?${query}`
         : `/dashboard/${propertyId}/reservations`
-    router.push(href)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('dashboard-table-loading-start'))
+    }
+    startTransition(() => {
+      router.push(href)
+    })
   }
 
   const applyDraftFilters = () => {
@@ -154,6 +160,7 @@ export function ReservationFilters({
               <Select
                 value={currentSearchBy}
                 onValueChange={(value) => updateParams({ searchBy: value === 'guest' ? null : value })}
+                disabled={isPending}
               >
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Guest" />
@@ -170,7 +177,7 @@ export function ReservationFilters({
             <div className="sm:hidden">
               <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                 <DialogTrigger asChild>
-                  <Button type="button" variant="outline" size="icon" className="h-9 w-9">
+                  <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={isPending}>
                     <SlidersHorizontal className="h-4 w-4" />
                     <span className="sr-only">Open filters</span>
                   </Button>
@@ -188,6 +195,7 @@ export function ReservationFilters({
                       <Select
                         value={draftSiteType}
                         onValueChange={(value) => setDraftSiteType(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="All site types" />
@@ -210,6 +218,7 @@ export function ReservationFilters({
                       <Select
                         value={draftStatus}
                         onValueChange={(value) => setDraftStatus(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="All statuses" />
@@ -232,6 +241,7 @@ export function ReservationFilters({
                       <Select
                         value={draftSortBy}
                         onValueChange={(value) => setDraftSortBy(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="Sort by" />
@@ -253,6 +263,7 @@ export function ReservationFilters({
                       <Select
                         value={draftSortOrder}
                         onValueChange={(value) => setDraftSortOrder(value)}
+                        disabled={isPending}
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="Order" />
@@ -268,12 +279,14 @@ export function ReservationFilters({
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={isPending}
                       onClick={() => setMobileFiltersOpen(false)}
                     >
                       Cancel
                     </Button>
                     <Button
                       type="button"
+                      disabled={isPending}
                       onClick={() => {
                         applyDraftFilters()
                         setMobileFiltersOpen(false)
@@ -297,6 +310,7 @@ export function ReservationFilters({
               defaultValue={currentSearch}
               placeholder={searchPlaceholder}
               className="h-9 pl-8 text-sm"
+              disabled={isPending}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 const value = (event.currentTarget as HTMLInputElement).value.trim()
@@ -308,6 +322,11 @@ export function ReservationFilters({
                 updateParams({ search: value.length > 0 ? value : null })
               }}
             />
+            {isPending && (
+              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -315,7 +334,7 @@ export function ReservationFilters({
       <div className="hidden sm:block 2xl:hidden">
         <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9">
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={isPending}>
               <SlidersHorizontal className="h-4 w-4" />
               <span className="sr-only">Open filters</span>
             </Button>
@@ -333,6 +352,7 @@ export function ReservationFilters({
                 <Select
                   value={draftSiteType}
                   onValueChange={(value) => setDraftSiteType(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="All site types" />
@@ -355,6 +375,7 @@ export function ReservationFilters({
                 <Select
                   value={draftStatus}
                   onValueChange={(value) => setDraftStatus(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="All statuses" />
@@ -377,6 +398,7 @@ export function ReservationFilters({
                 <Select
                   value={draftSortBy}
                   onValueChange={(value) => setDraftSortBy(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="Sort by" />
@@ -398,6 +420,7 @@ export function ReservationFilters({
                 <Select
                   value={draftSortOrder}
                   onValueChange={(value) => setDraftSortOrder(value)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder="Order" />
@@ -413,12 +436,14 @@ export function ReservationFilters({
               <Button
                 type="button"
                 variant="outline"
+                disabled={isPending}
                 onClick={() => setMobileFiltersOpen(false)}
               >
                 Cancel
               </Button>
               <Button
                 type="button"
+                disabled={isPending}
                 onClick={() => {
                   applyDraftFilters()
                   setMobileFiltersOpen(false)
@@ -437,6 +462,7 @@ export function ReservationFilters({
           <Select
             value={currentSiteType}
             onValueChange={(value) => updateParams({ siteType: value === 'all' ? null : value })}
+            disabled={isPending}
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="All site types" />
@@ -459,6 +485,7 @@ export function ReservationFilters({
           <Select
             value={currentStatus}
             onValueChange={(value) => updateParams({ status: value === 'all' ? null : value })}
+            disabled={isPending}
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="All statuses" />
@@ -478,7 +505,11 @@ export function ReservationFilters({
           <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Sort By
           </label>
-          <Select value={currentSortBy} onValueChange={(value) => updateParams({ sortBy: value })}>
+          <Select
+            value={currentSortBy}
+            onValueChange={(value) => updateParams({ sortBy: value })}
+            disabled={isPending}
+          >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -499,6 +530,7 @@ export function ReservationFilters({
           <Select
             value={currentSortOrder}
             onValueChange={(value) => updateParams({ sortOrder: value })}
+            disabled={isPending}
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue placeholder="Order" />

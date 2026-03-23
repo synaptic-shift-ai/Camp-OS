@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-const DEFAULT_WINDOW = 4
+const DEFAULT_WINDOW = 2
 
 function getPageItems(
   currentPage: number,

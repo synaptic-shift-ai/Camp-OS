@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Mail, Phone } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -46,8 +46,21 @@ export function GuestsTable({
 }: GuestsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [isExternalLoading, setIsExternalLoading] = useState(false)
   const [selectedGuest, setSelectedGuest] = useState<DashboardGuest | null>(null)
   const [reservationsOpen, setReservationsOpen] = useState(false)
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const handleLoadingStart = () => setIsExternalLoading(true)
+    window.addEventListener("dashboard-table-loading-start", handleLoadingStart)
+    return () => window.removeEventListener("dashboard-table-loading-start", handleLoadingStart)
+  }, [])
+
+  useEffect(() => {
+    setIsExternalLoading(false)
+  }, [guests, currentPage, pageSize, total])
 
   if (!guests.length) {
     return (
@@ -104,7 +117,7 @@ export function GuestsTable({
   return (
     <>
       <div className="relative">
-        {isPending && (
+        {(isPending || isExternalLoading) && (
           <div
             className="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-background/60"
             aria-busy="true"
@@ -203,7 +216,7 @@ export function GuestsTable({
           totalPages={totalPages}
           onPageChange={goToPage}
           disabled={isPending}
-          windowSize={4}
+          windowSize={2}
         />
       </div>
 

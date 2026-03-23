@@ -90,18 +90,18 @@ type ReservationsTableProps = {
   status: ReservationStatus | null
   searchQuery: string | null
   sortBy:
-    | 'confirmation'
-    | 'guest'
-    | 'site'
-    | 'checkIn'
-    | 'checkOut'
-    | 'nights'
-    | 'guests'
-    | 'totalAmount'
-    | 'paidAmount'
-    | 'balanceOwed'
-    | 'refundedAmount'
-    | 'status'
+  | 'confirmation'
+  | 'guest'
+  | 'site'
+  | 'checkIn'
+  | 'checkOut'
+  | 'nights'
+  | 'guests'
+  | 'totalAmount'
+  | 'paidAmount'
+  | 'balanceOwed'
+  | 'refundedAmount'
+  | 'status'
   sortOrder: 'asc' | 'desc'
   searchField: 'confirmation' | 'guest' | 'site'
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined
@@ -129,10 +129,22 @@ export function ReservationsTable({
 }: ReservationsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [isExternalLoading, setIsExternalLoading] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<DashboardReservation | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const handleLoadingStart = () => setIsExternalLoading(true)
+    window.addEventListener("dashboard-table-loading-start", handleLoadingStart)
+    return () => window.removeEventListener("dashboard-table-loading-start", handleLoadingStart)
+  }, [])
+
+  useEffect(() => {
+    setIsExternalLoading(false)
+  }, [reservations, currentPage, pageSize, total])
 
   useEffect(() => {
     if (!selectedReservation?.id) return
@@ -245,7 +257,7 @@ export function ReservationsTable({
   return (
     <>
       <div className="relative">
-        {isPending && (
+        {(isPending || isExternalLoading) && (
           <div
             className="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-background/60"
             aria-busy="true"
@@ -403,7 +415,7 @@ export function ReservationsTable({
           totalPages={totalPages}
           onPageChange={goToPage}
           disabled={isPending}
-          windowSize={4}
+          windowSize={2}
         />
       </div>
 

@@ -553,7 +553,7 @@ export default function NewReservationPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push("/dashboard/reservations")}
+          onClick={() => router.push(`/dashboard/${propertyIdFromUrl}/reservations`)}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

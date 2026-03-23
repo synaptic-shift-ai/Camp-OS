@@ -116,8 +116,8 @@ async function CurrentlyCheckedIn({
   const siteTypesToShow =
     allowedSiteTypes && allowedSiteTypes.length > 0
       ? siteTypeOrder.filter((t) =>
-          (allowedSiteTypes as string[]).map((a) => a.toLowerCase()).includes(t)
-        )
+        (allowedSiteTypes as string[]).map((a) => a.toLowerCase()).includes(t)
+      )
       : siteTypeOrder
   if (currentlyCheckedIn.length > 0) {
     const siteIds = [...new Set(currentlyCheckedIn.map((r) => r.siteId))]
@@ -337,54 +337,62 @@ async function BookingPortalCTA({ propertyId }: { propertyId: string }) {
   const bookingPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/book/${property.booking_page_slug}`
 
   return (
-    <Card className="border-0 bg-gradient-to-br from-red-50 via-rose-50 to-pink-50 dark:from-red-950/20 dark:via-rose-950/20 dark:to-pink-950/20 overflow-hidden">
-      <CardContent className="pt-6 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="flex flex-col justify-center">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                <Globe className="h-6 w-6 text-primary-foreground" />
+    <Card className="overflow-hidden border border-rose-200/70 bg-gradient-to-br from-rose-50 via-background to-pink-50 dark:border-rose-900/60 dark:from-rose-950/20 dark:via-background dark:to-pink-950/20">
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center">
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-sm">
+                <Globe className="h-5 w-5" />
               </div>
-              <h2 className="text-2xl font-bold tracking-tight">Your Booking Portal is Live!</h2>
-            </div>
-            <p className="text-muted-foreground mb-4">
-              Share this link with your guests to start accepting online reservations
-            </p>
-            <div className="flex flex-col gap-3">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-950 rounded-md border border-red-200 dark:border-red-800">
-                <code className="text-sm font-mono text-primary break-all">{bookingPageUrl}</code>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Your Booking Portal is Live!</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Share this link with guests to start accepting online reservations.
+                </p>
               </div>
-              <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                <a href={bookingPageUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-5 w-5" />
-                  Open Booking Portal
-                </a>
-              </Button>
             </div>
+
+            <div className="rounded-md border border-rose-200/80 bg-background/90 p-3 dark:border-rose-900/60">
+              <code className="block break-all text-sm font-mono text-primary">{bookingPageUrl}</code>
+            </div>
+
+            <Button size="lg" className="w-full sm:w-auto" asChild>
+              <a href={bookingPageUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-5 w-5" />
+                Open Booking Portal
+              </a>
+            </Button>
           </div>
+
           <div className="hidden lg:block">
-            <div className="bg-gray-900 rounded-lg overflow-hidden shadow-2xl border border-gray-700">
-              <div className="bg-gray-800 px-3 py-2 flex items-center gap-2 border-b border-gray-700">
+            <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
+              <div className="flex items-center gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2">
                 <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-amber-300/80" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-300/80" />
                 </div>
-                <div className="flex-1 mx-2">
-                  <div className="bg-gray-700 rounded px-3 py-1 text-xs text-gray-400 flex items-center gap-2">
-                    <Globe className="h-3 w-3" />
-                    <span className="truncate">{bookingPageUrl}</span>
-                  </div>
+                <div className="mx-1 flex flex-1 items-center gap-2 rounded bg-slate-700 px-2 py-1 text-[11px] text-slate-300">
+                  <Globe className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{bookingPageUrl}</span>
                 </div>
               </div>
-              <div className="relative bg-white" style={{ height: "300px" }}>
+
+              <div className="relative h-[300px] overflow-hidden bg-white">
                 <iframe
                   src={bookingPageUrl}
-                  className="w-full h-full border-0"
                   title="Booking Portal Preview"
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-scripts"
+                  className="absolute left-0 top-0 border-0"
+                  style={{
+                    width: "238%",
+                    height: "238%",
+                    transform: "scale(0.42)",
+                    transformOrigin: "top left",
+                  }}
                 />
-                <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-transparent to-gray-900/10" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/10" />
               </div>
             </div>
           </div>

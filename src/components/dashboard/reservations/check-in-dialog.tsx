@@ -17,6 +17,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -66,6 +76,7 @@ interface CheckInDialogProps {
   }
   blackoutDates?: string[] | undefined
   allowedCheckInDays?: string[] | undefined
+  checkInTime?: string | null | undefined
 }
 
 export function CheckInDialog({
@@ -74,6 +85,7 @@ export function CheckInDialog({
   reservation,
   blackoutDates,
   allowedCheckInDays,
+  checkInTime,
 }: CheckInDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -81,6 +93,7 @@ export function CheckInDialog({
   const [error, setError] = useState<string | null>(null)
   const [checkInNotes, setCheckInNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
+  const [showEarlyCheckInWarning, setShowEarlyCheckInWarning] = useState(false)
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationStartStr = normalizeDateString(reservation.check_in_date)
@@ -108,11 +121,34 @@ export function CheckInDialog({
   const housekeepingBlockMessage =
     'Cannot check in while the site is in housekeeping. Complete housekeeping first.'
 
-  const handleCheckIn = async () => {
+  const parsePropertyTimeForReservationDate = (time?: string | null): Date | null => {
+    if (!time) return null
+    const [hour = 0, minute = 0] = time.split(':').map(Number)
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+
+    const reservationDate = new Date(`${reservationStartStr}T00:00:00`)
+    if (Number.isNaN(reservationDate.getTime())) return null
+
+    reservationDate.setHours(hour, minute, 0, 0)
+    return reservationDate
+  }
+
+  const configuredCheckInDateTime = parsePropertyTimeForReservationDate(checkInTime)
+  const isEarlyCheckInAttempt =
+    reservationStartStr === todayStr &&
+    configuredCheckInDateTime !== null &&
+    new Date() < configuredCheckInDateTime
+
+  const handleCheckIn = async (forceProceed = false) => {
     setIsProcessing(true)
     setError(null)
 
     try {
+      if (isEarlyCheckInAttempt && !forceProceed) {
+        setShowEarlyCheckInWarning(true)
+        return
+      }
+
       if (isSiteHousekeeping) {
         setError(housekeepingBlockMessage)
         return
@@ -183,7 +219,8 @@ export function CheckInDialog({
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -382,7 +419,7 @@ export function CheckInDialog({
           <Button variant="outline" onClick={handleCancel} disabled={isProcessing}>
             Cancel
           </Button>
-          <Button onClick={handleCheckIn} disabled={isProcessing || isSiteHousekeeping}>
+          <Button onClick={() => void handleCheckIn()} disabled={isProcessing || isSiteHousekeeping}>
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -397,6 +434,29 @@ export function CheckInDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      <AlertDialog open={showEarlyCheckInWarning} onOpenChange={setShowEarlyCheckInWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Early check-in warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              This reservation is being checked in before the configured check-in time
+              {checkInTime ? ` (${checkInTime})` : ''}. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowEarlyCheckInWarning(false)
+                void handleCheckIn(true)
+              }}
+            >
+              Continue check-in
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

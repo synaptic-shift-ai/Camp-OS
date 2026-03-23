@@ -17,6 +17,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -59,6 +69,7 @@ interface CheckOutDialogProps {
     site?: { site_number: string; site_name: string | null; status?: string | null }
   }
   allowedCheckOutDays?: string[] | undefined
+  checkOutTime?: string | null | undefined
 }
 
 export function CheckOutDialog({
@@ -66,6 +77,7 @@ export function CheckOutDialog({
   onOpenChange,
   reservation,
   allowedCheckOutDays,
+  checkOutTime,
 }: CheckOutDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -73,6 +85,7 @@ export function CheckOutDialog({
   const [error, setError] = useState<string | null>(null)
   const [checkOutNotes, setCheckOutNotes] = useState('')
   const [hasDamages, setHasDamages] = useState(false)
+  const [showLateCheckOutWarning, setShowLateCheckOutWarning] = useState(false)
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationEndStr = normalizeDateString(reservation.check_out_date)
@@ -94,11 +107,34 @@ export function CheckOutDialog({
       ? (rawSiteStatus as SiteStatusForBadge)
       : null
 
-  const handleCheckOut = async () => {
+  const parsePropertyTimeForReservationDate = (time?: string | null): Date | null => {
+    if (!time) return null
+    const [hour = 0, minute = 0] = time.split(':').map(Number)
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+
+    const reservationDate = new Date(`${reservationEndStr}T00:00:00`)
+    if (Number.isNaN(reservationDate.getTime())) return null
+
+    reservationDate.setHours(hour, minute, 0, 0)
+    return reservationDate
+  }
+
+  const configuredCheckOutDateTime = parsePropertyTimeForReservationDate(checkOutTime)
+  const isLateCheckOutAttempt =
+    reservationEndStr === todayStr &&
+    configuredCheckOutDateTime !== null &&
+    new Date() > configuredCheckOutDateTime
+
+  const handleCheckOut = async (forceProceed = false) => {
     setIsProcessing(true)
     setError(null)
 
     try {
+      if (isLateCheckOutAttempt && !forceProceed) {
+        setShowLateCheckOutWarning(true)
+        return
+      }
+      
       if (isBlockedByCheckOutDay) {
         setError(
           `Check-out is not allowed today (${todayLabel}) due to check-out day restrictions.`
@@ -154,187 +190,211 @@ export function CheckOutDialog({
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <LogOut className="h-5 w-5 text-blue-600" />
-            Check Out Guest
-          </DialogTitle>
-          <DialogDescription>
-            Complete the guest departure and site inspection
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogOut className="h-5 w-5 text-blue-600" />
+              Check Out Guest
+            </DialogTitle>
+            <DialogDescription>
+              Complete the guest departure and site inspection
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Guest Information */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Guest Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/50">
-              <div>
-                <p className="text-sm text-muted-foreground">Guest Name</p>
-                <p className="font-medium">
-                  {reservation.guest?.first_name} {reservation.guest?.last_name}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{reservation.guest?.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Confirmation #</p>
-                <p className="font-mono text-sm font-semibold">{reservation.confirmation_number}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge variant="secondary">{reservation.status}</Badge>
+          <div className="space-y-6 py-4">
+            {/* Guest Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Guest Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/50">
+                <div>
+                  <p className="text-sm text-muted-foreground">Guest Name</p>
+                  <p className="font-medium">
+                    {reservation.guest?.first_name} {reservation.guest?.last_name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="font-medium">{reservation.guest?.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Confirmation #</p>
+                  <p className="font-mono text-sm font-semibold">{reservation.confirmation_number}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge variant="secondary">{reservation.status}</Badge>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Reservation Details */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Stay Summary
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-start gap-3 p-3 rounded-lg border">
-                <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground">Site</p>
-                    <p className="font-medium mt-0.5">
-                      {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
+            {/* Reservation Details */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Stay Summary
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg border">
+                  <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-muted-foreground">Site</p>
+                      <p className="font-medium mt-0.5">
+                        {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
+                      </p>
+                    </div>
+                    {rawSiteStatus ? (
+                      <Badge
+                        variant="outline"
+                        className={`shrink-0 ${siteStatusForUi
+                          ? SITE_STATUS_BADGE_CLASS[siteStatusForUi]
+                          : 'text-muted-foreground'
+                          }`}
+                      >
+                        {siteStatusLabel(rawSiteStatus)}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-lg border">
+                  <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Stay</p>
+                    <p className="font-medium text-sm">
+                      {checkInDate} - {checkOutDate}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{nights} nights</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-lg border">
+                  <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Guests</p>
+                    <p className="font-medium">
+                      {reservation.num_adults} Adults, {reservation.num_children} Children
                     </p>
                   </div>
-                  {rawSiteStatus ? (
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 ${siteStatusForUi
-                        ? SITE_STATUS_BADGE_CLASS[siteStatusForUi]
-                        : 'text-muted-foreground'
-                        }`}
-                    >
-                      {siteStatusLabel(rawSiteStatus)}
-                    </Badge>
-                  ) : null}
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg border">
-                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Stay</p>
-                  <p className="font-medium text-sm">
-                    {checkInDate} - {checkOutDate}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{nights} nights</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg border">
-                <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Guests</p>
-                  <p className="font-medium">
-                    {reservation.num_adults} Adults, {reservation.num_children} Children
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg border">
-                <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="font-medium">${(reservation.total_amount / 100).toFixed(2)}</p>
+                <div className="flex items-start gap-3 p-3 rounded-lg border">
+                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total</p>
+                    <p className="font-medium">${(reservation.total_amount / 100).toFixed(2)}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Outstanding Balance Warning */}
-          {hasBalance && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                <span className="font-semibold">Outstanding Balance: ${balanceInDollars}</span>
-                <p className="text-sm mt-1">
-                  This guest has an unpaid balance. Consider collecting payment before check-out.
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Site Inspection */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Site Inspection
-            </h3>
-            <div className="flex items-center space-x-2 p-3 rounded-lg border">
-              <Checkbox
-                id="damages"
-                checked={hasDamages}
-                onCheckedChange={(checked) => setHasDamages(checked === true)}
-              />
-              <Label htmlFor="damages" className="cursor-pointer">
-                Report damages to site or property
-              </Label>
-            </div>
-            {hasDamages && (
-              <Alert>
+            {/* Outstanding Balance Warning */}
+            {hasBalance && (
+              <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Please describe the damages in the notes below. A maintenance ticket may be created.
+                  <span className="font-semibold">Outstanding Balance: ${balanceInDollars}</span>
+                  <p className="text-sm mt-1">
+                    This guest has an unpaid balance. Consider collecting payment before check-out.
+                  </p>
                 </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Site Inspection */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Site Inspection
+              </h3>
+              <div className="flex items-center space-x-2 p-3 rounded-lg border">
+                <Checkbox
+                  id="damages"
+                  checked={hasDamages}
+                  onCheckedChange={(checked) => setHasDamages(checked === true)}
+                />
+                <Label htmlFor="damages" className="cursor-pointer">
+                  Report damages to site or property
+                </Label>
+              </div>
+              {hasDamages && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Please describe the damages in the notes below. A maintenance ticket may be created.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+
+            {/* Notes Section */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Check-out Notes {hasDamages && <span className="text-destructive">*</span>}</Label>
+              <Textarea
+                id="notes"
+                placeholder={hasDamages
+                  ? "Describe the damages found during inspection..."
+                  : "Record any observations, feedback, or details..."
+                }
+                value={checkOutNotes}
+                onChange={(e) => setCheckOutNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
           </div>
 
-          {/* Notes Section */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Check-out Notes {hasDamages && <span className="text-destructive">*</span>}</Label>
-            <Textarea
-              id="notes"
-              placeholder={hasDamages
-                ? "Describe the damages found during inspection..."
-                : "Record any observations, feedback, or details..."
-              }
-              value={checkOutNotes}
-              onChange={(e) => setCheckOutNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel} disabled={isProcessing}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCheckOut}
-            disabled={isProcessing || (hasDamages && !checkOutNotes.trim())}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel} disabled={isProcessing}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleCheckOut()}
+              disabled={isProcessing || (hasDamages && !checkOutNotes.trim())}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Complete Check-out
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={showLateCheckOutWarning} onOpenChange={setShowLateCheckOutWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Late check-out warning</AlertDialogTitle>
+          <AlertDialogDescription>
+            This reservation is being checked out after the configured check-out time
+            {checkOutTime ? ` (${checkOutTime})` : ''}. Do you want to continue?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setShowLateCheckOutWarning(false)
+              void handleCheckOut(true)
+            }}
           >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <LogOut className="mr-2 h-4 w-4" />
-                Complete Check-out
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            Continue check-out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   )
 }

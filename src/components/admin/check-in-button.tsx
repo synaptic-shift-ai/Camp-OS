@@ -21,6 +21,7 @@ interface CheckInButtonProps {
   reservationCheckInDate?: string | undefined
   blackoutDates?: string[] | undefined
   allowedCheckInDays?: string[] | undefined
+  checkInTime?: string | null | undefined
 }
 
 export function CheckInButton({
@@ -29,6 +30,7 @@ export function CheckInButton({
   reservationCheckInDate,
   blackoutDates,
   allowedCheckInDays,
+  checkInTime,
 }: CheckInButtonProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -95,6 +97,7 @@ export function CheckInButton({
           reservation={reservationData}
           blackoutDates={blackoutDates}
           allowedCheckInDays={allowedCheckInDays}
+          checkInTime={checkInTime}
         />
       )}
     </>

@@ -22,9 +22,10 @@ interface TodaysArrivalsCardProps {
       site?: { site_number: string; site_name: string | null; status?: string | null }
     }
   >
+  checkInTime?: string | null | undefined
 }
 
-export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
+export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCardProps) {
   const [selectedReservation, setSelectedReservation] = useState<
     (Reservation & {
       guest?: { first_name: string; last_name: string; email: string }
@@ -276,6 +277,7 @@ export function TodaysArrivalsCard({ arrivals }: TodaysArrivalsCardProps) {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           reservation={selectedReservation}
+          checkInTime={checkInTime}
         />
       )}
     </>

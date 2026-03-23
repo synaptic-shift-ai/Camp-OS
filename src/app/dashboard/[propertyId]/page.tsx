@@ -146,14 +146,17 @@ async function CurrentlyCheckedIn({
       </CardHeader>
       <CardContent>
         {currentlyCheckedIn.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-4">
+          <div
+            className="grid gap-2 mb-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}
+          >
             {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
               return (
                 <Link
                   key={type}
                   href={`/dashboard/${propertyId}/reservations?siteType=${type}`}
-                  className="rounded-lg border bg-muted/50 px-3 py-2 text-center cursor-pointer hover:bg-muted transition-colors"
+                  className="w-full rounded-lg border bg-muted/50 px-3 py-2 text-center cursor-pointer hover:bg-muted transition-colors"
                 >
                   <p className="text-lg text-muted-foreground">
                     {siteTypeLabels[type]} Site
@@ -174,9 +177,13 @@ async function CurrentlyCheckedIn({
 async function TodaysArrivalsAndDepartures({
   propertyId,
   allowedSiteTypes,
+  checkInTime,
+  checkOutTime,
 }: {
   propertyId: string
   allowedSiteTypes?: string[] | null
+  checkInTime?: string | null
+  checkOutTime?: string | null
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
   const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
@@ -193,7 +200,7 @@ async function TodaysArrivalsAndDepartures({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
-        <TodaysArrivalsCard arrivals={arrivals} />
+        <TodaysArrivalsCard arrivals={arrivals} checkInTime={checkInTime} />
         <Card>
           <CardHeader>
             <CardTitle>Departures</CardTitle>
@@ -230,7 +237,10 @@ async function TodaysArrivalsAndDepartures({
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">
                         <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                        <DepartureCheckOutButton reservationId={reservation.id} />
+                        <DepartureCheckOutButton
+                          reservationId={reservation.id}
+                          checkOutTime={checkOutTime}
+                        />
                       </div>
                     </div>
                   )
@@ -465,7 +475,12 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </div>
         }
       >
-        <TodaysArrivalsAndDepartures propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
+        <TodaysArrivalsAndDepartures
+          propertyId={propertyId}
+          allowedSiteTypes={allowedSiteTypes}
+          checkInTime={property.check_in_time}
+          checkOutTime={property.check_out_time}
+        />
       </Suspense>
 
       <Suspense

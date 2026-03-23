@@ -18,12 +18,14 @@ interface CheckOutButtonProps {
   reservationId: string
   status: string
   allowedCheckOutDays?: string[] | undefined
+  checkOutTime?: string | null | undefined
 }
 
 export function CheckOutButton({
   reservationId,
   status,
   allowedCheckOutDays,
+  checkOutTime,
 }: CheckOutButtonProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -89,6 +91,7 @@ export function CheckOutButton({
           onOpenChange={setDialogOpen}
           reservation={reservationData}
           allowedCheckOutDays={allowedCheckOutDays}
+          checkOutTime={checkOutTime}
         />
       )}
     </>

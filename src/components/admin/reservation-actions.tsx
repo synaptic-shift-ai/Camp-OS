@@ -49,6 +49,8 @@ interface ReservationActionsProps {
   blackoutDates?: string[] | undefined
   allowedCheckInDays?: string[] | undefined
   allowedCheckOutDays?: string[] | undefined
+  checkInTime?: string | null | undefined
+  checkOutTime?: string | null | undefined
 }
 
 export function ReservationActions({
@@ -77,6 +79,8 @@ export function ReservationActions({
   blackoutDates,
   allowedCheckInDays,
   allowedCheckOutDays,
+  checkInTime,
+  checkOutTime,
 }: ReservationActionsProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -142,11 +146,13 @@ export function ReservationActions({
           reservationCheckInDate={checkIn}
           blackoutDates={blackoutDates}
           allowedCheckInDays={allowedCheckInDays}
+          checkInTime={checkInTime}
         />
         <CheckOutButton
           reservationId={reservationId}
           status={status}
           allowedCheckOutDays={allowedCheckOutDays}
+          checkOutTime={checkOutTime}
         />
         <EditReservationDialog
           reservationId={reservationId}

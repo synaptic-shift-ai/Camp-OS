@@ -75,6 +75,8 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
             siteType={siteTypeFilter ?? null}
             rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
             bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
+            checkInTime={property.check_in_time}
+            checkOutTime={property.check_out_time}
           />
         </CardContent>
       </Card>

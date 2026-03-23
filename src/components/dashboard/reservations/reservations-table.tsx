@@ -89,6 +89,8 @@ type ReservationsTableProps = {
   siteType: string | null
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined
   bookingRulesConfig?: BookingRulesConfig | null | undefined
+  checkInTime?: string | null
+  checkOutTime?: string | null
 }
 
 export function ReservationsTable({
@@ -100,6 +102,8 @@ export function ReservationsTable({
   siteType,
   rateDiscountsConfig,
   bookingRulesConfig,
+  checkInTime,
+  checkOutTime,
 }: ReservationsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -323,6 +327,8 @@ export function ReservationsTable({
                         blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
                         allowedCheckInDays={bookingRulesConfig?.allowed_checkin_days ?? []}
                         allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
+                        checkInTime={checkInTime}
+                        checkOutTime={checkOutTime}
                       />
                     </TableCell>
                   </TableRow>

@@ -41,6 +41,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import Marquee from "react-fast-marquee"
+import { GuestCancellationPolicyText } from "@/components/guest/guest-cancellation-policy-text"
 
 type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal'
 
@@ -974,7 +975,10 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     <div className={cn("mt-1", "text-[#2D5A27] dark:text-emerald-400")}>📋</div>
                     <div>
                       <p className="font-semibold text-foreground">Cancellation Policy</p>
-                      <p className="text-sm text-muted-foreground">{property.cancellation_policy}</p>
+                      <GuestCancellationPolicyText
+                        text={property.cancellation_policy}
+                        className="mt-1 space-y-2 text-sm text-muted-foreground"
+                      />
                     </div>
                   </div>
                 )}

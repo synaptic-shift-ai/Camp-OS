@@ -71,7 +71,7 @@ export function ReservationsPageHeader({
 
         exportToCsv<DashboardReservation>(filename, exportedReservations, [
           { key: "confirmationNumber", header: "Confirmation" },
-          { key: "guestName", header: "Guest" },
+          { key: "guestName", header: "Primary Guest" },
           { key: "siteName", header: "Site" },
           {
             key: "checkIn",
@@ -86,7 +86,7 @@ export function ReservationsPageHeader({
           { key: "numNights", header: "Nights" },
           {
             key: "totalGuests",
-            header: "Guests",
+            header: "Total Guests",
             accessor: (reservation) =>
               reservation.numAdults + reservation.numChildren,
           },

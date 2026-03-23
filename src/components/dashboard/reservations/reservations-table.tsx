@@ -271,12 +271,12 @@ export function ReservationsTable({
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="h-8">
                 <TableHead className="py-1.5">Confirmation</TableHead>
-                <TableHead className="py-1.5">Guest</TableHead>
+                <TableHead className="py-1.5">Primary Guest</TableHead>
                 <TableHead className="py-1.5">Site</TableHead>
                 <TableHead className="py-1.5">Check-in</TableHead>
                 <TableHead className="py-1.5">Check-out</TableHead>
                 <TableHead className="py-1.5">Nights</TableHead>
-                <TableHead className="py-1.5">Guests</TableHead>
+                <TableHead className="py-1.5">Total Guests</TableHead>
                 <TableHead className="py-1.5">Total Amount</TableHead>
                 <TableHead className="py-1.5">Paid Amount</TableHead>
                 <TableHead className="py-1.5">Balance Owed</TableHead>
@@ -443,7 +443,7 @@ export function ReservationsTable({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-md border bg-muted/40 p-3">
                     <div className="text-xs font-medium text-muted-foreground">
-                      Guest
+                      Primary Guest
                     </div>
                     <div className="mt-1 font-medium capitalize">
                       {selectedReservation.guestName}

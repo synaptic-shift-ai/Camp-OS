@@ -38,12 +38,12 @@ const siteTypeLabels: Record<string, string> = {
 
 const sortByOptions = [
   { value: 'confirmation', label: 'Confirmation' },
-  { value: 'guest', label: 'Guest' },
+  { value: 'guest', label: 'Primary Guest' },
   { value: 'site', label: 'Site' },
   { value: 'checkIn', label: 'Check-in' },
   { value: 'checkOut', label: 'Check-out' },
   { value: 'nights', label: 'Nights' },
-  { value: 'guests', label: 'Guests' },
+  { value: 'guests', label: 'Total Guests' },
   { value: 'totalAmount', label: 'Total Amount' },
   { value: 'paidAmount', label: 'Paid Amount' },
   { value: 'balanceOwed', label: 'Balance Owed' },
@@ -62,7 +62,7 @@ const statusOptions = [
 
 const searchByOptions = [
   { value: 'confirmation', label: 'Confirmation' },
-  { value: 'guest', label: 'Guest' },
+  { value: 'guest', label: 'Primary Guest' },
   { value: 'site', label: 'Site' },
 ] as const
 
@@ -101,7 +101,7 @@ export function ReservationFilters({
       ? 'Search confirmation...'
       : currentSearchBy === 'site'
         ? 'Search site...'
-        : 'Search guest...'
+        : 'Search primary guest...'
 
   const baseOptions =
     siteTypesFromDb.length > 0
@@ -163,7 +163,7 @@ export function ReservationFilters({
                 disabled={isPending}
               >
                 <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder="Guest" />
+                  <SelectValue placeholder="Primary Guest" />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
                   {searchByOptions.map((option) => (

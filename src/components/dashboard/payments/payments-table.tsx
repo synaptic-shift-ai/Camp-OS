@@ -115,7 +115,7 @@ export function PaymentsTable({
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="h-8">
                 <TableHead className="py-1.5">Date</TableHead>
-                <TableHead className="py-1.5">Guest</TableHead>
+                <TableHead className="py-1.5">Primary Guest</TableHead>
                 <TableHead className="py-1.5">Reservation</TableHead>
                 <TableHead className="py-1.5">Amount</TableHead>
                 <TableHead className="py-1.5">Method</TableHead>

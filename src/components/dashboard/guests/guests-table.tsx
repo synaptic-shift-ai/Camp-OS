@@ -130,7 +130,7 @@ export function GuestsTable({
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="h-8">
-                <TableHead className="py-1.5">Guest</TableHead>
+                <TableHead className="py-1.5">Primary Guest</TableHead>
                 <TableHead className="py-1.5">Contact</TableHead>
                 <TableHead className="py-1.5">Total Stays</TableHead>
                 <TableHead className="py-1.5">Total Spent</TableHead>

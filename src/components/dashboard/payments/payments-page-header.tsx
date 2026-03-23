@@ -61,7 +61,7 @@ export function PaymentsPageHeader({ propertyId, total }: PaymentsPageHeaderProp
             header: "Date",
             accessor: (payment) => formatDate(payment.createdAt),
           },
-          { key: "guestName", header: "Guest" },
+          { key: "guestName", header: "Primary Guest" },
           { key: "confirmationNumber", header: "Reservation" },
           {
             key: "amount",

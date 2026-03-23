@@ -37,7 +37,7 @@ const siteTypeLabels: Record<string, string> = {
 }
 
 const sortOptions = [
-  { value: 'guest', label: 'Guest Name' },
+  { value: 'guest', label: 'Primary Guest' },
   { value: 'totalStays', label: 'Total Stays' },
   { value: 'totalSpent', label: 'Total Spent' },
   { value: 'lastVisit', label: 'Last Visit' },
@@ -60,7 +60,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
   const currentSortBy = searchParams.get('sortBy') ?? 'totalSpent'
   const currentSortOrder = searchParams.get('sortOrder') ?? 'desc'
   const searchPlaceholder =
-    currentSearchBy === 'email' ? 'Search email...' : 'Search guest name...'
+    currentSearchBy === 'email' ? 'Search email...' : 'Search primary guest name...'
 
   // Draft values for the mobile dialog (apply only on Save)
   const [draftSiteType, setDraftSiteType] = useState(currentSiteType)

@@ -1,20 +1,40 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getReservations, getDistinctSiteTypes } from "@/lib/dashboard/queries"
+import type { ReservationFilters } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import type { BookingRulesConfig, RateDiscountsConfig } from "@/lib/config/types"
+import type { ReservationStatus } from "@/contracts/booking"
 import { redirect } from "next/navigation"
-import { SiteTypeFilter } from "@/components/dashboard/reservations/site-type-filter"
 import { ReservationsTable } from "@/components/dashboard/reservations/reservations-table"
 import { ReservationsPageHeader } from "@/components/dashboard/reservations/reservations-page-header"
+import { ReservationFilters as ReservationFiltersBar } from "@/components/dashboard/reservations/reservation-filters"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
-  searchParams: Promise<{ siteType?: string; page?: string; pageSize?: string }>
+  searchParams: Promise<{
+    siteType?: string
+    status?: string
+    search?: string
+    searchBy?: string
+    sortBy?: string
+    sortOrder?: string
+    page?: string
+    pageSize?: string
+  }>
 }
 
 export default async function ReservationsPage({ params, searchParams }: PageProps) {
   const { propertyId } = await params
-  const { siteType: siteTypeParam, page: pageParam, pageSize: pageSizeParam } =
+  const {
+    siteType: siteTypeParam,
+    status: statusParam,
+    search: searchParam,
+    searchBy: searchByParam,
+    sortBy: sortByParam,
+    sortOrder: sortOrderParam,
+    page: pageParam,
+    pageSize: pageSizeParam,
+  } =
     await searchParams
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
@@ -34,12 +54,46 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
 
   const siteTypesFromDb = await getDistinctSiteTypes(propertyId)
   const siteTypeFilter = siteTypeParam && siteTypeParam !== 'all' ? siteTypeParam : undefined
-  
-  const filters = siteTypeFilter
-    ? { siteType: siteTypeFilter }
-    : allowedSiteTypes && allowedSiteTypes.length > 0
-      ? { allowedSiteTypes  }
-      : {}
+  const statusFilter =
+    statusParam === 'pending' ||
+      statusParam === 'confirmed' ||
+      statusParam === 'checked_in' ||
+      statusParam === 'checked_out' ||
+      statusParam === 'cancelled' ||
+      statusParam === 'no_show'
+      ? (statusParam as ReservationStatus)
+      : undefined
+  const sortBy: NonNullable<ReservationFilters["sortBy"]> =
+    sortByParam === 'confirmation' ||
+      sortByParam === 'guest' ||
+      sortByParam === 'site' ||
+      sortByParam === 'checkIn' ||
+      sortByParam === 'checkOut' ||
+      sortByParam === 'nights' ||
+      sortByParam === 'guests' ||
+      sortByParam === 'totalAmount' ||
+      sortByParam === 'paidAmount' ||
+      sortByParam === 'balanceOwed' ||
+      sortByParam === 'refundedAmount' ||
+      sortByParam === 'status'
+      ? sortByParam
+      : 'checkIn'
+  const sortOrder: NonNullable<ReservationFilters["sortOrder"]> =
+    sortOrderParam === 'asc' || sortOrderParam === 'desc' ? sortOrderParam : 'desc'
+  const searchField: NonNullable<ReservationFilters["searchField"]> =
+    searchByParam === 'confirmation' || searchByParam === 'guest' || searchByParam === 'site'
+      ? searchByParam
+      : 'guest'
+
+  const filters: ReservationFilters = {
+    sortBy,
+    sortOrder,
+    searchField,
+  }
+  if (typeof searchParam === 'string' && searchParam.length > 0) filters.search = searchParam
+  if (statusFilter) filters.status = statusFilter
+  if (siteTypeFilter) filters.siteType = siteTypeFilter
+  if (allowedSiteTypes) filters.allowedSiteTypes = allowedSiteTypes
 
   const { data: reservations, total } = await getReservations(propertyId, filters, currentPage, pageSize)
 
@@ -55,29 +109,34 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>All Reservations</CardTitle>
-              <CardDescription>View and manage your property reservations</CardDescription>
-            </div>
-            <div>
-              <SiteTypeFilter propertyId={propertyId} allowedSiteTypes={allowedSiteTypes ?? null} siteTypesFromDb={siteTypesFromDb} />
-            </div>
-          </div>
+          <CardTitle>All Reservations</CardTitle>
+          <CardDescription>View and manage your property reservations</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReservationsTable
-            propertyId={propertyId}
-            reservations={reservations}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            total={total}
-            siteType={siteTypeFilter ?? null}
-            rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
-            bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
-            checkInTime={property.check_in_time}
-            checkOutTime={property.check_out_time}
-          />
+          <div className="space-y-2">
+            <ReservationFiltersBar
+              propertyId={propertyId}
+              allowedSiteTypes={allowedSiteTypes ?? null}
+              siteTypesFromDb={siteTypesFromDb}
+            />
+            <ReservationsTable
+              propertyId={propertyId}
+              reservations={reservations}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              total={total}
+              siteType={siteTypeFilter ?? null}
+              status={statusFilter ?? null}
+              searchQuery={typeof searchParam === 'string' ? searchParam : null}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              searchField={searchField}
+              rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
+              bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
+              checkInTime={property.check_in_time}
+              checkOutTime={property.check_out_time}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

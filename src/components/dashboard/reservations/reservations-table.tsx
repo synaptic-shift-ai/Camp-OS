@@ -87,6 +87,23 @@ type ReservationsTableProps = {
   pageSize: number
   total: number
   siteType: string | null
+  status: ReservationStatus | null
+  searchQuery: string | null
+  sortBy:
+    | 'confirmation'
+    | 'guest'
+    | 'site'
+    | 'checkIn'
+    | 'checkOut'
+    | 'nights'
+    | 'guests'
+    | 'totalAmount'
+    | 'paidAmount'
+    | 'balanceOwed'
+    | 'refundedAmount'
+    | 'status'
+  sortOrder: 'asc' | 'desc'
+  searchField: 'confirmation' | 'guest' | 'site'
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined
   bookingRulesConfig?: BookingRulesConfig | null | undefined
   checkInTime?: string | null
@@ -100,6 +117,11 @@ export function ReservationsTable({
   pageSize,
   total,
   siteType,
+  status,
+  searchQuery,
+  sortBy,
+  sortOrder,
+  searchField,
   rateDiscountsConfig,
   bookingRulesConfig,
   checkInTime,
@@ -169,6 +191,17 @@ export function ReservationsTable({
     if (siteType) {
       params.set("siteType", siteType)
     }
+    if (status) {
+      params.set("status", status)
+    }
+    if (searchQuery) {
+      params.set("search", searchQuery)
+    }
+    if (searchField !== "guest") {
+      params.set("searchBy", searchField)
+    }
+    params.set("sortBy", sortBy)
+    params.set("sortOrder", sortOrder)
     return `/dashboard/${propertyId}/reservations?${params.toString()}`
   }
 
@@ -186,6 +219,17 @@ export function ReservationsTable({
       if (siteType) {
         params.set("siteType", siteType)
       }
+      if (status) {
+        params.set("status", status)
+      }
+      if (searchQuery) {
+        params.set("search", searchQuery)
+      }
+      if (searchField !== "guest") {
+        params.set("searchBy", searchField)
+      }
+      params.set("sortBy", sortBy)
+      params.set("sortOrder", sortOrder)
       router.push(`/dashboard/${propertyId}/reservations?${params.toString()}`)
     })
   }

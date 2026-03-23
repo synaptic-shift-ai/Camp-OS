@@ -26,6 +26,10 @@ type GuestsTableProps = {
   pageSize: number
   total: number
   searchQuery: string | null
+  siteType: string | null
+  sortBy: "guest" | "totalStays" | "totalSpent" | "lastVisit"
+  sortOrder: "asc" | "desc"
+  searchField: "name" | "email"
 }
 
 export function GuestsTable({
@@ -35,6 +39,10 @@ export function GuestsTable({
   pageSize,
   total,
   searchQuery,
+  siteType,
+  sortBy,
+  sortOrder,
+  searchField,
 }: GuestsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -61,6 +69,10 @@ export function GuestsTable({
     params.set("page", String(page))
     params.set("pageSize", String(pageSize))
     if (searchQuery) params.set("search", searchQuery)
+    if (searchField !== "name") params.set("searchBy", searchField)
+    if (siteType) params.set("siteType", siteType)
+    params.set("sortBy", sortBy)
+    params.set("sortOrder", sortOrder)
     return `/dashboard/${propertyId}/guests?${params.toString()}`
   }
 
@@ -76,6 +88,10 @@ export function GuestsTable({
       params.set("page", "1")
       params.set("pageSize", String(nextPageSize))
       if (searchQuery) params.set("search", searchQuery)
+      if (searchField !== "name") params.set("searchBy", searchField)
+      if (siteType) params.set("siteType", siteType)
+      params.set("sortBy", sortBy)
+      params.set("sortOrder", sortOrder)
       router.push(`/dashboard/${propertyId}/guests?${params.toString()}`)
     })
   }

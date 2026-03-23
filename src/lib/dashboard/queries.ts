@@ -142,6 +142,21 @@ export interface ReservationFilters {
   checkOutDate?: string
   siteType?: string
   allowedSiteTypes?: string[]
+  sortBy?:
+  | 'confirmation'
+  | 'guest'
+  | 'site'
+  | 'checkIn'
+  | 'checkOut'
+  | 'nights'
+  | 'guests'
+  | 'totalAmount'
+  | 'paidAmount'
+  | 'balanceOwed'
+  | 'refundedAmount'
+  | 'status'
+  sortOrder?: 'asc' | 'desc'
+  searchField?: 'confirmation' | 'guest' | 'site'
 }
 
 export interface PaymentFilters {
@@ -252,12 +267,9 @@ export async function getReservations(
         enabled_reservation_types_override,
         site_type
       )
-    `,
-      { count: 'exact' }
+    `
     )
     .eq('property_id', propertyId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
 
   if (siteIdsFilter) {
     query = query.in('site_id', siteIdsFilter)
@@ -280,23 +292,18 @@ export async function getReservations(
   if (filters.endDate) {
     query = query.lte('check_in_date', filters.endDate)
   }
-  if (filters.search) {
-    query = query.or(
-      `confirmation_number.ilike.%${filters.search}%,guests.first_name.ilike.%${filters.search}%,guests.last_name.ilike.%${filters.search}%`
-    )
-  }
   if (filters.checkOutDate) {
     query = query.eq('check_out_date', filters.checkOutDate)
   }
 
-  const { data, error, count } = await query
+  const { data, error } = await query
 
   if (error) {
     throw new Error(`Failed to fetch reservations: ${error.message}`)
   }
 
   // Transform database results to dashboard format
-  const reservations: DashboardReservation[] = (data || []).map((reservation) => {
+  let reservations: DashboardReservation[] = (data || []).map((reservation) => {
     const guest = reservation.guests as unknown as DbGuest
     const site = reservation.sites as unknown as SiteWithOverride | null
     const checkIn = new Date(reservation.check_in_date)
@@ -341,9 +348,59 @@ export async function getReservations(
     }
   })
 
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase()
+    const searchField = filters.searchField ?? 'guest'
+    reservations = reservations.filter((reservation) => {
+      const confirmation = reservation.confirmationNumber.toLowerCase()
+      const guestName = reservation.guestName.toLowerCase()
+      const siteName = reservation.siteName.toLowerCase()
+      const siteNumber = reservation.siteNumber.toLowerCase()
+
+      if (searchField === 'confirmation') {
+        return confirmation.includes(searchLower)
+      }
+      if (searchField === 'guest') {
+        return guestName.includes(searchLower)
+      }
+      if (searchField === 'site') {
+        return siteName.includes(searchLower) || siteNumber.includes(searchLower)
+      }
+
+      // Default: guest
+      return guestName.includes(searchLower)
+    })
+  }
+
+  const sortBy = filters.sortBy ?? 'checkIn'
+  const sortOrder = filters.sortOrder ?? 'desc'
+  reservations.sort((a, b) => {
+    let comparison = 0
+    if (sortBy === 'confirmation') comparison = a.confirmationNumber.localeCompare(b.confirmationNumber)
+    else if (sortBy === 'guest') comparison = a.guestName.localeCompare(b.guestName)
+    else if (sortBy === 'site') comparison = a.siteName.localeCompare(b.siteName)
+    else if (sortBy === 'checkIn') comparison = new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime()
+    else if (sortBy === 'checkOut')
+      comparison = new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime()
+    else if (sortBy === 'nights') comparison = a.numNights - b.numNights
+    else if (sortBy === 'guests')
+      comparison = a.numAdults + a.numChildren - (b.numAdults + b.numChildren)
+    else if (sortBy === 'totalAmount') comparison = a.totalAmount - b.totalAmount
+    else if (sortBy === 'paidAmount') comparison = a.paidAmount - b.paidAmount
+    else if (sortBy === 'balanceOwed')
+      comparison = a.totalAmount - a.paidAmount - (b.totalAmount - b.paidAmount)
+    else if (sortBy === 'refundedAmount') comparison = a.refundAmount - b.refundAmount
+    else comparison = a.status.localeCompare(b.status)
+
+    return sortOrder === 'asc' ? comparison : -comparison
+  })
+
+  const total = reservations.length
+  const paginatedReservations = reservations.slice(offset, offset + limit)
+
   return {
-    data: reservations,
-    total: count || 0,
+    data: paginatedReservations,
+    total,
   }
 }
 
@@ -849,12 +906,16 @@ export interface DashboardGuest {
 
 export interface GuestFilters {
   search: string | undefined
+  siteType?: string
   allowedSiteTypes?: string[]
+  sortBy?: 'guest' | 'totalStays' | 'totalSpent' | 'lastVisit'
+  sortOrder?: 'asc' | 'desc'
+  searchField?: 'name' | 'email'
 }
 
 export async function getGuests(
   propertyId: string,
-  filters: GuestFilters = { search: undefined },
+  filters: GuestFilters = { search: undefined, sortBy: 'totalSpent', sortOrder: 'desc' },
   page = 1,
   limit = 50
 ): Promise<{ data: DashboardGuest[]; total: number }> {
@@ -897,6 +958,9 @@ export async function getGuests(
       guest_id,
       check_in_date,
       paid_amount,
+      sites!inner (
+        site_type
+      ),
       guests (
         id,
         first_name,
@@ -908,8 +972,10 @@ export async function getGuests(
     `)
     .eq('property_id', propertyId)
 
-  if (siteIdsFilter) {
-    query = query.in("site_id", siteIdsFilter)
+  if (filters.siteType) {
+    query = query.eq('sites.site_type', filters.siteType)
+  } else if (Array.isArray(filters.allowedSiteTypes) && filters.allowedSiteTypes.length > 0) {
+    query = query.in('sites.site_type', filters.allowedSiteTypes)
   }
 
   const { data: reservations, error } = await query
@@ -971,16 +1037,34 @@ export async function getGuests(
   // Apply search filter
   if (filters.search) {
     const searchLower = filters.search.toLowerCase()
-    guests = guests.filter(
-      (guest) =>
-        guest.name.toLowerCase().includes(searchLower) ||
-        guest.email.toLowerCase().includes(searchLower) ||
-        (guest.phone && guest.phone.includes(searchLower))
-    )
+    // Default search field: name
+    if (filters.searchField === 'email') {
+      guests = guests.filter((guest) => guest.email.toLowerCase().includes(searchLower))
+    } else {
+      guests = guests.filter((guest) => guest.name.toLowerCase().includes(searchLower))
+    }
   }
 
-  // Sort by total spent (highest first)
-  guests.sort((a, b) => b.totalSpent - a.totalSpent)
+  const sortBy = filters.sortBy ?? 'totalSpent'
+  const sortOrder = filters.sortOrder ?? 'desc'
+
+  guests.sort((a, b) => {
+    let compareValue = 0
+
+    if (sortBy === 'guest') {
+      compareValue = a.name.localeCompare(b.name)
+    } else if (sortBy === 'totalStays') {
+      compareValue = a.totalStays - b.totalStays
+    } else if (sortBy === 'lastVisit') {
+      const aLastVisit = a.lastVisit ? new Date(a.lastVisit).getTime() : 0
+      const bLastVisit = b.lastVisit ? new Date(b.lastVisit).getTime() : 0
+      compareValue = aLastVisit - bLastVisit
+    } else {
+      compareValue = a.totalSpent - b.totalSpent
+    }
+
+    return sortOrder === 'asc' ? compareValue : -compareValue
+  })
 
   const total = guests.length
   const offset = (page - 1) * limit

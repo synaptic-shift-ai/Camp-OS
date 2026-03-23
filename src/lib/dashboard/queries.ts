@@ -849,6 +849,7 @@ export interface DashboardGuest {
 
 export interface GuestFilters {
   search: string | undefined
+  allowedSiteTypes?: string[]
 }
 
 export async function getGuests(
@@ -859,9 +860,37 @@ export async function getGuests(
 ): Promise<{ data: DashboardGuest[]; total: number }> {
   const supabase = await createClient()
 
+  // If restricting by allowed site types, resolve the matching site IDs first
+  // (similar to getReservations()) and then filter reservations by `site_id`.
+  let siteIdsFilter: string[] | null = null
+  if (Array.isArray(filters.allowedSiteTypes) && filters.allowedSiteTypes.length > 0) {
+    const allowedLower = new Set(filters.allowedSiteTypes.map((t) => t.toLowerCase().trim()).filter(Boolean))
+
+    if (allowedLower.size > 0) {
+      const { data: siteRows, error: siteError } = await supabase
+        .from("sites")
+        .select("id, site_type")
+        .eq("property_id", propertyId)
+
+      if (siteError) {
+        throw new Error(`Failed to fetch sites for guest filter: ${siteError.message}`)
+      }
+
+      const ids = (siteRows ?? [])
+        .filter((s) => s.site_type && allowedLower.has((s.site_type as string).toLowerCase().trim()))
+        .map((s) => s.id as string)
+
+      if (ids.length === 0) {
+        return { data: [], total: 0 }
+      }
+
+      siteIdsFilter = ids
+    }
+  }
+
   // Get all reservations for this property to aggregate guest data
   // Must join with guests table to get guest information
-  const query = supabase
+  let query = supabase
     .from('reservations')
     .select(`
       id,
@@ -878,6 +907,10 @@ export async function getGuests(
       )
     `)
     .eq('property_id', propertyId)
+
+  if (siteIdsFilter) {
+    query = query.in("site_id", siteIdsFilter)
+  }
 
   const { data: reservations, error } = await query
 

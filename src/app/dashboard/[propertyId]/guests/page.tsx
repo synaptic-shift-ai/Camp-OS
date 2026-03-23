@@ -27,9 +27,25 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
       : Number(pageSizeParam)
   const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
 
+  const rawSiteTypeConfig = (property.site_type_config ?? null) as
+    | { allowed_site_types?: string[] }
+    | null
+
+  const allowedSiteTypesFromConfig = Array.isArray(rawSiteTypeConfig?.allowed_site_types)
+    ? rawSiteTypeConfig.allowed_site_types
+    : []
+
+  const allowedSiteTypes =
+    allowedSiteTypesFromConfig
+      .map((t) => t.toLowerCase().trim())
+      .filter((t) => t.length > 0) ?? []
+
   const { data: guests, total } = await getGuests(
     propertyId,
-    { search: searchQuery },
+    {
+      search: searchQuery,
+      ...(allowedSiteTypes.length > 0 ? { allowedSiteTypes } : {}),
+    },
     currentPage,
     pageSize
   )

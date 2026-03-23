@@ -16,7 +16,10 @@ type ExportGuestsBody = {
   }
 }
 
-async function assertUserOwnsProperty(supabase: Awaited<ReturnType<typeof createClient>>, propertyId: string) {
+async function assertUserOwnsProperty(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string
+): Promise<unknown> {
   const {
     data: { user },
     error: authError,
@@ -38,13 +41,15 @@ async function assertUserOwnsProperty(supabase: Awaited<ReturnType<typeof create
 
   const { data: property, error: propertyError } = await supabase
     .from("properties")
-    .select("id, company_id")
+    .select("id, company_id, site_type_config")
     .eq("id", propertyId)
     .single()
 
   if (propertyError || !property || property.company_id !== company.id) {
     throw new Error(ErrorCodes.AUTH_003.code)
   }
+
+  return property.site_type_config
 }
 
 export async function POST(request: NextRequest) {
@@ -61,8 +66,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
+    let siteTypeConfig: unknown = null
     try {
-      await assertUserOwnsProperty(supabase, propertyId)
+      siteTypeConfig = await assertUserOwnsProperty(supabase, propertyId)
     } catch (authErr) {
       const code = authErr instanceof Error ? authErr.message : ErrorCodes.AUTH_004.code
       const errDef = Object.values(ErrorCodes).find((d: any) => d.code === code)
@@ -70,11 +76,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(error({ code, message: errDef?.message ?? "Unauthorized", status }), { status })
     }
 
+    const rawSiteTypeConfig = (siteTypeConfig ?? null) as { allowed_site_types?: string[] } | null
+    const allowedSiteTypesFromConfig = Array.isArray(rawSiteTypeConfig?.allowed_site_types)
+      ? rawSiteTypeConfig.allowed_site_types
+      : []
+
+    const allowedSiteTypes = allowedSiteTypesFromConfig
+      .map((t) => t.toLowerCase().trim())
+      .filter((t) => t.length > 0)
+
     const filters: GuestFilters = {
       search:
         typeof searchRaw === "string" && searchRaw.trim().length > 0
           ? searchRaw
           : undefined,
+      ...(allowedSiteTypes.length > 0 ? { allowedSiteTypes } : {}),
     }
 
     // getGuests already aggregates and only paginates client-side slices.

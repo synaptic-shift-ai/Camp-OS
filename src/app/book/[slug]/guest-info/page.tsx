@@ -17,14 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { CancellationPolicyDialog } from "@/components/guest/cancellation-policy-dialog"
-import { GuestCancellationPolicyText } from "@/components/guest/guest-cancellation-policy-text"
 import { TermsAndConditionsDialog } from "@/components/guest/terms-and-conditions-dialog"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
 import {
-  GUEST_CANCELLATION_POLICY_FALLBACK,
   type GuestCancellationPolicyApiData,
 } from "@/lib/guest/guest-cancellation-policy"
 
@@ -117,6 +115,8 @@ export default function GuestInfoPage() {
   const [cancellationPolicyData, setCancellationPolicyData] =
     useState<GuestCancellationPolicyApiData | null>(null)
   const [termsAndConditionsText, setTermsAndConditionsText] = useState<string | null>(null)
+  const [isTermsDialogOpen, setIsTermsDialogOpen] = useState(false)
+  const [isCancellationDialogOpen, setIsCancellationDialogOpen] = useState(false)
   const [isCancellationPolicyLoading, setIsCancellationPolicyLoading] = useState(false)
   const fetchedCancellationPolicyForPropertyRef = useRef<string | null>(null)
 
@@ -362,9 +362,6 @@ export default function GuestInfoPage() {
   const taxesCents = priceBreakdown.taxes ?? 0
   const taxRate = priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
   const legacyDiscountCents = priceBreakdown.discount_applied?.amount_saved ?? 0
-  const userDiscountCents =
-    priceBreakdown.user_discounts?.reduce((sum, discount) => sum + discount.amount, 0) ?? 0
-  const totalDiscountCents = legacyDiscountCents + userDiscountCents
   const totalCents =
     priceBreakdown.total ??
     ((priceBreakdown.total_before_tax ??
@@ -705,13 +702,26 @@ export default function GuestInfoPage() {
                           variant="booking"
                           id="agree_terms"
                           checked={form.watch("agree_terms")}
-                          onCheckedChange={(checked) => form.setValue("agree_terms", checked as boolean)}
+                          onCheckedChange={(checked) => {
+                            const next = checked === true
+
+                            if (next) {
+                              setIsTermsDialogOpen(true)
+                              form.setValue("agree_terms", false)
+                              form.clearErrors("agree_terms")
+                            } else {
+                              setIsTermsDialogOpen(false)
+                              form.setValue("agree_terms", false)
+                            }
+                          }}
                         />
                         <div className="space-y-1">
                           <Label htmlFor="agree_terms" className="text-sm font-normal cursor-pointer">
                             I agree to the{" "}
                             <TermsAndConditionsDialog
                               termsText={termsAndConditionsText}
+                              open={isTermsDialogOpen}
+                              onOpenChange={setIsTermsDialogOpen}
                               onAccept={() => {
                                 form.setValue("agree_terms", true)
                                 form.clearErrors("agree_terms")
@@ -729,7 +739,19 @@ export default function GuestInfoPage() {
                           variant="booking"
                           id="agree_cancellation"
                           checked={form.watch("agree_cancellation")}
-                          onCheckedChange={(checked) => form.setValue("agree_cancellation", checked as boolean)}
+                          onCheckedChange={(checked) => {
+                            const next = checked === true
+
+                            if (next) {
+                              // Opening the dialog is not the same as accepting the policy.
+                              setIsCancellationDialogOpen(true)
+                              form.setValue("agree_cancellation", false)
+                              form.clearErrors("agree_cancellation")
+                            } else {
+                              setIsCancellationDialogOpen(false)
+                              form.setValue("agree_cancellation", false)
+                            }
+                          }}
                         />
                         <div className="space-y-1">
                           <Label htmlFor="agree_cancellation" className="text-sm font-normal cursor-pointer">
@@ -737,6 +759,8 @@ export default function GuestInfoPage() {
                             <CancellationPolicyDialog
                               data={cancellationPolicyData}
                               isLoading={isCancellationPolicyLoading}
+                              open={isCancellationDialogOpen}
+                              onOpenChange={setIsCancellationDialogOpen}
                               onAccept={() => {
                                 form.setValue("agree_cancellation", true)
                                 form.clearErrors("agree_cancellation")
@@ -748,17 +772,6 @@ export default function GuestInfoPage() {
                             <p className="text-sm text-red-500">{form.formState.errors.agree_cancellation.message}</p>
                           )}
                         </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-                      <div className="text-sm text-foreground/90">
-                        <p className="mb-2 font-semibold text-foreground">Cancellation Policy</p>
-                        <GuestCancellationPolicyText
-                          text={
-                            cancellationPolicyData?.policy_display_text ??
-                            GUEST_CANCELLATION_POLICY_FALLBACK
-                          }
-                        />
                       </div>
                     </div>
                   </div>

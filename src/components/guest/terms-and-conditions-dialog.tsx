@@ -44,6 +44,8 @@ By continuing with this reservation, you acknowledge and agree to the following 
 type TermsAndConditionsDialogProps = {
   onAccept?: () => void
   termsText?: string | null
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 type TermsBlock =
@@ -80,8 +82,14 @@ function parseTermsBlocks(text: string): TermsBlock[] {
   return blocks
 }
 
-export function TermsAndConditionsDialog({ onAccept, termsText }: TermsAndConditionsDialogProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function TermsAndConditionsDialog({ onAccept, termsText, open, onOpenChange }: TermsAndConditionsDialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isOpen = open ?? uncontrolledOpen
+
+  const setIsOpen = (nextOpen: boolean) => {
+    if (onOpenChange) onOpenChange(nextOpen)
+    else setUncontrolledOpen(nextOpen)
+  }
   const resolvedTerms =
     typeof termsText === "string" && termsText.trim().length > 0 ? termsText.trim() : PROPERTY_TERMS_AND_CONDITIONS
   const termsBlocks = parseTermsBlocks(resolvedTerms)

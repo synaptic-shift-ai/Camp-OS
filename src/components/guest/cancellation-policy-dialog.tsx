@@ -21,10 +21,24 @@ type CancellationPolicyDialogProps = {
   data: GuestCancellationPolicyApiData | null
   isLoading?: boolean
   onAccept?: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function CancellationPolicyDialog({ data, isLoading = false, onAccept }: CancellationPolicyDialogProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function CancellationPolicyDialog({
+  data,
+  isLoading = false,
+  onAccept,
+  open,
+  onOpenChange,
+}: CancellationPolicyDialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isOpen = open ?? uncontrolledOpen
+
+  const setIsOpen = (nextOpen: boolean) => {
+    if (onOpenChange) onOpenChange(nextOpen)
+    else setUncontrolledOpen(nextOpen)
+  }
   const policyText = data?.policy_display_text ?? GUEST_CANCELLATION_POLICY_FALLBACK
 
   return (

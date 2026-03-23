@@ -35,6 +35,7 @@ export type UpdatePropertyDto = {
   houseRules?: string | null | undefined
   cancellation_policy?: string | null | undefined
   cancellation_policy_config?: Record<string, any> | null | undefined
+  terms_and_conditions?: string | null | undefined
 }
 
 export class UpdatePropertyCommandHandler {
@@ -120,10 +121,15 @@ export class UpdatePropertyCommandHandler {
       })
     }
 
-    // Column overrides for dedicated cancellation columns (not part of settings)
-    const columnOverrides: { cancellation_policy?: string | null; cancellation_policy_config?: Record<string, unknown> | null } = {}
+    // Column overrides for dedicated cancellation / legal text columns (not part of settings)
+    const columnOverrides: {
+      cancellation_policy?: string | null
+      cancellation_policy_config?: Record<string, unknown> | null
+      terms_and_conditions?: string | null
+    } = {}
     if (dto.cancellation_policy !== undefined) columnOverrides.cancellation_policy = dto.cancellation_policy
     if (dto.cancellation_policy_config !== undefined) columnOverrides.cancellation_policy_config = dto.cancellation_policy_config as Record<string, unknown> | null
+    if (dto.terms_and_conditions !== undefined) columnOverrides.terms_and_conditions = dto.terms_and_conditions
 
     // Save to database
     await this.repository.save(property, Object.keys(columnOverrides).length > 0 ? columnOverrides : undefined)

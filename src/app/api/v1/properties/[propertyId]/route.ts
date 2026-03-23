@@ -221,6 +221,7 @@ export async function PATCH(
       houseRules: validatedRequest.houseRules,
       cancellation_policy: validatedRequest.cancellation_policy,
       cancellation_policy_config: validatedRequest.cancellation_policy_config,
+      terms_and_conditions: validatedRequest.terms_and_conditions,
     })
 
     // Convert to DTO

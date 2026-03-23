@@ -952,6 +952,7 @@ export type Database = {
           subscription_id: string | null
           subscription_plan: string | null
           subscription_status: string | null
+          terms_and_conditions: string | null
           timezone: string | null
           updated_at: string | null
           wizard_progress: Json | null
@@ -1020,6 +1021,7 @@ export type Database = {
           subscription_id?: string | null
           subscription_plan?: string | null
           subscription_status?: string | null
+          terms_and_conditions?: string | null
           timezone?: string | null
           updated_at?: string | null
           wizard_progress?: Json | null
@@ -1088,6 +1090,7 @@ export type Database = {
           subscription_id?: string | null
           subscription_plan?: string | null
           subscription_status?: string | null
+          terms_and_conditions?: string | null
           timezone?: string | null
           updated_at?: string | null
           wizard_progress?: Json | null
@@ -1682,6 +1685,7 @@ export type Database = {
           booking_rules_override: Json | null
           created_at: string | null
           default_reservation_type: string | null
+          deleted_at: string | null
           deposit_override: Json | null
           description: string | null
           enabled_reservation_types_override: Json | null
@@ -1720,6 +1724,7 @@ export type Database = {
           booking_rules_override?: Json | null
           created_at?: string | null
           default_reservation_type?: string | null
+          deleted_at?: string | null
           deposit_override?: Json | null
           description?: string | null
           enabled_reservation_types_override?: Json | null
@@ -1758,6 +1763,7 @@ export type Database = {
           booking_rules_override?: Json | null
           created_at?: string | null
           default_reservation_type?: string | null
+          deleted_at?: string | null
           deposit_override?: Json | null
           description?: string | null
           enabled_reservation_types_override?: Json | null

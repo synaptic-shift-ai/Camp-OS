@@ -75,6 +75,7 @@ export async function getPropertyForUser(propertyId: string): Promise<{
   settings: unknown
   cancellation_policy: string | null
   cancellation_policy_config: unknown
+  terms_and_conditions: string | null
   stripe_account_id: string | null
   stripe_connected_at: string | null
 } | null> {
@@ -112,6 +113,7 @@ export async function getPropertyForUser(propertyId: string): Promise<{
       settings,
       cancellation_policy,
       cancellation_policy_config,
+      terms_and_conditions,
       stripe_account_id,
       stripe_connected_at
     `)

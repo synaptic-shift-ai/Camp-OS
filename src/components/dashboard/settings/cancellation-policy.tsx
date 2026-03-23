@@ -52,6 +52,7 @@ function parseRefundEligiblePeriod(val: string | null): { minDays: number; maxDa
 }
 
 const cancellationPolicySchema = z.object({
+  termsAndConditions: z.string().max(5000, 'Terms and conditions text must be 5000 characters or less').nullable(),
   cancellationPolicy: z.string().max(5000, 'Policy text must be 5000 characters or less').nullable(),
   freeCancellationWindow: optionalNumber(z.number().int().min(0)),
   cancellationRefundPercentage: optionalNumber(z.number().int().min(0).max(100)),
@@ -146,6 +147,7 @@ type SettingsForMerge = Record<string, unknown> | null
 
 interface CancellationPolicySettingsProps {
   propertyId: string
+  initialTermsAndConditions: string | null
   initialCancellationPolicy: string | null
   initialFreeCancellationWindow: number | null
   initialCancellationRefundPercentage: number | null
@@ -160,6 +162,7 @@ const DEFAULT_PLACEHOLDER =
 
 export function CancellationPolicySettings({
   propertyId,
+  initialTermsAndConditions,
   initialCancellationPolicy,
   initialFreeCancellationWindow,
   initialCancellationRefundPercentage,
@@ -186,6 +189,7 @@ export function CancellationPolicySettings({
     } = useForm<CancellationPolicyFormData>({
     resolver: zodResolver(cancellationPolicySchema),
     defaultValues: {
+        termsAndConditions: initialTermsAndConditions ?? '',
         cancellationPolicy: initialCancellationPolicy ?? '',
         freeCancellationWindow: initialFreeCancellationWindow ?? null,
         cancellationRefundPercentage: initialCancellationRefundPercentage ?? null,
@@ -203,10 +207,13 @@ export function CancellationPolicySettings({
         setMessage(null)
         try {
             const policyValue = data.cancellationPolicy?.trim() || null
+            const termsValue = data.termsAndConditions?.trim() || null
             const body: {
+              terms_and_conditions: string | null
               cancellation_policy: string | null
               cancellation_policy_config: { refund_tiers: CancellationRule[] }
             } = {
+              terms_and_conditions: termsValue,
               cancellation_policy: policyValue,
               cancellation_policy_config: { refund_tiers: cancellationRules },
             }
@@ -238,11 +245,10 @@ export function CancellationPolicySettings({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Cancellation policy
+              Terms & Conditions
             </CardTitle>
             <CardDescription>
-                This text is shown to guests during booking and on your property page. Describe your refund and cancellation rules clearly.
+              Set up terms and conditions for your property.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -252,6 +258,32 @@ export function CancellationPolicySettings({
             </Alert>
             )}
 
+            <div className="space-y-2">
+              <Label htmlFor="termsAndConditions">Terms and Conditions</Label>
+              <Textarea
+                id="termsAndConditions"
+                {...register('termsAndConditions')}
+                rows={6}
+                className={errors.termsAndConditions ? 'border-destructive' : ''}
+              />
+              {errors.termsAndConditions && (
+                <p className="text-sm text-destructive">{errors.termsAndConditions.message}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Cancellation policy
+            </CardTitle>
+            <CardDescription>
+                This text is shown to guests during booking and on your property page. Describe your refund and cancellation rules clearly.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-2">
                 <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
                 <Textarea

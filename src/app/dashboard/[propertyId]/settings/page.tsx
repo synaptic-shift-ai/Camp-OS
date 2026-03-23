@@ -91,7 +91,7 @@ export default async function SettingsPage({ params }: PageProps) {
           <TabsTrigger value="site-types-rates">Site Types Rates</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
-          <TabsTrigger value="cancellation-policy">Cancellation Policy</TabsTrigger>
+          <TabsTrigger value="cancellation-policy">Terms & Conditions</TabsTrigger>
           <TabsTrigger value="discounts">Discounts</TabsTrigger>
         </TabsList>
 
@@ -167,6 +167,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="cancellation-policy" className="space-y-4">
           <CancellationPolicySettings
             propertyId={property.id}
+            initialTermsAndConditions={property.terms_and_conditions ?? null}
             initialCancellationPolicy={
               property.cancellation_policy ??
               (property.settings as Record<string, any> | null)?.cancellationPolicy ??

@@ -192,6 +192,7 @@ export const UpdatePropertyRequestSchema = z.object({
   // Cancellation Policy
   cancellation_policy: z.string().max(5000).nullable().optional(),
   cancellation_policy_config: z.record(z.string(), z.any()).nullable().optional(),
+  terms_and_conditions: z.string().max(50000).nullable().optional(),
 
   // Amenities
   amenities: z.array(z.string()).nullable().optional(),

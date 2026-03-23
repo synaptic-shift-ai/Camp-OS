@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -8,7 +8,6 @@ import * as z from "zod"
 import { format, differenceInDays } from "date-fns"
 import { ArrowLeft, Check, Lock, Users, ChevronRight, TreePine, Shield } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,10 +16,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { CancellationPolicyDialog } from "@/components/guest/cancellation-policy-dialog"
+import { GuestCancellationPolicyText } from "@/components/guest/guest-cancellation-policy-text"
+import { TermsAndConditionsDialog } from "@/components/guest/terms-and-conditions-dialog"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
+import {
+  GUEST_CANCELLATION_POLICY_FALLBACK,
+  type GuestCancellationPolicyApiData,
+} from "@/lib/guest/guest-cancellation-policy"
 
 const US_STATES = [
   "Alabama",
@@ -108,9 +114,11 @@ export default function GuestInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
     checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
-  const [resolvedCancellationPolicy, setResolvedCancellationPolicy] = useState<string | null>(
-    checkoutData.cancellationPolicy ?? null
-  )
+  const [cancellationPolicyData, setCancellationPolicyData] =
+    useState<GuestCancellationPolicyApiData | null>(null)
+  const [termsAndConditionsText, setTermsAndConditionsText] = useState<string | null>(null)
+  const [isCancellationPolicyLoading, setIsCancellationPolicyLoading] = useState(false)
+  const fetchedCancellationPolicyForPropertyRef = useRef<string | null>(null)
 
   useEffect(() => {
     // Don't validate until hydration is complete
@@ -128,26 +136,51 @@ export default function GuestInfoPage() {
 
   useEffect(() => {
     if (!isHydrated) return
-    if (resolvedCancellationPolicy) return
-    if (!checkoutData.propertyId) return
+    const propertyId = checkoutData.propertyId
+    if (!propertyId) {
+      setIsCancellationPolicyLoading(false)
+      fetchedCancellationPolicyForPropertyRef.current = null
+      setTermsAndConditionsText(null)
+      return
+    }
+    if (fetchedCancellationPolicyForPropertyRef.current === propertyId) {
+      return
+    }
 
     let cancelled = false
+
+    setIsCancellationPolicyLoading(true)
 
     const loadCancellationPolicy = async () => {
       try {
         const response = await fetch(
-          `/api/guest/properties/${checkoutData.propertyId}/cancellation`
+          `/api/guest/properties/${propertyId}/cancellation`
         )
         if (!response.ok) return
         const result = await response.json()
-        const policy =
-          (result?.data?.cancellation_policy as string | null | undefined) ?? null
-        if (!cancelled && typeof policy === 'string' && policy.trim().length > 0) {
-          setResolvedCancellationPolicy(policy)
-          setCheckoutData({ cancellationPolicy: policy })
+        const raw = result?.data as
+          | (GuestCancellationPolicyApiData & { terms_and_conditions?: string | null })
+          | undefined
+        if (!cancelled && raw?.policy_display_text) {
+          fetchedCancellationPolicyForPropertyRef.current = propertyId
+          setCancellationPolicyData({
+            policy_display_text: raw.policy_display_text,
+            refund_tiers: raw.refund_tiers ?? [],
+          })
+          const terms = raw.terms_and_conditions
+          setTermsAndConditionsText(
+            typeof terms === 'string' && terms.trim().length > 0 ? terms.trim() : null
+          )
+          if (checkoutData.cancellationPolicy !== raw.policy_display_text) {
+            setCheckoutData({ cancellationPolicy: raw.policy_display_text })
+          }
         }
       } catch {
         // Silent failure - we already have a safe fallback
+      } finally {
+        if (!cancelled) {
+          setIsCancellationPolicyLoading(false)
+        }
       }
     }
 
@@ -156,7 +189,7 @@ export default function GuestInfoPage() {
     return () => {
       cancelled = true
     }
-  }, [isHydrated, checkoutData.propertyId, resolvedCancellationPolicy, setCheckoutData])
+  }, [isHydrated, checkoutData.propertyId, setCheckoutData])
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),
@@ -677,9 +710,13 @@ export default function GuestInfoPage() {
                         <div className="space-y-1">
                           <Label htmlFor="agree_terms" className="text-sm font-normal cursor-pointer">
                             I agree to the{" "}
-                            <Link href="/terms" className="text-[#2D5A27] underline dark:text-emerald-400">
-                              terms and conditions
-                            </Link>{" "}
+                            <TermsAndConditionsDialog
+                              termsText={termsAndConditionsText}
+                              onAccept={() => {
+                                form.setValue("agree_terms", true)
+                                form.clearErrors("agree_terms")
+                              }}
+                            />{" "}
                             <span className="text-red-500">*</span>
                           </Label>
                           {form.formState.errors.agree_terms && (
@@ -697,9 +734,14 @@ export default function GuestInfoPage() {
                         <div className="space-y-1">
                           <Label htmlFor="agree_cancellation" className="text-sm font-normal cursor-pointer">
                             I agree to the{" "}
-                            <Link href="/cancellation-policy" className="text-[#2D5A27] underline dark:text-emerald-400">
-                              cancellation policy
-                            </Link>{" "}
+                            <CancellationPolicyDialog
+                              data={cancellationPolicyData}
+                              isLoading={isCancellationPolicyLoading}
+                              onAccept={() => {
+                                form.setValue("agree_cancellation", true)
+                                form.clearErrors("agree_cancellation")
+                              }}
+                            />{" "}
                             <span className="text-red-500">*</span>
                           </Label>
                           {form.formState.errors.agree_cancellation && (
@@ -709,12 +751,15 @@ export default function GuestInfoPage() {
                       </div>
                     </div>
                     <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-                      <p className="text-sm text-foreground/90">
-                        <strong>Cancellation Policy:</strong>{" "}
-                        {resolvedCancellationPolicy && resolvedCancellationPolicy.trim().length > 0
-                          ? resolvedCancellationPolicy
-                          : "All bookings for this property are non‑refundable. Cancellations at any time after booking will not receive a refund."}
-                      </p>
+                      <div className="text-sm text-foreground/90">
+                        <p className="mb-2 font-semibold text-foreground">Cancellation Policy</p>
+                        <GuestCancellationPolicyText
+                          text={
+                            cancellationPolicyData?.policy_display_text ??
+                            GUEST_CANCELLATION_POLICY_FALLBACK
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
 

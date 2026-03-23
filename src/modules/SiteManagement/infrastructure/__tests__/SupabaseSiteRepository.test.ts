@@ -34,6 +34,7 @@ function createMockSiteRow(overrides: Partial<SiteRow> = {}): SiteRow {
     location_map: { lat: 40.7, lng: -74.0 },
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
+    deleted_at: null,
     // Additional required fields from db schema (defaults)
     accessibility_features: null,
     ada_accessible: false,

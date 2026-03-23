@@ -51,6 +51,14 @@ const RESERVATION_TYPE_LABELS: Record<BookingType, string> = {
   seasonal: 'Seasonal Rate',
 }
 
+const SITE_TYPE_OPTIONS: { value: SiteType; label: string }[] = [
+  { value: 'tent', label: 'Tent Sites' },
+  { value: 'rv', label: 'RV Sites' },
+  { value: 'cabin', label: 'Cabins' },
+  { value: 'glamping', label: 'Glamping' },
+  { value: 'yurt', label: 'Yurts' },
+]
+
 export type SiteTypeSummary = {
   id?: string
   type: SiteType
@@ -182,6 +190,19 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
   // Get available reservation types from property config (default to nightly, weekly, monthly)
   const availableReservationTypes: BookingType[] = property.enabled_reservation_types || ['nightly', 'weekly', 'monthly']
+
+  const availableSiteTypeValues: SiteType[] = (() => {
+    const summaries = (siteTypeSummaries ?? []) as SiteTypeSummary[]
+    if (summaries.length === 0) {
+      return SITE_TYPE_OPTIONS.map((opt) => opt.value)
+    }
+    const present = new Set<SiteType>(summaries.map((s) => s.type))
+    return SITE_TYPE_OPTIONS.map((opt) => opt.value).filter((v) => present.has(v))
+  })()
+
+  const availableSiteTypeOptions = SITE_TYPE_OPTIONS.filter((opt) =>
+    availableSiteTypeValues.includes(opt.value)
+  )
 
   const formatTime = (time: string | undefined | null) => {
     if (!time) return ""
@@ -586,11 +607,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Site Types</SelectItem>
-                      <SelectItem value="tent">Tent Sites</SelectItem>
-                      <SelectItem value="rv">RV Sites</SelectItem>
-                      <SelectItem value="cabin">Cabins</SelectItem>
-                      <SelectItem value="glamping">Glamping</SelectItem>
-                      <SelectItem value="yurt">Yurts</SelectItem>
+                      {availableSiteTypeOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

@@ -487,6 +487,7 @@ export interface CheckoutData {
   // Property context
   propertyId?: string
   propertyName?: string
+  cancellationPolicy?: string | null
 
   // Site selection
   site?: AvailableSite

@@ -108,6 +108,9 @@ export default function GuestInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
     checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+  const [resolvedCancellationPolicy, setResolvedCancellationPolicy] = useState<string | null>(
+    checkoutData.cancellationPolicy ?? null
+  )
 
   useEffect(() => {
     // Don't validate until hydration is complete
@@ -122,6 +125,38 @@ export default function GuestInfoPage() {
       router.push(`/book/${slug}`)
     }
   }, [isHydrated, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, router, slug])
+
+  useEffect(() => {
+    if (!isHydrated) return
+    if (resolvedCancellationPolicy) return
+    if (!checkoutData.propertyId) return
+
+    let cancelled = false
+
+    const loadCancellationPolicy = async () => {
+      try {
+        const response = await fetch(
+          `/api/guest/properties/${checkoutData.propertyId}/cancellation`
+        )
+        if (!response.ok) return
+        const result = await response.json()
+        const policy =
+          (result?.data?.cancellation_policy as string | null | undefined) ?? null
+        if (!cancelled && typeof policy === 'string' && policy.trim().length > 0) {
+          setResolvedCancellationPolicy(policy)
+          setCheckoutData({ cancellationPolicy: policy })
+        }
+      } catch {
+        // Silent failure - we already have a safe fallback
+      }
+    }
+
+    void loadCancellationPolicy()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isHydrated, checkoutData.propertyId, resolvedCancellationPolicy, setCheckoutData])
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),
@@ -675,8 +710,10 @@ export default function GuestInfoPage() {
                     </div>
                     <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
                       <p className="text-sm text-foreground/90">
-                        <strong>Cancellation Policy:</strong> Free cancellation up to 7 days before check-in. 50% refund
-                        for cancellations 3-7 days before. No refund for cancellations within 3 days of check-in.
+                        <strong>Cancellation Policy:</strong>{" "}
+                        {resolvedCancellationPolicy && resolvedCancellationPolicy.trim().length > 0
+                          ? resolvedCancellationPolicy
+                          : "All bookings for this property are non‑refundable. Cancellations at any time after booking will not receive a refund."}
                       </p>
                     </div>
                   </div>

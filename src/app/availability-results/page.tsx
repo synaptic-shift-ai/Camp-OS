@@ -43,6 +43,7 @@ function AvailabilityResultsContent() {
   const [activePromos, setActivePromos] = useState<Array<{ discountLabel: string; discountCondition: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [propertyName, setPropertyName] = useState<string>("")
+  const [cancellationPolicy, setCancellationPolicy] = useState<string | null>(null)
 
   const slug = searchParams.get("slug") || ""
   const propertyId = searchParams.get("propertyId")
@@ -95,6 +96,11 @@ function AvailabilityResultsContent() {
           setActivePromos(result.data.active_promos ?? [])
           if (typeof result.data.property_name === "string" && result.data.property_name.trim().length > 0) {
             setPropertyName(result.data.property_name)
+          }
+          if (typeof result.data.cancellation_policy === "string" && result.data.cancellation_policy.trim().length > 0) {
+            setCancellationPolicy(result.data.cancellation_policy)
+          } else {
+            setCancellationPolicy(null)
           }
           if (result.data.rate_discounts_config) {
             setRateDiscountsConfig(result.data.rate_discounts_config)
@@ -269,6 +275,7 @@ function AvailabilityResultsContent() {
       numChildren: children,
       numPets: pets,
       priceBreakdown,
+      cancellationPolicy: cancellationPolicy ?? null,
     })
 
     toast({

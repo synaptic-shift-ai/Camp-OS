@@ -40,8 +40,15 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel"
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion"
 import Marquee from "react-fast-marquee"
 import { GuestCancellationPolicyText } from "@/components/guest/guest-cancellation-policy-text"
+import { FileText } from "lucide-react"
 
 type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal'
 
@@ -972,13 +979,22 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
                 {property.cancellation_policy && (
                   <div className="flex items-start space-x-3">
-                    <div className={cn("mt-1", "text-[#2D5A27] dark:text-emerald-400")}>📋</div>
-                    <div>
-                      <p className="font-semibold text-foreground">Cancellation Policy</p>
-                      <GuestCancellationPolicyText
-                        text={property.cancellation_policy}
-                        className="mt-1 space-y-2 text-sm text-muted-foreground"
-                      />
+                    <FileText className={cn("mt-1 h-5 w-5 shrink-0", "text-[#2D5A27] dark:text-emerald-400")} />
+                    <div className="w-full">
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="cancellation-policy" className="border-0">
+                          <AccordionTrigger className="py-0 text-left font-semibold text-foreground hover:no-underline [&>svg]:hidden">
+                            Cancellation Policy
+                          </AccordionTrigger>
+
+                          <AccordionContent className="mt-2">
+                            <GuestCancellationPolicyText
+                              text={property.cancellation_policy}
+                              className="mt-1 space-y-2 text-sm text-muted-foreground"
+                            />
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
                   </div>
                 )}

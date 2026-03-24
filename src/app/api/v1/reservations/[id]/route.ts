@@ -60,6 +60,35 @@ function parsePersistedRefundEligibility(notes: string | null): RefundEligibilit
   return null
 }
 
+/** Spouse columns shared by `guests` and `reservations` (manual booking stores spouse on guest). */
+type SpouseSnapshotRow = {
+  spouse_first_name: string | null
+  spouse_last_name: string | null
+  spouse_email: string | null
+  spouse_phone: string | null
+  spouse_is_alternate_contact: boolean | null
+}
+
+function hasSpouseSnapshotData(row: SpouseSnapshotRow | null | undefined): boolean {
+  if (!row) return false
+  return Boolean(
+    row.spouse_first_name ||
+      row.spouse_last_name ||
+      row.spouse_email ||
+      row.spouse_phone
+  )
+}
+
+function spousePartnerPayload(row: SpouseSnapshotRow) {
+  return {
+    first_name: row.spouse_first_name,
+    last_name: row.spouse_last_name,
+    email: row.spouse_email,
+    phone: row.spouse_phone,
+    is_alternate_contact: row.spouse_is_alternate_contact,
+  }
+}
+
 /**
  * GET /api/v1/reservations/[id]
  *
@@ -164,7 +193,7 @@ export async function GET(
     // Fetch guest info
     const { data: guest } = await supabase
       .from('guests')
-      .select('first_name, last_name, email')
+      .select('first_name, last_name, email, phone, address, city, state, zip_code, spouse_first_name, spouse_last_name, spouse_email, spouse_phone, spouse_is_alternate_contact')
       .eq('id', reservation.guestId)
       .single()
 
@@ -224,6 +253,14 @@ export async function GET(
     // Convert to DTO and add guest/site info
     const reservationDTO = toReservationDTO(reservation)
 
+    const spousePartnerFromReservation =
+      hasSpouseSnapshotData(reservationHousehold) && reservationHousehold
+        ? spousePartnerPayload(reservationHousehold)
+        : null
+    const spousePartnerFromGuest =
+      guest && hasSpouseSnapshotData(guest) ? spousePartnerPayload(guest) : null
+    const spouse_partner = spousePartnerFromReservation ?? spousePartnerFromGuest
+
     // Return in format expected by check-in/check-out dialogs
     return success({
       id: reservationDTO.id,
@@ -243,15 +280,7 @@ export async function GET(
       site: site || undefined,
       payment_card,
       payment_method: latestPayment?.payment_method ?? null,
-      spouse_partner: reservationHousehold
-        ? {
-          first_name: reservationHousehold.spouse_first_name,
-          last_name: reservationHousehold.spouse_last_name,
-          email: reservationHousehold.spouse_email,
-          phone: reservationHousehold.spouse_phone,
-          is_alternate_contact: reservationHousehold.spouse_is_alternate_contact,
-        }
-        : null,
+      spouse_partner,
       children: reservationChildren ?? [],
     })
   } catch (err: unknown) {

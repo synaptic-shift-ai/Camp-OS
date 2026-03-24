@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Clock, User, Home, AlertTriangle } from 'lucide-react'
 import { CheckInDialog } from './check-in-dialog'
+import { useToast } from '@/hooks/use-toast'
 import type { Reservation } from '@/lib/booking/types'
 
 interface TodaysArrivalsCardProps {
@@ -26,6 +27,7 @@ interface TodaysArrivalsCardProps {
 }
 
 export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCardProps) {
+  const { toast } = useToast()
   const [selectedReservation, setSelectedReservation] = useState<
     (Reservation & {
       guest?: { first_name: string; last_name: string; email: string }
@@ -33,10 +35,33 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
     }) | null
   >(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [loadingReservationId, setLoadingReservationId] = useState<string | null>(null)
 
-  const handleCheckIn = (reservation: typeof arrivals[0]) => {
-    setSelectedReservation(reservation)
-    setDialogOpen(true)
+  const handleCheckIn = async (reservation: typeof arrivals[0]) => {
+    setLoadingReservationId(reservation.id)
+    try {
+      const response = await fetch(`/api/v1/reservations/${reservation.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch reservation details')
+      }
+
+      const payload = await response.json()
+      if (!payload?.data) {
+        throw new Error('Reservation details response is missing data')
+      }
+
+      setSelectedReservation(payload.data)
+      setDialogOpen(true)
+    } catch (err) {
+      console.error('Failed to fetch reservation details for check-in:', err)
+      toast({
+        title: 'Unable to open check-in',
+        description: 'Could not load full reservation details. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingReservationId(null)
+    }
   }
 
   function formatDate(dateString: string): string {
@@ -170,6 +195,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                     size="sm"
                     variant="destructive"
                     onClick={() => handleCheckIn(reservation)}
+                    disabled={loadingReservationId === reservation.id}
                     className="flex-shrink-0 ml-3"
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
@@ -220,6 +246,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                   <Button
                     size="sm"
                     onClick={() => handleCheckIn(reservation)}
+                    disabled={loadingReservationId === reservation.id}
                     className="flex-shrink-0 ml-3"
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />

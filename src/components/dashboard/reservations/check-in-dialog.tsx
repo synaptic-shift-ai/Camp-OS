@@ -41,6 +41,13 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText, AlertTriangle } from 'lucide-react'
+import {
+  AmericanExpressFlatRoundedIcon,
+  DiscoverFlatRoundedIcon,
+  GenericFlatRoundedIcon,
+  MastercardFlatRoundedIcon,
+  VisaFlatRoundedIcon,
+} from 'react-svg-credit-card-payment-icons'
 import type { Reservation } from '@/lib/booking/types'
 import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
 
@@ -67,12 +74,43 @@ function siteStatusLabel(status: string): string {
   return status.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
 
+function PaymentCardLogo({ brand }: { brand: string }) {
+  const normalized = brand.trim().toLowerCase()
+  switch (normalized) {
+    case 'visa':
+      return <VisaFlatRoundedIcon width={40} />
+    case 'mastercard':
+      return <MastercardFlatRoundedIcon width={40} />
+    case 'amex':
+    case 'american express':
+    case 'americanexpress':
+      return <AmericanExpressFlatRoundedIcon width={40} />
+    case 'discover':
+      return <DiscoverFlatRoundedIcon width={40} />
+    default:
+      return <GenericFlatRoundedIcon width={40} />
+  }
+}
+
 interface CheckInDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   reservation: Reservation & {
     guest?: { first_name: string; last_name: string; email: string }
     site?: { site_number: string; site_name: string | null; status?: string | null }
+    payment_card?: {
+      brand: string
+      last4: string
+      exp_month: number
+      exp_year: number
+    } | null
+    spouse_partner?: {
+      first_name: string
+      last_name: string
+      email: string
+      phone: string
+      is_alternate_contact: boolean
+    } | null
   }
   blackoutDates?: string[] | undefined
   allowedCheckInDays?: string[] | undefined
@@ -246,12 +284,46 @@ export function CheckInDialog({
                 </p>
               </div>
               <div>
+                <p className="text-sm text-muted-foreground">Confirmation #</p>
+                <p className="font-mono text-sm font-semibold">{reservation.confirmation_number}</p>
+              </div>
+              <div>
                 <p className="text-sm text-muted-foreground">Email</p>
                 <p className="font-medium">{reservation.guest?.email}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Confirmation #</p>
-                <p className="font-mono text-sm font-semibold">{reservation.confirmation_number}</p>
+                <p className="text-sm text-muted-foreground">Contact Number</p>
+                <p className="font-medium">{reservation.guest?.phone}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Address</p>
+                <p className="font-medium">{reservation.guest?.address}</p>
+                <p className="font-medium">{reservation.guest?.city}, {reservation.guest?.state} {reservation.guest?.zip_code}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Spouse/Partner</p>
+                {reservation.spouse_partner ? (
+                  <div>
+                    <p className="font-medium">{reservation.spouse_partner?.first_name} {reservation.spouse_partner?.last_name}</p>
+                    <p className="font-medium">{reservation.spouse_partner?.phone}</p>
+                    <p className="font-medium">{reservation.spouse_partner?.email}</p>
+                  </div>
+                ) : (
+                  <p className="font-medium">No spouse/partner</p>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Payment Card</p>
+                {reservation.payment_card ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <PaymentCardLogo brand={reservation.payment_card.brand} />
+                    <p className="font-medium">
+                      **** **** **** {reservation.payment_card.last4}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="font-medium">No card on file</p>
+                )}
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>

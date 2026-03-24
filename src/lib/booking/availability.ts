@@ -285,6 +285,7 @@ export async function searchAvailableSites(
     .select('*, enabled_reservation_types_override, availability_rules')
     .eq('property_id', params.property_id)
     .in('status', [...GUEST_BOOKABLE_SITE_STATUSES])
+    .is('deleted_at', null)
 
   // Apply filters
   if (params.site_type) {

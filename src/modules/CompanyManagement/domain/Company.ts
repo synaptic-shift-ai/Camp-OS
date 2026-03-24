@@ -21,6 +21,7 @@ import { InviteGeneratedEvent } from './events/InviteGeneratedEvent'
 interface CompanyProps {
   ownerId: string
   name: CompanyName
+  companyLogoUrl: string | null
   stripeCustomerId: string | null
   subscriptionId: string | null
   subscriptionStatus: SubscriptionStatus
@@ -43,6 +44,7 @@ interface CreateCompanyProps {
 export class Company extends AggregateRoot<string> {
   private _ownerId: string
   private _name: CompanyName
+  private _companyLogoUrl: string | null
   private _stripeCustomerId: string | null
   private _subscriptionId: string | null
   private _subscriptionStatus: SubscriptionStatus
@@ -56,6 +58,7 @@ export class Company extends AggregateRoot<string> {
     super(id, props.createdAt, props.updatedAt)
     this._ownerId = props.ownerId
     this._name = props.name
+    this._companyLogoUrl = props.companyLogoUrl
     this._stripeCustomerId = props.stripeCustomerId
     this._subscriptionId = props.subscriptionId
     this._subscriptionStatus = props.subscriptionStatus
@@ -77,6 +80,10 @@ export class Company extends AggregateRoot<string> {
 
   get stripeCustomerId(): string | null {
     return this._stripeCustomerId
+  }
+
+  get companyLogoUrl(): string | null {
+    return this._companyLogoUrl
   }
 
   get subscriptionId(): string | null {
@@ -121,6 +128,7 @@ export class Company extends AggregateRoot<string> {
     const company = new Company(props.id, {
       ownerId: props.ownerId,
       name,
+      companyLogoUrl: null,
       stripeCustomerId: null,
       subscriptionId: null,
       subscriptionStatus: SubscriptionStatus.TRIAL,
@@ -158,6 +166,18 @@ export class Company extends AggregateRoot<string> {
       new CompanyUpdatedEvent({
         companyId: this.id,
         updatedFields: ['name'],
+      })
+    )
+  }
+
+  public updateCompanyLogoUrl(companyLogoUrl: string | null): void {
+    this._companyLogoUrl = companyLogoUrl
+    this.touch()
+
+    this.addDomainEvent(
+      new CompanyUpdatedEvent({
+        companyId: this.id,
+        updatedFields: ['companyLogoUrl'],
       })
     )
   }
@@ -358,6 +378,7 @@ export class Company extends AggregateRoot<string> {
     id: string,
     ownerId: string,
     name: CompanyName,
+    companyLogoUrl: string | null,
     stripeCustomerId: string | null,
     subscriptionId: string | null,
     subscriptionStatus: SubscriptionStatus,
@@ -372,6 +393,7 @@ export class Company extends AggregateRoot<string> {
     return new Company(id, {
       ownerId,
       name,
+      companyLogoUrl,
       stripeCustomerId,
       subscriptionId,
       subscriptionStatus,
@@ -393,6 +415,7 @@ export class Company extends AggregateRoot<string> {
   public toPersistence(): {
     id: string
     name: string
+    company_logo_url: string | null
     owner_id: string
     stripe_customer_id: string | null
     subscription_id: string | null
@@ -410,6 +433,7 @@ export class Company extends AggregateRoot<string> {
     return {
       id: this.id,
       name: this._name.value,
+      company_logo_url: this._companyLogoUrl,
       owner_id: this._ownerId,
       stripe_customer_id: this._stripeCustomerId,
       subscription_id: this._subscriptionId,

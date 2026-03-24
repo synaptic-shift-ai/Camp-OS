@@ -164,6 +164,7 @@ export class SupabaseCompanyRepository implements ICompanyRepository {
       row.id,
       row.owner_id,
       name,
+      row.company_logo_url,
       row.stripe_customer_id,
       row.subscription_id,
       subscriptionStatus,

@@ -11,6 +11,7 @@ import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 export interface UpdateCompanyInput {
   companyId: string
   name?: string
+  companyLogoUrl?: string | null
 }
 
 export interface UpdateCompanyResult {
@@ -62,6 +63,10 @@ export class UpdateCompanyCommandHandler {
       }
 
       company.updateName(input.name)
+    }
+
+    if (input.companyLogoUrl !== undefined) {
+      company.updateCompanyLogoUrl(input.companyLogoUrl)
     }
 
     // Save changes

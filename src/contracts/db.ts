@@ -120,6 +120,7 @@ export type Database = {
       companies: {
         Row: {
           billing_cycle: string | null
+          company_logo_url: string | null
           created_at: string | null
           id: string
           name: string
@@ -140,6 +141,7 @@ export type Database = {
         }
         Insert: {
           billing_cycle?: string | null
+          company_logo_url?: string | null
           created_at?: string | null
           id?: string
           name: string
@@ -160,6 +162,7 @@ export type Database = {
         }
         Update: {
           billing_cycle?: string | null
+          company_logo_url?: string | null
           created_at?: string | null
           id?: string
           name?: string

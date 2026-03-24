@@ -38,6 +38,7 @@ export type CreateCompanyRequest = z.infer<typeof CreateCompanyRequestSchema>
  */
 export const UpdateCompanyRequestSchema = z.object({
   name: z.string().min(1, 'Company name cannot be empty').max(255).optional(),
+  companyLogoUrl: z.string().url('Company logo URL must be a valid URL').nullable().optional(),
 })
 
 export type UpdateCompanyRequest = z.infer<typeof UpdateCompanyRequestSchema>
@@ -94,6 +95,7 @@ export type OnboardingTokenResponse = z.infer<typeof OnboardingTokenResponseSche
 export const CompanyResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
+  companyLogoUrl: z.string().url().nullable(),
   ownerId: z.string().uuid(),
   subscription: SubscriptionResponseSchema,
   onboardingToken: OnboardingTokenResponseSchema.nullable(),

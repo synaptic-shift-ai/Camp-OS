@@ -180,6 +180,7 @@ describe('Companies API v1 Contract Tests', () => {
       const completeResponse: CompanyResponse = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         name: 'Acme Campgrounds LLC',
+        companyLogoUrl: 'https://example.com/company-logo.png',
         ownerId: '660e8400-e29b-41d4-a716-446655440001',
         subscription: {
           plan: 'professional',
@@ -205,6 +206,7 @@ describe('Companies API v1 Contract Tests', () => {
       const responseWithToken: CompanyResponse = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         name: 'New Company',
+        companyLogoUrl: null,
         ownerId: '660e8400-e29b-41d4-a716-446655440001',
         subscription: {
           plan: 'free',
@@ -235,6 +237,7 @@ describe('Companies API v1 Contract Tests', () => {
       const invalidResponse = {
         id: 'not-a-uuid',
         name: 'Test',
+        companyLogoUrl: null,
         ownerId: '660e8400-e29b-41d4-a716-446655440001',
         subscription: {
           plan: 'free',

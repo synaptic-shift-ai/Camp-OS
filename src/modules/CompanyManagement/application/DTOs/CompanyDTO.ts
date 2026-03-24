@@ -28,6 +28,7 @@ export interface OnboardingTokenDTO {
 export interface CompanyDTO {
   id: string
   name: string
+  companyLogoUrl: string | null
   ownerId: string
   subscription: SubscriptionDTO
   onboardingToken: OnboardingTokenDTO | null
@@ -40,6 +41,7 @@ export function companyToDTO(company: Company): CompanyDTO {
   return {
     id: company.id,
     name: company.name.value,
+    companyLogoUrl: company.companyLogoUrl,
     ownerId: company.ownerId,
     subscription: {
       plan: company.subscriptionPlan.value,

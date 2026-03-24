@@ -4,6 +4,7 @@ import type React from "react"
 
 import { Suspense, useState, useEffect, useTransition } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -49,13 +50,26 @@ const NAV_ITEMS = [
   { name: "Settings", path: "/settings", icon: Settings },
 ] as const
 
+const COMPANY_DETAILS_UPDATED_EVENT = "company-details-updated"
+
+type CompanyDetailsUpdatedEventDetail = {
+  companyId: string
+  name: string
+  companyLogoUrl: string | null
+}
+
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [companyName, setCompanyName] = useState<string | null>(null)
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null)
+  const [isCompanyLoading, setIsCompanyLoading] = useState(true)
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false)
   const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
-  const propertyName = selectedProperty?.name
+  const companyId = selectedProperty?.companyId ?? null
+  const dashboardTitle = isLoading ? "Loading..." : companyName
 
   const segments = pathname.split("/").filter(Boolean)
   const propertyIdFromUrl = segments[0] === "dashboard" && segments[1] ? segments[1] : null
@@ -66,6 +80,73 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       selectProperty(propertyIdFromUrl)
     }
   }, [propertyIdFromUrl, selectedPropertyId, selectProperty])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    async function fetchCompanyName() {
+      if (!companyId) {
+        setCompanyName(null)
+        setCompanyLogoUrl(null)
+        setIsCompanyLoading(false)
+        setLogoLoadFailed(false)
+        return
+      }
+
+      setIsCompanyLoading(true)
+      try {
+        const response = await fetch(`/api/v1/companies/${companyId}`)
+        const result = await response.json()
+
+        if (!isCancelled && response.ok && result?.success) {
+          setCompanyName(result.data?.name ?? null)
+          setCompanyLogoUrl(result.data?.companyLogoUrl ?? null)
+          setLogoLoadFailed(false)
+        } else if (!isCancelled) {
+          setCompanyName(null)
+          setCompanyLogoUrl(null)
+          setLogoLoadFailed(false)
+        }
+      } catch (error) {
+        console.error("Failed to fetch company name:", error)
+        if (!isCancelled) {
+          setCompanyName(null)
+          setCompanyLogoUrl(null)
+          setLogoLoadFailed(false)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsCompanyLoading(false)
+        }
+      }
+    }
+
+    fetchCompanyName()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [companyId])
+
+  useEffect(() => {
+    const handleCompanyDetailsUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<CompanyDetailsUpdatedEventDetail>
+      const detail = customEvent.detail
+
+      if (!detail || detail.companyId !== companyId) {
+        return
+      }
+
+      setCompanyName(detail.name)
+      setCompanyLogoUrl(detail.companyLogoUrl)
+      setLogoLoadFailed(false)
+    }
+
+    window.addEventListener(COMPANY_DETAILS_UPDATED_EVENT, handleCompanyDetailsUpdated)
+    return () => {
+      window.removeEventListener(COMPANY_DETAILS_UPDATED_EVENT, handleCompanyDetailsUpdated)
+    }
+  }, [companyId])
 
   const handleNavClick = (href: string, closeMobile?: boolean) => {
     if (href === pathname) {
@@ -88,9 +169,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     <div className="fixed inset-0 z-0 flex overflow-hidden bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:shrink-0 lg:w-64 lg:border-r border-border bg-card/50">
-        <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-          <Building2 className="h-6 w-6 text-primary" />
-          <span className="font-heading font-semibold text-lg">CampOS</span>
+        <div className="flex h-20 items-center justify-center border-b border-border px-6">
+          {isLoading || isCompanyLoading ? (
+            <span className="font-heading font-semibold text-md">Loading...</span>
+          ) : companyLogoUrl && !logoLoadFailed ? (
+            <Image
+              src={companyLogoUrl}
+              alt="Company logo"
+              width={60}
+              height={60}
+              className="rounded-md object-cover shrink-0"
+              onError={() => setLogoLoadFailed(true)}
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Building2 className="h-8 w-8 text-primary shrink-0" />
+              <span className="font-heading font-semibold text-md">{dashboardTitle}</span>
+            </div>
+          )}
         </div>
         <PropertySwitcher />
         <ScrollArea className="flex-1 px-3 py-4">
@@ -127,13 +223,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start gap-3 px-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
+                  <AvatarImage src={companyLogoUrl ?? undefined} alt={companyName ?? "Company logo"} />
                   <AvatarFallback>
-                    {isLoading ? "..." : propertyName?.substring(0, 2).toUpperCase() || "PC"}
+                    {isLoading ? "..." : companyName?.substring(0, 2).toUpperCase() || "CO"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start text-sm">
-                  <span className="font-medium">{isLoading ? "Loading..." : propertyName || "Property"}</span>
+                  <span className="font-medium">{isLoading ? "Loading..." : companyName || "Company"}</span>
                   <span className="text-xs text-muted-foreground">Owner</span>
                 </div>
               </Button>
@@ -141,9 +237,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`${dashboardBase}/account`}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Bell className="mr-2 h-4 w-4" />
@@ -171,8 +269,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-                <Building2 className="h-6 w-6 text-primary" />
-                <span className="font-heading font-semibold text-lg">CampOS</span>
+                {isLoading || isCompanyLoading ? (
+                  <span className="font-heading font-semibold text-lg">Loading...</span>
+                ) : (
+                  <>
+                    <Building2 className="h-6 w-6 text-primary" />
+                    <span className="font-heading font-semibold text-lg">{dashboardTitle}</span>
+                  </>
+                )}
               </div>
               <ScrollArea className="flex-1 px-3 py-4">
                 <nav className="space-y-1">
@@ -207,8 +311,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="font-heading font-semibold text-lg">CampOS</span>
+            {isLoading || isCompanyLoading ? (
+              <span className="font-heading font-semibold text-lg">Loading...</span>
+            ) : (
+              <>
+                <Building2 className="h-6 w-6 text-primary" />
+                <span className="font-heading font-semibold text-lg">{dashboardTitle}</span>
+              </>
+            )}
           </div>
         </header>
 

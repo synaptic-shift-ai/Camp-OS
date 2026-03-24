@@ -148,9 +148,12 @@ export async function PATCH(
     const updateHandler = new UpdateCompanyCommandHandler(repository, eventBus)
 
     // Build input, only including name if defined (exactOptionalPropertyTypes compatibility)
-    const updateInput: { companyId: string; name?: string } = { companyId }
+    const updateInput: { companyId: string; name?: string; companyLogoUrl?: string | null } = { companyId }
     if (validated.data.name !== undefined) {
       updateInput.name = validated.data.name
+    }
+    if (validated.data.companyLogoUrl !== undefined) {
+      updateInput.companyLogoUrl = validated.data.companyLogoUrl
     }
 
     const result = await updateHandler.execute(updateInput)

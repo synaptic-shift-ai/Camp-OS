@@ -455,7 +455,12 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </Card>
         }
       >
-        <CurrentlyCheckedIn propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
+        <TodaysArrivalsAndDepartures
+          propertyId={propertyId}
+          allowedSiteTypes={allowedSiteTypes}
+          checkInTime={property.check_in_time}
+          checkOutTime={property.check_out_time}
+        />
       </Suspense>
 
       <Suspense
@@ -483,12 +488,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </div>
         }
       >
-        <TodaysArrivalsAndDepartures
-          propertyId={propertyId}
-          allowedSiteTypes={allowedSiteTypes}
-          checkInTime={property.check_in_time}
-          checkOutTime={property.check_out_time}
-        />
+        <CurrentlyCheckedIn propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
       </Suspense>
 
       <Suspense

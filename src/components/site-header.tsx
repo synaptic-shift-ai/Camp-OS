@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { List, X } from "lucide-react"
 
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Icons } from "@/components/icons"
 import { useScrollPosition } from "@/hooks/use-scroll-position"
+import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
   { name: "Home", href: "#home" },
@@ -29,9 +30,12 @@ type SiteHeaderProps = {
 
 export function SiteHeader({ initialUser = null }: SiteHeaderProps) {
   const _pathname = usePathname()
+  const router = useRouter()
   const scrollPosition = useScrollPosition()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const isAuthenticated = initialUser ?? null
+  const supabase = React.useMemo(() => createClient(), [])
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
@@ -51,6 +55,16 @@ export function SiteHeader({ initialUser = null }: SiteHeaderProps) {
       })
       // Update URL without triggering navigation
       window.history.pushState(null, "", href)
+    }
+  }
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+    } finally {
+      setIsLoggingOut(false)
+      router.refresh()
     }
   }
 
@@ -88,18 +102,29 @@ export function SiteHeader({ initialUser = null }: SiteHeaderProps) {
           {/* Desktop CTA Buttons - Hidden on mobile */}
           <div className="hidden md:flex items-center space-x-2">
             {isAuthenticated ? (
-              <Button size="sm" className="neumorphic-button-primary" asChild>
-                <Link href="/dashboard">
-                  Go to Dashboard
-                  <motion.div
-                    className="ml-1"
-                    animate={{ x: [0, 3, 0] }}
-                    transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
-                  >
-                    →
-                  </motion.div>
-                </Link>
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="neumorphic-button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </Button>
+                <Button size="sm" className="neumorphic-button-primary" asChild>
+                  <Link href="/dashboard">
+                    Go to Dashboard
+                    <motion.div
+                      className="ml-1"
+                      animate={{ x: [0, 3, 0] }}
+                      transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
+                    >
+                      →
+                    </motion.div>
+                  </Link>
+                </Button>
+              </>
             ) : (
               <>
                 <Button variant="ghost" size="sm" className="neumorphic-button" asChild>
@@ -183,18 +208,37 @@ export function SiteHeader({ initialUser = null }: SiteHeaderProps) {
 
               <div className="mt-auto p-4 border-t border-border">
                 {isAuthenticated ? (
-                  <Button className="w-full neumorphic-button-primary" asChild>
-                    <Link href="/dashboard" onClick={closeMobileMenu} className="inline-flex items-center justify-center">
-                      Go to Dashboard
-                      <motion.div
-                        className="ml-1"
-                        animate={{ x: [0, 3, 0] }}
-                        transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
+                  <>
+                    <Button className="w-full neumorphic-button-primary" asChild>
+                      <Link
+                        href="/dashboard"
+                        onClick={closeMobileMenu}
+                        className="inline-flex items-center justify-center"
                       >
-                        →
-                      </motion.div>
-                    </Link>
-                  </Button>
+                        Go to Dashboard
+                        <motion.div
+                          className="ml-1"
+                          animate={{ x: [0, 3, 0] }}
+                          transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 3, duration: 0.8 }}
+                        >
+                          →
+                        </motion.div>
+                      </Link>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full mt-2 neumorphic-button"
+                      onClick={async () => {
+                        closeMobileMenu()
+                        await handleLogout()
+                      }}
+                      disabled={isLoggingOut}
+                    >
+                      {isLoggingOut ? "Logging out..." : "Logout"}
+                    </Button>
+                  </>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" className="w-full bg-transparent" asChild>

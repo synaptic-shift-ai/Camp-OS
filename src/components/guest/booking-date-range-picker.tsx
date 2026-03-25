@@ -88,6 +88,28 @@ function triggerText(v: DateRangeValue) {
   return `${format(v.from, 'MMM d')} – ${format(v.to, 'MMM d, yyyy')}`
 }
 
+function parseLocalYmd(s: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (!m) return null
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+function blackoutTriggerText(ymdStrings: string[]) {
+  if (ymdStrings.length === 0) return 'Select dates'
+  if (ymdStrings.length === 1) return ymdStrings[0]
+  return `${ymdStrings.length} dates selected`
+}
+
+export type BlackoutDatesPickerProps = {
+  label?: string
+  /** YYYY-MM-DD strings, sorted */
+  value: string[]
+  onChange: (dates: string[]) => void
+  variant?: BookingDateRangePickerVariant
+  className?: string
+  numberOfMonths?: number
+}
+
 /* ── Day button ──────────────────────────────────────────── */
 function StyledDayButton({
   variant,
@@ -356,6 +378,157 @@ export function BookingDateRangePicker({
                 : hasRange
                   ? 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm'
                   : 'text-white bg-[#2D5A27]/30 dark:bg-emerald-800/40 cursor-not-allowed',
+            )}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Multi-date picker using the same dashboard calendar chrome as {@link BookingDateRangePicker}
+ * (popover, nav buttons, Clear / Confirm). For site or property blackout date lists.
+ */
+export function BlackoutDatesPicker({
+  label = 'Blackout dates',
+  value,
+  onChange,
+  variant = 'dashboard',
+  className,
+  numberOfMonths = 1,
+}: BlackoutDatesPickerProps) {
+  const [open, setOpen] = React.useState(false)
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (!open) return
+    const fn = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [open])
+
+  const selectedDates = React.useMemo(
+    () => value.map(parseLocalYmd).filter((d): d is Date => d !== null),
+    [value],
+  )
+
+  const handleSelect = React.useCallback(
+    (dates: Date[] | undefined) => {
+      if (!dates?.length) {
+        onChange([])
+        return
+      }
+      const next = [...new Set(dates.map((d) => format(d, 'yyyy-MM-dd')))].sort()
+      onChange(next)
+    },
+    [onChange],
+  )
+
+  const hasValue = value.length > 0
+  const isDashboard = variant === 'dashboard'
+
+  return (
+    <div ref={ref} className={cn('relative w-full space-y-2', className)}>
+      {label && (
+        <p className={cn('m-0 text-sm font-medium', isDashboard ? '' : 'text-[#2D5A27] dark:text-emerald-400')}>
+          {label}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'flex h-10 w-full items-center justify-between rounded-md border-2 bg-background px-3 py-2 text-sm',
+          'ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus:ring-offset-0',
+          isDashboard
+            ? open
+              ? 'border-primary'
+              : 'border-input hover:border-primary'
+            : open
+              ? 'border-[#2D5A27] dark:border-emerald-500'
+              : 'border-input hover:border-[#2D5A27] dark:hover:border-emerald-500',
+        )}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <CalendarIcon
+            className={cn(
+              'h-4 w-4 shrink-0',
+              hasValue
+                ? isDashboard
+                  ? ''
+                  : 'text-[#2D5A27] dark:text-emerald-400'
+                : 'text-muted-foreground',
+            )}
+          />
+          <span className={cn('truncate', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
+            {blackoutTriggerText(value)}
+          </span>
+        </span>
+        {hasValue && (
+          <span
+            className={cn(
+              'text-[0.65rem] font-extrabold uppercase tracking-widest shrink-0',
+              isDashboard ? '' : 'text-[#2D5A27] dark:text-emerald-400',
+            )}
+          >
+            SET
+          </span>
+        )}
+      </button>
+
+      <div
+        className={cn(
+          'absolute left-0 top-full z-50 mt-1.5',
+          /* Cap width so day cells stay ~32–36px; w-full was stretching the grid to full card width */
+          'w-[min(17rem,calc(100vw-2rem))]',
+          'rounded-2xl border shadow-lg',
+          isDashboard
+            ? 'bg-popover text-popover-foreground border-border'
+            : 'bg-white border-[#e2e8f0] shadow-2xl shadow-black/10 dark:bg-popover dark:text-popover-foreground dark:border-border',
+          'origin-top transition-all duration-200',
+          open ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-95 opacity-0 pointer-events-none',
+        )}
+      >
+        <div className="px-2.5 pt-2 pb-1.5">
+          <StyledCalendar
+            variant={variant}
+            mode="multiple"
+            selected={selectedDates}
+            onSelect={handleSelect}
+            defaultMonth={selectedDates[0] ?? new Date()}
+            numberOfMonths={numberOfMonths}
+            weekStartsOn={1}
+            className="text-[0.8125rem]"
+          />
+        </div>
+
+        <div
+          className={cn(
+            'flex items-center justify-between border-t px-2.5 py-2',
+            isDashboard ? 'border-border' : 'border-[#e2e8f0] dark:border-border',
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Clear dates
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className={cn(
+              'rounded-xl px-5 py-1.5 text-xs font-bold transition-all',
+              isDashboard
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
+                : 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm',
             )}
           >
             Confirm

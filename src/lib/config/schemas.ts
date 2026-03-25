@@ -581,10 +581,9 @@ const bookingRulesConfigBaseSchema = z.object({
   instant_booking_enabled: z.boolean().default(true),
 })
 
-export const bookingRulesConfigSchema = bookingRulesConfigBaseSchema
-  .refine(
-    (data) => {
-      // If max_stay is set, it must be >= min_stay
+const bookingRulesStayRefine = <T extends z.ZodTypeAny>(schema: T) =>
+  schema.refine(
+    (data: { min_stay_nights: number; max_stay_nights: number | null | undefined }) => {
       if (data.max_stay_nights !== null && data.max_stay_nights !== undefined) {
         return data.max_stay_nights >= data.min_stay_nights
       }
@@ -593,8 +592,16 @@ export const bookingRulesConfigSchema = bookingRulesConfigBaseSchema
     {
       message: 'Maximum stay must be greater than or equal to minimum stay',
       path: ['max_stay_nights'],
-    }
+    },
   )
+
+export const bookingRulesConfigSchema = bookingRulesStayRefine(bookingRulesConfigBaseSchema)
+
+/** Dashboard booking rules form — excludes blackout_dates (managed per site via sites.availability_rules) */
+export const bookingRulesSettingsFormSchema = bookingRulesStayRefine(
+  bookingRulesConfigBaseSchema.omit({ blackout_dates: true }),
+)
+export type BookingRulesSettingsFormInput = z.infer<typeof bookingRulesSettingsFormSchema>
 
 // =====================================================
 // Rate Discounts Configuration Schema

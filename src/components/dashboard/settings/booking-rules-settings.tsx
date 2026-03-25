@@ -8,8 +8,9 @@
  * - Booking window (how far in advance)
  * - Advance notice requirements
  * - Check-in and check-out day restrictions
- * - Blackout dates
  * - Same-day and instant booking settings
+ *
+ * Blackout dates are configured per site (sites.availability_rules), not here.
  *
  * @module components/dashboard/settings/booking-rules-settings
  */
@@ -25,9 +26,11 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, Info, X } from 'lucide-react'
-import { bookingRulesConfigSchema, type BookingRulesConfigInput } from '@/lib/config/schemas'
+import { Loader2, Info } from 'lucide-react'
+import {
+  bookingRulesSettingsFormSchema,
+  type BookingRulesSettingsFormInput,
+} from '@/lib/config/schemas'
 import type { BookingRulesConfig, DayOfWeek } from '@/lib/config/types'
 
 interface BookingRulesSettingsProps {
@@ -46,11 +49,21 @@ const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
   { value: 'saturday', label: 'Saturday' },
 ]
 
+const defaultFormValues: BookingRulesSettingsFormInput = {
+  min_stay_nights: 1,
+  max_stay_nights: null,
+  booking_window_days: 365,
+  advance_notice_days: 0,
+  allowed_checkin_days: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+  allowed_checkout_days: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+  same_day_booking_enabled: true,
+  instant_booking_enabled: true,
+}
+
 export function BookingRulesSettings({ initialConfig, propertyId, onSave }: BookingRulesSettingsProps) {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [newBlackoutDate, setNewBlackoutDate] = useState('')
 
   const {
     register,
@@ -58,31 +71,25 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
     watch,
     setValue,
     formState: { errors, isDirty },
-  } = useForm<BookingRulesConfigInput>({
-    resolver: zodResolver(bookingRulesConfigSchema),
-    defaultValues: initialConfig || {
-      min_stay_nights: 1,
-      max_stay_nights: null,
-      booking_window_days: 365,
-      advance_notice_days: 0,
-      allowed_checkin_days: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-      allowed_checkout_days: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-      blackout_dates: [],
-      same_day_booking_enabled: true,
-      instant_booking_enabled: true,
-    },
+  } = useForm<BookingRulesSettingsFormInput>({
+    resolver: zodResolver(bookingRulesSettingsFormSchema),
+    defaultValues: initialConfig
+      ? (() => {
+          const { blackout_dates: _drop, ...rest } = initialConfig
+          return { ...defaultFormValues, ...rest }
+        })()
+      : defaultFormValues,
   })
 
   const allowedCheckinDays = watch('allowed_checkin_days')
   const allowedCheckoutDays = watch('allowed_checkout_days')
-  const blackoutDates = watch('blackout_dates')
   const sameDayBookingEnabled = watch('same_day_booking_enabled')
   const instantBookingEnabled = watch('instant_booking_enabled')
 
   const toggleCheckinDay = (day: DayOfWeek) => {
     const current = allowedCheckinDays
     const updated = current.includes(day)
-      ? current.filter(d => d !== day)
+      ? current.filter((d: DayOfWeek) => d !== day)
       : [...current, day]
     setValue('allowed_checkin_days', updated, { shouldDirty: true })
   }
@@ -90,37 +97,25 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
   const toggleCheckoutDay = (day: DayOfWeek) => {
     const current = allowedCheckoutDays
     const updated = current.includes(day)
-      ? current.filter(d => d !== day)
+      ? current.filter((d: DayOfWeek) => d !== day)
       : [...current, day]
     setValue('allowed_checkout_days', updated, { shouldDirty: true })
   }
 
-  const addBlackoutDate = () => {
-    if (newBlackoutDate && !blackoutDates.includes(newBlackoutDate)) {
-      setValue('blackout_dates', [...blackoutDates, newBlackoutDate], { shouldDirty: true })
-      setNewBlackoutDate('')
-    }
-  }
-
-  const removeBlackoutDate = (date: string) => {
-    setValue('blackout_dates', blackoutDates.filter(d => d !== date), { shouldDirty: true })
-  }
-
-  const onSubmit = async (data: BookingRulesConfigInput) => {
+  const onSubmit = async (data: BookingRulesSettingsFormInput) => {
     setIsSaving(true)
     setSaveMessage(null)
 
     try {
-      // Convert undefined to null for max_stay_nights
       const bookingRulesConfig: BookingRulesConfig = {
         ...data,
+        blackout_dates: [],
         max_stay_nights: data.max_stay_nights === undefined ? null : data.max_stay_nights,
       }
 
       if (onSave) {
         await onSave(bookingRulesConfig)
       } else {
-        // Default API call
         const response = await fetch(`/api/properties/${propertyId}/settings`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -134,7 +129,6 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
 
       setSaveMessage({ type: 'success', text: 'Booking rules saved successfully!' })
 
-      // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {
       console.error('Error saving booking rules:', error)
@@ -167,8 +161,8 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
                 placeholder="1"
                 {...register('min_stay_nights', { valueAsNumber: true })}
               />
-              {errors.min_stay_nights && (
-                <p className="text-sm text-destructive">{errors.min_stay_nights.message}</p>
+              {errors.min_stay_nights?.message != null && (
+                <p className="text-sm text-destructive">{String(errors.min_stay_nights.message)}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 Guests must book at least this many nights
@@ -187,8 +181,8 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
                   setValueAs: v => v === '' || v === null ? null : parseInt(v),
                 })}
               />
-              {errors.max_stay_nights && (
-                <p className="text-sm text-destructive">{errors.max_stay_nights.message}</p>
+              {errors.max_stay_nights?.message != null && (
+                <p className="text-sm text-destructive">{String(errors.max_stay_nights.message)}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 Maximum nights allowed per reservation
@@ -216,8 +210,8 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
                 placeholder="365"
                 {...register('booking_window_days', { valueAsNumber: true })}
               />
-              {errors.booking_window_days && (
-                <p className="text-sm text-destructive">{errors.booking_window_days.message}</p>
+              {errors.booking_window_days?.message != null && (
+                <p className="text-sm text-destructive">{String(errors.booking_window_days.message)}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 How many days in advance guests can book
@@ -234,8 +228,8 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
                 placeholder="0"
                 {...register('advance_notice_days', { valueAsNumber: true })}
               />
-              {errors.advance_notice_days && (
-                <p className="text-sm text-destructive">{errors.advance_notice_days.message}</p>
+              {errors.advance_notice_days?.message != null && (
+                <p className="text-sm text-destructive">{String(errors.advance_notice_days.message)}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 Minimum days before check-in to book (0 = same day)
@@ -247,7 +241,7 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
             <div className="space-y-0.5">
               <Label>Same-Day Booking</Label>
               <p className="text-sm text-muted-foreground">
-                Allow guests to book for today's check-in
+                Allow guests to book for today&apos;s check-in
               </p>
             </div>
             <Switch
@@ -292,14 +286,15 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
               </div>
             ))}
           </div>
-          {errors.allowed_checkin_days && (
-            <p className="text-sm text-destructive">{errors.allowed_checkin_days.message}</p>
+          {errors.allowed_checkin_days?.message != null && (
+            <p className="text-sm text-destructive">{String(errors.allowed_checkin_days.message)}</p>
           )}
           {allowedCheckinDays.length < 7 && (
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Check-in restricted to: {allowedCheckinDays.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')}
+                Check-in restricted to:{' '}
+                {allowedCheckinDays.map((d: DayOfWeek) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')}
               </AlertDescription>
             </Alert>
           )}
@@ -327,70 +322,18 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
               </div>
             ))}
           </div>
-          {errors.allowed_checkout_days && (
-            <p className="text-sm text-destructive">{errors.allowed_checkout_days.message}</p>
+          {errors.allowed_checkout_days?.message != null && (
+            <p className="text-sm text-destructive">{String(errors.allowed_checkout_days.message)}</p>
           )}
           {allowedCheckoutDays.length < 7 && (
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Check-out restricted to: {allowedCheckoutDays.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')}
+                Check-out restricted to:{' '}
+                {allowedCheckoutDays.map((d: DayOfWeek) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')}
               </AlertDescription>
             </Alert>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Blackout Dates */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Blackout Dates</CardTitle>
-          <CardDescription>Dates when check-in is not allowed</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={newBlackoutDate}
-              onChange={(e) => setNewBlackoutDate(e.target.value)}
-              placeholder="Select date"
-            />
-            <Button type="button" onClick={addBlackoutDate} variant="outline">
-              Add Date
-            </Button>
-          </div>
-
-          {blackoutDates.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {blackoutDates.map((date) => (
-                <Badge key={date} variant="secondary" className="pl-3 pr-1">
-                  {date}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="ml-1 h-auto p-1"
-                    onClick={() => removeBlackoutDate(date)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {blackoutDates.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No blackout dates configured
-            </p>
-          )}
-
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Blackout dates prevent check-in on specific dates (e.g., holidays). Guests can still be checked-in if their reservation started before the blackout date.
-            </AlertDescription>
-          </Alert>
         </CardContent>
       </Card>
 

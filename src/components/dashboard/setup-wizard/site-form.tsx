@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Save, X, ImageIcon, Trash2 } from "lucide-react"
+import { Loader2, Save, X, ImageIcon, Trash2, Info } from "lucide-react"
+import { BlackoutDatesPicker } from "@/components/guest/booking-date-range-picker"
+import { Badge } from "@/components/ui/badge"
 import { siteFormSchema, siteStatuses, toApiFormat, fromApiFormat } from "./site-form-schema"
 import type { SiteFormData, reservationTypes } from "./site-form-schema"
 import { Dropzone, DropzoneEmptyState, DropzoneContent } from "@/components/dropzone"
@@ -72,7 +74,20 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const [houseKeepingFrom, setHouseKeepingFrom] = useState<string>('')
   const [houseKeepingTo, setHouseKeepingTo] = useState('')
   const [deletingImageUrl, setDeletingImageUrl] = useState<string | null>(null)
+  const [blackoutDates, setBlackoutDates] = useState<string[]>(() => {
+    const raw = site?.availability_rules as { blackout_dates?: string[] } | undefined
+    return Array.isArray(raw?.blackout_dates) ? [...raw.blackout_dates].sort() : []
+  })
   const supabase = useMemo(() => createClient(), [])
+
+  const serializedAvailabilityRules = useMemo(
+    () => JSON.stringify(site?.availability_rules ?? null),
+    [site?.availability_rules],
+  )
+  useEffect(() => {
+    const raw = site?.availability_rules as { blackout_dates?: string[] } | undefined
+    setBlackoutDates(Array.isArray(raw?.blackout_dates) ? [...raw.blackout_dates].sort() : [])
+  }, [serializedAvailabilityRules])
 
   const [siteImageUrls, setSiteImageUrls] = useState<string[]>(() => {
     const raw = site?.site_images ?? site?.images
@@ -242,18 +257,29 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       const isBlockingDates =
         (data.status === "housekeeping" || data.status === "maintenance") && houseKeepingFrom
 
-      const finalApiData = isBlockingDates
-        ? {
-          ...apiData,
-          availability_rules: {
-            blocked_dates: [{
-              from: houseKeepingFrom,
-              to: isSingleDay ? houseKeepingFrom : (houseKeepingTo || houseKeepingFrom),
-              reason: data.status,
-            }]
-          }
-        }
-        : apiData
+      const priorRules =
+        typeof site?.availability_rules === "object" && site?.availability_rules !== null
+          ? { ...(site.availability_rules as Record<string, unknown>) }
+          : {}
+
+      const availability_rules: Record<string, unknown> = {
+        ...priorRules,
+        blackout_dates: blackoutDates,
+        blocked_dates: isBlockingDates
+          ? [
+              {
+                from: houseKeepingFrom,
+                to: isSingleDay ? houseKeepingFrom : (houseKeepingTo || houseKeepingFrom),
+                reason: data.status,
+              },
+            ]
+          : [],
+      }
+
+      const finalApiData = {
+        ...apiData,
+        availability_rules,
+      }
 
       const payloadBase = { ...finalApiData, images: siteImageUrls.length > 0 ? siteImageUrls : undefined }
       // Important: when editing and using defaults pricing, don't overwrite the site's stored manual base price.
@@ -771,6 +797,47 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Blackout Dates */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Blackout Dates</CardTitle>
+          <CardDescription>Dates when check-in is not allowed for this site</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <BlackoutDatesPicker
+            variant="dashboard"
+            label="Blackout dates"
+            value={blackoutDates}
+            onChange={setBlackoutDates}
+            numberOfMonths={1}
+          />
+
+          {blackoutDates.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {blackoutDates.map((date) => (
+                <Badge key={date} variant="secondary" className="pl-3 pr-1">
+                  {date}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="ml-1 h-auto p-1"
+                    onClick={() => setBlackoutDates((prev) => prev.filter((d) => d !== date))}
+                    aria-label={`Remove ${date}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {blackoutDates.length === 0 && (
+            <p className="text-sm text-muted-foreground">No blackout dates configured for this site.</p>
+          )}
         </CardContent>
       </Card>
 

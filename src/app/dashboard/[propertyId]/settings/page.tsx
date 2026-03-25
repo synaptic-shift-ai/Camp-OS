@@ -88,7 +88,7 @@ export default async function SettingsPage({ params }: PageProps) {
           <TabsTrigger value="property">Property</TabsTrigger>
           <TabsTrigger value="fees">Additional Charges</TabsTrigger>
           <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
-          <TabsTrigger value="site-types-rates">Site Types Rates</TabsTrigger>
+          <TabsTrigger value="site-types-rates">Site Types</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
           <TabsTrigger value="cancellation-policy">Terms & Policies</TabsTrigger>

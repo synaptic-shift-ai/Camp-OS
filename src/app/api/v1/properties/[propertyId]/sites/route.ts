@@ -223,6 +223,10 @@ export async function POST(
 
     // Parse and validate request body
     const body = await request.json()
+    const availabilityRulesFromBody =
+      body && typeof body === 'object' && 'availability_rules' in body
+        ? (body as { availability_rules?: unknown }).availability_rules
+        : undefined
 
     let validatedRequest: CreateSiteRequest
     try {
@@ -323,6 +327,9 @@ export async function POST(
     }
     if ((validatedRequest as any).monthlyRateCents !== undefined) {
       siteExtras.monthly_rate_cents = (validatedRequest as any).monthlyRateCents
+    }
+    if (availabilityRulesFromBody !== undefined) {
+      siteExtras.availability_rules = availabilityRulesFromBody
     }
 
     if (Object.keys(siteExtras).length > 0) {

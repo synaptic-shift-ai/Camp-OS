@@ -133,11 +133,27 @@ function hasBlockedDateOverlap(
 }
 
 /**
+ * True when check-in is listed in this site's `availability_rules.blackout_dates` only.
+ * Per-site blackouts do not use property-wide `booking_rules_config` (those apply to all sites).
+ */
+export function siteStayOverlapsBlackoutDates(
+  siteAvailabilityRules: unknown,
+  checkInDate: string,
+  checkOutDate: string
+): boolean {
+  if (!siteAvailabilityRules || typeof siteAvailabilityRules !== 'object') return false
+  const blackouts = (siteAvailabilityRules as { blackout_dates?: string[] }).blackout_dates ?? []
+  return blackouts.some((d) => d >= checkInDate && d <= checkOutDate)
+}
+
+/**
  * Check if a specific site is available for given dates
  *
  * Rules:
  * - Site must exist
  * - Site status must be in GUEST_BOOKABLE_SITE_STATUSES (available, housekeeping, or occupied)
+ * - Check-in must not fall on this site's availability_rules.blackout_dates (per-site only)
+ * - No overlapping housekeeping/maintenance blocked_dates in availability_rules
  * - No overlapping blocking reservations (incl. reserved/booked on overlapping dates)
  * - Same-day turnover allowed (checkout day = checkin day)
  *
@@ -178,6 +194,20 @@ export async function checkSiteAvailability(
   }
 
   if (!(GUEST_BOOKABLE_SITE_STATUSES as readonly string[]).includes(site.status)) {
+    return {
+      success: true,
+      data: false,
+    }
+  }
+
+  if (siteStayOverlapsBlackoutDates(site.availability_rules, checkInDate, checkOutDate)) {
+    return {
+      success: true,
+      data: false,
+    }
+  }
+
+  if (hasBlockedDateOverlap(site.availability_rules, checkInDate, checkOutDate)) {
     return {
       success: true,
       data: false,
@@ -403,12 +433,13 @@ export async function searchAvailableSites(
   // Get set of occupied site IDs
   const occupiedSiteIds = new Set(overlappingReservations?.map((r) => r.site_id) || [])
 
-  // Filter out occupied sites and optionally filter by reservation type
-  let filteredSites = sitesToSearch.filter(
-    (site) => 
-      !occupiedSiteIds.has(site.id) &&
-      !hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)
-  )
+  // Filter out occupied sites, housekeeping/maintenance blocks, and per-site blackout_dates (sites.availability_rules)
+  let filteredSites = sitesToSearch.filter((site) => {
+    if (occupiedSiteIds.has(site.id)) return false
+    if (hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)) return false
+    if (siteStayOverlapsBlackoutDates(site.availability_rules, params.check_in_date, params.check_out_date)) return false
+    return true
+  })
 
   // If a specific reservation type is requested, filter sites that support it
   if (params.reservation_type) {

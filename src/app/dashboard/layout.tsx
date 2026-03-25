@@ -239,8 +239,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href={`${dashboardBase}/account`}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
@@ -267,7 +267,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent side="left" className="flex w-64 flex-col p-0">
               <div className="flex h-16 items-center gap-2 border-b border-border px-6">
                 {isLoading || isCompanyLoading ? (
                   <span className="font-heading font-semibold text-lg">Loading...</span>
@@ -308,6 +308,53 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   })}
                 </nav>
               </ScrollArea>
+              <div className="border-t border-border p-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start gap-3 px-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={companyLogoUrl ?? undefined} alt={companyName ?? "Company logo"} />
+                        <AvatarFallback>
+                          {isLoading || isCompanyLoading
+                            ? "..."
+                            : companyName?.substring(0, 2).toUpperCase() || "CO"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start text-sm">
+                        <span className="font-medium">
+                          {isLoading || isCompanyLoading ? "Loading..." : companyName || "Company"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Owner</span>
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href={`${dashboardBase}/account`} onClick={() => setMobileMenuOpen(false)}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Bell className="mr-2 h-4 w-4" />
+                      Notifications
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        void handleLogout()
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2">

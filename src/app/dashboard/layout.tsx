@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import {
   LayoutDashboard,
   Calendar,
@@ -268,6 +268,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex w-64 flex-col p-0">
+              <SheetTitle className="sr-only">Dashboard navigation</SheetTitle>
               <div className="flex h-16 items-center gap-2 border-b border-border px-6">
                 {isLoading || isCompanyLoading ? (
                   <span className="font-heading font-semibold text-lg">Loading...</span>

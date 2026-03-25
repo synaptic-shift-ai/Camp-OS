@@ -12,6 +12,7 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetTitle,
 } from '@/components/ui/sheet'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -470,6 +471,7 @@ export function GuestReservationsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto p-0">
+        <SheetTitle className="sr-only">Guest reservation profile</SheetTitle>
         <SheetDescription className="sr-only">
           Guest reservation profile details
         </SheetDescription>

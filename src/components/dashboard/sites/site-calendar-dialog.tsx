@@ -129,6 +129,12 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
 
   const statusKey = (r: Reservation) => (r.status ?? 'pending').toLowerCase()
 
+  const blackoutSet = new Set(
+    Array.isArray((site.availability_rules as any)?.blackout_dates)
+      ? ((site.availability_rules as any).blackout_dates as string[])
+      : [],
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
@@ -191,6 +197,9 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
                     const isToday = isSameDay(day, new Date())
                     const hasReservations = dayReservations.length > 0
 
+                    const ymd = format(day, 'yyyy-MM-dd')
+                    const isBlackout = blackoutSet.has(ymd)
+
                     const cellContent = (
                       <div className="font-medium leading-none text-xs sm:text-sm mb-0.5 sm:mb-1">
                         {format(day, 'd')}
@@ -235,10 +244,11 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
                       h-10 sm:h-24 border rounded p-1 sm:p-1.5 overflow-hidden
                       ${isToday ? 'border-primary border-2' : 'border-border'}
                       ${!isSameMonth(day, currentMonth) ? 'text-muted-foreground' : ''}
-                      ${hasReservations ? 'bg-muted/50 cursor-pointer hover:bg-muted transition-colors' : ''}
+                      ${isBlackout ? 'opacity-50 bg-muted/30 cursor-not-allowed' : ''}
+                      ${!isBlackout && hasReservations ? 'bg-muted/50 cursor-pointer hover:bg-muted transition-colors' : ''}
                     `
 
-                    if (!hasReservations) {
+                    if (!hasReservations || isBlackout) {
                       return (
                         <div key={day.toISOString()} className={cellClass}>
                           {cellContent}

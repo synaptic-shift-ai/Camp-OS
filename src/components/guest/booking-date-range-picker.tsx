@@ -100,6 +100,22 @@ function blackoutTriggerText(ymdStrings: string[]) {
   return `${ymdStrings.length} dates selected`
 }
 
+function expandDateRangeToYmdStrings(from: Date, to: Date): string[] {
+  const a = new Date(from)
+  a.setHours(0, 0, 0, 0)
+  const b = new Date(to)
+  b.setHours(0, 0, 0, 0)
+
+  const start = a <= b ? a : b
+  const end = a <= b ? b : a
+
+  const out: string[] = []
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    out.push(format(d, 'yyyy-MM-dd'))
+  }
+  return out
+}
+
 export type BlackoutDatesPickerProps = {
   label?: string
   /** YYYY-MM-DD strings, sorted */
@@ -121,8 +137,11 @@ function StyledDayButton({
   const isEndpoint = modifiers.range_start || modifiers.range_end
   const isMiddle = modifiers.range_middle
   const isSingle = modifiers.selected && !isMiddle && !isEndpoint
-  const filled = isEndpoint || isSingle
-  const todayDot = isToday(day.date) && !filled
+  const isDraftFilled = isEndpoint || isSingle
+  const isBlackoutSelected = Boolean((modifiers as unknown as { blackout_selected?: boolean }).blackout_selected)
+  const isBlackoutFilled = isBlackoutSelected && !isDraftFilled && !isMiddle
+
+  const todayDot = isToday(day.date) && !isDraftFilled && !isBlackoutFilled
   const isDashboard = variant === 'dashboard'
 
   return (
@@ -133,7 +152,7 @@ function StyledDayButton({
         'text-[0.9rem] outline-none transition-all duration-100 border-0 appearance-none',
         isDashboard ? 'focus-visible:ring-2 focus-visible:ring-primary' : 'focus-visible:ring-2 focus-visible:ring-[#2D5A27] dark:focus-visible:ring-emerald-500',
 
-        !filled && !isMiddle && cn(
+        !isDraftFilled && !isBlackoutFilled && !isMiddle && cn(
           'rounded-none font-normal',
           isDashboard ? 'text-foreground hover:bg-muted' : 'text-[#1a202c] hover:bg-[#f2f7f1] dark:text-foreground dark:hover:bg-muted',
         ),
@@ -145,9 +164,16 @@ function StyledDayButton({
             : 'text-[#2D5A27] bg-[#e7f2e6] hover:bg-[#e7f2e6] dark:text-emerald-400 dark:bg-emerald-950/50 dark:hover:bg-emerald-950/50',
         ),
 
-        filled && cn(
+        isDraftFilled && cn(
           'rounded-none border-0 font-bold shadow-sm',
           isDashboard ? 'bg-primary text-primary-foreground' : 'bg-[#2D5A27] text-white dark:bg-emerald-800',
+        ),
+
+        isBlackoutFilled && cn(
+          'rounded-none border-0 font-bold shadow-sm',
+          isDashboard
+            ? 'bg-primary/10 text-primary hover:bg-primary/10'
+            : 'bg-[#2D5A27]/10 text-[#2D5A27] dark:bg-emerald-950/40 dark:text-emerald-200 hover:bg-[#2D5A27]/10',
         ),
 
         className,
@@ -402,11 +428,15 @@ export function BlackoutDatesPicker({
 }: BlackoutDatesPickerProps) {
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
+  const [draftRange, setDraftRange] = React.useState<DateRangeValue>(undefined)
 
   React.useEffect(() => {
     if (!open) return
     const fn = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setDraftRange(undefined)
+      }
     }
     document.addEventListener('mousedown', fn)
     return () => document.removeEventListener('mousedown', fn)
@@ -417,20 +447,25 @@ export function BlackoutDatesPicker({
     [value],
   )
 
-  const handleSelect = React.useCallback(
-    (dates: Date[] | undefined) => {
-      if (!dates?.length) {
-        onChange([])
-        return
-      }
-      const next = [...new Set(dates.map((d) => format(d, 'yyyy-MM-dd')))].sort()
-      onChange(next)
-    },
-    [onChange],
-  )
+  React.useEffect(() => {
+    if (!open) return
+    setDraftRange(undefined)
+  }, [open])
 
   const hasValue = value.length > 0
+  const hasDraftRange = Boolean(draftRange?.from && draftRange?.to)
   const isDashboard = variant === 'dashboard'
+
+  const applyDraftRange = React.useCallback(() => {
+    if (!draftRange?.from || !draftRange?.to) return
+
+    const expanded = expandDateRangeToYmdStrings(draftRange.from, draftRange.to)
+    const next = [...new Set([...value, ...expanded])].sort()
+
+    onChange(next)
+    setDraftRange(undefined)
+    setOpen(false)
+  }, [draftRange?.from, draftRange?.to, onChange, value])
 
   return (
     <div ref={ref} className={cn('relative w-full space-y-2', className)}>
@@ -498,10 +533,11 @@ export function BlackoutDatesPicker({
         <div className="px-2.5 pt-2 pb-1.5">
           <StyledCalendar
             variant={variant}
-            mode="multiple"
-            selected={selectedDates}
-            onSelect={handleSelect}
-            defaultMonth={selectedDates[0] ?? new Date()}
+            mode="range"
+            selected={draftRange}
+            onSelect={(range) => setDraftRange(range)}
+            modifiers={{ blackout_selected: selectedDates }}
+            defaultMonth={draftRange?.from ?? selectedDates[0] ?? new Date()}
             numberOfMonths={numberOfMonths}
             weekStartsOn={1}
             className="text-[0.8125rem]"
@@ -516,19 +552,27 @@ export function BlackoutDatesPicker({
         >
           <button
             type="button"
-            onClick={() => onChange([])}
+            onClick={() => {
+              onChange([])
+              setDraftRange(undefined)
+            }}
             className="text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
           >
             Clear dates
           </button>
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            disabled={!hasDraftRange}
+            onClick={applyDraftRange}
             className={cn(
               'rounded-xl px-5 py-1.5 text-xs font-bold transition-all',
               isDashboard
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
-                : 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm',
+                ? hasDraftRange
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
+                  : 'bg-primary/30 text-primary-foreground cursor-not-allowed'
+                : hasDraftRange
+                  ? 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm'
+                  : 'text-white bg-[#2D5A27]/30 dark:bg-emerald-800/40 cursor-not-allowed',
             )}
           >
             Confirm

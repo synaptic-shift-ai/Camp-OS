@@ -51,7 +51,8 @@ function Calendar({
         month: cn('relative flex flex-col w-full gap-3', defaultClassNames.month),
         nav: cn(
           // Place arrows top-right like the reference UI.
-          'absolute right-3 top-3 flex items-center gap-2',
+          // z-10: Month comes after Nav in DOM and would otherwise paint on top and steal clicks.
+          'absolute right-3 top-3 z-10 flex items-center gap-2',
           defaultClassNames.nav,
         ),
         button_previous: cn(

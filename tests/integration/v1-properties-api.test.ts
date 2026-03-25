@@ -23,7 +23,6 @@ import {
   UpdatePropertyRequestSchema,
   ListPropertiesResponseSchema,
   GetPropertyResponseSchema,
-  PropertySettingsSchema,
   type Property,
 } from '@/types/api/v1/schemas/properties'
 
@@ -74,10 +73,8 @@ describe('Properties API v1 Contract Tests', () => {
           maxStayNights: 30,
           bookingLeadTimeDays: 365,
           customRules: 'No pets',
-          freeCancellationWindow: 7,
-          cancellationRefundPercentage: 100,
-          cancellationNonRefundableDays: 0,
-          refundEligiblePeriod: '3-6',
+          openPeriodFrom: null,
+          openPeriodUntil: null,
         },
 
         // Amenities
@@ -196,10 +193,8 @@ describe('Properties API v1 Contract Tests', () => {
           maxStayNights: null,
           bookingLeadTimeDays: null,
           customRules: null,
-          freeCancellationWindow: null,
-          cancellationRefundPercentage: null,
-          cancellationNonRefundableDays: null,
-          refundEligiblePeriod: null,
+          openPeriodFrom: null,
+          openPeriodUntil: null,
         },
 
         // Amenities - nullable
@@ -266,10 +261,8 @@ describe('Properties API v1 Contract Tests', () => {
           maxStayNights: 30,
           bookingLeadTimeDays: 365,
           customRules: 'No pets',
-          freeCancellationWindow: 7,
-          cancellationRefundPercentage: 100,
-          cancellationNonRefundableDays: 0,
-          refundEligiblePeriod: '3-6',
+          openPeriodFrom: null,
+          openPeriodUntil: null,
         },
         amenities: ['wifi', 'showers'],
       }
@@ -378,8 +371,11 @@ describe('Properties API v1 Contract Tests', () => {
           country: null,
           phone: null,
           email: null,
+          checkInTime: null,
+          checkOutTime: null,
           subdomain: null,
           bookingPageSlug: null,
+          galleryImages: null,
           settings: {
             checkInTime: '14:00',
             checkOutTime: '11:00',
@@ -389,10 +385,8 @@ describe('Properties API v1 Contract Tests', () => {
             maxStayNights: 30,
             bookingLeadTimeDays: 365,
             customRules: null,
-            freeCancellationWindow: null,
-            cancellationRefundPercentage: null,
-            cancellationNonRefundableDays: null,
-            refundEligiblePeriod: null,
+            openPeriodFrom: null,
+            openPeriodUntil: null,
           },
           amenities: null,
           onboardingStatus: 'completed',
@@ -441,8 +435,11 @@ describe('Properties API v1 Contract Tests', () => {
               country: null,
               phone: null,
               email: null,
+              checkInTime: null,
+              checkOutTime: null,
               subdomain: null,
               bookingPageSlug: null,
+              galleryImages: null,
               settings: {
                 checkInTime: null,
                 checkOutTime: null,
@@ -452,10 +449,8 @@ describe('Properties API v1 Contract Tests', () => {
                 maxStayNights: null,
                 bookingLeadTimeDays: null,
                 customRules: null,
-                freeCancellationWindow: null,
-                cancellationRefundPercentage: null,
-                cancellationNonRefundableDays: null,
-                refundEligiblePeriod: null,
+                openPeriodFrom: null,
+                openPeriodUntil: null,
               },
               amenities: null,
               onboardingStatus: 'not_started',
@@ -519,26 +514,6 @@ describe('Properties API v1 Contract Tests', () => {
   // ========================================================================
 
   describe('Edge Cases', () => {
-    it('should reject settings with invalid refundEligiblePeriod format', () => {
-      const invalidSettings = {
-        checkInTime: null,
-        checkOutTime: null,
-        timezone: null,
-        cancellationPolicy: null,
-        minStayNights: null,
-        maxStayNights: null,
-        bookingLeadTimeDays: null,
-        customRules: null,
-        freeCancellationWindow: null,
-        cancellationRefundPercentage: null,
-        cancellationNonRefundableDays: null,
-        // invalid format: not a number or range
-        refundEligiblePeriod: 'invalid',
-      }
-
-      expect(() => PropertySettingsSchema.parse(invalidSettings)).toThrow()
-    })
-
     it('should handle property with maximum field lengths', () => {
       const property: Property = {
         id: '550e8400-e29b-41d4-a716-446655440000',
@@ -572,10 +547,8 @@ describe('Properties API v1 Contract Tests', () => {
           maxStayNights: null,
           bookingLeadTimeDays: null,
           customRules: null,
-          freeCancellationWindow: null,
-          cancellationRefundPercentage: null,
-          cancellationNonRefundableDays: null,
-          refundEligiblePeriod: null,
+          openPeriodFrom: null,
+          openPeriodUntil: null,
         },
         amenities: null,
         onboardingStatus: 'completed',
@@ -615,8 +588,11 @@ describe('Properties API v1 Contract Tests', () => {
           country: null,
           phone: null,
           email: null,
+          checkInTime: null,
+          checkOutTime: null,
           subdomain: null,
           bookingPageSlug: null,
+          galleryImages: null,
           settings: {
             checkInTime: null,
             checkOutTime: null,
@@ -624,11 +600,10 @@ describe('Properties API v1 Contract Tests', () => {
             cancellationPolicy: null,
             minStayNights: null,
             maxStayNights: null,
-              bookingLeadTimeDays: null,
-              customRules: null,
-              freeCancellationWindow: null,
-              cancellationRefundPercentage: null,
-              cancellationNonRefundableDays: null,
+            bookingLeadTimeDays: null,
+            customRules: null,
+            openPeriodFrom: null,
+            openPeriodUntil: null,
           },
           amenities: null,
           onboardingStatus: 'not_started',
@@ -676,8 +651,11 @@ describe('Properties API v1 Contract Tests', () => {
           country: null,
           phone: null,
           email: null,
+          checkInTime: null,
+          checkOutTime: null,
           subdomain: null,
           bookingPageSlug: null,
+          galleryImages: null,
           settings: {
             checkInTime: null,
             checkOutTime: null,
@@ -687,9 +665,8 @@ describe('Properties API v1 Contract Tests', () => {
             maxStayNights: null,
             bookingLeadTimeDays: null,
             customRules: null,
-            freeCancellationWindow: null,
-            cancellationRefundPercentage: null,
-            cancellationNonRefundableDays: null,
+            openPeriodFrom: null,
+            openPeriodUntil: null,
           },
           amenities: null,
           onboardingStatus: status,

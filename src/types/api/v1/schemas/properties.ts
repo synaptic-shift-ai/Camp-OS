@@ -35,6 +35,13 @@ export const OnboardingStatusSchema = z.enum([
   'completed',
 ])
 
+const isoDateOnlyNullable = z
+  .union([
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be YYYY-MM-DD' }),
+    z.null(),
+  ])
+  .describe('Calendar date only (YYYY-MM-DD)')
+
 export const PropertySettingsSchema = z.object({
   checkInTime: z.string().nullable(),
   checkOutTime: z.string().nullable(),
@@ -44,15 +51,8 @@ export const PropertySettingsSchema = z.object({
   maxStayNights: z.number().int().positive().nullable(),
   bookingLeadTimeDays: z.number().int().min(0).nullable(),
   customRules: z.string().nullable(),
-  freeCancellationWindow: z.number().int().min(0).nullable(),
-  cancellationRefundPercentage: z.number().int().min(0).max(100).nullable(),
-  cancellationNonRefundableDays: z.number().int().min(0).nullable(),
-  refundEligiblePeriod: z
-    .string()
-    .regex(/^(?:\d+|\d+-\d+)$/, {
-      message: 'Enter a number (e.g. 4) or a range (e.g. 3-6)',
-    })
-    .nullable(),
+  openPeriodFrom: isoDateOnlyNullable,
+  openPeriodUntil: isoDateOnlyNullable,
 })
 
 // ============================================================================

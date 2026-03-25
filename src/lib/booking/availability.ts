@@ -25,6 +25,11 @@ import type {
 } from './types'
 import type { BookingType, SeasonalPeriod } from '@/lib/config/types'
 import { GUEST_BOOKABLE_SITE_STATUSES } from '@/lib/constants'
+import {
+  extractOpenPeriodFromPropertySettings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from './open-period'
 
 type AvailableSiteRate = {
   nightlyCents: number
@@ -234,7 +239,7 @@ export async function searchAvailableSites(
   // Fetch property config for reservation types and site type rates
   const { data: property, error: propertyError } = await supabase
     .from('properties')
-    .select('id, enabled_reservation_types, reservation_type_config, site_type_config')
+    .select('id, name, enabled_reservation_types, reservation_type_config, site_type_config, settings')
     .eq('id', params.property_id)
     .single()
 
@@ -244,6 +249,35 @@ export async function searchAvailableSites(
       error: {
         code: 'PROPERTY_NOT_FOUND',
         message: 'Property not found',
+      },
+    }
+  }
+
+  const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property.settings)
+  if (
+    !isStayWithinOpenPeriodByIsoDates(
+      params.check_in_date,
+      params.check_out_date,
+      openPeriodFrom,
+      openPeriodUntil,
+    )
+  ) {
+    const fromIso = openPeriodFrom?.trim()
+    const untilIso = openPeriodUntil?.trim()
+    if (!fromIso || !untilIso) {
+      return {
+        success: false,
+        error: {
+          code: 'OPEN_PERIOD',
+          message: 'Selected dates are outside the property booking season.',
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        code: 'OPEN_PERIOD',
+        message: buildOpenPeriodBookingErrorMessage(property.name, fromIso, untilIso),
       },
     }
   }

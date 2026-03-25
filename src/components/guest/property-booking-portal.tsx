@@ -49,6 +49,11 @@ import {
 import Marquee from "react-fast-marquee"
 import { GuestCancellationPolicyText } from "@/components/guest/guest-cancellation-policy-text"
 import { FileText } from "lucide-react"
+import {
+  openPeriodRestrictsBookings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from "@/lib/booking/open-period"
 
 type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal'
 
@@ -103,6 +108,8 @@ interface PropertyBookingPortalProps {
     cancellation_policy: string | null
     amenities: string[]
     enabled_reservation_types?: BookingType[]
+    openPeriodFrom?: string | null
+    openPeriodUntil?: string | null
   }
   slug: string
   siteTypeSummaries?: SiteTypeSummary[]
@@ -274,12 +281,36 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       return
     }
 
+    const checkInStr = format(checkInDate, "yyyy-MM-dd")
+    const checkOutStr = format(checkOutDate, "yyyy-MM-dd")
+    if (
+      openPeriodRestrictsBookings(property.openPeriodFrom, property.openPeriodUntil) &&
+      !isStayWithinOpenPeriodByIsoDates(
+        checkInStr,
+        checkOutStr,
+        property.openPeriodFrom,
+        property.openPeriodUntil,
+      )
+    ) {
+      const fromIso = property.openPeriodFrom?.trim()
+      const untilIso = property.openPeriodUntil?.trim()
+      toast({
+        title: "Outside booking season",
+        description:
+          fromIso && untilIso
+            ? buildOpenPeriodBookingErrorMessage(property.name, fromIso, untilIso)
+            : "Selected dates are outside the property booking season.",
+        variant: "destructive",
+      })
+      return
+    }
+
     // Navigate to availability results page with search params
     const params = new URLSearchParams({
       slug: slug,
       propertyId: property.id,
-      checkIn: format(checkInDate, "yyyy-MM-dd"),
-      checkOut: format(checkOutDate, "yyyy-MM-dd"),
+      checkIn: checkInStr,
+      checkOut: checkOutStr,
       adults: adults.toString(),
       children: children.toString(),
       pets: pets.toString(),

@@ -21,140 +21,23 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, FileText, ShieldAlert, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import {
   CancellationRuleDialog,
   type CancellationRule,
 } from '@/components/dashboard/settings/cancellation-rule-dialog'
-// import { Description } from '@/components/ui/description'
-
-function optionalNumber(schema: z.ZodNumber) {
-  return z.preprocess(
-    (val) => {
-      if (val === '' || val === undefined) return null
-      if (typeof val === 'number' && Number.isNaN(val)) return null
-      return val
-    },
-    schema.nullable()
-  )
-}
-
-function parseRefundEligiblePeriod(val: string | null): { minDays: number; maxDays: number } | null {
-  if (val == null || (typeof val === 'string' && val.trim() === '')) return null
-  const s = typeof val === 'string' ? val.trim() : String(val)
-  const parts = s.split('-').map((x) => parseInt(x.trim(), 10))
-  const first = parts[0]
-  if (first === undefined || Number.isNaN(first)) return null
-  const minDays = first
-  const second = parts[1]
-  const maxDays = second !== undefined && !Number.isNaN(second) ? second : minDays
-  return { minDays, maxDays }
-}
 
 const cancellationPolicySchema = z.object({
   termsAndConditions: z.string().max(5000, 'Terms and conditions text must be 5000 characters or less').nullable(),
   cancellationPolicy: z.string().max(5000, 'Policy text must be 5000 characters or less').nullable(),
-  freeCancellationWindow: optionalNumber(z.number().int().min(0)),
-  cancellationRefundPercentage: optionalNumber(z.number().int().min(0).max(100)),
-  cancellationNonRefundableDays: optionalNumber(z.number().int().min(0)),
-  refundEligiblePeriod: z.preprocess(
-    (val) =>
-      val === '' || (typeof val === 'string' && val.trim() === '') || val === undefined
-        ? null
-        : val,
-    z
-      .string()
-      .regex(/^(?:\d+|\d+-\d+)$/, {
-        message: 'Enter a number (e.g. 4) or a range (e.g. 3-6)',
-      })
-      .nullable()
-  ),
-})
-.refine(
-    (data) => {
-      const hasPercentage = data.cancellationRefundPercentage != null
-      if (!hasPercentage) return true
-      return data.refundEligiblePeriod != null && data.refundEligiblePeriod.trim() !== ''
-    },
-    {
-      message: 'Refund-eligible period (days before check-in) is required when refund percentage is set.',
-      path: ['refundEligiblePeriod'],
-    }
-)
-.superRefine((data, ctx) => {
-  const free = data.freeCancellationWindow ?? null
-  const nonRefundable = data.cancellationNonRefundableDays ?? null
-  const eligible = parseRefundEligiblePeriod(data.refundEligiblePeriod ?? null)
-
-  const message =
-    'You cannot set the same value for multiple fields. Please adjust the values to avoid overlapping periods.'
-
-  // Free vs non-refundable: disallow exact same day value
-  if (free != null && nonRefundable != null && free === nonRefundable) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message,
-      path: ['freeCancellationWindow'],
-    })
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message,
-      path: ['cancellationNonRefundableDays'],
-    })
-  }
-
-  if (eligible != null) {
-    // Free vs refund-eligible range: disallow when free equals any boundary of the range
-    if (
-      free != null &&
-      (free === eligible.minDays || free === eligible.maxDays)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message,
-        path: ['freeCancellationWindow'],
-      })
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message,
-        path: ['refundEligiblePeriod'],
-      })
-    }
-
-    // Non-refundable vs refund-eligible range: disallow when non-refundable equals any boundary of the range
-    if (
-      nonRefundable != null &&
-      (nonRefundable === eligible.minDays || nonRefundable === eligible.maxDays)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message,
-        path: ['cancellationNonRefundableDays'],
-      })
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message,
-        path: ['refundEligiblePeriod'],
-      })
-    }
-  }
 })
 
 type CancellationPolicyFormData = z.infer<typeof cancellationPolicySchema>
-
-/** Current settings from DB (camelCase) so PATCH only updates cancellationPolicy without wiping other fields */
-type SettingsForMerge = Record<string, unknown> | null
 
 interface CancellationPolicySettingsProps {
   propertyId: string
   initialTermsAndConditions: string | null
   initialCancellationPolicy: string | null
-  initialFreeCancellationWindow: number | null
-  initialCancellationRefundPercentage: number | null
-  initialCancellationNonRefundableDays: number | null
-  initialRefundEligiblePeriod: string | null
   initialCancellationRules?: CancellationRule[]
-  currentSettings: SettingsForMerge
 }
 
 const DEFAULT_PLACEHOLDER =
@@ -164,12 +47,7 @@ export function CancellationPolicySettings({
   propertyId,
   initialTermsAndConditions,
   initialCancellationPolicy,
-  initialFreeCancellationWindow,
-  initialCancellationRefundPercentage,
-  initialCancellationNonRefundableDays,
-  initialRefundEligiblePeriod,
   initialCancellationRules,
-  currentSettings,
 }: CancellationPolicySettingsProps) {
     const router = useRouter()
     const [isSaving, setIsSaving] = useState(false)
@@ -191,10 +69,6 @@ export function CancellationPolicySettings({
     defaultValues: {
         termsAndConditions: initialTermsAndConditions ?? '',
         cancellationPolicy: initialCancellationPolicy ?? '',
-        freeCancellationWindow: initialFreeCancellationWindow ?? null,
-        cancellationRefundPercentage: initialCancellationRefundPercentage ?? null,
-        cancellationNonRefundableDays: initialCancellationNonRefundableDays ?? null,
-        refundEligiblePeriod: initialRefundEligiblePeriod ?? null,
     },
     })
 

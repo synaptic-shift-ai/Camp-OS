@@ -108,6 +108,15 @@ export default async function SettingsPage({ params }: PageProps) {
               email: property.email,
               checkInTime: property.check_in_time,
               checkOutTime: property.check_out_time,
+              ...(() => {
+                const s = property.settings as Record<string, unknown> | null | undefined
+                const from = s?.openPeriodFrom ?? s?.open_period_from
+                const until = s?.openPeriodUntil ?? s?.open_period_until
+                return {
+                  openPeriodFrom: typeof from === "string" ? from : null,
+                  openPeriodUntil: typeof until === "string" ? until : null,
+                }
+              })(),
             }}
             stripeConnected={Boolean(property.stripe_account_id)}
             stripeConnectedAt={property.stripe_connected_at}
@@ -173,18 +182,6 @@ export default async function SettingsPage({ params }: PageProps) {
               (property.settings as Record<string, any> | null)?.cancellationPolicy ??
               null
             }
-            initialFreeCancellationWindow={
-              (property.settings as Record<string, any> | null)?.freeCancellationWindow ?? null
-            }
-            initialCancellationRefundPercentage={
-              (property.settings as Record<string, any> | null)?.cancellationRefundPercentage ?? null
-            }
-            initialCancellationNonRefundableDays={
-              (property.settings as Record<string, any> | null)?.cancellationNonRefundableDays ?? null
-            }
-            initialRefundEligiblePeriod={
-              (property.settings as Record<string, any> | null)?.refundEligiblePeriod ?? null
-            }
             initialCancellationRules={(
               (property.cancellation_policy_config as { refund_tiers?: Array<{ id?: string; refund_percentage?: number; days_before_reservation?: number; days_operator?: unknown }> } | null)?.refund_tiers ?? []
             ).map((r) => ({
@@ -192,7 +189,6 @@ export default async function SettingsPage({ params }: PageProps) {
               refund_percentage: r.refund_percentage ?? 0,
               days_before_reservation: r.days_before_reservation ?? 0,
             }))}
-            currentSettings={(property.settings as Record<string, unknown> | null) ?? null}
           />
         </TabsContent>
 

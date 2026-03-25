@@ -167,7 +167,38 @@ describe('PropertySettings', () => {
         maxStayNights: null,
         bookingLeadTimeDays: null,
         customRules: 'Test rules',
+        openPeriodFrom: null,
+        openPeriodUntil: null,
       })
+    })
+  })
+
+  describe('mergePartial', () => {
+    it('should preserve existing fields when patch omits them', () => {
+      const current = PropertySettings.create({
+        checkInTime: '15:00',
+        openPeriodFrom: '2025-05-01',
+        openPeriodUntil: '2025-10-01',
+      })
+      const merged = PropertySettings.mergePartial(current, {
+        checkOutTime: '11:00',
+      })
+      expect(merged.checkInTime).toBe('15:00')
+      expect(merged.checkOutTime).toBe('11:00')
+      expect(merged.openPeriodFrom).toBe('2025-05-01')
+      expect(merged.openPeriodUntil).toBe('2025-10-01')
+    })
+
+    it('should replace open period when provided', () => {
+      const current = PropertySettings.create({
+        openPeriodFrom: '2025-05-01',
+        openPeriodUntil: '2025-10-01',
+      })
+      const merged = PropertySettings.mergePartial(current, {
+        openPeriodUntil: '2025-11-15',
+      })
+      expect(merged.openPeriodFrom).toBe('2025-05-01')
+      expect(merged.openPeriodUntil).toBe('2025-11-15')
     })
   })
 })

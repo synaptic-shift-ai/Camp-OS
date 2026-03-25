@@ -8,6 +8,7 @@ import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveBookin
 import { getPricingSourceType } from "@/lib/site-pricing-source"
 import type { BookingRulesConfig, RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
 import { format } from "date-fns"
+import { extractOpenPeriodFromPropertySettings } from "@/lib/booking/open-period"
 
 export default async function PropertyBookingPage({
   params,
@@ -60,7 +61,8 @@ export default async function PropertyBookingPage({
       reservation_type_config,
       site_type_config,
       rate_discounts_config,
-      booking_rules_config
+      booking_rules_config,
+      settings
     `)
     .eq("booking_page_slug", slug)
     .eq("onboarding_completed", true)
@@ -374,6 +376,8 @@ export default async function PropertyBookingPage({
     }
   })
 
+  const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property.settings)
+
   // Prepare property data for PropertyBookingPortal component
   const propertyData = {
     id: property.id,
@@ -391,6 +395,8 @@ export default async function PropertyBookingPage({
     cancellation_policy: property.cancellation_policy,
     amenities: (property.amenities as string[]) || [],
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
+    openPeriodFrom,
+    openPeriodUntil,
   }
 
   return (

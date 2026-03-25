@@ -31,6 +31,12 @@ import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-inf
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType, BookingRulesConfig } from '@/lib/config/types'
 import { parseEnabledReservationTypesFromDB, resolveBookingRulesConfig } from '@/lib/config/resolution'
 import { BookingDateRangePicker, type DateRangeValue } from '@/components/guest/booking-date-range-picker'
+import {
+  extractOpenPeriodFromPropertySettings,
+  openPeriodRestrictsBookings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from '@/lib/booking/open-period'
 import { Checkbox } from '@/components/ui/checkbox'
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
@@ -161,6 +167,14 @@ export default function NewReservationPage() {
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
   const [summaryTotalCents, setSummaryTotalCents] = useState<number | null>(null)
   const [bookingRulesConfig, setBookingRulesConfig] = useState<BookingRulesConfig | null>(null)
+  const [propertyName, setPropertyName] = useState<string | null>(null)
+  const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
+  const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
+  /** Set when search-availability fails (e.g. OPEN_PERIOD) so Step 2 can show a specific message */
+  const [availabilitySearchFailure, setAvailabilitySearchFailure] = useState<{
+    code: string | null
+    message: string
+  } | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeValue>()
 
   // Collapsible section states
@@ -244,7 +258,7 @@ export default function NewReservationPage() {
 
       const { data: property, error: propertyError } = await supabase
         .from("properties")
-        .select("id, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types, site_type_config, booking_rules_config")
+        .select("id, name, pricing_config, rate_discounts_config, deposit_config, enabled_reservation_types, site_type_config, booking_rules_config, settings")
         .eq("id", propertyIdFromUrl)
         .maybeSingle()
 
@@ -254,6 +268,12 @@ export default function NewReservationPage() {
       }
 
       setPropertyId(property.id)
+      setPropertyName(property.name ?? null)
+      const { openPeriodFrom: from, openPeriodUntil: until } = extractOpenPeriodFromPropertySettings(
+        (property as { settings?: unknown }).settings,
+      )
+      setOpenPeriodFrom(from)
+      setOpenPeriodUntil(until)
       setBookingRulesConfig(
         resolveBookingRulesConfig(
           (property as { booking_rules_config?: BookingRulesConfig | null }).booking_rules_config ?? null,
@@ -283,6 +303,7 @@ export default function NewReservationPage() {
     if (!propertyId || !checkInDate || !checkOutDate) {
       setAvailableSites([])
       setTotalNights(0)
+      setAvailabilitySearchFailure(null)
       return
     }
 
@@ -293,6 +314,7 @@ export default function NewReservationPage() {
     if (checkIn >= checkOut) {
       setAvailableSites([])
       setTotalNights(0)
+      setAvailabilitySearchFailure(null)
       return
     }
 
@@ -321,6 +343,7 @@ export default function NewReservationPage() {
         const result = await response.json()
 
         if (result.success && result.data) {
+          setAvailabilitySearchFailure(null)
           setAvailableSites(result.data.sites || [])
 
           // Clear selected site if it's no longer available
@@ -328,11 +351,22 @@ export default function NewReservationPage() {
             setValue("siteId", "")
           }
         } else {
-          setError(result.error?.message || 'Failed to check availability')
+          const code = typeof result.error?.code === 'string' ? result.error.code : null
+          const msg =
+            typeof result.error?.message === 'string' && result.error.message.length > 0
+              ? result.error.message
+              : 'Failed to check availability'
+          setAvailabilitySearchFailure({ code, message: msg })
+          if (code === 'OPEN_PERIOD') {
+            setError(null)
+          } else {
+            setError(msg)
+          }
           setAvailableSites([])
         }
       } catch (err) {
         console.error('Availability check error:', err)
+        setAvailabilitySearchFailure({ code: null, message: 'Failed to check availability. Please try again.' })
         setError('Failed to check availability. Please try again.')
         setAvailableSites([])
       } finally {
@@ -363,6 +397,26 @@ export default function NewReservationPage() {
 
       if (!propertyId) {
         throw new Error('Property not loaded')
+      }
+
+      if (
+        openPeriodRestrictsBookings(openPeriodFrom, openPeriodUntil) &&
+        !isStayWithinOpenPeriodByIsoDates(
+          data.checkInDate,
+          data.checkOutDate,
+          openPeriodFrom,
+          openPeriodUntil,
+        )
+      ) {
+        const fromIso = openPeriodFrom?.trim()
+        const untilIso = openPeriodUntil?.trim()
+        setError(
+          fromIso && untilIso && propertyName
+            ? buildOpenPeriodBookingErrorMessage(propertyName, fromIso, untilIso)
+            : 'Selected dates are outside the property booking season.',
+        )
+        setLoading(false)
+        return
       }
 
       // Convert paid amount from dollars to cents
@@ -547,6 +601,24 @@ export default function NewReservationPage() {
         ? 'weekly'
         : 'nightly'
 
+  const getStep2NoSitesMessage = () => {
+    if (availabilitySearchFailure?.code === 'OPEN_PERIOD' && availabilitySearchFailure.message) {
+      return availabilitySearchFailure.message
+    }
+    if (
+      openPeriodRestrictsBookings(openPeriodFrom, openPeriodUntil) &&
+      propertyName &&
+      checkInDate &&
+      checkOutDate &&
+      !isStayWithinOpenPeriodByIsoDates(checkInDate, checkOutDate, openPeriodFrom, openPeriodUntil)
+    ) {
+      const f = openPeriodFrom?.trim()
+      const u = openPeriodUntil?.trim()
+      if (f && u) return buildOpenPeriodBookingErrorMessage(propertyName, f, u)
+    }
+    return 'No sites available for the selected dates. Try different dates.'
+  }
+
   return (
     <div className="container max-w-7xl py-8">
       <div className="mb-6">
@@ -722,7 +794,7 @@ export default function NewReservationPage() {
                         {availableSites.length > 0
                           ? `${availableSites.length} site${availableSites.length > 1 ? 's' : ''} available for selected dates`
                           : checkInDate && checkOutDate && !checkingAvailability
-                            ? "No sites available for selected dates"
+                            ? getStep2NoSitesMessage()
                             : "Select dates above to see available sites"}
                       </CardDescription>
                     </div>
@@ -745,7 +817,7 @@ export default function NewReservationPage() {
                     <div className="text-center py-12">
                       <p className="text-muted-foreground">
                         {checkInDate && checkOutDate
-                          ? "No sites available for the selected dates. Try different dates."
+                          ? getStep2NoSitesMessage()
                           : "Enter dates and guest count above to see available sites."}
                       </p>
                     </div>

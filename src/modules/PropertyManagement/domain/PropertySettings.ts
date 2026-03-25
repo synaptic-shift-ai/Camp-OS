@@ -25,10 +25,15 @@ export type PropertySettingsProps = {
   maxStayNights: number | null
   bookingLeadTimeDays: number | null // How far in advance bookings are allowed
   customRules: string | null // Custom text rules for guests
-  freeCancellationWindow: number | null
-  cancellationRefundPercentage: number | null
-  cancellationNonRefundableDays: number | null
-  refundEligiblePeriod: string | null
+  /** ISO date-only string YYYY-MM-DD — first day property is open for the season */
+  openPeriodFrom: string | null
+  /** ISO date-only string YYYY-MM-DD — last day property is open for the season */
+  openPeriodUntil: string | null
+}
+
+/** Partial update: `undefined` means leave existing value (for API merge). */
+export type PropertySettingsPatch = {
+  [K in keyof PropertySettingsProps]?: PropertySettingsProps[K] | undefined
 }
 
 export class PropertySettings extends ValueObject<PropertySettingsProps> {
@@ -76,6 +81,16 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       throw new Error('Booking lead time cannot be negative')
     }
 
+    const openPeriodFrom = props.openPeriodFrom ?? null
+    const openPeriodUntil = props.openPeriodUntil ?? null
+    if (
+      openPeriodFrom != null &&
+      openPeriodUntil != null &&
+      openPeriodFrom > openPeriodUntil
+    ) {
+      throw new Error('Open period end must be on or after open period start')
+    }
+
     return new PropertySettings({
       checkInTime: props.checkInTime || null,
       checkOutTime: props.checkOutTime || null,
@@ -85,10 +100,8 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: props.maxStayNights || null,
       bookingLeadTimeDays: props.bookingLeadTimeDays || null,
       customRules: props.customRules || null,
-      freeCancellationWindow: props.freeCancellationWindow ?? null,
-      cancellationRefundPercentage: props.cancellationRefundPercentage ?? null,
-      cancellationNonRefundableDays: props.cancellationNonRefundableDays ?? null,
-      refundEligiblePeriod: props.refundEligiblePeriod ?? null,
+      openPeriodFrom,
+      openPeriodUntil,
     })
   }
 
@@ -105,10 +118,8 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: 30,
       bookingLeadTimeDays: 365,
       customRules: null,
-      freeCancellationWindow: null,
-      cancellationRefundPercentage: null,
-      cancellationNonRefundableDays: null,
-      refundEligiblePeriod: null,
+      openPeriodFrom: null,
+      openPeriodUntil: null,
     })
   }
 
@@ -129,10 +140,8 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: json.maxStayNights || json.max_stay_nights || null,
       bookingLeadTimeDays: json.bookingLeadTimeDays || json.booking_lead_time_days || null,
       customRules: json.customRules || json.custom_rules || null,
-      freeCancellationWindow: json.freeCancellationWindow ?? json.free_cancellation_window ?? null,
-      cancellationRefundPercentage: json.cancellationRefundPercentage ?? json.cancellation_refund_percentage ?? null,
-      cancellationNonRefundableDays: json.cancellationNonRefundableDays ?? json.cancellation_non_refundable_days ?? null,
-      refundEligiblePeriod: json.refundEligiblePeriod ?? json.refund_eligible_period ?? null,
+      openPeriodFrom: json.openPeriodFrom ?? json.open_period_from ?? null,
+      openPeriodUntil: json.openPeriodUntil ?? json.open_period_until ?? null,
     })
   }
 
@@ -152,22 +161,6 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
     return this.props.cancellationPolicy
   }
 
-  get freeCancellationWindow(): number | null {
-    return this.props.freeCancellationWindow
-  }
-
-  get cancellationRefundPercentage(): number | null {
-    return this.props.cancellationRefundPercentage
-  }
-
-  get cancellationNonRefundableDays(): number | null {
-    return this.props.cancellationNonRefundableDays
-  }
-
-  get refundEligiblePeriod(): string | null {
-    return this.props.refundEligiblePeriod
-  }
-
   get minStayNights(): number | null {
     return this.props.minStayNights
   }
@@ -182,6 +175,38 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
 
   get customRules(): string | null {
     return this.props.customRules
+  }
+
+  get openPeriodFrom(): string | null {
+    return this.props.openPeriodFrom
+  }
+
+  get openPeriodUntil(): string | null {
+    return this.props.openPeriodUntil
+  }
+
+  /**
+   * Merge a partial settings patch onto existing settings (undefined = keep current).
+   */
+  static mergePartial(current: PropertySettings, partial: PropertySettingsPatch): PropertySettings {
+    return PropertySettings.create({
+      checkInTime: partial.checkInTime !== undefined ? partial.checkInTime : current.checkInTime,
+      checkOutTime: partial.checkOutTime !== undefined ? partial.checkOutTime : current.checkOutTime,
+      timezone: partial.timezone !== undefined ? partial.timezone : current.timezone,
+      cancellationPolicy:
+        partial.cancellationPolicy !== undefined ? partial.cancellationPolicy : current.cancellationPolicy,
+      minStayNights: partial.minStayNights !== undefined ? partial.minStayNights : current.minStayNights,
+      maxStayNights: partial.maxStayNights !== undefined ? partial.maxStayNights : current.maxStayNights,
+      bookingLeadTimeDays:
+        partial.bookingLeadTimeDays !== undefined
+          ? partial.bookingLeadTimeDays
+          : current.bookingLeadTimeDays,
+      customRules: partial.customRules !== undefined ? partial.customRules : current.customRules,
+      openPeriodFrom:
+        partial.openPeriodFrom !== undefined ? partial.openPeriodFrom : current.openPeriodFrom,
+      openPeriodUntil:
+        partial.openPeriodUntil !== undefined ? partial.openPeriodUntil : current.openPeriodUntil,
+    })
   }
 
   /**
@@ -219,10 +244,8 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       maxStayNights: this.props.maxStayNights,
       bookingLeadTimeDays: this.props.bookingLeadTimeDays,
       customRules: this.props.customRules,
-      freeCancellationWindow: this.props.freeCancellationWindow,
-      cancellationRefundPercentage: this.props.cancellationRefundPercentage,
-      cancellationNonRefundableDays: this.props.cancellationNonRefundableDays,
-      refundEligiblePeriod: this.props.refundEligiblePeriod,
+      openPeriodFrom: this.props.openPeriodFrom,
+      openPeriodUntil: this.props.openPeriodUntil,
     }
   }
 }

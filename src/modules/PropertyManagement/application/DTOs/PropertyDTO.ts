@@ -53,6 +53,8 @@ export type PropertyDTO = {
     maxStayNights: number | null
     bookingLeadTimeDays: number | null
     customRules: string | null
+    openPeriodFrom: string | null
+    openPeriodUntil: string | null
   }
 
   // Amenities
@@ -132,6 +134,8 @@ export function toPropertyDTO(property: Property): PropertyDTO {
       maxStayNights: property.settings.maxStayNights,
       bookingLeadTimeDays: property.settings.bookingLeadTimeDays,
       customRules: property.settings.customRules,
+      openPeriodFrom: property.settings.openPeriodFrom,
+      openPeriodUntil: property.settings.openPeriodUntil,
     },
 
     // Amenities

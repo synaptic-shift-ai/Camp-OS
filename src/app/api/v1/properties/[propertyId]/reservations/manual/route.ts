@@ -17,6 +17,11 @@ import {
 } from '@/types/api/v1/schemas/reservations'
 import { CreateManualReservationCommandHandler } from '@/modules/BookingEngine/application/commands/CreateManualReservationCommand'
 import { sendBookingConfirmation } from '@/lib/email/send'
+import {
+  extractOpenPeriodFromPropertySettings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from '@/lib/booking/open-period'
 
 /**
  * POST /api/v1/properties/[propertyId]/reservations/manual
@@ -45,7 +50,7 @@ export async function POST(
     // Verify property ownership (BP-4: Multi-tenant isolation)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name, owner_id')
+      .select('id, name, owner_id, settings')
       .eq('id', propertyId)
       .single()
 
@@ -81,6 +86,24 @@ export async function POST(
     }
 
     const data = parsed.data
+
+    const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property.settings)
+    if (
+      !isStayWithinOpenPeriodByIsoDates(
+        data.checkInDate,
+        data.checkOutDate,
+        openPeriodFrom,
+        openPeriodUntil,
+      )
+    ) {
+      const fromIso = openPeriodFrom?.trim()
+      const untilIso = openPeriodUntil?.trim()
+      const message =
+        fromIso && untilIso
+          ? buildOpenPeriodBookingErrorMessage(property.name, fromIso, untilIso)
+          : 'Selected dates are outside the property booking season.'
+      return error(ErrorCodes.VAL_001, request, { message })
+    }
 
     // Debug: Log what we're looking for
     console.log('[Manual Reservation v1] Looking up site:', { siteId: data.siteId, propertyId })

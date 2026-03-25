@@ -174,23 +174,20 @@ export async function PATCH(
       )
     }
 
-    // Parse settings if provided
-    // Convert undefined values to null for PropertySettings compatibility
+    // Merge partial settings onto existing (undefined in patch = keep current)
     const settings = validatedRequest.settings
-      ? PropertySettings.create({
-        checkInTime: validatedRequest.settings.checkInTime ?? null,
-        checkOutTime: validatedRequest.settings.checkOutTime ?? null,
-        timezone: validatedRequest.settings.timezone ?? null,
-        cancellationPolicy: validatedRequest.settings.cancellationPolicy ?? null,
-        minStayNights: validatedRequest.settings.minStayNights ?? null,
-        maxStayNights: validatedRequest.settings.maxStayNights ?? null,
-        bookingLeadTimeDays: validatedRequest.settings.bookingLeadTimeDays ?? null,
-        customRules: validatedRequest.settings.customRules ?? null,
-        freeCancellationWindow: validatedRequest.settings.freeCancellationWindow ?? null,
-        cancellationRefundPercentage: validatedRequest.settings.cancellationRefundPercentage ?? null,
-        cancellationNonRefundableDays: validatedRequest.settings.cancellationNonRefundableDays ?? null,
-        refundEligiblePeriod: validatedRequest.settings.refundEligiblePeriod ?? null,
-      })
+      ? PropertySettings.mergePartial(existingProperty.settings, {
+          checkInTime: validatedRequest.settings.checkInTime,
+          checkOutTime: validatedRequest.settings.checkOutTime,
+          timezone: validatedRequest.settings.timezone,
+          cancellationPolicy: validatedRequest.settings.cancellationPolicy,
+          minStayNights: validatedRequest.settings.minStayNights,
+          maxStayNights: validatedRequest.settings.maxStayNights,
+          bookingLeadTimeDays: validatedRequest.settings.bookingLeadTimeDays,
+          customRules: validatedRequest.settings.customRules,
+          openPeriodFrom: validatedRequest.settings.openPeriodFrom,
+          openPeriodUntil: validatedRequest.settings.openPeriodUntil,
+        })
       : undefined
 
     // Execute command using application layer

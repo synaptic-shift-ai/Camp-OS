@@ -36,6 +36,11 @@ import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing
 import type { RateDiscountsConfig } from '@/lib/config/types'
 import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
 import { GUEST_BOOKABLE_SITE_STATUSES } from '@/lib/constants'
+import {
+  extractOpenPeriodFromPropertySettings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from '@/lib/booking/open-period'
 
 // Input validation schema
 const createGuestReservationSchema = z.object({
@@ -79,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, enabled_reservation_types, reservation_type_config, site_type_config')
+      .select('id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, enabled_reservation_types, reservation_type_config, site_type_config, settings')
       .eq('id', validatedInput.property_id)
       .single()
 
@@ -100,6 +105,33 @@ export async function POST(request: NextRequest) {
           error: { code: 'PROPERTY_NOT_READY', message: 'This property is not yet accepting bookings' }
         },
         { status: 400 }
+      )
+    }
+
+    const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property.settings)
+    if (
+      !isStayWithinOpenPeriodByIsoDates(
+        validatedInput.check_in_date,
+        validatedInput.check_out_date,
+        openPeriodFrom,
+        openPeriodUntil,
+      )
+    ) {
+      const fromIso = openPeriodFrom?.trim()
+      const untilIso = openPeriodUntil?.trim()
+      const message =
+        fromIso && untilIso
+          ? buildOpenPeriodBookingErrorMessage(property.name, fromIso, untilIso)
+          : 'Selected dates are outside the property booking season.'
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'OPEN_PERIOD',
+            message,
+          },
+        },
+        { status: 400 },
       )
     }
 

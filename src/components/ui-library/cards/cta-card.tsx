@@ -72,15 +72,19 @@ export function CtaCard({
 
     if (buttonVariant === "magnetic") {
       return (
-        <MagneticButton className="neumorphic-button-primary">
+        <MagneticButton
+          className="neumorphic-button-primary"
+          {...(primaryAction.onClick ? { onClick: primaryAction.onClick } : {})}
+          disabled={!primaryAction.onClick && !primaryAction.href}
+        >
           {primaryAction.href ? (
             <a href={primaryAction.href} className="px-4 py-2">
               {primaryAction.text}
             </a>
           ) : (
-            <button onClick={primaryAction.onClick} className="px-4 py-2">
+            <span className="px-4 py-2">
               {primaryAction.text}
-            </button>
+            </span>
           )}
         </MagneticButton>
       )

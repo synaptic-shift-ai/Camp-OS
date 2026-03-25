@@ -45,7 +45,7 @@ export function DepartureCheckOutButton({ reservationId, checkOutTime }: Departu
             variant="destructive" 
             onClick={handleClick} 
             disabled={isLoading}
-            className="flex-shrink-0 ml-3"
+            className="w-full justify-center sm:w-auto"
         >
             {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogOut className="h-3 w-3" />}
             Check Out

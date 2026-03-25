@@ -336,7 +336,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   }, [siteTypeConfig?.allowed_site_types])
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -345,11 +345,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
       {/* Basic Information */}
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle>Basic Information</CardTitle>
           <CardDescription>Site identification and capacity</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 px-4 pb-4 pt-0 sm:space-y-4 sm:px-6 sm:pb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="site_number">Site Number *</Label>
@@ -458,14 +458,14 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
       {/* Site Images */}
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle className="flex items-center gap-2">
             <ImageIcon className="h-4 w-4" />
             Site images
           </CardTitle>
           <CardDescription>Upload up to {MAX_SITE_IMAGES} images for this site. Optional.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 px-4 pb-4 pt-0 sm:space-y-4 sm:px-6 sm:pb-6">
           <Dropzone
             {...siteImagesUpload}
             uploadedCount={siteImageUrls.length}
@@ -523,11 +523,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
       {/* Pricing & Reservation Types */}
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle>Pricing & Reservation Types</CardTitle>
           <CardDescription>Configure pricing and available reservation types for this site</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:space-y-6 sm:px-6 sm:pb-6">
           <div className="space-y-2">
             <Label htmlFor="pricing_source" className="font-medium">Pricing source</Label>
             <Select
@@ -698,11 +698,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
       {/* Hookups */}
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle>Hookups</CardTitle>
           <CardDescription>Available utility connections</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex items-center space-x-2">
               <Checkbox id="hookup_water" checked={hookups.water} onCheckedChange={(c) => setValue("hookups.water", c as boolean)} />
@@ -722,11 +722,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
       {/* Amenities */}
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle>Amenities</CardTitle>
           <CardDescription>Site-specific features</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { id: "amenity_fire_pit", field: "amenities.fire_pit" as const, label: "Fire Pit", value: amenities.fire_pit },
@@ -748,11 +748,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
       {/* Pets & Accessibility */}
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle>Pets & Accessibility</CardTitle>
           <CardDescription>Pet policies and ADA accessibility features</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:space-y-6 sm:px-6 sm:pb-6">
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Checkbox id="allow_pets" checked={allowPets} onCheckedChange={(c) => setValue("allow_pets", c as boolean)} />
@@ -854,12 +854,12 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
         </Alert>
       )}
 
-      <div className="flex gap-2">
-        <Button type="submit" disabled={saving}>
-          {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />{isEditMode ? "Update Site" : "Add Site"}</>}
-        </Button>
+      <div className="flex gap-2 items-center justify-end">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           <X className="mr-2 h-4 w-4" />Cancel
+        </Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />{isEditMode ? "Update Site" : "Add Site"}</>}
         </Button>
       </div>
     </form>

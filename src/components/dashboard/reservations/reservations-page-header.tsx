@@ -137,23 +137,23 @@ export function ReservationsPageHeader({
   }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-3xl font-heading font-bold tracking-tight">
+        <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">
           Reservations
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground sm:text-base">
           Manage all your property bookings
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 self-end sm:self-auto">
         <ExportMenu
           onExport={handleExport}
           disabled={isExporting || !total}
           aria-label="Export reservations"
         />
         <Link href={`/dashboard/${propertyId}/reservations/new`}>
-          <Button className="gap-2">
+          <Button className="gap-2" size="sm">
             <Plus className="h-4 w-4" />
             New Reservation
           </Button>

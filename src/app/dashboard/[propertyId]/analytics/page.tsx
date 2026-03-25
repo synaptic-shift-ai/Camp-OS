@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TabsContent } from "@/components/ui/tabs"
+import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tabs"
 import { DollarSign, TrendingUp, Users, Calendar } from "lucide-react"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { redirect } from "next/navigation"
@@ -18,6 +19,13 @@ import type { MoneyCents } from "@/contracts/booking"
 import { RevenueChart } from "@/components/analytics/revenue-chart"
 import { DateRangeFilter } from "@/components/analytics/date-range-filter"
 import { getStartDate, type DateRange } from "@/lib/analytics/date-utils"
+
+const ANALYTICS_TAB_ITEMS: OverflowTabItem[] = [
+  { value: "overview", label: "Overview" },
+  { value: "revenue", label: "Revenue" },
+  { value: "occupancy", label: "Occupancy" },
+  { value: "guests", label: "Guests", disabled: true },
+]
 
 /**
  * Format money from integer cents to dollar display
@@ -40,54 +48,56 @@ async function AnalyticsOverview({ propertyId }: { propertyId: string }) {
 
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="min-w-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs font-medium sm:text-sm">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatMoney(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg font-bold tabular-nums sm:text-2xl">
+              {formatMoney(stats.totalRevenue)}
+            </div>
+            <p className="text-[11px] text-muted-foreground sm:text-xs">
               Total paid amount from all bookings
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bookings</CardTitle>
+        <Card className="min-w-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs font-medium sm:text-sm">Bookings</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReservations}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg font-bold tabular-nums sm:text-2xl">{stats.totalReservations}</div>
+            <p className="text-[11px] text-muted-foreground sm:text-xs">
               Total active reservations
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Occupancy</CardTitle>
+        <Card className="min-w-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs font-medium sm:text-sm">Avg Occupancy</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.occupancyRate}%</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg font-bold tabular-nums sm:text-2xl">{stats.occupancyRate}%</div>
+            <p className="text-[11px] text-muted-foreground sm:text-xs">
               Last 30 days occupancy rate
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Guests</CardTitle>
+        <Card className="min-w-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs font-medium sm:text-sm">Total Guests</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalGuests}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg font-bold tabular-nums sm:text-2xl">{stats.totalGuests}</div>
+            <p className="text-[11px] text-muted-foreground sm:text-xs">
               Active guests (adults + children)
             </p>
           </CardContent>
@@ -430,22 +440,19 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground">Track your property performance and insights</p>
+          <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Analytics</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Track your property performance and insights
+          </p>
         </div>
-        <DateRangeFilter />
+        <div className="flex shrink-0 self-end sm:self-auto">
+          <DateRangeFilter />
+        </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="occupancy">Occupancy</TabsTrigger>
-          <TabsTrigger value="guests" disabled>Guests</TabsTrigger>
-        </TabsList>
-
+      <OverflowTabs defaultValue="overview" className="space-y-4" items={ANALYTICS_TAB_ITEMS}>
         <TabsContent value="overview" className="space-y-4">
           <Suspense
             fallback={
@@ -481,7 +488,7 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps)
             <OccupancyTab propertyId={propertyId} />
           </Suspense>
         </TabsContent>
-      </Tabs>
+      </OverflowTabs>
     </div>
   )
 }

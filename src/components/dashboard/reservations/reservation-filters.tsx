@@ -84,6 +84,7 @@ export function ReservationFilters({
   const currentSortOrder = searchParams.get('sortOrder') ?? 'desc'
 
   // Draft values for the mobile dialog (apply only on Save)
+  const [draftSearchBy, setDraftSearchBy] = useState(currentSearchBy)
   const [draftSiteType, setDraftSiteType] = useState(currentSiteType)
   const [draftStatus, setDraftStatus] = useState(currentStatus)
   const [draftSortBy, setDraftSortBy] = useState(currentSortBy)
@@ -91,11 +92,12 @@ export function ReservationFilters({
 
   useEffect(() => {
     if (!mobileFiltersOpen) return
+    setDraftSearchBy(currentSearchBy)
     setDraftSiteType(currentSiteType)
     setDraftStatus(currentStatus)
     setDraftSortBy(currentSortBy)
     setDraftSortOrder(currentSortOrder)
-  }, [mobileFiltersOpen, currentSiteType, currentStatus, currentSortBy, currentSortOrder])
+  }, [mobileFiltersOpen, currentSearchBy, currentSiteType, currentStatus, currentSortBy, currentSortOrder])
   const searchPlaceholder =
     currentSearchBy === 'confirmation'
       ? 'Search confirmation...'
@@ -141,6 +143,7 @@ export function ReservationFilters({
 
   const applyDraftFilters = () => {
     updateParams({
+      searchBy: draftSearchBy === 'guest' ? null : draftSearchBy,
       siteType: draftSiteType === 'all' ? null : draftSiteType,
       status: draftStatus === 'all' ? null : draftStatus,
       sortBy: draftSortBy,
@@ -149,35 +152,62 @@ export function ReservationFilters({
   }
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-2 2xl:flex-row 2xl:items-end 2xl:gap-2">
+    <div className="flex flex-col gap-2 border border-border/80 bg-card/50 p-2 sm:flex-row sm:items-end sm:gap-2 2xl:flex-row 2xl:items-end 2xl:gap-2">
       <div className="grid grid-cols-1 gap-2 sm:flex-1 sm:grid-cols-[140px_minmax(0,1fr)] 2xl:flex-1 2xl:w-full 2xl:grid-cols-[140px_minmax(0,1fr)]">
-        <div className="space-y-0.5">
+        <div className="hidden space-y-0.5 sm:block">
           <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Search Type
           </label>
+          <Select
+            value={currentSearchBy}
+            onValueChange={(value) => updateParams({ searchBy: value === 'guest' ? null : value })}
+            disabled={isPending}
+          >
+            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+              <SelectValue placeholder="Primary Guest" />
+            </SelectTrigger>
+            <SelectContent className="max-h-64">
+              {searchByOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-0.5">
+          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Search
+          </label>
           <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <Select
-                value={currentSearchBy}
-                onValueChange={(value) => updateParams({ searchBy: value === 'guest' ? null : value })}
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                defaultValue={currentSearch}
+                placeholder={searchPlaceholder}
+                className="h-9 rounded-none bg-card/50 pl-8 text-sm"
                 disabled={isPending}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder="Primary Guest" />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {searchByOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return
+                  const value = (event.currentTarget as HTMLInputElement).value.trim()
+                  updateParams({ search: value.length > 0 ? value : null })
+                }}
+                onBlur={(event) => {
+                  const value = event.currentTarget.value.trim()
+                  if (value === currentSearch) return
+                  updateParams({ search: value.length > 0 ? value : null })
+                }}
+              />
+              {isPending && (
+                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              )}
             </div>
             <div className="sm:hidden">
               <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                 <DialogTrigger asChild>
-                  <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={isPending}>
+                  <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-none bg-card/50" disabled={isPending}>
                     <SlidersHorizontal className="h-4 w-4" />
                     <span className="sr-only">Open filters</span>
                   </Button>
@@ -185,9 +215,30 @@ export function ReservationFilters({
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Reservation Filters</DialogTitle>
-                    <DialogDescription>Site, status, sort, and order controls.</DialogDescription>
+                    <DialogDescription>Search type, site, status, sort, and order controls.</DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 space-y-3">
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Search Type
+                      </label>
+                      <Select
+                        value={draftSearchBy}
+                        onValueChange={(value) => setDraftSearchBy(value)}
+                        disabled={isPending}
+                      >
+                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                          <SelectValue placeholder="Primary Guest" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64">
+                          {searchByOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         Site
@@ -197,7 +248,7 @@ export function ReservationFilters({
                         onValueChange={(value) => setDraftSiteType(value)}
                         disabled={isPending}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                           <SelectValue placeholder="All site types" />
                         </SelectTrigger>
                         <SelectContent className="max-h-64">
@@ -210,7 +261,6 @@ export function ReservationFilters({
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         Status
@@ -220,7 +270,7 @@ export function ReservationFilters({
                         onValueChange={(value) => setDraftStatus(value)}
                         disabled={isPending}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                           <SelectValue placeholder="All statuses" />
                         </SelectTrigger>
                         <SelectContent className="max-h-64">
@@ -233,7 +283,6 @@ export function ReservationFilters({
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         Sort By
@@ -243,7 +292,7 @@ export function ReservationFilters({
                         onValueChange={(value) => setDraftSortBy(value)}
                         disabled={isPending}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                           <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent className="max-h-64">
@@ -255,7 +304,6 @@ export function ReservationFilters({
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-0.5">
                       <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         Order by
@@ -265,7 +313,7 @@ export function ReservationFilters({
                         onValueChange={(value) => setDraftSortOrder(value)}
                         disabled={isPending}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                           <SelectValue placeholder="Order" />
                         </SelectTrigger>
                         <SelectContent className="max-h-64">
@@ -300,41 +348,12 @@ export function ReservationFilters({
             </div>
           </div>
         </div>
-        <div className="space-y-0.5">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Search
-          </label>
-          <div className="relative min-w-0">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              defaultValue={currentSearch}
-              placeholder={searchPlaceholder}
-              className="h-9 pl-8 text-sm"
-              disabled={isPending}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') return
-                const value = (event.currentTarget as HTMLInputElement).value.trim()
-                updateParams({ search: value.length > 0 ? value : null })
-              }}
-              onBlur={(event) => {
-                const value = event.currentTarget.value.trim()
-                if (value === currentSearch) return
-                updateParams({ search: value.length > 0 ? value : null })
-              }}
-            />
-            {isPending && (
-              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       <div className="hidden sm:block 2xl:hidden">
         <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={isPending}>
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-none bg-card/50" disabled={isPending}>
               <SlidersHorizontal className="h-4 w-4" />
               <span className="sr-only">Open filters</span>
             </Button>
@@ -342,9 +361,30 @@ export function ReservationFilters({
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Reservation Filters</DialogTitle>
-              <DialogDescription>Site, status, sort, and order controls.</DialogDescription>
+              <DialogDescription>Search type, site, status, sort, and order controls.</DialogDescription>
             </DialogHeader>
             <div className="mt-4 space-y-3">
+              <div className="space-y-0.5">
+                <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Search Type
+                </label>
+                <Select
+                  value={draftSearchBy}
+                  onValueChange={(value) => setDraftSearchBy(value)}
+                  disabled={isPending}
+                >
+                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                    <SelectValue placeholder="Primary Guest" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {searchByOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-0.5">
                 <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Site
@@ -354,7 +394,7 @@ export function ReservationFilters({
                   onValueChange={(value) => setDraftSiteType(value)}
                   disabled={isPending}
                 >
-                  <SelectTrigger className="h-9 w-full">
+                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                     <SelectValue placeholder="All site types" />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
@@ -377,7 +417,7 @@ export function ReservationFilters({
                   onValueChange={(value) => setDraftStatus(value)}
                   disabled={isPending}
                 >
-                  <SelectTrigger className="h-9 w-full">
+                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
@@ -400,7 +440,7 @@ export function ReservationFilters({
                   onValueChange={(value) => setDraftSortBy(value)}
                   disabled={isPending}
                 >
-                  <SelectTrigger className="h-9 w-full">
+                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
@@ -422,7 +462,7 @@ export function ReservationFilters({
                   onValueChange={(value) => setDraftSortOrder(value)}
                   disabled={isPending}
                 >
-                  <SelectTrigger className="h-9 w-full">
+                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
                     <SelectValue placeholder="Order" />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
@@ -464,7 +504,7 @@ export function ReservationFilters({
             onValueChange={(value) => updateParams({ siteType: value === 'all' ? null : value })}
             disabled={isPending}
           >
-            <SelectTrigger className="h-9 w-full">
+            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
               <SelectValue placeholder="All site types" />
             </SelectTrigger>
             <SelectContent className="max-h-64">
@@ -487,7 +527,7 @@ export function ReservationFilters({
             onValueChange={(value) => updateParams({ status: value === 'all' ? null : value })}
             disabled={isPending}
           >
-            <SelectTrigger className="h-9 w-full">
+            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent className="max-h-64">
@@ -510,7 +550,7 @@ export function ReservationFilters({
             onValueChange={(value) => updateParams({ sortBy: value })}
             disabled={isPending}
           >
-            <SelectTrigger className="h-9 w-full">
+            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent className="max-h-64">
@@ -532,7 +572,7 @@ export function ReservationFilters({
             onValueChange={(value) => updateParams({ sortOrder: value })}
             disabled={isPending}
           >
-            <SelectTrigger className="h-9 w-full">
+            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
               <SelectValue placeholder="Order" />
             </SelectTrigger>
             <SelectContent className="max-h-64">

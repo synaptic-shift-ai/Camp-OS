@@ -35,7 +35,7 @@ export function PageSizeSelector({
         }}
         disabled={disabled}
       >
-        <SelectTrigger className="h-8 w-[70px] px-2 text-xs">
+        <SelectTrigger className="h-8 w-[70px] rounded-sm bg-card/50 px-2 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

@@ -119,22 +119,85 @@ export function GuestsTable({
       <div className="relative">
         {(isPending || isExternalLoading) && (
           <div
-            className="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-background/60"
+            className="absolute inset-0 z-20 flex items-center justify-center bg-background/60"
             aria-busy="true"
             aria-label="Loading guests"
           >
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
-        <div className="border rounded-md">
+        <div className="space-y-2 md:hidden">
+          {guests.map((guest) => (
+            <div
+              key={guest.id}
+              className="rounded-md border border-border/80 bg-card/50 p-3"
+              onClick={() => handleViewReservations(guest)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-xs bg-slate-200 text-slate-600 font-medium uppercase">
+                        {getInitials(guest.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="truncate text-sm font-semibold capitalize">{guest.name}</p>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{guest.email}</span>
+                    </div>
+                    {guest.phone && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Phone className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{guest.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div onClick={(event) => event.stopPropagation()}>
+                  <GuestActions
+                    guest={guest}
+                    propertyId={propertyId}
+                    onViewReservations={handleViewReservations}
+                  />
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/70 pt-2 text-xs">
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Stays</p>
+                  <p className="mt-0.5 font-semibold">{guest.totalStays}</p>
+                </div>
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Spent</p>
+                  <p className="mt-0.5 font-semibold">{formatMoney(guest.totalSpent)}</p>
+                </div>
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Last Visit</p>
+                  <p className="mt-0.5 font-semibold">
+                    {guest.lastVisit
+                      ? new Date(guest.lastVisit).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden border border-border/80 bg-card/50 md:block">
           <Table className="text-xs">
-            <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow className="h-8">
-                <TableHead className="py-1.5">Primary Guest</TableHead>
-                <TableHead className="py-1.5">Contact</TableHead>
-                <TableHead className="py-1.5">Total Stays</TableHead>
-                <TableHead className="py-1.5">Total Spent</TableHead>
-                <TableHead className="py-1.5">Last Visit</TableHead>
+            <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
+              <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
+                <TableHead className="py-1.5 font-medium text-white/90">Primary Guest</TableHead>
+                <TableHead className="py-1.5 font-medium text-white/90">Contact</TableHead>
+                <TableHead className="py-1.5 font-medium text-white/90">Total Stays</TableHead>
+                <TableHead className="py-1.5 font-medium text-white/90">Total Spent</TableHead>
+                <TableHead className="py-1.5 font-medium text-white/90">Last Visit</TableHead>
                 <TableHead className="w-[50px] py-1.5" />
               </TableRow>
             </TableHeader>
@@ -197,7 +260,7 @@ export function GuestsTable({
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
           <div>
             Showing{" "}
             <span className="font-medium">
@@ -211,13 +274,15 @@ export function GuestsTable({
             disabled={isPending}
           />
         </div>
-        <Pagination
-          currentPage={clampedCurrentPage}
-          totalPages={totalPages}
-          onPageChange={goToPage}
-          disabled={isPending}
-          windowSize={2}
-        />
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination
+            currentPage={clampedCurrentPage}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            disabled={isPending}
+            windowSize={2}
+          />
+        </div>
       </div>
 
       {selectedGuest && (

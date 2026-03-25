@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { CalendarDays, Moon, Users } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -259,29 +260,153 @@ export function ReservationsTable({
       <div className="relative">
         {(isPending || isExternalLoading) && (
           <div
-            className="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-background/60"
+            className="absolute inset-0 z-20 flex items-center justify-center bg-background/60"
             aria-busy="true"
             aria-label="Loading reservations"
           >
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
-        <div className="border rounded-md">
+        <div className="space-y-2 md:hidden">
+          {reservations.map((reservation) => {
+            const amountDueCents = Math.max(
+              0,
+              reservation.totalAmount - reservation.paidAmount
+            )
+            const hasOutstandingBalance = amountDueCents > 0
+
+            const canRefund =
+              reservation.status === "cancelled" &&
+              reservation.paidAmount > 0 &&
+              reservation.refundAmount < reservation.paidAmount
+
+            const maxRefundableCents = Math.max(
+              0,
+              reservation.paidAmount - reservation.refundAmount
+            )
+
+            return (
+              <div
+                key={reservation.id}
+                className="rounded-md border border-border/80 bg-card/50 p-3"
+                onClick={() => setSelectedReservation(reservation)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold capitalize leading-tight">
+                      {reservation.guestName}
+                    </p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{reservation.siteName}</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="text-right">
+                      <p className="text-2xl font-semibold leading-none">
+                        {formatMoney(reservation.totalAmount)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Paid {formatMoney(reservation.paidAmount)}
+                      </p>
+                    </div>
+                    <div
+                      className="-mt-0.5"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                      }}
+                    >
+                      <ReservationActions
+                        reservationId={reservation.id}
+                        confirmationNumber={reservation.confirmationNumber}
+                        guestName={reservation.guestName}
+                        status={reservation.status}
+                        checkIn={reservation.checkIn}
+                        checkOut={reservation.checkOut}
+                        numAdults={reservation.numAdults}
+                        numChildren={reservation.numChildren}
+                        numPets={reservation.numPets}
+                        specialRequests={reservation.specialRequests}
+                        siteNumber={reservation.siteNumber}
+                        siteName={reservation.siteName}
+                        pricePerNight={reservation.pricePerNight}
+                        weeklyRateCents={reservation.weeklyRateCents ?? null}
+                        monthlyRateCents={reservation.monthlyRateCents ?? null}
+                        bookingType={reservation.bookingType}
+                        totalAmount={reservation.totalAmount}
+                        paidAmount={reservation.paidAmount}
+                        hasOutstandingBalance={hasOutstandingBalance}
+                        canRefund={canRefund}
+                        maxRefundableCents={maxRefundableCents}
+                        rateDiscountsConfig={rateDiscountsConfig}
+                        blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                        allowedCheckInDays={bookingRulesConfig?.allowed_checkin_days ?? []}
+                        allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
+                        checkInTime={checkInTime}
+                        checkOutTime={checkOutTime}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {reservation.confirmationNumber}
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Moon className="h-3.5 w-3.5" />
+                    {reservation.numNights} {reservation.numNights === 1 ? "Night" : "Nights"}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {reservation.numAdults + reservation.numChildren}{" "}
+                    {reservation.numAdults + reservation.numChildren === 1 ? "Guest" : "Guests"}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-start gap-4 border-t border-border/70 pt-2 text-xs">
+                  <div>
+                    <p className="uppercase tracking-wide text-muted-foreground">Status</p>
+                    <p
+                      className={`${statusTextColors[reservation.status]} mt-0.5 whitespace-nowrap font-semibold uppercase`}
+                    >
+                      {reservation.status.replace("_", " ")}
+                    </p>
+                  </div>
+                  {amountDueCents > 0 && (
+                    <div>
+                      <p className="uppercase tracking-wide text-muted-foreground">Balance Owed</p>
+                      <p className="mt-0.5 font-semibold">{formatMoney(amountDueCents)}</p>
+                    </div>
+                  )}
+                  {reservation.refundAmount > 0 && (
+                    <div>
+                      <p className="uppercase tracking-wide text-muted-foreground">Refunded</p>
+                      <p className="mt-0.5 font-semibold">{formatMoney(reservation.refundAmount)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="hidden border border-border/80 bg-card/50 md:block">
           <Table className="text-xs">
-            <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow className="h-8">
-                <TableHead className="py-1.5">Confirmation</TableHead>
-                <TableHead className="py-1.5">Primary Guest</TableHead>
-                <TableHead className="py-1.5">Site</TableHead>
-                <TableHead className="py-1.5">Check-in</TableHead>
-                <TableHead className="py-1.5">Check-out</TableHead>
-                <TableHead className="py-1.5">Nights</TableHead>
-                <TableHead className="py-1.5">Total Guests</TableHead>
-                <TableHead className="py-1.5">Total Amount</TableHead>
-                <TableHead className="py-1.5">Paid Amount</TableHead>
-                <TableHead className="py-1.5">Balance Owed</TableHead>
-                <TableHead className="py-1.5">Refunded Amount</TableHead>
-                <TableHead className="py-1.5">Status</TableHead>
+            <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
+              <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Confirmation</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Primary Guest</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Site</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Check-in</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Check-out</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Nights</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Total Guests</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Total Amount</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Paid Amount</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Balance Owed</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Refunded Amount</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Status</TableHead>
                 <TableHead className="w-10 py-1.5" />
               </TableRow>
             </TableHeader>
@@ -396,7 +521,7 @@ export function ReservationsTable({
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
           <div>
             Showing{" "}
             <span className="font-medium">
@@ -410,13 +535,15 @@ export function ReservationsTable({
             disabled={isPending}
           />
         </div>
-        <Pagination
-          currentPage={clampedCurrentPage}
-          totalPages={totalPages}
-          onPageChange={goToPage}
-          disabled={isPending}
-          windowSize={2}
-        />
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination
+            currentPage={clampedCurrentPage}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            disabled={isPending}
+            windowSize={2}
+          />
+        </div>
       </div>
 
       <Dialog

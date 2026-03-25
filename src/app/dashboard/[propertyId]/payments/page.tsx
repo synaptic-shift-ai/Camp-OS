@@ -18,8 +18,8 @@ async function PaymentStats({ propertyId }: { propertyId: string }) {
   const stats = await getDashboardStats(propertyId)
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <Card>
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <Card className="col-span-2 md:col-span-1">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -75,7 +75,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   const { data: payments, total } = await getPayments(propertyId, {}, currentPage, pageSize)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <PaymentsPageHeader
         propertyId={propertyId}
         payments={payments}
@@ -85,9 +85,9 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
 
       <Suspense
         fallback={
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             {[...Array(3)].map((_, i) => (
-              <Card key={i}>
+              <Card key={i} className={i === 0 ? "col-span-2 md:col-span-1" : ""}>
                 <CardHeader>
                   <CardTitle className="text-sm">Loading...</CardTitle>
                 </CardHeader>
@@ -102,21 +102,13 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
         <PaymentStats propertyId={propertyId} />
       </Suspense>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>View all payment transactions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PaymentsTable
-            propertyId={propertyId}
-            payments={payments}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            total={total}
-          />
-        </CardContent>
-      </Card>
+      <PaymentsTable
+        propertyId={propertyId}
+        payments={payments}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        total={total}
+      />
     </div>
   )
 }

@@ -45,14 +45,14 @@ export function SitesPageHeader({ propertyId, sites }: SitesPageHeaderProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Sites</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Sites</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
             Manage your property sites and units
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <ExportMenu
             onExport={handleExport}
             disabled={!sites.length}
@@ -61,6 +61,7 @@ export function SitesPageHeader({ propertyId, sites }: SitesPageHeaderProps) {
           <Button
             variant="outline"
             className="gap-2"
+            size="sm"
             onClick={() => setIsImportDialogOpen(true)}
             disabled={!propertyId}
           >
@@ -69,6 +70,7 @@ export function SitesPageHeader({ propertyId, sites }: SitesPageHeaderProps) {
           </Button>
           <Button
             className="gap-2"
+            size="sm"
             onClick={() => setIsAddDialogOpen(true)}
             disabled={!propertyId}
           >

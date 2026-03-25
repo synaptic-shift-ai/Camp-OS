@@ -84,8 +84,8 @@ export function VehicleInfoStep({
 
   return (
     <Card className={cn('', className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
           <Car className="h-5 w-5" />
           Vehicle Information
           {vehicleCount > 0 && (
@@ -95,18 +95,19 @@ export function VehicleInfoStep({
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:space-y-6 sm:px-6 sm:pb-6">
         {fields.length === 0 ? (
           <div className="text-center py-8 border rounded-lg bg-muted/30">
             <Car className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
             <p className="text-sm text-muted-foreground mb-4">
               No vehicles added yet. Add vehicle information for the guest.
             </p>
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-col justify-center gap-2 px-2 sm:flex-row sm:gap-3 sm:px-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => addVehicle('personal')}
+                className="w-full sm:w-auto"
               >
                 <Car className="h-4 w-4 mr-2" />
                 Add Personal Vehicle
@@ -116,6 +117,7 @@ export function VehicleInfoStep({
                   type="button"
                   variant="outline"
                   onClick={() => addVehicle('rv')}
+                  className="w-full sm:w-auto"
                 >
                   <Caravan className="h-4 w-4 mr-2" />
                   Add RV/Camper
@@ -408,12 +410,13 @@ export function VehicleInfoStep({
 
             {/* Add More Buttons */}
             {fields.length < maxVehicles && (
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-2 px-2 sm:flex-row sm:flex-wrap sm:gap-3 sm:px-0">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => addVehicle('personal')}
+                  className="w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Personal Vehicle
@@ -424,6 +427,7 @@ export function VehicleInfoStep({
                     variant="outline"
                     size="sm"
                     onClick={() => addVehicle('rv')}
+                    className="w-full sm:w-auto"
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Add RV/Camper
@@ -434,6 +438,7 @@ export function VehicleInfoStep({
                   variant="outline"
                   size="sm"
                   onClick={() => addVehicle('tow_vehicle')}
+                  className="w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Tow Vehicle

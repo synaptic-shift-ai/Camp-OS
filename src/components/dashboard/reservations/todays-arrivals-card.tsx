@@ -82,7 +82,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-600" />
-            Today's Arrivals
+            <span className="text-xl font-semibold sm:text-2xl">Today&apos;s Arrivals</span>
           </CardTitle>
           <CardDescription>Guests checking in today</CardDescription>
         </CardHeader>
@@ -121,20 +121,20 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <CardTitle className="flex items-center gap-2 text-xl font-semibold sm:text-2xl">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 Arrivals
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 {lateArrivals.length > 0 && (
                   <span className="text-red-600">{lateArrivals.length} late • </span>
                 )}
                 {todaysPendingCheckIns.length} today
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {lateArrivals.length > 0 && (
                 <Badge variant="destructive">
                   {lateArrivals.length} late
@@ -159,11 +159,11 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
               return (
                 <div
                   key={reservation.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-red-200 bg-red-50/30"
+                  className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/60 dark:bg-red-950/25"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 dark:text-red-400" />
                       <p className="font-medium truncate capitalize">
                         {reservation.guest?.first_name} {reservation.guest?.last_name}
                       </p>
@@ -171,22 +171,22 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                         Late
                       </Badge>
                       {hasBalance && (
-                        <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                        <Badge variant="outline" className="border-yellow-200 bg-yellow-50 text-xs text-yellow-700 dark:border-yellow-900/60 dark:bg-yellow-950/25 dark:text-yellow-300">
                           Balance Due
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Home className="h-3 w-3" />
                         Site {reservation.site?.site_number}
                       </span>
-                      <span className="text-red-600 text-xs">
+                      <span className="text-xs text-red-600 dark:text-red-400">
                         Expected: {checkInDate}
                       </span>
                     </div>
                     {hasBalance && (
-                      <p className="text-xs text-red-600 mt-1">
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                         ${(outstandingBalance / 100).toFixed(2)} balance due
                       </p>
                     )}
@@ -196,7 +196,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                     variant="destructive"
                     onClick={() => handleCheckIn(reservation)}
                     disabled={loadingReservationId === reservation.id}
-                    className="flex-shrink-0 ml-3"
+                    className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Check In
@@ -213,24 +213,26 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
               return (
                 <div
                   key={reservation.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-orange-200 bg-orange-50/30"
+                  className="flex flex-col gap-3 rounded-lg border border-orange-200 bg-orange-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-orange-900/60 dark:bg-orange-950/25"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <Clock className="h-4 w-4 text-orange-600 flex-shrink-0 dark:text-orange-400" />
                       <p className="font-medium truncate capitalize">
                         {reservation.guest?.first_name} {reservation.guest?.last_name}
                       </p>
                       {hasBalance && (
-                        <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                        <Badge variant="outline" className="border-yellow-200 bg-yellow-50 text-xs text-yellow-700 dark:border-yellow-900/60 dark:bg-yellow-950/25 dark:text-yellow-300">
                           Balance Due
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                      <span className="flex min-w-0 items-center gap-1">
                         <Home className="h-3 w-3" />
-                        {reservation.site?.site_name || `Site ${reservation.site?.site_number}`} • {formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)} • {getNights(reservation.check_in_date, reservation.check_out_date)} {getNights(reservation.check_in_date, reservation.check_out_date) === 1 ? 'night' : 'nights'}
+                        <span className="break-words">
+                          {reservation.site?.site_name || `Site ${reservation.site?.site_number}`} • {formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)} • {getNights(reservation.check_in_date, reservation.check_out_date)} {getNights(reservation.check_in_date, reservation.check_out_date) === 1 ? 'night' : 'nights'}
+                        </span>
                       </span>
                       <span className="flex items-center gap-1">
                         <User className="h-3 w-3" />
@@ -238,7 +240,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                       </span>
                     </div>
                     {hasBalance && (
-                      <p className="text-xs text-orange-600 mt-1">
+                      <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
                         ${(outstandingBalance / 100).toFixed(2)} balance due at check-in
                       </p>
                     )}
@@ -247,7 +249,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                     size="sm"
                     onClick={() => handleCheckIn(reservation)}
                     disabled={loadingReservationId === reservation.id}
-                    className="flex-shrink-0 ml-3"
+                    className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Check In
@@ -260,28 +262,28 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
             {completedCheckIns.map((reservation) => (
               <div
                 key={reservation.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-green-200 bg-green-50/30"
+                className="flex flex-col gap-3 rounded-lg border border-green-200 bg-green-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-green-900/60 dark:bg-green-950/25"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 dark:text-green-400" />
                     <p className="font-medium truncate capitalize">
                       {reservation.guest?.first_name} {reservation.guest?.last_name}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Home className="h-3 w-3" />
                       Site {reservation.site?.site_number}
                     </span>
                     {reservation.checked_in_at && (
-                      <span className="text-green-600 text-xs" suppressHydrationWarning>
+                      <span className="text-xs text-green-600 dark:text-green-400" suppressHydrationWarning>
                         Checked in at {formatTime(reservation.checked_in_at)}
                       </span>
                     )}
                   </div>
                 </div>
-                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                <Badge variant="outline" className="w-fit border-green-200 bg-green-100 text-green-700 dark:border-green-900/60 dark:bg-green-950/35 dark:text-green-300">
                   Checked In
                 </Badge>
               </div>

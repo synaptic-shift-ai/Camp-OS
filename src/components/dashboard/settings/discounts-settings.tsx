@@ -320,16 +320,16 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
       {/* User-Defined Discounts */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Discounts</CardTitle>
-              <CardDescription>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0 space-y-1.5">
+              <CardTitle className="text-xl sm:text-2xl">Discounts</CardTitle>
+              <CardDescription className="text-pretty">
                 Configure discounts that can be applied automatically or manually to reservations
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={openAddDialog}>
+                <Button onClick={openAddDialog} className="w-full shrink-0 sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Discount
                 </Button>
@@ -482,7 +482,7 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                   )}
 
                   {watchTriggerType === 'date_range' && (
-                    <div className="grid gap-4 grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="start_date">Start Date</Label>
                         <Input
@@ -547,42 +547,55 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
               {discounts.map((discount) => (
                 <div
                   key={discount.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${
+                  className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4 ${
                     discount.enabled ? 'bg-card' : 'bg-muted/50 opacity-60'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+                    <GripVertical
+                      className="mt-0.5 h-4 w-4 shrink-0 cursor-grab text-muted-foreground sm:mt-0"
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="font-medium">{discount.title}</span>
                         {getTriggerBadge(discount)}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="mt-0.5 break-words text-sm text-muted-foreground">
                         {getDiscountTypeLabel(discount.discount_type)} · {formatDiscountValue(discount)} off
                         {discount.max_discount_cents && ` (max $${(discount.max_discount_cents / 100).toFixed(2)})`}
                       </div>
                       {discount.description && (
-                        <div className="text-xs text-muted-foreground mt-1">{discount.description}</div>
+                        <div className="mt-1 break-words text-xs text-muted-foreground">
+                          {discount.description}
+                        </div>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center justify-end gap-1 border-t border-border/60 pt-3 sm:gap-2 sm:border-0 sm:pt-0">
                     <Switch
                       checked={discount.enabled}
                       onCheckedChange={() => toggleDiscountEnabled(discount.id)}
+                      className="shrink-0"
+                      aria-label={discount.enabled ? `Disable ${discount.title}` : `Enable ${discount.title}`}
                     />
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
+                      className="h-10 w-10 shrink-0 touch-manipulation"
                       onClick={() => openEditDialog(discount)}
+                      aria-label={`Edit ${discount.title}`}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
+                      className="h-10 w-10 shrink-0 touch-manipulation"
                       onClick={() => deleteDiscount(discount.id)}
+                      aria-label={`Delete ${discount.title}`}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -595,15 +608,15 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
       </Card>
 
       {/* Save Button and Messages */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 sm:max-w-xl">
           {saveMessage && (
             <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
               <AlertDescription>{saveMessage.text}</AlertDescription>
             </Alert>
           )}
         </div>
-        <Button onClick={handleSave} disabled={isSaving}>
+        <Button onClick={handleSave} disabled={isSaving} className="w-full shrink-0 sm:w-auto">
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Discounts'}
         </Button>

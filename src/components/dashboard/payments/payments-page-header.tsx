@@ -89,20 +89,22 @@ export function PaymentsPageHeader({ propertyId, total }: PaymentsPageHeaderProp
   }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-3xl font-heading font-bold tracking-tight">
+        <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">
           Payments
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground sm:text-base">
           Track and manage all transactions
         </p>
       </div>
-      <ExportMenu
-        onExport={handleExport}
-        disabled={isExporting || total <= 0}
-        aria-label="Export payments"
-      />
+      <div className="self-end sm:self-auto">
+        <ExportMenu
+          onExport={handleExport}
+          disabled={isExporting || total <= 0}
+          aria-label="Export payments"
+        />
+      </div>
     </div>
   )
 }

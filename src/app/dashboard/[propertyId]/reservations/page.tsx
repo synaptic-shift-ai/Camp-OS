@@ -1,4 +1,3 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getReservations, getDistinctSiteTypes } from "@/lib/dashboard/queries"
 import type { ReservationFilters } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
@@ -98,7 +97,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   const { data: reservations, total } = await getReservations(propertyId, filters, currentPage, pageSize)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ReservationsPageHeader
         propertyId={propertyId}
         reservations={reservations}
@@ -107,38 +106,30 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
         siteType={siteTypeFilter ?? null}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Reservations</CardTitle>
-          <CardDescription>View and manage your property reservations</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <ReservationFiltersBar
-              propertyId={propertyId}
-              allowedSiteTypes={allowedSiteTypes ?? null}
-              siteTypesFromDb={siteTypesFromDb}
-            />
-            <ReservationsTable
-              propertyId={propertyId}
-              reservations={reservations}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              total={total}
-              siteType={siteTypeFilter ?? null}
-              status={statusFilter ?? null}
-              searchQuery={typeof searchParam === 'string' ? searchParam : null}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              searchField={searchField}
-              rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
-              bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
-              checkInTime={property.check_in_time}
-              checkOutTime={property.check_out_time}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <ReservationFiltersBar
+          propertyId={propertyId}
+          allowedSiteTypes={allowedSiteTypes ?? null}
+          siteTypesFromDb={siteTypesFromDb}
+        />
+        <ReservationsTable
+          propertyId={propertyId}
+          reservations={reservations}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          total={total}
+          siteType={siteTypeFilter ?? null}
+          status={statusFilter ?? null}
+          searchQuery={typeof searchParam === 'string' ? searchParam : null}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          searchField={searchField}
+          rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
+          bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
+          checkInTime={property.check_in_time}
+          checkOutTime={property.check_out_time}
+        />
+      </div>
     </div>
   )
 }

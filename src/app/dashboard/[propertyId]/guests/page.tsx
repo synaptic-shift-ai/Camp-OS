@@ -1,4 +1,3 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getDistinctSiteTypes, getGuests } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { redirect } from "next/navigation"
@@ -82,7 +81,7 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <GuestsPageHeader
         propertyId={propertyId}
         guests={guests}
@@ -91,33 +90,25 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
         searchQuery={searchQuery ?? null}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Guests</CardTitle>
-          <CardDescription>View and manage your guest information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <GuestFilters
-              propertyId={propertyId}
-              siteTypes={siteTypesFromDb}
-              allowedSiteTypes={allowedSiteTypes}
-            />
-            <GuestsTable
-              propertyId={propertyId}
-              guests={guests}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              total={total}
-              searchQuery={searchQuery ?? null}
-              siteType={siteType ?? null}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              searchField={searchField}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <GuestFilters
+          propertyId={propertyId}
+          siteTypes={siteTypesFromDb}
+          allowedSiteTypes={allowedSiteTypes}
+        />
+        <GuestsTable
+          propertyId={propertyId}
+          guests={guests}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          total={total}
+          searchQuery={searchQuery ?? null}
+          siteType={siteType ?? null}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          searchField={searchField}
+        />
+      </div>
     </div>
   )
 }

@@ -102,14 +102,14 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-1">
           <DialogTitle>Edit Site {currentSite?.site_number}</DialogTitle>
           <DialogDescription>
             Update site information, pricing, and amenities
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-2 sm:py-3">
           <SiteForm
             propertyId={currentSite?.property_id}
             site={currentSite}

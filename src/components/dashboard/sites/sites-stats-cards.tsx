@@ -42,7 +42,7 @@ const statusCards = [
 
 export function SitesStatsCards({ stats, activeFilter, onFilterChange }: SitesStatsCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-8">
+    <div className="grid grid-cols-4 gap-2 sm:gap-4 xl:grid-cols-8">
       {statusCards.map((card) => {
         const count = stats[card.key as keyof SiteStats] || 0
         const isActive = activeFilter === card.id
@@ -57,13 +57,13 @@ export function SitesStatsCards({ stats, activeFilter, onFilterChange }: SitesSt
             )}
             onClick={() => onFilterChange(card.id)}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="p-2 pb-1 sm:p-4 sm:pb-2">
+              <CardTitle className="break-all text-left text-[11px] font-medium leading-tight text-muted-foreground sm:text-sm">
                 {card.label}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className={cn('text-2xl font-bold', card.color)}>
+            <CardContent className="p-2 pt-0 pb-2 sm:p-4">
+              <div className={cn('text-left text-2xl font-bold sm:text-2xl', card.color)}>
                 {count}
               </div>
             </CardContent>

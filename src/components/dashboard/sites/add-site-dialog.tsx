@@ -95,8 +95,8 @@ export function AddSiteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-1">
           <DialogTitle>Add New Site</DialogTitle>
           <DialogDescription>
             Create a new site for your property. All fields marked with * are

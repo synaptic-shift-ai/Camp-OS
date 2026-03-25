@@ -16,7 +16,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
   AlertCircle,
-  ArrowLeft,
   Loader2,
   Calendar,
   DollarSign,
@@ -620,36 +619,27 @@ export default function NewReservationPage() {
   }
 
   return (
-    <div className="container max-w-7xl py-8">
-      <div className="mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(`/dashboard/${propertyIdFromUrl}/reservations`)}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Reservations
-        </Button>
-        <h1 className="text-3xl font-heading font-bold tracking-tight">Create Manual Reservation</h1>
-        <p className="text-muted-foreground">For phone or walk-in bookings</p>
+    <div className="max-w-7xl mx-auto">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Create Manual Reservation</h1>
+        <p className="text-sm text-muted-foreground sm:text-base">For phone or walk-in bookings</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         {/* Main Form - Left Column */}
         <div className="lg:col-span-2">
           <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               {/* Date Selection - Priority #1 for phone bookings */}
               <Card className="border-primary/20 bg-primary/5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <Calendar className="h-5 w-5" />
                     Step 1: Stay Type & Dates
                   </CardTitle>
                   <CardDescription>Select the stay type and enter guest&apos;s desired dates</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 px-4 pb-4 pt-0 sm:space-y-4 sm:px-6 sm:pb-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="min-w-0 space-y-2">
                       <Label htmlFor="stayType">Stay Type *</Label>
@@ -669,7 +659,7 @@ export default function NewReservationPage() {
                         </SelectContent>
                       </Select>
                       {errors.stayType && (
-                        <p className="text-sm text-destructive">{errors.stayType.message}</p>
+                        <p className="text-sm text-destructive dark:text-red-300">{errors.stayType.message}</p>
                       )}
                       {stayType &&
                         totalNights > 0 &&
@@ -703,7 +693,7 @@ export default function NewReservationPage() {
                         numberOfMonths={1}
                       />
                       {(errors.checkInDate || errors.checkOutDate) && (
-                        <p className="text-sm text-destructive">
+                        <p className="text-sm text-destructive dark:text-red-300">
                           {errors.checkInDate?.message ?? errors.checkOutDate?.message}
                         </p>
                       )}
@@ -727,7 +717,7 @@ export default function NewReservationPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
                     <div>
                       <Label htmlFor="numAdults">Adults *</Label>
                       <Input
@@ -737,7 +727,7 @@ export default function NewReservationPage() {
                         {...register("numAdults", { valueAsNumber: true })}
                       />
                       {errors.numAdults && (
-                        <p className="text-sm text-destructive mt-1">{errors.numAdults.message}</p>
+                        <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.numAdults.message}</p>
                       )}
                     </div>
                     <div>
@@ -781,10 +771,10 @@ export default function NewReservationPage() {
 
               {/* Site Selection - Visual Cards */}
               <Card>
-                <CardHeader>
+                <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                         Step 2: Select Site
                         {checkingAvailability && (
                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -805,7 +795,7 @@ export default function NewReservationPage() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
                   {checkingAvailability ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="text-center">
@@ -832,7 +822,7 @@ export default function NewReservationPage() {
                   )}
 
                   {errors.siteId && (
-                    <p className="text-sm text-destructive mt-4">{errors.siteId.message}</p>
+                    <p className="mt-4 text-sm text-destructive dark:text-red-300">{errors.siteId.message}</p>
                   )}
 
                   {selectedSite && estimatedTotal > 0 && (
@@ -916,17 +906,17 @@ export default function NewReservationPage() {
               {/* Discounts & Additional Charges Selection */}
               {(rateDiscountsConfig || pricingConfig) && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Discounts & Additional Charges</CardTitle>
+                  <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+                    <CardTitle className="text-lg sm:text-xl">Discounts & Additional Charges</CardTitle>
                     <CardDescription>
                       Select any manual discounts or additional charges to apply
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:space-y-6 sm:px-6 sm:pb-6">
                     {/* Manual Discounts */}
                     {rateDiscountsConfig?.user_defined_discounts && rateDiscountsConfig.user_defined_discounts.filter(d => d.enabled && d.trigger_type === 'manual').length > 0 && (
                       <div className="space-y-3">
-                        <Label className="text-base font-medium">Available Discounts</Label>
+                        <Label className="text-sm font-medium sm:text-base">Available Discounts</Label>
                         <div className="space-y-2">
                           {rateDiscountsConfig.user_defined_discounts
                             .filter(d => d.enabled && d.trigger_type === 'manual')
@@ -965,7 +955,7 @@ export default function NewReservationPage() {
                     {/* Manual Fees (Additional Charges) */}
                     {pricingConfig?.user_defined_fees && pricingConfig.user_defined_fees.filter(f => f.enabled && f.trigger_type === 'manual').length > 0 && (
                       <div className="space-y-3">
-                        <Label className="text-base font-medium">Additional Charges</Label>
+                        <Label className="text-sm font-medium sm:text-base">Additional Charges</Label>
                         <div className="space-y-2">
                           {pricingConfig.user_defined_fees
                             .filter(f => f.enabled && f.trigger_type === 'manual')
@@ -1017,18 +1007,18 @@ export default function NewReservationPage() {
 
               {/* Guest Information */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <Users className="h-5 w-5" />
                     Step 3: Guest Information
                   </CardTitle>
                   <CardDescription>Contact details for the primary guest and family members</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:space-y-6 sm:px-6 sm:pb-6">
                   {/* Primary Guest */}
                   <div className="space-y-4">
                     <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Primary Guest</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                       <div>
                         <Label htmlFor="guestFirstName">First Name *</Label>
                         <Input
@@ -1036,7 +1026,7 @@ export default function NewReservationPage() {
                           {...register("guestFirstName")}
                         />
                         {errors.guestFirstName && (
-                          <p className="text-sm text-destructive mt-1">{errors.guestFirstName.message}</p>
+                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestFirstName.message}</p>
                         )}
                       </div>
                       <div>
@@ -1046,12 +1036,12 @@ export default function NewReservationPage() {
                           {...register("guestLastName")}
                         />
                         {errors.guestLastName && (
-                          <p className="text-sm text-destructive mt-1">{errors.guestLastName.message}</p>
+                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestLastName.message}</p>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                       <div>
                         <Label htmlFor="guestEmail">Email *</Label>
                         <Input
@@ -1060,7 +1050,7 @@ export default function NewReservationPage() {
                           {...register("guestEmail")}
                         />
                         {errors.guestEmail && (
-                          <p className="text-sm text-destructive mt-1">{errors.guestEmail.message}</p>
+                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestEmail.message}</p>
                         )}
                       </div>
                       <div>
@@ -1071,7 +1061,7 @@ export default function NewReservationPage() {
                           {...register("guestPhone")}
                         />
                         {errors.guestPhone && (
-                          <p className="text-sm text-destructive mt-1">{errors.guestPhone.message}</p>
+                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestPhone.message}</p>
                         )}
                       </div>
                     </div>
@@ -1084,7 +1074,7 @@ export default function NewReservationPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                       <div>
                         <Label htmlFor="guestCity">City</Label>
                         <Input
@@ -1134,14 +1124,14 @@ export default function NewReservationPage() {
 
               {/* Payment Information */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <DollarSign className="h-5 w-5" />
                     Step 5: Payment Information
                   </CardTitle>
                   <CardDescription>Payment method and amount</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 px-4 pb-4 pt-0 sm:space-y-4 sm:px-6 sm:pb-6">
                   <div>
                     <Label htmlFor="paymentMethod">Payment Method *</Label>
                     <Select
@@ -1204,13 +1194,34 @@ export default function NewReservationPage() {
                 </Alert>
               )}
 
+              {/* Pricing Summary (Mobile) */}
+              <div className="lg:hidden">
+                <PricingSummary
+                  selectedSite={selectedSite || null}
+                  numNights={totalNights}
+                  stayType={stayType || 'nightly'}
+                  numAdults={numAdults || 1}
+                  numChildren={numChildren || 0}
+                  numPets={numPets || 0}
+                  pricingConfig={pricingConfig}
+                  rateDiscountsConfig={rateDiscountsConfig}
+                  depositConfig={depositConfig}
+                  checkInDate={checkInDate}
+                  checkOutDate={checkOutDate}
+                  selectedDiscountIds={selectedDiscountIds}
+                  selectedFeeIds={selectedFeeIds}
+                  onTotalChange={setSummaryTotalCents}
+                />
+              </div>
+
               {/* Submit Buttons */}
-              <div className="flex justify-end gap-4">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push(`/dashboard/${propertyIdFromUrl}/reservations`)}
                   disabled={loading}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
@@ -1228,6 +1239,7 @@ export default function NewReservationPage() {
                       Number.isFinite(bookingRulesConfig.max_stay_nights) &&
                       totalNights > bookingRulesConfig.max_stay_nights)
                   }
+                  className="w-full sm:w-auto"
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {loading ? "Creating..." : "Create Reservation"}
@@ -1238,7 +1250,7 @@ export default function NewReservationPage() {
         </div>
 
         {/* Pricing Summary - Right Column */}
-        <div className="lg:col-span-1">
+        <div className="hidden lg:col-span-1 lg:block">
           <PricingSummary
             selectedSite={selectedSite || null}
             numNights={totalNights}

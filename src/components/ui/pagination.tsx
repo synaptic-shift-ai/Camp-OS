@@ -62,7 +62,7 @@ export function Pagination({
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 rounded-sm bg-card/50"
         onClick={() => onPageChange(1)}
         disabled={!canPrev || disabled}
         aria-label="First page"
@@ -72,7 +72,7 @@ export function Pagination({
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 rounded-sm bg-card/50"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={!canPrev || disabled}
         aria-label="Previous page"
@@ -95,7 +95,10 @@ export function Pagination({
               key={item}
               variant={currentPage === item ? "default" : "outline"}
               size="icon"
-              className="h-8 w-8 min-w-8 text-xs"
+              className={cn(
+                "h-8 w-8 min-w-8 rounded-sm text-xs",
+                currentPage === item ? "" : "bg-card/50"
+              )}
               onClick={() => onPageChange(item)}
               disabled={disabled}
               aria-label={`Page ${item}`}
@@ -110,7 +113,7 @@ export function Pagination({
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 rounded-sm bg-card/50"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={!canNext || disabled}
         aria-label="Next page"
@@ -120,7 +123,7 @@ export function Pagination({
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 rounded-sm bg-card/50"
         onClick={() => onPageChange(totalPages)}
         disabled={!canNext || disabled}
         aria-label="Last page"

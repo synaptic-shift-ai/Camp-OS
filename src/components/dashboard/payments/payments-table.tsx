@@ -2,7 +2,6 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -16,11 +15,11 @@ import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import type { PaymentStatus } from "@/contracts/booking"
 import type { DashboardPayment } from "@/lib/dashboard/queries"
 
-const statusColors: Record<PaymentStatus, string> = {
-  pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  completed: "bg-green-500/10 text-green-500 border-green-500/20",
-  failed: "bg-red-500/10 text-red-500 border-red-500/20",
-  refunded: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+const statusTextColors: Record<PaymentStatus, string> = {
+  pending: "text-yellow-500",
+  completed: "text-green-500",
+  failed: "text-red-500",
+  refunded: "text-gray-500",
 }
 
 function formatMoney(cents: number): string {
@@ -103,50 +102,80 @@ export function PaymentsTable({
       <div className="relative">
         {isPending && (
           <div
-            className="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-background/60"
+            className="absolute inset-0 z-20 flex items-center justify-center bg-background/60"
             aria-busy="true"
             aria-label="Loading payments"
           >
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
-        <div className="max-h-[calc(100vh-260px)] overflow-y-auto border rounded-md">
+        <div className="space-y-2 md:hidden">
+          {payments.map((payment) => (
+            <div key={payment.id} className="rounded-md border border-border/80 bg-card/50 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {payment.confirmationNumber}
+                  </p>
+                  <p className="mt-1 truncate text-sm font-semibold capitalize">
+                    {payment.guestName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatDate(payment.createdAt)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-base font-semibold">{formatMoney(payment.amount)}</p>
+                  <p
+                    className={`${statusTextColors[payment.paymentStatus]} mt-1 text-xs font-semibold uppercase`}
+                  >
+                    {payment.paymentStatus}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 border-t border-border/70 pt-2 text-xs">
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Method</p>
+                  <p className="mt-0.5 font-medium">{formatPaymentMethod(payment.paymentMethod)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden max-h-[calc(100vh-260px)] overflow-y-auto border border-border/80 bg-card/50 md:block">
           <Table className="text-xs">
-            <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow className="h-8">
-                <TableHead className="py-1.5">Date</TableHead>
-                <TableHead className="py-1.5">Primary Guest</TableHead>
-                <TableHead className="py-1.5">Reservation</TableHead>
-                <TableHead className="py-1.5">Amount</TableHead>
-                <TableHead className="py-1.5">Method</TableHead>
-                <TableHead className="py-1.5">Status</TableHead>
+            <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
+              <TableRow className="h-10 hover:bg-transparent data-[state=selected]:bg-transparent">
+                <TableHead className="py-2 font-medium text-white/90">Date</TableHead>
+                <TableHead className="py-2 font-medium text-white/90">Primary Guest</TableHead>
+                <TableHead className="py-2 font-medium text-white/90">Reservation</TableHead>
+                <TableHead className="py-2 font-medium text-white/90">Amount</TableHead>
+                <TableHead className="py-2 font-medium text-white/90">Method</TableHead>
+                <TableHead className="py-2 font-medium text-white/90">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {payments.map((payment) => (
-                <TableRow key={payment.id} className="h-8">
-                  <TableCell className="py-1.5">
+                <TableRow key={payment.id} className="h-10">
+                  <TableCell className="py-2">
                     {formatDate(payment.createdAt)}
                   </TableCell>
-                  <TableCell className="py-1.5 font-medium capitalize">
+                  <TableCell className="py-2 font-medium capitalize">
                     {payment.guestName}
                   </TableCell>
-                  <TableCell className="py-1.5">
+                  <TableCell className="py-2">
                     {payment.confirmationNumber}
                   </TableCell>
-                  <TableCell className="py-1.5">
+                  <TableCell className="py-2">
                     {formatMoney(payment.amount)}
                   </TableCell>
-                  <TableCell className="py-1.5">
+                  <TableCell className="py-2">
                     {formatPaymentMethod(payment.paymentMethod)}
                   </TableCell>
-                  <TableCell className="py-1.5">
-                    <Badge
-                      variant="outline"
-                      className={`${statusColors[payment.paymentStatus]} text-xs px-2 py-0.5`}
+                  <TableCell className="py-2">
+                    <span
+                      className={`${statusTextColors[payment.paymentStatus]} text-xs font-semibold uppercase`}
                     >
                       {payment.paymentStatus}
-                    </Badge>
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
@@ -156,7 +185,7 @@ export function PaymentsTable({
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
           <div>
             Showing{" "}
             <span className="font-medium">
@@ -170,13 +199,15 @@ export function PaymentsTable({
             disabled={isPending}
           />
         </div>
-        <Pagination
-          currentPage={clampedCurrentPage}
-          totalPages={totalPages}
-          onPageChange={goToPage}
-          disabled={isPending}
-          windowSize={2}
-        />
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination
+            currentPage={clampedCurrentPage}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            disabled={isPending}
+            windowSize={2}
+          />
+        </div>
       </div>
     </>
   )

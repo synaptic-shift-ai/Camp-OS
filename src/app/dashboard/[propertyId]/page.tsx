@@ -44,15 +44,15 @@ async function DashboardStats({
 }) {
   const stats = await getDashboardStats(propertyId, allowedSiteTypes?.length ? { allowedSiteTypes } : undefined)
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatMoney(stats.totalRevenue)}</div>
-          <p className="text-xs text-muted-foreground">All time earnings</p>
+          <div className="text-xl font-bold sm:text-2xl">{formatMoney(stats.totalRevenue)}</div>
+          <p className="text-[11px] text-muted-foreground sm:text-xs">All time earnings</p>
         </CardContent>
       </Card>
       <Card>
@@ -61,8 +61,8 @@ async function DashboardStats({
           <Calendar className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalReservations}</div>
-          <p className="text-xs text-muted-foreground">Total bookings</p>
+          <div className="text-xl font-bold sm:text-2xl">{stats.totalReservations}</div>
+          <p className="text-[11px] text-muted-foreground sm:text-xs">Total bookings</p>
         </CardContent>
       </Card>
       <Card>
@@ -71,8 +71,8 @@ async function DashboardStats({
           <Tent className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.occupancyRate}%</div>
-          <p className="text-xs text-muted-foreground">Last 30 days</p>
+          <div className="text-xl font-bold sm:text-2xl">{stats.occupancyRate}%</div>
+          <p className="text-[11px] text-muted-foreground sm:text-xs">Last 30 days</p>
         </CardContent>
       </Card>
       <Card>
@@ -81,8 +81,8 @@ async function DashboardStats({
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalGuests}</div>
-          <p className="text-xs text-muted-foreground">Active reservations</p>
+          <div className="text-xl font-bold sm:text-2xl">{stats.totalGuests}</div>
+          <p className="text-[11px] text-muted-foreground sm:text-xs">Active reservations</p>
         </CardContent>
       </Card>
     </div>
@@ -137,7 +137,7 @@ async function CurrentlyCheckedIn({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Currently Checked In</CardTitle>
+        <CardTitle className="text-xl font-semibold sm:text-2xl">Currently Checked In</CardTitle>
         {currentlyCheckedIn.length > 0 && (
           <CardDescription>
             {currentlyCheckedIn.length} guest{currentlyCheckedIn.length !== 1 ? "s" : ""} checked in
@@ -146,19 +146,16 @@ async function CurrentlyCheckedIn({
       </CardHeader>
       <CardContent>
         {currentlyCheckedIn.length > 0 ? (
-          <div
-            className="grid gap-2 mb-4"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}
-          >
+          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
               return (
                 <Link
                   key={type}
                   href={`/dashboard/${propertyId}/reservations?siteType=${type}`}
-                  className="w-full rounded-lg border bg-muted/50 px-3 py-2 text-center cursor-pointer hover:bg-muted transition-colors"
+                  className="w-full cursor-pointer rounded-lg border bg-muted/50 px-3 py-2 text-center transition-colors hover:bg-muted"
                 >
-                  <p className="text-lg text-muted-foreground">
+                  <p className="text-base text-muted-foreground sm:text-lg">
                     {siteTypeLabels[type]} Site
                   </p>
                   <p className="text-2xl font-bold">{count}</p>
@@ -203,7 +200,7 @@ async function TodaysArrivalsAndDepartures({
         <TodaysArrivalsCard arrivals={arrivals} checkInTime={checkInTime} />
         <Card>
           <CardHeader>
-            <CardTitle>Departures</CardTitle>
+            <CardTitle className="text-xl font-semibold sm:text-2xl">Departures</CardTitle>
           </CardHeader>
           <CardContent>
             {departures.length === 0 ? (
@@ -216,7 +213,7 @@ async function TodaysArrivalsAndDepartures({
                   return (
                     <div
                       key={reservation.id}
-                      className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                      className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -227,20 +224,26 @@ async function TodaysArrivalsAndDepartures({
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <Home className="h-3 w-3" />
-                          {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
+                        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                          <span className="flex min-w-0 items-center gap-1">
+                            <Home className="h-3 w-3" />
+                            <span className="break-words">
+                              {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
+                            </span>
+                          </span>
                         </p>
                         {hasBalance && (
                           <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
                         )}
                       </div>
-                      <div className="text-right flex-shrink-0 ml-3">
+                      <div className="ml-0 w-full flex-shrink-0 text-left sm:ml-3 sm:w-auto sm:text-right">
                         <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                        <DepartureCheckOutButton
-                          reservationId={reservation.id}
-                          checkOutTime={checkOutTime}
-                        />
+                        <div className="mt-2 w-full sm:mt-1 sm:w-auto">
+                          <DepartureCheckOutButton
+                            reservationId={reservation.id}
+                            checkOutTime={checkOutTime}
+                          />
+                        </div>
                       </div>
                     </div>
                   )
@@ -269,7 +272,7 @@ async function RecentReservations({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Reservations</CardTitle>
+        <CardTitle className="text-xl font-semibold sm:text-2xl">Recent Reservations</CardTitle>
         <CardDescription>Latest bookings at your property</CardDescription>
       </CardHeader>
       <CardContent>
@@ -284,20 +287,31 @@ async function RecentReservations({
                 return (
                   <div
                     key={reservation.id}
-                    className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                    className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="mb-1 flex items-start justify-between gap-2">
                         <p className="font-medium capitalize">{reservation.guestName}</p>
-                        {hasBalance && (
-                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
-                            Balance Due
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <Badge variant="outline" className={statusColors[reservation.status]}>
+                            {reservation.status}
                           </Badge>
-                        )}
+                          {hasBalance && (
+                            <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                              Balance Due
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Home className="h-3 w-3" />
-                        {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)} • {reservation.numNights} {reservation.numNights === 1 ? "night" : "nights"}
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Home className="h-3 w-3" />
+                          {reservation.siteName}
+                        </span>
+                        <span>•</span>
+                        <span>{formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}</span>
+                        <span>•</span>
+                        <span>{reservation.numNights} {reservation.numNights === 1 ? "night" : "nights"}</span>
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" />
                           {reservation.numAdults + reservation.numChildren} guests
@@ -307,11 +321,8 @@ async function RecentReservations({
                         <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
                       )}
                     </div>
-                    <div className="text-right flex-shrink-0 ml-3">
+                    <div className="ml-0 flex-shrink-0 text-left sm:ml-3 sm:text-right">
                       <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                      <Badge variant="outline" className={statusColors[reservation.status]}>
-                        {reservation.status}
-                      </Badge>
                     </div>
                   </div>
                 )
@@ -346,7 +357,7 @@ async function BookingPortalCTA({ propertyId }: { propertyId: string }) {
                 <Globe className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">Your Booking Portal is Live!</h2>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Your Booking Portal is Live!</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Share this link with guests to start accepting online reservations.
                 </p>
@@ -418,10 +429,12 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
   const allowedSiteTypes = getAllowedSiteTypes(property)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div>
-        <h1 className="text-3xl font-heading font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here&apos;s what&apos;s happening with your property.</p>
+        <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Dashboard</h1>
+        <p className="text-sm text-muted-foreground sm:text-base">
+          Welcome back! Here&apos;s what&apos;s happening with your property.
+        </p>
       </div>
 
       <Suspense

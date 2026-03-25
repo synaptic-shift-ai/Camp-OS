@@ -176,13 +176,13 @@ export function CancellationPolicySettings({
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="min-w-0">
                 <CardTitle className="flex items-center gap-2">
                   <ShieldAlert className="h-5 w-5" />
                   Cancellation Rules
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-pretty">
                   Set up flexible cancellation rules to suit your property and guests.
                 </CardDescription>
               </div>
@@ -191,6 +191,7 @@ export function CancellationPolicySettings({
                   setEditingRule(null)
                   setIsRuleDialogOpen(true)
                 }}
+                className="w-full shrink-0 sm:w-auto"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Rules
@@ -208,16 +209,22 @@ export function CancellationPolicySettings({
             ) : (
               <ul className="space-y-2 text-sm">
                 {cancellationRules.map((rule, i) => (
-                  <li key={rule.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <span>
-                      Rule {i + 1}: Refund % = {rule.refund_percentage}, Days before reservation: {rule.days_before_reservation}
-                    </span>
-                    <div className="flex items-center gap-1">
+                  <li
+                    key={rule.id}
+                    className="flex flex-col gap-2 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">Rule {i + 1}</p>
+                      <p className="text-muted-foreground">
+                        Refund {rule.refund_percentage}% • {rule.days_before_reservation} days before check-in
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-end gap-1 border-t border-border/60 pt-2 sm:border-0 sm:pt-0">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-9 w-9"
                         aria-label="Edit rule"
                         onClick={() => {
                           setEditingRule(rule)
@@ -231,7 +238,7 @@ export function CancellationPolicySettings({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        className="h-9 w-9 text-destructive hover:text-destructive"
                         aria-label="Delete rule"
                         onClick={() => deleteRule(rule.id)}
                       >
@@ -273,6 +280,7 @@ export function CancellationPolicySettings({
             type="button"
             onClick={() => handleSubmit(onSubmit)()}
             disabled={isSaving}
+            className="w-full sm:w-auto"
           >
             {isSaving ? (
               <>

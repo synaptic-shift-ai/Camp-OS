@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TabsContent } from "@/components/ui/tabs"
+import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tabs"
 import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
 import { DepositSettings } from "@/components/dashboard/settings/deposit-settings"
 import { BookingRulesSettings } from "@/components/dashboard/settings/booking-rules-settings"
@@ -25,6 +26,17 @@ import type {
 } from "@/lib/config/types"
 
 export const dynamic = "force-dynamic"
+
+const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
+  { value: "property", label: "Property" },
+  { value: "fees", label: "Additional Charges" },
+  { value: "reservation-types", label: "Rate Types" },
+  { value: "site-types-rates", label: "Site Types Rates" },
+  { value: "deposits", label: "Deposits" },
+  { value: "booking-rules", label: "Booking Rules" },
+  { value: "cancellation-policy", label: "Terms & Policies" },
+  { value: "discounts", label: "Discounts" },
+]
 
 async function getPropertyWithSeasonal(propertyId: string) {
   const property = await getPropertyForUser(propertyId)
@@ -56,12 +68,12 @@ export default async function SettingsPage({ params }: PageProps) {
   const rawSiteTypeConfig = (property.site_type_config ?? null) as
     | { allowed_site_types?: string[]; site_type_rates?: Record<string, any> }
     | null
-  
+
   const siteypeRatesFromConfig = rawSiteTypeConfig?.site_type_rates ?? {}
 
   const allowedSiteTypesFromConfig =
     Array.isArray(rawSiteTypeConfig?.allowed_site_types) &&
-    rawSiteTypeConfig!.allowed_site_types.length > 0
+      rawSiteTypeConfig!.allowed_site_types.length > 0
       ? rawSiteTypeConfig!.allowed_site_types
       : []
 
@@ -83,18 +95,7 @@ export default async function SettingsPage({ params }: PageProps) {
         </AlertDescription>
       </Alert>
 
-      <Tabs defaultValue="property" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="property">Property</TabsTrigger>
-          <TabsTrigger value="fees">Additional Charges</TabsTrigger>
-          <TabsTrigger value="reservation-types">Rate Types</TabsTrigger>
-          <TabsTrigger value="site-types-rates">Site Types</TabsTrigger>
-          <TabsTrigger value="deposits">Deposits</TabsTrigger>
-          <TabsTrigger value="booking-rules">Booking Rules</TabsTrigger>
-          <TabsTrigger value="cancellation-policy">Terms & Policies</TabsTrigger>
-          <TabsTrigger value="discounts">Discounts</TabsTrigger>
-        </TabsList>
-
+      <OverflowTabs defaultValue="property" className="space-y-4" items={SETTINGS_TAB_ITEMS}>
         <TabsContent value="property" className="space-y-4">
           <PropertySettings
             propertyId={property.id}
@@ -200,7 +201,7 @@ export default async function SettingsPage({ params }: PageProps) {
             })}
           />
         </TabsContent>
-      </Tabs>
+      </OverflowTabs>
 
       {/* Coming Soon: Additional Settings */}
       <Card className="mt-8 border-dashed">

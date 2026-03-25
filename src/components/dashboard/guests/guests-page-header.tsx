@@ -108,12 +108,12 @@ export function GuestsPageHeader({ propertyId, total, searchQuery }: GuestsPageH
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Guests</h1>
-          <p className="text-muted-foreground">Manage your guest database</p>
+          <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Guests</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">Manage your guest database</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <ExportMenu
             onExport={handleExport}
             disabled={isExporting || total <= 0}
@@ -121,6 +121,7 @@ export function GuestsPageHeader({ propertyId, total, searchQuery }: GuestsPageH
           />
           <Button
             className="gap-2"
+            size="sm"
             onClick={() => setAddGuestOpen(true)}
             disabled={!propertyId}
           >

@@ -465,16 +465,16 @@ export function SiteTypeRateSettings({
     <div className="space-y-6">
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle>Your Site Types</CardTitle>
-                        <CardDescription>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="min-w-0 space-y-1.5">
+                        <CardTitle className="text-xl sm:text-2xl">Your Site Types</CardTitle>
+                        <CardDescription className="text-pretty">
                         Select which site types your property offers
                         </CardDescription>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
+                        <Button variant="outline" className="w-full shrink-0 sm:w-auto">
                           <Plus className="mr-2 h-4 w-4" />
                           Add Site Type
                         </Button>
@@ -536,12 +536,13 @@ export function SiteTypeRateSettings({
                   {allowedSiteTypes.map((siteType) => (
                     <div
                       key={siteType}
-                      className="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-sm"
+                      className="inline-flex max-w-full items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"
                     >
-                      <span>{siteType} Site</span>
+                      <span className="min-w-0 truncate">{siteType} Site</span>
                       <button
                         type="button"
-                        className="text-xs text-muted-foreground hover:text-destructive"
+                        className="shrink-0 touch-manipulation text-xs text-muted-foreground hover:text-destructive"
+                        aria-label={`Remove ${siteType} site type`}
                         onClick={() => {
                           setAllowedSiteTypes((prev) =>
                             prev.filter((t) => t !== siteType)
@@ -558,9 +559,9 @@ export function SiteTypeRateSettings({
             </CardContent>
         </Card>
         
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold">Rate Configuration</h3>
-          <p className="text-sm text-muted-foreground">
+        <div className="space-y-1.5">
+          <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">Rate Configuration</h3>
+          <p className="text-sm text-muted-foreground text-pretty">
             Set nightly, weekly, and monthly rates for each site type
           </p>
         </div>
@@ -577,7 +578,7 @@ export function SiteTypeRateSettings({
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {orderedSiteTypes.map(({ siteType }) => {
               const rates = siteTypeRates[siteType] ?? {
                 nightly: {
@@ -598,17 +599,17 @@ export function SiteTypeRateSettings({
               }
 
               return (
-                <Card key={siteType}>
+                <Card key={siteType} className="overflow-hidden">
                   <Accordion type="single" collapsible>
-                    <AccordionItem value={siteType}>
-                      <AccordionTrigger className="px-6">
+                    <AccordionItem value={siteType} className="border-b-0">
+                      <AccordionTrigger className="px-4 py-3.5 text-left sm:px-6 sm:py-4">
                         {siteType.charAt(0).toUpperCase() + siteType.slice(1)} Site
                       </AccordionTrigger>
-                      <AccordionContent className="space-y-6 px-6 pb-6">
+                      <AccordionContent className="space-y-4 px-4 pb-4 pt-0 sm:space-y-6 sm:px-6 sm:pb-6">
                         {(['nightly', 'weekly', 'monthly'] as const).map((type) => (
                           <div
                             key={type}
-                            className="grid gap-4 md:grid-cols-3 pl-4 border-l-2 border-muted"
+                            className="grid gap-4 border-l-2 border-muted pl-3 sm:pl-4 md:grid-cols-3"
                           >
                             <div className="space-y-2">
                               <Label htmlFor={`${siteType}-${type}-rate`}>
@@ -708,15 +709,19 @@ export function SiteTypeRateSettings({
         )}
 
       {/* Save Button and Messages */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1 mr-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 sm:max-w-xl sm:flex-1 sm:pr-4">
           {saveMessage && (
             <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
               <AlertDescription>{saveMessage.text}</AlertDescription>
             </Alert>
           )}
         </div>
-        <Button onClick={handleSaveConfig} disabled={isSaving || !isDirty}>
+        <Button
+          onClick={handleSaveConfig}
+          disabled={isSaving || !isDirty}
+          className="w-full shrink-0 sm:w-auto"
+        >
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Site Type Rates'}
         </Button>

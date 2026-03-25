@@ -127,18 +127,18 @@ async function SitesView({ propertyId }: { propertyId: string }) {
   const sitesForDisplay =
     allowedSiteTypes && allowedSiteTypes.length > 0
       ? sites.filter((site) =>
-          allowedSiteTypes
-            .map((t) => t.toLowerCase())
-            .includes((site.site_type || 'other').toLowerCase())
-        )
+        allowedSiteTypes
+          .map((t) => t.toLowerCase())
+          .includes((site.site_type || 'other').toLowerCase())
+      )
       : sites
 
   // Pass sites and property pricing config to client component
   return (
-    <>
+    <div className="space-y-4 sm:space-y-6">
       <SitesPageHeader propertyId={property.id} sites={sitesForDisplay} />
       <SitesContent sites={sitesForDisplay} propertyPricingConfig={property.pricingConfig} />
-    </>
+    </div>
   )
 }
 

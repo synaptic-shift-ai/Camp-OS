@@ -22,6 +22,7 @@ import { ManualPaymentDialog } from "./manual-payment-dialog"
 import { RefundReservationDialog } from "./refund-reservation-dialog"
 import { useToast } from "@/hooks/use-toast"
 import type { RateDiscountsConfig } from "@/lib/config/types"
+import { cn } from "@/lib/utils"
 
 interface ReservationActionsProps {
   reservationId: string
@@ -51,6 +52,7 @@ interface ReservationActionsProps {
   allowedCheckOutDays?: string[] | undefined
   checkInTime?: string | null | undefined
   checkOutTime?: string | null | undefined
+  actionTriggerClassName?: string
 }
 
 export function ReservationActions({
@@ -81,6 +83,7 @@ export function ReservationActions({
   allowedCheckOutDays,
   checkInTime,
   checkOutTime,
+  actionTriggerClassName,
 }: ReservationActionsProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -129,11 +132,11 @@ export function ReservationActions({
     return d.getTime() <= t.getTime()
   })()
   const showNoShowButton = showNoShowStatus && checkInReached
-  
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" className={cn(actionTriggerClassName)}>
           <MoreVertical className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>

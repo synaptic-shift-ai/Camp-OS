@@ -193,11 +193,11 @@ export function GuestsTable({
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
               <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-                <TableHead className="py-1.5 font-medium text-white/90">Primary Guest</TableHead>
-                <TableHead className="py-1.5 font-medium text-white/90">Contact</TableHead>
-                <TableHead className="py-1.5 font-medium text-white/90">Total Stays</TableHead>
-                <TableHead className="py-1.5 font-medium text-white/90">Total Spent</TableHead>
-                <TableHead className="py-1.5 font-medium text-white/90">Last Visit</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Primary Guest</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Contact</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Total Stays</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Total Spent</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Last Visit</TableHead>
                 <TableHead className="w-[50px] py-1.5" />
               </TableRow>
             </TableHeader>

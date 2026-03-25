@@ -144,12 +144,12 @@ export function PaymentsTable({
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
               <TableRow className="h-10 hover:bg-transparent data-[state=selected]:bg-transparent">
-                <TableHead className="py-2 font-medium text-white/90">Date</TableHead>
-                <TableHead className="py-2 font-medium text-white/90">Primary Guest</TableHead>
-                <TableHead className="py-2 font-medium text-white/90">Reservation</TableHead>
-                <TableHead className="py-2 font-medium text-white/90">Amount</TableHead>
-                <TableHead className="py-2 font-medium text-white/90">Method</TableHead>
-                <TableHead className="py-2 font-medium text-white/90">Status</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Date</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Primary Guest</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Reservation</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Amount</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Method</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

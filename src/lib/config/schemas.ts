@@ -533,6 +533,19 @@ export const pricingConfigSchema = z.object({
 // Booking Rules Configuration Schema
 // =====================================================
 
+const holidayRuleSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  min_stay_nights: z.number().int().min(1),
+  max_stay_nights: z.number().int().min(1).optional(),
+  enabled: z.boolean(),
+}).refine(
+  (d) => new Date(d.end_date) >= new Date(d.start_date),
+  { message: 'End date must be on or after start date', path: ['end_date'] },
+)
+
 const bookingRulesConfigBaseSchema = z.object({
   min_stay_nights: z
     .number()
@@ -579,6 +592,8 @@ const bookingRulesConfigBaseSchema = z.object({
   same_day_booking_enabled: z.boolean().default(true),
 
   instant_booking_enabled: z.boolean().default(true),
+
+  holiday_rules: z.array(holidayRuleSchema).default([]),
 })
 
 const bookingRulesStayRefine = <T extends z.ZodTypeAny>(schema: T) =>

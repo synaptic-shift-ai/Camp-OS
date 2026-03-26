@@ -26,17 +26,26 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Info } from 'lucide-react'
+import { format } from 'date-fns'
+import { Loader2, Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   bookingRulesSettingsFormSchema,
   type BookingRulesSettingsFormInput,
 } from '@/lib/config/schemas'
-import type { BookingRulesConfig, DayOfWeek } from '@/lib/config/types'
+import type { BookingRulesConfig, DayOfWeek, HolidayRule } from '@/lib/config/types'
+import { AddHolidayDialog } from '@/components/dashboard/settings/booking-rules-dialog/add-holiday-dialog'
 
 interface BookingRulesSettingsProps {
   initialConfig?: BookingRulesConfig
   propertyId: string
   onSave?: (config: BookingRulesConfig) => Promise<void>
+}
+
+/** Local calendar date from YYYY-MM-DD (avoids UTC shift from parseISO). */
+function formatHolidayYmd(ymd: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
+  if (!m) return ymd
+  return format(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])), 'MMM d, yyyy')
 }
 
 const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
@@ -58,12 +67,16 @@ const defaultFormValues: BookingRulesSettingsFormInput = {
   allowed_checkout_days: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
   same_day_booking_enabled: true,
   instant_booking_enabled: true,
+  holiday_rules: [],
 }
 
 export function BookingRulesSettings({ initialConfig, propertyId, onSave }: BookingRulesSettingsProps) {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [isAddHolidayDialogOpen, setIsAddHolidayDialogOpen] = useState(false)
+  /** When set, dialog opens in edit mode with this rule as `initialValues`. */
+  const [holidayBeingEdited, setHolidayBeingEdited] = useState<HolidayRule | null>(null)
 
   const {
     register,
@@ -85,6 +98,7 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
   const allowedCheckoutDays = watch('allowed_checkout_days')
   const sameDayBookingEnabled = watch('same_day_booking_enabled')
   const instantBookingEnabled = watch('instant_booking_enabled')
+  const holidayRules = watch('holiday_rules')
 
   const toggleCheckinDay = (day: DayOfWeek) => {
     const current = allowedCheckinDays
@@ -100,6 +114,33 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
       ? current.filter((d: DayOfWeek) => d !== day)
       : [...current, day]
     setValue('allowed_checkout_days', updated, { shouldDirty: true })
+  }
+
+  const removeHolidayRule = (id: string) => {
+    const next = (holidayRules ?? []).filter((h: HolidayRule) => h.id !== id)
+    setValue('holiday_rules', next, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const setHolidayRuleEnabled = (id: string, enabled: boolean) => {
+    const next = (holidayRules ?? []).map((h: HolidayRule) =>
+      h.id === id ? { ...h, enabled } : h,
+    )
+    setValue('holiday_rules', next, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const openAddHolidayDialog = () => {
+    setHolidayBeingEdited(null)
+    setIsAddHolidayDialogOpen(true)
+  }
+
+  const openEditHolidayDialog = (rule: HolidayRule) => {
+    setHolidayBeingEdited(rule)
+    setIsAddHolidayDialogOpen(true)
+  }
+
+  const handleHolidayDialogOpenChange = (open: boolean) => {
+    setIsAddHolidayDialogOpen(open)
+    if (!open) setHolidayBeingEdited(null)
   }
 
   const onSubmit = async (data: BookingRulesSettingsFormInput) => {
@@ -142,7 +183,8 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Stay Duration Rules */}
       <Card>
         <CardHeader>
@@ -337,6 +379,83 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <CardTitle>Holiday Reservation Configuration</CardTitle>
+              <CardDescription>Configure how holiday reservations are handled</CardDescription>
+            </div>
+            <Button type="button" size="sm" onClick={openAddHolidayDialog}>
+              <Plus className="h-4 w-4" />
+              Add Holiday
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {holidayRules == null || holidayRules.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No holidays yet. Add one above — it will be saved when you click Save Booking Rules.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-md border">
+              {holidayRules.map((rule: HolidayRule) => (
+                <li
+                  key={rule.id}
+                  className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{rule.title}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatHolidayYmd(rule.start_date)} – {formatHolidayYmd(rule.end_date)}
+                      {' · '}
+                      Min {rule.min_stay_nights} night{rule.min_stay_nights !== 1 ? 's' : ''}
+                      {rule.max_stay_nights != null
+                        ? ` · Max ${rule.max_stay_nights} night${rule.max_stay_nights !== 1 ? 's' : ''}`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`holiday-enabled-${rule.id}`} className="sr-only">
+                        Enable {rule.title}
+                      </Label>
+                      <Switch
+                        id={`holiday-enabled-${rule.id}`}
+                        checked={rule.enabled}
+                        onCheckedChange={(checked) => setHolidayRuleEnabled(rule.id, checked)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => openEditHolidayDialog(rule)}
+                      aria-label={`Edit ${rule.title}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeHolidayRule(rule.id)}
+                      aria-label={`Remove ${rule.title}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">
         <div className="flex-1 mr-4">
@@ -351,6 +470,24 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
           {isSaving ? 'Saving...' : 'Save Booking Rules'}
         </Button>
       </div>
-    </form>
+      </form>
+
+      <AddHolidayDialog
+        open={isAddHolidayDialogOpen}
+        onOpenChange={handleHolidayDialogOpenChange}
+        initialValues={holidayBeingEdited}
+        title={holidayBeingEdited ? 'Edit holiday' : 'Add holiday'}
+        submitLabel={holidayBeingEdited ? 'Save changes' : 'Add holiday'}
+        onSubmit={(holiday) => {
+          const list = holidayRules ?? []
+          const next = holidayBeingEdited
+            ? list.map((h: HolidayRule) => (h.id === holiday.id ? holiday : h))
+            : [...list, holiday]
+          setValue('holiday_rules', next, { shouldDirty: true, shouldValidate: true })
+          setIsAddHolidayDialogOpen(false)
+          setHolidayBeingEdited(null)
+        }}
+      />
+    </>
   )
 }

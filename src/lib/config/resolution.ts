@@ -575,6 +575,7 @@ export function parseBookingRulesFromDB(dbResult: any): BookingRulesConfig {
     blackout_dates: dbResult.blackout_dates ?? [],
     same_day_booking_enabled: dbResult.same_day_booking_enabled ?? true,
     instant_booking_enabled: dbResult.instant_booking_enabled ?? true,
+    holiday_rules: dbResult.holiday_rules ?? [],
   }
 }
 

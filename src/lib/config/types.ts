@@ -384,6 +384,16 @@ export interface PricingConfig {
 // Booking Rules Configuration
 // =====================================================
 
+export type HolidayRule = {
+  id: string
+  title: string
+  start_date: string
+  end_date: string
+  min_stay_nights: number
+  max_stay_nights?: number
+  enabled: boolean
+}
+
 /**
  * Booking Rules Configuration
  *
@@ -456,6 +466,12 @@ export interface BookingRulesConfig {
    * @default true
    */
   instant_booking_enabled: boolean
+
+  /**
+   * Holiday reservation rules
+   * @default []
+   */
+  holiday_rules: HolidayRule[]
 }
 
 // =====================================================
@@ -1068,6 +1084,7 @@ export const DEFAULT_BOOKING_RULES_CONFIG: BookingRulesConfig = {
   blackout_dates: [],
   same_day_booking_enabled: true,
   instant_booking_enabled: true,
+  holiday_rules: [],
 }
 
 /**

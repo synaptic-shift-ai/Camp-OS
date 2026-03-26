@@ -220,6 +220,72 @@ export async function PATCH(
       cancellation_policy_config: validatedRequest.cancellation_policy_config,
       terms_and_conditions: validatedRequest.terms_and_conditions,
     })
+    
+    if (validatedRequest.amenities !== undefined) {
+      try {
+        const newAmenityIds = Array.isArray(validatedRequest.amenities)
+          ? validatedRequest.amenities
+              .map((a) => (a && typeof a === 'object' && typeof a.id === 'string' ? a.id.trim() : ''))
+              .filter(Boolean)
+          : []
+
+        const allowedIdSet = new Set(newAmenityIds.map((id) => id.toLowerCase()))
+        const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+        const { data: siteRows } = await supabase
+          .from('sites')
+          .select('id, amenities, site_amenities, deleted_at')
+          .eq('property_id', id)
+          .is('deleted_at', null)
+
+        if (Array.isArray(siteRows) && siteRows.length > 0) {
+          for (const siteRow of siteRows) {
+            const currentAmenities = Array.isArray(siteRow.amenities) ? (siteRow.amenities as unknown[]) : null
+            const currentSiteAmenities = Array.isArray(siteRow.site_amenities)
+              ? (siteRow.site_amenities as unknown[])
+              : null
+
+            const filterIds = (values: unknown[] | null) => {
+              if (!Array.isArray(values) || values.length === 0) return null
+              const filtered = values
+                .map((v) => (typeof v === 'string' ? v : null))
+                .filter((v): v is string => typeof v === 'string' && v.length > 0)
+                .filter((amenityValue) => {
+                  if (!isUuid(amenityValue)) return true
+                  return allowedIdSet.has(amenityValue.toLowerCase())
+                })
+              return filtered.length > 0 ? filtered : null
+            }
+
+            const nextAmenities = filterIds(currentAmenities)
+            const nextSiteAmenities = filterIds(currentSiteAmenities)
+
+            // Only write if something changed.
+            const currentAmenitiesJson = currentAmenities ? JSON.stringify(currentAmenities) : 'null'
+            const nextAmenitiesJson = nextAmenities ? JSON.stringify(nextAmenities) : 'null'
+            const currentSiteAmenitiesJson = currentSiteAmenities ? JSON.stringify(currentSiteAmenities) : 'null'
+            const nextSiteAmenitiesJson = nextSiteAmenities ? JSON.stringify(nextSiteAmenities) : 'null'
+
+            if (
+              currentAmenitiesJson !== nextAmenitiesJson ||
+              currentSiteAmenitiesJson !== nextSiteAmenitiesJson
+            ) {
+              await supabase
+                .from('sites')
+                .update({
+                  amenities: nextAmenities,
+                  site_amenities: nextSiteAmenities,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', siteRow.id)
+                .is('deleted_at', null)
+            }
+          }
+        }
+      } catch (amenityCleanupErr) {
+        console.error('[Properties API v1] amenity cleanup error:', amenityCleanupErr)
+      }
+    }
 
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)

@@ -52,6 +52,18 @@ const siteTypeLabels: Record<string, string> = {
 export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialogProps) {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [propertyAmenities, setPropertyAmenities] = useState<Array<{ id: string; name: string }> | null>(null)
+  const legacyAmenityKeyToLabel: Record<string, string> = useMemo(
+    () => ({
+      fire_pit: 'Fire Pit',
+      picnic_table: 'Picnic Table',
+      grill: 'Grill',
+      shade: 'Shade',
+      pet_friendly: 'Pet Friendly',
+      lake_view: 'Lake View',
+      waterfront: 'Waterfront',
+    }),
+    []
+  )
 
   useEffect(() => {
     if (!open) return
@@ -96,11 +108,29 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
 
     // Normalize to avoid UUID case mismatches (UUIDs are case-insensitive, strings are not).
     const byId = new Map(propertyAmenities.map((a) => [a.id.toLowerCase(), a.name]))
+
+    const legacyKeyToLabel = (raw: string): string | null => {
+      const lower = raw.trim().toLowerCase()
+      if (!lower) return null
+      if (legacyAmenityKeyToLabel[lower]) return legacyAmenityKeyToLabel[lower]
+      // snake_case -> Title Case
+      if (lower.includes('_')) {
+        return lower
+          .split('_')
+          .filter(Boolean)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+      }
+      // If it's already human text (e.g. "test 2"), show it as-is.
+      if (raw.includes(' ')) return raw.trim()
+      return null
+    }
+
     return amenityIds.map((amenityId) => {
       const normalized = typeof amenityId === 'string' ? amenityId.toLowerCase() : String(amenityId).toLowerCase()
-      return byId.get(normalized) ?? 'Unknown amenity'
+      return byId.get(normalized) ?? legacyKeyToLabel(amenityId) ?? 'Unknown amenity'
     })
-  }, [propertyAmenities, site.amenities])
+  }, [propertyAmenities, site.amenities, legacyAmenityKeyToLabel])
 
   const formatPrice = (cents: number | null) => {
     if (!cents) return 'Not set'

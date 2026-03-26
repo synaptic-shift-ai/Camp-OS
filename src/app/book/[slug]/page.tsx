@@ -359,12 +359,46 @@ export default async function PropertyBookingPage({
     return map
   })()
 
+  const legacyAmenityKeyToLabel = (raw: string): string | null => {
+    const lower = raw.trim().toLowerCase()
+    if (!lower) return null
+    const legacyKeyToLabel: Record<string, string> = {
+      fire_pit: "Fire Pit",
+      picnic_table: "Picnic Table",
+      grill: "Grill",
+      shade: "Shade",
+      pet_friendly: "Pet Friendly",
+      lake_view: "Lake View",
+      waterfront: "Waterfront",
+    }
+
+    if (legacyKeyToLabel[lower]) return legacyKeyToLabel[lower]
+
+    // snake_case -> Title Case
+    if (lower.includes("_")) {
+      return lower
+        .split("_")
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    }
+
+    // If it's already a custom human-readable string (e.g. "test 2"), keep it.
+    if (raw.includes(" ")) return raw.trim()
+
+    return null
+  }
+
   const siteTypeSummaries: SiteTypeSummary[] = sitesToShow.map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
     const resolvedAmenities = Array.isArray(s.amenities)
       ? (s.amenities as string[])
           .slice(0, 6)
-          .map((amenityId) => amenityIdToName.get(amenityId.toLowerCase()))
+          .map((amenityId) => {
+            const fromId = amenityIdToName.get(amenityId.toLowerCase())
+            if (fromId) return fromId
+            return legacyAmenityKeyToLabel(amenityId)
+          })
           .filter((x): x is string => typeof x === "string" && x.length > 0)
       : []
 

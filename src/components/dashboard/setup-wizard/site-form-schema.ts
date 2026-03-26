@@ -39,16 +39,8 @@ export const siteFormSchema = z.object({
     sewer: z.boolean().default(false),
   }),
 
-  // Amenities (boolean flags)
-  amenities: z.object({
-    fire_pit: z.boolean().default(false),
-    picnic_table: z.boolean().default(false),
-    grill: z.boolean().default(false),
-    shade: z.boolean().default(false),
-    pet_friendly: z.boolean().default(false),
-    lake_view: z.boolean().default(false),
-    waterfront: z.boolean().default(false),
-  }),
+  // Amenities (dynamic boolean flags; keys come from property amenities)
+  amenities: z.record(z.boolean()),
 
   // Pet-related fields
   allow_pets: z.boolean().default(false),
@@ -169,18 +161,23 @@ export function toApiFormat(data: SiteFormData) {
  */
 export function fromApiFormat(site: any): Partial<SiteFormData> {
   // Handle both nested (v1 API) and flat structures
-  const amenitiesArray = site.amenities || site.site_amenities || []
+  const amenitiesArray = site.amenities ?? site.site_amenities ?? []
   const hookupsArray = site.hookups || []
 
-  // Convert amenities array to boolean object
-  const amenitiesObj = {
-    fire_pit: amenitiesArray.includes("fire_pit") || false,
-    picnic_table: amenitiesArray.includes("picnic_table") || false,
-    grill: amenitiesArray.includes("grill") || false,
-    shade: amenitiesArray.includes("shade") || false,
-    pet_friendly: amenitiesArray.includes("pet_friendly") || false,
-    lake_view: amenitiesArray.includes("lake_view") || false,
-    waterfront: amenitiesArray.includes("waterfront") || false,
+  // Convert amenities array to boolean object (dynamic + known defaults)
+  const amenitiesObj: Record<string, boolean> = {
+    fire_pit: false,
+    picnic_table: false,
+    grill: false,
+    shade: false,
+    pet_friendly: false,
+    lake_view: false,
+    waterfront: false,
+  }
+  for (const amenity of amenitiesArray) {
+    if (typeof amenity === "string" && amenity.trim().length > 0) {
+      amenitiesObj[amenity] = true
+    }
   }
 
   // Convert hookups array to boolean object

@@ -251,7 +251,7 @@ export async function PUT(
         max_vehicles: body.max_vehicles ?? body.maxVehicles ?? existingSite.max_vehicles,
         size_sqft: body.size_sqft ?? body.sizeSqft ?? existingSite.size_sqft,
         hookups: body.hookups ?? existingSite.hookups,
-        site_amenities: body.site_amenities ?? body.amenities ?? existingSite.site_amenities,
+        amenities: body.amenities ?? body.site_amenities ?? existingSite.amenities,
         status: newStatus,
         availability_rules: resolvedAvailabilityRules,
         site_images: body.images ?? body.site_images ?? existingSite.site_images,

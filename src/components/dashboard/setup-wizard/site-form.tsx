@@ -70,6 +70,8 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isEditMode = !!site
+  const [propertyAmenities, setPropertyAmenities] = useState<unknown[] | null>(null)
+  const [amenitiesLoading, setAmenitiesLoading] = useState(false)
   const [isSingleDay, setIsSingleDay] = useState(true)
   const [houseKeepingFrom, setHouseKeepingFrom] = useState<string>('')
   const [houseKeepingTo, setHouseKeepingTo] = useState('')
@@ -212,6 +214,56 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const pricingSource = watch("pricing_source")
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const defaultReservationType = watch("default_reservation_type")
+  const amenityOptions = useMemo(() => {
+    const knownNameToKey: Record<string, string> = {
+      "fire pit": "fire_pit",
+      "picnic table": "picnic_table",
+      "grill": "grill",
+      "shade": "shade",
+      "pet friendly": "pet_friendly",
+      "lake view": "lake_view",
+      "waterfront": "waterfront",
+    }
+
+    const fallback = [
+      { key: "fire_pit", label: "Fire Pit" },
+      { key: "picnic_table", label: "Picnic Table" },
+      { key: "grill", label: "Grill" },
+      { key: "shade", label: "Shade" },
+      { key: "pet_friendly", label: "Pet Friendly" },
+      { key: "lake_view", label: "Lake View" },
+      { key: "waterfront", label: "Waterfront" },
+    ]
+
+    if (!Array.isArray(propertyAmenities)) return fallback
+
+    const options: { key: string; label: string }[] = []
+    const seen = new Set<string>()
+
+    for (const item of propertyAmenities) {
+      const rawName =
+        typeof item === "string"
+          ? item
+          : item && typeof item === "object" && typeof (item as { name?: unknown }).name === "string"
+            ? (item as { name: string }).name
+            : null
+
+      if (!rawName) continue
+      const trimmed = rawName.trim()
+      if (!trimmed) continue
+
+      const keyFromKnown = knownNameToKey[trimmed.toLowerCase()]
+      // Keep custom amenity keys as entered in Property Settings (e.g. "test 2")
+      const keyFromCustom = trimmed
+      const key = keyFromKnown || keyFromCustom
+      if (!key || seen.has(key)) continue
+
+      seen.add(key)
+      options.push({ key, label: trimmed })
+    }
+
+    return options.length > 0 ? options : fallback
+  }, [propertyAmenities])
 
   useEffect(() => {
     const blocked = (site?.availability_rules as any)?.blocked_dates
@@ -233,6 +285,44 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     }
   }, [isEditMode, site, reset])
 
+  // Property amenities (from Settings → Property Amenities) control which site amenity checkboxes are shown.
+  // We map known property amenity names to the site amenity keys used by this form.
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchPropertyAmenities = async () => {
+      setAmenitiesLoading(true)
+      try {
+        const response = await fetch(`/api/v1/properties/${propertyId}`)
+        const result = await response.json()
+
+        if (cancelled) return
+
+        if (!response.ok || !result.success) {
+          setPropertyAmenities(null)
+          return
+        }
+
+        const dbAmenities = result.data?.amenities
+        if (!Array.isArray(dbAmenities)) {
+          setPropertyAmenities(null)
+          return
+        }
+        setPropertyAmenities(dbAmenities)
+      } catch {
+        if (cancelled) return
+        setPropertyAmenities(null)
+      } finally {
+        if (!cancelled) setAmenitiesLoading(false)
+      }
+    }
+
+    fetchPropertyAmenities()
+    return () => {
+      cancelled = true
+    }
+  }, [propertyId])
+
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
     const current = enabledReservationTypesOverride || []
     const updated = current.includes(type)
@@ -253,7 +343,16 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       setSaving(true)
       setError(null)
 
-      const apiData = toApiFormat(data)
+      const selectedAmenities = new Set(amenityOptions.map((opt) => opt.key))
+      const amenitiesForSubmit: Record<string, boolean> = {}
+      for (const key of selectedAmenities) {
+        amenitiesForSubmit[key] = Boolean(data.amenities?.[key])
+      }
+
+      const apiData = toApiFormat({
+        ...data,
+        amenities: amenitiesForSubmit,
+      })
       const isBlockingDates =
         (data.status === "housekeeping" || data.status === "maintenance") && houseKeepingFrom
 
@@ -727,22 +826,30 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
           <CardDescription>Site-specific features</CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { id: "amenity_fire_pit", field: "amenities.fire_pit" as const, label: "Fire Pit", value: amenities.fire_pit },
-              { id: "amenity_picnic_table", field: "amenities.picnic_table" as const, label: "Picnic Table", value: amenities.picnic_table },
-              { id: "amenity_grill", field: "amenities.grill" as const, label: "Grill", value: amenities.grill },
-              { id: "amenity_shade", field: "amenities.shade" as const, label: "Shade", value: amenities.shade },
-              { id: "amenity_pet_friendly", field: "amenities.pet_friendly" as const, label: "Pet Friendly", value: amenities.pet_friendly },
-              { id: "amenity_lake_view", field: "amenities.lake_view" as const, label: "Lake View", value: amenities.lake_view },
-              { id: "amenity_waterfront", field: "amenities.waterfront" as const, label: "Waterfront", value: amenities.waterfront },
-            ].map(({ id, field, label, value }) => (
-              <div key={id} className="flex items-center space-x-2">
-                <Checkbox id={id} checked={value} onCheckedChange={(c) => setValue(field, c as boolean)} />
-                <Label htmlFor={id} className="font-normal cursor-pointer">{label}</Label>
-              </div>
-            ))}
-          </div>
+          {amenitiesLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <span className="text-sm text-muted-foreground">Loading...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {amenityOptions.map(({ key, label }) => {
+                const field = `amenities.${key}`
+                const checked = Boolean((amenities as Record<string, boolean> | undefined)?.[key])
+                const id = `amenity_${key}`
+
+                return (
+                  <div key={id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={id}
+                      checked={checked}
+                      onCheckedChange={(c) => setValue(field as any, c as boolean)}
+                    />
+                    <Label htmlFor={id} className="font-normal cursor-pointer">{label}</Label>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -847,7 +954,9 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             <p className="font-medium mb-1">Please fix the following errors:</p>
             <ul className="list-disc list-inside text-sm">
               {Object.entries(errors).map(([field, error]) => (
-                <li key={field}>{field.replace(/_/g, ' ')}: {error?.message || 'Invalid value'}</li>
+                <li key={field}>
+                  {field.replace(/_/g, ' ')}: {typeof error?.message === "string" ? error.message : "Invalid value"}
+                </li>
               ))}
             </ul>
           </AlertDescription>

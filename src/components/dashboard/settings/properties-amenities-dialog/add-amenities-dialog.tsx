@@ -37,12 +37,14 @@ type AddAmenitiesDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onAddAmenity?: (amenity: { name: string; description: string }) => void
+  existingAmenityNames: string[]
 }
 
 export function AddAmenitiesDialog({
   open,
   onOpenChange,
   onAddAmenity,
+  existingAmenityNames,
 }: AddAmenitiesDialogProps) {
   const [preset, setPreset] = useState<AmenityPreset | "">("")
   const [customName, setCustomName] = useState("")
@@ -63,6 +65,16 @@ export function AddAmenitiesDialog({
 
   const canSave = name.length > 0
 
+  const existingSet = useMemo(() => {
+    return new Set(
+        existingAmenityNames.map((n) => n.trim().toLowerCase()).filter(Boolean),
+    )
+  }, [existingAmenityNames])
+
+  const filteredPresets = amenityPresets.filter(
+    (p) => !existingSet.has(p.toLowerCase())
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -82,7 +94,7 @@ export function AddAmenitiesDialog({
                 <SelectValue placeholder="Select an amenity" />
               </SelectTrigger>
               <SelectContent>
-                {amenityPresets.map((option) => (
+                {filteredPresets.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>

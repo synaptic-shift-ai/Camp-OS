@@ -259,6 +259,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                 open={isAddAmenitiesDialogOpen}
                 onOpenChange={handleAddAmenitiesDialogOpenChange}
                 onAddAmenity={handleAddAmenity}
+                existingAmenityNames={amenities.map((a) => a.name)}
             />
 
             <EditAmenitiesDialog

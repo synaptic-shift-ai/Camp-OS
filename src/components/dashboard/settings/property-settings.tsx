@@ -75,11 +75,11 @@ interface PropertySettingsProps {
   initial: PropertyDetailsInitial
   stripeConnected: boolean
   stripeConnectedAt?: string | null
-  stripeAccountId?: string | null 
+  stripeAccountId?: string | null
 }
 
-export function PropertySettings({ 
-  propertyId, 
+export function PropertySettings({
+  propertyId,
   initial,
   stripeConnected,
   stripeConnectedAt,
@@ -142,14 +142,14 @@ export function PropertySettings({
       if (!clientId) {
         console.error("Missing NEXT_PUBLIC_STRIPE_CLIENT_ID environment variable")
         alert('Stripe Connect is not configured. Please contact support.')
-        return 
+        return
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
       if (!baseUrl) {
         console.error("Missing NEXT_PUBLIC_BASE_URL environment variable")
         alert('Stripe Connect is not configured. Please contact support.')
-        return 
+        return
       }
 
       const redirectUri = `${baseUrl}/api/stripe/connect/authorize`
@@ -414,15 +414,34 @@ export function PropertySettings({
 
             <div className="space-y-2">
               <Label>Hours of operation</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <Label htmlFor="checkInTime" className="flex flex-col gap-2">
-                  Check-in Time
-                  <Input type="time" id="checkInTime" {...register('checkInTime')} />
-                </Label>
-                <Label htmlFor="checkOutTime" className="flex flex-col gap-2">
-                  Check-out Time
-                  <Input type="time" id="checkOutTime" {...register('checkOutTime')} />
-                </Label>
+              <div className="flex space-x-4">
+                <div className="space-y-1 min-w-0">
+                  <Label htmlFor="checkInTime">Check-in time</Label>
+                  <Input
+                    type="time"
+                    id="checkInTime"
+                    className="h-9 w-36 min-w-0 text-sm px-2 appearance-none flex items-center justify-center"
+                    style={{
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'textfield',
+                    }}
+                    {...register('checkInTime')}
+                  />
+                </div>
+
+                <div className="space-y-1 min-w-0">
+                  <Label htmlFor="checkOutTime">Check-out time</Label>
+                  <Input
+                    type="time"
+                    id="checkOutTime"
+                    className="h-9 w-36 min-w-0 text-sm px-2 appearance-none flex items-center justify-center"
+                    style={{
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'textfield',
+                    }}
+                    {...register('checkOutTime')}
+                  />
+                </div>
               </div>
               {errors.checkInTime && (
                 <p className="text-sm text-destructive">{errors.checkInTime.message}</p>

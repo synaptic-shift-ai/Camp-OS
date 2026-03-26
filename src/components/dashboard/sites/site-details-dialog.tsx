@@ -7,7 +7,7 @@
  * Includes Edit button to open EditSiteDialog.
  */
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,56 @@ const siteTypeLabels: Record<string, string> = {
 
 export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialogProps) {
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [propertyAmenities, setPropertyAmenities] = useState<Array<{ id: string; name: string }> | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const propertyId =
+      ((site as any).property_id as string | undefined) ??
+      ((site as any).propertyId as string | undefined)
+    if (!propertyId) return
+
+    let cancelled = false
+
+    const fetchAmenities = async () => {
+      try {
+        const response = await fetch(`/api/v1/properties/${propertyId}`, {
+          credentials: "include",
+        })
+        const result = await response.json()
+        if (cancelled) return
+
+        if (response.ok && result.success) {
+          const dbAmenities = result.data?.amenities
+          setPropertyAmenities(Array.isArray(dbAmenities) ? dbAmenities : [])
+        } else {
+          setPropertyAmenities([])
+        }
+      } catch {
+        if (cancelled) return
+        setPropertyAmenities([])
+      }
+    }
+
+    setPropertyAmenities(null) // show raw ids until we resolve
+    fetchAmenities()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, (site as any).property_id, (site as any).propertyId])
+
+  const displayAmenities = useMemo(() => {
+    const amenityIds = Array.isArray(site.amenities) ? (site.amenities as string[]) : []
+    if (propertyAmenities === null) return null
+
+    // Normalize to avoid UUID case mismatches (UUIDs are case-insensitive, strings are not).
+    const byId = new Map(propertyAmenities.map((a) => [a.id.toLowerCase(), a.name]))
+    return amenityIds.map((amenityId) => {
+      const normalized = typeof amenityId === 'string' ? amenityId.toLowerCase() : String(amenityId).toLowerCase()
+      return byId.get(normalized) ?? 'Unknown amenity'
+    })
+  }, [propertyAmenities, site.amenities])
 
   const formatPrice = (cents: number | null) => {
     if (!cents) return 'Not set'
@@ -141,18 +191,26 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
             )}
 
             {/* Amenities Section */}
-            {site.amenities && Array.isArray(site.amenities) && site.amenities.length > 0 && (
+            {displayAmenities === null ? (
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-2">Amenities</h3>
+                <div className="text-sm text-muted-foreground">Loading amenities...</div>
+              </div>
+            ) : displayAmenities.length > 0 ? (
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground mb-2">Amenities</h3>
                 <div className="flex flex-wrap gap-2">
-                  {(site.amenities as string[]).map((amenity) => (
-                    <Badge key={amenity} variant="outline">
-                      {amenity}
-                    </Badge>
-                  ))}
+                  {displayAmenities.map((amenityLabel, idx) => {
+                    const rawId = Array.isArray(site.amenities) ? (site.amenities as string[])[idx] : amenityLabel
+                    return (
+                      <Badge key={`${rawId}-${idx}`} variant="outline">
+                        {amenityLabel}
+                      </Badge>
+                    )
+                  })}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Description Section */}
             {site.description && (

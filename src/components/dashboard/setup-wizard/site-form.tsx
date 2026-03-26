@@ -215,16 +215,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const defaultReservationType = watch("default_reservation_type")
   const amenityOptions = useMemo(() => {
-    const knownNameToKey: Record<string, string> = {
-      "fire pit": "fire_pit",
-      "picnic table": "picnic_table",
-      "grill": "grill",
-      "shade": "shade",
-      "pet friendly": "pet_friendly",
-      "lake view": "lake_view",
-      "waterfront": "waterfront",
-    }
-
     const fallback = [
       { key: "fire_pit", label: "Fire Pit" },
       { key: "picnic_table", label: "Picnic Table" },
@@ -252,10 +242,13 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       const trimmed = rawName.trim()
       if (!trimmed) continue
 
-      const keyFromKnown = knownNameToKey[trimmed.toLowerCase()]
-      // Keep custom amenity keys as entered in Property Settings (e.g. "test 2")
-      const keyFromCustom = trimmed
-      const key = keyFromKnown || keyFromCustom
+      // Store site amenities by property amenity id when available.
+      const keyFromId =
+        item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string"
+          ? (item as { id: string }).id.trim()
+          : ""
+      // Fallback for legacy string-only amenities in case no id exists.
+      const key = keyFromId || trimmed
       if (!key || seen.has(key)) continue
 
       seen.add(key)

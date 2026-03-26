@@ -102,7 +102,7 @@ export function CancellationPolicySettings({
             if (!response.ok || !result.success) {
               throw new Error(result.error?.message ?? 'Failed to save cancellation policy')
             }
-            setMessage({ type: 'success', text: 'Cancellation policy saved.' })
+            setMessage({ type: 'success', text: 'Terms & Policy saved.' })
             router.refresh()
         } catch (err) {
             setMessage({
@@ -118,6 +118,11 @@ export function CancellationPolicySettings({
       <div className="space-y-6">
         <Card>
           <CardHeader>
+            {message && (
+              <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
+                  <AlertDescription>{message.text}</AlertDescription>
+              </Alert>
+            )}
             <CardTitle className="flex items-center gap-2">
               Terms & Conditions
             </CardTitle>
@@ -126,11 +131,6 @@ export function CancellationPolicySettings({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {message && (
-            <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-                <AlertDescription>{message.text}</AlertDescription>
-            </Alert>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="termsAndConditions">Terms and Conditions</Label>

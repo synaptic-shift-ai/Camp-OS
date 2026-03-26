@@ -321,11 +321,54 @@ export default async function PropertyBookingPage({
     }
   }
 
+  const amenityIdToName = (() => {
+    const map = new Map<string, string>()
+    const raw = property.amenities
+
+    if (!Array.isArray(raw)) return map
+
+    for (const item of raw) {
+      if (typeof item === "string") {
+        map.set(item.toLowerCase(), item)
+        continue
+      }
+
+      if (item && typeof item === "object") {
+        const maybe = item as Record<string, unknown>
+        const id =
+          typeof maybe.id === "string"
+            ? maybe.id.trim()
+            : typeof maybe.amenity_id === "string"
+              ? maybe.amenity_id.trim()
+              : typeof maybe.amenityId === "string"
+                ? maybe.amenityId.trim()
+                : ""
+        const name =
+          typeof maybe.name === "string"
+            ? maybe.name.trim()
+            : typeof maybe.amenity_name === "string"
+              ? maybe.amenity_name.trim()
+              : typeof maybe.amenityName === "string"
+                ? maybe.amenityName.trim()
+                : ""
+
+        if (id && name) map.set(id.toLowerCase(), name)
+      }
+    }
+
+    return map
+  })()
+
   const siteTypeSummaries: SiteTypeSummary[] = sitesToShow.map((s) => {
     const siteType = ((s.site_type || "other").toLowerCase()) as SiteType
-    const amenities = Array.isArray(s.amenities)
-      ? (s.amenities as string[]).slice(0, 6)
-      : ["See availability for details"]
+    const resolvedAmenities = Array.isArray(s.amenities)
+      ? (s.amenities as string[])
+          .slice(0, 6)
+          .map((amenityId) => amenityIdToName.get(amenityId.toLowerCase()))
+          .filter((x): x is string => typeof x === "string" && x.length > 0)
+      : []
+
+    const amenities = resolvedAmenities.length > 0 ? resolvedAmenities : ["See availability for details"]
     const imageUrl = s.site_images?.[0] ?? s.images?.[0]
 
     const priceDollars = effectiveNightlyCentsForSite(s) / 100

@@ -5,7 +5,7 @@
  * Validates business rules and delegates to Property aggregate.
  */
 import type { IPropertyRepository } from '../../domain/IPropertyRepository'
-import { Property } from '../../domain/Property'
+import { Property, type PropertyAmenity } from '../../domain/Property'
 import { type PropertyType } from '../../domain/PropertyType'
 import { type PropertySettings } from '../../domain/PropertySettings'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
@@ -29,7 +29,7 @@ export type CreatePropertyDto = {
   subdomain?: string | null | undefined
   bookingPageSlug?: string | null | undefined
   settings?: PropertySettings | undefined
-  amenities?: string[] | null | undefined
+  amenities?: PropertyAmenity[] | null | undefined
 }
 
 export class CreatePropertyCommandHandler {

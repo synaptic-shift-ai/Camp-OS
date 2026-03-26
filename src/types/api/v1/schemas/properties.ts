@@ -55,6 +55,12 @@ export const PropertySettingsSchema = z.object({
   openPeriodUntil: isoDateOnlyNullable,
 })
 
+export const PropertyAmenitySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).nullable(),
+})
+
 // ============================================================================
 // Property Response Schema
 // ============================================================================
@@ -97,7 +103,7 @@ export const PropertySchema = z.object({
   settings: PropertySettingsSchema,
 
   // Amenities
-  amenities: z.array(z.string()).nullable(),
+  amenities: z.array(PropertyAmenitySchema).nullable(),
 
   // Onboarding (CRITICAL - Oct 30 fix)
   onboardingStatus: OnboardingStatusSchema,
@@ -154,7 +160,7 @@ export const CreatePropertyRequestSchema = z.object({
   settings: PropertySettingsSchema.optional(),
 
   // Amenities
-  amenities: z.array(z.string()).optional(),
+  amenities: z.array(PropertyAmenitySchema).optional(),
 })
 
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequestSchema>
@@ -195,7 +201,7 @@ export const UpdatePropertyRequestSchema = z.object({
   terms_and_conditions: z.string().max(50000).nullable().optional(),
 
   // Amenities
-  amenities: z.array(z.string()).nullable().optional(),
+  amenities: z.array(PropertyAmenitySchema).nullable().optional(),
 
   // Guest Instructions
   checkInInstructions: z.string().max(5000).nullable().optional(),

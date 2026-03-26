@@ -78,7 +78,11 @@ describe('Properties API v1 Contract Tests', () => {
         },
 
         // Amenities
-        amenities: ['wifi', 'showers', 'laundry'],
+        amenities: [
+          { id: 'wifi', name: 'wifi', description: null },
+          { id: 'showers', name: 'showers', description: null },
+          { id: 'laundry', name: 'laundry', description: null },
+        ],
 
         // Onboarding (CRITICAL - Oct 30 fix)
         onboardingStatus: 'completed',
@@ -264,7 +268,10 @@ describe('Properties API v1 Contract Tests', () => {
           openPeriodFrom: null,
           openPeriodUntil: null,
         },
-        amenities: ['wifi', 'showers'],
+        amenities: [
+          { id: 'wifi', name: 'wifi', description: null },
+          { id: 'showers', name: 'showers', description: null },
+        ],
       }
 
       expect(() => CreatePropertyRequestSchema.parse(completeRequest)).not.toThrow()

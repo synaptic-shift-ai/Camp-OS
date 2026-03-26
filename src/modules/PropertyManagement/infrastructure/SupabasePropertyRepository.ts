@@ -15,7 +15,7 @@
  * - BP-4: Enforce tenant context in queries
  */
 import type { IPropertyRepository } from '../domain/IPropertyRepository'
-import { Property } from '../domain/Property'
+import { Property, type PropertyAmenity } from '../domain/Property'
 import { type PropertyType } from '../domain/PropertyType'
 import { PropertyStatus } from '../domain/PropertyStatus'
 import { PropertySettings } from '../domain/PropertySettings'
@@ -257,8 +257,29 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       row.settings as Record<string, any> | null
     )
 
-    // Parse amenities
-    const amenities = Array.isArray(row.amenities) ? (row.amenities as string[]) : null
+    // Parse amenities (support legacy string[] and new {id,name,description} objects)
+    const amenities = Array.isArray(row.amenities)
+      ? (row.amenities as unknown[])
+          .map((item): PropertyAmenity | null => {
+            if (typeof item === 'string') {
+              return { id: item, name: item, description: null }
+            }
+
+            if (item && typeof item === 'object') {
+              const maybe = item as Partial<Record<string, unknown>>
+              const id = typeof maybe.id === 'string' ? maybe.id : typeof maybe.name === 'string' ? maybe.name : ''
+              const name = typeof maybe.name === 'string' ? maybe.name : ''
+              const description =
+                typeof maybe.description === 'string' ? maybe.description : null
+
+              if (!id || !name) return null
+              return { id, name, description }
+            }
+
+            return null
+          })
+          .filter((a): a is PropertyAmenity => a !== null)
+      : null
 
     // Parse gallery_images: JSONB may be string[] or [{ url, caption?, order? }]
     const galleryImages = parseGalleryImages(row.gallery_images)

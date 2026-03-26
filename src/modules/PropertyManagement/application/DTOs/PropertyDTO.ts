@@ -7,7 +7,7 @@
  * CRITICAL: Includes ALL fields to prevent Oct 30 incident
  * (onboarding_completed and all related fields must be present)
  */
-import type { Property } from '../../domain/Property'
+import type { Property, PropertyAmenity } from '../../domain/Property'
 import { type PropertyStatus, getPropertyStatusLabel } from '../../domain/PropertyStatus'
 import { type PropertyType, getPropertyTypeLabel } from '../../domain/PropertyType'
 import { type OnboardingStatus, getOnboardingStatusLabel } from '../../domain/OnboardingStatus'
@@ -58,7 +58,7 @@ export type PropertyDTO = {
   }
 
   // Amenities
-  amenities: string[] | null
+  amenities: PropertyAmenity[] | null
 
   // Guest Instructions
   checkInInstructions: string | null

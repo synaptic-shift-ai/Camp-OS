@@ -9,6 +9,12 @@ import { type PropertyType } from '../../domain/PropertyType'
 import { type PropertySettings } from '../../domain/PropertySettings'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 
+export type PropertyAmenity = {
+  id: string
+  name: string
+  description: string | null
+}
+
 export type UpdatePropertyDto = {
   id: string
   name?: string | undefined
@@ -29,7 +35,7 @@ export type UpdatePropertyDto = {
   heroImageUrl?: string | null | undefined
   galleryImages?: string[] | null | undefined
   settings?: PropertySettings | undefined
-  amenities?: string[] | null | undefined
+  amenities?: PropertyAmenity[] | null | undefined
   checkInInstructions?: string | null | undefined
   checkOutInstructions?: string | null | undefined
   houseRules?: string | null | undefined

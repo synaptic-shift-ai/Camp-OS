@@ -706,7 +706,10 @@ describe('Property', () => {
         'https://example.com/hero.jpg', // heroImageUrl
         null, // galleryImages
         settings,
-        ['wifi', 'showers'],
+        [
+          { id: 'wifi', name: 'wifi', description: null },
+          { id: 'showers', name: 'showers', description: null },
+        ],
         'Check in at the office', // checkInInstructions
         'Leave keys in drop box', // checkOutInstructions
         'No loud music after 10pm', // houseRules

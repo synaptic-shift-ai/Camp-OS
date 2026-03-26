@@ -43,6 +43,12 @@ import {
   PropertyStatusChangedEvent,
 } from './events'
 
+export type PropertyAmenity = {
+  id: string
+  name: string
+  description: string | null
+}
+
 export type PropertyProps = {
   companyId: string
   ownerId: string | null
@@ -73,7 +79,7 @@ export type PropertyProps = {
 
   // Settings
   settings: PropertySettings
-  amenities: string[] | null
+  amenities: PropertyAmenity[] | null
 
   // Guest Instructions
   checkInInstructions: string | null
@@ -127,7 +133,7 @@ export class Property extends AggregateRoot<string> {
       heroImageUrl?: string | null | undefined
       galleryImages?: string[] | null | undefined
       settings?: PropertySettings | undefined
-      amenities?: string[] | null | undefined
+      amenities?: PropertyAmenity[] | null | undefined
       checkInInstructions?: string | null | undefined
       checkOutInstructions?: string | null | undefined
       houseRules?: string | null | undefined
@@ -229,7 +235,7 @@ export class Property extends AggregateRoot<string> {
     heroImageUrl: string | null,
     galleryImages: string[] | null,
     settings: PropertySettings,
-    amenities: string[] | null,
+    amenities: PropertyAmenity[] | null,
     checkInInstructions: string | null,
     checkOutInstructions: string | null,
     houseRules: string | null,
@@ -362,7 +368,7 @@ export class Property extends AggregateRoot<string> {
     return this.props.settings
   }
 
-  get amenities(): string[] | null {
+  get amenities(): PropertyAmenity[] | null {
     return this.props.amenities
   }
 
@@ -520,7 +526,7 @@ export class Property extends AggregateRoot<string> {
   /**
    * Update amenities
    */
-  updateAmenities(amenities: string[]): void {
+  updateAmenities(amenities: PropertyAmenity[]): void {
     this.props.amenities = amenities
 
     this.touch()

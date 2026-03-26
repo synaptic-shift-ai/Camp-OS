@@ -393,7 +393,17 @@ export default async function PropertyBookingPage({
     phone: property.phone,
     email: property.email,
     cancellation_policy: property.cancellation_policy,
-    amenities: (property.amenities as string[]) || [],
+    amenities: Array.isArray(property.amenities)
+      ? (property.amenities as unknown[]).map((amenity) => {
+          if (typeof amenity === "string") return amenity
+          if (amenity && typeof amenity === "object") {
+            const maybe = amenity as Record<string, unknown>
+            const name = typeof maybe.name === "string" ? maybe.name : null
+            return name ?? ""
+          }
+          return ""
+        }).filter((s) => s.length > 0)
+      : [],
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
     openPeriodFrom,
     openPeriodUntil,

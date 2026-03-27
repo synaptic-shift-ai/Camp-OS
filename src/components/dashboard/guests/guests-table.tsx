@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Phone } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, Mail, Phone } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Table,
@@ -114,6 +114,35 @@ export function GuestsTable({
     setReservationsOpen(true)
   }
 
+  const getDefaultSortOrder = (
+    column: "guest" | "totalStays" | "totalSpent" | "lastVisit"
+  ): "asc" | "desc" => {
+    if (column === "guest") return "asc"
+    return "desc"
+  }
+
+  const handleSort = (column: "guest" | "totalStays" | "totalSpent" | "lastVisit") => {
+    const nextSortOrder =
+      sortBy === column ? (sortOrder === "asc" ? "desc" : "asc") : getDefaultSortOrder(column)
+
+    startTransition(() => {
+      const params = new URLSearchParams()
+      params.set("page", "1")
+      params.set("pageSize", String(pageSize))
+      if (searchQuery) params.set("search", searchQuery)
+      if (searchField !== "name") params.set("searchBy", searchField)
+      if (siteType) params.set("siteType", siteType)
+      params.set("sortBy", column)
+      params.set("sortOrder", nextSortOrder)
+      router.push(`/dashboard/${propertyId}/guests?${params.toString()}`)
+    })
+  }
+
+  const SortIcon = ({ column }: { column: GuestsTableProps["sortBy"] }) => {
+    if (sortBy !== column) return <ArrowUpDown className="h-3.5 w-3.5" />
+    return sortOrder === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+  }
+
   return (
     <>
       <div className="relative">
@@ -193,11 +222,31 @@ export function GuestsTable({
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
               <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Primary Guest</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("guest")}>
+                    Primary Guest
+                    <SortIcon column="guest" />
+                  </button>
+                </TableHead>
                 <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Contact</TableHead>
-                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Total Stays</TableHead>
-                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Total Spent</TableHead>
-                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">Last Visit</TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("totalStays")}>
+                    Total Stays
+                    <SortIcon column="totalStays" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("totalSpent")}>
+                    Total Spent
+                    <SortIcon column="totalSpent" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 font-medium dark:text-white/90 text-black/90">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("lastVisit")}>
+                    Last Visit
+                    <SortIcon column="lastVisit" />
+                  </button>
+                </TableHead>
                 <TableHead className="w-[50px] py-1.5" />
               </TableRow>
             </TableHeader>

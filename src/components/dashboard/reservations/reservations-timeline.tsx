@@ -23,8 +23,6 @@ import {
     VisaFlatRoundedIcon,
 } from "react-svg-credit-card-payment-icons"
 
-type SortBy = NonNullable<ReservationFilters["sortBy"]>
-type SortOrder = NonNullable<ReservationFilters["sortOrder"]>
 type SearchField = NonNullable<ReservationFilters["searchField"]>
 
 type ReservationsTimelineProps = {
@@ -36,8 +34,6 @@ type ReservationsTimelineProps = {
     siteType: string | null
     status: ReservationStatus | null
     searchQuery: string | null
-    sortBy: SortBy
-    sortOrder: SortOrder
     searchField: SearchField
     rateDiscountsConfig?: RateDiscountsConfig | null | undefined
     bookingRulesConfig?: BookingRulesConfig | null | undefined
@@ -524,8 +520,6 @@ export function ReservationsTimeline({
     siteType,
     status,
     searchQuery,
-    sortBy,
-    sortOrder,
     searchField,
     rateDiscountsConfig,
     bookingRulesConfig,
@@ -554,9 +548,6 @@ export function ReservationsTimeline({
         if (searchQuery) params.set("search", searchQuery)
         if (searchField !== "guest") params.set("searchBy", searchField)
 
-        params.set("sortBy", sortBy)
-        params.set("sortOrder", sortOrder)
-
         params.set("view", "timeline")
         return `/dashboard/${propertyId}/reservations?${params.toString()}`
     }
@@ -574,8 +565,6 @@ export function ReservationsTimeline({
             if (status) params.set("status", status)
             if (searchQuery) params.set("search", searchQuery)
             if (searchField !== "guest") params.set("searchBy", searchField)
-            params.set("sortBy", sortBy)
-            params.set("sortOrder", sortOrder)
             params.set("view", "timeline")
             router.push(`/dashboard/${propertyId}/reservations?${params.toString()}`)
         })
@@ -644,9 +633,6 @@ export function ReservationsTimeline({
             if (status) params.set("status", status)
             if (searchQuery) params.set("search", searchQuery)
             if (searchField !== "guest") params.set("searchBy", searchField)
-
-            params.set("sortBy", sortBy)
-            params.set("sortOrder", sortOrder)
 
             params.set("view", "timeline")
             params.set("period", nextPreset)

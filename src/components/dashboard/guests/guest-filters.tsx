@@ -449,50 +449,6 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
           </Select>
         </div>
 
-        <div className="space-y-0.5 xl:w-[170px]">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Sort By
-          </label>
-          <Select
-            value={currentSortBy}
-            onValueChange={(value) => {
-              updateParams({ sortBy: value })
-            }}
-            disabled={isPending}
-          >
-            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-0.5 xl:w-[170px]">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Order
-          </label>
-          <Select
-            value={currentSortOrder}
-            onValueChange={(value) => {
-              updateParams({ sortOrder: value })
-            }}
-            disabled={isPending}
-          >
-            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-              <SelectValue placeholder="Order" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desc">Descending</SelectItem>
-              <SelectItem value="asc">Ascending</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
     </div>
   )

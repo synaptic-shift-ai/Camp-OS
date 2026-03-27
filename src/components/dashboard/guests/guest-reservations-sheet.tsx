@@ -508,40 +508,56 @@ export function GuestReservationsSheet({
 
 
           <div className={showInitialLoader ? 'hidden' : 'space-y-3'}>
-            <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Trip Details</p>
-                {latestReservation ? (
-                  <p className={`text-xs font-medium ${statusTextColors[latestReservation.status] ?? 'text-muted-foreground'}`}>
-                    {statusLabels[latestReservation.status] ?? latestReservation.status.replace('_', ' ')}
-                  </p>
-                ) : null}
-              </div>
-              {latestReservation ? (
+            {!isLoading && reservations.length > 0 && (
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Reservations ({reservations.length})
+                </h3>
                 <div className="mt-3 space-y-3">
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Calendar className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {formatDate(latestReservation.checkInDate)} - {formatDate(latestReservation.checkOutDate)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {tripNights} night{tripNights !== 1 ? 's' : ''}
-                      </p>
+                  {reservations.map((res) => (
+                    <div
+                      key={res.id}
+                      className="rounded-lg border border-border bg-muted/30 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-mono text-sm font-semibold tracking-wide text-foreground">
+                            {res.confirmationNumber}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {formatDateShort(res.checkInDate)} - {formatDateShort(res.checkOutDate)} · {res.nights}{' '}
+                            night{res.nights !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 text-xs font-medium capitalize ${statusTextColors[res.status] ?? 'text-muted-foreground'}`}
+                        >
+                          {statusLabels[res.status] ?? res.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-background p-2 text-sm">
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">Total</p>
+                          <p className="font-semibold text-foreground">{formatMoney(res.totalAmountDollars)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">Paid</p>
+                          <p className="font-semibold text-foreground">{formatMoney(res.paidAmountDollars)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">Balance</p>
+                          <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
+                            {res.balanceDollars > 0
+                              ? `${formatMoney(res.balanceDollars)}`
+                              : '--'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Tent className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-foreground">{siteLabel}</p>
-                      <p className="text-xs text-muted-foreground">{latestReservation.confirmationNumber}</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">No reservation details available.</p>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Emergency Contact</p>
@@ -768,56 +784,6 @@ export function GuestReservationsSheet({
             </div>
           )}
 
-          {!showInitialLoader && !isLoading && reservations.length > 0 && (
-            <div className="mt-3 rounded-xl border border-border bg-background p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-foreground">
-                Reservations ({reservations.length})
-              </h3>
-              <div className="mt-3 space-y-3">
-                {reservations.map((res) => (
-                  <div
-                    key={res.id}
-                    className="rounded-lg border border-border bg-muted/30 p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-mono text-sm font-semibold tracking-wide text-foreground">
-                          {res.confirmationNumber}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatDateShort(res.checkInDate)} - {formatDateShort(res.checkOutDate)} · {res.nights}{' '}
-                          night{res.nights !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 text-xs font-medium capitalize ${statusTextColors[res.status] ?? 'text-muted-foreground'}`}
-                      >
-                        {statusLabels[res.status] ?? res.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-background p-2 text-sm">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Total</p>
-                        <p className="font-semibold text-foreground">{formatMoney(res.totalAmountDollars)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Paid</p>
-                        <p className="font-semibold text-foreground">{formatMoney(res.paidAmountDollars)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Balance</p>
-                        <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
-                          {res.balanceDollars > 0
-                            ? `${formatMoney(res.balanceDollars)}`
-                            : '--'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </SheetContent>
     </Sheet>

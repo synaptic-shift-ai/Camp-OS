@@ -82,6 +82,7 @@ export function ReservationFilters({
   const currentStatus = searchParams.get('status') ?? 'all'
   const currentSortBy = searchParams.get('sortBy') ?? 'checkIn'
   const currentSortOrder = searchParams.get('sortOrder') ?? 'desc'
+  const isTimelineView = searchParams.get('view') === 'timeline' || searchParams.get('view') === 'grid'
 
   // Draft values for the mobile dialog (apply only on Save)
   const [draftSearchBy, setDraftSearchBy] = useState(currentSearchBy)
@@ -215,7 +216,11 @@ export function ReservationFilters({
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Reservation Filters</DialogTitle>
-                    <DialogDescription>Search type, site, status, sort, and order controls.</DialogDescription>
+                    <DialogDescription>
+                      {isTimelineView
+                        ? 'Search type, site, and status controls.'
+                        : 'Search type, site, status, sort, and order controls.'}
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 space-y-3">
                     <div className="space-y-0.5">
@@ -283,45 +288,49 @@ export function ReservationFilters({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-0.5">
-                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Sort By
-                      </label>
-                      <Select
-                        value={draftSortBy}
-                        onValueChange={(value) => setDraftSortBy(value)}
-                        disabled={isPending}
-                      >
-                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-                          <SelectValue placeholder="Sort by" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-64">
-                          {sortByOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-0.5">
-                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Order by
-                      </label>
-                      <Select
-                        value={draftSortOrder}
-                        onValueChange={(value) => setDraftSortOrder(value)}
-                        disabled={isPending}
-                      >
-                        <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-                          <SelectValue placeholder="Order" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-64">
-                          <SelectItem value="desc">Descending</SelectItem>
-                          <SelectItem value="asc">Ascending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {!isTimelineView && (
+                      <div className="space-y-3">
+                        <div className="space-y-0.5">
+                          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Sort By
+                          </label>
+                          <Select
+                            value={draftSortBy}
+                            onValueChange={(value) => setDraftSortBy(value)}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                              <SelectValue placeholder="Sort by" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-64">
+                              {sortByOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Order by
+                          </label>
+                          <Select
+                            value={draftSortOrder}
+                            onValueChange={(value) => setDraftSortOrder(value)}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                              <SelectValue placeholder="Order" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-64">
+                              <SelectItem value="desc">Descending</SelectItem>
+                              <SelectItem value="asc">Ascending</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-6 flex justify-end gap-2">
                     <Button
@@ -361,7 +370,11 @@ export function ReservationFilters({
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Reservation Filters</DialogTitle>
-              <DialogDescription>Search type, site, status, sort, and order controls.</DialogDescription>
+              <DialogDescription>
+                {isTimelineView
+                  ? 'Search type, site, and status controls.'
+                  : 'Search type, site, status, sort, and order controls.'}
+              </DialogDescription>
             </DialogHeader>
             <div className="mt-4 space-y-3">
               <div className="space-y-0.5">
@@ -431,46 +444,50 @@ export function ReservationFilters({
                 </Select>
               </div>
 
-              <div className="space-y-0.5">
-                <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Sort By
-                </label>
-                <Select
-                  value={draftSortBy}
-                  onValueChange={(value) => setDraftSortBy(value)}
-                  disabled={isPending}
-                >
-                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    {sortByOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isTimelineView && (
+                <div className="space-y-3">
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Sort By
+                    </label>
+                    <Select
+                      value={draftSortBy}
+                      onValueChange={(value) => setDraftSortBy(value)}
+                      disabled={isPending}
+                    >
+                      <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {sortByOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-0.5">
-                <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Order by
-                </label>
-                <Select
-                  value={draftSortOrder}
-                  onValueChange={(value) => setDraftSortOrder(value)}
-                  disabled={isPending}
-                >
-                  <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-                    <SelectValue placeholder="Order" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    <SelectItem value="desc">Descending</SelectItem>
-                    <SelectItem value="asc">Ascending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Order by
+                    </label>
+                    <Select
+                      value={draftSortOrder}
+                      onValueChange={(value) => setDraftSortOrder(value)}
+                      disabled={isPending}
+                    >
+                      <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                        <SelectValue placeholder="Order" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="desc">Descending</SelectItem>
+                        <SelectItem value="asc">Ascending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <Button
@@ -541,46 +558,6 @@ export function ReservationFilters({
           </Select>
         </div>
 
-        <div className="space-y-0.5 2xl:w-[170px]">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Sort By
-          </label>
-          <Select
-            value={currentSortBy}
-            onValueChange={(value) => updateParams({ sortBy: value })}
-            disabled={isPending}
-          >
-            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent className="max-h-64">
-              {sortByOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-0.5 2xl:w-[170px]">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Order by
-          </label>
-          <Select
-            value={currentSortOrder}
-            onValueChange={(value) => updateParams({ sortOrder: value })}
-            disabled={isPending}
-          >
-            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-              <SelectValue placeholder="Order" />
-            </SelectTrigger>
-            <SelectContent className="max-h-64">
-              <SelectItem value="desc">Descending</SelectItem>
-              <SelectItem value="asc">Ascending</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
     </div>
   )

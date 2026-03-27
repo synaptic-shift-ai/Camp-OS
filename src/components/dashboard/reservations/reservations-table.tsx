@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarDays, Moon, Users } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Moon, Users } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -247,6 +247,73 @@ export function ReservationsTable({
     })
   }
 
+  const getDefaultSortOrder = (
+    column:
+      | "confirmation"
+      | "guest"
+      | "site"
+      | "checkIn"
+      | "checkOut"
+      | "nights"
+      | "guests"
+      | "totalAmount"
+      | "paidAmount"
+      | "balanceOwed"
+      | "refundedAmount"
+      | "status"
+  ): "asc" | "desc" => {
+    if (
+      column === "checkIn" ||
+      column === "checkOut" ||
+      column === "nights" ||
+      column === "guests" ||
+      column === "totalAmount" ||
+      column === "paidAmount" ||
+      column === "balanceOwed" ||
+      column === "refundedAmount"
+    ) {
+      return "desc"
+    }
+    return "asc"
+  }
+
+  const handleSort = (
+    column:
+      | "confirmation"
+      | "guest"
+      | "site"
+      | "checkIn"
+      | "checkOut"
+      | "nights"
+      | "guests"
+      | "totalAmount"
+      | "paidAmount"
+      | "balanceOwed"
+      | "refundedAmount"
+      | "status"
+  ) => {
+    const nextSortOrder =
+      sortBy === column ? (sortOrder === "asc" ? "desc" : "asc") : getDefaultSortOrder(column)
+
+    startTransition(() => {
+      const params = new URLSearchParams()
+      params.set("page", "1")
+      params.set("pageSize", String(pageSize))
+      if (siteType) params.set("siteType", siteType)
+      if (status) params.set("status", status)
+      if (searchQuery) params.set("search", searchQuery)
+      if (searchField !== "guest") params.set("searchBy", searchField)
+      params.set("sortBy", column)
+      params.set("sortOrder", nextSortOrder)
+      router.push(`/dashboard/${propertyId}/reservations?${params.toString()}`)
+    })
+  }
+
+  const SortIcon = ({ column }: { column: ReservationsTableProps["sortBy"] }) => {
+    if (sortBy !== column) return <ArrowUpDown className="h-3.5 w-3.5" />
+    return sortOrder === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+  }
+
   if (!reservations.length) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground">
@@ -395,18 +462,78 @@ export function ReservationsTable({
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
               <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Confirmation</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Primary Guest</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Site</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Check-in</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Check-out</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Nights</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Total Guests</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Total Amount</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Paid Amount</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Balance Owed</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Refunded Amount</TableHead>
-                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">Status</TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("confirmation")}>
+                    Confirmation
+                    <SortIcon column="confirmation" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("guest")}>
+                    Primary Guest
+                    <SortIcon column="guest" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("site")}>
+                    Site
+                    <SortIcon column="site" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("checkIn")}>
+                    Check-in
+                    <SortIcon column="checkIn" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("checkOut")}>
+                    Check-out
+                    <SortIcon column="checkOut" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("nights")}>
+                    Nights
+                    <SortIcon column="nights" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("guests")}>
+                    Total Guests
+                    <SortIcon column="guests" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("totalAmount")}>
+                    Total Amount
+                    <SortIcon column="totalAmount" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("paidAmount")}>
+                    Paid Amount
+                    <SortIcon column="paidAmount" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("balanceOwed")}>
+                    Balance Owed
+                    <SortIcon column="balanceOwed" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("refundedAmount")}>
+                    Refunded Amount
+                    <SortIcon column="refundedAmount" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("status")}>
+                    Status
+                    <SortIcon column="status" />
+                  </button>
+                </TableHead>
                 <TableHead className="w-10 py-1.5" />
               </TableRow>
             </TableHeader>

@@ -160,9 +160,6 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
       if (typeof searchParam === "string" && searchParam.length > 0) params.set("search", searchParam)
       if (searchField !== "guest") params.set("searchBy", searchField)
 
-      params.set("sortBy", sortBy)
-      params.set("sortOrder", sortOrder)
-
       params.set("view", "timeline")
       params.set("period", periodPreset)
       params.set("periodStart", periodStartYmd)
@@ -196,8 +193,10 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
     if (typeof searchParam === "string" && searchParam.length > 0) params.set("search", searchParam)
     if (searchField !== "guest") params.set("searchBy", searchField)
 
-    params.set("sortBy", sortBy)
-    params.set("sortOrder", sortOrder)
+    if (nextView === "list") {
+      params.set("sortBy", sortBy)
+      params.set("sortOrder", sortOrder)
+    }
 
     if (nextView === "timeline") {
       params.set("view", "timeline")
@@ -241,8 +240,6 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
             siteType={siteTypeFilter ?? null}
             status={statusFilter ?? null}
             searchQuery={typeof searchParam === "string" ? searchParam : null}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
             searchField={searchField}
             rateDiscountsConfig={property.rate_discounts_config as RateDiscountsConfig | null}
             bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}

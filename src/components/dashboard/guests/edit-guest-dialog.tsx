@@ -30,6 +30,9 @@ interface EditGuestDialogProps {
   guest: DashboardGuest
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -95,11 +98,17 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
       toast({
         title: 'Guest updated',
         description: `${trimmed.firstName} ${trimmed.lastName} has been updated.`,
+        className: SEASON_ALERT_TOAST_CLASS,
       })
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to update guest')
+      toast({
+        title: 'Update guest failed',
+        description: err instanceof Error ? err.message : 'Failed to update guest',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setIsSubmitting(false)
     }

@@ -9,6 +9,9 @@ import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
 import { ExportMenu } from "@/components/ui/export-menu"
 import { useToast } from "@/hooks/use-toast"
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 type ReservationsPageHeaderProps = {
   propertyId: string
   reservations: DashboardReservation[]
@@ -123,12 +126,14 @@ export function ReservationsPageHeader({
         toast({
           title: "Export ready",
           description: "Reservations CSV has been downloaded.",
+          className: SEASON_ALERT_TOAST_CLASS,
         })
       } catch (err) {
         toast({
           title: "Export failed",
           description: err instanceof Error ? err.message : "Please try again.",
           variant: "destructive",
+          className: SEASON_ALERT_TOAST_CLASS,
         })
       } finally {
         setIsExporting(false)

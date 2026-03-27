@@ -11,6 +11,7 @@ type ToasterToast = {
   description?: string
   action?: ToastActionElement
   variant?: "default" | "destructive"
+  className?: string
 }
 
 type ActionTypes = {

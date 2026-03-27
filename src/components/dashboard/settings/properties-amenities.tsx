@@ -8,7 +8,7 @@ import {
     CardContent,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 import { AddAmenitiesDialog } from "./properties-amenities-dialog/add-amenities-dialog"
 import { EditAmenitiesDialog, type AmenityEditPayload } from "./properties-amenities-dialog/edit-amenities-dialog"
 import { AddPropertyAmenitiesDialog } from "./properties-amenities-dialog/add-property-amenities-dialog"
@@ -22,6 +22,9 @@ import {
 import { DeletePropertyAmenitiesDialog } from "./properties-amenities-dialog/delete-property-amenities-dialog"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { useState, useEffect } from "react"
+
+const SEASON_ALERT_TOAST_CLASS =
+    "border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white"
 
 type Amenity = {
     id: string
@@ -41,6 +44,7 @@ type PropertiesAmenitiesProps = {
 }
 
 export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
+    const { toast } = useToast()
     const [isAddAmenitiesDialogOpen, setIsAddAmenitiesDialogOpen] = useState(false)
     const [isAddPropertyAmenitiesDialogOpen, setIsAddPropertyAmenitiesDialogOpen] = useState(false)
     const [amenities, setAmenities] = useState<Amenity[]>([])
@@ -54,7 +58,6 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
     const [isPropertyDeleteDialogOpen, setIsPropertyDeleteDialogOpen] = useState(false)
     const [propertyAmenityToDelete, setPropertyAmenityToDelete] = useState<PropertyAmenity | null>(null)
     const [isSaving, setIsSaving] = useState(false)
-    const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
     const [isLoadingAmenities, setIsLoadingAmenities] = useState(false)
 
     const handleAddAmenitiesDialogOpenChange = (open: boolean) => {
@@ -195,7 +198,6 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
     const handleSaveAmenities = async () => {
         if (isSaving) return
         setIsSaving(true)
-        setSaveMessage(null)
 
         try {
             const payload = {
@@ -224,10 +226,19 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                 throw new Error(result.error?.message ?? "Failed to save amenities")
             }
 
-            setSaveMessage({ type: "success", text: "Amenities saved." })
+            toast({
+                title: "Amenities saved",
+                description: "Your amenity changes were saved successfully.",
+                className: SEASON_ALERT_TOAST_CLASS,
+            })
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to save amenities"
-            setSaveMessage({ type: "error", text: message })
+            toast({
+                title: "Save failed",
+                description: message,
+                variant: "destructive",
+                className: SEASON_ALERT_TOAST_CLASS,
+            })
         } finally {
             setIsSaving(false)
         }
@@ -255,7 +266,13 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                 }
             } catch (err) {
                 if (cancelled) return
-                throw new Error(err instanceof Error ? err.message : "Failed to fetch amenities")
+                const message = err instanceof Error ? err.message : "Failed to fetch amenities"
+                toast({
+                    title: "Unable to load amenities",
+                    description: message,
+                    variant: "destructive",
+                    className: SEASON_ALERT_TOAST_CLASS,
+                })
             } finally {
                 if (!cancelled) setIsLoadingAmenities(false)
             }
@@ -266,7 +283,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
         return () => {
             cancelled = true
         }
-    }, [propertyId])
+    }, [propertyId, toast])
     
     return (
         <>
@@ -284,11 +301,6 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {saveMessage ? (
-                        <Alert variant={saveMessage.type === "error" ? "destructive" : "default"} className="mb-3">
-                            <AlertDescription>{saveMessage.text}</AlertDescription>
-                        </Alert>
-                    ) : null}
                     {isLoadingAmenities ? (
                         <div className="flex items-center justify-center py-10">
                             <div
@@ -358,11 +370,6 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {saveMessage ? (
-                        <Alert variant={saveMessage.type === "error" ? "destructive" : "default"} className="mb-3">
-                            <AlertDescription>{saveMessage.text}</AlertDescription>
-                        </Alert>
-                    ) : null}
                     {isLoadingAmenities ? (
                         <div className="flex items-center justify-center py-10">
                             <div

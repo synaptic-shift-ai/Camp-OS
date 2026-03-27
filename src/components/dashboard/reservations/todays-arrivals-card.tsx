@@ -26,6 +26,9 @@ interface TodaysArrivalsCardProps {
   checkInTime?: string | null | undefined
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCardProps) {
   const { toast } = useToast()
   const [selectedReservation, setSelectedReservation] = useState<
@@ -58,6 +61,7 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
         title: 'Unable to open check-in',
         description: 'Could not load full reservation details. Please try again.',
         variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setLoadingReservationId(null)

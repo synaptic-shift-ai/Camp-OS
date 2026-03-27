@@ -24,6 +24,9 @@ import { useToast } from "@/hooks/use-toast"
 import type { RateDiscountsConfig } from "@/lib/config/types"
 import { cn } from "@/lib/utils"
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 interface ReservationActionsProps {
   reservationId: string
   confirmationNumber: string
@@ -99,14 +102,28 @@ export function ReservationActions({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         const msg = data?.error?.message ?? "Failed to mark as no-show"
-        toast({ title: "No-show failed", description: msg, variant: "destructive" })
+        toast({
+          title: "No-show failed",
+          description: msg,
+          variant: "destructive",
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
         return
       }
-      toast({ title: "Marked as no-show", description: "Reservation status updated." })
+      toast({
+        title: "Marked as no-show",
+        description: "Reservation status updated.",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       router.refresh()
     } catch (err) {
       console.error("Mark no-show error:", err)
-      toast({ title: "Error", description: "Could not mark as no-show.", variant: "destructive" })
+      toast({
+        title: "Error",
+        description: "Could not mark as no-show.",
+        variant: "destructive",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setNoShowLoading(false)
     }

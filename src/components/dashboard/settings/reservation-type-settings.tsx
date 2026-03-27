@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import {
   Dialog,
   DialogContent,
@@ -100,6 +101,9 @@ interface SeasonalPeriodFormData {
   recurring: boolean
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function ReservationTypeSettings({
   propertyId,
   initialConfig,
@@ -107,8 +111,8 @@ export function ReservationTypeSettings({
   initialSeasonalPeriods,
 }: ReservationTypeSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Configuration state
   const [config, setConfig] = useState<PropertyReservationTypesConfig>(
@@ -179,7 +183,6 @@ export function ReservationTypeSettings({
 
   const handleSaveConfig = async () => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       const response = await fetch(`/api/v1/properties/${propertyId}/reservation-types`, {
@@ -196,14 +199,20 @@ export function ReservationTypeSettings({
         throw new Error(errorData.error?.message || 'Failed to save reservation type settings')
       }
 
-      setSaveMessage({ type: 'success', text: 'Reservation type settings saved successfully!' })
+      toast({
+        title: 'Reservation types saved',
+        description: 'Reservation type settings saved successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       setIsDirty(false)
       router.refresh()
     } catch (error) {
       console.error('Error saving reservation type settings:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save settings',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save settings',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -317,9 +326,11 @@ export function ReservationTypeSettings({
       setSeasonalPeriods((prev) => prev.filter((p) => p.id !== periodId))
     } catch (error) {
       console.error('Error deleting seasonal period:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to delete',
+      toast({
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Failed to delete',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     }
   }
@@ -522,13 +533,6 @@ export function ReservationTypeSettings({
 
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">
-        <div className="flex-1 mr-4">
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button onClick={handleSaveConfig} disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Reservation Types'}

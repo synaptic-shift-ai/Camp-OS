@@ -25,6 +25,9 @@ interface AddSiteDialogProps {
   propertyId: string
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function AddSiteDialog({
   open,
   onOpenChange,
@@ -84,6 +87,7 @@ export function AddSiteDialog({
     toast({
       title: 'Site Created',
       description: `Site ${site.site_number} has been created successfully.`,
+      className: SEASON_ALERT_TOAST_CLASS,
     })
     onOpenChange(false)
     router.refresh() // Refresh to show new site

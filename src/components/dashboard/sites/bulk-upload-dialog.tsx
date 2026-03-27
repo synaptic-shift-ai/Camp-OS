@@ -51,6 +51,9 @@ interface BulkUploadDialogProps {
 
 type Step = 'upload' | 'preview' | 'importing' | 'success'
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function BulkUploadDialog({
   open,
   onOpenChange,
@@ -121,6 +124,7 @@ export function BulkUploadDialog({
         title: 'Processing Error',
         description:
           error instanceof Error ? error.message : 'Failed to process CSV file',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsProcessing(false)
@@ -158,6 +162,7 @@ export function BulkUploadDialog({
       toast({
         title: 'Import Successful',
         description: `Successfully imported ${count} site${count !== 1 ? 's' : ''}`,
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } catch (error) {
       console.error('Import error:', error)
@@ -166,6 +171,7 @@ export function BulkUploadDialog({
         title: 'Import Failed',
         description:
           error instanceof Error ? error.message : 'Failed to import sites',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
       setStep('preview') // Go back to preview to allow retry
     }

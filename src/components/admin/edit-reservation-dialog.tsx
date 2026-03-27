@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import {
   AmericanExpressFlatRoundedIcon,
@@ -44,6 +45,9 @@ type PaymentCardDisplay = {
   exp_month: number
   exp_year: number
 }
+
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 function PaymentCardLogo({ brand }: { brand: string }) {
   const normalized = brand.trim().toLowerCase()
@@ -81,6 +85,7 @@ export function EditReservationDialog({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
   const router = useRouter()
+  const { toast } = useToast()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -179,11 +184,21 @@ export function EditReservationDialog({
       }
 
       // Success - close dialog and refresh the page
+      toast({
+        title: "Reservation updated",
+        description: "Reservation changes were saved successfully.",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       setOpen(false)
       router.refresh()
     } catch (err) {
       console.error("Update reservation error:", err)
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
+      toast({
+        title: "Update failed",
+        description: err instanceof Error ? err.message : "An unexpected error occurred",
+        variant: "destructive",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setLoading(false)
     }

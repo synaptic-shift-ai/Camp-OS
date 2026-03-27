@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
@@ -123,10 +124,13 @@ const feeFormSchema = z.object({
 
 type FeeFormInput = z.infer<typeof feeFormSchema>
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingFee, setEditingFee] = useState<UserDefinedFee | null>(null)
 
@@ -250,7 +254,6 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
 
   const handleSave = async () => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       const pricingConfig: PricingConfig = {
@@ -274,13 +277,19 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
         }
       }
 
-      setSaveMessage({ type: 'success', text: 'Additional charges saved successfully!' })
+      toast({
+        title: 'Additional charges saved',
+        description: 'Additional charges saved successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       router.refresh()
     } catch (error) {
       console.error('Error saving fees settings:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save fees settings',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save fees settings',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -659,13 +668,6 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
 
       {/* Save Button and Messages */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 sm:max-w-xl">
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button onClick={handleSave} disabled={isSaving} className="w-full shrink-0 sm:w-auto" size="sm">
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Additional Charges'}

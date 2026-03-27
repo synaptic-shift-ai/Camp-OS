@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import {
   Dialog,
   DialogContent,
@@ -139,6 +140,9 @@ interface SeasonalPeriodFormData {
   recurring: boolean
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function SiteTypeRateSettings({
   propertyId,
   initialConfig,
@@ -149,8 +153,8 @@ export function SiteTypeRateSettings({
   initialSiteTypeRates,
 }: ReservationTypeSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Configuration state
   const [config, setConfig] = useState<PropertyReservationTypesConfig>(
@@ -321,7 +325,6 @@ export function SiteTypeRateSettings({
 
   const handleSaveConfig = async () => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       const response = await fetch(`/api/properties/${propertyId}/settings`, {
@@ -340,14 +343,20 @@ export function SiteTypeRateSettings({
         throw new Error(errorData?.error || 'Failed to save site type rates')
       }
 
-      setSaveMessage({ type: 'success', text: 'Site type rates saved successfully!' })
+      toast({
+        title: 'Site type rates saved',
+        description: 'Site type rates saved successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       setIsDirty(false)
       router.refresh()
     } catch (error) {
       console.error('Error saving site type rates:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save site type rates',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save site type rates',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -431,9 +440,11 @@ export function SiteTypeRateSettings({
       setSeasonalPeriods((prev) => prev.filter((p) => p.id !== periodId))
     } catch (error) {
       console.error('Error deleting seasonal period:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to delete',
+      toast({
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Failed to delete',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     }
   }
@@ -710,13 +721,6 @@ export function SiteTypeRateSettings({
 
       {/* Save Button and Messages */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 sm:max-w-xl sm:flex-1 sm:pr-4">
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button
           onClick={handleSaveConfig}
           disabled={isSaving || !isDirty}

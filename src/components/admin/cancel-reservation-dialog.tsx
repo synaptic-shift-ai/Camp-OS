@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { DollarSign } from "lucide-react"
 import {
@@ -59,6 +60,9 @@ interface CancelReservationDialogProps {
   trigger?: React.ReactNode
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function CancelReservationDialog({
   reservationId,
   confirmationNumber,
@@ -81,6 +85,7 @@ export function CancelReservationDialog({
     exp_year: number
   } | null>(null)
   const router = useRouter()
+  const { toast } = useToast()
 
   const maxRefundDollars = paidAmountCents != null ? (paidAmountCents / 100).toFixed(2) : null
   const suggestedRefundDollars =
@@ -204,11 +209,21 @@ export function CancelReservationDialog({
       }
 
       // Success - close dialog and refresh the page
+      toast({
+        title: "Reservation cancelled",
+        description: "The reservation has been cancelled successfully.",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       handleOpenChange(false)
       router.refresh()
     } catch (err) {
       console.error("Cancel reservation error:", err)
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
+      toast({
+        title: "Cancellation failed",
+        description: err instanceof Error ? err.message : "An unexpected error occurred",
+        variant: "destructive",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setLoading(false)
     }

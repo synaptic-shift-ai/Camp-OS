@@ -25,6 +25,7 @@ import {
 import { AlertCircle, Loader2, Calendar } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/hooks/use-toast'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
 import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
@@ -40,6 +41,9 @@ import {
   MastercardFlatRoundedIcon,
   VisaFlatRoundedIcon,
 } from 'react-svg-credit-card-payment-icons'
+
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 interface ExtendDialogProps {
   reservationId: string
@@ -208,6 +212,7 @@ export function ExtendDialog({
   const [projectedBreakdown, setProjectedBreakdown] = useState<PriceBreakdown | null>(null)
   const [originalBreakdown, setOriginalBreakdown] = useState<PriceBreakdown | null>(null)
   const router = useRouter()
+  const { toast } = useToast()
 
   // Form state
   const [newCheckIn, setNewCheckIn] = useState(currentCheckIn)
@@ -506,11 +511,21 @@ export function ExtendDialog({
       }
 
       // Success - close dialog and refresh the page
+      toast({
+        title: 'Reservation extended',
+        description: 'Reservation dates were updated successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       setOpen(false)
       router.refresh()
     } catch (err) {
       console.error('[ExtendDialog] Error:', err)
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      toast({
+        title: 'Extend failed',
+        description: err instanceof Error ? err.message : 'An unexpected error occurred',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setLoading(false)
     }

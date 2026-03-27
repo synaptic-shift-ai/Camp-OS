@@ -29,6 +29,9 @@ interface DeleteGuestDialogProps {
   guest: DashboardGuest
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function DeleteGuestDialog({ open, onOpenChange, guest }: DeleteGuestDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -51,6 +54,7 @@ export function DeleteGuestDialog({ open, onOpenChange, guest }: DeleteGuestDial
       toast({
         title: 'Guest deleted',
         description: `${guest.name} has been removed from your guest list.`,
+        className: SEASON_ALERT_TOAST_CLASS,
       })
       onOpenChange(false)
       router.refresh()
@@ -59,6 +63,7 @@ export function DeleteGuestDialog({ open, onOpenChange, guest }: DeleteGuestDial
         title: 'Error',
         description: err instanceof Error ? err.message : 'Failed to delete guest',
         variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsDeleting(false)

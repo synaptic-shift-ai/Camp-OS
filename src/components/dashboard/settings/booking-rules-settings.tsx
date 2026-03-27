@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Loader2, Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
@@ -70,10 +71,13 @@ const defaultFormValues: BookingRulesSettingsFormInput = {
   holiday_rules: [],
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function BookingRulesSettings({ initialConfig, propertyId, onSave }: BookingRulesSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isAddHolidayDialogOpen, setIsAddHolidayDialogOpen] = useState(false)
   /** When set, dialog opens in edit mode with this rule as `initialValues`. */
   const [holidayBeingEdited, setHolidayBeingEdited] = useState<HolidayRule | null>(null)
@@ -145,7 +149,6 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
 
   const onSubmit = async (data: BookingRulesSettingsFormInput) => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       const bookingRulesConfig: BookingRulesConfig = {
@@ -168,14 +171,20 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
         }
       }
 
-      setSaveMessage({ type: 'success', text: 'Booking rules saved successfully!' })
+      toast({
+        title: 'Booking rules saved',
+        description: 'Booking rules saved successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
 
       router.refresh()
     } catch (error) {
       console.error('Error saving booking rules:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save booking rules',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save booking rules',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -458,13 +467,6 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
 
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">
-        <div className="flex-1 mr-4">
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button type="submit" disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Booking Rules'}

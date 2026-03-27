@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { Loader2, Info } from 'lucide-react'
 import { pricingConfigFormSchema, type PricingConfigFormInput } from '@/lib/config/schemas'
 import type { PricingConfig } from '@/lib/config/types'
@@ -35,10 +36,13 @@ interface PricingSettingsProps {
   onSave?: (config: PricingConfig) => Promise<void>
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const {
     register,
@@ -84,7 +88,6 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
 
   const onSubmit = async (data: PricingConfigFormInput) => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       // Convert form data to API format (dollars to cents, percentage to decimal)
@@ -122,15 +125,21 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
         }
       }
 
-      setSaveMessage({ type: 'success', text: 'Pricing settings saved successfully!' })
+      toast({
+        title: 'Pricing settings saved',
+        description: 'Pricing settings saved successfully!',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
 
       // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {
       console.error('Error saving pricing settings:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save pricing settings',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save pricing settings',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -388,13 +397,6 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
 
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">
-        <div>
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button type="submit" disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Pricing Settings'}

@@ -18,8 +18,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { OpenPeriodDatePicker } from '@/components/dashboard/settings/open-period-date-picker'
 // import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
+
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 const propertyDetailsSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
@@ -85,8 +88,8 @@ export function PropertySettings({
   stripeConnectedAt,
   stripeAccountId,
 }: PropertySettingsProps) {
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isStripeUpdating, setIsStripeUpdating] = useState(false)
   const [stripeStatus, setStripeStatus] = useState<{
     connected: boolean
@@ -141,14 +144,24 @@ export function PropertySettings({
 
       if (!clientId) {
         console.error("Missing NEXT_PUBLIC_STRIPE_CLIENT_ID environment variable")
-        alert('Stripe Connect is not configured. Please contact support.')
+        toast({
+          title: 'Stripe configuration missing',
+          description: 'Stripe Connect is not configured. Please contact support.',
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
         return
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
       if (!baseUrl) {
         console.error("Missing NEXT_PUBLIC_BASE_URL environment variable")
-        alert('Stripe Connect is not configured. Please contact support.')
+        toast({
+          title: 'Stripe configuration missing',
+          description: 'Stripe Connect is not configured. Please contact support.',
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
         return
       }
 
@@ -164,7 +177,12 @@ export function PropertySettings({
       window.location.href = stripeOAuthUrl.toString()
     } catch (error) {
       console.error('Error initiating Stripe Connect:', error)
-      alert('Failed to start Stripe connection. Please try again.')
+      toast({
+        title: 'Stripe connection failed',
+        description: 'Failed to start Stripe connection. Please try again.',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     }
   }
 
@@ -195,9 +213,19 @@ export function PropertySettings({
         connectedAt: null,
         connectedId: null,
       })
+      toast({
+        title: 'Stripe disconnected',
+        description: 'Stripe account has been disconnected successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } catch (error) {
       console.error('Error disconnecting Stripe:', error)
-      alert('Failed to disconnect Stripe. Please try again.')
+      toast({
+        title: 'Stripe disconnect failed',
+        description: 'Failed to disconnect Stripe. Please try again.',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setIsStripeUpdating(false)
     }
@@ -224,7 +252,6 @@ export function PropertySettings({
 
   const onSubmit = async (data: PropertyDetailsFormData) => {
     setIsSaving(true)
-    setMessage(null)
     try {
       const payload: Record<string, unknown> = {
         name: data.name.trim() || undefined,
@@ -257,11 +284,17 @@ export function PropertySettings({
         from: openFrom,
         until: openUntil,
       }
-      setMessage({ type: 'success', text: 'Property details saved.' })
+      toast({
+        title: 'Property details saved',
+        description: 'Your property settings were updated successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to save property details',
+      toast({
+        title: 'Save failed',
+        description: err instanceof Error ? err.message : 'Failed to save property details',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -282,12 +315,6 @@ export function PropertySettings({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {message && (
-              <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-                <AlertDescription>{message.text}</AlertDescription>
-              </Alert>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="name">Property name</Label>
               <Input

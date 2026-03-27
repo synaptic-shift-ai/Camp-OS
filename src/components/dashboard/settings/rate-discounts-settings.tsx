@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { Loader2, Info, Percent } from 'lucide-react'
 import { rateDiscountsConfigSchema, type RateDiscountsConfigInput } from '@/lib/config/schemas'
 import type { RateDiscountsConfig } from '@/lib/config/types'
@@ -30,10 +31,13 @@ interface RateDiscountsSettingsProps {
   onSave?: (config: RateDiscountsConfig) => Promise<void>
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: RateDiscountsSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const {
     register,
@@ -60,7 +64,6 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
 
   const onSubmit = async (data: RateDiscountsConfigInput) => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       // Keep existing user_defined_discounts when saving legacy fields
@@ -89,15 +92,21 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
         }
       }
 
-      setSaveMessage({ type: 'success', text: 'Rate discount settings saved successfully!' })
+      toast({
+        title: 'Rate discounts saved',
+        description: 'Rate discount settings saved successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
 
       // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {
       console.error('Error saving rate discount settings:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save rate discount settings',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save rate discount settings',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -318,13 +327,6 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
 
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">
-        <div className="flex-1 mr-4">
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button type="submit" disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Discount Settings'}

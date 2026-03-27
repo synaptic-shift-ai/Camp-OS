@@ -39,6 +39,9 @@ const initialForm = {
   // notes: '',
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function AddGuestDialog({
   open,
   onOpenChange,
@@ -95,11 +98,17 @@ export function AddGuestDialog({
       toast({
         title: 'Guest added',
         description: `${trimmed.firstName} ${trimmed.lastName} has been added to your guest list.`,
+        className: SEASON_ALERT_TOAST_CLASS,
       })
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create guest')
+      toast({
+        title: 'Add guest failed',
+        description: err instanceof Error ? err.message : 'Failed to create guest',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setIsSubmitting(false)
     }

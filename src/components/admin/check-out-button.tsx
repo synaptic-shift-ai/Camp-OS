@@ -21,6 +21,9 @@ interface CheckOutButtonProps {
   checkOutTime?: string | null | undefined
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function CheckOutButton({
   reservationId,
   status,
@@ -64,6 +67,7 @@ export function CheckOutButton({
         title: 'Error',
         description: 'Failed to load reservation details. Please try again.',
         variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsLoading(false)

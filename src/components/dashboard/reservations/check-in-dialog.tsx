@@ -51,6 +51,9 @@ import {
 import type { Reservation } from '@/lib/booking/types'
 import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 type SiteStatusForBadge =
   | 'available'
   | 'reserved'
@@ -229,13 +232,19 @@ export function CheckInDialog({
       toast({
         title: 'Check-in Successful',
         description: `${reservation.guest?.first_name} ${reservation.guest?.last_name} has been checked in to Site ${reservation.site?.site_number}`,
+        className: SEASON_ALERT_TOAST_CLASS,
       })
 
       onOpenChange(false)
       router.refresh()
     } catch (err) {
       console.error('Check-in error:', err)
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      toast({
+        title: 'Check-in failed',
+        description: err instanceof Error ? err.message : 'An unexpected error occurred',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setIsProcessing(false)
     }

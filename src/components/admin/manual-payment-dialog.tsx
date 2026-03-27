@@ -23,6 +23,7 @@ import {
 import { AlertCircle, Banknote, CreditCard, DollarSign, FileText, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
+import { useToast } from "@/hooks/use-toast"
 
 interface ManualPaymentDialogProps {
   reservationId: string
@@ -32,6 +33,9 @@ interface ManualPaymentDialogProps {
   paidAmountCents: number
   trigger: React.ReactNode
 }
+
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function ManualPaymentDialog({
   reservationId,
@@ -47,6 +51,7 @@ export function ManualPaymentDialog({
   const [paymentMethod, setPaymentMethod] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [amountDollars, setAmountDollars] = useState("")
+  const { toast } = useToast()
 
   const outstandingBalance = Math.max(0, totalAmountCents - paidAmountCents)
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
@@ -98,11 +103,21 @@ export function ManualPaymentDialog({
         throw new Error(message)
       }
 
+      toast({
+        title: "Payment recorded",
+        description: "Manual payment has been recorded successfully.",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
       setOpen(false)
       router.refresh()
     } catch (err) {
       console.error("[ManualPaymentDialog] Error recording payment", err)
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
+      toast({
+        title: "Payment failed",
+        description: err instanceof Error ? err.message : "An unexpected error occurred",
+        variant: "destructive",
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setLoading(false)
     }

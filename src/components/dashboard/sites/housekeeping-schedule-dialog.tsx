@@ -41,6 +41,9 @@ const statusLabels: Record<ScheduleStatus, string> = {
   maintenance: 'Maintenance',
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function HousekeepingScheduleDialog({
   open,
   onOpenChange,
@@ -119,12 +122,18 @@ export function HousekeepingScheduleDialog({
       toast({
         title: `${label} Scheduled`,
         description: `${siteName} scheduled for ${label.toLowerCase()} on ${from}${from !== to ? ` – ${to}` : ''}`,
+        className: SEASON_ALERT_TOAST_CLASS,
       })
 
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to schedule ${label.toLowerCase()}`)
+      toast({
+        title: `${label} scheduling failed`,
+        description: err instanceof Error ? err.message : `Failed to schedule ${label.toLowerCase()}`,
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
     } finally {
       setIsSubmitting(false)
     }

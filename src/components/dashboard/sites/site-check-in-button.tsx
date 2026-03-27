@@ -19,6 +19,9 @@ interface SiteCheckInButtonProps {
   siteStatus: string
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -52,6 +55,7 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
             title: 'No Reservation',
             description: 'No confirmed reservations found for this site.',
             variant: 'default',
+            className: SEASON_ALERT_TOAST_CLASS,
           })
           return
         }
@@ -65,6 +69,7 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
           title: 'No Reservation',
           description: 'No confirmed reservations found for this site.',
           variant: 'default',
+          className: SEASON_ALERT_TOAST_CLASS,
         })
         return
       }
@@ -77,6 +82,7 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
         title: 'Error',
         description: 'Failed to load reservation details. Please try again.',
         variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsLoading(false)

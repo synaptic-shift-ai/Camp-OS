@@ -12,6 +12,9 @@ interface DepartureCheckOutButtonProps {
   checkOutTime?: string | null | undefined
 }
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function DepartureCheckOutButton({ reservationId, checkOutTime }: DepartureCheckOutButtonProps) {
     const { toast } = useToast()
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -32,7 +35,12 @@ export function DepartureCheckOutButton({ reservationId, checkOutTime }: Departu
         setReservationData(data.data)
         setDialogOpen(true)
         } catch {
-        toast({ title: 'Error', description: 'Failed to load reservation.', variant: 'destructive' })
+        toast({
+          title: 'Error',
+          description: 'Failed to load reservation.',
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
         } finally {
         setIsLoading(false)
         }

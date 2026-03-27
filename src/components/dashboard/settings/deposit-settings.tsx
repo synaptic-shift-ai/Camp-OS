@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { Loader2, Info } from 'lucide-react'
 import { depositConfigFormSchema, type DepositConfigFormInput } from '@/lib/config/schemas'
 import type { DepositConfig, BookingType } from '@/lib/config/types'
@@ -44,10 +45,13 @@ const BOOKING_TYPES: { value: BookingType; label: string; description: string }[
   { value: 'long_term', label: 'Long-term', description: 'Extended stays (6+ months)' },
 ]
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSettingsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const {
     register,
@@ -95,7 +99,6 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
 
   const onSubmit = async (data: DepositConfigFormInput) => {
     setIsSaving(true)
-    setSaveMessage(null)
 
     try {
       // Convert form data to API format
@@ -130,15 +133,21 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
         }
       }
 
-      setSaveMessage({ type: 'success', text: 'Deposit settings saved successfully!' })
+      toast({
+        title: 'Deposit settings saved',
+        description: 'Deposit settings saved successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
 
       // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {
       console.error('Error saving deposit settings:', error)
-      setSaveMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save deposit settings',
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save deposit settings',
+        variant: 'destructive',
+        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -355,13 +364,6 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
 
       {/* Save Button and Messages */}
       <div className="flex items-center justify-between">
-        <div className="flex-1 mr-4">
-          {saveMessage && (
-            <Alert variant={saveMessage.type === 'error' ? 'destructive' : 'default'}>
-              <AlertDescription>{saveMessage.text}</AlertDescription>
-            </Alert>
-          )}
-        </div>
         <Button type="submit" disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Deposit Settings'}

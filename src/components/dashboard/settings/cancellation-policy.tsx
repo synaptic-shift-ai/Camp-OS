@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useToast } from '@/hooks/use-toast'
 import { Loader2, FileText, ShieldAlert, Plus, Pencil, Trash2 } from 'lucide-react'
 import {
   CancellationRuleDialog,
@@ -43,6 +44,9 @@ interface CancellationPolicySettingsProps {
 const DEFAULT_PLACEHOLDER =
   'e.g. Free cancellation up to 7 days before check-in. 50% refund for cancellations 3–7 days before. No refund within 3 days of check-in.'
 
+const SEASON_ALERT_TOAST_CLASS =
+  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
+
 export function CancellationPolicySettings({
   propertyId,
   initialTermsAndConditions,
@@ -50,8 +54,8 @@ export function CancellationPolicySettings({
   initialCancellationRules,
 }: CancellationPolicySettingsProps) {
     const router = useRouter()
+    const { toast } = useToast()
     const [isSaving, setIsSaving] = useState(false)
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
     const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false)
     const [cancellationRules, setCancellationRules] = useState<CancellationRule[]>(initialCancellationRules ?? [])
     const [editingRule, setEditingRule] = useState<CancellationRule | null>(null)
@@ -78,7 +82,6 @@ export function CancellationPolicySettings({
 
     const onSubmit = async (data: CancellationPolicyFormData) => {
         setIsSaving(true)
-        setMessage(null)
         try {
             const policyValue = data.cancellationPolicy?.trim() || null
             const termsValue = data.termsAndConditions?.trim() || null
@@ -102,12 +105,18 @@ export function CancellationPolicySettings({
             if (!response.ok || !result.success) {
               throw new Error(result.error?.message ?? 'Failed to save cancellation policy')
             }
-            setMessage({ type: 'success', text: 'Terms & Policy saved.' })
+            toast({
+              title: 'Terms & policy saved',
+              description: 'Terms & Policy saved.',
+              className: SEASON_ALERT_TOAST_CLASS,
+            })
             router.refresh()
         } catch (err) {
-            setMessage({
-              type: 'error',
-              text: err instanceof Error ? err.message : 'Failed to save cancellation policy',
+            toast({
+              title: 'Save failed',
+              description: err instanceof Error ? err.message : 'Failed to save cancellation policy',
+              variant: 'destructive',
+              className: SEASON_ALERT_TOAST_CLASS,
             })
         } finally {
             setIsSaving(false)
@@ -118,11 +127,6 @@ export function CancellationPolicySettings({
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            {message && (
-              <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-                  <AlertDescription>{message.text}</AlertDescription>
-              </Alert>
-            )}
             <CardTitle className="flex items-center gap-2">
               Terms & Conditions
             </CardTitle>

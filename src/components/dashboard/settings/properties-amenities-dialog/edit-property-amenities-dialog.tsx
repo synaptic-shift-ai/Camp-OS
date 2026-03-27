@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+const amenityPresets = [
+  "Fire Pit",
+  "Picnic Table",
+  "Grill",
+  "Shade",
+  "Pet Friendly",
+  "Lake View",
+  "Waterfront",
+] as const
+
+type AmenityPreset = (typeof amenityPresets)[number] | "Other"
 
 export type PropertyAmenityEditPayload = {
   name: string
@@ -40,16 +59,30 @@ export function EditPropertyAmenitiesDialog({
   amenityToEdit,
   onSave,
 }: EditPropertyAmenitiesDialogProps) {
-  const [name, setName] = useState("")
+  const [preset, setPreset] = useState<AmenityPreset | "">("")
+  const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
   const [iconUrl, setIconUrl] = useState("")
 
   useEffect(() => {
     if (!open || !amenityToEdit) return
-    setName(amenityToEdit.name)
+    const matchingPreset = amenityPresets.find((option) => option === amenityToEdit.name)
+    if (matchingPreset) {
+      setPreset(matchingPreset)
+      setCustomName("")
+    } else {
+      setPreset("Other")
+      setCustomName(amenityToEdit.name)
+    }
     setDescription(amenityToEdit.description)
     setIconUrl(amenityToEdit.icon_url ?? "")
   }, [open, amenityToEdit])
+
+  const name = useMemo(() => {
+    if (!preset) return ""
+    if (preset !== "Other") return preset
+    return customName.trim()
+  }, [customName, preset])
 
   const canSave = name.trim().length > 0
 
@@ -69,13 +102,37 @@ export function EditPropertyAmenitiesDialog({
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="edit-property-amenity-name">Name</Label>
-            <Input
-              id="edit-property-amenity-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter amenity name"
-              className="bg-card/50"
-            />
+            <Select
+              value={preset}
+              onValueChange={(value) => setPreset(value as AmenityPreset)}
+            >
+              <SelectTrigger id="edit-property-amenity-name" className="bg-card/50">
+                <SelectValue placeholder="Select an amenity" />
+              </SelectTrigger>
+              <SelectContent>
+                {amenityPresets.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+                <SelectItem value="Other">New Site Amenity</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {preset === "Other" && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-property-amenity-custom-name" className="text-xs text-muted-foreground">
+                  New site amenity name
+                </Label>
+                <Input
+                  id="edit-property-amenity-custom-name"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="Enter site amenity name"
+                  className="bg-card/50"
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid gap-2">

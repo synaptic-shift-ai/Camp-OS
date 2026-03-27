@@ -79,7 +79,7 @@ export function AddAmenitiesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Amenity</DialogTitle>
+          <DialogTitle>Add Site Amenity</DialogTitle>
           <DialogDescription>Add a new amenity to your property.</DialogDescription>
         </DialogHeader>
 
@@ -99,20 +99,20 @@ export function AddAmenitiesDialog({
                     {option}
                   </SelectItem>
                 ))}
-                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Other">New Site Amenity</SelectItem>
               </SelectContent>
             </Select>
 
             {preset === "Other" && (
               <div className="grid gap-2">
                 <Label htmlFor="amenity-custom-name" className="text-xs text-muted-foreground">
-                  New amenity name
+                  New site amenity name
                 </Label>
                 <Input
                   id="amenity-custom-name"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="Enter amenity name"
+                  placeholder="Enter site amenity name"
                   className="bg-card/50"
                 />
               </div>
@@ -125,7 +125,7 @@ export function AddAmenitiesDialog({
               id="amenity-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add details (optional)"
+              placeholder="Add site amenity details (optional)"
               className="min-h-24 bg-card/50"
             />
           </div>
@@ -146,7 +146,7 @@ export function AddAmenitiesDialog({
               onOpenChange(false)
             }}
           >
-            Add Amenity
+            Add Site Amenity
           </Button>
         </DialogFooter>
       </DialogContent>

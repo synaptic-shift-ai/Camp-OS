@@ -49,6 +49,8 @@ export interface BookingDateRangePickerProps {
   blackoutDates?: string[]
   bookingWindowDays?: number
   advanceNoticeDays?: number
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
   disabled?: boolean
   className?: string
   numberOfMonths?: number
@@ -61,6 +63,8 @@ function isDateDisabled(
   blackout: string[],
   bookingWindowDays?: number,
   advanceNoticeDays?: number,
+  openPeriodFrom?: string | null,
+  openPeriodUntil?: string | null,
 ) {
   const d = new Date(date); d.setHours(0, 0, 0, 0)
   const t = new Date(); t.setHours(0, 0, 0, 0)
@@ -79,6 +83,11 @@ function isDateDisabled(
     const maxDate = addDays(t, windowDays)
     if (d > maxDate) return true
   }
+
+  const from = parseLocalYmd(openPeriodFrom ?? '')
+  const until = parseLocalYmd(openPeriodUntil ?? '')
+  if (from && until && (d < from || d > until)) return true
+
   return blackout.includes(format(date, 'yyyy-MM-dd'))
 }
 
@@ -124,6 +133,8 @@ export type BlackoutDatesPickerProps = {
   variant?: BookingDateRangePickerVariant
   className?: string
   numberOfMonths?: number
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
 }
 
 /* ── Day button ──────────────────────────────────────────── */
@@ -268,6 +279,8 @@ export function BookingDateRangePicker({
   blackoutDates = [],
   bookingWindowDays,
   advanceNoticeDays,
+  openPeriodFrom,
+  openPeriodUntil,
   disabled = false,
   className,
   numberOfMonths = 1,
@@ -286,8 +299,17 @@ export function BookingDateRangePicker({
   }, [open])
 
   const disabledFn = React.useCallback(
-    (d: Date) => isDateDisabled(d, sameDayBookingEnabled, blackoutDates, bookingWindowDays, advanceNoticeDays),
-    [sameDayBookingEnabled, blackoutDates, bookingWindowDays, advanceNoticeDays],
+    (d: Date) =>
+      isDateDisabled(
+        d,
+        sameDayBookingEnabled,
+        blackoutDates,
+        bookingWindowDays,
+        advanceNoticeDays,
+        openPeriodFrom,
+        openPeriodUntil,
+      ),
+    [sameDayBookingEnabled, blackoutDates, bookingWindowDays, advanceNoticeDays, openPeriodFrom, openPeriodUntil],
   )
 
   const hasValue = Boolean(value?.from)
@@ -425,6 +447,8 @@ export function BlackoutDatesPicker({
   variant = 'dashboard',
   className,
   numberOfMonths = 1,
+  openPeriodFrom,
+  openPeriodUntil,
 }: BlackoutDatesPickerProps) {
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
@@ -446,6 +470,15 @@ export function BlackoutDatesPicker({
     () => value.map(parseLocalYmd).filter((d): d is Date => d !== null),
     [value],
   )
+
+  const blackoutDisabledFn = React.useCallback((d: Date) => {
+    const day = new Date(d)
+    day.setHours(0, 0, 0, 0)
+    const from = parseLocalYmd(openPeriodFrom ?? '')
+    const until = parseLocalYmd(openPeriodUntil ?? '')
+    if (from && until && (day < from || day > until)) return true
+    return false
+  }, [openPeriodFrom, openPeriodUntil])
 
   React.useEffect(() => {
     if (!open) return
@@ -537,6 +570,7 @@ export function BlackoutDatesPicker({
             selected={draftRange}
             onSelect={(range) => setDraftRange(range)}
             modifiers={{ blackout_selected: selectedDates }}
+            disabled={blackoutDisabledFn}
             defaultMonth={draftRange?.from ?? selectedDates[0] ?? new Date()}
             numberOfMonths={numberOfMonths}
             weekStartsOn={1}

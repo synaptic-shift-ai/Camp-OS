@@ -692,6 +692,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     onChange={setDateRange}
                     sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
                     blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                    openPeriodFrom={property.openPeriodFrom ?? null}
+                    openPeriodUntil={property.openPeriodUntil ?? null}
                     {...(bookingRulesConfig?.booking_window_days != null
                       ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
                       : {})}

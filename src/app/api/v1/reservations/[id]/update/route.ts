@@ -8,6 +8,12 @@ import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import {
+  extractOpenPeriodFromPropertySettings,
+  openPeriodRestrictsBookings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from '@/lib/booking/open-period'
 
 export async function PATCH(
   request: NextRequest,
@@ -81,7 +87,7 @@ export async function PATCH(
 
     const { data: property } = await supabase
       .from('properties')
-      .select('id, company_id, owner_id')
+      .select('id, name, company_id, owner_id, settings')
       .eq('id', reservation.sites.property_id)
       .single()
 
@@ -90,6 +96,26 @@ export async function PATCH(
 
     if (!isOwner && !isCompanyOwner) {
       return error(ErrorCodes.AUTH_002, request)
+    }
+
+    const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property?.settings)
+    if (
+      openPeriodRestrictsBookings(openPeriodFrom, openPeriodUntil) &&
+      !isStayWithinOpenPeriodByIsoDates(
+        check_in_date,
+        check_out_date,
+        openPeriodFrom,
+        openPeriodUntil
+      )
+    ) {
+      const fromIso = openPeriodFrom?.trim()
+      const untilIso = openPeriodUntil?.trim()
+      return error(ErrorCodes.VAL_001, request, {
+        message:
+          fromIso && untilIso
+            ? buildOpenPeriodBookingErrorMessage(property?.name ?? 'property', fromIso, untilIso)
+            : 'Selected dates are outside the property booking season.',
+      })
     }
 
     const { data: conflicts, error: conflictsError } = await supabase

@@ -146,7 +146,7 @@ export async function GET(
     // Check if property belongs to user's company
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id, settings, cancellation_policy_config')
+      .select('id, name, company_id, settings, booking_rules_config, cancellation_policy_config')
       .eq('id', reservation.propertyId)
       .single()
 
@@ -282,6 +282,10 @@ export async function GET(
       payment_method: latestPayment?.payment_method ?? null,
       spouse_partner,
       children: reservationChildren ?? [],
+      property_id: reservation.propertyId,
+      property_name: property.name ?? null,
+      property_settings: property.settings ?? null,
+      booking_rules_config: property.booking_rules_config ?? null,
     })
   } catch (err: unknown) {
     console.error('[Reservations API v1] GET by ID error:', err)

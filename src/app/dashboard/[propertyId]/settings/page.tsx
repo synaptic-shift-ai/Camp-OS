@@ -80,6 +80,16 @@ export default async function SettingsPage({ params }: PageProps) {
       : []
 
   const siteTypes = allowedSiteTypesFromConfig.map((siteType) => ({ siteType }))
+  const openPeriodFrom = (() => {
+    const s = property.settings as Record<string, unknown> | null | undefined
+    const from = s?.openPeriodFrom ?? s?.open_period_from
+    return typeof from === "string" ? from : null
+  })()
+  const openPeriodUntil = (() => {
+    const s = property.settings as Record<string, unknown> | null | undefined
+    const until = s?.openPeriodUntil ?? s?.open_period_until
+    return typeof until === "string" ? until : null
+  })()
 
   return (
     <div className="space-y-6">
@@ -138,6 +148,8 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="fees" className="space-y-4">
           <FeesSettings
             propertyId={property.id}
+            openPeriodFrom={openPeriodFrom}
+            openPeriodUntil={openPeriodUntil}
             {...(property.pricing_config != null && {
               initialConfig: property.pricing_config as PricingConfig,
             })}
@@ -174,6 +186,8 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="booking-rules" className="space-y-4">
           <BookingRulesSettings
             propertyId={property.id}
+            openPeriodFrom={openPeriodFrom}
+            openPeriodUntil={openPeriodUntil}
             {...(property.booking_rules_config != null && {
               initialConfig: property.booking_rules_config as BookingRulesConfig,
             })}
@@ -202,6 +216,8 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="discounts" className="space-y-4">
           <DiscountsSettings
             propertyId={property.id}
+            openPeriodFrom={openPeriodFrom}
+            openPeriodUntil={openPeriodUntil}
             {...(property.rate_discounts_config != null && {
               initialConfig: property.rate_discounts_config as RateDiscountsConfig,
             })}

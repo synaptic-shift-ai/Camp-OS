@@ -32,6 +32,8 @@ import type { PricingConfig, UserDefinedFee, UserDefinedFeeType, FeeTriggerType 
 interface FeesSettingsProps {
   initialConfig?: PricingConfig
   propertyId: string
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
   onSave?: (config: PricingConfig) => Promise<void>
 }
 
@@ -127,7 +129,13 @@ type FeeFormInput = z.infer<typeof feeFormSchema>
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettingsProps) {
+export function FeesSettings({
+  initialConfig,
+  propertyId,
+  openPeriodFrom,
+  openPeriodUntil,
+  onSave,
+}: FeesSettingsProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -562,6 +570,8 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
                         <Input
                           id="start_date"
                           type="date"
+                          min={openPeriodFrom ?? undefined}
+                          max={openPeriodUntil ?? undefined}
                           {...feeForm.register('start_date')}
                         />
                         {feeForm.formState.errors.start_date && (
@@ -573,6 +583,8 @@ export function FeesSettings({ initialConfig, propertyId, onSave }: FeesSettings
                         <Input
                           id="end_date"
                           type="date"
+                          min={openPeriodFrom ?? undefined}
+                          max={openPeriodUntil ?? undefined}
                           {...feeForm.register('end_date')}
                         />
                         {feeForm.formState.errors.end_date && (

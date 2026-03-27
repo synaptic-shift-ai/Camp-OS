@@ -39,6 +39,8 @@ import { AddHolidayDialog } from '@/components/dashboard/settings/booking-rules-
 interface BookingRulesSettingsProps {
   initialConfig?: BookingRulesConfig
   propertyId: string
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
   onSave?: (config: BookingRulesConfig) => Promise<void>
 }
 
@@ -74,7 +76,13 @@ const defaultFormValues: BookingRulesSettingsFormInput = {
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-export function BookingRulesSettings({ initialConfig, propertyId, onSave }: BookingRulesSettingsProps) {
+export function BookingRulesSettings({
+  initialConfig,
+  propertyId,
+  openPeriodFrom,
+  openPeriodUntil,
+  onSave,
+}: BookingRulesSettingsProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -477,6 +485,8 @@ export function BookingRulesSettings({ initialConfig, propertyId, onSave }: Book
       <AddHolidayDialog
         open={isAddHolidayDialogOpen}
         onOpenChange={handleHolidayDialogOpenChange}
+        openPeriodFrom={openPeriodFrom ?? null}
+        openPeriodUntil={openPeriodUntil ?? null}
         initialValues={holidayBeingEdited}
         title={holidayBeingEdited ? 'Edit holiday' : 'Add holiday'}
         submitLabel={holidayBeingEdited ? 'Save changes' : 'Add holiday'}

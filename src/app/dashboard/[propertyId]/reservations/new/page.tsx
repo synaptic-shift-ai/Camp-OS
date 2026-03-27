@@ -684,6 +684,8 @@ export default function NewReservationPage() {
                         onChange={setDateRange}
                         sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
                         blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                        openPeriodFrom={openPeriodFrom}
+                        openPeriodUntil={openPeriodUntil}
                         {...(bookingRulesConfig?.booking_window_days != null
                           ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
                           : {})}

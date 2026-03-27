@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, ChevronRight, Loader2, CalendarDays, User, DollarSign } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO, isWithinInterval } from 'date-fns'
 import type { Database } from '@/contracts/db'
+import { extractOpenPeriodFromPropertySettings } from '@/lib/booking/open-period'
 
 type Site = Database['public']['Tables']['sites']['Row']
 type Reservation = {
@@ -54,12 +55,40 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
+  const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
+  const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
 
   useEffect(() => {
     if (open && site?.id) {
       fetchReservations()
     }
   }, [open, site?.id, currentMonth])
+
+  useEffect(() => {
+    if (!open || !site?.property_id) return
+
+    const fetchPropertyOpenPeriod = async () => {
+      try {
+        const response = await fetch(`/api/v1/properties/${site.property_id}`)
+        const result = await response.json()
+        if (!response.ok || !result?.success) {
+          setOpenPeriodFrom(null)
+          setOpenPeriodUntil(null)
+          return
+        }
+        const { openPeriodFrom: from, openPeriodUntil: until } = extractOpenPeriodFromPropertySettings(
+          result.data?.settings,
+        )
+        setOpenPeriodFrom(from)
+        setOpenPeriodUntil(until)
+      } catch {
+        setOpenPeriodFrom(null)
+        setOpenPeriodUntil(null)
+      }
+    }
+
+    void fetchPropertyOpenPeriod()
+  }, [open, site?.property_id])
 
   const fetchReservations = async () => {
     setLoading(true)
@@ -128,6 +157,16 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
   }
 
   const statusKey = (r: Reservation) => (r.status ?? 'pending').toLowerCase()
+
+  const parseLocalYmd = (iso: string | null) => {
+    if (!iso) return null
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+    if (!match) return null
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  }
+
+  const openFromDate = parseLocalYmd(openPeriodFrom)
+  const openUntilDate = parseLocalYmd(openPeriodUntil)
 
   const blackoutSet = new Set(
     Array.isArray((site.availability_rules as any)?.blackout_dates)
@@ -199,6 +238,10 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
 
                     const ymd = format(day, 'yyyy-MM-dd')
                     const isBlackout = blackoutSet.has(ymd)
+                    const isOutsideOpenPeriod =
+                      !!openFromDate &&
+                      !!openUntilDate &&
+                      (day < openFromDate || day > openUntilDate)
 
                     const cellContent = (
                       <div className="font-medium leading-none text-xs sm:text-sm mb-0.5 sm:mb-1">
@@ -244,11 +287,12 @@ export function SiteCalendarDialog({ open, onOpenChange, site }: SiteCalendarDia
                       h-10 sm:h-24 border rounded p-1 sm:p-1.5 overflow-hidden
                       ${isToday ? 'border-primary border-2' : 'border-border'}
                       ${!isSameMonth(day, currentMonth) ? 'text-muted-foreground' : ''}
+                      ${isOutsideOpenPeriod ? 'opacity-40 bg-muted/20 cursor-not-allowed' : ''}
                       ${isBlackout ? 'opacity-50 bg-muted/30 cursor-not-allowed' : ''}
-                      ${!isBlackout && hasReservations ? 'bg-muted/50 cursor-pointer hover:bg-muted transition-colors' : ''}
+                      ${!isOutsideOpenPeriod && !isBlackout && hasReservations ? 'bg-muted/50 cursor-pointer hover:bg-muted transition-colors' : ''}
                     `
 
-                    if (!hasReservations || isBlackout) {
+                    if (!hasReservations || isBlackout || isOutsideOpenPeriod) {
                       return (
                         <div key={day.toISOString()} className={cellClass}>
                           {cellContent}

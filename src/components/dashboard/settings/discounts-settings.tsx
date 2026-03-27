@@ -32,6 +32,8 @@ import type { RateDiscountsConfig, UserDefinedDiscount, UserDefinedDiscountType,
 interface DiscountsSettingsProps {
   initialConfig?: RateDiscountsConfig
   propertyId: string
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
   onSave?: (config: RateDiscountsConfig) => Promise<void>
 }
 
@@ -121,7 +123,13 @@ type DiscountFormInput = z.infer<typeof discountFormSchema>
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-export function DiscountsSettings({ initialConfig, propertyId, onSave }: DiscountsSettingsProps) {
+export function DiscountsSettings({
+  initialConfig,
+  propertyId,
+  openPeriodFrom,
+  openPeriodUntil,
+  onSave,
+}: DiscountsSettingsProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -497,6 +505,8 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                         <Input
                           id="start_date"
                           type="date"
+                          min={openPeriodFrom ?? undefined}
+                          max={openPeriodUntil ?? undefined}
                           {...discountForm.register('start_date')}
                         />
                         {discountForm.formState.errors.start_date && (
@@ -508,6 +518,8 @@ export function DiscountsSettings({ initialConfig, propertyId, onSave }: Discoun
                         <Input
                           id="end_date"
                           type="date"
+                          min={openPeriodFrom ?? undefined}
+                          max={openPeriodUntil ?? undefined}
                           {...discountForm.register('end_date')}
                         />
                         {discountForm.formState.errors.end_date && (

@@ -75,6 +75,8 @@ type AddHolidayDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (payload: AddHolidayDialogSubmitPayload) => void
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
   initialValues?: Partial<HolidayRule> | null
   title?: string
   submitLabel?: string
@@ -105,6 +107,8 @@ export function AddHolidayDialog({
   open,
   onOpenChange,
   onSubmit: onFormSubmit,
+  openPeriodFrom,
+  openPeriodUntil,
   initialValues,
   title = 'Add holiday',
   submitLabel = 'Add holiday',
@@ -118,6 +122,13 @@ export function AddHolidayDialog({
   const dateRange = form.watch('dateRange') as DateRange
   const enabled = form.watch('enabled')
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false)
+  const openPeriodFromDate = openPeriodFrom ? parseLocalYmd(openPeriodFrom) : null
+  const openPeriodUntilDate = openPeriodUntil ? parseLocalYmd(openPeriodUntil) : null
+
+  const isOutsideOpenPeriod = (d: Date) =>
+    !!openPeriodFromDate &&
+    !!openPeriodUntilDate &&
+    (d < openPeriodFromDate || d > openPeriodUntilDate)
 
   useEffect(() => {
     if (!open) return
@@ -227,6 +238,7 @@ export function AddHolidayDialog({
                     onSelect={(range) => {
                       form.setValue('dateRange', range ?? {}, { shouldDirty: true, shouldValidate: true })
                     }}
+                    disabled={isOutsideOpenPeriod}
                     numberOfMonths={1}
                     weekStartsOn={1}
                     defaultMonth={dateRange?.from ?? new Date()}

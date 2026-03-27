@@ -31,7 +31,15 @@ import { AvailabilityFeedback } from './availability-feedback'
 import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
-import type { RateDiscountsConfig, UserDefinedDiscount } from '@/lib/config/types'
+import type { RateDiscountsConfig, UserDefinedDiscount, BookingRulesConfig } from '@/lib/config/types'
+import { BookingDateRangePicker, type DateRangeValue } from '@/components/guest/booking-date-range-picker'
+import { resolveBookingRulesConfig } from '@/lib/config/resolution'
+import {
+  extractOpenPeriodFromPropertySettings,
+  openPeriodRestrictsBookings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from '@/lib/booking/open-period'
 import { resolveRateDiscountsConfig } from '@/lib/config/resolution'
 import type { PriceBreakdown } from '@/lib/booking/types'
 import {
@@ -185,6 +193,12 @@ function formatDiscountOptionLabel(d: UserDefinedDiscount): string {
   return `${d.title} (${valuePart})`
 }
 
+function parseLocalYmd(ymd: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
+  if (!match) return new Date()
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+}
+
 export function ExtendDialog({
   reservationId,
   confirmationNumber,
@@ -211,6 +225,11 @@ export function ExtendDialog({
   const [originalPeriodTotalCents, setOriginalPeriodTotalCents] = useState<number | null>(null)
   const [projectedBreakdown, setProjectedBreakdown] = useState<PriceBreakdown | null>(null)
   const [originalBreakdown, setOriginalBreakdown] = useState<PriceBreakdown | null>(null)
+  const [dateRange, setDateRange] = useState<DateRangeValue>()
+  const [bookingRulesConfig, setBookingRulesConfig] = useState<BookingRulesConfig | null>(null)
+  const [propertyName, setPropertyName] = useState<string | null>(null)
+  const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
+  const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -225,6 +244,10 @@ export function ExtendDialog({
     if (open) {
       setNewCheckIn(currentCheckIn)
       setNewCheckOut(currentCheckOut)
+      setDateRange({
+        from: new Date(`${currentCheckIn}T00:00:00`),
+        to: new Date(`${currentCheckOut}T00:00:00`),
+      })
       setNotes('')
       setError(null)
       setPaymentCard(null)
@@ -235,6 +258,12 @@ export function ExtendDialog({
       setOriginalBreakdown(null)
     }
   }, [open, currentCheckIn, currentCheckOut])
+
+  useEffect(() => {
+    if (!open || status !== 'confirmed' || !dateRange?.from) return
+    setNewCheckIn(format(dateRange.from, 'yyyy-MM-dd'))
+    setNewCheckOut(dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '')
+  }, [open, status, dateRange])
 
   useEffect(() => {
     if (!open || !reservationId) return
@@ -258,6 +287,20 @@ export function ExtendDialog({
             exp_month: pc.exp_month,
             exp_year: pc.exp_year,
           })
+        }
+        if (json?.success === true) {
+          const data = json.data
+          setPropertyName(typeof data?.property_name === 'string' ? data.property_name : null)
+          const { openPeriodFrom: from, openPeriodUntil: until } =
+            extractOpenPeriodFromPropertySettings(data?.property_settings)
+          setOpenPeriodFrom(from)
+          setOpenPeriodUntil(until)
+          setBookingRulesConfig(
+            resolveBookingRulesConfig(
+              (data?.booking_rules_config as BookingRulesConfig | null) ?? null,
+              null
+            ).config
+          )
         }
       })
       .catch(() => {
@@ -488,6 +531,24 @@ export function ExtendDialog({
         throw new Error('Please change at least one date to extend the reservation')
       }
 
+      if (
+        openPeriodRestrictsBookings(openPeriodFrom, openPeriodUntil) &&
+        !isStayWithinOpenPeriodByIsoDates(
+          newCheckIn,
+          newCheckOut,
+          openPeriodFrom,
+          openPeriodUntil
+        )
+      ) {
+        const fromIso = openPeriodFrom?.trim()
+        const untilIso = openPeriodUntil?.trim()
+        throw new Error(
+          fromIso && untilIso && propertyName
+            ? buildOpenPeriodBookingErrorMessage(propertyName, fromIso, untilIso)
+            : 'Selected dates are outside the property booking season.'
+        )
+      }
+
       const response = await fetch(`/api/v1/reservations/${reservationId}/actions`, {
         method: 'POST',
         headers: {
@@ -624,41 +685,61 @@ export function ExtendDialog({
             </div>
           </div>
 
-          {/* New Check-in Date */}
-          {status === 'confirmed' && (
+          {status === 'confirmed' ? (
             <div className="space-y-2">
-              <Label htmlFor="newCheckIn">
-                New Check-in Date
-                <span className="ml-2 text-xs text-muted-foreground font-normal">
-                  (select earlier to extend before)
-                </span>
-              </Label>
-              <Input
-                id="newCheckIn"
-                type="date"
-                value={newCheckIn}
-                onChange={(e) => setNewCheckIn(e.target.value)}
+              <BookingDateRangePicker
+                variant="dashboard"
+                label="New Check-in & Check-out"
+                value={dateRange}
+                onChange={setDateRange}
+                className="w-full max-w-[22rem]"
+                sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
+                blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                {...(bookingRulesConfig?.booking_window_days != null
+                  ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
+                  : {})}
+                {...(bookingRulesConfig?.advance_notice_days != null
+                  ? { advanceNoticeDays: bookingRulesConfig.advance_notice_days }
+                  : {})}
+                openPeriodFrom={openPeriodFrom}
+                openPeriodUntil={openPeriodUntil}
+                numberOfMonths={1}
+                disabled={loading}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <BookingDateRangePicker
+                variant="dashboard"
+                label="New Check-out Date"
+                value={{
+                  from: parseLocalYmd(currentCheckIn),
+                  to: newCheckOut ? parseLocalYmd(newCheckOut) : undefined,
+                }}
+                onChange={(range) => {
+                  const picked = range?.to ?? range?.from
+                  if (!picked) return
+                  const nextCheckout = format(picked, 'yyyy-MM-dd')
+                  if (openPeriodFrom && nextCheckout < openPeriodFrom) return
+                  if (openPeriodUntil && nextCheckout > openPeriodUntil) return
+                  setNewCheckOut(nextCheckout)
+                }}
+                className="w-full max-w-[22rem]"
+                sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
+                blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                {...(bookingRulesConfig?.booking_window_days != null
+                  ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
+                  : {})}
+                {...(bookingRulesConfig?.advance_notice_days != null
+                  ? { advanceNoticeDays: bookingRulesConfig.advance_notice_days }
+                  : {})}
+                openPeriodFrom={openPeriodFrom}
+                openPeriodUntil={openPeriodUntil}
+                numberOfMonths={1}
                 disabled={loading}
               />
             </div>
           )}
-
-          {/* New Check-out Date */}
-          <div className="space-y-2">
-            <Label htmlFor="newCheckOut">
-              New Check-out Date
-              <span className="ml-2 text-xs text-muted-foreground font-normal">
-                (select later to extend after)
-              </span>
-            </Label>
-            <Input
-              id="newCheckOut"
-              type="date"
-              value={newCheckOut}
-              onChange={(e) => setNewCheckOut(e.target.value)}
-              disabled={loading}
-            />
-          </div>
 
           <div>
             <Label htmlFor="discounts">Discounts</Label>

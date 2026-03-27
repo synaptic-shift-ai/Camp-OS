@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +19,15 @@ import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { BookingDateRangePicker, type DateRangeValue } from "@/components/guest/booking-date-range-picker"
+import { resolveBookingRulesConfig } from "@/lib/config/resolution"
+import type { BookingRulesConfig } from "@/lib/config/types"
+import {
+  extractOpenPeriodFromPropertySettings,
+  openPeriodRestrictsBookings,
+  isStayWithinOpenPeriodByIsoDates,
+  buildOpenPeriodBookingErrorMessage,
+} from "@/lib/booking/open-period"
 import {
   AmericanExpressFlatRoundedIcon,
   DiscoverFlatRoundedIcon,
@@ -84,6 +94,11 @@ export function EditReservationDialog({
   const [error, setError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
+  const [dateRange, setDateRange] = useState<DateRangeValue>()
+  const [bookingRulesConfig, setBookingRulesConfig] = useState<BookingRulesConfig | null>(null)
+  const [propertyName, setPropertyName] = useState<string | null>(null)
+  const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
+  const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -113,6 +128,24 @@ export function EditReservationDialog({
   }, [open, checkIn, checkOut, numAdults, numChildren, numPets, specialRequests])
 
   useEffect(() => {
+    if (!open) return
+
+    const from = formData.checkInDate ? new Date(`${formData.checkInDate}T00:00:00`) : undefined
+    const to = formData.checkOutDate ? new Date(`${formData.checkOutDate}T00:00:00`) : undefined
+    setDateRange(from ? { from, to } : undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  useEffect(() => {
+    if (!dateRange?.from) return
+    setFormData((prev) => ({
+      ...prev,
+      checkInDate: format(dateRange.from!, "yyyy-MM-dd"),
+      checkOutDate: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "",
+    }))
+  }, [dateRange])
+
+  useEffect(() => {
     if (!open || !reservationId) return
     setPreviewLoading(true)
     setPaymentCard(null)
@@ -134,6 +167,22 @@ export function EditReservationDialog({
             exp_month: pc.exp_month,
             exp_year: pc.exp_year,
           })
+        }
+        if (json?.success === true) {
+          const data = json.data
+          setPropertyName(typeof data?.property_name === "string" ? data.property_name : null)
+
+          const { openPeriodFrom: from, openPeriodUntil: until } =
+            extractOpenPeriodFromPropertySettings(data?.property_settings)
+          setOpenPeriodFrom(from)
+          setOpenPeriodUntil(until)
+
+          setBookingRulesConfig(
+            resolveBookingRulesConfig(
+              (data?.booking_rules_config as BookingRulesConfig | null) ?? null,
+              null
+            ).config
+          )
         }
       })
       .catch(() => {
@@ -157,6 +206,24 @@ export function EditReservationDialog({
 
       if (formData.numAdults < 1) {
         throw new Error("At least one adult is required")
+      }
+
+      if (
+        openPeriodRestrictsBookings(openPeriodFrom, openPeriodUntil) &&
+        !isStayWithinOpenPeriodByIsoDates(
+          formData.checkInDate,
+          formData.checkOutDate,
+          openPeriodFrom,
+          openPeriodUntil
+        )
+      ) {
+        const fromIso = openPeriodFrom?.trim()
+        const untilIso = openPeriodUntil?.trim()
+        throw new Error(
+          fromIso && untilIso && propertyName
+            ? buildOpenPeriodBookingErrorMessage(propertyName, fromIso, untilIso)
+            : "Selected dates are outside the property booking season."
+        )
       }
 
       const response = await fetch(
@@ -251,27 +318,25 @@ export function EditReservationDialog({
 
           {/* Check-in Date */}
           <div className="space-y-2">
-            <Label htmlFor="checkInDate">Check-in Date *</Label>
-            <Input
-              id="checkInDate"
-              type="date"
-              value={formData.checkInDate}
-              onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
+            <input type="hidden" value={formData.checkInDate} readOnly />
+            <input type="hidden" value={formData.checkOutDate} readOnly />
+            <BookingDateRangePicker
+              variant="dashboard"
+              label="Check-in & Check-out"
+              value={dateRange}
+              onChange={setDateRange}
+              sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}
+              blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+              {...(bookingRulesConfig?.booking_window_days != null
+                ? { bookingWindowDays: bookingRulesConfig.booking_window_days }
+                : {})}
+              {...(bookingRulesConfig?.advance_notice_days != null
+                ? { advanceNoticeDays: bookingRulesConfig.advance_notice_days }
+                : {})}
+              openPeriodFrom={openPeriodFrom}
+              openPeriodUntil={openPeriodUntil}
+              numberOfMonths={1}
               disabled={loading}
-              required
-            />
-          </div>
-
-          {/* Check-out Date */}
-          <div className="space-y-2">
-            <Label htmlFor="checkOutDate">Check-out Date *</Label>
-            <Input
-              id="checkOutDate"
-              type="date"
-              value={formData.checkOutDate}
-              onChange={(e) => setFormData({ ...formData, checkOutDate: e.target.value })}
-              disabled={loading}
-              required
             />
           </div>
 

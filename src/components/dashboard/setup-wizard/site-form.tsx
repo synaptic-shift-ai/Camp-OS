@@ -80,6 +80,8 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     const raw = site?.availability_rules as { blackout_dates?: string[] } | undefined
     return Array.isArray(raw?.blackout_dates) ? [...raw.blackout_dates].sort() : []
   })
+  const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
+  const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   const serializedAvailabilityRules = useMemo(
@@ -299,12 +301,20 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
         const dbAmenities = result.data?.site_amenities
         if (!Array.isArray(dbAmenities)) {
           setPropertyAmenities(null)
-          return
+        } else {
+          setPropertyAmenities(dbAmenities)
         }
-        setPropertyAmenities(dbAmenities)
+
+        const rawSettings = result.data?.settings as Record<string, unknown> | null | undefined
+        const from = rawSettings?.openPeriodFrom ?? rawSettings?.open_period_from
+        const until = rawSettings?.openPeriodUntil ?? rawSettings?.open_period_until
+        setOpenPeriodFrom(typeof from === 'string' ? from : null)
+        setOpenPeriodUntil(typeof until === 'string' ? until : null)
       } catch {
         if (cancelled) return
         setPropertyAmenities(null)
+        setOpenPeriodFrom(null)
+        setOpenPeriodUntil(null)
       } finally {
         if (!cancelled) setAmenitiesLoading(false)
       }
@@ -913,6 +923,8 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             value={blackoutDates}
             onChange={setBlackoutDates}
             numberOfMonths={1}
+            openPeriodFrom={openPeriodFrom}
+            openPeriodUntil={openPeriodUntil}
           />
 
           {blackoutDates.length > 0 && (

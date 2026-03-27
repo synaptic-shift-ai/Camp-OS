@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useToast } from "@/hooks/use-toast"
+import type { HolidayRule } from "@/lib/config/types"
 import { format } from "date-fns"
 import { useRouter, useParams } from "next/navigation"
 import { useForm, FormProvider } from "react-hook-form"
@@ -37,6 +39,7 @@ import {
   buildOpenPeriodBookingErrorMessage,
 } from '@/lib/booking/open-period'
 import { Checkbox } from '@/components/ui/checkbox'
+
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
   // Site selection
@@ -169,6 +172,8 @@ export default function NewReservationPage() {
   const [propertyName, setPropertyName] = useState<string | null>(null)
   const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
   const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
+  const { toast } = useToast()
+  const lastHolidayToastKeyRef = useRef<string | null>(null)
   /** Set when search-availability fails (e.g. OPEN_PERIOD) so Step 2 can show a specific message */
   const [availabilitySearchFailure, setAvailabilitySearchFailure] = useState<{
     code: string | null
@@ -179,6 +184,46 @@ export default function NewReservationPage() {
   // Collapsible section states
   const [spouseOpen, setSpouseOpen] = useState(false)
   const [childrenOpen, setChildrenOpen] = useState(false)
+
+  const getHolidayMinStayViolation = (
+    holidays: HolidayRule[] | undefined,
+    checkInIso: string,
+    checkOutIso: string,
+  ): { rule: HolidayRule; holidayNights: number } | null => {
+    if (!holidays || holidays.length === 0) return null
+
+    const toDate = (iso: string) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+      if (!m) return new Date(Number.NaN)
+      return new Date(Number(m[1]!), Number(m[2]!) - 1, Number(m[3]!))
+    }
+    const dayMs = 1000 * 60 * 60 * 24
+    const checkIn = toDate(checkInIso)
+    const checkOut = toDate(checkOutIso)
+    const totalNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / dayMs)
+
+    for (const rule of holidays) {
+      if (!rule.enabled) continue
+
+      const inHolidayCheckIn = checkInIso >= rule.start_date && checkInIso <= rule.end_date
+      const inHolidayCheckOut = checkOutIso >= rule.start_date && checkOutIso <= rule.end_date
+
+      let holidayNights = 0
+      if (inHolidayCheckIn) {
+        holidayNights = totalNights
+      } else if (inHolidayCheckOut) {
+        const holidayStart = toDate(rule.start_date)
+        const overlapStart = checkIn > holidayStart ? checkIn : holidayStart
+        holidayNights = Math.floor((checkOut.getTime() - overlapStart.getTime()) / dayMs) + 1
+      }
+
+      if (holidayNights > 0 && holidayNights < rule.min_stay_nights) {
+        return { rule, holidayNights }
+      }
+    }
+
+    return null
+  }
 
   const methods = useForm<ManualBookingFormData>({
     resolver: zodResolver(manualBookingSchema),
@@ -238,6 +283,47 @@ export default function NewReservationPage() {
       setValue('checkOutDate', '', { shouldValidate: true })
     }
   }, [dateRange, setValue])
+
+  useEffect(() => {
+    if (!checkInDate || !checkOutDate) {
+      lastHolidayToastKeyRef.current = null
+      return
+    }
+
+    // Only evaluate holiday toast after a complete, valid range is chosen.
+    // This avoids showing a toast on the first click (check-in only / same-day draft).
+    if (!dateRange?.from || !dateRange?.to) {
+      lastHolidayToastKeyRef.current = null
+      return
+    }
+
+    const checkIn = new Date(checkInDate)
+    const checkOut = new Date(checkOutDate)
+    if (checkIn >= checkOut) {
+      lastHolidayToastKeyRef.current = null
+      return
+    }
+
+    const holidayViolation = getHolidayMinStayViolation(
+      bookingRulesConfig?.holiday_rules,
+      checkInDate,
+      checkOutDate
+    )
+
+    if (!holidayViolation) {
+      lastHolidayToastKeyRef.current = null
+      return
+    }
+    const toastKey = `${holidayViolation.rule.id}:${checkInDate}:${checkOutDate}:${holidayViolation.holidayNights}:${holidayViolation.rule.min_stay_nights}`
+    if (lastHolidayToastKeyRef.current === toastKey) return
+    lastHolidayToastKeyRef.current = toastKey
+
+    toast({
+      title: "Holiday stay rule",
+      description: `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? '' : 's'} in this holiday period.`,
+      variant: "destructive",
+    })
+  }, [checkInDate, checkOutDate, bookingRulesConfig, toast, dateRange])
 
   // Fetch property config from URL propertyId
   useEffect(() => {
@@ -320,6 +406,22 @@ export default function NewReservationPage() {
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
     setTotalNights(nights)
 
+    const holidayViolation = getHolidayMinStayViolation(
+      bookingRulesConfig?.holiday_rules,
+      checkInDate,
+      checkOutDate
+    )
+
+    if (holidayViolation) {
+      setAvailableSites([])
+      setAvailabilitySearchFailure({
+        code: 'HOLIDAY_MIN_STAY',
+        message: `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? '' : 's'} in this holiday period.`,
+      })
+      setError(null)
+      return
+    }
+
     const checkAvailability = async () => {
       setCheckingAvailability(true)
       setError(null)
@@ -374,7 +476,7 @@ export default function NewReservationPage() {
     }
 
     checkAvailability()
-  }, [propertyId, checkInDate, checkOutDate, numAdults, numChildren, selectedSiteId, setValue])
+  }, [propertyId, checkInDate, checkOutDate, numAdults, numChildren, selectedSiteId, setValue, bookingRulesConfig])
 
   // Calculate estimated total when site is selected
   useEffect(() => {
@@ -599,9 +701,18 @@ export default function NewReservationPage() {
       : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_TYPE_MIN_NIGHTS.weekly
         ? 'weekly'
         : 'nightly'
+  const holidayViolationForSelection =
+    checkInDate && checkOutDate
+      ? getHolidayMinStayViolation(bookingRulesConfig?.holiday_rules, checkInDate, checkOutDate)
+      : null
+  const holidayMinStayNotMet =
+    holidayViolationForSelection != null
 
   const getStep2NoSitesMessage = () => {
-    if (availabilitySearchFailure?.code === 'OPEN_PERIOD' && availabilitySearchFailure.message) {
+    if (
+      (availabilitySearchFailure?.code === 'OPEN_PERIOD' || availabilitySearchFailure?.code === 'HOLIDAY_MIN_STAY') &&
+      availabilitySearchFailure.message
+    ) {
       return availabilitySearchFailure.message
     }
     if (
@@ -716,6 +827,13 @@ export default function NewReservationPage() {
                             {bookingRulesConfig.max_stay_nights === 1 ? '' : 's'} per booking.
                           </p>
                         )}
+                      {holidayMinStayNotMet && holidayViolationForSelection && (
+                        <p className="text-sm text-amber-600 dark:text-amber-500">
+                          The date you selected is in {holidayViolationForSelection.rule.title} and the minimum nights of
+                          {' '}stay is {holidayViolationForSelection.rule.min_stay_nights}. You currently have{' '}
+                          {holidayViolationForSelection.holidayNights} night{holidayViolationForSelection.holidayNights === 1 ? '' : 's'} in this holiday period.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1237,6 +1355,7 @@ export default function NewReservationPage() {
                     (bookingRulesConfig != null &&
                       totalNights > 0 &&
                       totalNights < bookingRulesConfig.min_stay_nights) ||
+                    holidayMinStayNotMet ||
                     (bookingRulesConfig?.max_stay_nights != null &&
                       Number.isFinite(bookingRulesConfig.max_stay_nights) &&
                       totalNights > bookingRulesConfig.max_stay_nights)

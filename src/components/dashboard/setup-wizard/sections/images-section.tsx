@@ -14,7 +14,7 @@ export function ImagesSection({ propertyId, initialCoverUrl }: Props) {
         <h3 className="text-lg font-semibold">Images</h3>
         <p className="text-sm text-muted-foreground">Upload photos for your property listing</p>
       </div>
-      <PropertyImagesSection propertyId={propertyId} initialCoverUrl={initialCoverUrl} />
+      <PropertyImagesSection propertyId={propertyId} initialCoverUrl={initialCoverUrl ?? null} />
     </div>
   )
 }

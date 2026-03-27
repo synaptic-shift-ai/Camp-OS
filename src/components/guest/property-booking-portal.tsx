@@ -31,7 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { SiteType } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
-import type { BookingRulesConfig } from "@/lib/config/types"
+import type { BookingRulesConfig, HolidayRule } from "@/lib/config/types"
 import { BookingDateRangePicker, type DateRangeValue } from "@/components/guest/booking-date-range-picker"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -136,6 +136,7 @@ interface PropertyBookingPortalProps {
 export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recentBookings = [], bookingRulesConfig }: PropertyBookingPortalProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const lastHolidayToastKeyRef = useRef<string | null>(null)
 
   const [checkInDate, setCheckInDate] = useState<Date>()
   const [checkOutDate, setCheckOutDate] = useState<Date>()
@@ -241,6 +242,77 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     return `${displayHour}:${minutes} ${ampm}`
   }
 
+  const getHolidayMinStayViolation = (
+    holidays: HolidayRule[] | undefined,
+    checkInIso: string,
+    checkOutIso: string,
+  ): { rule: HolidayRule; holidayNights: number } | null => {
+    if (!holidays || holidays.length === 0) return null
+
+    const toDate = (iso: string) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+      if (!m) return new Date(Number.NaN)
+      return new Date(Number(m[1]!), Number(m[2]!) - 1, Number(m[3]!))
+    }
+
+    const dayMs = 1000 * 60 * 60 * 24
+    const checkIn = toDate(checkInIso)
+    const checkOut = toDate(checkOutIso)
+    const totalNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / dayMs)
+
+    for (const rule of holidays) {
+      if (!rule.enabled) continue
+
+      const inHolidayCheckIn = checkInIso >= rule.start_date && checkInIso <= rule.end_date
+      const inHolidayCheckOut = checkOutIso >= rule.start_date && checkOutIso <= rule.end_date
+
+      let holidayNights = 0
+      if (inHolidayCheckIn) {
+        holidayNights = totalNights
+      } else if (inHolidayCheckOut) {
+        const holidayStart = toDate(rule.start_date)
+        const overlapStart = checkIn > holidayStart ? checkIn : holidayStart
+        holidayNights = Math.floor((checkOut.getTime() - overlapStart.getTime()) / dayMs) + 1
+      }
+
+      if (holidayNights > 0 && holidayNights < rule.min_stay_nights) {
+        return { rule, holidayNights }
+      }
+    }
+
+    return null
+  }
+
+  useEffect(() => {
+    if (!dateRange?.from || !dateRange?.to || !bookingRulesConfig) {
+      lastHolidayToastKeyRef.current = null
+      return
+    }
+
+    const checkInStr = format(dateRange.from, "yyyy-MM-dd")
+    const checkOutStr = format(dateRange.to, "yyyy-MM-dd")
+    const holidayViolation = getHolidayMinStayViolation(
+      bookingRulesConfig.holiday_rules,
+      checkInStr,
+      checkOutStr
+    )
+
+    if (!holidayViolation) {
+      lastHolidayToastKeyRef.current = null
+      return
+    }
+
+    const toastKey = `${holidayViolation.rule.id}:${checkInStr}:${checkOutStr}:${holidayViolation.holidayNights}:${holidayViolation.rule.min_stay_nights}`
+    if (lastHolidayToastKeyRef.current === toastKey) return
+    lastHolidayToastKeyRef.current = toastKey
+
+    toast({
+      title: "Holiday stay rule",
+      description: `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
+      variant: "destructive",
+    })
+  }, [dateRange, bookingRulesConfig, toast])
+
   const searchAvailability = async () => {
     if (!checkInDate || !checkOutDate) {
       toast({
@@ -293,6 +365,21 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
     const checkInStr = format(checkInDate, "yyyy-MM-dd")
     const checkOutStr = format(checkOutDate, "yyyy-MM-dd")
+
+    const holidayViolation = getHolidayMinStayViolation(
+      bookingRulesConfig?.holiday_rules,
+      checkInStr,
+      checkOutStr
+    )
+    if (holidayViolation) {
+      toast({
+        title: "Holiday stay rule",
+        description: `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     if (
       openPeriodRestrictsBookings(property.openPeriodFrom, property.openPeriodUntil) &&
       !isStayWithinOpenPeriodByIsoDates(

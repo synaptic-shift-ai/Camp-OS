@@ -127,6 +127,10 @@ export const CreateSiteRequestSchema = z.object({
   sizeSqft: z.number().int().positive().optional(),
   amenities: z.array(z.string()).optional(),
   hookups: z.array(z.string()).optional(),
+  allowPets: z.boolean().optional(),
+  petFee: CurrencyAmountSchema.optional(),
+  adaAccessible: z.boolean().optional(),
+  accessibilityFeatures: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
   locationMap: z.record(z.any()).optional(),
   // Reservation type override: { source: "property_default" } | { source: "site_type_default" } | types[] | null
@@ -169,6 +173,10 @@ export const UpdateSiteRequestSchema = z.object({
   sizeSqft: z.number().int().positive().optional(),
   amenities: z.array(z.string()).optional(),
   hookups: z.array(z.string()).optional(),
+  allowPets: z.boolean().optional(),
+  petFee: CurrencyAmountSchema.optional(),
+  adaAccessible: z.boolean().optional(),
+  accessibilityFeatures: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
   locationMap: z.record(z.any()).optional(),
   // Reservation type override: { source: "property_default" } | { source: "site_type_default" } | types[] | null

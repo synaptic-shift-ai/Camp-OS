@@ -11,11 +11,19 @@ export type PropertyDetailsDraft = {
   timezone?: string | undefined
   checkInTime?: string | undefined
   checkOutTime?: string | undefined
+  termsAndConditions?: string | undefined
   cancellationPolicy?: string | undefined
   customRules?: string | undefined
   minStayNights?: number | undefined
   maxStayNights?: number | "" | undefined
   bookingLeadTimeDays?: number | undefined
+  amenities?: Array<{ id: string; name: string; description: string }> | undefined
+  pricingConfig?: Record<string, unknown> | undefined
+  reservationTypeConfig?: Record<string, unknown> | undefined
+  enabledReservationTypes?: string[] | undefined
+  siteTypeConfig?: Record<string, unknown> | undefined
+  depositConfig?: Record<string, unknown> | undefined
+  rateDiscountsConfig?: Record<string, unknown> | undefined
 }
 
 type WizardFormStore = {

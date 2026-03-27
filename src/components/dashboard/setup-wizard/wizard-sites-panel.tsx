@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -33,6 +32,7 @@ import {
   Plus,
   Tent,
   Trash2,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { siteFormSchema, toApiFormat, fromApiFormat } from "./site-form-schema"
@@ -49,23 +49,62 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useSupabaseUpload } from "@/hooks/use-supabase-upload"
 import { createClient } from "@/lib/supabase/client"
+import { BlackoutDatesPicker } from "@/components/guest/booking-date-range-picker"
+import { Badge } from "@/components/ui/badge"
+import { useWizardFormStore } from "./wizard-form-store"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SiteSection = "basic_info" | "pricing" | "images" | "hookups"
+type SiteSection = "basic_info" | "pricing" | "images" | "hookups" | "pets_accessibility" | "blackout_dates"
 
 const SITE_SECTIONS: Array<{ id: SiteSection; label: string; description: string }> = [
   { id: "basic_info", label: "Basic information", description: "Site identification, type, and capacity" },
-  { id: "pricing", label: "Pricing & reservation", description: "Configure pricing for this site" },
+  { id: "pricing", label: "Pricing & Reservation", description: "Configure pricing for this site" },
   { id: "images", label: "Images", description: "Upload photos of this campsite" },
-  { id: "hookups", label: "Hookups & amenities", description: "Utilities, hookups, and site features" },
+  { id: "hookups", label: "Hookups & Amenities", description: "Utilities, hookups, and site features" },
+  { id: "pets_accessibility", label: "Pets & Accessibility", description: "Pet policy and ADA features" },
+  { id: "blackout_dates", label: "Blackout dates", description: "Dates this site cannot be booked" },
 ]
 
 const SITE_IMAGES_BUCKET = "site-property-images"
 const MAX_SITE_IMAGES = 1
 const MAX_SITE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+const DEFAULT_SITE_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "tent", label: "Tent" },
+  { value: "rv", label: "RV" },
+  { value: "cabin", label: "Cabin" },
+  { value: "glamping", label: "Glamping" },
+  { value: "yurt", label: "Yurt" },
+  { value: "other", label: "Other" },
+]
+const VALID_SITE_TYPE_VALUES = new Set(DEFAULT_SITE_TYPE_OPTIONS.map((opt) => opt.value))
+
+function normalizeSiteTypeValue(raw: string): string | null {
+  const normalized = raw.trim().toLowerCase()
+  if (!normalized) return null
+  if (VALID_SITE_TYPE_VALUES.has(normalized)) return normalized
+
+  // Common label/value variants from config UI
+  if (normalized.includes("rv")) return "rv"
+  if (normalized.includes("glamp")) return "glamping"
+  if (normalized.includes("tent")) return "tent"
+  if (normalized.includes("cabin")) return "cabin"
+  if (normalized.includes("yurt")) return "yurt"
+  if (normalized.includes("other")) return "other"
+  return null
+}
+const RESERVATION_TYPE_LABELS: Record<
+  "nightly" | "weekly" | "monthly" | "seasonal",
+  { title: string; description: string }
+> = {
+  nightly: { title: "Nightly", description: "Short stays (1-6 nights)" },
+  weekly: { title: "Weekly", description: "Week-long stays (7-27 nights)" },
+  monthly: { title: "Monthly", description: "Extended stays (28+ nights)" },
+  seasonal: { title: "Seasonal", description: "Fixed date range with flat rate" },
+}
 
 type SiteData = Record<string, unknown> & {
   id: string
@@ -83,17 +122,27 @@ type SitesPanelContextValue = {
   loading: boolean
   saving: boolean
   noSiteError: string | null
+  hasUnsavedDraftForCurrentProperty: boolean
+  unsavedDraftSiteNumber: string
   propertyDefaultsNightlyRate: number | null
+  siteTypeOptions: Array<{ value: string; label: string }>
+  amenityOptions: Array<{ key: string; label: string }>
+  amenitiesLoading: boolean
   form: UseFormReturn<SiteFormData>
   siteImageUrls: string[]
+  blackoutDates: string[]
   siteImagesUpload: ReturnType<typeof useSupabaseUpload>
   setSiteImageUrls: React.Dispatch<React.SetStateAction<string[]>>
+  setBlackoutDates: React.Dispatch<React.SetStateAction<string[]>>
   completedSections: Record<string, Set<SiteSection>>
   setSelectedSiteId: (id: string) => void
   toggleExpandSite: (id: string) => void
   setCurrentSection: (s: SiteSection) => void
+  getUnsavedDraftPropertyIds: () => string[]
+  reopenUnsavedDraft: () => void
   handleAddSite: () => void
   handleSaveSite: () => void
+  handleDiscardNewSite: () => void
   handleDeleteSite: (siteId: string) => Promise<void>
   removeSiteImage: (url: string) => Promise<void>
 }
@@ -150,6 +199,7 @@ export function useSitesPanelState(args: {
 }) {
   const { property, isActive, onSiteConfirmed } = args
   const { toast } = useToast()
+  const { getDraft } = useWizardFormStore()
   const supabase = useMemo(() => createClient(), [])
 
   const [sites, setSites] = useState<SiteData[]>([])
@@ -161,8 +211,24 @@ export function useSitesPanelState(args: {
   const [saving, setSaving] = useState(false)
   const [noSiteError, setNoSiteError] = useState<string | null>(null)
   const [propertyDefaultsNightlyRate, setPropertyDefaultsNightlyRate] = useState<number | null>(null)
+  const [allowedSiteTypes, setAllowedSiteTypes] = useState<string[]>([])
+  const [propertyAmenities, setPropertyAmenities] = useState<unknown[] | null>(null)
+  const [amenitiesLoading, setAmenitiesLoading] = useState(false)
   const [completedSections, setCompletedSections] = useState<Record<string, Set<SiteSection>>>({})
   const [siteImageUrls, setSiteImageUrls] = useState<string[]>([])
+  const [blackoutDates, setBlackoutDates] = useState<string[]>([])
+  const unsavedDraftsRef = useRef<
+    Record<
+      string,
+      {
+        values: SiteFormData
+        currentSection: SiteSection
+        siteImageUrls: string[]
+        blackoutDates: string[]
+      }
+    >
+  >({})
+  const previousPropertyIdRef = useRef<string | null>(null)
 
   const loadingRef = useRef(false)
   const sitesRef = useRef<SiteData[]>([])
@@ -186,6 +252,230 @@ export function useSitesPanelState(args: {
     mode: "onChange",
     defaultValues: DEFAULT_SITE_FORM_VALUES,
   })
+
+  const amenityOptions = useMemo(() => {
+    const fallback = [
+      { key: "fire_pit", label: "Fire Pit" },
+      { key: "picnic_table", label: "Picnic Table" },
+      { key: "grill", label: "Grill" },
+      { key: "shade", label: "Shade" },
+      { key: "pet_friendly", label: "Pet Friendly" },
+      { key: "lake_view", label: "Lake View" },
+      { key: "waterfront", label: "Waterfront" },
+    ]
+
+    if (!Array.isArray(propertyAmenities)) return fallback
+
+    const options: { key: string; label: string }[] = []
+    const seen = new Set<string>()
+
+    for (const item of propertyAmenities) {
+      const rawName =
+        typeof item === "string"
+          ? item
+          : item && typeof item === "object" && typeof (item as { name?: unknown }).name === "string"
+            ? (item as { name: string }).name
+            : null
+
+      if (!rawName) continue
+      const trimmed = rawName.trim()
+      if (!trimmed) continue
+
+      const keyFromId =
+        item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string"
+          ? (item as { id: string }).id.trim()
+          : ""
+      const key = keyFromId || trimmed
+      if (!key || seen.has(key)) continue
+
+      seen.add(key)
+      options.push({ key, label: trimmed })
+    }
+
+    return options.length > 0 ? options : fallback
+  }, [propertyAmenities])
+
+  const siteTypeOptions = useMemo(() => {
+    if (!Array.isArray(allowedSiteTypes) || allowedSiteTypes.length === 0) {
+      return DEFAULT_SITE_TYPE_OPTIONS
+    }
+    const byValue = new Map(DEFAULT_SITE_TYPE_OPTIONS.map((opt) => [opt.value, opt.label]))
+    const seen = new Set<string>()
+    const normalizedOptions: Array<{ value: string; label: string }> = []
+
+    for (const raw of allowedSiteTypes) {
+      const normalized = normalizeSiteTypeValue(raw)
+      if (!normalized || seen.has(normalized)) continue
+      seen.add(normalized)
+      normalizedOptions.push({
+        value: normalized,
+        label: byValue.get(normalized) ?? (normalized.charAt(0).toUpperCase() + normalized.slice(1)),
+      })
+    }
+
+    return normalizedOptions.length > 0 ? normalizedOptions : DEFAULT_SITE_TYPE_OPTIONS
+  }, [allowedSiteTypes])
+
+  useEffect(() => {
+    if (!property?.id) {
+      setPropertyAmenities(null)
+      return
+    }
+
+    let cancelled = false
+
+    const fetchPropertyAmenities = async () => {
+      setAmenitiesLoading(true)
+      try {
+        const draftAmenities = getDraft(property.id)?.amenities
+        if (Array.isArray(draftAmenities) && draftAmenities.length > 0) {
+          setPropertyAmenities(draftAmenities)
+          return
+        }
+
+        const response = await fetch(`/api/v1/properties/${property.id}`)
+        const result = await response.json()
+        if (cancelled) return
+
+        if (!response.ok || !result.success) {
+          setPropertyAmenities(null)
+          return
+        }
+
+        const dbAmenities = result.data?.amenities
+        setPropertyAmenities(Array.isArray(dbAmenities) ? dbAmenities : null)
+      } catch {
+        if (!cancelled) {
+          setPropertyAmenities(null)
+        }
+      } finally {
+        if (!cancelled) setAmenitiesLoading(false)
+      }
+    }
+
+    fetchPropertyAmenities()
+    return () => {
+      cancelled = true
+    }
+  }, [property?.id, getDraft])
+
+  useEffect(() => {
+    if (!property?.id) {
+      setAllowedSiteTypes([])
+      return
+    }
+
+    let cancelled = false
+
+    const loadAllowedSiteTypes = async () => {
+      try {
+        const draftSiteTypeConfig = getDraft(property.id)?.siteTypeConfig as
+          | { allowed_site_types?: unknown }
+          | undefined
+        const draftAllowed = draftSiteTypeConfig?.allowed_site_types
+        if (Array.isArray(draftAllowed) && draftAllowed.length > 0) {
+          if (!cancelled) {
+            setAllowedSiteTypes(
+              draftAllowed
+                .filter((v): v is string => typeof v === "string")
+                .map((v) => normalizeSiteTypeValue(v))
+                .filter((v): v is string => Boolean(v))
+            )
+          }
+          return
+        }
+
+        const response = await fetch(`/api/properties/${property.id}/settings`)
+        if (!response.ok) {
+          if (!cancelled) setAllowedSiteTypes([])
+          return
+        }
+        const result = (await response.json()) as { property?: Record<string, unknown> }
+        if (cancelled) return
+        const siteTypeConfig = (result.property?.site_type_config ?? null) as
+          | { allowed_site_types?: unknown }
+          | null
+        const allowed = siteTypeConfig?.allowed_site_types
+        if (Array.isArray(allowed) && allowed.length > 0) {
+          setAllowedSiteTypes(
+            allowed
+              .filter((v): v is string => typeof v === "string")
+              .map((v) => normalizeSiteTypeValue(v))
+              .filter((v): v is string => Boolean(v))
+          )
+        } else {
+          setAllowedSiteTypes([])
+        }
+      } catch {
+        if (!cancelled) setAllowedSiteTypes([])
+      }
+    }
+
+    loadAllowedSiteTypes()
+    return () => {
+      cancelled = true
+    }
+  }, [property?.id, getDraft])
+
+  useEffect(() => {
+    if (!isNewSite) return
+    if (siteTypeOptions.length === 0) return
+
+    const current = form.getValues("site_type")
+    const allowedValues = new Set(siteTypeOptions.map((opt) => opt.value))
+    if (!allowedValues.has(current)) {
+      const first = siteTypeOptions[0]
+      if (first) {
+        form.setValue("site_type", first.value as SiteFormData["site_type"])
+      }
+    }
+  }, [isNewSite, siteTypeOptions, form])
+
+  const clearCurrentDraftState = useCallback(() => {
+    setSelectedSiteIdRaw(null)
+    setIsNewSite(false)
+    setExpandedSites(new Set())
+    setCurrentSection("basic_info")
+    setNoSiteError(null)
+    form.reset(DEFAULT_SITE_FORM_VALUES)
+    setSiteImageUrls([])
+    setBlackoutDates([])
+  }, [form])
+
+  const persistCurrentUnsavedDraft = useCallback(
+    (propertyId: string) => {
+      if (!isNewSite) {
+        delete unsavedDraftsRef.current[propertyId]
+        return
+      }
+
+      unsavedDraftsRef.current[propertyId] = {
+        values: form.getValues(),
+        currentSection,
+        siteImageUrls: [...siteImageUrls],
+        blackoutDates: [...blackoutDates],
+      }
+    },
+    [isNewSite, form, currentSection, siteImageUrls, blackoutDates]
+  )
+
+  const restoreUnsavedDraft = useCallback(
+    (propertyId: string): boolean => {
+      const draft = unsavedDraftsRef.current[propertyId]
+      if (!draft) return false
+
+      setSelectedSiteIdRaw(null)
+      setIsNewSite(true)
+      setExpandedSites(new Set())
+      setCurrentSection(draft.currentSection)
+      setNoSiteError(null)
+      form.reset(draft.values)
+      setSiteImageUrls([...draft.siteImageUrls])
+      setBlackoutDates([...draft.blackoutDates])
+      return true
+    },
+    [form]
+  )
 
   // Sync uploaded images into state
   const successes = siteImagesUpload.successes
@@ -220,14 +510,24 @@ export function useSitesPanelState(args: {
 
   const selectSite = useCallback(
     (site: SiteData) => {
+      if (property?.id && isNewSite && (!!form.getValues("site_number")?.trim() || form.formState.isDirty)) {
+        unsavedDraftsRef.current[property.id] = {
+          values: form.getValues(),
+          currentSection,
+          siteImageUrls: [...siteImageUrls],
+          blackoutDates: [...blackoutDates],
+        }
+      }
       setSelectedSiteIdRaw(site.id)
       setIsNewSite(false)
       setCurrentSection("basic_info")
       form.reset(fromApiFormat(site) as SiteFormData)
       const imgs = (site.site_images ?? site.images) as string[] | undefined
       setSiteImageUrls(Array.isArray(imgs) ? [...imgs] : [])
+      const rawRules = site.availability_rules as { blackout_dates?: string[] } | undefined
+      setBlackoutDates(Array.isArray(rawRules?.blackout_dates) ? [...rawRules.blackout_dates].sort() : [])
     },
-    [form]
+    [property?.id, isNewSite, form, currentSection, siteImageUrls, blackoutDates]
   )
 
   const fetchPropertyDefaults = useCallback(async () => {
@@ -279,12 +579,53 @@ export function useSitesPanelState(args: {
   }, [property?.id, isActive, selectSite, onSiteConfirmed])
 
   useEffect(() => {
-    if (isActive) {
-      hasInitializedRef.current = false
-      fetchSites()
-      fetchPropertyDefaults()
+    if (!isActive) return
+
+    const nextPropertyId = property?.id ?? null
+    const previousPropertyId = previousPropertyIdRef.current
+    const propertyChanged = previousPropertyId !== nextPropertyId
+
+    // Only react when the selected property actually changes.
+    if (!propertyChanged) return
+
+    hasInitializedRef.current = false
+
+    if (previousPropertyId && isNewSite) {
+      unsavedDraftsRef.current[previousPropertyId] = {
+        values: form.getValues(),
+        currentSection,
+        siteImageUrls: [...siteImageUrls],
+        blackoutDates: [...blackoutDates],
+      }
     }
-  }, [isActive, fetchSites, fetchPropertyDefaults])
+
+    previousPropertyIdRef.current = nextPropertyId
+
+    const draft = nextPropertyId ? unsavedDraftsRef.current[nextPropertyId] : undefined
+    if (draft) {
+      setSelectedSiteIdRaw(null)
+      setIsNewSite(true)
+      setExpandedSites(new Set())
+      setCurrentSection(draft.currentSection)
+      setNoSiteError(null)
+      form.reset(draft.values)
+      setSiteImageUrls([...draft.siteImageUrls])
+      setBlackoutDates([...draft.blackoutDates])
+      hasInitializedRef.current = true
+    } else {
+      setSelectedSiteIdRaw(null)
+      setIsNewSite(false)
+      setExpandedSites(new Set())
+      setCurrentSection("basic_info")
+      setNoSiteError(null)
+      form.reset(DEFAULT_SITE_FORM_VALUES)
+      setSiteImageUrls([])
+      setBlackoutDates([])
+    }
+
+    fetchSites()
+    fetchPropertyDefaults()
+  }, [isActive, property?.id, isNewSite, currentSection, siteImageUrls, blackoutDates, form, fetchSites, fetchPropertyDefaults])
 
   const setSelectedSiteId = useCallback(
     (id: string) => {
@@ -312,12 +653,38 @@ export function useSitesPanelState(args: {
   )
 
   const handleAddSite = useCallback(() => {
+    if (property?.id) {
+      unsavedDraftsRef.current[property.id] = {
+        values: DEFAULT_SITE_FORM_VALUES,
+        currentSection: "basic_info",
+        siteImageUrls: [],
+        blackoutDates: [],
+      }
+    }
     setSelectedSiteIdRaw(null)
     setIsNewSite(true)
     setCurrentSection("basic_info")
     form.reset(DEFAULT_SITE_FORM_VALUES)
     setSiteImageUrls([])
-  }, [form])
+    setBlackoutDates([])
+  }, [form, property?.id])
+
+  const handleDiscardNewSite = useCallback(() => {
+    if (!property?.id) return
+    delete unsavedDraftsRef.current[property.id]
+    setNoSiteError(null)
+
+    const first = sitesRef.current[0]
+    if (first) {
+      selectSite(first)
+      setSelectedSiteIdRaw(first.id)
+      setIsNewSite(false)
+      setExpandedSites((prev) => new Set([...prev, first.id]))
+      return
+    }
+
+    clearCurrentDraftState()
+  }, [property?.id, selectSite, clearCurrentDraftState])
 
   const handleSaveSite = useCallback(async () => {
     if (!property) return
@@ -328,6 +695,10 @@ export function useSitesPanelState(args: {
       setSaving(true)
       const payload = {
         ...toApiFormat(data),
+        availability_rules: {
+          blackout_dates: blackoutDates,
+          blocked_dates: [],
+        },
         images: siteImageUrls.length > 0 ? siteImageUrls : undefined,
       }
       let savedSite: SiteData
@@ -363,6 +734,7 @@ export function useSitesPanelState(args: {
       })
       setNoSiteError(null)
       onSiteConfirmed?.(property.id)
+      delete unsavedDraftsRef.current[property.id]
       // Re-fetch and re-select the saved site
       hasInitializedRef.current = true
       await fetchSites()
@@ -385,6 +757,7 @@ export function useSitesPanelState(args: {
     form,
     siteImageUrls,
     currentSection,
+    blackoutDates,
     toast,
     fetchSites,
     onSiteConfirmed,
@@ -414,6 +787,7 @@ export function useSitesPanelState(args: {
             setCurrentSection("basic_info")
             form.reset(DEFAULT_SITE_FORM_VALUES)
             setSiteImageUrls([])
+            setBlackoutDates([])
           }
         }
         setExpandedSites((prev) => {
@@ -439,23 +813,61 @@ export function useSitesPanelState(args: {
       poll()
     })
 
-    // Block if there's an unsaved new site with data entered
-    if (isNewSite && form.getValues("site_number")?.trim()) {
-      setNoSiteError("Please save the current site before continuing.")
+    const currentPropertyId = property?.id
+    if (currentPropertyId && isNewSite) {
+      persistCurrentUnsavedDraft(currentPropertyId)
+    }
+
+    // Block if current property has unsaved site draft
+    if (currentPropertyId && unsavedDraftsRef.current[currentPropertyId]) {
+      setNoSiteError(null)
       return false
     }
 
     // Block if no sites have been saved yet
     if (sitesRef.current.length === 0) {
-      setNoSiteError(
-        `"${property?.name}" has no sites yet. Please add at least one campsite.`
-      )
+      setNoSiteError(null)
       return false
     }
 
     setNoSiteError(null)
     return true
-  }, [property?.name, form, isNewSite])
+  }, [property?.id, form, isNewSite, persistCurrentUnsavedDraft])
+
+  const getUnsavedDraftPropertyIds = useCallback((): string[] => {
+    return Object.keys(unsavedDraftsRef.current)
+  }, [])
+
+  useEffect(() => {
+    const hasUnsavedDrafts = Object.keys(unsavedDraftsRef.current).length > 0
+    if (!hasUnsavedDrafts) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      // Required for some browsers to trigger native confirmation dialog.
+      event.returnValue = ""
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [isNewSite, selectedSiteId, currentSection, siteImageUrls, blackoutDates])
+
+  const hasUnsavedDraftForCurrentProperty = Boolean(
+    property?.id && unsavedDraftsRef.current[property.id]
+  )
+  const unsavedDraftSiteNumber = (() => {
+    if (!property?.id) return ""
+    const draft = unsavedDraftsRef.current[property.id]
+    if (!draft) return ""
+    return draft.values.site_number?.trim() ?? ""
+  })()
+
+  const reopenUnsavedDraft = useCallback(() => {
+    if (!property?.id) return
+    restoreUnsavedDraft(property.id)
+  }, [property?.id, restoreUnsavedDraft])
 
   const contextValue: SitesPanelContextValue = {
     propertyId: property?.id ?? "",
@@ -467,17 +879,27 @@ export function useSitesPanelState(args: {
     loading,
     saving,
     noSiteError,
+    hasUnsavedDraftForCurrentProperty,
+    unsavedDraftSiteNumber,
     propertyDefaultsNightlyRate,
+    siteTypeOptions,
+    amenityOptions,
+    amenitiesLoading,
     form,
     siteImageUrls,
+    blackoutDates,
     siteImagesUpload,
     setSiteImageUrls,
+    setBlackoutDates,
     completedSections,
     setSelectedSiteId,
     toggleExpandSite,
     setCurrentSection,
+    getUnsavedDraftPropertyIds,
+    reopenUnsavedDraft,
     handleAddSite,
     handleSaveSite,
+    handleDiscardNewSite,
     handleDeleteSite,
     removeSiteImage,
   }
@@ -490,14 +912,19 @@ export function useSitesPanelState(args: {
 export function SitesSidebarTree() {
   const {
     sites,
+    propertyId,
     selectedSiteId,
     isNewSite,
+    hasUnsavedDraftForCurrentProperty,
+    unsavedDraftSiteNumber,
     expandedSites,
     currentSection,
     loading,
     toggleExpandSite,
     setCurrentSection,
     setSelectedSiteId,
+    reopenUnsavedDraft,
+    handleDiscardNewSite,
     handleAddSite,
     handleDeleteSite,
     form,
@@ -505,6 +932,7 @@ export function SitesSidebarTree() {
 
   const [siteToDelete, setSiteToDelete] = useState<SiteData | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [unsavedExpanded, setUnsavedExpanded] = useState(true)
 
   const onConfirmDelete = useCallback(async () => {
     if (!siteToDelete) return
@@ -619,15 +1047,39 @@ export function SitesSidebarTree() {
           })}
 
           {/* New (unsaved) site — amber dot signals not yet saved */}
-          {isNewSite && (
+          {(isNewSite || hasUnsavedDraftForCurrentProperty) && (
             <div>
-              <div className="w-full flex items-center gap-2 pl-4 pr-3 py-2 text-sm text-primary font-medium bg-muted border-l-[3px] border-primary">
-                <span className="h-2 w-2 rounded-full flex-shrink-0 bg-amber-400" />
-                <span className="flex-1 truncate">
-                  {newSiteNumber?.trim() || <span className="italic opacity-70">New site</span>}
-                </span>
+              <div className="flex items-center w-full group">
+                <button
+                  type="button"
+                  onClick={() => {
+                    reopenUnsavedDraft()
+                    setUnsavedExpanded((prev) => !prev)
+                  }}
+                  className="flex-1 min-w-0 flex items-center gap-2 pl-4 pr-2 py-2 text-sm transition-colors text-left text-primary font-medium"
+                >
+                  <span className="h-2 w-2 rounded-full flex-shrink-0 bg-amber-400" />
+                  <span className="flex-1 truncate">
+                    {isNewSite
+                      ? (newSiteNumber?.trim() || <span className="italic opacity-70">New site</span>)
+                      : (unsavedDraftSiteNumber || <span className="italic opacity-70">New site</span>)}
+                  </span>
+                  {unsavedExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDiscardNewSite}
+                  className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                  aria-label="Discard unsaved site"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
-              {SITE_SECTIONS.map((section) => {
+              {isNewSite && unsavedExpanded && SITE_SECTIONS.map((section) => {
                 const active = currentSection === section.id
                 return (
                   <button
@@ -701,21 +1153,33 @@ export function SitesPanelContent() {
   const {
     currentSection,
     form,
-    noSiteError,
+    saving,
     isNewSite,
     selectedSiteId,
+    handleSaveSite,
     propertyDefaultsNightlyRate,
+    siteTypeOptions,
+    amenityOptions,
+    amenitiesLoading,
     siteImageUrls,
     setSiteImageUrls,
     siteImagesUpload,
     removeSiteImage,
     sites,
+    blackoutDates,
+    setBlackoutDates,
   } = useSitesPanelContext()
 
-  const { register, watch, setValue, formState: { errors } } = form
+  const { register, watch, setValue, trigger, formState: { errors } } = form
   const siteType = watch("site_type")
   const hookups = watch("hookups")
-  const usePropertyDefaults = watch("use_property_reservation_types")
+  const amenities = watch("amenities")
+  const allowPets = watch("allow_pets")
+  const adaAccessible = watch("ada_accessible")
+  const accessibilityFeatures = watch("accessibility_features")
+  const pricingSource = watch("pricing_source")
+  const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
+  const defaultReservationType = watch("default_reservation_type")
   const siteNumber = watch("site_number")
   const hasSelection = isNewSite || !!selectedSiteId
 
@@ -728,14 +1192,23 @@ export function SitesPanelContent() {
 
   if (!hasSelection) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="flex h-full min-h-[60vh] flex-col items-center justify-center text-center">
         <Tent className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-base font-semibold mb-1">No site selected</h3>
-        <p className="text-sm text-muted-foreground">
-          {sites.length === 0
-            ? "Click '+ Add site' in the sidebar to create your first campsite."
-            : "Select a site from the sidebar or add a new one."}
-        </p>
+        {sites.length === 0 ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Click &apos;+ Add site&apos; in the sidebar to create your first campsite.
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Add at least one site to continue to the next step.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Select a site from the sidebar or add a new one.
+          </p>
+        )}
       </div>
     )
   }
@@ -744,24 +1217,33 @@ export function SitesPanelContent() {
     <div className="space-y-4">
       {/* Dynamic section header */}
       <div className="pb-4 border-b border-border">
-        <p className="text-xs text-muted-foreground mb-0.5">
-          {siteLabel} <span className="mx-1">›</span>{" "}
-          <span className="text-primary">{activeSection?.label}</span>
-        </p>
-        <h2 className="text-lg font-semibold text-primary leading-tight">
-          {activeSection?.label}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {activeSection?.description}
-        </p>
-      </div>
-
-      {noSiteError && (
-        <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-sm text-destructive">
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span>{noSiteError}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">
+              {siteLabel} <span className="mx-1">›</span>{" "}
+              <span className="text-primary">{activeSection?.label}</span>
+            </p>
+            <h2 className="text-lg font-semibold text-primary leading-tight">
+              {activeSection?.label}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {activeSection?.description}
+            </p>
+          </div>
+          <Button size="sm" onClick={handleSaveSite} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                {isNewSite ? "Add Site" : "Save Site"}
+              </>
+            )}
+          </Button>
         </div>
-      )}
+      </div>
 
       {/* Basic information — always mounted, shown/hidden via class */}
       <div className={cn("space-y-4", currentSection === "basic_info" ? "block" : "hidden")}>
@@ -776,7 +1258,7 @@ export function SitesPanelContent() {
               disabled={!isNewSite && !!selectedSiteId}
             />
             {errors.site_number && (
-              <p className="text-sm text-destructive mt-1">{errors.site_number.message}</p>
+              <p className="text-sm text-destructive dark:text-red-300 mt-1">{errors.site_number.message}</p>
             )}
           </div>
           <div>
@@ -797,9 +1279,9 @@ export function SitesPanelContent() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["tent", "rv", "cabin", "glamping", "yurt", "other"].map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                {siteTypeOptions.map((typeOption) => (
+                  <SelectItem key={typeOption.value} value={typeOption.value}>
+                    {typeOption.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -815,7 +1297,7 @@ export function SitesPanelContent() {
               className="mt-1"
             />
             {errors.max_occupancy && (
-              <p className="text-sm text-destructive mt-1">{errors.max_occupancy.message}</p>
+              <p className="text-sm text-destructive dark:text-red-300 mt-1">{errors.max_occupancy.message}</p>
             )}
           </div>
         </div>
@@ -833,40 +1315,213 @@ export function SitesPanelContent() {
 
       {/* Pricing */}
       <div className={cn("space-y-4", currentSection === "pricing" ? "block" : "hidden")}>
-        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-          <div>
-            <Label className="font-medium">Use Property Defaults</Label>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Inherit pricing from property settings
-              {propertyDefaultsNightlyRate
-                ? ` ($${(propertyDefaultsNightlyRate / 100).toFixed(2)}/night)`
-                : ""}
-            </p>
-          </div>
-          <Switch
-            checked={usePropertyDefaults}
-            onCheckedChange={(v) => setValue("use_property_reservation_types", v)}
-          />
+        <div className="space-y-2">
+          <Label htmlFor="pricing_source" className="font-medium">Pricing source</Label>
+          <Select
+            value={pricingSource}
+            onValueChange={async (value: "manual" | "property_defaults" | "site_type_defaults") => {
+              setValue("pricing_source", value, { shouldDirty: true })
+              setValue("use_property_reservation_types", value !== "manual", { shouldDirty: true })
+
+              if (value !== "manual") {
+                setValue("default_reservation_type", undefined)
+                await trigger()
+                return
+              }
+
+              const current = enabledReservationTypesOverride ?? []
+              if (current.length === 0) {
+                setValue("enabled_reservation_types_override", ["nightly"], { shouldDirty: true })
+              }
+              setValue("default_reservation_type", undefined, { shouldDirty: true })
+              await trigger()
+            }}
+          >
+            <SelectTrigger id="pricing_source">
+              <SelectValue placeholder="Select pricing source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="property_defaults">Use Property Defaults</SelectItem>
+              <SelectItem value="site_type_defaults">Use Property Site Type Defaults</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            {pricingSource === "manual" && "Use only the rates entered below (base, weekend, weekly, monthly, seasonal)."}
+            {pricingSource === "property_defaults" && "Inherit from property rate type configuration (Reservation Types tab)."}
+            {pricingSource === "site_type_defaults" && "Inherit from property site type rates (Site Types Rates tab) for this site type."}
+          </p>
         </div>
-        {!usePropertyDefaults && (
-          <div>
-            <Label htmlFor="base_price">Nightly Rate *</Label>
-            <div className="relative mt-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                $
-              </span>
-              <Input
-                id="base_price"
-                type="number"
-                step="0.01"
-                min="0"
-                className="pl-7"
-                {...register("base_price", { valueAsNumber: true })}
-                placeholder="45.00"
-              />
+
+        {pricingSource === "manual" && (
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-foreground">Select reservation types and set rates for this site:</h4>
+
+              {(["nightly", "weekly", "monthly", "seasonal"] as const).map((type) => {
+                const isEnabled = enabledReservationTypesOverride?.includes(type) || false
+                return (
+                  <div
+                    key={type}
+                    className={cn(
+                      "p-4 border rounded-lg space-y-3",
+                      isEnabled ? "border-primary/50 bg-primary/5" : ""
+                    )}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id={`res-type-${type}`}
+                        checked={isEnabled}
+                        onCheckedChange={() => {
+                          const current = enabledReservationTypesOverride ?? []
+                          const next = current.includes(type)
+                            ? current.filter((t) => t !== type)
+                            : [...current, type]
+                          setValue(
+                            "enabled_reservation_types_override",
+                            next.length > 0 ? next : undefined,
+                            { shouldDirty: true }
+                          )
+                        }}
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor={`res-type-${type}`} className="cursor-pointer font-medium">
+                          {RESERVATION_TYPE_LABELS[type].title}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">{RESERVATION_TYPE_LABELS[type].description}</p>
+                      </div>
+                    </div>
+
+                    {isEnabled && type === "nightly" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 pl-7">
+                        <div>
+                          <Label htmlFor="base_price" className="text-xs">Base Rate (per night) *</Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                            <Input
+                              id="base_price"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="pl-7 h-9"
+                              {...register("base_price", { valueAsNumber: true })}
+                              placeholder="45.00"
+                            />
+                          </div>
+                          {errors.base_price && <p className="text-xs text-destructive dark:text-red-300 mt-1">{errors.base_price.message}</p>}
+                        </div>
+                        <div>
+                          <Label htmlFor="weekend_price" className="text-xs">Weekend Rate (Fri/Sat)</Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                            <Input
+                              id="weekend_price"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="pl-7 h-9"
+                              {...register("weekend_price")}
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {isEnabled && type === "weekly" && (
+                      <div className="pt-2 pl-7 max-w-xs">
+                        <Label htmlFor="weekly_rate" className="text-xs">Weekly Rate (per night)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="weekly_rate"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="pl-7 h-9"
+                            {...register("weekly_rate", { valueAsNumber: true })}
+                            placeholder="40.00"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Leave empty to use base rate</p>
+                      </div>
+                    )}
+
+                    {isEnabled && type === "monthly" && (
+                      <div className="pt-2 pl-7 max-w-xs">
+                        <Label htmlFor="monthly_rate" className="text-xs">Monthly Rate (per night)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="monthly_rate"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="pl-7 h-9"
+                            {...register("monthly_rate", { valueAsNumber: true })}
+                            placeholder="35.00"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Leave empty to use base rate</p>
+                      </div>
+                    )}
+
+                    {isEnabled && type === "seasonal" && (
+                      <div className="pt-2 pl-7 max-w-xs">
+                        <Label htmlFor="seasonal_rate" className="text-xs">Seasonal Flat Rate</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            id="seasonal_rate"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="pl-7 h-9"
+                            {...register("seasonal_rate", { valueAsNumber: true })}
+                            placeholder="Use property rate"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Leave empty to use property seasonal rates</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            {errors.base_price && (
-              <p className="text-sm text-destructive mt-1">{errors.base_price.message}</p>
+
+            {(!enabledReservationTypesOverride || enabledReservationTypesOverride.length === 0) && (
+              <Alert variant="destructive">
+                <AlertDescription>Select at least one reservation type for this site.</AlertDescription>
+              </Alert>
+            )}
+
+            {enabledReservationTypesOverride && enabledReservationTypesOverride.length > 1 && (
+              <div className="pt-2 space-y-2">
+                <Label htmlFor="default_reservation_type">Default Reservation Type</Label>
+                <Select
+                  value={defaultReservationType || "__inherit__"}
+                  onValueChange={(value) =>
+                    setValue(
+                      "default_reservation_type",
+                      value === "__inherit__" ? undefined : (value as SiteFormData["default_reservation_type"]),
+                      { shouldDirty: true }
+                    )
+                  }
+                >
+                  <SelectTrigger id="default_reservation_type" className="max-w-xs">
+                    <SelectValue placeholder="Use property default" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__inherit__">Use property default</SelectItem>
+                    {enabledReservationTypesOverride.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {RESERVATION_TYPE_LABELS[type].title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Suggested reservation type when guests book this site</p>
+              </div>
             )}
           </div>
         )}
@@ -956,6 +1611,134 @@ export function SitesPanelContent() {
             ))}
           </div>
         </div>
+        <div>
+          <Label className="text-sm font-medium mb-3 block">Amenities</Label>
+          {amenitiesLoading ? (
+            <div className="py-2 text-sm text-muted-foreground">Loading amenities...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {amenityOptions.map(({ key, label }) => {
+                const id = `amenity_${key}`
+                const checked = Boolean((amenities as Record<string, boolean> | undefined)?.[key])
+                return (
+                  <div key={id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={id}
+                      checked={checked}
+                      onCheckedChange={(c) => setValue(`amenities.${key}` as any, c as boolean)}
+                    />
+                    <Label htmlFor={id} className="font-normal cursor-pointer">
+                      {label}
+                    </Label>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pets & Accessibility */}
+      <div className={cn("space-y-4", currentSection === "pets_accessibility" ? "block" : "hidden")}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="allow_pets"
+              checked={allowPets ?? false}
+              onCheckedChange={(c) => setValue("allow_pets", c as boolean)}
+            />
+            <Label htmlFor="allow_pets" className="font-medium cursor-pointer">
+              Allow Pets
+            </Label>
+          </div>
+          {allowPets && (
+            <div className="max-w-xs">
+              <Label htmlFor="pet_fee">Pet Fee (one-time)</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <Input
+                  id="pet_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="pl-7"
+                  {...register("pet_fee", { valueAsNumber: true })}
+                  placeholder="15.00"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t pt-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="ada_accessible"
+              checked={adaAccessible ?? false}
+              onCheckedChange={(c) => setValue("ada_accessible", c as boolean)}
+            />
+            <Label htmlFor="ada_accessible" className="font-medium cursor-pointer">
+              ADA Accessible
+            </Label>
+          </div>
+          {adaAccessible && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-2">
+              {(
+                [
+                  { id: "accessibility_wheelchair", field: "accessibility_features.wheelchair_accessible" as const, label: "Wheelchair Accessible", checked: accessibilityFeatures?.wheelchair_accessible },
+                  { id: "accessibility_wide_paths", field: "accessibility_features.wide_paths" as const, label: "Wide Paths", checked: accessibilityFeatures?.wide_paths },
+                  { id: "accessibility_table", field: "accessibility_features.accessible_table" as const, label: "Accessible Table", checked: accessibilityFeatures?.accessible_table },
+                  { id: "accessibility_restroom", field: "accessibility_features.accessible_restroom" as const, label: "Accessible Restroom", checked: accessibilityFeatures?.accessible_restroom },
+                  { id: "accessibility_handrails", field: "accessibility_features.handrails" as const, label: "Handrails", checked: accessibilityFeatures?.handrails },
+                  { id: "accessibility_level_ground", field: "accessibility_features.level_ground" as const, label: "Level Ground", checked: accessibilityFeatures?.level_ground },
+                ] as const
+              ).map(({ id, field, label, checked }) => (
+                <div key={id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={id}
+                    checked={checked ?? false}
+                    onCheckedChange={(c) => setValue(field, c as boolean)}
+                  />
+                  <Label htmlFor={id} className="font-normal cursor-pointer">
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Blackout dates */}
+      <div className={cn("space-y-4", currentSection === "blackout_dates" ? "block" : "hidden")}>
+        <BlackoutDatesPicker
+          variant="dashboard"
+          label="Blackout dates"
+          value={blackoutDates}
+          onChange={setBlackoutDates}
+          numberOfMonths={1}
+        />
+        {blackoutDates.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {blackoutDates.map((date) => (
+              <Badge key={date} variant="secondary" className="pl-3 pr-1">
+                {date}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-1 h-auto p-1"
+                  onClick={() => setBlackoutDates((prev) => prev.filter((d) => d !== date))}
+                  aria-label={`Remove ${date}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No blackout dates configured for this site.</p>
+        )}
       </div>
     </div>
   )

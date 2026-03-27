@@ -252,6 +252,11 @@ export async function PUT(
         size_sqft: body.size_sqft ?? body.sizeSqft ?? existingSite.size_sqft,
         hookups: body.hookups ?? existingSite.hookups,
         amenities: body.amenities ?? body.site_amenities ?? existingSite.amenities,
+        allow_pets: body.allow_pets ?? body.allowPets ?? existingSite.allow_pets,
+        pet_fee: body.pet_fee ?? body.petFee ?? existingSite.pet_fee,
+        ada_accessible: body.ada_accessible ?? body.adaAccessible ?? existingSite.ada_accessible,
+        accessibility_features:
+          body.accessibility_features ?? body.accessibilityFeatures ?? existingSite.accessibility_features,
         status: newStatus,
         availability_rules: resolvedAvailabilityRules,
         site_images: body.images ?? body.site_images ?? existingSite.site_images,

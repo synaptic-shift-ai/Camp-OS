@@ -19,6 +19,7 @@ import type { SiteFormData, reservationTypes } from "./site-form-schema"
 import { Dropzone, DropzoneEmptyState, DropzoneContent } from "@/components/dropzone"
 import { useSupabaseUpload } from "@/hooks/use-supabase-upload"
 import { createClient } from "@/lib/supabase/client"
+import { useWizardFormStore } from "./wizard-form-store"
 
 export interface PropertyDefaults {
   enabled_reservation_types?: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
@@ -76,6 +77,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const [houseKeepingFrom, setHouseKeepingFrom] = useState<string>('')
   const [houseKeepingTo, setHouseKeepingTo] = useState('')
   const [deletingImageUrl, setDeletingImageUrl] = useState<string | null>(null)
+  const { getDraft } = useWizardFormStore()
   const [blackoutDates, setBlackoutDates] = useState<string[]>(() => {
     const raw = site?.availability_rules as { blackout_dates?: string[] } | undefined
     return Array.isArray(raw?.blackout_dates) ? [...raw.blackout_dates].sort() : []
@@ -288,6 +290,12 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     const fetchPropertyAmenities = async () => {
       setAmenitiesLoading(true)
       try {
+        const draftAmenities = getDraft(propertyId)?.amenities
+        if (Array.isArray(draftAmenities) && draftAmenities.length > 0) {
+          setPropertyAmenities(draftAmenities)
+          return
+        }
+
         const response = await fetch(`/api/v1/properties/${propertyId}`)
         const result = await response.json()
 
@@ -324,7 +332,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     return () => {
       cancelled = true
     }
-  }, [propertyId])
+  }, [propertyId, getDraft])
 
   const toggleReservationType = (type: typeof reservationTypes[number]) => {
     const current = enabledReservationTypesOverride || []

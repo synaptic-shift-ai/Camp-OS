@@ -44,7 +44,10 @@ export const siteFormSchema = z.object({
 
   // Pet-related fields
   allow_pets: z.boolean().default(false),
-  pet_fee: z.coerce.number().min(0).optional(), // In dollars, converted to cents for API
+  pet_fee: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+    z.number().min(0).optional()
+  ), // In dollars, converted to cents for API
 
   // ADA Accessibility
   ada_accessible: z.boolean().default(false),
@@ -141,6 +144,14 @@ export function toApiFormat(data: SiteFormData) {
     hookups: Object.entries(data.hookups)
       .filter(([_, v]) => v)
       .map(([k]) => k),
+    allowPets: data.allow_pets,
+    petFee: data.pet_fee != null ? Math.round(data.pet_fee * 100) : undefined,
+    adaAccessible: data.ada_accessible,
+    accessibilityFeatures: data.accessibility_features
+      ? Object.entries(data.accessibility_features)
+          .filter(([_, v]) => v)
+          .map(([k]) => k)
+      : [],
     // Manual checkbox selection is always stored as an array (indicator only).
     enabledReservationTypesOverride: data.enabled_reservation_types_override ?? [],
     // Pricing source selector is stored in `sites.pricing_override` (new encoding).

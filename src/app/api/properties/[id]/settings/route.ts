@@ -96,6 +96,14 @@ export async function PATCH(
       updateData.rate_discounts_config = configUpdates.rate_discounts_config
     }
 
+    if (configUpdates.reservation_type_config !== undefined) {
+      updateData.reservation_type_config = configUpdates.reservation_type_config
+    }
+
+    if (configUpdates.enabled_reservation_types !== undefined) {
+      updateData.enabled_reservation_types = configUpdates.enabled_reservation_types
+    }
+
     if (configUpdates.site_type_config !== undefined) {
       updateData.site_type_config = configUpdates.site_type_config
     }

@@ -5,23 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Loader2, Menu, Rocket, Save } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Eye, Loader2, Menu, Rocket } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useProperty } from "@/components/property-context"
 import { WIZARD_STEPS, type WizardStep } from "./wizard-progress-bar"
 import { useWizardFormStore, type PropertyDetailsDraft } from "./wizard-form-store"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
 import {
   useSitesPanelState,
   SitesPanelContext,
@@ -30,17 +19,37 @@ import {
 } from "./wizard-sites-panel"
 import { StripeConnectStep } from "./stripe-connect-step"
 import { ReviewLaunchStep } from "./review-launch-step"
-import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
+import { WizardPropertyDetailsSections } from "./wizard-property-details-sections"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-type PropertySection = "location" | "images" | "operating_hours" | "booking_rules" | "policies"
+type PropertySection =
+  | "location"
+  | "images"
+  | "operating_hours"
+  | "booking_rules"
+  | "property_amenities"
+  | "taxes"
+  | "additional_charges"
+  | "rate_types"
+  | "site_types_rates"
+  | "deposits"
+  | "terms_policies"
+  | "discounts"
 
 const PROPERTY_SECTIONS: Array<{ id: PropertySection; label: string }> = [
   { id: "location", label: "Location" },
   { id: "images", label: "Images" },
   { id: "operating_hours", label: "Operating hours" },
   { id: "booking_rules", label: "Booking rules" },
-  { id: "policies", label: "Policies & rules" },
+  { id: "property_amenities", label: "Property amenities" },
+  { id: "taxes", label: "Taxes" },
+  { id: "additional_charges", label: "Additional charges" },
+  { id: "rate_types", label: "Rate types" },
+  { id: "site_types_rates", label: "Site types rates" },
+  { id: "deposits", label: "Deposits" },
+  { id: "terms_policies", label: "Terms & policies" },
+  { id: "discounts", label: "Discounts" },
 ]
 
 const STEP_SECTION_MAP: Record<WizardStep, Array<{ id: string; label: string }>> = {
@@ -48,14 +57,6 @@ const STEP_SECTION_MAP: Record<WizardStep, Array<{ id: string; label: string }>>
   sites_setup: [{ id: "sites", label: "Sites" }],
   stripe_connect: [{ id: "payment", label: "Payment" }],
   review_launch: [{ id: "review", label: "Review" }],
-}
-
-const SECTION_DESCRIPTIONS: Partial<Record<string, string>> = {
-  location: "Property address and contact info",
-  images: "Upload photos for your property listing",
-  operating_hours: "Check-in and check-out times",
-  booking_rules: "Stay limits and booking window",
-  policies: "Guest guidelines and property rules",
 }
 
 const US_TIMEZONES = [
@@ -79,6 +80,7 @@ const propertyDetailsSchema = z.object({
   timezone: z.string().default("America/New_York"),
   checkInTime: z.string().default("15:00"),
   checkOutTime: z.string().default("11:00"),
+  termsAndConditions: z.string().optional(),
   cancellationPolicy: z.string().optional(),
   customRules: z.string().optional(),
   minStayNights: z.coerce.number().int().min(1).default(1),
@@ -88,17 +90,19 @@ const propertyDetailsSchema = z.object({
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
 
-const SECTION_FIELDS: Record<PropertySection, Array<keyof PropertyDetailsFormData>> = {
-  location: ["address", "city", "state", "zipCode", "email", "phone", "description"],
-  images: [],
-  operating_hours: ["timezone", "checkInTime", "checkOutTime"],
-  booking_rules: ["minStayNights", "maxStayNights", "bookingLeadTimeDays"],
-  policies: ["cancellationPolicy", "customRules"],
-}
-
 interface WizardContainerProps {
   initialPropertyId?: string | null
   initialStep?: WizardStep | "dashboard_tour" | null
+}
+
+type PropertySettingsConfig = {
+  propertyId: string
+  pricing_config: Record<string, unknown> | null
+  reservation_type_config: unknown
+  enabled_reservation_types: unknown
+  site_type_config: { allowed_site_types?: string[]; site_type_rates?: Record<string, unknown> } | null
+  deposit_config: Record<string, unknown> | null
+  rate_discounts_config: Record<string, unknown> | null
 }
 
 export function WizardContainer({ initialPropertyId, initialStep }: WizardContainerProps) {
@@ -113,7 +117,6 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     refreshProperties,
     isLoading,
   } = useProperty()
-  const { toast } = useToast()
 
   const stepFromUrl = searchParams.get("step") as WizardStep | null
   const normalizedInitialStep = initialStep === "dashboard_tour" ? "stripe_connect" : initialStep
@@ -132,11 +135,17 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
   const [isCompleting, setIsCompleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [footerError, setFooterError] = useState<string | null>(null)
+  const [footerIssueKind, setFooterIssueKind] = useState<"unsaved" | "error" | null>(null)
+  const [footerIssueDetails, setFooterIssueDetails] = useState<string[]>([])
+  const [showFooterIssueDetails, setShowFooterIssueDetails] = useState(false)
   const [propertySiteConfirmed, setPropertySiteConfirmed] = useState<Set<string>>(() => new Set())
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [reviewLaunchReady, setReviewLaunchReady] = useState(false)
+  const [propertySettingsConfig, setPropertySettingsConfig] = useState<PropertySettingsConfig | null>(null)
   const mobileNavSelectionRef = useRef({ section: "location", propertyId: selectedPropertyId })
+  const desktopPropertyDropdownRef = useRef<HTMLDivElement | null>(null)
+  const mobilePropertyDropdownRef = useRef<HTMLDivElement | null>(null)
 
   const stepInitializedRef = useRef(false)
 
@@ -149,6 +158,35 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       setMobileNavOpen(false)
     }
   }, [mobileNavOpen, currentSection, selectedPropertyId])
+
+  useEffect(() => {
+    if (!showPropertyDropdown) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+
+      const inDesktop = desktopPropertyDropdownRef.current?.contains(target) ?? false
+      const inMobile = mobilePropertyDropdownRef.current?.contains(target) ?? false
+      if (!inDesktop && !inMobile) {
+        setShowPropertyDropdown(false)
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowPropertyDropdown(false)
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [showPropertyDropdown])
 
   const openMobileNav = useCallback(() => {
     mobileNavSelectionRef.current = { section: currentSection, propertyId: selectedPropertyId ?? "" }
@@ -178,12 +216,13 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     return (a.name ?? "").localeCompare(b.name ?? "")
   })
 
-  const { saveDraft, getDraft, clearDraft } = useWizardFormStore()
+  const { saveDraft, getDraft, clearDraft, drafts: allPropertyDrafts } = useWizardFormStore()
+  const currentPropertyDraft = selectedProperty ? allPropertyDrafts[selectedProperty.id] : undefined
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
     watch,
     reset,
@@ -203,6 +242,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       timezone: "America/New_York",
       checkInTime: "15:00",
       checkOutTime: "11:00",
+      termsAndConditions: "",
       cancellationPolicy: "",
       customRules: "",
       minStayNights: 1,
@@ -227,6 +267,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       timezone: draft?.timezone ?? selectedProperty.settings?.timezone ?? "America/New_York",
       checkInTime: draft?.checkInTime ?? selectedProperty.settings?.checkInTime ?? "15:00",
       checkOutTime: draft?.checkOutTime ?? selectedProperty.settings?.checkOutTime ?? "11:00",
+      termsAndConditions: draft?.termsAndConditions ?? ((selectedProperty as unknown as Record<string, unknown>).terms_and_conditions as string | null) ?? "",
       cancellationPolicy: draft?.cancellationPolicy ?? selectedProperty.settings?.cancellationPolicy ?? "",
       customRules: draft?.customRules ?? selectedProperty.settings?.customRules ?? "",
       minStayNights: draft?.minStayNights ?? selectedProperty.settings?.minStayNights ?? 1,
@@ -236,6 +277,54 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
   }, [selectedProperty?.id, reset, getDraft])
 
   useEffect(() => {
+    if (!selectedProperty) {
+      setPropertySettingsConfig(null)
+      return
+    }
+
+    const propertyId = selectedProperty.id
+    setPropertySettingsConfig(null)
+
+    let cancelled = false
+
+    const loadPropertySettings = async () => {
+      try {
+        const response = await fetch(`/api/properties/${propertyId}/settings`)
+        if (!response.ok) return
+        const result = (await response.json()) as { property?: Record<string, unknown> }
+        const property = result.property
+        if (cancelled || !property) return
+
+        setPropertySettingsConfig({
+          propertyId,
+          pricing_config: (property.pricing_config ?? null) as Record<string, unknown> | null,
+          reservation_type_config: property.reservation_type_config ?? null,
+          enabled_reservation_types: property.enabled_reservation_types ?? null,
+          site_type_config: (property.site_type_config ?? null) as
+            | { allowed_site_types?: string[]; site_type_rates?: Record<string, unknown> }
+            | null,
+          deposit_config: (property.deposit_config ?? null) as Record<string, unknown> | null,
+          rate_discounts_config: (property.rate_discounts_config ?? null) as Record<string, unknown> | null,
+        })
+      } catch (error) {
+        console.error("Failed to load property settings:", error)
+      }
+    }
+
+    loadPropertySettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedProperty?.id])
+
+  // Eagerly fetch site counts for ALL incomplete properties so the Sites step
+  // warning is accurate without requiring each property to be manually selected first.
+  useEffect(() => {
+    if (incompleteProperties.length === 0) return
+
+    // First pass: use whatever count is already on the object (avoids redundant fetches
+    // when the API happens to include siteCount).
     setPropertySiteConfirmed((prev) => {
       const next = new Set(prev)
       incompleteProperties.forEach((p) => {
@@ -247,6 +336,46 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       })
       return next
     })
+
+    // Second pass: for properties where count was 0 / unknown, fetch from API.
+    let cancelled = false
+
+    const fetchCounts = async () => {
+      const toCheck = incompleteProperties.filter((p) => {
+        const count =
+          (p as { siteCount?: number }).siteCount ??
+          (p as { totalSites?: number }).totalSites ??
+          0
+        return count === 0
+      })
+
+      await Promise.all(
+        toCheck.map(async (p) => {
+          try {
+            const res = await fetch(`/api/v1/properties/${p.id}/sites?per_page=1`)
+            if (cancelled) return
+            if (!res.ok) return
+            const result = await res.json()
+            const total: number =
+              result.data?.pagination?.total ??
+              result.data?.total ??
+              (Array.isArray(result.data?.items) ? result.data.items.length : 0) ??
+              0
+            if (total > 0) {
+              setPropertySiteConfirmed((prev) => new Set([...prev, p.id]))
+            }
+          } catch {
+            // ignore — warning will just remain visible for now
+          }
+        })
+      )
+    }
+
+    fetchCounts()
+
+    return () => {
+      cancelled = true
+    }
   }, [incompleteProperties])
 
   useEffect(() => {
@@ -306,14 +435,121 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       setCurrentSection(sections[0].id)
     }
     setFooterError(null)
+    setFooterIssueKind(null)
+    setFooterIssueDetails([])
+    setShowFooterIssueDetails(false)
   }, [currentStep])
+
+  useEffect(() => {
+    if (currentStep !== "sites_setup") return
+
+    const unsavedDraftPropertyIds = sitesPanelContext.getUnsavedDraftPropertyIds()
+    if (unsavedDraftPropertyIds.length === 0) {
+      if (footerIssueKind === "unsaved") {
+        setFooterError(null)
+        setFooterIssueKind(null)
+        setFooterIssueDetails([])
+        setShowFooterIssueDetails(false)
+      }
+      return
+    }
+
+    const detail = "Property: Save or remove the draft site before continuing."
+
+    const alreadyShowingSameUnsavedIssue =
+      footerIssueKind === "unsaved" &&
+      footerError === "You have unsaved changes." &&
+      footerIssueDetails.length === 1 &&
+      footerIssueDetails[0] === detail
+
+    if (alreadyShowingSameUnsavedIssue) return
+
+    setFooterError("You have unsaved changes.")
+    setFooterIssueKind("unsaved")
+    setFooterIssueDetails([detail])
+    setShowFooterIssueDetails(false)
+  }, [currentStep, sitesPanelContext, properties, footerIssueKind, footerError, footerIssueDetails])
+
+  useEffect(() => {
+    if (currentStep !== "property_details" || !selectedProperty) return;
+
+    const hasPropertyDraft = Boolean(
+      currentPropertyDraft &&
+      Object.values(currentPropertyDraft).some((value) => value !== undefined)
+    );
+    const hasUnsavedPropertyChanges = isDirty || hasPropertyDraft;
+    const propertyName = selectedProperty.name?.trim() || "Unnamed property";
+    const detail = `${propertyName}: Save & Next to keep your latest property changes.`;
+
+    if (!hasUnsavedPropertyChanges) {
+      const isShowingThisPropertyUnsaved =
+        footerIssueKind === "unsaved" &&
+        footerError === "You have unsaved changes." &&
+        footerIssueDetails.length === 1 &&
+        footerIssueDetails[0] === detail;
+
+      if (isShowingThisPropertyUnsaved) {
+        setFooterError(null);
+        setFooterIssueKind(null);
+        setFooterIssueDetails([]);
+        setShowFooterIssueDetails(false);
+      }
+      return;
+    }
+
+    const alreadyShowingSameUnsavedIssue =
+      footerIssueKind === "unsaved" &&
+      footerError === "You have unsaved changes." &&
+      footerIssueDetails.length === 1 &&
+      footerIssueDetails[0] === detail;
+
+    if (alreadyShowingSameUnsavedIssue) return;
+
+    setFooterError("You have unsaved changes.");
+    setFooterIssueKind("unsaved");
+    setFooterIssueDetails([detail]);
+    setShowFooterIssueDetails(false);
+  }, [
+    currentStep,
+    selectedProperty?.id,
+    isDirty,
+    currentPropertyDraft,
+    footerIssueKind,
+    footerError,
+    footerIssueDetails,
+  ]);
+
+  useEffect(() => {
+    const hasAnyPropertyDraft = Object.values(allPropertyDrafts).some(
+      (draft) => draft && Object.values(draft).some((value) => value !== undefined)
+    )
+    const hasUnsavedSiteDrafts = sitesPanelContext.getUnsavedDraftPropertyIds().length > 0
+    const hasUnsavedChanges = hasAnyPropertyDraft || hasUnsavedSiteDrafts
+
+    if (!hasUnsavedChanges) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      // Required by some browsers to trigger the native confirmation dialog.
+      event.returnValue = ""
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [allPropertyDrafts, sitesPanelContext])
 
   const savePropertyDetails = useCallback(
     async (data: PropertyDetailsFormData): Promise<boolean> => {
       if (!selectedProperty) return false
       try {
+        // Read draft INSIDE the function, at save time (not at render time)
+        const propertyDraft = getDraft(selectedProperty.id) as PropertyDetailsDraft | undefined
         setIsSaving(true)
         setFooterError(null)
+
+        // 1. Save core property fields
         const response = await fetch(`/api/v1/properties/${selectedProperty.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -325,6 +561,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
             email: data.email || null,
             phone: data.phone || null,
             description: data.description || null,
+            amenities: propertyDraft?.amenities,
             settings: {
               timezone: data.timezone,
               checkInTime: data.checkInTime,
@@ -335,12 +572,66 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
               maxStayNights: data.maxStayNights || null,
               bookingLeadTimeDays: data.bookingLeadTimeDays ?? 365,
             },
+            terms_and_conditions: data.termsAndConditions || null,
           }),
         })
         const result = await response.json()
         if (!response.ok || !result.success) {
           throw new Error(result.error?.message || "Failed to save property details")
         }
+
+        // 2. Save settings: merge draft over server config for THIS property only.
+        // Never send explicit nulls — updatePropertyConfigSchema uses .optional() and Zod rejects null.
+        // After switching properties, baseline may be unloaded briefly; only include keys we have data for.
+        const baseline =
+          propertySettingsConfig?.propertyId === selectedProperty.id ? propertySettingsConfig : null
+
+        const settingsPayload: Record<string, unknown> = {}
+        const putIfValue = (key: string, draftVal: unknown, baselineVal: unknown) => {
+          const v = draftVal !== undefined ? draftVal : baselineVal
+          if (v !== undefined && v !== null) {
+            settingsPayload[key] = v
+          }
+        }
+
+        putIfValue("pricing_config", propertyDraft?.pricingConfig, baseline?.pricing_config)
+        putIfValue("reservation_type_config", propertyDraft?.reservationTypeConfig, baseline?.reservation_type_config)
+        putIfValue("enabled_reservation_types", propertyDraft?.enabledReservationTypes, baseline?.enabled_reservation_types)
+        putIfValue("site_type_config", propertyDraft?.siteTypeConfig, baseline?.site_type_config)
+        putIfValue("deposit_config", propertyDraft?.depositConfig, baseline?.deposit_config)
+        putIfValue("rate_discounts_config", propertyDraft?.rateDiscountsConfig, baseline?.rate_discounts_config)
+
+        const hasAnySettings = Object.keys(settingsPayload).length > 0
+        if (hasAnySettings) {
+          const settingsResponse = await fetch(`/api/properties/${selectedProperty.id}/settings`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(settingsPayload),
+          })
+
+          if (!settingsResponse.ok) {
+            throw new Error("Failed to save property settings")
+          }
+
+          const settingsResult = (await settingsResponse.json()) as {
+            property?: Record<string, unknown>
+          }
+          if (settingsResult.property) {
+            const property = settingsResult.property
+            setPropertySettingsConfig({
+              propertyId: selectedProperty.id,
+              pricing_config: (property.pricing_config ?? null) as Record<string, unknown> | null,
+              reservation_type_config: property.reservation_type_config ?? null,
+              enabled_reservation_types: property.enabled_reservation_types ?? null,
+              site_type_config: (property.site_type_config ?? null) as
+                | { allowed_site_types?: string[]; site_type_rates?: Record<string, unknown> }
+                | null,
+              deposit_config: (property.deposit_config ?? null) as Record<string, unknown> | null,
+              rate_discounts_config: (property.rate_discounts_config ?? null) as Record<string, unknown> | null,
+            })
+          }
+        }
+
         await refreshProperties()
         clearDraft(selectedProperty.id)
         return true
@@ -351,7 +642,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
         setIsSaving(false)
       }
     },
-    [selectedProperty, refreshProperties, clearDraft]
+    [selectedProperty, refreshProperties, clearDraft, getDraft, propertySettingsConfig]
   )
 
   const handleWizardComplete = useCallback(async () => {
@@ -442,39 +733,45 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
             ? [selectedProperty]
             : []
 
-      const propertiesWithErrors: Array<{ id: string; name: string }> = []
+      const propertiesMissingFields: Array<{ id: string; name: string; missingFields: string[] }> = []
+
+      const formatFieldList = (fields: string[]): string => {
+        if (fields.length === 1) return fields[0]!
+        if (fields.length === 2) return `${fields[0]!} and ${fields[1]!}`
+        return `${fields.slice(0, -1).join(", ")}, and ${fields[fields.length - 1]!}`
+      }
 
       for (const property of propertiesToCheck) {
-        let missing: boolean
+        const missingFields: string[] = []
         if (property.id === selectedPropertyId) {
           const v = getValues()
-          missing =
-            !v.address?.trim() ||
-            !v.city?.trim() ||
-            !v.state?.trim() ||
-            !v.zipCode ||
-            v.zipCode.trim().length < 5
+          if (!v.address?.trim()) missingFields.push("Street Address")
+          if (!v.city?.trim()) missingFields.push("City")
+          if (!v.state?.trim()) missingFields.push("State")
+          if (!v.zipCode || v.zipCode.trim().length < 5) missingFields.push("ZIP")
         } else {
           const draft = getDraft(property.id)
           const address = draft?.address ?? property.address
           const city = draft?.city ?? property.city
           const state = draft?.state ?? property.state
           const zipCode = draft?.zipCode ?? property.zipCode
-          missing =
-            !address?.trim() ||
-            !city?.trim() ||
-            !state?.trim() ||
-            !zipCode ||
-            zipCode.trim().length < 5
+          if (!address?.trim()) missingFields.push("Street Address")
+          if (!city?.trim()) missingFields.push("City")
+          if (!state?.trim()) missingFields.push("State")
+          if (!zipCode || zipCode.trim().length < 5) missingFields.push("ZIP")
         }
-        if (missing) {
-          propertiesWithErrors.push({ id: property.id, name: property.name ?? "Unnamed property" })
+        if (missingFields.length > 0) {
+          propertiesMissingFields.push({
+            id: property.id,
+            name: property.name ?? "Unnamed property",
+            missingFields,
+          })
         }
       }
 
-      if (propertiesWithErrors.length > 0) {
+      if (propertiesMissingFields.length > 0) {
         // Set inline field errors for whichever property is currently loaded
-        const currentHasError = propertiesWithErrors.some((p) => p.id === selectedPropertyId)
+        const currentHasError = propertiesMissingFields.some((p) => p.id === selectedPropertyId)
         if (currentHasError) {
           const v = getValues()
           if (!v.address?.trim()) setError("address", { type: "manual", message: "Address is required" })
@@ -483,12 +780,23 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           if (!v.zipCode || v.zipCode.trim().length < 5) setError("zipCode", { type: "manual", message: "ZIP code is required" })
           setCurrentSection("location")
         }
-        setFooterError("All properties must have required location fields filled in (address, city, state, and ZIP).")
+        setFooterError(null)
+        setFooterIssueKind("error")
+        setFooterIssueDetails(
+          propertiesMissingFields.map(
+            (p) =>
+              `${p.name}: ${formatFieldList(p.missingFields)} ${p.missingFields.length === 1 ? "is" : "are"} required`
+          )
+        )
+        setShowFooterIssueDetails(false)
         return
       }
 
       clearErrors(["address", "city", "state", "zipCode"])
       setFooterError(null)
+      setFooterIssueKind(null)
+      setFooterIssueDetails([])
+      setShowFooterIssueDetails(false)
       const formData = await new Promise<PropertyDetailsFormData | null>((resolve) => {
         handleSubmit(
           (data) => resolve(data),
@@ -503,22 +811,51 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     }
 
     if (currentStep === "sites_setup") {
+      setFooterError(null)
+      setFooterIssueKind(null)
+      setFooterIssueDetails([])
+      setShowFooterIssueDetails(false)
       const currentOk = await sitesPanelCanAdvance()
-      if (!currentOk) return
-      if (sortedIncompleteProperties.length > 1) {
-        const propertiesWithoutSites = sortedIncompleteProperties.filter(
-          (p) => p.id !== selectedProperty?.id && !propertySiteConfirmed.has(p.id)
-        )
-        if (propertiesWithoutSites.length > 0) {
-          const names = propertiesWithoutSites.map((p) => `"${p.name}"`).join(", ")
-          toast({
-            title: "Sites required for all properties",
-            description: `${propertiesWithoutSites.length > 1 ? "These properties have" : "This property has"} no sites yet: ${names}. Please switch to ${propertiesWithoutSites.length > 1 ? "each tab" : "that tab"} and add at least one site.`,
-            variant: "destructive",
-          })
-          return
-        }
+      const unsavedDraftPropertyIds = sitesPanelContext.getUnsavedDraftPropertyIds()
+      if (unsavedDraftPropertyIds.length > 0) {
+        setFooterError("You have unsaved changes.")
+        setFooterIssueKind("unsaved")
+        setFooterIssueDetails([
+          "Property: Save or remove the draft site before continuing.",
+        ])
+        setShowFooterIssueDetails(false)
+        return
       }
+
+      const propertiesWithoutSites = sortedIncompleteProperties.filter((p) => {
+        if (p.id === selectedProperty?.id) {
+          return sitesPanelContext.sites.length === 0
+        }
+        return !propertySiteConfirmed.has(p.id)
+      })
+
+      if (propertiesWithoutSites.length > 0) {
+        const names = propertiesWithoutSites.map((p) => `"${p.name}"`).join(", ")
+        setFooterError(`${propertiesWithoutSites.length} error${propertiesWithoutSites.length === 1 ? "" : "s"} to fix`)
+        setFooterIssueKind("error")
+        setFooterIssueDetails([
+          `Property error: ${names}. Needed action: Add at least one site to each property.`,
+        ])
+        setShowFooterIssueDetails(false)
+        return
+      }
+
+      if (!currentOk) {
+        setFooterError("You have unsaved changes.")
+        setFooterIssueKind("unsaved")
+        setFooterIssueDetails(["Property: Save or remove the draft site before continuing."])
+        setShowFooterIssueDetails(false)
+        return
+      }
+      setFooterError(null)
+      setFooterIssueKind(null)
+      setFooterIssueDetails([])
+      setShowFooterIssueDetails(false)
       await advanceStep()
       return
     }
@@ -537,8 +874,9 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     selectedPropertyId,
     propertySiteConfirmed,
     selectedProperty,
-    toast,
     sitesPanelCanAdvance,
+    sitesPanelContext,
+    properties,
   ])
 
   const handleBack = useCallback(() => {
@@ -573,6 +911,24 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     )
   }
 
+  const selectedPropertyDb = selectedProperty as unknown as Record<string, unknown>
+  const settingsSource =
+    propertySettingsConfig?.propertyId === selectedProperty.id ? propertySettingsConfig : selectedPropertyDb
+  const pricingConfig = (settingsSource.pricing_config ?? null) as Record<string, unknown> | null
+  const reservationTypeConfigRaw = settingsSource.reservation_type_config ?? null
+  const enabledReservationTypesRaw = settingsSource.enabled_reservation_types ?? null
+  const siteTypeConfigRaw = (settingsSource.site_type_config ?? null) as
+    | { allowed_site_types?: string[]; site_type_rates?: Record<string, unknown> }
+    | null
+  const siteTypeRatesFromConfig = (siteTypeConfigRaw?.site_type_rates ?? {}) as Record<string, unknown>
+  const allowedSiteTypesFromConfig =
+    Array.isArray(siteTypeConfigRaw?.allowed_site_types) && siteTypeConfigRaw.allowed_site_types.length > 0
+      ? siteTypeConfigRaw.allowed_site_types
+      : []
+  const siteTypes = allowedSiteTypesFromConfig.map((siteType) => ({ siteType }))
+  const depositConfig = (settingsSource.deposit_config ?? null) as Record<string, unknown> | null
+  const rateDiscountsConfig = (settingsSource.rate_discounts_config ?? null) as Record<string, unknown> | null
+
   const currentStepIndex = WIZARD_STEPS.findIndex((s) => s.id === currentStep)
   const currentStepConfig = WIZARD_STEPS[currentStepIndex]
   const currentSections = STEP_SECTION_MAP[currentStep]
@@ -590,14 +946,29 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
   }
 
   function getPropertyWarning(property: { id: string; address?: string | null; city?: string | null; state?: string | null; zipCode?: string | null }): string | undefined {
+    const propertyDraft = allPropertyDrafts[property.id]
+    const hasUnsavedPropertyDraft = Boolean(
+      propertyDraft &&
+      Object.values(propertyDraft).some((value) => value !== undefined)
+    )
+
+    if (currentStep === "property_details" && hasUnsavedPropertyDraft) {
+      return "Unsaved property changes"
+    }
+
+    if (currentStep === "sites_setup") {
+      return propertySiteConfirmed.has(property.id)
+        ? undefined
+        : "At least one site is required to continue"
+    }
+
     if (property.id === selectedPropertyId) {
       return locationIncomplete ? "Location section has required fields" : undefined
     }
-    const draft = getDraft(property.id)
-    const addr = draft?.address ?? property.address
-    const cty = draft?.city ?? property.city
-    const st = draft?.state ?? property.state
-    const zip = draft?.zipCode ?? property.zipCode
+    const addr = propertyDraft?.address ?? property.address
+    const cty = propertyDraft?.city ?? property.city
+    const st = propertyDraft?.state ?? property.state
+    const zip = propertyDraft?.zipCode ?? property.zipCode
     return !addr || !cty || !st || !zip ? "Location section has required fields" : undefined
   }
 
@@ -694,7 +1065,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                     <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                       Current Property
                     </p>
-                    <div className="relative">
+                    <div ref={desktopPropertyDropdownRef} className="relative">
                       <button
                         type="button"
                         onClick={() => setShowPropertyDropdown(!showPropertyDropdown)}
@@ -706,7 +1077,12 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                         </span>
                         <span className="flex items-center gap-1 flex-shrink-0">
                           {getPropertyWarning(selectedProperty) && (
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                            <span className="relative group/ptip flex-shrink-0">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 w-max max-w-[180px] rounded bg-popover border border-border px-2 py-1 text-xs text-popover-foreground shadow-md opacity-0 group-hover/ptip:opacity-100 transition-opacity z-30">
+                                {getPropertyWarning(selectedProperty)}
+                              </span>
+                            </span>
                           )}
                           {sortedIncompleteProperties.length > 1 && (
                             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -714,7 +1090,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                         </span>
                       </button>
                       {showPropertyDropdown && sortedIncompleteProperties.length > 1 && (
-                        <div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+                        <div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-md border border-border bg-popover shadow-md">
                           {sortedIncompleteProperties.map((property) => {
                             const propWarning = getPropertyWarning(property)
                             return (
@@ -723,7 +1099,11 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                                 type="button"
                                 onClick={() => {
                                   if (selectedProperty) {
-                                    saveDraft(selectedProperty.id, getValues() as PropertyDetailsDraft)
+                                    const existingDraft = getDraft(selectedProperty.id) ?? {}
+                                    saveDraft(selectedProperty.id, {
+                                      ...existingDraft,
+                                      ...(getValues() as PropertyDetailsDraft),
+                                    })
                                   }
                                   selectProperty(property.id)
                                   setWorkingPropertyId(property.id)
@@ -764,8 +1144,8 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                   {currentStep === "sites_setup" ? (
                     <SitesSidebarTree />
                   ) : (
-                    <div className="p-4 flex-1">
-                      <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
+                    <div className="py-4 flex-1">
+                      <p className="px-4 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                         Sections
                       </p>
                       <nav className="space-y-0.5">
@@ -778,15 +1158,15 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                               type="button"
                               onClick={() => setCurrentSection(section.id)}
                               className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-left",
+                                "w-full flex items-center gap-3 px-3 py-1.5 text-sm transition-colors text-left",
                                 isActive
-                                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                                  ? "bg-muted text-primary font-medium border-l-[3px] border-primary"
                                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                               )}
                             >
                               <span
                                 className={cn(
-                                  "h-2 w-2 rounded-full flex-shrink-0",
+                                  "h-1.5 w-1.5 rounded-full flex-shrink-0",
                                   isActive ? "bg-primary" : "bg-muted-foreground/40"
                                 )}
                               />
@@ -833,240 +1213,40 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                 </div>
               )}
               <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-                {/* Section header — hidden on sites_setup, stripe_connect, review_launch; they have their own */}
-                {currentStep !== "sites_setup" && currentStep !== "stripe_connect" && currentStep !== "review_launch" && (
-                  <div className="mb-6">
-                    <h2 className="text-lg font-semibold">
-                      {currentSections.find((s) => s.id === currentSection)?.label ??
-                        currentStepConfig?.label}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      {SECTION_DESCRIPTIONS[currentSection] ??
-                        currentStepConfig?.description}
-                    </p>
-                  </div>
-                )}
+                {/* Section header — hidden on property_details and steps with own headers */}
+                {currentStep !== "property_details" &&
+                  currentStep !== "sites_setup" &&
+                  currentStep !== "stripe_connect" &&
+                  currentStep !== "review_launch" && (
+                    <div className="mb-6">
+                      <h2 className="text-lg font-semibold">
+                        {currentSections.find((s) => s.id === currentSection)?.label ??
+                          currentStepConfig?.label}
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {currentStepConfig?.description}
+                      </p>
+                    </div>
+                  )}
 
-                {/* Property Details — Location */}
-                {currentStep === "property_details" && currentSection === "location" && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="address">Street address *</Label>
-                      <Input
-                        id="address"
-                        {...register("address")}
-                        placeholder="123 Campground Road"
-                        className="mt-1"
-                      />
-                      {errors.address && (
-                        <p className="text-sm text-destructive mt-1">{errors.address.message}</p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="city">City *</Label>
-                        <Input
-                          id="city"
-                          {...register("city")}
-                          placeholder="City"
-                          className="mt-1"
-                        />
-                        {errors.city && (
-                          <p className="text-sm text-destructive mt-1">{errors.city.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="state">State *</Label>
-                        <Input
-                          id="state"
-                          {...register("state")}
-                          placeholder="CA"
-                          maxLength={2}
-                          className="mt-1"
-                        />
-                        {errors.state && (
-                          <p className="text-sm text-destructive mt-1">{errors.state.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="zipCode">ZIP *</Label>
-                        <Input
-                          id="zipCode"
-                          {...register("zipCode")}
-                          placeholder="12345"
-                          className="mt-1"
-                        />
-                        {errors.zipCode && (
-                          <p className="text-sm text-destructive mt-1">
-                            {errors.zipCode.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          {...register("email")}
-                          placeholder="info@campground.com"
-                          className="mt-1"
-                        />
-                        {errors.email && (
-                          <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          {...register("phone")}
-                          placeholder="(555) 123-4567"
-                          className="mt-1"
-                        />
-                        {errors.phone && (
-                          <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        {...register("description")}
-                        placeholder="Describe your property, amenities, and what makes it special..."
-                        rows={5}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Property Details — Images */}
-                {currentStep === "property_details" && currentSection === "images" && (
-                  <PropertyImagesSection
-                    propertyId={selectedProperty.id}
-                    initialCoverUrl={selectedProperty.heroImageUrl}
+                {currentStep === "property_details" && (
+                  <WizardPropertyDetailsSections
+                    currentSection={currentSection}
+                    selectedProperty={selectedProperty}
+                    register={register}
+                    errors={errors}
+                    setValue={setValue}
+                    timezone={timezone}
+                    usTimezones={US_TIMEZONES}
+                    pricingConfig={pricingConfig}
+                    reservationTypeConfigRaw={reservationTypeConfigRaw}
+                    enabledReservationTypesRaw={enabledReservationTypesRaw}
+                    siteTypes={siteTypes}
+                    allowedSiteTypesFromConfig={allowedSiteTypesFromConfig}
+                    siteTypeRatesFromConfig={siteTypeRatesFromConfig}
+                    depositConfig={depositConfig}
+                    rateDiscountsConfig={rateDiscountsConfig}
                   />
-                )}
-
-                {/* Property Details — Operating Hours */}
-                {currentStep === "property_details" && currentSection === "operating_hours" && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Select
-                        value={timezone}
-                        onValueChange={(v) => setValue("timezone", v)}
-                      >
-                        <SelectTrigger id="timezone" className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {US_TIMEZONES.map((tz) => (
-                            <SelectItem key={tz.value} value={tz.value}>
-                              {tz.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="checkInTime">Check-in Time</Label>
-                        <Input
-                          id="checkInTime"
-                          type="time"
-                          {...register("checkInTime")}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="checkOutTime">Check-out Time</Label>
-                        <Input
-                          id="checkOutTime"
-                          type="time"
-                          {...register("checkOutTime")}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Property Details — Booking Rules */}
-                {currentStep === "property_details" && currentSection === "booking_rules" && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="minStayNights">Minimum Stay (nights)</Label>
-                        <Input
-                          id="minStayNights"
-                          type="number"
-                          min={1}
-                          {...register("minStayNights")}
-                          className="mt-1"
-                        />
-                        {errors.minStayNights && (
-                          <p className="text-sm text-destructive mt-1">
-                            {errors.minStayNights.message}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="maxStayNights">Maximum Stay (nights)</Label>
-                        <Input
-                          id="maxStayNights"
-                          type="number"
-                          min={1}
-                          placeholder="No limit"
-                          {...register("maxStayNights")}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="bookingLeadTimeDays">Booking Window (days)</Label>
-                        <Input
-                          id="bookingLeadTimeDays"
-                          type="number"
-                          min={0}
-                          {...register("bookingLeadTimeDays")}
-                          className="mt-1"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          How far in advance guests can book
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Property Details — Policies */}
-                {currentStep === "property_details" && currentSection === "policies" && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
-                      <Textarea
-                        id="cancellationPolicy"
-                        {...register("cancellationPolicy")}
-                        placeholder="Your cancellation and refund policy..."
-                        rows={4}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customRules">Property Rules</Label>
-                      <Textarea
-                        id="customRules"
-                        {...register("customRules")}
-                        placeholder="Property rules and regulations..."
-                        rows={4}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
                 )}
 
                 {/* Sites Setup */}
@@ -1097,31 +1277,54 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 md:px-6 py-3 border-t border-border flex-shrink-0">
                 {/* Left: error message and, on sites step, Save Site */}
                 <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap order-2 sm:order-1">
-                  {footerError && (
-                    <p className="text-sm text-destructive flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  {footerError && footerIssueDetails.length === 0 && (
+                    <p className="flex items-center gap-1.5 rounded-md border border-red-500/35 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-700 dark:text-red-300">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-300" />
                       <span>{footerError}</span>
                     </p>
                   )}
-                  {currentStep === "sites_setup" && (
+                  {footerIssueDetails.length > 0 && (
                     <>
-                      <Button
-                        size="sm"
-                        onClick={sitesPanelContext.handleSaveSite}
-                        disabled={sitesPanelContext.saving}
-                      >
-                        {sitesPanelContext.saving ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving…
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            {sitesPanelContext.isNewSite ? "Add Site" : "Save Site"}
-                          </>
-                        )}
-                      </Button>
+                      <Popover open={showFooterIssueDetails} onOpenChange={setShowFooterIssueDetails}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs",
+                              footerIssueKind === "unsaved"
+                                ? "border border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                : "border border-red-500/35 bg-red-500/10 text-destructive dark:text-red-300"
+                            )}
+                          >
+                            <Eye className="h-3.5 w-3.5 flex-shrink-0" />
+                            {footerIssueKind === "unsaved"
+                              ? "You have unsaved changes"
+                              : `View ${footerIssueDetails.length === 1 ? "Issue" : "Issues"}`}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          side="top"
+                          className={cn(
+                            "w-[min(92vw,34rem)] text-xs",
+                            footerIssueKind === "unsaved"
+                              ? "border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+                              : "border border-red-300 bg-red-100 text-destructive dark:border-red-700 dark:bg-red-950 dark:text-red-100"
+                          )}
+                        >
+                          <p className="mb-2 font-medium">
+                            {footerIssueKind === "unsaved" ? "You have unsaved changes" : "Error Details"}
+                          </p>
+                          <div className="space-y-1">
+                            {footerIssueDetails.map((detail, idx) => (
+                              <p key={`${idx}-${detail}`} className="flex items-start gap-1.5">
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                                <span>{detail}</span>
+                              </p>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </>
                   )}
                 </div>
@@ -1181,7 +1384,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                   <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                     Current Property
                   </p>
-                  <div className="relative">
+                  <div ref={mobilePropertyDropdownRef} className="relative">
                     <button
                       type="button"
                       onClick={() => setShowPropertyDropdown(!showPropertyDropdown)}
@@ -1203,7 +1406,11 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                             type="button"
                             onClick={() => {
                               if (selectedProperty) {
-                                saveDraft(selectedProperty.id, getValues() as PropertyDetailsDraft)
+                                const existingDraft = getDraft(selectedProperty.id) ?? {}
+                                saveDraft(selectedProperty.id, {
+                                  ...existingDraft,
+                                  ...(getValues() as PropertyDetailsDraft),
+                                })
                               }
                               selectProperty(property.id)
                               setWorkingPropertyId(property.id)

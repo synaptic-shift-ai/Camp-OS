@@ -835,6 +835,8 @@ export const updatePropertyConfigSchema = z.object({
   pricing_config: pricingConfigSchema.optional(),
   booking_rules_config: bookingRulesConfigSchema.optional(),
   rate_discounts_config: rateDiscountsConfigSchema.optional(),
+  reservation_type_config: z.unknown().optional(),
+  enabled_reservation_types: z.array(z.string()).optional(),
   // Site type configuration (allowed types, per-site-type rules, etc.)
   site_type_config: z.unknown().optional(),
 })

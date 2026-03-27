@@ -160,7 +160,7 @@ export async function GET(
     const siteIds = siteDTOs.map((s) => s.id)
     const { data: extraSiteRows } = await supabase
       .from('sites')
-      .select('id, enabled_reservation_types_override, pricing_override')
+      .select('id, enabled_reservation_types_override, pricing_override, allow_pets, pet_fee, ada_accessible, accessibility_features, availability_rules')
       .in('id', siteIds)
       .eq('property_id', propertyId)
 
@@ -327,6 +327,18 @@ export async function POST(
     }
     if ((validatedRequest as any).monthlyRateCents !== undefined) {
       siteExtras.monthly_rate_cents = (validatedRequest as any).monthlyRateCents
+    }
+    if ((validatedRequest as any).allowPets !== undefined) {
+      siteExtras.allow_pets = (validatedRequest as any).allowPets
+    }
+    if ((validatedRequest as any).petFee !== undefined) {
+      siteExtras.pet_fee = (validatedRequest as any).petFee
+    }
+    if ((validatedRequest as any).adaAccessible !== undefined) {
+      siteExtras.ada_accessible = (validatedRequest as any).adaAccessible
+    }
+    if ((validatedRequest as any).accessibilityFeatures !== undefined) {
+      siteExtras.accessibility_features = (validatedRequest as any).accessibilityFeatures
     }
     if (availabilityRulesFromBody !== undefined) {
       siteExtras.availability_rules = availabilityRulesFromBody

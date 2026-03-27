@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { differenceInCalendarDays, format } from "date-fns"
 import Image from "next/image"
@@ -22,6 +22,7 @@ import {
   X,
   Camera,
   Car,
+  ImageOff,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -106,7 +107,16 @@ interface PropertyBookingPortalProps {
     phone: string | null
     email: string | null
     cancellation_policy: string | null
-    amenities: string[]
+    amenities: Array<
+      | string
+      | {
+        id?: string
+        name?: string
+        description?: string | null
+        icon_url?: string | null
+        iconUrl?: string | null
+      }
+    >
     enabled_reservation_types?: BookingType[]
     openPeriodFrom?: string | null
     openPeriodUntil?: string | null
@@ -357,6 +367,64 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     { key: "camp_store", name: "Camp Store", description: "Essentials & snacks" },
     { key: "hiking_trails", name: "Hiking Trails", description: "Nature walks" },
   ]
+
+  const normalizeAmenityKey = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+
+  const defaultAmenitiesByKey = useMemo(
+    () => new Map(defaultAmenities.map((amenity) => [amenity.key, amenity])),
+    []
+  )
+
+  const displayedAmenities = useMemo(() => {
+    const fromDb = Array.isArray(property.amenities) ? property.amenities : []
+    const parsed = fromDb
+      .map((rawAmenity) => {
+        if (typeof rawAmenity === "string") {
+          const normalizedName = rawAmenity.trim()
+          if (!normalizedName) return null
+          const key = normalizeAmenityKey(normalizedName)
+          const fallback = defaultAmenitiesByKey.get(key)
+          return {
+            key,
+            name: normalizedName,
+            description: fallback?.description ?? "Available at our campground",
+            iconUrl: null,
+          }
+        }
+
+        if (rawAmenity && typeof rawAmenity === "object") {
+          const normalizedName = (rawAmenity.name ?? "").trim()
+          if (!normalizedName) return null
+          const key = normalizeAmenityKey(normalizedName)
+          const fallback = defaultAmenitiesByKey.get(key)
+          const iconUrl = (rawAmenity.icon_url ?? rawAmenity.iconUrl ?? "").trim() || null
+          return {
+            key,
+            name: normalizedName,
+            description:
+              (rawAmenity.description ?? "").trim() ||
+              fallback?.description ||
+              "Available at our campground",
+            iconUrl,
+          }
+        }
+
+        return null
+      })
+      .filter((amenity): amenity is { key: string; name: string; description: string; iconUrl: string | null } => amenity !== null)
+
+    const uniqueParsed = parsed.filter((amenity, index, array) => (
+      array.findIndex((candidate) => candidate.key === amenity.key || candidate.name === amenity.name) === index
+    ))
+
+    if (uniqueParsed.length > 0) return uniqueParsed
+    return defaultAmenities.map((amenity) => ({ ...amenity, iconUrl: null }))
+  }, [defaultAmenitiesByKey, property.amenities])
 
   // Generate alt text from image URL
   function altFromUrl(url: string): string {
@@ -934,19 +1002,33 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 sm:gap-4 gap-3">
-            {defaultAmenities.map((amenity) => {
-              const IconComponent = amenityIcons[amenity.key] || Coffee
+          <div className="grid justify-center gap-3 sm:gap-4 [grid-template-columns:repeat(auto-fit,220px)]">
+            {displayedAmenities.map((amenity) => {
               return (
                 <div
                   key={amenity.key}
-                  className="rounded-lg bg-card p-6 text-center shadow-sm transition-shadow hover:shadow-md"
+                  className="group relative w-[220px] overflow-hidden rounded-xl border border-border/60 bg-gradient-to-br from-card to-card/80 p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#8FBC8F]/60 hover:shadow-lg dark:hover:border-emerald-700/70"
                 >
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#8FBC8F] dark:bg-emerald-700">
-                    <IconComponent className="h-8 w-8 text-white" />
+                  <div className="absolute inset-x-5 top-0 h-[2px] bg-gradient-to-r from-[#8FBC8F]/30 via-[#2D5A27]/70 to-[#8FBC8F]/30 opacity-80 transition-opacity group-hover:opacity-100 dark:from-emerald-700/20 dark:via-emerald-500/70 dark:to-emerald-700/20" />
+                  <div className={cn(
+                    "mx-auto mb-3 flex h-14 w-14 items-center justify-center",
+                    amenity.iconUrl
+                      ? "rounded-full bg-[#8FBC8F] dark:bg-emerald-700"
+                      : "rounded-full border border-dashed border-border/70 bg-muted/30 text-muted-foreground"
+                  )}>
+                    {amenity.iconUrl ? (
+                      <img
+                        src={amenity.iconUrl}
+                        alt={`${amenity.name} icon`}
+                        className="h-8 w-8 object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <ImageOff aria-hidden="true" className="h-6 w-6 opacity-70" />
+                    )}
                   </div>
-                  <h3 className={cn("mb-2 font-semibold", "text-[#2D5A27] dark:text-emerald-400")}>{amenity.name}</h3>
-                  <p className="text-sm text-muted-foreground">{amenity.description}</p>
+                  <h3 className={cn("mb-1.5 line-clamp-1 text-base font-semibold leading-tight", "text-[#2D5A27] dark:text-emerald-400")}>{amenity.name}</h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">{amenity.description}</p>
                 </div>
               )
             })}

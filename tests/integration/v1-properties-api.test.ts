@@ -83,6 +83,7 @@ describe('Properties API v1 Contract Tests', () => {
           { id: 'showers', name: 'showers', description: null },
           { id: 'laundry', name: 'laundry', description: null },
         ],
+        site_amenities: null,
 
         // Onboarding (CRITICAL - Oct 30 fix)
         onboardingStatus: 'completed',
@@ -203,6 +204,7 @@ describe('Properties API v1 Contract Tests', () => {
 
         // Amenities - nullable
         amenities: null,
+        site_amenities: null,
 
         // Onboarding - not complete
         onboardingStatus: 'not_started',
@@ -338,6 +340,7 @@ describe('Properties API v1 Contract Tests', () => {
         phone: null,
         email: null,
         amenities: null,
+        site_amenities: null,
       }
 
       expect(() => UpdatePropertyRequestSchema.parse(updateWithNulls)).not.toThrow()
@@ -396,6 +399,7 @@ describe('Properties API v1 Contract Tests', () => {
             openPeriodUntil: null,
           },
           amenities: null,
+          site_amenities: null,
           onboardingStatus: 'completed',
           onboardingStatusLabel: 'Completed',
           onboardingCompleted: true,
@@ -460,6 +464,7 @@ describe('Properties API v1 Contract Tests', () => {
                 openPeriodUntil: null,
               },
               amenities: null,
+              site_amenities: null,
               onboardingStatus: 'not_started',
               onboardingStatusLabel: 'Not Started',
               onboardingCompleted: false,
@@ -558,6 +563,7 @@ describe('Properties API v1 Contract Tests', () => {
           openPeriodUntil: null,
         },
         amenities: null,
+        site_amenities: null,
         onboardingStatus: 'completed',
         onboardingStatusLabel: 'Completed',
         onboardingCompleted: true,
@@ -613,6 +619,7 @@ describe('Properties API v1 Contract Tests', () => {
             openPeriodUntil: null,
           },
           amenities: null,
+          site_amenities: null,
           onboardingStatus: 'not_started',
           onboardingStatusLabel: 'Not Started',
           onboardingCompleted: false,
@@ -676,6 +683,7 @@ describe('Properties API v1 Contract Tests', () => {
             openPeriodUntil: null,
           },
           amenities: null,
+          site_amenities: null,
           onboardingStatus: status,
           onboardingStatusLabel: 'Test',
           onboardingCompleted: status === 'completed',

@@ -5,8 +5,8 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-  // Performance Monitoring - sample 10% in production
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  // Performance Monitoring - sample 10% in production, disabled in development
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0.0,
 
   // Capture 100% of errors
   sampleRate: 1.0,
@@ -14,8 +14,8 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   // Environment
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.NODE_ENV || 'development',
 
-  // Enable debug logs in development
-  debug: process.env.NODE_ENV === 'development',
+  // Disable noisy debug logs
+  debug: false,
 
   beforeSend(event, _hint) {
     // Don't send events in development unless explicitly enabled

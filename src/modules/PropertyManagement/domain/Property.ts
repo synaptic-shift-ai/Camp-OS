@@ -47,6 +47,7 @@ export type PropertyAmenity = {
   id: string
   name: string
   description: string | null
+  icon_url?: string | null | undefined
 }
 
 export type PropertyProps = {
@@ -80,6 +81,7 @@ export type PropertyProps = {
   // Settings
   settings: PropertySettings
   amenities: PropertyAmenity[] | null
+  site_amenities: PropertyAmenity[] | null
 
   // Guest Instructions
   checkInInstructions: string | null
@@ -134,6 +136,7 @@ export class Property extends AggregateRoot<string> {
       galleryImages?: string[] | null | undefined
       settings?: PropertySettings | undefined
       amenities?: PropertyAmenity[] | null | undefined
+      site_amenities?: PropertyAmenity[] | null | undefined
       checkInInstructions?: string | null | undefined
       checkOutInstructions?: string | null | undefined
       houseRules?: string | null | undefined
@@ -192,6 +195,7 @@ export class Property extends AggregateRoot<string> {
         galleryImages: options.galleryImages ?? null,
         settings: options.settings || PropertySettings.default(),
         amenities: options.amenities || null,
+        site_amenities: options.site_amenities || null,
         checkInInstructions: options.checkInInstructions || null,
         checkOutInstructions: options.checkOutInstructions || null,
         houseRules: options.houseRules || null,
@@ -236,6 +240,7 @@ export class Property extends AggregateRoot<string> {
     galleryImages: string[] | null,
     settings: PropertySettings,
     amenities: PropertyAmenity[] | null,
+    site_amenities: PropertyAmenity[] | null,
     checkInInstructions: string | null,
     checkOutInstructions: string | null,
     houseRules: string | null,
@@ -280,6 +285,7 @@ export class Property extends AggregateRoot<string> {
         galleryImages,
         settings,
         amenities,
+        site_amenities,
         checkInInstructions,
         checkOutInstructions,
         houseRules,
@@ -370,6 +376,10 @@ export class Property extends AggregateRoot<string> {
 
   get amenities(): PropertyAmenity[] | null {
     return this.props.amenities
+  }
+
+  get site_amenities(): PropertyAmenity[] | null {
+    return this.props.site_amenities
   }
 
   get checkInInstructions(): string | null {
@@ -528,6 +538,13 @@ export class Property extends AggregateRoot<string> {
    */
   updateAmenities(amenities: PropertyAmenity[]): void {
     this.props.amenities = amenities
+
+    this.touch()
+    this.addDomainEvent(new PropertyUpdatedEvent(this.id, this.companyId))
+  }
+
+  updateSiteAmenities(site_amenities: PropertyAmenity[]): void {
+    this.props.site_amenities = site_amenities
 
     this.touch()
     this.addDomainEvent(new PropertyUpdatedEvent(this.id, this.companyId))
@@ -732,6 +749,7 @@ export class Property extends AggregateRoot<string> {
       gallery_images: this.props.galleryImages,
       settings: this.props.settings.toJson(),
       amenities: this.props.amenities,
+      site_amenities: this.props.site_amenities,
       check_in_instructions: this.props.checkInInstructions,
       check_out_instructions: this.props.checkOutInstructions,
       house_rules: this.props.houseRules,

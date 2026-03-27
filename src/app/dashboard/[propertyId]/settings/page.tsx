@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic"
 
 const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "property", label: "Property" },
-  { value: "property-amenities", label: "Property Amenities" },
+  { value: "amenities_configuration", label: "Amenities Configuration" },
   { value: "fees", label: "Additional Charges" },
   { value: "reservation-types", label: "Rate Types" },
   { value: "site-types-rates", label: "Site Types Rates" },
@@ -131,7 +131,7 @@ export default async function SettingsPage({ params }: PageProps) {
           />
         </TabsContent>
 
-        <TabsContent value="property-amenities" className="space-y-4">
+        <TabsContent value="amenities_configuration" className="space-y-4">
           <PropertiesAmenities propertyId={property.id} />
         </TabsContent>
 

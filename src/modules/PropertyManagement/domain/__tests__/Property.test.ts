@@ -710,6 +710,7 @@ describe('Property', () => {
           { id: 'wifi', name: 'wifi', description: null },
           { id: 'showers', name: 'showers', description: null },
         ],
+        null, // site_amenities
         'Check in at the office', // checkInInstructions
         'Leave keys in drop box', // checkOutInstructions
         'No loud music after 10pm', // houseRules

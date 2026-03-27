@@ -296,7 +296,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
           return
         }
 
-        const dbAmenities = result.data?.amenities
+        const dbAmenities = result.data?.site_amenities
         if (!Array.isArray(dbAmenities)) {
           setPropertyAmenities(null)
           return

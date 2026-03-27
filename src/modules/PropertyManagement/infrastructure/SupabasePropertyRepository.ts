@@ -262,7 +262,7 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       ? (row.amenities as unknown[])
           .map((item): PropertyAmenity | null => {
             if (typeof item === 'string') {
-              return { id: item, name: item, description: null }
+              return { id: item, name: item, description: null, icon_url: null }
             }
 
             if (item && typeof item === 'object') {
@@ -271,9 +271,44 @@ export class SupabasePropertyRepository implements IPropertyRepository {
               const name = typeof maybe.name === 'string' ? maybe.name : ''
               const description =
                 typeof maybe.description === 'string' ? maybe.description : null
+              const icon_url =
+                typeof maybe.icon_url === 'string'
+                  ? maybe.icon_url
+                  : typeof maybe.iconUrl === 'string'
+                    ? maybe.iconUrl
+                    : null
 
               if (!id || !name) return null
-              return { id, name, description }
+              return { id, name, description, icon_url }
+            }
+
+            return null
+          })
+          .filter((a): a is PropertyAmenity => a !== null)
+      : null
+
+    const site_amenities = Array.isArray(row.site_amenities)
+      ? (row.site_amenities as unknown[])
+          .map((item): PropertyAmenity | null => {
+            if (typeof item === 'string') {
+              return { id: item, name: item, description: null, icon_url: null }
+            }
+
+            if (item && typeof item === 'object') {
+              const maybe = item as Partial<Record<string, unknown>>
+              const id = typeof maybe.id === 'string' ? maybe.id : typeof maybe.name === 'string' ? maybe.name : ''
+              const name = typeof maybe.name === 'string' ? maybe.name : ''
+              const description =
+                typeof maybe.description === 'string' ? maybe.description : null
+              const icon_url =
+                typeof maybe.icon_url === 'string'
+                  ? maybe.icon_url
+                  : typeof maybe.iconUrl === 'string'
+                    ? maybe.iconUrl
+                    : null
+
+              if (!id || !name) return null
+              return { id, name, description, icon_url }
             }
 
             return null
@@ -308,6 +343,7 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       galleryImages,
       settings,
       amenities,
+      site_amenities,
       row.check_in_instructions,
       row.check_out_instructions,
       row.house_rules,

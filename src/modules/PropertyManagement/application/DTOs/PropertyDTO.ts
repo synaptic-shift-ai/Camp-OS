@@ -59,6 +59,7 @@ export type PropertyDTO = {
 
   // Amenities
   amenities: PropertyAmenity[] | null
+  site_amenities: PropertyAmenity[] | null
 
   // Guest Instructions
   checkInInstructions: string | null
@@ -140,6 +141,7 @@ export function toPropertyDTO(property: Property): PropertyDTO {
 
     // Amenities
     amenities: property.amenities,
+    site_amenities: property.site_amenities,
 
     // Guest Instructions
     checkInInstructions: property.checkInInstructions,

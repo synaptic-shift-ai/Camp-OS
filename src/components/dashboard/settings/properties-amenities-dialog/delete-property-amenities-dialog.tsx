@@ -11,32 +11,31 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-type DeleteAmenitiesConfirmationDialogProps = {
+type DeletePropertyAmenitiesDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   amenityName?: string | undefined
   onConfirm: () => void
 }
 
-export function DeleteAmenitiesConfirmationDialog({
+export function DeletePropertyAmenitiesDialog({
   open,
   onOpenChange,
   amenityName,
   onConfirm,
-}: DeleteAmenitiesConfirmationDialogProps) {
+}: DeletePropertyAmenitiesDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete this site amenity?</AlertDialogTitle>
+          <AlertDialogTitle>Delete this property amenity?</AlertDialogTitle>
           <AlertDialogDescription>
             {amenityName ? (
               <>
-                This will remove <span className="font-medium">{amenityName}</span> from your site
-                amenities.
+                This will remove <span className="font-medium">{amenityName}</span> from your property amenities.
               </>
             ) : (
-              "This action will remove the amenity from the site amenities."
+              "This action will remove the property amenity from the list."
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>

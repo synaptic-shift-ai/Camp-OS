@@ -13,6 +13,7 @@ export type PropertyAmenity = {
   id: string
   name: string
   description: string | null
+  icon_url?: string | null | undefined
 }
 
 export type UpdatePropertyDto = {
@@ -36,6 +37,7 @@ export type UpdatePropertyDto = {
   galleryImages?: string[] | null | undefined
   settings?: PropertySettings | undefined
   amenities?: PropertyAmenity[] | null | undefined
+  site_amenities?: PropertyAmenity[] | null | undefined
   checkInInstructions?: string | null | undefined
   checkOutInstructions?: string | null | undefined
   houseRules?: string | null | undefined
@@ -116,6 +118,11 @@ export class UpdatePropertyCommandHandler {
     // Update amenities
     if (dto.amenities !== undefined) {
       property.updateAmenities(dto.amenities ?? [])
+    }
+
+    // Update site amenities
+    if (dto.site_amenities !== undefined) {
+      property.updateSiteAmenities(dto.site_amenities ?? [])
     }
 
     // Update guest instructions

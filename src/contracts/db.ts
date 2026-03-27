@@ -940,6 +940,7 @@ export type Database = {
           renewal_settings: Json | null
           reservation_type_config: Json | null
           settings: Json | null
+          site_amenities: Json | null
           site_count: number | null
           site_type_config: Json | null
           slug: string
@@ -1009,6 +1010,7 @@ export type Database = {
           renewal_settings?: Json | null
           reservation_type_config?: Json | null
           settings?: Json | null
+          site_amenities?: Json | null
           site_count?: number | null
           site_type_config?: Json | null
           slug: string
@@ -1078,6 +1080,7 @@ export type Database = {
           renewal_settings?: Json | null
           reservation_type_config?: Json | null
           settings?: Json | null
+          site_amenities?: Json | null
           site_count?: number | null
           site_type_config?: Json | null
           slug?: string

@@ -83,7 +83,7 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
         if (cancelled) return
 
         if (response.ok && result.success) {
-          const dbAmenities = result.data?.amenities
+          const dbAmenities = result.data?.site_amenities
           setPropertyAmenities(Array.isArray(dbAmenities) ? dbAmenities : [])
         } else {
           setPropertyAmenities([])

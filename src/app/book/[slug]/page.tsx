@@ -57,6 +57,7 @@ export default async function PropertyBookingPage({
       special_instructions,
       directions,
       amenities,
+      site_amenities,
       enabled_reservation_types,
       reservation_type_config,
       site_type_config,
@@ -323,7 +324,7 @@ export default async function PropertyBookingPage({
 
   const amenityIdToName = (() => {
     const map = new Map<string, string>()
-    const raw = property.amenities
+    const raw = property.site_amenities
 
     if (!Array.isArray(raw)) return map
 
@@ -402,7 +403,7 @@ export default async function PropertyBookingPage({
           .filter((x): x is string => typeof x === "string" && x.length > 0)
       : []
 
-    const amenities = resolvedAmenities.length > 0 ? resolvedAmenities : ["See availability for details"]
+    const amenities = resolvedAmenities.length > 0 ? resolvedAmenities : ["No Amenities Available"]
     const imageUrl = s.site_images?.[0] ?? s.images?.[0]
 
     const priceDollars = effectiveNightlyCentsForSite(s) / 100
@@ -471,15 +472,36 @@ export default async function PropertyBookingPage({
     email: property.email,
     cancellation_policy: property.cancellation_policy,
     amenities: Array.isArray(property.amenities)
-      ? (property.amenities as unknown[]).map((amenity) => {
-          if (typeof amenity === "string") return amenity
-          if (amenity && typeof amenity === "object") {
-            const maybe = amenity as Record<string, unknown>
-            const name = typeof maybe.name === "string" ? maybe.name : null
-            return name ?? ""
-          }
-          return ""
-        }).filter((s) => s.length > 0)
+      ? (property.amenities as unknown[]).reduce<Array<string | { id?: string; name: string; description: string | null; icon_url?: string | null }>>((acc, amenity) => {
+        if (typeof amenity === "string") {
+          const normalizedAmenity = amenity.trim()
+          if (normalizedAmenity) acc.push(normalizedAmenity)
+          return acc
+        }
+
+        if (amenity && typeof amenity === "object") {
+          const maybe = amenity as Record<string, unknown>
+          const name = typeof maybe.name === "string" ? maybe.name.trim() : ""
+          if (!name) return acc
+
+          const id = typeof maybe.id === "string" ? maybe.id : undefined
+          const description = typeof maybe.description === "string" ? maybe.description.trim() : null
+          const icon_url =
+            typeof maybe.icon_url === "string"
+              ? maybe.icon_url.trim()
+              : typeof maybe.iconUrl === "string"
+                ? maybe.iconUrl.trim()
+                : null
+          acc.push({
+            ...(id ? { id } : {}),
+            name,
+            description,
+            icon_url: icon_url || null,
+          })
+        }
+
+        return acc
+      }, [])
       : [],
     enabled_reservation_types: (property.enabled_reservation_types as ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]) || undefined,
     openPeriodFrom,

@@ -59,6 +59,7 @@ export const PropertyAmenitySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(255),
   description: z.string().max(2000).nullable(),
+  icon_url: z.string().url().max(2000).nullable().optional(),
 })
 
 // ============================================================================
@@ -104,6 +105,7 @@ export const PropertySchema = z.object({
 
   // Amenities
   amenities: z.array(PropertyAmenitySchema).nullable(),
+  site_amenities: z.array(PropertyAmenitySchema).nullable(),
 
   // Onboarding (CRITICAL - Oct 30 fix)
   onboardingStatus: OnboardingStatusSchema,
@@ -161,6 +163,7 @@ export const CreatePropertyRequestSchema = z.object({
 
   // Amenities
   amenities: z.array(PropertyAmenitySchema).optional(),
+  site_amenities: z.array(PropertyAmenitySchema).optional(),
 })
 
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequestSchema>
@@ -202,7 +205,8 @@ export const UpdatePropertyRequestSchema = z.object({
 
   // Amenities
   amenities: z.array(PropertyAmenitySchema).nullable().optional(),
-
+  site_amenities: z.array(PropertyAmenitySchema).nullable().optional(),
+  
   // Guest Instructions
   checkInInstructions: z.string().max(5000).nullable().optional(),
   checkOutInstructions: z.string().max(5000).nullable().optional(),

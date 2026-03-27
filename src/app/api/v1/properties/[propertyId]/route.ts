@@ -213,6 +213,7 @@ export async function PATCH(
       settings,
       galleryImages: validatedRequest.galleryImages,
       amenities: validatedRequest.amenities,
+      site_amenities: validatedRequest.site_amenities,
       checkInInstructions: validatedRequest.checkInInstructions,
       checkOutInstructions: validatedRequest.checkOutInstructions,
       houseRules: validatedRequest.houseRules,

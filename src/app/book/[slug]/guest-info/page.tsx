@@ -450,7 +450,30 @@ export default function GuestInfoPage() {
         </div>
       </div>
 
-      <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/book")}>
+      <Button 
+        variant="outline" 
+        className="w-full bg-transparent" 
+        onClick={() => {
+          const propertyId = checkoutData.propertyId
+          const checkIn = checkoutData.checkInDate
+          const checkOut = checkoutData.checkOutDate
+          if (!propertyId || !checkIn || !checkOut) {
+            router.push(`/book/${slug}`)
+            return
+          }
+
+          const params = new URLSearchParams({
+            slug,
+            propertyId,
+            checkIn: format(checkIn, "yyyy-MM-dd"),
+            checkOut: format(checkOut, "yyyy-MM-dd"),
+            adults: String(checkoutData.numAdults ?? 2),
+            children: String(checkoutData.numChildren ?? 0),
+            pets: String(checkoutData.numPets ?? 0),
+          })
+          router.push(`/availability-results?${params.toString()}`)
+        }}
+      >
         Edit Reservation
       </Button>
     </>

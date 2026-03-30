@@ -14,6 +14,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Loader2,
@@ -31,7 +32,9 @@ import {
   TriangleAlert,
   Car,
 } from 'lucide-react'
-import type { DashboardGuest } from '@/lib/dashboard/queries'
+import type { DashboardGuest, DashboardReservation } from '@/lib/dashboard/queries'
+import { mapReservationGetPayloadToDashboardReservation } from '@/lib/dashboard/reservation-get-to-dashboard'
+import { ReservationDetailDialog } from '@/components/dashboard/reservations/reservation-detail-dialog'
 import {
   AmericanExpressFlatRoundedIcon,
   DiscoverFlatRoundedIcon,
@@ -46,6 +49,7 @@ interface GuestReservationsSheetProps {
   onOpenChange: (open: boolean) => void
   guest: DashboardGuest
   propertyId: string
+  disableReservationDetailFromSheet?: boolean
 }
 
 type ReservationItem = {
@@ -210,6 +214,7 @@ export function GuestReservationsSheet({
   onOpenChange,
   guest,
   propertyId,
+  disableReservationDetailFromSheet = false,
 }: GuestReservationsSheetProps) {
   const [reservations, setReservations] = useState<ReservationItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -223,6 +228,22 @@ export function GuestReservationsSheet({
   const [spousePartner, setSpousePartner] = useState<SpousePartnerDisplay | null>(null)
   const [children, setChildren] = useState<ChildDisplay[]>([])
   const [vehicles, setVehicles] = useState<VehicleDisplay[]>([])
+  const [selectedReservation, setSelectedReservation] = useState<DashboardReservation | null>(null)
+  const [reservationDetailLoadingId, setReservationDetailLoadingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedReservation(null)
+      setReservationDetailLoadingId(null)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (disableReservationDetailFromSheet) {
+      setSelectedReservation(null)
+      setReservationDetailLoadingId(null)
+    }
+  }, [disableReservationDetailFromSheet])
 
   useEffect(() => {
     if (!open || !propertyId || !guest?.id) return
@@ -468,9 +489,27 @@ export function GuestReservationsSheet({
     open &&
     (isLoading || guestDetailsLoading || (reservations.length > 0 && previewLoading))
 
+  async function handleReservationRowClick(reservationId: string) {
+    setReservationDetailLoadingId(reservationId)
+    try {
+      const res = await fetch(`/api/v1/reservations/${reservationId}`)
+      const json = await res.json()
+      if (json?.success !== true || !json?.data) return
+      const mapped = mapReservationGetPayloadToDashboardReservation(json.data)
+      if (mapped) setSelectedReservation(mapped)
+    } finally {
+      setReservationDetailLoadingId(null)
+    }
+  }
+
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto p-0">
+      <SheetContent
+        side="right"
+        overlayClassName="z-[60]"
+        className={cn('z-[60] w-full overflow-y-auto p-0 sm:max-w-xl')}
+      >
         <SheetTitle className="sr-only">Guest reservation profile</SheetTitle>
         <SheetDescription className="sr-only">
           Guest reservation profile details
@@ -514,47 +553,76 @@ export function GuestReservationsSheet({
                   Reservations ({reservations.length})
                 </h3>
                 <div className="mt-3 space-y-3">
-                  {reservations.map((res) => (
-                    <div
-                      key={res.id}
-                      className="rounded-lg border border-border bg-muted/30 p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-mono text-sm font-semibold tracking-wide text-foreground">
-                            {res.confirmationNumber}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {formatDateShort(res.checkInDate)} - {formatDateShort(res.checkOutDate)} · {res.nights}{' '}
-                            night{res.nights !== 1 ? 's' : ''}
-                          </p>
+                  {reservations.map((res) => {
+                    const cardBody = (
+                      <>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-mono text-sm font-semibold tracking-wide text-foreground">
+                              {res.confirmationNumber}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatDateShort(res.checkInDate)} - {formatDateShort(res.checkOutDate)} · {res.nights}{' '}
+                              night{res.nights !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <span
+                            className={`shrink-0 text-xs font-medium capitalize ${statusTextColors[res.status] ?? 'text-muted-foreground'}`}
+                          >
+                            {statusLabels[res.status] ?? res.status.replace('_', ' ')}
+                          </span>
                         </div>
-                        <span
-                          className={`shrink-0 text-xs font-medium capitalize ${statusTextColors[res.status] ?? 'text-muted-foreground'}`}
-                        >
-                          {statusLabels[res.status] ?? res.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-background p-2 text-sm">
-                        <div>
-                          <p className="text-[11px] text-muted-foreground">Total</p>
-                          <p className="font-semibold text-foreground">{formatMoney(res.totalAmountDollars)}</p>
+                        <div className="mt-3 grid grid-cols-3 gap-2 rounded-md bg-background p-2 text-sm">
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Total</p>
+                            <p className="font-semibold text-foreground">{formatMoney(res.totalAmountDollars)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Paid</p>
+                            <p className="font-semibold text-foreground">{formatMoney(res.paidAmountDollars)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Balance</p>
+                            <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
+                              {res.balanceDollars > 0
+                                ? `${formatMoney(res.balanceDollars)}`
+                                : '--'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground">Paid</p>
-                          <p className="font-semibold text-foreground">{formatMoney(res.paidAmountDollars)}</p>
+                      </>
+                    )
+
+                    const cardShell = cn(
+                      'w-full rounded-lg border border-border bg-muted/30 p-3 text-left',
+                      !disableReservationDetailFromSheet &&
+                        'transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    )
+
+                    if (disableReservationDetailFromSheet) {
+                      return (
+                        <div key={res.id} className={cardShell}>
+                          {cardBody}
                         </div>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground">Balance</p>
-                          <p className={`font-semibold ${res.balanceDollars > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
-                            {res.balanceDollars > 0
-                              ? `${formatMoney(res.balanceDollars)}`
-                              : '--'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      )
+                    }
+
+                    return (
+                      <button
+                        key={res.id}
+                        type="button"
+                        disabled={reservationDetailLoadingId === res.id}
+                        className={cn(
+                          cardShell,
+                          'disabled:pointer-events-none disabled:opacity-60'
+                        )}
+                        onClick={() => void handleReservationRowClick(res.id)}
+                        aria-label={`View reservation ${res.confirmationNumber}`}
+                      >
+                        {cardBody}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -787,5 +855,18 @@ export function GuestReservationsSheet({
         </div>
       </SheetContent>
     </Sheet>
+
+      {!disableReservationDetailFromSheet && (
+        <ReservationDetailDialog
+          open={!!selectedReservation}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setSelectedReservation(null)
+          }}
+          reservation={selectedReservation}
+          overlayClassName="z-[80]"
+          contentClassName="z-[80]"
+        />
+      )}
+    </>
   )
 }

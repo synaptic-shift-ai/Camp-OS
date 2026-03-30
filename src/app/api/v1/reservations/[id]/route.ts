@@ -193,7 +193,9 @@ export async function GET(
     // Fetch guest info
     const { data: guest } = await supabase
       .from('guests')
-      .select('first_name, last_name, email, phone, address, city, state, zip_code, spouse_first_name, spouse_last_name, spouse_email, spouse_phone, spouse_is_alternate_contact')
+      .select(
+        'id, first_name, last_name, email, phone, address, city, state, zip_code, spouse_first_name, spouse_last_name, spouse_email, spouse_phone, spouse_is_alternate_contact'
+      )
       .eq('id', reservation.guestId)
       .single()
 
@@ -286,6 +288,14 @@ export async function GET(
       property_name: property.name ?? null,
       property_settings: property.settings ?? null,
       booking_rules_config: property.booking_rules_config ?? null,
+      guest_id: reservation.guestId,
+      site_id: reservation.siteId,
+      payment_status: reservationDTO.paymentStatus,
+      refund_amount_cents: reservationDTO.refundAmountCents ?? 0,
+      created_at: reservationDTO.createdAt,
+      special_requests: reservationDTO.specialRequests ?? null,
+      check_in_notes: reservationDTO.checkInNotes ?? null,
+      nights: reservationDTO.nights,
     })
   } catch (err: unknown) {
     console.error('[Reservations API v1] GET by ID error:', err)

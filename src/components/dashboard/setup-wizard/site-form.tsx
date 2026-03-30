@@ -955,6 +955,16 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             </div>
           )}
 
+          {blackoutDates.length > 0 && (
+            <Alert>
+              <Info className="h-4 w-4" aria-hidden />
+              <AlertDescription>
+              Blackout dates prevent check-in on specific dates (e.g. holidays). 
+              Guests can still be checked-in if their reservation started before the blackout date.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {blackoutDates.length === 0 && (
             <p className="text-sm text-muted-foreground">No blackout dates configured for this site.</p>
           )}

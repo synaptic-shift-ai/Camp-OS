@@ -138,12 +138,11 @@ function hasBlockedDateOverlap(
  */
 export function siteStayOverlapsBlackoutDates(
   siteAvailabilityRules: unknown,
-  checkInDate: string,
-  checkOutDate: string
+  checkInDate: string
 ): boolean {
   if (!siteAvailabilityRules || typeof siteAvailabilityRules !== 'object') return false
   const blackouts = (siteAvailabilityRules as { blackout_dates?: string[] }).blackout_dates ?? []
-  return blackouts.some((d) => d >= checkInDate && d <= checkOutDate)
+  return blackouts.includes(checkInDate)
 }
 
 /**
@@ -200,7 +199,7 @@ export async function checkSiteAvailability(
     }
   }
 
-  if (siteStayOverlapsBlackoutDates(site.availability_rules, checkInDate, checkOutDate)) {
+  if (siteStayOverlapsBlackoutDates(site.availability_rules, checkInDate)) {
     return {
       success: true,
       data: false,
@@ -437,7 +436,7 @@ export async function searchAvailableSites(
   let filteredSites = sitesToSearch.filter((site) => {
     if (occupiedSiteIds.has(site.id)) return false
     if (hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)) return false
-    if (siteStayOverlapsBlackoutDates(site.availability_rules, params.check_in_date, params.check_out_date)) return false
+    if (siteStayOverlapsBlackoutDates(site.availability_rules, params.check_in_date)) return false
     return true
   })
 

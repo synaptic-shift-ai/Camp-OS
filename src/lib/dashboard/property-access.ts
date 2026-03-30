@@ -54,6 +54,7 @@ export async function getFirstPropertyId(): Promise<string | null> {
 export async function getPropertyForUser(propertyId: string): Promise<{
   id: string
   name: string
+  description: string | null
   address: string | null
   city: string | null
   state: string | null
@@ -92,6 +93,7 @@ export async function getPropertyForUser(propertyId: string): Promise<{
     .select(`
       id,
       name,
+      description,
       address,
       city,
       state,

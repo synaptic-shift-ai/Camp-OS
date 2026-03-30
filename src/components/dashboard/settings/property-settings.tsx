@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { OpenPeriodDatePicker } from '@/components/dashboard/settings/open-period-date-picker'
-// import { Textarea } from '@/components/ui/textarea'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
 
@@ -26,6 +26,7 @@ const SEASON_ALERT_TOAST_CLASS =
 
 const propertyDetailsSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
+  description: z.string().max(2000).optional(),
   address: z.string().max(255).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
@@ -60,6 +61,7 @@ function toIsoDateOnly(d: Date | undefined): string | null {
 
 export type PropertyDetailsInitial = {
   name: string
+  description?: string | null
   address?: string | null
   city?: string | null
   state?: string | null
@@ -239,6 +241,7 @@ export function PropertySettings({
     resolver: zodResolver(propertyDetailsSchema),
     defaultValues: {
       name: initial.name ?? '',
+      description: initial.description ?? '',
       address: initial.address ?? '',
       city: initial.city ?? '',
       state: initial.state ?? '',
@@ -255,6 +258,7 @@ export function PropertySettings({
     try {
       const payload: Record<string, unknown> = {
         name: data.name.trim() || undefined,
+        description: data.description?.trim() || null,
         address: data.address?.trim() || null,
         city: data.city?.trim() || null,
         state: data.state?.trim() || null,
@@ -326,6 +330,15 @@ export function PropertySettings({
               {errors.name && (
                 <p className="text-sm text-destructive">{errors.name.message}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                {...register('description')}
+                placeholder="Describe your property"
+              />
             </div>
 
             <div className="space-y-2">

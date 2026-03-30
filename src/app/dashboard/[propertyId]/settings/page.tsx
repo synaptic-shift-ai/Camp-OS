@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PropertySettings } from "@/components/dashboard/settings/property-settings"
 import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 import { CancellationPolicySettings } from "@/components/dashboard/settings/cancellation-policy"
-import type { CancellationRule } from "@/components/dashboard/settings/cancellation-rule-dialog"
 import { SiteTypeRateSettings } from "@/components/dashboard/settings/site-type-rate"
 import { Info } from "lucide-react"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
@@ -113,6 +112,7 @@ export default async function SettingsPage({ params }: PageProps) {
             propertyId={property.id}
             initial={{
               name: property.name,
+              description: property.description ?? null,
               address: property.address,
               city: property.city,
               state: property.state,

@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       // Check if this guest already has a pending reservation for these exact dates/site
       const { data: existingReservation } = await supabase
         .from('reservations')
-        .select('id, confirmation_number, total_amount')
+        .select('id, confirmation_number, total_amount, reserved_until')
         .eq('site_id', validatedInput.site_id)
         .eq('guest_id', existingGuestForCheck.id)
         .eq('check_in_date', validatedInput.check_in_date)
@@ -409,6 +409,7 @@ export async function POST(request: NextRequest) {
             check_out_date: validatedInput.check_out_date,
             number_of_nights: numberOfNights,
             price_breakdown: priceBreakdown,
+            reserved_until: existingReservation.reserved_until,
           },
         })
       }

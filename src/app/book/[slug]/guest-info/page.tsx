@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format, differenceInDays } from "date-fns"
@@ -12,12 +12,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { CancellationPolicyDialog } from "@/components/guest/cancellation-policy-dialog"
 import { TermsAndConditionsDialog } from "@/components/guest/terms-and-conditions-dialog"
+import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-info-step"
+import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
+import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
@@ -79,6 +81,48 @@ const US_STATES = [
   "Wyoming",
 ]
 
+const guestVehicleScehema = z.object({
+  vehicle_type: z.enum(['personal', 'rv', 'tow_vehicle']),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  year: z.coerce.number().int().optional(),
+  color: z.string().optional(),
+  license_plate: z.string().optional(),
+  license_plate_state: z.string().optional(),
+
+  personal_vehicle_type: z.enum(
+    ['car', 'truck', 'suv', 'motorcycle', 'boat_trailer', 'other']
+  ).optional(),
+
+  rv_type: z.enum(
+    ['class_a', 'class_b', 'class_c', 'fifth_wheel', 'travel_trailer', 'popup', 'truck_camper', 'toy_hauler']
+  ).optional(),
+
+  rv_length_feet: z.coerce.number().optional(),
+  rv_width_feet: z.coerce.number().optional(),
+  num_slide_outs: z.coerce.number().int().optional(),
+
+  insurance_company: z.string().optional(),
+  insurance_policy_number: z.string().optional(),
+
+  is_primary: z.boolean().optional(),
+})
+
+const spouseSchema = z.object({
+  first_name: z.string().min(1, "First name is required").or(z.literal("")).optional(),
+  last_name: z.string().min(1, "Last name is required").or(z.literal("")).optional(),
+  phone: z.string().optional(),
+  email: z.union([z.string().email("Valid email is required"), z.literal("")]).optional(),
+  is_alternate_contact: z.boolean().optional(),
+})
+
+const childSchema = z.object({
+  first_name: z.string().min(1, "First name is required"),
+  age: z.coerce.number().int().optional(),
+  date_of_birth: z.string().optional(),
+  special_needs_allergies: z.string().optional(),
+})
+
 const guestFormSchema = z.object({
   first_name: z.string().min(2, "First name is required"),
   last_name: z.string().min(2, "Last name is required"),
@@ -91,7 +135,10 @@ const guestFormSchema = z.object({
   country: z.string().optional(),
   emergency_contact_name: z.string().optional(),
   emergency_contact_phone: z.string().optional(),
+  spouse: spouseSchema.optional(),
+  children: z.array(childSchema).optional(),
   num_vehicles: z.string().optional(),
+  vehicles: z.array(guestVehicleScehema).optional(),
   special_requests: z.string().optional(),
   agree_terms: z.boolean().refine((val) => val === true, {
     message: "You must agree to the terms and conditions",
@@ -119,6 +166,8 @@ export default function GuestInfoPage() {
   const [isCancellationDialogOpen, setIsCancellationDialogOpen] = useState(false)
   const [isCancellationPolicyLoading, setIsCancellationPolicyLoading] = useState(false)
   const fetchedCancellationPolicyForPropertyRef = useRef<string | null>(null)
+  const [spouseOpen, setSpouseOpen] = useState(false)
+  const [childrenOpen, setChildrenOpen] = useState(false)
 
   useEffect(() => {
     // Don't validate until hydration is complete
@@ -206,6 +255,7 @@ export default function GuestInfoPage() {
       emergency_contact_name: checkoutData.guestInfo?.emergency_contact_name || "",
       emergency_contact_phone: checkoutData.guestInfo?.emergency_contact_phone || "",
       num_vehicles: checkoutData.numVehicles?.toString() ?? "0",
+      vehicles: [],
       special_requests: checkoutData.specialRequests || "",
       agree_terms: false,
       agree_cancellation: false,
@@ -220,6 +270,41 @@ export default function GuestInfoPage() {
         throw new Error("Missing booking information. Please start over from site selection.")
       }
 
+      const vehicles = data.vehicles ?? []
+      const vehicleCount = vehicles.length
+
+      const children = data.children ?? []
+      const numChildren = children.length > 0 ? children.length : (checkoutData.numChildren || 0)
+
+      const spouseInput = data.spouse
+      const spousePartnerPresent =
+        spouseInput != null &&
+        (String(spouseInput.first_name ?? '').trim().length > 0 ||
+          String(spouseInput.last_name ?? '').trim().length > 0 ||
+          String(spouseInput.phone ?? '').trim().length > 0 ||
+          String(spouseInput.email ?? '').trim().length > 0 ||
+          spouseInput.is_alternate_contact === true)
+
+      const spousePartnerOrUndefined = spousePartnerPresent
+        ? {
+            first_name: String(spouseInput?.first_name ?? '').trim(),
+            last_name: String(spouseInput?.last_name ?? '').trim(),
+            phone: String(spouseInput?.phone ?? '').trim() || undefined,
+            email: String(spouseInput?.email ?? '').trim() || undefined,
+            is_alternate_contact: spouseInput?.is_alternate_contact ?? false,
+          }
+        : undefined
+
+      const childrenInputOrUndefined =
+        children.length > 0
+          ? children.map((c) => ({
+              first_name: c.first_name,
+              age: c.age,
+              date_of_birth: c.date_of_birth || undefined,
+              special_needs_allergies: c.special_needs_allergies || undefined,
+            }))
+          : undefined
+
       // Prepare the API request payload
       const requestBody = {
         property_id: checkoutData.propertyId,
@@ -227,15 +312,12 @@ export default function GuestInfoPage() {
         check_in_date: format(checkoutData.checkInDate, "yyyy-MM-dd"),
         check_out_date: format(checkoutData.checkOutDate, "yyyy-MM-dd"),
         num_adults: checkoutData.numAdults || 1,
-        num_children: checkoutData.numChildren || 0,
+        num_children: numChildren,
         num_pets: 0,
-        num_vehicles: (() => {
-          const raw =
-            data.num_vehicles != null && data.num_vehicles !== ''
-              ? Number.parseInt(String(data.num_vehicles), 10)
-              : 0
-          return Number.isNaN(raw) ? 0 : Math.max(0, raw)
-        })(),
+        num_vehicles: vehicleCount,
+        vehicle_info: vehicles,
+        spouse_partner: spousePartnerOrUndefined,
+        children: childrenInputOrUndefined,
         special_requests: data.special_requests || undefined,
         guest: {
           first_name: data.first_name,
@@ -570,7 +652,8 @@ export default function GuestInfoPage() {
                 <CardDescription>Please provide your contact details for the reservation</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormProvider {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="space-y-4">
                     <h3 className="flex items-center space-x-2 text-lg font-semibold text-foreground">
                       <Users className={cn("h-5 w-5", "text-[#2D5A27] dark:text-emerald-400")} />
@@ -674,7 +757,23 @@ export default function GuestInfoPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <SpousePartnerSection
+                    isOpen={spouseOpen}
+                    onOpenChange={setSpouseOpen}
+                  />
+
+                  <ChildrenList
+                    isOpen={childrenOpen}
+                    onOpenChange={setChildrenOpen}
+                    maxChildren={10}
+                  />
+
+                  <VehicleInfoStep
+                    maxVehicles={5}
+                    showRVSection={true}
+                  />
+
+                  {/* <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Trip Details</h3>
                     <div className="space-y-2">
                       <Label htmlFor="num_vehicles">Number of Vehicles</Label>
@@ -703,7 +802,7 @@ export default function GuestInfoPage() {
                         rows={4}
                       />
                     </div>
-                  </div>
+                  </div> */}
 
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Emergency Contact (Optional)</h3>
@@ -830,7 +929,8 @@ export default function GuestInfoPage() {
                     <div className="hidden sm:block text-border">•</div>
                     <span className="hidden sm:inline">No payment required yet</span>
                   </div>
-                </form>
+                  </form>
+                </FormProvider>
               </CardContent>
             </Card>
           </div>

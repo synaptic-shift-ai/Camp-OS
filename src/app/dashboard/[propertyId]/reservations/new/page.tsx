@@ -694,13 +694,6 @@ export default function NewReservationPage() {
     seasonal: 28,
     long_term: 28,
   }
-
-  const effectiveStayType: BookingType =
-    (stayType === 'monthly' && totalNights >= STAY_TYPE_MIN_NIGHTS.monthly)
-      ? 'monthly'
-      : (stayType === 'monthly' || stayType === 'weekly') && totalNights >= STAY_TYPE_MIN_NIGHTS.weekly
-        ? 'weekly'
-        : 'nightly'
   const holidayViolationForSelection =
     checkInDate && checkOutDate
       ? getHolidayMinStayViolation(bookingRulesConfig?.holiday_rules, checkInDate, checkOutDate)
@@ -1233,6 +1226,24 @@ export default function NewReservationPage() {
                     onOpenChange={setChildrenOpen}
                     maxChildren={10}
                   />
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground">Emergency Contact (Optional)</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="evacuation_contact_name">Contact Name</Label>
+                        <Input id="evacuation_contact_name" {...register("evacuationContact.name")} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="evacuation_contact_phone">Contact Phone</Label>
+                        <Input
+                          id="evacuation_contact_phone"
+                          type="tel"
+                          {...register("evacuationContact.phone")}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 

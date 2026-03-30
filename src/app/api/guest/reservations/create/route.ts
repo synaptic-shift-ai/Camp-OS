@@ -41,6 +41,37 @@ import {
   isStayWithinOpenPeriodByIsoDates,
   buildOpenPeriodBookingErrorMessage,
 } from '@/lib/booking/open-period'
+import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
+import { updateGuestSpouse } from '@/lib/booking/guest'
+import { replaceReservationChildren } from '@/lib/booking/children'
+import type { CreateChildInputData, CreateVehicleInputData, SpousePartnerInput } from '@/lib/booking/types'
+
+const guestVehicleScehema = z.object({
+  vehicle_type: z.enum(['personal', 'rv', 'tow_vehicle']),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  year: z.coerce.number().int().optional(),
+  color: z.string().optional(),
+  license_plate: z.string().optional(),
+  license_plate_state: z.string().optional(),
+
+  personal_vehicle_type: z.enum(
+    ['car', 'truck', 'suv', 'motorcycle', 'boat_trailer', 'other']
+  ).optional(),
+
+  rv_type: z.enum(
+    ['class_a', 'class_b', 'class_c', 'fifth_wheel', 'travel_trailer', 'popup', 'truck_camper', 'toy_hauler']
+  ).optional(),
+
+  rv_length_feet: z.coerce.number().optional(),
+  rv_width_feet: z.coerce.number().optional(),
+  num_slide_outs: z.coerce.number().int().optional(),
+
+  insurance_company: z.string().optional(),
+  insurance_policy_number: z.string().optional(),
+
+  is_primary: z.boolean().optional(),
+})
 
 // Input validation schema
 const createGuestReservationSchema = z.object({
@@ -52,7 +83,26 @@ const createGuestReservationSchema = z.object({
   num_children: z.coerce.number().int().min(0).optional(),
   num_pets: z.coerce.number().int().min(0).optional(),
   num_vehicles: z.coerce.number().int().min(0).max(10).optional(),
-  vehicle_info: z.array(z.record(z.any())).optional(),
+  vehicle_info: z.array(guestVehicleScehema).optional(),
+  spouse_partner: z
+    .object({
+      first_name: z.string().optional(),
+      last_name: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().optional(),
+      is_alternate_contact: z.boolean().optional(),
+    })
+    .optional(),
+  children: z
+    .array(
+      z.object({
+        first_name: z.string().min(1, 'Child first name is required'),
+        age: z.coerce.number().int().optional(),
+        date_of_birth: z.string().optional(),
+        special_needs_allergies: z.string().optional(),
+      })
+    )
+    .optional(),
   special_requests: z.string().max(1000).optional(),
   guest: z.object({
     first_name: z.string().min(1, 'First name is required').max(100),
@@ -75,6 +125,50 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     const validatedInput = createGuestReservationSchema.parse(body)
+
+    const normalizeSpousePartnerOrNull = (
+      spousePartner: typeof validatedInput.spouse_partner,
+    ): SpousePartnerInput | null => {
+      if (!spousePartner) return null
+
+      const first = String(spousePartner.first_name ?? '').trim()
+      const last = String(spousePartner.last_name ?? '').trim()
+      const phone = String(spousePartner.phone ?? '').trim()
+      const email = String(spousePartner.email ?? '').trim()
+      const isAlternate = spousePartner.is_alternate_contact ?? false
+
+      const hasAny =
+        first.length > 0 ||
+        last.length > 0 ||
+        phone.length > 0 ||
+        email.length > 0 ||
+        isAlternate === true
+
+      if (!hasAny) return null
+      if (!first || !last) return null
+
+      const spouseInput: SpousePartnerInput = {
+        first_name: first,
+        last_name: last,
+        is_alternate_contact: isAlternate,
+      }
+
+      if (phone.length > 0) spouseInput.phone = phone
+      if (email.length > 0) spouseInput.email = email
+
+      return spouseInput
+    }
+
+    const normalizeChildrenInput = (
+      children: NonNullable<typeof validatedInput.children>,
+    ): CreateChildInputData[] => {
+      return children.map((c) => ({
+        first_name: c.first_name,
+        ...(c.age != null ? { age: c.age } : {}),
+        ...(c.date_of_birth ? { date_of_birth: c.date_of_birth } : {}),
+        ...(c.special_needs_allergies ? { special_needs_allergies: c.special_needs_allergies } : {}),
+      }))
+    }
 
     const supabase = await createClient()
 
@@ -299,6 +393,43 @@ export async function POST(request: NextRequest) {
       if (existingReservation) {
         // Return existing reservation instead of creating duplicate
         console.log('[Guest Reservation] Returning existing pending reservation:', existingReservation.id)
+
+        // Persist spouse/children details if provided in this request
+        if (validatedInput.spouse_partner !== undefined) {
+          const spousePartnerOrNull = normalizeSpousePartnerOrNull(validatedInput.spouse_partner)
+          const spouseResult = await updateGuestSpouse(
+            existingGuestForCheck.id,
+            validatedInput.property_id,
+            spousePartnerOrNull
+          )
+          if (!spouseResult.success) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: spouseResult.error,
+              },
+              { status: 400 }
+            )
+          }
+        }
+
+        if (validatedInput.children && validatedInput.children.length > 0) {
+          const childrenInput = normalizeChildrenInput(validatedInput.children)
+          const childrenResult = await replaceReservationChildren(
+            existingReservation.id,
+            validatedInput.property_id,
+            childrenInput
+          )
+          if (!childrenResult.success) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: childrenResult.error,
+              },
+              { status: 400 }
+            )
+          }
+        }
 
         const checkIn = new Date(validatedInput.check_in_date)
         const checkOut = new Date(validatedInput.check_out_date)
@@ -638,6 +769,25 @@ export async function POST(request: NextRequest) {
       guestId = newGuest.id
     }
 
+    // Persist spouse details if provided in this request
+    if (validatedInput.spouse_partner !== undefined) {
+      const spousePartnerOrNull = normalizeSpousePartnerOrNull(validatedInput.spouse_partner)
+      const spouseResult = await updateGuestSpouse(
+        guestId,
+        validatedInput.property_id,
+        spousePartnerOrNull
+      )
+      if (!spouseResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: spouseResult.error,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     // ========================================================================
     // Step 8: Generate confirmation number
     // ========================================================================
@@ -688,6 +838,54 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       )
+    }
+
+    // Persist guest vehicles into `guest_vehicles` and link them to this reservation.
+    const vehicles = validatedInput.vehicle_info ?? []
+    if (vehicles.length > 0) {
+      const vehicleInput = vehicles as CreateVehicleInputData[]
+
+      const vehicleResult = await createGuestVehicles(guestId, validatedInput.property_id, vehicleInput)
+      if (!vehicleResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: vehicleResult.error,
+          },
+          { status: 400 },
+        )
+      }
+
+      const vehicleIds = vehicleResult.data.map((v) => v.id)
+      const linkResult = await linkVehiclesToReservation(reservation.id, vehicleIds)
+      if (!linkResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: linkResult.error,
+          },
+          { status: 400 },
+        )
+      }
+    }
+
+    // Persist detailed children rows only when provided in this request
+    if (validatedInput.children && validatedInput.children.length > 0) {
+      const childrenInput = normalizeChildrenInput(validatedInput.children)
+      const childrenResult = await replaceReservationChildren(
+        reservation.id,
+        validatedInput.property_id,
+        childrenInput
+      )
+      if (!childrenResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: childrenResult.error,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // ========================================================================

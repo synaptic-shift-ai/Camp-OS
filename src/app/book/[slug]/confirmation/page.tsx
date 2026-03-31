@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { format, differenceInDays } from "date-fns"
-import { Check, Download, Mail, Calendar, MapPin, Phone, TreePine, Printer, Sparkles } from "lucide-react"
+import { Check, Download, Mail, Calendar, MapPin, Phone, Printer, Sparkles } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +11,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { downloadConfirmationPdf } from "@/lib/booking/confirmation-pdf"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
+import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { cn } from "@/lib/utils"
 
 // API response types
@@ -301,24 +302,7 @@ export default function ConfirmationPage() {
         </div>
       )}
 
-      <header className="bg-background border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
-                <TreePine className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
-                <p className="text-xs text-muted-foreground">Booking Confirmed</p>
-              </div>
-            </div>
-            <Button variant="ghost" onClick={() => router.push("/")} className="text-foreground hover:bg-muted">
-              Back to Home
-            </Button>
-          </div>
-        </div>
-      </header>
+      <BookingPortalHeader propertyName={displayPropertyName} subtitle="Booking Confirmed" />
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">

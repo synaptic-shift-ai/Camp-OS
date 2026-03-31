@@ -6,7 +6,7 @@ import { useTheme } from "next-themes"
 import { format, differenceInDays } from "date-fns"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
-import { ArrowLeft, Check, Lock, CreditCard, ChevronRight, TreePine, Shield, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, Lock, CreditCard, ChevronRight, Shield, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
+import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { cn } from "@/lib/utils"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -552,24 +553,7 @@ export default function PaymentPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background text-foreground dark:from-muted/20">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", "bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900")}>
-                <TreePine className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{displayPropertyName}</h1>
-                <p className="text-xs text-muted-foreground">Secure Booking Portal</p>
-              </div>
-            </div>
-            <Button variant="ghost" onClick={() => router.push("/")}>
-              Back to Home
-            </Button>
-          </div>
-        </div>
-      </header>
+      <BookingPortalHeader propertyName={displayPropertyName} subtitle="Secure Booking Portal" />
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 sm:mb-6">

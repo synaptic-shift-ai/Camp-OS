@@ -1,11 +1,11 @@
-import { getReservations, getDistinctSiteTypes } from "@/lib/dashboard/queries"
+import { getReservations, getDistinctSiteTypes, getSites } from "@/lib/dashboard/queries"
 import type { ReservationFilters } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import type { BookingRulesConfig, RateDiscountsConfig } from "@/lib/config/types"
 import type { ReservationStatus } from "@/contracts/booking"
 import { redirect } from "next/navigation"
 import { ReservationsTable } from "@/components/dashboard/reservations/reservations-table"
-import { ReservationsTimeline } from "@/components/dashboard/reservations/reservations-timeline"
+import { ReservationsTimeline } from "@/components/dashboard/reservations/timeline/reservation-timeline"
 import { ReservationsViewSwitcher } from "@/components/dashboard/reservations/reservations-view-switcher"
 import { ReservationsPageHeader } from "@/components/dashboard/reservations/reservations-page-header"
 import { ReservationFilters as ReservationFiltersBar } from "@/components/dashboard/reservations/reservation-filters"
@@ -82,13 +82,27 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   const todayYmd = `${todayUtc.getUTCFullYear()}-${String(todayUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(
     todayUtc.getUTCDate()
   ).padStart(2, "0")}`
+  const firstDayOfCurrentMonthYmd = `${todayUtc.getUTCFullYear()}-${String(todayUtc.getUTCMonth() + 1).padStart(2, "0")}-01`
 
   const periodStartYmd =
-    typeof periodStartParam === "string" && isValidYmd(periodStartParam) ? periodStartParam : todayYmd
+    typeof periodStartParam === "string" && isValidYmd(periodStartParam)
+      ? periodStartParam
+      : periodPreset === "month"
+        ? firstDayOfCurrentMonthYmd
+        : todayYmd
+  const normalizedPeriodStartYmd =
+    periodPreset === "month"
+      ? `${periodStartYmd.slice(0, 7)}-01`
+      : periodStartYmd
 
-  const startUtc = new Date(`${periodStartYmd}T00:00:00.000Z`)
+  const startUtc = new Date(`${normalizedPeriodStartYmd}T00:00:00.000Z`)
   const addDaysUtc = (d: Date, days: number) => new Date(d.getTime() + days * 24 * 60 * 60 * 1000)
-  const periodDayCount = periodPreset === "day" ? 1 : periodPreset === "week" ? 7 : 30
+  const getPeriodDayCount = (selectedPreset: PeriodPreset, selectedStartUtc: Date) => {
+    if (selectedPreset === "day") return 1
+    if (selectedPreset === "week") return 7
+    return new Date(Date.UTC(selectedStartUtc.getUTCFullYear(), selectedStartUtc.getUTCMonth() + 1, 0)).getUTCDate()
+  }
+  const periodDayCount = getPeriodDayCount(periodPreset, startUtc)
   const periodEndYmd = (() => {
     const endInclusive = addDaysUtc(startUtc, periodDayCount - 1)
     return `${endInclusive.getUTCFullYear()}-${String(endInclusive.getUTCMonth() + 1).padStart(2, "0")}-${String(
@@ -96,8 +110,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
     ).padStart(2, "0")}`
   })()
 
-  const timelinePeriodDayCount =
-    timelinePeriodPreset === "day" ? 1 : timelinePeriodPreset === "week" ? 7 : 30
+  const timelinePeriodDayCount = getPeriodDayCount(timelinePeriodPreset, startUtc)
   const timelinePeriodEndYmd = (() => {
     const endInclusive = addDaysUtc(startUtc, timelinePeriodDayCount - 1)
     return `${endInclusive.getUTCFullYear()}-${String(endInclusive.getUTCMonth() + 1).padStart(2, "0")}-${String(
@@ -106,6 +119,11 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   })()
 
   const siteTypesFromDb = await getDistinctSiteTypes(propertyId)
+  const { data: allSites } = await getSites(propertyId)
+  const timelineSites = allSites.filter((site) => {
+    if (allowedSiteTypes && !allowedSiteTypes.includes(site.siteType.toLowerCase())) return false
+    return true
+  })
   const siteTypeFilter = siteTypeParam && siteTypeParam !== 'all' ? siteTypeParam : undefined
   const statusFilter =
     statusParam === 'pending' ||
@@ -162,7 +180,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
 
       params.set("view", "timeline")
       params.set("period", periodPreset)
-      params.set("periodStart", periodStartYmd)
+      params.set("periodStart", normalizedPeriodStartYmd)
       params.set("periodEnd", periodEndYmd)
 
       redirect(`/dashboard/${propertyId}/reservations?${params.toString()}`)
@@ -172,7 +190,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   // Timeline view is filtered strictly to the selected time period.
   // This makes the timeline render all reservations for the period (no dependency on list pagination).
   if (isTimelineView) {
-    filters.startDate = periodStartYmd
+    filters.startDate = normalizedPeriodStartYmd
     filters.endDate = periodEndYmd
   }
 
@@ -206,7 +224,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
     if (nextView === "timeline") {
       params.set("view", "timeline")
       params.set("period", timelinePeriodPreset)
-      params.set("periodStart", periodStartYmd)
+      params.set("periodStart", normalizedPeriodStartYmd)
       params.set("periodEnd", timelinePeriodEndYmd)
     }
 
@@ -241,6 +259,12 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
           <ReservationsTimeline
             propertyId={propertyId}
             reservations={reservations}
+            sites={timelineSites.map((site) => ({
+              id: site.id,
+              siteName: site.siteName,
+              siteNumber: site.siteNumber,
+              siteType: site.siteType,
+            }))}
             currentPage={currentPage}
             pageSize={pageSize}
             total={total}
@@ -253,7 +277,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
             checkInTime={property.check_in_time}
             checkOutTime={property.check_out_time}
             periodPreset={periodPreset}
-            periodStartYmd={periodStartYmd}
+            periodStartYmd={normalizedPeriodStartYmd}
           />
         ) : (
           <ReservationsTable

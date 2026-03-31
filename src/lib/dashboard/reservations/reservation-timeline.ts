@@ -1,6 +1,86 @@
+import type { ReservationStatus } from "@/contracts/booking"
+
 type HasCheckDates = {
     checkIn: string
     checkOut: string
+}
+
+/** Matches PATCH /api/v1/reservations/[id]/update conflict query (strict overlap on ISO dates). */
+export function reservationStayIntervalsOverlapIso(
+    movingCheckIn: string,
+    movingCheckOut: string,
+    existingCheckIn: string,
+    existingCheckOut: string
+): boolean {
+    return existingCheckIn < movingCheckOut && existingCheckOut > movingCheckIn
+}
+
+const BLOCKING_RESERVATION_STATUSES_FOR_SITE_MOVE = new Set<ReservationStatus>([
+    "pending",
+    "confirmed",
+    "checked_in",
+])
+
+/**
+ * Returns another reservation on `targetSiteId` that blocks moving `movingReservationId`
+ * to those dates, using the same overlap rules as the update API.
+ */
+export function findBlockingReservationOnSiteForMove<
+    T extends {
+        id: string
+        siteId: string
+        status: ReservationStatus
+        checkIn: string
+        checkOut: string
+    },
+>(params: {
+    movingReservationId: string
+    targetSiteId: string
+    checkIn: string
+    checkOut: string
+    reservations: readonly T[]
+}): T | null {
+    for (const r of params.reservations) {
+        if (r.id === params.movingReservationId) continue
+        if (r.siteId !== params.targetSiteId) continue
+        if (!BLOCKING_RESERVATION_STATUSES_FOR_SITE_MOVE.has(r.status)) continue
+        if (
+            reservationStayIntervalsOverlapIso(
+                params.checkIn,
+                params.checkOut,
+                r.checkIn,
+                r.checkOut
+            )
+        ) {
+            return r
+        }
+    }
+    return null
+}
+
+export type TimelineSite = {
+    id: string
+    siteName: string | null
+    siteNumber: string
+    siteType: string
+}
+
+export type ReservationForTimelineGrouping = {
+    id: string
+    siteId: string
+    siteName: string
+    siteNumber: string
+    siteType: string
+    checkIn: string
+    checkOut: string
+}
+
+export type SiteGroup<TReservation extends ReservationForTimelineGrouping = ReservationForTimelineGrouping> = {
+    siteId: string
+    siteName: string
+    siteNumber: string
+    siteType: string
+    reservations: TReservation[]
 }
 
 export type TimelineUnit = "day" | "week"
@@ -192,4 +272,89 @@ export function intervalsOverlap(
     end2: number
 ): boolean {
     return start1 < end2 && start2 < end1
+}
+
+/**
+ * Calculate the visible column range for a reservation within a timeline window.
+ * Returns null when the reservation does not overlap the current timeline.
+ */
+export function getReservationRangeIndices(params: {
+    unit: TimelineUnit
+    timelineStartUtc: Date
+    columnsCount: number
+    reservation: HasCheckDates
+}): { startIndex: number; endIndexExclusive: number } | null {
+    const { unit, timelineStartUtc, columnsCount, reservation } = params
+
+    const checkInUtc = parseYmdToUtcMidnight(reservation.checkIn)
+    const checkOutUtc = parseYmdToUtcMidnight(reservation.checkOut)
+
+    const offsetStartDays = diffDaysUtc(timelineStartUtc, checkInUtc)
+    const offsetEndDays = diffDaysUtc(timelineStartUtc, checkOutUtc)
+
+    let startIndex = offsetStartDays
+    let endIndexExclusive = offsetEndDays
+
+    if (unit === "week") {
+        startIndex = Math.floor(offsetStartDays / DAYS_PER_WEEK)
+        endIndexExclusive = Math.ceil(offsetEndDays / DAYS_PER_WEEK)
+    }
+
+    if (endIndexExclusive <= 0 || startIndex >= columnsCount) {
+        return null
+    }
+
+    const clampedStart = Math.max(0, startIndex)
+    const clampedEnd = Math.min(columnsCount, endIndexExclusive)
+
+    if (clampedEnd <= clampedStart) {
+        return null
+    }
+
+    return { startIndex: clampedStart, endIndexExclusive: clampedEnd }
+}
+
+/**
+ * Group reservations by site, including empty sites as drop targets.
+ */
+export function groupReservationsBySite<TReservation extends ReservationForTimelineGrouping>(
+    reservations: TReservation[],
+    sites: TimelineSite[]
+): SiteGroup<TReservation>[] {
+    const map = new Map<string, SiteGroup<TReservation>>()
+
+    for (const site of sites) {
+        map.set(site.id, {
+            siteId: site.id,
+            siteName: site.siteName ?? (site.siteNumber ? `Site ${site.siteNumber}` : "Unnamed site"),
+            siteNumber: site.siteNumber,
+            siteType: site.siteType,
+            reservations: [],
+        })
+    }
+
+    for (const reservation of reservations) {
+        const existing = map.get(reservation.siteId)
+        if (!existing) {
+            map.set(reservation.siteId, {
+                siteId: reservation.siteId,
+                siteName: reservation.siteName,
+                siteNumber: reservation.siteNumber,
+                siteType: reservation.siteType,
+                reservations: [reservation],
+            })
+            continue
+        }
+        existing.reservations.push(reservation)
+    }
+
+    const groups = Array.from(map.values())
+    groups.sort((a, b) => {
+        const aNum = Number.parseInt(a.siteNumber, 10)
+        const bNum = Number.parseInt(b.siteNumber, 10)
+        if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aNum !== bNum) return aNum - bNum
+        return a.siteName.localeCompare(b.siteName)
+    })
+
+    return groups
 }

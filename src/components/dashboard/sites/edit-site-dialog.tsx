@@ -113,16 +113,14 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
             Update site information, pricing, and amenities
           </DialogDescription>
         </DialogHeader>
-        <div className="py-2 sm:py-3">
-          <SiteForm
-            propertyId={currentSite?.property_id}
-            site={currentSite}
-            propertyDefaults={propertyDefaults}
-            siteTypeConfig={siteTypeConfig}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-        </div>
+        <SiteForm
+          propertyId={currentSite?.property_id}
+          site={currentSite}
+          propertyDefaults={propertyDefaults}
+          siteTypeConfig={siteTypeConfig}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
       </DialogContent>
     </Dialog>
   )

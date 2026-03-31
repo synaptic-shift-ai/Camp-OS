@@ -148,19 +148,20 @@ async function CurrentlyCheckedIn({
       </CardHeader>
       <CardContent>
         {currentlyCheckedIn.length > 0 ? (
-          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-2 grid grid-cols-3 gap-2 md:mb-4 md:grid-cols-4">
             {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
               return (
                 <Link
                   key={type}
                   href={`/dashboard/${propertyId}/reservations?siteType=${type}`}
-                  className="w-full cursor-pointer rounded-lg border bg-muted/50 px-3 py-2 text-center transition-colors hover:bg-muted"
+                  className="flex min-h-16 w-full cursor-pointer flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-1.5 text-center transition-colors hover:bg-muted md:min-h-20 md:px-3 md:py-2"
                 >
-                  <p className="text-base text-muted-foreground sm:text-lg">
-                    {siteTypeLabels[type]} Site
+                  <p className="text-sm leading-tight text-muted-foreground md:text-base">
+                    <span className="md:hidden">{siteTypeLabels[type]}</span>
+                    <span className="hidden md:inline">{siteTypeLabels[type]} Site</span>
                   </p>
-                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-xl font-bold leading-none md:text-2xl">{count}</p>
                 </Link>
               )
             })}

@@ -451,8 +451,22 @@ export function BlackoutDatesPicker({
   openPeriodUntil,
 }: BlackoutDatesPickerProps) {
   const [open, setOpen] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
+  const unmountTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [draftRange, setDraftRange] = React.useState<DateRangeValue>(undefined)
+
+  React.useEffect(() => {
+    if (unmountTimerRef.current) clearTimeout(unmountTimerRef.current)
+    if (open) {
+      setMounted(true)
+    } else {
+      unmountTimerRef.current = setTimeout(() => setMounted(false), 200)
+    }
+    return () => {
+      if (unmountTimerRef.current) clearTimeout(unmountTimerRef.current)
+    }
+  }, [open])
 
   React.useEffect(() => {
     if (!open) return
@@ -550,69 +564,71 @@ export function BlackoutDatesPicker({
         )}
       </button>
 
-      <div
-        className={cn(
-          'absolute left-0 top-full z-50 mt-1.5',
-          /* Cap width so day cells stay ~32–36px; w-full was stretching the grid to full card width */
-          'w-[min(17rem,calc(100vw-2rem))]',
-          'rounded-2xl border shadow-lg',
-          isDashboard
-            ? 'bg-popover text-popover-foreground border-border'
-            : 'bg-white border-[#e2e8f0] shadow-2xl shadow-black/10 dark:bg-popover dark:text-popover-foreground dark:border-border',
-          'origin-top transition-all duration-200',
-          open ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-95 opacity-0 pointer-events-none',
-        )}
-      >
-        <div className="px-2.5 pt-2 pb-1.5">
-          <StyledCalendar
-            variant={variant}
-            mode="range"
-            selected={draftRange}
-            onSelect={(range) => setDraftRange(range)}
-            modifiers={{ blackout_selected: selectedDates }}
-            disabled={blackoutDisabledFn}
-            defaultMonth={draftRange?.from ?? selectedDates[0] ?? new Date()}
-            numberOfMonths={numberOfMonths}
-            weekStartsOn={1}
-            className="text-[0.8125rem]"
-          />
-        </div>
-
+      {mounted && (
         <div
           className={cn(
-            'flex items-center justify-between border-t px-2.5 py-2',
-            isDashboard ? 'border-border' : 'border-[#e2e8f0] dark:border-border',
+            'absolute left-0 top-full z-50 mt-1.5',
+            /* Cap width so day cells stay ~32–36px; w-full was stretching the grid to full card width */
+            'w-[min(17rem,calc(100vw-2rem))]',
+            'rounded-2xl border shadow-lg',
+            isDashboard
+              ? 'bg-popover text-popover-foreground border-border'
+              : 'bg-white border-[#e2e8f0] shadow-2xl shadow-black/10 dark:bg-popover dark:text-popover-foreground dark:border-border',
+            'origin-top transition-all duration-200',
+            open ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-95 opacity-0 pointer-events-none',
           )}
         >
-          <button
-            type="button"
-            onClick={() => {
-              onChange([])
-              setDraftRange(undefined)
-            }}
-            className="text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
-          >
-            Clear dates
-          </button>
-          <button
-            type="button"
-            disabled={!hasDraftRange}
-            onClick={applyDraftRange}
+          <div className="px-2.5 pt-2 pb-1.5">
+            <StyledCalendar
+              variant={variant}
+              mode="range"
+              selected={draftRange}
+              onSelect={(range) => setDraftRange(range)}
+              modifiers={{ blackout_selected: selectedDates }}
+              disabled={blackoutDisabledFn}
+              defaultMonth={draftRange?.from ?? selectedDates[0] ?? new Date()}
+              numberOfMonths={numberOfMonths}
+              weekStartsOn={1}
+              className="text-[0.8125rem]"
+            />
+          </div>
+
+          <div
             className={cn(
-              'rounded-xl px-5 py-1.5 text-xs font-bold transition-all',
-              isDashboard
-                ? hasDraftRange
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
-                  : 'bg-primary/30 text-primary-foreground cursor-not-allowed'
-                : hasDraftRange
-                  ? 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm'
-                  : 'text-white bg-[#2D5A27]/30 dark:bg-emerald-800/40 cursor-not-allowed',
+              'flex items-center justify-between border-t px-2.5 py-2',
+              isDashboard ? 'border-border' : 'border-[#e2e8f0] dark:border-border',
             )}
           >
-            Confirm
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                onChange([])
+                setDraftRange(undefined)
+              }}
+              className="text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
+            >
+              Clear dates
+            </button>
+            <button
+              type="button"
+              disabled={!hasDraftRange}
+              onClick={applyDraftRange}
+              className={cn(
+                'rounded-xl px-5 py-1.5 text-xs font-bold transition-all',
+                isDashboard
+                  ? hasDraftRange
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
+                    : 'bg-primary/30 text-primary-foreground cursor-not-allowed'
+                  : hasDraftRange
+                    ? 'text-white bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 active:scale-95 shadow-sm'
+                    : 'text-white bg-[#2D5A27]/30 dark:bg-emerald-800/40 cursor-not-allowed',
+              )}
+            >
+              Confirm
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

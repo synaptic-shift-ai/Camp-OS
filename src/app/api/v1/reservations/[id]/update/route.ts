@@ -42,6 +42,7 @@ export async function PATCH(
       num_children,
       num_pets,
       special_requests,
+      site_id,
     } = body
 
     // Validate required fields
@@ -118,10 +119,28 @@ export async function PATCH(
       })
     }
 
+    const targetSiteId = typeof site_id === 'string' && site_id.length > 0 ? site_id : reservation.site_id
+
+    if (targetSiteId !== reservation.site_id) {
+      const { data: targetSite, error: targetSiteError } = await supabase
+        .from('sites')
+        .select('id')
+        .eq('id', targetSiteId)
+        .eq('property_id', reservation.sites.property_id)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (targetSiteError || !targetSite) {
+        return error(ErrorCodes.VAL_001, request, {
+          message: 'Target site is invalid for this property',
+        })
+      }
+    }
+
     const { data: conflicts, error: conflictsError } = await supabase
       .from('reservations')
       .select('id')
-      .eq('site_id', reservation.site_id)
+      .eq('site_id', targetSiteId)
       .neq('id', reservationId)
       .in('status', ['confirmed', 'checked_in', 'pending'])
       .lt('check_in_date', check_out_date)
@@ -145,6 +164,7 @@ export async function PATCH(
       .update({
         check_in_date: check_in_date,
         check_out_date: check_out_date,
+        site_id: targetSiteId,
         // num_nights: numNights,
         num_adults: num_adults,
         num_children: num_children || 0,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { MoneyCents, ReservationStatus } from '@/contracts/booking'
 import type { DashboardGuest, DashboardReservation } from '@/lib/dashboard/queries'
+import type { BookingRulesConfig, RateDiscountsConfig } from '@/lib/config/types'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import {
   VisaFlatRoundedIcon,
 } from 'react-svg-credit-card-payment-icons'
 import { cn } from '@/lib/utils'
+import { ReservationActions } from '@/components/admin/reservation-actions'
 
 const statusTextColors: Record<ReservationStatus, string> = {
   pending: 'text-yellow-600',
@@ -85,6 +87,10 @@ export type ReservationDetailDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   reservation: DashboardReservation | null
+  rateDiscountsConfig?: RateDiscountsConfig | null | undefined
+  bookingRulesConfig?: BookingRulesConfig | null | undefined
+  checkInTime?: string | null
+  checkOutTime?: string | null
   /** When omitted, Primary Guest is static (no navigation). */
   onPrimaryGuestClick?: (guest: DashboardGuest) => void
   overlayClassName?: string
@@ -95,6 +101,10 @@ export function ReservationDetailDialog({
   open,
   onOpenChange,
   reservation,
+  rateDiscountsConfig,
+  bookingRulesConfig,
+  checkInTime,
+  checkOutTime,
   onPrimaryGuestClick,
   overlayClassName,
   contentClassName,
@@ -157,7 +167,42 @@ export function ReservationDetailDialog({
         {reservation && (
           <>
             <DialogHeader>
-              <DialogTitle>Reservation {reservation.confirmationNumber}</DialogTitle>
+              <div className="flex items-center gap-2 pr-10">
+                <DialogTitle className="shrink-0">Reservation {reservation.confirmationNumber}</DialogTitle>
+                <ReservationActions
+                  reservationId={reservation.id}
+                  confirmationNumber={reservation.confirmationNumber}
+                  guestName={reservation.guestName}
+                  status={reservation.status}
+                  checkIn={reservation.checkIn}
+                  checkOut={reservation.checkOut}
+                  numAdults={reservation.numAdults}
+                  numChildren={reservation.numChildren}
+                  numPets={reservation.numPets}
+                  specialRequests={reservation.specialRequests}
+                  siteNumber={reservation.siteNumber}
+                  siteName={reservation.siteName}
+                  pricePerNight={reservation.pricePerNight}
+                  weeklyRateCents={reservation.weeklyRateCents ?? null}
+                  monthlyRateCents={reservation.monthlyRateCents ?? null}
+                  bookingType={reservation.bookingType}
+                  totalAmount={reservation.totalAmount}
+                  paidAmount={reservation.paidAmount}
+                  hasOutstandingBalance={Math.max(0, reservation.totalAmount - reservation.paidAmount) > 0}
+                  canRefund={
+                    reservation.status === 'cancelled' &&
+                    reservation.paidAmount > 0 &&
+                    reservation.refundAmount < reservation.paidAmount
+                  }
+                  maxRefundableCents={Math.max(0, reservation.paidAmount - reservation.refundAmount)}
+                  rateDiscountsConfig={rateDiscountsConfig}
+                  blackoutDates={bookingRulesConfig?.blackout_dates ?? []}
+                  allowedCheckInDays={bookingRulesConfig?.allowed_checkin_days ?? []}
+                  allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
+                  checkInTime={checkInTime}
+                  checkOutTime={checkOutTime}
+                />
+              </div>
               <DialogDescription className="capitalize">
                 Detailed information for {reservation.guestName}
               </DialogDescription>

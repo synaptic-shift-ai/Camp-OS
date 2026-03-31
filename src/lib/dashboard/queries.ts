@@ -90,6 +90,7 @@ export interface DashboardReservation {
   siteId: string
   siteName: string
   siteNumber: string
+  siteType: string
   pricePerNight: MoneyCents
   weeklyRateCents: number | null
   monthlyRateCents: number | null
@@ -327,6 +328,7 @@ export async function getReservations(
       siteId: reservation.site_id!,
       siteName,
       siteNumber,
+      siteType: site?.site_type ?? 'other',
       pricePerNight: rates.pricePerNight,
       weeklyRateCents: rates.weeklyRateCents,
       monthlyRateCents: rates.monthlyRateCents,
@@ -449,6 +451,7 @@ export async function getReservation(
       sites (
         site_name,
         site_number,
+        site_type,
         base_price,
         weekly_rate_cents,
         monthly_rate_cents,
@@ -491,6 +494,7 @@ export async function getReservation(
     siteId: data.site_id!,
     siteName: site.site_name || `Site ${site.site_number}`,
     siteNumber: site.site_number,
+    siteType: site.site_type ?? 'other',
     pricePerNight: rates.pricePerNight,
     weeklyRateCents: rates.weeklyRateCents,
     monthlyRateCents: rates.monthlyRateCents,

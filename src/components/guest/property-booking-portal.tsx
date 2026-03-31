@@ -275,7 +275,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
         holidayNights = Math.floor((checkOut.getTime() - overlapStart.getTime()) / dayMs) + 1
       }
 
-      if (holidayNights > 0 && holidayNights < rule.min_stay_nights) {
+      if (
+        holidayNights > 0 && 
+        (holidayNights < rule.min_stay_nights || 
+          (rule.max_stay_nights != null && holidayNights > rule.max_stay_nights))
+      ) {
         return { rule, holidayNights }
       }
     }
@@ -308,7 +312,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
     toast({
       title: "Holiday stay rule",
-      description: `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
+      description:
+        holidayViolation.rule.max_stay_nights != null &&
+        holidayViolation.holidayNights > holidayViolation.rule.max_stay_nights
+          ? `The date you selected is in ${holidayViolation.rule.title} and the maximum nights of stay is ${holidayViolation.rule.max_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`
+          : `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
       variant: "destructive",
     })
   }, [dateRange, bookingRulesConfig, toast])
@@ -374,7 +382,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     if (holidayViolation) {
       toast({
         title: "Holiday stay rule",
-        description: `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
+        description:
+          holidayViolation.rule.max_stay_nights != null &&
+          holidayViolation.holidayNights > holidayViolation.rule.max_stay_nights
+            ? `The date you selected is in ${holidayViolation.rule.title} and the maximum nights of stay is ${holidayViolation.rule.max_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`
+            : `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
         variant: "destructive",
       })
       return

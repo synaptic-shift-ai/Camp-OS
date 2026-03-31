@@ -760,13 +760,13 @@ export function ReservationsTimeline({
                     </button>
                 </div>
             </div>
-            <div className="rounded-md border border-border/70 bg-background/30 px-3 py-2 text-[11px] text-muted-foreground">
+            <div className="hidden rounded-md border border-border/70 bg-background/30 px-3 py-2 text-[11px] text-muted-foreground md:block">
                 <span className="font-medium text-foreground">Timeline controls:</span>{" "}
                 Hold <span className="font-medium text-foreground">Ctrl</span> + scroll to zoom columns, hold{" "}
-                <span className="font-medium text-foreground">Shift</span> + scroll to move horizontally, and
-                timeline auto-scrolls up/down while dragging near window edges.
+                <span className="font-medium text-foreground">Shift</span> + scroll to move horizontally, press{" "}
+                <span className="font-medium text-foreground">Esc</span> to cancel drag & drop and timeline
+                auto-scrolls up/down while dragging near window edges.
             </div>
-
             {/* Desktop: single resource grid */}
             <div className="hidden md:block">
                 <div className="relative border border-border/80 bg-card/50 rounded-md">

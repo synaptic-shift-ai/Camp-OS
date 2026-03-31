@@ -52,6 +52,7 @@ function AvailabilityResultsContent() {
   const adults = Number.parseInt(searchParams.get("adults") || "2")
   const children = Number.parseInt(searchParams.get("children") || "0")
   const pets = Number.parseInt(searchParams.get("pets") || "0")
+  const shouldRestoreGuestDraft = searchParams.get("restoreGuestDraft") === "1"
   const rawSiteType = searchParams.get("siteType")
   const siteTypeFilter =
     rawSiteType === "all" || rawSiteType === "" ? null : (rawSiteType as SiteType | null)
@@ -283,7 +284,10 @@ function AvailabilityResultsContent() {
       description: `${site.name} has been added to your booking.`,
     })
 
-    router.push(`/book/${slug}/guest-info`)
+    const guestInfoPath = shouldRestoreGuestDraft
+      ? `/book/${slug}/guest-info?restoreGuestDraft=1`
+      : `/book/${slug}/guest-info`
+    router.push(guestInfoPath)
   }
 
   const displayPropertyName = propertyName || (slug ? slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ') : "")

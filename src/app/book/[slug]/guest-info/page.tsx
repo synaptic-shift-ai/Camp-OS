@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -149,10 +149,13 @@ const guestFormSchema = z.object({
 })
 
 type GuestFormData = z.infer<typeof guestFormSchema>
+const getGuestDraftStorageKey = (slug: string) => `campground-guest-draft:${slug}`
 
 export default function GuestInfoPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
+  const shouldRestoreDraft = searchParams.get("restoreGuestDraft") === "1"
   const { checkoutData, setCheckoutData, isHydrated } = useCheckout()
   const router = useRouter()
   const { toast } = useToast()
@@ -261,6 +264,25 @@ export default function GuestInfoPage() {
       agree_cancellation: false,
     },
   })
+
+  useEffect(() => {
+    if (!isHydrated || !shouldRestoreDraft || typeof window === "undefined") return
+
+    try {
+      const raw = sessionStorage.getItem(getGuestDraftStorageKey(slug))
+      if (!raw) return
+
+      const draft = JSON.parse(raw) as Partial<GuestFormData>
+      form.reset({
+        ...form.getValues(),
+        ...draft,
+        agree_terms: false,
+        agree_cancellation: false,
+      })
+    } catch {
+      console.error("Failed to restore guest draft from session storage")
+    }
+  }, [form, isHydrated, shouldRestoreDraft, slug])
 
   const onSubmit = async (data: GuestFormData) => {
     setIsSubmitting(true)
@@ -393,6 +415,12 @@ export default function GuestInfoPage() {
         description: "Proceeding to payment...",
       })
 
+      try {
+        sessionStorage.removeItem(getGuestDraftStorageKey(slug))
+      } catch {
+        console.error("Failed to remove guest draft from session storage")
+      }
+
       router.push(`/book/${slug}/payment`)
     } catch (error) {
       console.error("Error creating reservation:", error)
@@ -404,6 +432,48 @@ export default function GuestInfoPage() {
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const saveGuestDraftToCheckout = () => {
+    const values = form.getValues()
+    const guestInfo: {
+      first_name: string
+      last_name: string
+      email: string
+      phone: string
+      address?: string
+      city?: string
+      state?: string
+      zip_code?: string
+      country: string
+      emergency_contact_name?: string
+      emergency_contact_phone?: string
+    } = {
+      first_name: values.first_name || "",
+      last_name: values.last_name || "",
+      email: values.email || "",
+      phone: values.phone || "",
+      country: values.country || "United States",
+    }
+
+    if (values.address) guestInfo.address = values.address
+    if (values.city) guestInfo.city = values.city
+    if (values.state) guestInfo.state = values.state
+    if (values.zip_code) guestInfo.zip_code = values.zip_code
+    if (values.emergency_contact_name) guestInfo.emergency_contact_name = values.emergency_contact_name
+    if (values.emergency_contact_phone) guestInfo.emergency_contact_phone = values.emergency_contact_phone
+
+    setCheckoutData({
+      guestInfo,
+      numVehicles: Number(values.num_vehicles || 0),
+      specialRequests: values.special_requests || "",
+    })
+
+    try {
+      sessionStorage.setItem(getGuestDraftStorageKey(slug), JSON.stringify(values))
+    } catch {
+      console.error("Failed to save guest draft to session storage")
     }
   }
 
@@ -536,6 +606,7 @@ export default function GuestInfoPage() {
         variant="outline" 
         className="w-full bg-transparent" 
         onClick={() => {
+          saveGuestDraftToCheckout()
           const propertyId = checkoutData.propertyId
           const checkIn = checkoutData.checkInDate
           const checkOut = checkoutData.checkOutDate
@@ -552,6 +623,7 @@ export default function GuestInfoPage() {
             adults: String(checkoutData.numAdults ?? 2),
             children: String(checkoutData.numChildren ?? 0),
             pets: String(checkoutData.numPets ?? 0),
+            restoreGuestDraft: "1",
           })
           router.push(`/availability-results?${params.toString()}`)
         }}

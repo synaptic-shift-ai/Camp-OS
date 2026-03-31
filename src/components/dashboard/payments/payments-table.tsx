@@ -2,6 +2,7 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { CalendarPlus2, CreditCard } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
+import { Button } from "@/components/ui/button"
 import type { PaymentStatus } from "@/contracts/booking"
 import type { DashboardPayment } from "@/lib/dashboard/queries"
 
@@ -64,8 +66,22 @@ export function PaymentsTable({
 
   if (!payments.length) {
     return (
-      <div className="text-center py-8 text-sm text-muted-foreground">
-        No payments yet. Payments will appear here after bookings.
+      <div className="rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center min-h-[calc(100vh-14rem)] flex items-center justify-center">
+        <div>
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <CreditCard className="h-10 w-10" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground">No payments yet</h3>
+          <p className="mx-auto mt-3 max-w-xl text-base text-muted-foreground">
+            Payments will appear here after guests complete a booking or make a payment.
+          </p>
+          <div className="mt-6 flex items-center justify-center">
+            <Button size="lg" onClick={() => router.push(`/dashboard/${propertyId}`)}>
+              <CalendarPlus2 className="mr-2 h-4 w-4" />
+              Create reservation
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }

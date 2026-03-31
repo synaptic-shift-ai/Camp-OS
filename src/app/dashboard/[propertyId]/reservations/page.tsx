@@ -177,6 +177,11 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   }
 
   const { data: reservations, total } = await getReservations(propertyId, filters, effectivePage, effectivePageSize)
+  const hasActiveFilters =
+    Boolean(siteTypeFilter) ||
+    Boolean(statusFilter) ||
+    (typeof searchParam === "string" && searchParam.trim().length > 0)
+  const shouldShowFilters = total > 0 || hasActiveFilters
 
   const view: "list" | "timeline" = isTimelineView ? "timeline" : "list"
 
@@ -224,11 +229,13 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
       <div className="space-y-2">
         <ReservationsViewSwitcher view={view} listHref={listHref} timelineHref={timelineHref} />
 
-        <ReservationFiltersBar
-          propertyId={propertyId}
-          allowedSiteTypes={allowedSiteTypes ?? null}
-          siteTypesFromDb={siteTypesFromDb}
-        />
+        {shouldShowFilters && (
+          <ReservationFiltersBar
+            propertyId={propertyId}
+            allowedSiteTypes={allowedSiteTypes ?? null}
+            siteTypesFromDb={siteTypesFromDb}
+          />
+        )}
 
         {view === "timeline" ? (
           <ReservationsTimeline

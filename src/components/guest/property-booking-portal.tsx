@@ -1061,21 +1061,23 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       {/* Trust & Social Proof */}
       <section className="w-full min-w-0 overflow-x-hidden bg-gradient-to-r from-[#8FBC8F]/10 to-[#2D5A27]/10 py-12 dark:from-emerald-950/30 dark:to-emerald-950/50">
 
-        <div className="mb-8 w-full max-w-full min-w-0 overflow-hidden bg-card p-4 shadow-sm">
-          <Marquee speed={80} gradient={false} pauseOnHover>
-            <div className="flex animate-marquee items-center justify-center space-x-8 text-sm">
-              {recentBookings.map((booking, index) => (
-                <div key={index} className="flex items-center space-x-2 whitespace-nowrap text-foreground/90">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-green-500 dark:bg-emerald-500" />
-                  <span className="font-medium">{booking.name}</span>
-                  {/* <span>from {booking.siteType}</span> */}
-                  <span>booked a {booking.siteType} Site for {booking.numberOfNights} nights</span>
-                  <span className="text-muted-foreground">{booking.timeAgo}</span>
-                </div>
-              ))}
-            </div>
-          </Marquee>
-        </div>
+        {recentBookings.length > 0 && (
+          <div className="mb-8 w-full max-w-full min-w-0 overflow-hidden bg-card p-4 shadow-sm">
+            <Marquee speed={80} gradient={false} pauseOnHover>
+              <div className="flex animate-marquee items-center justify-center space-x-8 text-sm">
+                {recentBookings.map((booking, index) => (
+                  <div key={index} className="flex items-center space-x-2 whitespace-nowrap text-foreground/90">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-green-500 dark:bg-emerald-500" />
+                    <span className="font-medium">{booking.name}</span>
+                    {/* <span>from {booking.siteType}</span> */}
+                    <span>booked a {booking.siteType} Site for {booking.numberOfNights} nights</span>
+                    <span className="text-muted-foreground">{booking.timeAgo}</span>
+                  </div>
+                ))}
+              </div>
+            </Marquee>
+          </div>
+        )}
 
         <div className="container mx-auto px-4 w-full max-w-full min-w-0">
           {/* Trust Statistics */}

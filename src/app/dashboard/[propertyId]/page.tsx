@@ -138,10 +138,12 @@ async function CurrentlyCheckedIn({
     <Card>
       <CardHeader>
         <CardTitle className="text-xl font-semibold sm:text-2xl">Currently Checked In</CardTitle>
-        {currentlyCheckedIn.length > 0 && (
+        {currentlyCheckedIn.length > 0 ? (
           <CardDescription>
             {currentlyCheckedIn.length} guest{currentlyCheckedIn.length !== 1 ? "s" : ""} checked in
           </CardDescription>
+        ) : (
+          <CardDescription>No guests currently checked in</CardDescription>
         )}
       </CardHeader>
       <CardContent>
@@ -164,7 +166,11 @@ async function CurrentlyCheckedIn({
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">No guests checked in today</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <Users className="mb-3 h-12 w-12 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">No guests currently checked in</p>
+            <p className="mt-1 text-xs text-muted-foreground">New check-ins will appear here once they arrive.</p>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -201,10 +207,15 @@ async function TodaysArrivalsAndDepartures({
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-semibold sm:text-2xl">Departures</CardTitle>
+            <CardDescription>Guests checking out today</CardDescription>
           </CardHeader>
           <CardContent>
             {departures.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No guests departing today</p>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Calendar className="mb-3 h-12 w-12 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No departures scheduled for today</p>
+                <p className="mt-1 text-xs text-muted-foreground">Looks like everyone is staying another night.</p>
+              </div>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {departures.map((reservation) => {
@@ -277,7 +288,11 @@ async function RecentReservations({
       </CardHeader>
       <CardContent>
         {recentReservations.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No reservations yet</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <Calendar className="mb-3 h-12 w-12 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">No reservations yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">New bookings will appear here as guests reserve.</p>
+          </div>
         ) : (
           <div className="max-h-96 overflow-y-auto">
             <div className="space-y-4">

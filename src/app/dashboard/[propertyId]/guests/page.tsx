@@ -79,6 +79,7 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
     currentPage,
     pageSize
   )
+  const shouldShowFilters = total > 0
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -91,11 +92,13 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
       />
 
       <div className="space-y-2">
-        <GuestFilters
-          propertyId={propertyId}
-          siteTypes={siteTypesFromDb}
-          allowedSiteTypes={allowedSiteTypes}
-        />
+        {shouldShowFilters && (
+          <GuestFilters
+            propertyId={propertyId}
+            siteTypes={siteTypesFromDb}
+            allowedSiteTypes={allowedSiteTypes}
+          />
+        )}
         <GuestsTable
           propertyId={propertyId}
           guests={guests}

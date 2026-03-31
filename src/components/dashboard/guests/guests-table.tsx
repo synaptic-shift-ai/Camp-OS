@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowDown, ArrowUp, ArrowUpDown, Mail, Phone } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarPlus2, Mail, Phone, Users } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Table,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
+import { Button } from "@/components/ui/button"
 import { GuestActions } from "./guest-actions"
 import { GuestReservationsSheet } from "./guest-reservations-sheet"
 import type { DashboardGuest } from "@/lib/dashboard/queries"
@@ -64,10 +65,24 @@ export function GuestsTable({
 
   if (!guests.length) {
     return (
-      <div className="text-center py-8 text-sm text-muted-foreground">
-        {searchQuery
-          ? "No guests found matching your search."
-          : "No guests yet. Your first reservation will appear here!"}
+      <div className="rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center min-h-[calc(100vh-14rem)] flex items-center justify-center">
+        <div>
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Users className="h-10 w-10" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground">
+            No guests yet
+          </h3>
+          <p className="mx-auto mt-3 max-w-xl text-base text-muted-foreground">
+              Guest profiles will appear here as soon as reservations are created.
+          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button size="lg" onClick={() => router.push(`/dashboard/${propertyId}`)}>
+              <CalendarPlus2 className="mr-2 h-4 w-4" />
+              Create reservation
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }

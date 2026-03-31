@@ -98,6 +98,17 @@ class MockPropertyRepository implements IPropertyRepository {
     );
   }
 
+  async insertBookingPageSlugAlias(_propertyId: string, _bookingPageSlug: string): Promise<void> {}
+
+  async bookingPageSlugExistsForOtherProperty(
+    bookingPageSlug: string,
+    excludePropertyId: string
+  ): Promise<boolean> {
+    return Array.from(this.properties.values()).some(
+      (p) => p.bookingPageSlug === bookingPageSlug && p.id !== excludePropertyId
+    )
+  }
+
   async delete(id: string): Promise<void> {
     this.properties.delete(id)
   }

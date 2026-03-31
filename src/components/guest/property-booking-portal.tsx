@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/accordion"
 import Marquee from "react-fast-marquee"
 import { GuestCancellationPolicyText } from "@/components/guest/guest-cancellation-policy-text"
+import { PropertyAmenitiesDetailsDialog } from "@/components/guest/property-amenities-details-dialog"
 import { FileText } from "lucide-react"
 import {
   openPeriodRestrictsBookings,
@@ -566,6 +567,16 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     { icon: "📞", text: "24/7 Support" },
     { icon: "✅", text: "Instant Confirmation" },
   ]
+
+  const aboutText =
+    (typeof property.description === "string" && property.description.trim().length > 0
+      ? property.description.trim()
+      : "Welcome to our beautiful campground! We offer a perfect blend of nature and comfort, with modern amenities and stunning natural surroundings. Whether you're looking for a peaceful retreat or an adventure-filled getaway, we have everything you need for an unforgettable camping experience.").trim()
+
+  const aboutParagraphs = aboutText
+    .split(/\n\s*\n/g)
+    .map((p) => p.trim())
+    .filter(Boolean)
 
   return (
     <div className="min-h-screen w-full min-w-0 max-w-full bg-background text-foreground">
@@ -1129,7 +1140,18 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     )}
                   </div>
                   <h3 className={cn("mb-1.5 line-clamp-1 text-base font-semibold leading-tight", "text-[#2D5A27] dark:text-emerald-400")}>{amenity.name}</h3>
-                  <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">{amenity.description}</p>
+                  <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">{amenity.description}</p>
+                  <PropertyAmenitiesDetailsDialog
+                    amenity={{ name: amenity.name, description: amenity.description, iconUrl: amenity.iconUrl }}
+                  >
+                    <button
+                      type="button"
+                      className="mt-3 text-sm font-medium text-[#2D5A27] underline underline-offset-2 hover:text-[#1e3d1a] dark:text-emerald-400 dark:hover:text-emerald-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      See details
+                    </button>
+                  </PropertyAmenitiesDetailsDialog>
                 </div>
               )
             })}
@@ -1174,10 +1196,13 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
             <div>
               <h2 className={cn("mb-6 text-3xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>About {property.name}</h2>
-              <p className="mb-6 leading-relaxed text-foreground/90">
-                {property.description ||
-                  "Welcome to our beautiful campground! We offer a perfect blend of nature and comfort, with modern amenities and stunning natural surroundings. Whether you're looking for a peaceful retreat or an adventure-filled getaway, we have everything you need for an unforgettable camping experience."}
-              </p>
+              <div className="max-w-prose space-y-4 text-foreground/90">
+                {aboutParagraphs.map((paragraph, index) => (
+                  <p key={index} className="leading-relaxed [text-wrap:pretty] whitespace-pre-line">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
             </div>
 
             <div>

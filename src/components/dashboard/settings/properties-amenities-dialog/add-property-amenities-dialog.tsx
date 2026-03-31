@@ -66,15 +66,13 @@ export function AddPropertyAmenitiesDialog({
 
   const canSave = name.length > 0
 
-  // const existingSet = useMemo(() => {
-  //   return new Set(
-  //       existingPropertyAmenityNames.map((n) => n.trim().toLowerCase()).filter(Boolean),
-  //   )
-  // }, [existingPropertyAmenityNames])
+  const existingSet = useMemo(() => {
+    return new Set(existingPropertyAmenityNames.map((n) => n.trim().toLowerCase()).filter(Boolean))
+  }, [existingPropertyAmenityNames])
 
-  // const filteredPresets = propertyAmenityPresets.filter(
-  //   (p) => !existingSet.has(p.toLowerCase())
-  // )
+  const filteredPresets = useMemo(() => {
+    return propertyAmenityPresets.filter((p) => !existingSet.has(p.trim().toLowerCase()))
+  }, [existingSet])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,7 +93,7 @@ export function AddPropertyAmenitiesDialog({
                 <SelectValue placeholder="Select a property amenity" />
               </SelectTrigger>
               <SelectContent>
-                {propertyAmenityPresets.map((option) => (
+                {filteredPresets.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
@@ -140,6 +138,18 @@ export function AddPropertyAmenitiesDialog({
               placeholder="https://example.com/icon.svg (optional)"
               className="bg-card/50"
             />
+            <span className="text-sm text-muted-foreground">
+              Need an SVG icon? Browse icons at{' '}
+              <a
+                href="https://icones.js.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                icones.js.org
+              </a>
+              .
+            </span>
           </div>
         </div>
 

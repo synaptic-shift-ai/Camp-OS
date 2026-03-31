@@ -556,9 +556,18 @@ export class Property extends AggregateRoot<string> {
   updateBranding(updates: {
     subdomain?: string | null | undefined
     bookingPageSlug?: string | null | undefined
+    slug?: string | undefined
     heroImageUrl?: string | null | undefined
     galleryImages?: string[] | null | undefined
   }): void {
+    if (updates.slug !== undefined) {
+      const normalized = updates.slug.trim().toLowerCase()
+      const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+      if (!slugRegex.test(normalized)) {
+        throw new Error('Property slug must be URL-safe (lowercase letters, numbers, and hyphens only)')
+      }
+      this.props.slug = normalized
+    }
     if (updates.subdomain !== undefined) {
       this.props.subdomain = updates.subdomain
     }

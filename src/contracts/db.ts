@@ -1113,6 +1113,35 @@ export type Database = {
           },
         ]
       }
+      property_booking_slug_aliases: {
+        Row: {
+          booking_page_slug: string
+          created_at: string
+          id: string
+          property_id: string
+        }
+        Insert: {
+          booking_page_slug: string
+          created_at?: string
+          id?: string
+          property_id: string
+        }
+        Update: {
+          booking_page_slug?: string
+          created_at?: string
+          id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_booking_slug_aliases_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_seasonal_periods: {
         Row: {
           base_rate_cents: number

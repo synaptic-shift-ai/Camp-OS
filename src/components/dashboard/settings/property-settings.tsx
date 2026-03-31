@@ -338,6 +338,7 @@ export function PropertySettings({
                 id="description"
                 {...register('description')}
                 placeholder="Describe your property"
+                className="min-h-40"
               />
             </div>
 

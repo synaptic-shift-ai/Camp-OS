@@ -8,6 +8,7 @@ import type { Property } from '../../domain/Property'
 import { type PropertyType } from '../../domain/PropertyType'
 import { type PropertySettings } from '../../domain/PropertySettings'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { generateBookingSlug } from '@/lib/booking/slug-utils'
 
 export type PropertyAmenity = {
   id: string
@@ -57,6 +58,24 @@ export class UpdatePropertyCommandHandler {
       throw new Error(`Property with id '${dto.id}' not found`)
     }
 
+    let nameChangeSlugs: { nextSlug: string; previousBookingSlug: string | null } | null = null
+    if (dto.name !== undefined) {
+      const nextName = dto.name.trim()
+      if (nextName !== property.name) {
+        const nextSlug = generateBookingSlug(nextName, property.id)
+        if (await this.repository.slugExistsForOtherProperty(nextSlug, dto.id)) {
+          throw new Error(`Property slug '${nextSlug}' is already in use`)
+        }
+        if (await this.repository.bookingPageSlugExistsForOtherProperty(nextSlug, dto.id)) {
+          throw new Error(`Booking page slug '${nextSlug}' is already in use`)
+        }
+        nameChangeSlugs = {
+          nextSlug,
+          previousBookingSlug: property.bookingPageSlug,
+        }
+      }
+    }
+
     // Update basic details
     if (
       dto.name !== undefined ||
@@ -78,6 +97,13 @@ export class UpdatePropertyCommandHandler {
       })
     }
 
+    if (nameChangeSlugs) {
+      property.updateBranding({
+        slug: nameChangeSlugs.nextSlug,
+        bookingPageSlug: nameChangeSlugs.nextSlug,
+      })
+    }
+
     // Update location
     if (
       dto.address !== undefined ||
@@ -95,19 +121,31 @@ export class UpdatePropertyCommandHandler {
       })
     }
 
-    // Update branding
+    // Update branding (bookingPageSlug from client is ignored when name-driven slug rename ran)
     if (
       dto.subdomain !== undefined ||
       dto.bookingPageSlug !== undefined ||
       dto.heroImageUrl !== undefined ||
       dto.galleryImages !== undefined
     ) {
-      property.updateBranding({
-        ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
-        ...(dto.bookingPageSlug !== undefined && { bookingPageSlug: dto.bookingPageSlug }),
-        ...(dto.heroImageUrl !== undefined && { heroImageUrl: dto.heroImageUrl }),
-        ...(dto.galleryImages !== undefined && { galleryImages: dto.galleryImages }),
-      })
+      if (!nameChangeSlugs) {
+        property.updateBranding({
+          ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
+          ...(dto.bookingPageSlug !== undefined && { bookingPageSlug: dto.bookingPageSlug }),
+          ...(dto.heroImageUrl !== undefined && { heroImageUrl: dto.heroImageUrl }),
+          ...(dto.galleryImages !== undefined && { galleryImages: dto.galleryImages }),
+        })
+      } else if (
+        dto.subdomain !== undefined ||
+        dto.heroImageUrl !== undefined ||
+        dto.galleryImages !== undefined
+      ) {
+        property.updateBranding({
+          ...(dto.subdomain !== undefined && { subdomain: dto.subdomain }),
+          ...(dto.heroImageUrl !== undefined && { heroImageUrl: dto.heroImageUrl }),
+          ...(dto.galleryImages !== undefined && { galleryImages: dto.galleryImages }),
+        })
+      }
     }
 
     // Update settings
@@ -146,6 +184,13 @@ export class UpdatePropertyCommandHandler {
 
     // Save to database
     await this.repository.save(property, Object.keys(columnOverrides).length > 0 ? columnOverrides : undefined)
+
+    if (nameChangeSlugs) {
+      const { previousBookingSlug, nextSlug } = nameChangeSlugs
+      if (previousBookingSlug && previousBookingSlug !== nextSlug) {
+        await this.repository.insertBookingPageSlugAlias(dto.id, previousBookingSlug)
+      }
+    }
 
     // Publish domain events
     const eventBus = getEventBus()

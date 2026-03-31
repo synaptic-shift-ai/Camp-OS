@@ -63,6 +63,16 @@ export interface IPropertyRepository {
    */
   save(property: Property, columnOverrides?: Record<string, unknown>): Promise<void>
 
+  insertBookingPageSlugAlias(propertyId: string, bookingPageSlug: string): Promise<void>
+
+  /**
+   * True if another property already uses this booking_page_slug (for updates).
+  */
+  bookingPageSlugExistsForOtherProperty(
+    bookingPageSlug: string,
+    excludePropertyId: string
+  ): Promise<boolean>
+
   /**
    * Delete a property
    */

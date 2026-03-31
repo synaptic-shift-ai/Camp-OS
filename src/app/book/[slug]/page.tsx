@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { extractPropertyIdFromSlug } from "@/lib/booking/slug-utils"
 import { PropertyBookingPortal } from "@/components/guest/property-booking-portal"
@@ -69,8 +69,27 @@ export default async function PropertyBookingPage({
     .eq("onboarding_completed", true)
     .single()
 
-  // Handle not found or unpublished properties
+  // Handle not found or unpublished properties — try historical booking slug alias
   if (error || !property) {
+    const { data: aliasRow } = await supabase
+      .from("property_booking_slug_aliases")
+      .select("property_id")
+      .eq("booking_page_slug", slug)
+      .maybeSingle()
+
+    if (aliasRow?.property_id) {
+      const { data: redirected } = await supabase
+        .from("properties")
+        .select("booking_page_slug")
+        .eq("id", aliasRow.property_id)
+        .eq("onboarding_completed", true)
+        .maybeSingle()
+
+      if (redirected?.booking_page_slug) {
+        redirect(`/book/${redirected.booking_page_slug}`)
+      }
+    }
+
     console.error("[Booking] Property not found or not published:", slug, error)
     notFound()
   }

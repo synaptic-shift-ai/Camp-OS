@@ -180,6 +180,31 @@ export class SupabasePropertyRepository implements IPropertyRepository {
     }
   }
 
+  async insertBookingPageSlugAlias(propertyId: string, bookingPageSlug: string): Promise<void> {
+    const { error } = await this.getClient()
+      .from('property_booking_slug_aliases')
+      .insert({ property_id: propertyId, booking_page_slug: bookingPageSlug })
+    if (error) {
+      if (error.code === '23505') return
+      throw new Error(`Failed to insert booking slug alias: ${error.message}`)
+    }
+  }
+
+  async bookingPageSlugExistsForOtherProperty(
+    bookingPageSlug: string,
+    excludePropertyId: string
+  ): Promise<boolean> {
+    const { data, error } = await this.getClient()
+      .from('properties')
+      .select('id')
+      .eq('booking_page_slug', bookingPageSlug)
+      .neq('id', excludePropertyId)
+      .limit(1)
+      .maybeSingle()
+
+    return !error && data !== null
+  }
+
   async delete(id: string): Promise<void> {
     // Soft delete by setting status to INACTIVE
     // Hard delete would break referential integrity with sites, reservations, etc.

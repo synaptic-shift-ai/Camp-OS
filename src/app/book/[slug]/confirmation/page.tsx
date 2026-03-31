@@ -302,7 +302,11 @@ export default function ConfirmationPage() {
         </div>
       )}
 
-      <BookingPortalHeader propertyName={displayPropertyName} subtitle="Booking Confirmed" />
+      <BookingPortalHeader
+        propertyName={displayPropertyName}
+        subtitle="Booking Confirmed"
+        backHref={`/book/${slug}`}
+      />
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">

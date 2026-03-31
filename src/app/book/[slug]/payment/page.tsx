@@ -553,7 +553,11 @@ export default function PaymentPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background text-foreground dark:from-muted/20">
-      <BookingPortalHeader propertyName={displayPropertyName} subtitle="Secure Booking Portal" />
+      <BookingPortalHeader
+        propertyName={displayPropertyName}
+        subtitle="Secure Booking Portal"
+        backHref={`/book/${slug}`}
+      />
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 sm:mb-6">

@@ -8,9 +8,14 @@ import { cn } from "@/lib/utils"
 type BookingPortalHeaderProps = {
   propertyName: string
   subtitle: string
+  backHref?: string
 }
 
-export function BookingPortalHeader({ propertyName, subtitle }: BookingPortalHeaderProps) {
+export function BookingPortalHeader({
+  propertyName,
+  subtitle,
+  backHref = "/",
+}: BookingPortalHeaderProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
       <div className="container mx-auto px-4 py-4">
@@ -32,7 +37,7 @@ export function BookingPortalHeader({ propertyName, subtitle }: BookingPortalHea
             </div>
           </div>
           <Button variant="ghost" asChild>
-            <Link href="/">Back to Home</Link>
+            <Link href={backHref}>Back to Home</Link>
           </Button>
         </div>
       </div>

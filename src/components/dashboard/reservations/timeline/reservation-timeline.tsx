@@ -22,7 +22,6 @@ import { useToast } from "@/hooks/use-toast"
 import {
     formatUtcDateLabel,
     formatUtcDayNumber,
-    formatUtcMonthLabel,
     formatUtcMonthShort,
     formatUtcYmd,
 } from "@/lib/utils"

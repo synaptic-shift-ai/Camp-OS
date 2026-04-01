@@ -472,6 +472,12 @@ export interface BookingRulesConfig {
    * @default []
    */
   holiday_rules: HolidayRule[]
+
+  /**
+   * How long a pending reservation is held before it expires
+   * @default 1 minutes
+   */
+  checkout_hold_minutes: number
 }
 
 // =====================================================
@@ -1085,6 +1091,7 @@ export const DEFAULT_BOOKING_RULES_CONFIG: BookingRulesConfig = {
   same_day_booking_enabled: true,
   instant_booking_enabled: true,
   holiday_rules: [],
+  checkout_hold_minutes: 1,
 }
 
 /**

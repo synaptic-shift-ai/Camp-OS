@@ -31,6 +31,7 @@ import {
   parseReservationTypesConfigFromDB,
   resolveReservationTypeRate,
   parseEnabledReservationTypesFromDB,
+  parseBookingRulesFromDB,
 } from '@/lib/config/resolution'
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
 import type { RateDiscountsConfig } from '@/lib/config/types'
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, enabled_reservation_types, reservation_type_config, site_type_config, settings')
+      .select('id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings')
       .eq('id', validatedInput.property_id)
       .single()
 
@@ -201,6 +202,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const bookingRulesConfig = parseBookingRulesFromDB(
+      (property as { booking_rules_config?: unknown } | null)?.booking_rules_config ?? null
+    )
+
+    const checkoutHoldMinutes =
+      Number.isFinite(bookingRulesConfig.checkout_hold_minutes) && bookingRulesConfig.checkout_hold_minutes > 0
+        ? Math.floor(bookingRulesConfig.checkout_hold_minutes)
+        : 1
 
     const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property.settings)
     if (
@@ -802,7 +812,7 @@ export async function POST(request: NextRequest) {
 
     // Set reservation expiration to 15 minutes from now (airline-style checkout timer)
     const reservedUntil = new Date()
-    reservedUntil.setMinutes(reservedUntil.getMinutes() + 1)
+    reservedUntil.setMinutes(reservedUntil.getMinutes() + checkoutHoldMinutes)
 
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
@@ -824,7 +834,7 @@ export async function POST(request: NextRequest) {
         payment_status: 'pending',
         special_requests: validatedInput.special_requests || null,
         source: 'online',
-        reserved_until: reservedUntil.toISOString(), // 15-minute checkout timer
+        reserved_until: reservedUntil.toISOString(),
       })
       .select('id, confirmation_number, total_amount, reserved_until')
       .single()

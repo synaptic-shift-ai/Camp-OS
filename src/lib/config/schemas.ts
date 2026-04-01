@@ -594,6 +594,13 @@ const bookingRulesConfigBaseSchema = z.object({
   instant_booking_enabled: z.boolean().default(true),
 
   holiday_rules: z.array(holidayRuleSchema).default([]),
+
+  checkout_hold_minutes: z
+    .number()
+    .int('Hold timer must be a whole number')
+    .min(1, 'Hold timer must be at least 1 minute')
+    .max(10080, 'Hold timer cannot exceed 7 days')
+    .default(1),
 })
 
 const bookingRulesStayRefine = <T extends z.ZodTypeAny>(schema: T) =>

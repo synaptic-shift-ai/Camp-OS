@@ -71,6 +71,7 @@ const defaultFormValues: BookingRulesSettingsFormInput = {
   same_day_booking_enabled: true,
   instant_booking_enabled: true,
   holiday_rules: [],
+  checkout_hold_minutes: 1,
 }
 
 const SEASON_ALERT_TOAST_CLASS =
@@ -248,6 +249,31 @@ export function BookingRulesSettings({
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Cart Expiration</CardTitle>
+          <CardDescription>Set the reservation hold time during checkout</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label htmlFor="checkout_hold_minutes">Hold Timer (minutes)</Label>
+          <Input
+            id="checkout_hold_minutes"
+            type="number"
+            min={1}
+            max={10080}
+            step={1}
+            placeholder="5"
+            {...register('checkout_hold_minutes', { valueAsNumber: true })}
+          />
+          {errors.checkout_hold_minutes?.message != null && (
+            <p className="text-sm text-destructive">{String(errors.checkout_hold_minutes.message)}</p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            How long a pending reservation is held before it expires.
+          </p>
         </CardContent>
       </Card>
 

@@ -155,6 +155,18 @@ export function EditPropertyAmenitiesDialog({
               placeholder="https://example.com/icon.svg (optional)"
               className="bg-card/50"
             />
+            <span className="text-sm text-muted-foreground">
+              Need an SVG icon? Browse icons at{' '}
+              <a
+                href="https://icones.js.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                icones.js.org
+              </a>
+              .
+            </span>
           </div>
         </div>
 

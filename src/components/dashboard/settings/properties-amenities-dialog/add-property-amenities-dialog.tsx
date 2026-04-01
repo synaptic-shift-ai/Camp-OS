@@ -98,7 +98,7 @@ export function AddPropertyAmenitiesDialog({
                     {option}
                   </SelectItem>
                 ))}
-                <SelectItem value="Other">New Property Amenity</SelectItem>
+                <SelectItem value="Other">Custom</SelectItem>
               </SelectContent>
             </Select>
 

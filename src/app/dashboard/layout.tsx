@@ -272,10 +272,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <div className="flex h-16 items-center gap-2 border-b border-border px-6">
                 {isLoading || isCompanyLoading ? (
                   <span className="font-heading font-semibold text-lg">Loading...</span>
+                ) : companyLogoUrl && !logoLoadFailed ? (
+                  <>
+                    <Image
+                      src={companyLogoUrl}
+                      alt={companyName ?? "Company logo"}
+                      width={28}
+                      height={28}
+                      className="rounded-md object-cover shrink-0"
+                      onError={() => setLogoLoadFailed(true)}
+                    />
+                    <span className="font-heading font-semibold text-lg">{dashboardTitle || "Company"}</span>
+                  </>
                 ) : (
                   <>
                     <Building2 className="h-6 w-6 text-primary" />
-                    <span className="font-heading font-semibold text-lg">{dashboardTitle}</span>
+                    <span className="font-heading font-semibold text-lg">{dashboardTitle || "Company"}</span>
                   </>
                 )}
               </div>
@@ -361,10 +373,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             {isLoading || isCompanyLoading ? (
               <span className="font-heading font-semibold text-lg">Loading...</span>
+            ) : companyLogoUrl && !logoLoadFailed ? (
+              <>
+                <Image
+                  src={companyLogoUrl}
+                  alt={companyName ?? "Company logo"}
+                  width={28}
+                  height={28}
+                  className="rounded-md object-cover shrink-0"
+                  onError={() => setLogoLoadFailed(true)}
+                />
+                <span className="font-heading font-semibold text-lg">{dashboardTitle || "Company"}</span>
+              </>
             ) : (
               <>
                 <Building2 className="h-6 w-6 text-primary" />
-                <span className="font-heading font-semibold text-lg">{dashboardTitle}</span>
+                <span className="font-heading font-semibold text-lg">{dashboardTitle || "Company"}</span>
               </>
             )}
           </div>

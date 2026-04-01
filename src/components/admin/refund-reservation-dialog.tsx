@@ -152,7 +152,7 @@ export function RefundReservationDialog({
       <SheetTrigger asChild>
         {trigger ?? <Button variant="outline" size="sm">Issue Refund</Button>}
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent className="w-[90vw] max-w-[90vw]">
         <SheetHeader>
           <SheetTitle>Issue Refund</SheetTitle>
           <SheetDescription>

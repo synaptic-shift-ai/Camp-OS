@@ -255,7 +255,7 @@ export function CancelReservationDialog({
       <SheetTrigger asChild>
         {trigger || <Button variant="destructive" size="sm">Cancel Reservation</Button>}
       </SheetTrigger>
-      <SheetContent className="flex max-h-[100dvh] flex-col overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-[90vw] max-w-[90vw] flex max-h-[100dvh] flex-col overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Cancel Reservation</SheetTitle>
           <SheetDescription>

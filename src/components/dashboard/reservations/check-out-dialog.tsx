@@ -137,7 +137,7 @@ export function CheckOutDialog({
         setShowLateCheckOutWarning(true)
         return
       }
-      
+
       if (isBlockedByCheckOutDay) {
         setError(
           `Check-out is not allowed today (${todayLabel}) due to check-out day restrictions.`
@@ -201,7 +201,7 @@ export function CheckOutDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LogOut className="h-5 w-5 text-blue-600" />
@@ -212,26 +212,26 @@ export function CheckOutDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-5 py-2 sm:py-4">
             {/* Guest Information */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Guest Information
               </h3>
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/50">
+              <div className="grid grid-cols-1 gap-3 p-3 rounded-lg bg-muted/50 sm:grid-cols-2 sm:gap-4 sm:p-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Guest Name</p>
-                  <p className="font-medium">
+                  <p className="font-medium break-words">
                     {reservation.guest?.first_name} {reservation.guest?.last_name}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{reservation.guest?.email}</p>
+                  <p className="font-medium break-all">{reservation.guest?.email}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Confirmation #</p>
-                  <p className="font-mono text-sm font-semibold">{reservation.confirmation_number}</p>
+                  <p className="font-mono text-sm font-semibold break-all">{reservation.confirmation_number}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
@@ -245,20 +245,20 @@ export function CheckOutDialog({
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Stay Summary
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <div className="flex items-start gap-3 p-3 rounded-lg border">
                   <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm text-muted-foreground">Site</p>
-                      <p className="font-medium mt-0.5">
+                      <p className="font-medium mt-0.5 break-words">
                         {reservation.site?.site_name || `Site ${reservation.site?.site_number}`}
                       </p>
                     </div>
                     {rawSiteStatus ? (
                       <Badge
                         variant="outline"
-                        className={`shrink-0 ${siteStatusForUi
+                        className={`shrink-0 whitespace-nowrap ${siteStatusForUi
                           ? SITE_STATUS_BADGE_CLASS[siteStatusForUi]
                           : 'text-muted-foreground'
                           }`}
@@ -270,9 +270,9 @@ export function CheckOutDialog({
                 </div>
                 <div className="flex items-start gap-3 p-3 rounded-lg border">
                   <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">Stay</p>
-                    <p className="font-medium text-sm">
+                    <p className="font-medium text-sm break-words">
                       {checkInDate} - {checkOutDate}
                     </p>
                     <p className="text-xs text-muted-foreground">{nights} nights</p>
@@ -280,9 +280,9 @@ export function CheckOutDialog({
                 </div>
                 <div className="flex items-start gap-3 p-3 rounded-lg border">
                   <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">Guests</p>
-                    <p className="font-medium">
+                    <p className="font-medium break-words">
                       {reservation.num_adults} Adults, {reservation.num_children} Children
                     </p>
                   </div>
@@ -359,13 +359,14 @@ export function CheckOutDialog({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="sm:justify-end gap-2">
             <Button variant="outline" onClick={handleCancel} disabled={isProcessing}>
               Cancel
             </Button>
             <Button
               onClick={() => void handleCheckOut()}
               disabled={isProcessing || (hasDamages && !checkOutNotes.trim())}
+              className="w-full sm:w-auto"
             >
               {isProcessing ? (
                 <>
@@ -383,27 +384,27 @@ export function CheckOutDialog({
         </DialogContent>
       </Dialog>
       <AlertDialog open={showLateCheckOutWarning} onOpenChange={setShowLateCheckOutWarning}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Late check-out warning</AlertDialogTitle>
-          <AlertDialogDescription>
-            This reservation is being checked out after the configured check-out time
-            {checkOutTime ? ` (${checkOutTime})` : ''}. Do you want to continue?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              setShowLateCheckOutWarning(false)
-              void handleCheckOut(true)
-            }}
-          >
-            Continue check-out
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Late check-out warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              This reservation is being checked out after the configured check-out time
+              {checkOutTime ? ` (${checkOutTime})` : ''}. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowLateCheckOutWarning(false)
+                void handleCheckOut(true)
+              }}
+            >
+              Continue check-out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

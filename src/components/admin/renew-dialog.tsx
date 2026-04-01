@@ -275,7 +275,7 @@ export function RenewDialog({
           </Button>
         )}
       </SheetTrigger>
-      <SheetContent className="overflow-y-auto sm:max-w-[650px]">
+      <SheetContent className="w-[90vw] max-w-[90vw] overflow-y-auto sm:max-w-[650px]">
         <SheetHeader>
           <SheetTitle>Renew Reservation</SheetTitle>
           <SheetDescription>

@@ -128,7 +128,7 @@ export function ManualPaymentDialog({
       <SheetTrigger asChild>
         {trigger}
       </SheetTrigger>
-      <SheetContent className="overflow-y-auto sm:max-w-[480px]">
+      <SheetContent className="w-[90vw] max-w-[90vw] overflow-y-auto sm:max-w-[480px]">
         <SheetHeader>
           <SheetTitle>Manual Payment</SheetTitle>
           <SheetDescription>

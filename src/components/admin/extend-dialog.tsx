@@ -620,7 +620,7 @@ export function ExtendDialog({
           </Button>
         )}
       </SheetTrigger>
-      <SheetContent className="overflow-y-auto sm:max-w-[600px]">
+      <SheetContent className="w-[90vw] max-w-[90vw] overflow-y-auto sm:max-w-[600px]">
         <SheetHeader>
           <SheetTitle>Extend Reservation</SheetTitle>
           <SheetDescription>

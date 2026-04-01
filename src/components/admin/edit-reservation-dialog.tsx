@@ -276,7 +276,7 @@ export function EditReservationDialog({
       <SheetTrigger asChild>
         {trigger || <Button variant="outline" size="sm">Edit Reservation</Button>}
       </SheetTrigger>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent className="w-[90vw] max-w-[90vw] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Edit Reservation</SheetTitle>
           <SheetDescription>
@@ -402,7 +402,7 @@ export function EditReservationDialog({
           )}
         </div>
 
-        <SheetFooter>
+        <SheetFooter className="sm:justify-end gap-2">
           <Button
             variant="outline"
             onClick={() => setOpen(false)}

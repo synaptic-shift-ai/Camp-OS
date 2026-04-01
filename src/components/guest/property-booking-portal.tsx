@@ -967,7 +967,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 return (
                   <CarouselItem
                     key={siteType.id ?? siteType.name}
-                    className="min-w-0 basis-[88%] pl-2 sm:basis-1/2 sm:pl-4 lg:basis-1/3"
+                    className="min-w-0 basis-[88%] pl-2 select-none sm:basis-1/2 sm:pl-4 lg:basis-1/3"
                   >
                     <div className="h-full flex">
                       <Card className="flex h-full w-full flex-col overflow-hidden border-2 transition-shadow hover:shadow-xl">

@@ -58,7 +58,7 @@ export function SitesStatsCards({ stats, activeFilter, onFilterChange }: SitesSt
             onClick={() => onFilterChange(card.id)}
           >
             <CardHeader className="p-2 pb-1 sm:p-4 sm:pb-2">
-              <CardTitle className="break-all text-left text-[11px] font-medium leading-tight text-muted-foreground sm:text-sm">
+              <CardTitle className="text-left text-[9px] font-medium leading-tight text-muted-foreground sm:text-sm">
                 {card.label}
               </CardTitle>
             </CardHeader>

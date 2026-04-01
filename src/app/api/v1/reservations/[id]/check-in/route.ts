@@ -149,6 +149,33 @@ export async function POST(
       )
     }
 
+    const { data: activeSiteStay, error: activeSiteStayError } = await supabase
+      .from('reservations')
+      .select('id, confirmation_number, check_out_date')
+      .eq('property_id', existingReservation.propertyId)
+      .eq('site_id', existingReservation.siteId)
+      .eq('status', 'checked_in')
+      .neq('id', reservationId)
+      .limit(1)
+      .maybeSingle()
+
+    if (activeSiteStayError) {
+      return NextResponse.json(
+        error(ErrorCodes.INTERNAL_ERROR, 'Failed to validate site occupancy'),
+        { status: 500 }
+      )
+    }
+
+    if (activeSiteStay) {
+      return error(
+        ErrorCodes.RESOURCE_004.code,
+        'A guest is currently checked in to this site. Please check them out before checking in this reservation.',
+        409,
+        request,
+        { code: 'SITE_OCCUPIED' }
+      )
+    }
+
     // Parse and validate request body
     const body = await request.json()
 

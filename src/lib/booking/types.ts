@@ -251,6 +251,7 @@ export interface CreateReservationInput {
   // Family information (enhanced booking form)
   spouse_partner?: SpousePartnerInput
   children?: CreateChildInputData[]
+  pets?: CreatePetInputData[]
 
   // Vehicle information (enhanced booking form)
   vehicles?: CreateVehicleInputData[]
@@ -285,6 +286,17 @@ export interface CreateChildInputData {
   age?: number
   date_of_birth?: string // YYYY-MM-DD format
   special_needs_allergies?: string
+}
+
+/**
+ * Pet information for reservation
+ */
+export interface CreatePetInputData {
+  name: string
+  type: 'dog' | 'cat' | 'bird' | 'other'
+  breed?: string
+  weight_lbs?: number
+  notes?: string
 }
 
 /**

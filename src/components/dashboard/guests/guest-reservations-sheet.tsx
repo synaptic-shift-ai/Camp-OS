@@ -31,6 +31,7 @@ import {
   Baby,
   TriangleAlert,
   Car,
+  PawPrint,
 } from 'lucide-react'
 import type { DashboardGuest, DashboardReservation } from '@/lib/dashboard/queries'
 import { mapReservationGetPayloadToDashboardReservation } from '@/lib/dashboard/reservation-get-to-dashboard'
@@ -118,6 +119,14 @@ type VehicleDisplay = {
   isPrimary: boolean
 }
 
+type PetDisplay = {
+  name: string
+  type: string
+  breed: string | null
+  weightLbs: number | null
+  notes: string | null
+}
+
 function mapChildren(value: unknown): ChildDisplay[] {
   if (!Array.isArray(value)) return []
 
@@ -136,6 +145,30 @@ function mapChildren(value: unknown): ChildDisplay[] {
           typeof c.special_needs_allergies === 'string'
             ? c.special_needs_allergies
             : null,
+      }
+    })
+}
+
+function mapPets(value: unknown): PetDisplay[] {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .filter((pet) => pet && typeof pet === 'object' && typeof (pet as { name?: unknown }).name === 'string')
+    .map((pet) => {
+      const p = pet as {
+        name: string
+        type?: unknown
+        breed?: unknown
+        weight_lbs?: unknown
+        notes?: unknown
+      }
+
+      return {
+        name: p.name,
+        type: typeof p.type === 'string' ? p.type : 'other',
+        breed: typeof p.breed === 'string' ? p.breed : null,
+        weightLbs: typeof p.weight_lbs === 'number' ? p.weight_lbs : null,
+        notes: typeof p.notes === 'string' ? p.notes : null,
       }
     })
 }
@@ -227,6 +260,7 @@ export function GuestReservationsSheet({
   const [guestAddress, setGuestAddress] = useState<GuestAddressDisplay | null>(null)
   const [spousePartner, setSpousePartner] = useState<SpousePartnerDisplay | null>(null)
   const [children, setChildren] = useState<ChildDisplay[]>([])
+  const [pets, setPets] = useState<PetDisplay[]>([])
   const [vehicles, setVehicles] = useState<VehicleDisplay[]>([])
   const [selectedReservation, setSelectedReservation] = useState<DashboardReservation | null>(null)
   const [reservationDetailLoadingId, setReservationDetailLoadingId] = useState<string | null>(null)
@@ -258,6 +292,7 @@ export function GuestReservationsSheet({
     setGuestAddress(null)
     setSpousePartner(null)
     setChildren([])
+    setPets([])
     setVehicles([])
 
     const url = `/api/v1/properties/${propertyId}/reservations?guestId=${encodeURIComponent(guest.id)}&limit=50`
@@ -407,9 +442,11 @@ export function GuestReservationsSheet({
     setPaymentCard(null)
     setReservationPreview(null)
     setChildren([])
+    setPets([])
 
     const loadReservationPreview = async () => {
       let childrenFromAnyReservation: ChildDisplay[] = []
+      let petsFromAnyReservation: PetDisplay[] = []
 
       for (let index = 0; index < reservationIds.length; index += 1) {
         const reservationId = reservationIds[index]
@@ -448,7 +485,15 @@ export function GuestReservationsSheet({
             childrenFromAnyReservation = mapChildren(json?.data?.children)
           }
 
-          if (childrenFromAnyReservation.length > 0 && index > 0) {
+          if (petsFromAnyReservation.length === 0) {
+            petsFromAnyReservation = mapPets(json?.data?.pets)
+          }
+
+          if (
+            childrenFromAnyReservation.length > 0 &&
+            petsFromAnyReservation.length > 0 &&
+            index > 0
+          ) {
             break
           }
         } catch {
@@ -458,6 +503,7 @@ export function GuestReservationsSheet({
 
       if (!cancelled) {
         setChildren(childrenFromAnyReservation)
+        setPets(petsFromAnyReservation)
       }
     }
 
@@ -788,6 +834,40 @@ export function GuestReservationsSheet({
                           <TriangleAlert className="h-3 w-3" />
                           {child.specialNeedsAllergies}
                         </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {pets.length > 0 && (
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40">
+                    <PawPrint className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                  </span>
+                  <p className="text-sm font-semibold text-foreground">Pets ({pets.length})</p>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pets.map((pet, index) => (
+                    <div
+                      key={`${pet.name}-${index}`}
+                      className="rounded-lg border border-border bg-background/70 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground">{pet.name}</p>
+                        <p className="text-xs capitalize text-muted-foreground">{pet.type}</p>
+                      </div>
+                      {(pet.breed || pet.weightLbs != null) ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {pet.breed ? `Breed: ${pet.breed}` : ''}
+                          {pet.breed && pet.weightLbs != null ? ' · ' : ''}
+                          {pet.weightLbs != null ? `Weight: ${pet.weightLbs} lbs` : ''}
+                        </p>
+                      ) : null}
+                      {pet.notes ? (
+                        <p className="mt-2 text-xs text-muted-foreground">{pet.notes}</p>
                       ) : null}
                     </div>
                   ))}

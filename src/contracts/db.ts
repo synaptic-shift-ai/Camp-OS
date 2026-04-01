@@ -1338,6 +1338,57 @@ export type Database = {
           },
         ]
       }
+      reservation_pets: {
+        Row: {
+          breed: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          property_id: string
+          reservation_id: string
+          type: string
+          weight_lbs: number | null
+        }
+        Insert: {
+          breed?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          property_id: string
+          reservation_id: string
+          type: string
+          weight_lbs?: number | null
+        }
+        Update: {
+          breed?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          property_id?: string
+          reservation_id?: string
+          type?: string
+          weight_lbs?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_pets_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_pets_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_vehicles: {
         Row: {
           created_at: string

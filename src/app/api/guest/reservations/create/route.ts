@@ -45,7 +45,8 @@ import {
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
 import { updateGuestSpouse } from '@/lib/booking/guest'
 import { replaceReservationChildren } from '@/lib/booking/children'
-import type { CreateChildInputData, CreateVehicleInputData, SpousePartnerInput } from '@/lib/booking/types'
+import { replaceReservationPets } from '@/lib/booking/pets'
+import type { CreateChildInputData, CreatePetInputData, CreateVehicleInputData, SpousePartnerInput } from '@/lib/booking/types'
 
 const guestVehicleScehema = z.object({
   vehicle_type: z.enum(['personal', 'rv', 'tow_vehicle']),
@@ -104,6 +105,17 @@ const createGuestReservationSchema = z.object({
       })
     )
     .optional(),
+  pets: z
+    .array(
+      z.object({
+        name: z.string().min(1, 'Pet name is required'),
+        type: z.enum(['dog', 'cat', 'bird', 'other']),
+        breed: z.string().optional(),
+        weight_lbs: z.coerce.number().min(0).optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .optional(),
   special_requests: z.string().max(1000).optional(),
   guest: z.object({
     first_name: z.string().min(1, 'First name is required').max(100),
@@ -119,6 +131,32 @@ const createGuestReservationSchema = z.object({
     emergency_contact_phone: z.string().max(50).optional(),
   }),
 })
+
+const resolveGuestPetFeeCents = (pricingConfig: unknown): number => {
+  const cfg = pricingConfig as {
+    pet_fee_cents?: number
+    user_defined_fees?: Array<{
+      enabled?: boolean
+      trigger_type?: string
+      fee_type?: string
+      value_cents?: number | null
+    }>
+  } | null
+
+  const configuredPetFee = cfg?.user_defined_fees?.find(
+    (fee) =>
+      fee.enabled === true &&
+      fee.trigger_type === 'has_pets' &&
+      fee.fee_type === 'flat_amount' &&
+      typeof fee.value_cents === 'number' &&
+      fee.value_cents >= 0
+  )
+  if (configuredPetFee?.value_cents != null) return configuredPetFee.value_cents
+  if (typeof cfg?.pet_fee_cents === 'number' && cfg.pet_fee_cents >= 0) {
+    return cfg.pet_fee_cents
+  }
+  return 2000
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -168,6 +206,18 @@ export async function POST(request: NextRequest) {
         ...(c.age != null ? { age: c.age } : {}),
         ...(c.date_of_birth ? { date_of_birth: c.date_of_birth } : {}),
         ...(c.special_needs_allergies ? { special_needs_allergies: c.special_needs_allergies } : {}),
+      }))
+    }
+
+    const normalizePetsInput = (
+      pets: NonNullable<typeof validatedInput.pets>,
+    ): CreatePetInputData[] => {
+      return pets.map((p) => ({
+        name: p.name,
+        type: p.type,
+        ...(p.breed ? { breed: p.breed } : {}),
+        ...(p.weight_lbs != null ? { weight_lbs: p.weight_lbs } : {}),
+        ...(p.notes ? { notes: p.notes } : {}),
       }))
     }
 
@@ -441,6 +491,24 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        if (validatedInput.pets && validatedInput.pets.length > 0) {
+          const petsInput = normalizePetsInput(validatedInput.pets)
+          const petsResult = await replaceReservationPets(
+            existingReservation.id,
+            validatedInput.property_id,
+            petsInput
+          )
+          if (!petsResult.success) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: petsResult.error,
+              },
+              { status: 400 }
+            )
+          }
+        }
+
         const checkIn = new Date(validatedInput.check_in_date)
         const checkOut = new Date(validatedInput.check_out_date)
         const numberOfNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
@@ -456,6 +524,7 @@ export async function POST(request: NextRequest) {
           numberOfNights,
           siteType: site.site_type as any,
           numPets: validatedInput.num_pets,
+          petFeeCentsOverride: resolveGuestPetFeeCents(property?.pricing_config ?? null),
         })
         priceBreakdown.subtotal = existingSubtotalCents
         priceBreakdown.base_price_label = existingBasePriceLabel
@@ -631,6 +700,7 @@ export async function POST(request: NextRequest) {
       numberOfNights,
       siteType: site.site_type as any,
       numPets: validatedInput.num_pets,
+      petFeeCentsOverride: resolveGuestPetFeeCents(property?.pricing_config ?? null),
     })
     priceBreakdown.subtotal = subtotalCents
     priceBreakdown.base_price_label = basePriceLabel
@@ -892,6 +962,25 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error: childrenResult.error,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Persist detailed pet rows only when provided in this request
+    if (validatedInput.pets && validatedInput.pets.length > 0) {
+      const petsInput = normalizePetsInput(validatedInput.pets)
+      const petsResult = await replaceReservationPets(
+        reservation.id,
+        validatedInput.property_id,
+        petsInput
+      )
+      if (!petsResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: petsResult.error,
           },
           { status: 400 }
         )

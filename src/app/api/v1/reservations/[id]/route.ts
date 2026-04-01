@@ -229,6 +229,13 @@ export async function GET(
       .eq('property_id', reservation.propertyId)
       .order('created_at', { ascending: true })
 
+    const { data: reservationPets } = await supabase
+      .from('reservation_pets')
+      .select('name, type, breed, weight_lbs, notes')
+      .eq('reservation_id', id)
+      .eq('property_id', reservation.propertyId)
+      .order('created_at', { ascending: true })
+
     const paymentIntentId = resolvePaymentIntentIdForReservation(
       latestPayment?.stripe_payment_id,
       reservation.notes
@@ -284,6 +291,7 @@ export async function GET(
       payment_method: latestPayment?.payment_method ?? null,
       spouse_partner,
       children: reservationChildren ?? [],
+      pets: reservationPets ?? [],
       property_id: reservation.propertyId,
       property_name: property.name ?? null,
       property_settings: property.settings ?? null,

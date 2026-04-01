@@ -173,7 +173,6 @@ export default function ConfirmationPage() {
         basePrice: rawPriceBreakdown.base_price_per_night ?? 0,
         nights: rawPriceBreakdown.number_of_nights ?? numberOfNights,
         subtotal: rawPriceBreakdown.subtotal ?? 0,
-        cleaningFee: rawPriceBreakdown.cleaningFee ?? rawPriceBreakdown.cleaning_fee ?? 0,
         serviceFee: rawPriceBreakdown.serviceFee ?? rawPriceBreakdown.service_fee ?? 0,
         pet_fee: rawPriceBreakdown.pet_fee ?? 0,
         taxRate,
@@ -186,7 +185,6 @@ export default function ConfirmationPage() {
         basePrice: checkoutData.site.base_price_per_night,
         nights: numberOfNights,
         subtotal: checkoutData.site.base_price_per_night * numberOfNights,
-        cleaningFee: checkoutData.site.site_type === "cabin" ? 5000 : 0,
         serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
         pet_fee: 0,
         taxRate,
@@ -197,6 +195,13 @@ export default function ConfirmationPage() {
 
   const discountCents =
     priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+  const userFeeItems = rawPriceBreakdown?.user_fees ?? []
+  const nonPetUserFeeItems = userFeeItems.filter((fee) => fee.id !== "legacy-pet")
+  const userPetFeeCents = userFeeItems
+    .filter((fee) => fee.id === "legacy-pet")
+    .reduce((sum, fee) => sum + fee.amount, 0)
+  const totalPetFeeCents = (priceBreakdown.pet_fee ?? 0) + userPetFeeCents
+  const petCount = checkoutData.numPets || 0
 
   const basePriceLineLabel =
     rawPriceBreakdown?.base_price_label ??
@@ -207,7 +212,11 @@ export default function ConfirmationPage() {
     const taxableAmount = priceBreakdown.subtotal - discountCents
     priceBreakdown.taxes = Math.round(taxableAmount * taxRate)
     priceBreakdown.total =
-      priceBreakdown.subtotal - discountCents + (priceBreakdown.taxes || 0) + (priceBreakdown.pet_fee || 0)
+      priceBreakdown.subtotal -
+      discountCents +
+      (priceBreakdown.serviceFee || 0) +
+      (priceBreakdown.taxes || 0) +
+      totalPetFeeCents
   }
 
   function handleDownloadPdf() {
@@ -218,7 +227,7 @@ export default function ConfirmationPage() {
       const taxLabel =
         priceBreakdown.tax_name ??
         `Taxes (${(taxRate * 100).toFixed(1)}%)`
-      const cleaningFee = priceBreakdown.cleaningFee ?? 0
+      const petFee = totalPetFeeCents
       const taxes = priceBreakdown.taxes ?? 0
 
       downloadConfirmationPdf({
@@ -239,8 +248,8 @@ export default function ConfirmationPage() {
         basePriceCents,
         basePriceLineLabel,
         subtotalCents: priceBreakdown.subtotal,
-        ...(cleaningFee > 0 && { cleaningFeeCents: cleaningFee }),
         serviceFeeCents: priceBreakdown.serviceFee ?? 0,
+        ...(petFee > 0 && { petFeeCents: petFee }),
         ...(discountCents > 0 && { discountCents }),
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
         totalCents: priceBreakdown.total,
@@ -423,10 +432,21 @@ export default function ConfirmationPage() {
                         </span>
                         <span className="font-medium text-foreground shrink-0">${formatCurrency(priceBreakdown.subtotal)}</span>
                       </div>
-                      {(priceBreakdown.cleaningFee || 0) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Cleaning fee</span>
-                          <span className="font-medium text-foreground">${formatCurrency(priceBreakdown.cleaningFee!)}</span>
+                      {nonPetUserFeeItems.map((fee) => (
+                        <div key={fee.id} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{fee.title}</span>
+                          <span className="font-medium text-foreground">${(fee.amount / 100).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {totalPetFeeCents > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Additional charge for pets
+                            {petCount > 0 && (
+                              <> ({petCount} {petCount === 1 ? "pet" : "pets"})</>
+                            )}
+                          </span>
+                          <span className="font-medium text-foreground">${(totalPetFeeCents / 100).toFixed(2)}</span>
                         </div>
                       )}
                       {discountCents > 0 && (

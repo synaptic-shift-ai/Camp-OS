@@ -140,6 +140,21 @@ export interface ReservationChild {
 }
 
 /**
+ * Reservation pet record (matches DB reservation_pets table)
+ */
+export interface ReservationPet {
+  id: string
+  reservation_id: string
+  property_id: string
+  name: string
+  type: 'dog' | 'cat' | 'bird' | 'other'
+  breed: string | null
+  weight_lbs: number | null
+  notes: string | null
+  created_at: string
+}
+
+/**
  * Input for creating a child record
  */
 export interface CreateChildInput {

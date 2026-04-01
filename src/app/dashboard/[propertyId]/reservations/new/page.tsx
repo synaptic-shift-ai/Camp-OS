@@ -28,6 +28,7 @@ import { AvailableSitesAccordion } from "@/components/dashboard/reservations/ava
 import { PricingSummary } from "@/components/dashboard/reservations/pricing-summary"
 import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
+import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-info-step"
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType, BookingRulesConfig } from '@/lib/config/types'
 import { parseEnabledReservationTypesFromDB, resolveBookingRulesConfig } from '@/lib/config/resolution'
@@ -79,6 +80,14 @@ const manualBookingSchema = z.object({
     age: z.number().min(0).max(17).optional(),
     date_of_birth: z.string().optional(),
     special_needs_allergies: z.string().optional(),
+  })).optional(),
+
+  pets: z.array(z.object({
+    name: z.string().min(1, "Pet name is required"),
+    type: z.enum(['dog', 'cat', 'bird', 'other']),
+    breed: z.string().optional(),
+    weight_lbs: z.number().min(0).optional(),
+    notes: z.string().optional(),
   })).optional(),
 
   // Vehicles (optional array)
@@ -184,7 +193,7 @@ export default function NewReservationPage() {
   // Collapsible section states
   const [spouseOpen, setSpouseOpen] = useState(false)
   const [childrenOpen, setChildrenOpen] = useState(false)
-
+  const [petsOpen, setPetsOpen] = useState(false)
   const getHolidayMinStayViolation = (
     holidays: HolidayRule[] | undefined,
     checkInIso: string,
@@ -249,6 +258,7 @@ export default function NewReservationPage() {
         is_alternate_contact: false,
       },
       children: [],
+      pets: [],
       vehicles: [],
     },
   })
@@ -269,7 +279,15 @@ export default function NewReservationPage() {
   const numAdults = watch("numAdults")
   const numChildren = watch("numChildren")
   const numPets = watch("numPets")
+  const pets = watch("pets")
   const paymentMethod = watch("paymentMethod")
+  const validPetsCount = (pets ?? []).filter((pet) => {
+    if (!pet) return false
+    const hasName = typeof pet.name === 'string' && pet.name.trim().length > 0
+    const hasType = typeof pet.type === 'string' && pet.type.trim().length > 0
+    return hasName && hasType
+  }).length
+  const effectiveNumPets = validPetsCount > 0 ? validPetsCount : (numPets || 0)
 
   useEffect(() => {
     if (!checkInDate || !checkOutDate) return
@@ -557,6 +575,14 @@ export default function NewReservationPage() {
         specialNeedsAllergies: c.special_needs_allergies || null,
       }))
 
+      const petsData = (data.pets?.filter((p) => p.name && p.type) || []).map((p) => ({
+        name: p.name,
+        type: p.type,
+        breed: p.breed || null,
+        weightLbs: p.weight_lbs ?? null,
+        notes: p.notes || null,
+      }))
+
       // Prepare vehicles data (filter out entries without vehicle_type, convert to camelCase)
       const vehiclesData = (data.vehicles?.filter(v => v.vehicle_type) || []).map(v => ({
         vehicleType: v.vehicle_type,
@@ -610,7 +636,8 @@ export default function NewReservationPage() {
           stayType: data.stayType,
           numAdults: data.numAdults,
           numChildren: childrenData.length > 0 ? childrenData.length : (data.numChildren || 0),
-          numPets: data.numPets,
+          numPets: petsData.length > 0 ? petsData.length : (data.numPets || 0),
+          pets: petsData,
           numVehicles: actualNumVehicles,
           guest: {
             firstName: data.guestFirstName,
@@ -1241,6 +1268,12 @@ export default function NewReservationPage() {
                     maxChildren={10}
                   />
 
+                  <PetsInfoList
+                    isOpen={petsOpen}
+                    onOpenChange={setPetsOpen}
+                    maxPets={5}
+                  />
+
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Emergency Contact (Optional)</h3>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -1347,7 +1380,7 @@ export default function NewReservationPage() {
                   stayType={stayType || 'nightly'}
                   numAdults={numAdults || 1}
                   numChildren={numChildren || 0}
-                  numPets={numPets || 0}
+                  numPets={effectiveNumPets}
                   pricingConfig={pricingConfig}
                   rateDiscountsConfig={rateDiscountsConfig}
                   depositConfig={depositConfig}
@@ -1403,7 +1436,7 @@ export default function NewReservationPage() {
             stayType={stayType || 'nightly'}
             numAdults={numAdults || 1}
             numChildren={numChildren || 0}
-            numPets={numPets || 0}
+            numPets={effectiveNumPets}
             pricingConfig={pricingConfig}
             rateDiscountsConfig={rateDiscountsConfig}
             depositConfig={depositConfig}

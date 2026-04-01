@@ -33,6 +33,34 @@ import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import type { RateDiscountsConfig } from "@/lib/config/types"
 import { cn } from "@/lib/utils"
 
+type GuestPricingConfig = {
+  tax_rate?: number
+  tax_name?: string
+  pet_fee_cents?: number
+  user_defined_fees?: Array<{
+  enabled?: boolean
+  trigger_type?: string
+  fee_type?: string
+  value_cents?: number | null
+  }>
+}
+
+const resolveGuestPetFeeCents = (pricingConfig: GuestPricingConfig | null): number => {
+  const configuredPetFee = pricingConfig?.user_defined_fees?.find(
+    (fee) =>
+      fee.enabled === true &&
+      fee.trigger_type === "has_pets" &&
+      fee.fee_type === "flat_amount" &&
+      typeof fee.value_cents === "number" &&
+      fee.value_cents >= 0,
+  )
+  if (configuredPetFee?.value_cents != null) return configuredPetFee.value_cents
+  if (typeof pricingConfig?.pet_fee_cents === "number" && pricingConfig.pet_fee_cents >= 0) {
+    return pricingConfig.pet_fee_cents
+  }
+  return 2000
+}
+
 function AvailabilityResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -57,7 +85,7 @@ function AvailabilityResultsContent() {
   const siteTypeFilter =
     rawSiteType === "all" || rawSiteType === "" ? null : (rawSiteType as SiteType | null)
   const [rateDiscountsConfig, setRateDiscountsConfig] = useState<RateDiscountsConfig | null>(null)
-  const [pricingConfig, setPricingConfig] = useState<{ tax_rate?: number; tax_name?: string } | null>(null)
+  const [pricingConfig, setPricingConfig] = useState<GuestPricingConfig | null>(null)
 
   // Parse dates inside useMemo to avoid recreating on every render
   const checkIn = useMemo(() => checkInStr ? new Date(checkInStr) : null, [checkInStr])
@@ -185,6 +213,7 @@ function AvailabilityResultsContent() {
       numberOfNights: nights,
       siteType: site.site_type,
       numPets: pets,
+      petFeeCentsOverride: resolveGuestPetFeeCents(pricingConfig),
     })
     priceBreakdown.subtotal = subtotalCents
     priceBreakdown.base_price_label = basePriceLabel

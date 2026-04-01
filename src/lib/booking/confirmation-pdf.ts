@@ -21,6 +21,7 @@ export type ConfirmationPdfInput = {
   subtotalCents: number
   cleaningFeeCents?: number
   serviceFeeCents: number
+  petFeeCents?: number
   discountCents?: number
   taxesCents?: number
   totalCents: number
@@ -200,9 +201,11 @@ export function generateConfirmationPdf(input: ConfirmationPdfInput): { doc: jsP
     yRight += lineH
   }
 
-  doc.text("Service fee", COL2_X, yRight)
-  doc.text(`$${toDollars(input.serviceFeeCents)}`, PAGE_W - MARGIN, yRight, { align: "right" })
-  yRight += lineH
+  if ((input.petFeeCents ?? 0) > 0) {
+    doc.text("Additional charge for pets", COL2_X, yRight)
+    doc.text(`$${toDollars(input.petFeeCents!)}`, PAGE_W - MARGIN, yRight, { align: "right" })
+    yRight += lineH
+  }
 
   if ((input.discountCents ?? 0) > 0) {
     doc.text("Discount", COL2_X, yRight)

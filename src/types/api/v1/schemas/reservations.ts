@@ -247,6 +247,16 @@ export const ChildInputSchema = z.object({
 
 export type ChildInput = z.infer<typeof ChildInputSchema>
 
+export const PetTypeSchema = z.enum(['dog', 'cat', 'bird', 'other'])
+export const PetInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: PetTypeSchema,
+  breed: z.string().max(100).optional().nullable(),
+  weightLbs: z.number().min(0).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+})
+export type PetInput = z.infer<typeof PetInputSchema>
+
 /**
  * Personal Vehicle Type Enum
  */
@@ -354,6 +364,7 @@ export const CreateManualReservationRequestSchema = z.object({
   // Family information (optional)
   spousePartner: SpousePartnerInputSchema.optional().nullable(),
   children: z.array(ChildInputSchema).max(10).optional().default([]),
+  pets: z.array(PetInputSchema).max(10).optional().default([]),
 
   // Vehicle information (optional)
   vehicles: z.array(VehicleInputSchema).max(5).optional().default([]),

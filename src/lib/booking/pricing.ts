@@ -21,8 +21,9 @@ export function calculatePriceBreakdown(params: {
   numberOfNights: number
   siteType: SiteType
   numPets?: number | undefined
+  petFeeCentsOverride?: number | undefined
 }): PriceBreakdown {
-  const { basePricePerNight, numberOfNights, numPets } = params
+  const { basePricePerNight, numberOfNights, numPets, petFeeCentsOverride } = params
 
   const subtotal = basePricePerNight * numberOfNights
   const total = subtotal
@@ -36,7 +37,7 @@ export function calculatePriceBreakdown(params: {
 
   // Add pet fee if applicable (flat $20 per stay for simplicity)
   if (numPets && numPets > 0) {
-    const petFee = 2000 // $20.00 in cents
+    const petFee = petFeeCentsOverride ?? 2000 // default $20.00 in cents
     breakdown.pet_fee = petFee
     breakdown.total += petFee
   }

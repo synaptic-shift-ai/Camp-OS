@@ -17,13 +17,15 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createGuest, updateGuestSpouse } from '@/lib/booking/guest'
 import { createReservationChildren } from '@/lib/booking/children'
+import { createReservationPets } from '@/lib/booking/pets'
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
 import { checkSiteAvailability } from '@/lib/booking/availability'
 import { generateConfirmationNumber } from '@/lib/booking/api'
-import type { CreateVehicleInputData } from '@/lib/booking/types'
+import type { CreatePetInputData, CreateVehicleInputData } from '@/lib/booking/types'
 import type {
   CreateManualReservationRequest,
   ChildInput,
+  PetInput,
   VehicleInput,
 } from '@/types/api/v1/schemas/reservations'
 
@@ -157,7 +159,23 @@ export class CreateManualReservationCommandHandler {
       childrenCount = dto.children.length
     }
 
-    // 5. Handle vehicle information (on guest, linked to reservation)
+    // 5. Handle pets information (per reservation)
+    if (dto.pets && dto.pets.length > 0) {
+      const petsInput: CreatePetInputData[] = dto.pets.map((pet: PetInput) => {
+        const petData: CreatePetInputData = {
+          name: pet.name,
+          type: pet.type,
+        }
+        if (pet.breed) petData.breed = pet.breed
+        if (pet.weightLbs != null) petData.weight_lbs = pet.weightLbs
+        if (pet.notes) petData.notes = pet.notes
+        return petData
+      })
+
+      await createReservationPets(reservation.id, dto.propertyId, petsInput)
+    }
+
+    // 6. Handle vehicle information (on guest, linked to reservation)
     let vehiclesCount = 0
     if (dto.vehicles && dto.vehicles.length > 0) {
       // Build vehicle input conditionally (exactOptionalPropertyTypes)
@@ -190,7 +208,7 @@ export class CreateManualReservationCommandHandler {
       }
     }
 
-    // 6. Handle evacuation contact (on reservation)
+    // 7. Handle evacuation contact (on reservation)
     if (dto.evacuationContact) {
       await supabase
         .from('reservations')
@@ -203,7 +221,7 @@ export class CreateManualReservationCommandHandler {
         .eq('property_id', dto.propertyId)
     }
 
-    // 7. Handle payment
+    // 8. Handle payment
     const paidAmountCents = dto.paidAmountCents || 0
     const totalAmountCents = dto.totalAmountCents ?? reservation.total_amount
     const isFullyPaid = paidAmountCents >= totalAmountCents

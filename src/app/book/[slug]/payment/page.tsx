@@ -126,7 +126,6 @@ function PaymentFormInner({ slug }: { slug: string }) {
     nights: numberOfNights,
     number_of_nights: numberOfNights,
     subtotal: (checkoutData.site?.base_price_per_night ?? 0) * numberOfNights,
-    cleaningFee: checkoutData.site?.site_type === "cabin" ? 5000 : 0,
     serviceFee: Math.round((checkoutData.site?.base_price_per_night ?? 0) * numberOfNights * 0.1),
     taxRate,
     taxes: 0,
@@ -136,6 +135,9 @@ function PaymentFormInner({ slug }: { slug: string }) {
   const basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
   const nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
   const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+  const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
+  const userFeesCents = priceBreakdown.user_fees?.reduce((sum, fee) => sum + fee.amount, 0) ?? 0
+  const petFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
   const taxesCents =
     priceBreakdown.taxes ??
     Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
@@ -143,8 +145,10 @@ function PaymentFormInner({ slug }: { slug: string }) {
     priceBreakdown.total ??
     priceBreakdown.subtotal -
     discountCents +
+    serviceFeeCents +
+    userFeesCents +
     taxesCents +
-    (priceBreakdown.pet_fee ?? 0)
+    petFeeCents
 
   console.log('[Payment] PaymentFormInner rendering form with PaymentElement (waiting for onReady)')
 
@@ -414,7 +418,6 @@ export default function PaymentPage() {
     nights: numberOfNights,
     number_of_nights: numberOfNights,
     subtotal: (checkoutData.site?.base_price_per_night ?? 0) * numberOfNights,
-    cleaningFee: checkoutData.site?.site_type === "cabin" ? 5000 : 0,
     serviceFee: Math.round((checkoutData.site?.base_price_per_night ?? 0) * numberOfNights * 0.1),
     taxRate,
     taxes: 0,
@@ -424,6 +427,15 @@ export default function PaymentPage() {
   const basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
   const nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
   const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
+  const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
+  const userFeeItems = priceBreakdown.user_fees ?? []
+  const nonPetUserFeeItems = userFeeItems.filter((fee) => fee.id !== "legacy-pet")
+  const userPetFeeCents = userFeeItems
+    .filter((fee) => fee.id === "legacy-pet")
+    .reduce((sum, fee) => sum + fee.amount, 0)
+  const legacyPetFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
+  const totalPetFeeCents = legacyPetFeeCents + userPetFeeCents
+  const petCount = checkoutData.numPets || 0
   const taxesCents =
     priceBreakdown.taxes ??
     Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
@@ -431,8 +443,10 @@ export default function PaymentPage() {
     priceBreakdown.total ??
     priceBreakdown.subtotal -
     discountCents +
+    serviceFeeCents +
+    nonPetUserFeeItems.reduce((sum, fee) => sum + fee.amount, 0) +
     taxesCents +
-    (priceBreakdown.pet_fee ?? 0)
+    totalPetFeeCents
 
   const bookingSummaryMain = (
     <>
@@ -481,12 +495,21 @@ export default function PaymentPage() {
           </span>
           <span className="font-medium text-foreground">${((priceBreakdown.subtotal ?? 0) / 100).toFixed(2)}</span>
         </div>
-        {(priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0) > 0 && (
+        {nonPetUserFeeItems.map((fee) => (
+          <div key={fee.id} className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{fee.title}</span>
+            <span className="font-medium text-foreground">${(fee.amount / 100).toFixed(2)}</span>
+          </div>
+        ))}
+        {totalPetFeeCents > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Cleaning fee</span>
-            <span className="font-medium text-foreground">
-              ${((priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0) / 100).toFixed(2)}
+            <span className="text-muted-foreground">
+              Additional charge for pets
+              {petCount > 0 && (
+                <> ({petCount} {petCount === 1 ? "pet" : "pets"})</>
+              )}
             </span>
+            <span className="font-medium text-foreground">${(totalPetFeeCents / 100).toFixed(2)}</span>
           </div>
         )}
         {discountCents > 0 && (

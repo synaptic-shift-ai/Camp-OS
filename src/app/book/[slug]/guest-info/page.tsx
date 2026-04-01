@@ -20,6 +20,7 @@ import { TermsAndConditionsDialog } from "@/components/guest/terms-and-condition
 import { VehicleInfoStep } from "@/components/dashboard/reservations/vehicle-info-step"
 import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
+import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
@@ -124,6 +125,14 @@ const childSchema = z.object({
   special_needs_allergies: z.string().optional(),
 })
 
+const petSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  type: z.enum(['dog', 'cat', 'bird', 'other']),
+  breed: z.string().optional(),
+  weight_lbs: z.coerce.number().int().optional(),
+  notes: z.string().optional(),
+})
+
 const guestFormSchema = z.object({
   first_name: z.string().min(2, "First name is required"),
   last_name: z.string().min(2, "Last name is required"),
@@ -138,6 +147,7 @@ const guestFormSchema = z.object({
   emergency_contact_phone: z.string().optional(),
   spouse: spouseSchema.optional(),
   children: z.array(childSchema).optional(),
+  pets: z.array(petSchema).optional(),
   num_vehicles: z.string().optional(),
   vehicles: z.array(guestVehicleScehema).optional(),
   special_requests: z.string().optional(),
@@ -151,6 +161,16 @@ const guestFormSchema = z.object({
 
 type GuestFormData = z.infer<typeof guestFormSchema>
 const getGuestDraftStorageKey = (slug: string) => `campground-guest-draft:${slug}`
+
+const countValidPets = (pets: GuestFormData["pets"] | undefined): number => {
+  if (!pets || pets.length === 0) return 0
+  return pets.filter((pet) => {
+    if (!pet) return false
+    const hasName = typeof pet.name === "string" && pet.name.trim().length > 0
+    const hasType = typeof pet.type === "string" && pet.type.trim().length > 0
+    return hasName && hasType
+  }).length
+}
 
 export default function GuestInfoPage() {
   const params = useParams()
@@ -172,6 +192,7 @@ export default function GuestInfoPage() {
   const fetchedCancellationPolicyForPropertyRef = useRef<string | null>(null)
   const [spouseOpen, setSpouseOpen] = useState(false)
   const [childrenOpen, setChildrenOpen] = useState(false)
+  const [petsOpen, setPetsOpen] = useState(false)
 
   useEffect(() => {
     // Don't validate until hydration is complete
@@ -265,6 +286,8 @@ export default function GuestInfoPage() {
       agree_cancellation: false,
     },
   })
+  const watchedPets = form.watch("pets")
+  const validPetRowsCount = countValidPets(watchedPets)
 
   useEffect(() => {
     if (!isHydrated || !shouldRestoreDraft || typeof window === "undefined") return
@@ -298,6 +321,9 @@ export default function GuestInfoPage() {
 
       const children = data.children ?? []
       const numChildren = children.length > 0 ? children.length : (checkoutData.numChildren || 0)
+      const pets = data.pets ?? []
+      const validPetsCount = countValidPets(pets)
+      const numPets = validPetsCount > 0 ? validPetsCount : (checkoutData.numPets || 0)
 
       const spouseInput = data.spouse
       const spousePartnerPresent =
@@ -328,6 +354,17 @@ export default function GuestInfoPage() {
             }))
           : undefined
 
+      const petsInputOrUndefined =
+        validPetsCount > 0
+          ? pets.map((p) => ({
+              name: p.name,
+              type: p.type,
+              breed: p.breed || undefined,
+              weight_lbs: p.weight_lbs ?? undefined,
+              notes: p.notes || undefined,
+            }))
+          : undefined
+
       // Prepare the API request payload
       const requestBody = {
         property_id: checkoutData.propertyId,
@@ -336,11 +373,12 @@ export default function GuestInfoPage() {
         check_out_date: format(checkoutData.checkOutDate, "yyyy-MM-dd"),
         num_adults: checkoutData.numAdults || 1,
         num_children: numChildren,
-        num_pets: 0,
+        num_pets: numPets,
         num_vehicles: vehicleCount,
         vehicle_info: vehicles,
         spouse_partner: spousePartnerOrUndefined,
         children: childrenInputOrUndefined,
+        pets: petsInputOrUndefined,
         special_requests: data.special_requests || undefined,
         guest: {
           first_name: data.first_name,
@@ -405,6 +443,7 @@ export default function GuestInfoPage() {
         reservationId: result.data.reservation_id,
         confirmationNumber: result.data.confirmation_number,
         priceBreakdown: result.data.price_breakdown,
+        numPets,
         ...(result.data.reserved_until != null
           ? { reservedUntil: result.data.reserved_until }
           : {}),
@@ -468,6 +507,7 @@ export default function GuestInfoPage() {
     setCheckoutData({
       guestInfo,
       numVehicles: Number(values.num_vehicles || 0),
+      numPets: countValidPets(values.pets) > 0 ? countValidPets(values.pets) : (checkoutData.numPets || 0),
       specialRequests: values.special_requests || "",
     })
 
@@ -495,7 +535,6 @@ export default function GuestInfoPage() {
     number_of_nights: numberOfNights,
     nights: numberOfNights,
     subtotal: defaultSubtotal,
-    cleaningFee: checkoutData.site.site_type === "cabin" ? 50 : 0,
     serviceFee: Math.round(defaultSubtotal * 0.1),
   }
 
@@ -512,8 +551,14 @@ export default function GuestInfoPage() {
     priceBreakdown.base_price_per_night ??
     (nightsForDisplay > 0 ? Math.round(priceBreakdown.subtotal / nightsForDisplay) : 0)
 
-  const cleaningFeeCents = priceBreakdown.cleaningFee ?? priceBreakdown.cleaning_fee ?? 0
   const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
+  const legacyPetFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
+  const userFeeItems = priceBreakdown.user_fees ?? []
+  const nonPetUserFeeItems = userFeeItems.filter((fee) => fee.id !== "legacy-pet")
+  const userPetFeeCents = userFeeItems
+    .filter((fee) => fee.id === "legacy-pet")
+    .reduce((sum, fee) => sum + fee.amount, 0)
+  const totalPetFeeCents = legacyPetFeeCents + userPetFeeCents
   const taxesCents = priceBreakdown.taxes ?? 0
   const taxRate = priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
   const legacyDiscountCents = priceBreakdown.discount_applied?.amount_saved ?? 0
@@ -521,7 +566,6 @@ export default function GuestInfoPage() {
     priceBreakdown.total ??
     ((priceBreakdown.total_before_tax ??
       priceBreakdown.subtotal +
-      cleaningFeeCents +
       serviceFeeCents) +
       taxesCents)
 
@@ -561,6 +605,9 @@ export default function GuestInfoPage() {
           <span className="font-medium text-foreground">
             {(checkoutData.numAdults || 0) + (checkoutData.numChildren || 0)} ({checkoutData.numAdults || 0}A,{" "}
             {checkoutData.numChildren || 0}C)
+            {(validPetRowsCount > 0 ? validPetRowsCount : (checkoutData.numPets || 0)) > 0 && (
+              <>{" + "}{validPetRowsCount > 0 ? validPetRowsCount : (checkoutData.numPets || 0)}P</>
+            )}
           </span>
         </div>
       </div>
@@ -573,10 +620,21 @@ export default function GuestInfoPage() {
           </span>
           <span className="font-medium text-foreground">${((priceBreakdown.subtotal || 0) / 100).toFixed(2)}</span>
         </div>
-        {cleaningFeeCents > 0 && (
+        {nonPetUserFeeItems.map((fee) => (
+          <div key={fee.id} className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{fee.title}</span>
+            <span className="font-medium text-foreground">${(fee.amount / 100).toFixed(2)}</span>
+          </div>
+        ))}
+        {totalPetFeeCents > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Cleaning fee</span>
-            <span className="font-medium text-foreground">${(cleaningFeeCents / 100).toFixed(2)}</span>
+            <span className="text-muted-foreground">
+              Additional charge for pets
+              {(validPetRowsCount > 0 ? validPetRowsCount : (checkoutData.numPets || 0)) > 0 && (
+                <> ({validPetRowsCount > 0 ? validPetRowsCount : (checkoutData.numPets || 0)} {((validPetRowsCount > 0 ? validPetRowsCount : (checkoutData.numPets || 0)) === 1 ? "pet" : "pets")})</>
+              )}
+            </span>
+            <span className="font-medium text-foreground">${(totalPetFeeCents / 100).toFixed(2)}</span>
           </div>
         )}
         {priceBreakdown.user_discounts?.map((discount) => (
@@ -828,41 +886,16 @@ export default function GuestInfoPage() {
                     maxChildren={10}
                   />
 
+                  <PetsInfoList
+                    isOpen={petsOpen}
+                    onOpenChange={setPetsOpen}
+                    maxPets={5}
+                  />
+
                   <VehicleInfoStep
                     maxVehicles={5}
                     showRVSection={true}
                   />
-
-                  {/* <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground">Trip Details</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="num_vehicles">Number of Vehicles</Label>
-                      <Select
-                        value={form.watch("num_vehicles") || ""}
-                        onValueChange={(value) => form.setValue("num_vehicles", value)}
-                      >
-                        <SelectTrigger id="num_vehicles">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[0, 1, 2, 3, 4].map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              {num} {num === 1 ? "vehicle" : "vehicles"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="special_requests">Special Requests</Label>
-                      <Textarea
-                        id="special_requests"
-                        {...form.register("special_requests")}
-                        placeholder="Any special requests or requirements?"
-                        rows={4}
-                      />
-                    </div>
-                  </div> */}
 
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Emergency Contact (Optional)</h3>

@@ -150,6 +150,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   const [isSearching, _setIsSearching] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [headerHidden, setHeaderHidden] = useState(false)
+  const [activeGalleryImageIndex, setActiveGalleryImageIndex] = useState<number | null>(null)
   const lastScrollYRef = useRef(0)
   const scrollTickingRef = useRef(false)
 
@@ -158,6 +159,19 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       setHeaderHidden(false)
     }
   }, [isMobileMenuOpen])
+
+  useEffect(() => {
+    if (activeGalleryImageIndex === null) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveGalleryImageIndex(null)
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [activeGalleryImageIndex])
 
   useEffect(() => {
     const delta = 10
@@ -277,8 +291,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       }
 
       if (
-        holidayNights > 0 && 
-        (holidayNights < rule.min_stay_nights || 
+        holidayNights > 0 &&
+        (holidayNights < rule.min_stay_nights ||
           (rule.max_stay_nights != null && holidayNights > rule.max_stay_nights))
       ) {
         return { rule, holidayNights }
@@ -315,7 +329,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
       title: "Holiday stay rule",
       description:
         holidayViolation.rule.max_stay_nights != null &&
-        holidayViolation.holidayNights > holidayViolation.rule.max_stay_nights
+          holidayViolation.holidayNights > holidayViolation.rule.max_stay_nights
           ? `The date you selected is in ${holidayViolation.rule.title} and the maximum nights of stay is ${holidayViolation.rule.max_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`
           : `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
       variant: "destructive",
@@ -385,7 +399,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
         title: "Holiday stay rule",
         description:
           holidayViolation.rule.max_stay_nights != null &&
-          holidayViolation.holidayNights > holidayViolation.rule.max_stay_nights
+            holidayViolation.holidayNights > holidayViolation.rule.max_stay_nights
             ? `The date you selected is in ${holidayViolation.rule.title} and the maximum nights of stay is ${holidayViolation.rule.max_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`
             : `The date you selected is in ${holidayViolation.rule.title} and the minimum nights of stay is ${holidayViolation.rule.min_stay_nights}. You currently have ${holidayViolation.holidayNights} night${holidayViolation.holidayNights === 1 ? "" : "s"} in this holiday period.`,
         variant: "destructive",
@@ -1175,6 +1189,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 <div
                   key={`${image.src}-${index}`}
                   className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-64 rounded-lg overflow-hidden group cursor-pointer"
+                  onClick={() => setActiveGalleryImageIndex(index)}
                 >
                   <Image
                     src={image.src}
@@ -1190,6 +1205,44 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </div>
           </div>
         </section>
+      )}
+
+      {activeGalleryImageIndex !== null && galleryImages[activeGalleryImageIndex] && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setActiveGalleryImageIndex(null)}
+        >
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Close image preview"
+              className="absolute -top-10 right-2 z-10 p-1.5 text-white transition-opacity hover:opacity-80 sm:right-0 sm:top-0 sm:translate-x-[115%] sm:-translate-y-[20%]"
+              onClick={(event) => {
+                event.stopPropagation()
+                setActiveGalleryImageIndex(null)
+              }}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div
+              className="relative max-h-[80vh] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Image
+                src={galleryImages[activeGalleryImageIndex].src}
+                alt={galleryImages[activeGalleryImageIndex].alt}
+                width={1600}
+                height={1200}
+                className="h-auto max-h-[80vh] w-auto max-w-[calc(100vw-2rem)] object-contain"
+                sizes="100vw"
+                priority
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Property Information */}

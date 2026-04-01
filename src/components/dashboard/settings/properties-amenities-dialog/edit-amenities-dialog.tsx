@@ -109,7 +109,7 @@ export function EditAmenitiesDialog({
                     {option}
                   </SelectItem>
                 ))}
-                <SelectItem value="Other">New Site Amenity</SelectItem>
+                <SelectItem value="Other">Custom</SelectItem>
               </SelectContent>
             </Select>
 

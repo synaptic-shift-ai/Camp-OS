@@ -29,6 +29,7 @@ type ReservationGetPayload = {
   site?: {
     site_name?: unknown
     site_number?: unknown
+    site_type?: unknown
   }
 }
 
@@ -76,6 +77,7 @@ export function mapReservationGetPayloadToDashboardReservation(
   const siteNumber = typeof site?.site_number === 'string' ? site.site_number : ''
   const siteNameRaw = typeof site?.site_name === 'string' ? site.site_name : ''
   const siteName = siteNameRaw || (siteNumber ? `Site ${siteNumber}` : 'Unknown site')
+  const siteType = typeof site?.site_type === 'string' ? site.site_type : 'other'
 
   const checkIn = typeof data.check_in_date === 'string' ? data.check_in_date : ''
   const checkOut = typeof data.check_out_date === 'string' ? data.check_out_date : ''
@@ -109,6 +111,7 @@ export function mapReservationGetPayloadToDashboardReservation(
     siteId: data.site_id,
     siteName,
     siteNumber,
+    siteType,
     pricePerNight: 0 as MoneyCents,
     weeklyRateCents: null,
     monthlyRateCents: null,

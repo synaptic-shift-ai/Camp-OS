@@ -36,6 +36,8 @@ import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteMan
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
 import { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import { toSiteDTO, toSiteDTOs } from '@/modules/SiteManagement/application/DTOs/SiteDTO'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * GET /api/v1/properties/[propertyId]/sites
@@ -350,6 +352,18 @@ export async function POST(
         .update(siteExtras)
         .eq('id', siteId)
         .is('deleted_at', null)
+    }
+
+    if (property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: propertyId,
+        action: 'create',
+        resource: 'site',
+        userId: user.id,
+        details: `Created site (site number: ${site.siteNumber})`,
+      })
     }
 
     // Convert domain entity to DTO

@@ -9,6 +9,7 @@ import { Guest } from '../../domain/Guest'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { Address } from '../../domain/value-objects/Address'
+import { randomUUID } from 'crypto'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
 import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
@@ -73,8 +74,8 @@ export class CreateGuestCommandHandler {
       return existingGuest
     }
 
-    // Generate new ID (would use UUID in production)
-    const guestId = `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    // guests.id is UUID in Postgres; generate a real UUID for inserts
+    const guestId = randomUUID()
 
     // Create new guest
     const guest = Guest.create({

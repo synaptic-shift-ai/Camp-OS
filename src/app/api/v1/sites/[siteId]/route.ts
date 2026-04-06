@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { getPricingSourceType, serializePricingSourceForPricingOverride } from '@/lib/site-pricing-source'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * GET /api/v1/sites/[siteId]
@@ -267,12 +269,24 @@ export async function PUT(
         updated_at: new Date().toISOString(),
       })
       .eq('id', siteId)
-      .select()
+      .select('*, properties!inner(id, company_id)')
       .single()
 
     if (updateError) {
       console.error('[v1/sites] Update error:', updateError)
       return NextResponse.json(error(ErrorCodes.INTERNAL_ERROR, 'Failed to update site'), { status: 500 })
+    }
+
+    if (updatedSite.properties?.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: updatedSite.properties.company_id,
+        propertyId: updatedSite.properties.id,
+        action: 'update',
+        resource: 'site',
+        userId: user.id,
+        details: `Updated site (site number: ${updatedSite.site_number})`,
+      })
     }
 
     return success(updatedSite)
@@ -365,6 +379,18 @@ export async function DELETE(
           ? 'Cannot delete site because it is referenced by other records.'
           : deleteError.message || 'Failed to delete site'
       return error('SITE_DELETE_FAILED', message, status, request, deleteError)
+    }
+
+    if (existingSite.properties?.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: existingSite.properties.company_id,
+        propertyId: existingSite.properties.id,
+        action: 'delete',
+        resource: 'site',
+        userId: user.id,
+        details: `Deleted site (site number: ${existingSite.site_number})`,
+      })
     }
 
     return success({ deleted: true, id: siteId })

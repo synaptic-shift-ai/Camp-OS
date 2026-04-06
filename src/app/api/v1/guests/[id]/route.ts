@@ -21,6 +21,8 @@ import { DeleteGuestCommandHandler } from '@/modules/GuestManagement/application
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 import { GuestDTOMapper } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * GET /api/v1/guests/[id]
@@ -229,6 +231,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ...(updateData.notes !== undefined && updateData.notes !== null && { notes: updateData.notes }),
     })
 
+    if (property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: property.id,
+        action: 'update',
+        resource: 'guest',
+        userId: user.id,
+        details: `Updated guest (email: ${updateData.email})`,
+      })
+    }
+
     // Convert to DTO
     const guestDTO = GuestDTOMapper.fromDomain(guest)
 
@@ -309,6 +323,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // Execute soft-delete command
     const commandHandler = new DeleteGuestCommandHandler(repository)
     await commandHandler.execute({ guestId: id, propertyId: existingGuestDTO.propertyId })
+
+    if (property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: property.id,
+        action: 'delete',
+        resource: 'guest',
+        userId: user.id,
+        details: `Deleted guest (email: ${existingGuestDTO.email})`,
+      })
+    }
 
     return new NextResponse(null, { status: 204 })
   } catch (err: any) {

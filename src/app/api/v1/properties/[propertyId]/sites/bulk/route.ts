@@ -26,6 +26,8 @@ import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/
 import { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import { toSiteDTO } from '@/modules/SiteManagement/application/DTOs/SiteDTO'
 import { z } from 'zod'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 // Bulk request schema
 const BulkCreateSitesRequestSchema = z.array(CreateSiteRequestSchema).min(1).max(500)
@@ -240,6 +242,18 @@ export async function POST(
     console.log(
       `[v1/sites/bulk] Bulk import completed: ${createdSites.length}/${validatedRequest.length} sites created for property ${propertyId} by user ${user.id}`
     )
+
+    if (property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: propertyId,
+        action: 'import',
+        resource: 'site',
+        userId: user.id,
+        details: `Imported ${createdSites.length} sites`,
+      })
+    }
 
     // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
     const successResponse = success(response)

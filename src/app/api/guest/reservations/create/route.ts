@@ -155,7 +155,7 @@ const resolveGuestPetFeeCents = (pricingConfig: unknown): number => {
   if (typeof cfg?.pet_fee_cents === 'number' && cfg.pet_fee_cents >= 0) {
     return cfg.pet_fee_cents
   }
-  return 2000
+  return 0
 }
 
 export async function POST(request: NextRequest) {

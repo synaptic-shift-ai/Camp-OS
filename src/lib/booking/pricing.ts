@@ -35,11 +35,13 @@ export function calculatePriceBreakdown(params: {
     total,
   }
 
-  // Add pet fee if applicable (flat $20 per stay for simplicity)
+  // Pet fee only when configured (resolved cents passed via petFeeCentsOverride)
   if (numPets && numPets > 0) {
-    const petFee = petFeeCentsOverride ?? 2000 // default $20.00 in cents
-    breakdown.pet_fee = petFee
-    breakdown.total += petFee
+    const petFee = petFeeCentsOverride ?? 0
+    if (petFee > 0) {
+      breakdown.pet_fee = petFee
+      breakdown.total += petFee
+    }
   }
 
   return breakdown

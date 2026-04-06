@@ -919,7 +919,7 @@ export function formValuesToPricingConfig(
     service_fee_amount_cents: formDollarsToCents(formValues.service_fee_amount_dollars),
     default_cleaning_fee_cents: formDollarsToCents(formValues.default_cleaning_fee_dollars),
     extra_guest_fee_cents: formDollarsToCents(formValues.extra_guest_fee_dollars) ?? 0,
-    pet_fee_cents: formDollarsToCents(formValues.pet_fee_dollars) ?? 2000,
+    pet_fee_cents: formDollarsToCents(formValues.pet_fee_dollars) ?? 0,
   }
 }
 

@@ -26,11 +26,6 @@ import type {
 } from './IPricingCalculator'
 
 /**
- * Default pet fee in cents ($20.00)
- */
-const DEFAULT_PET_FEE = 2000
-
-/**
  * Default tax rate (0% - tax handled externally in most cases)
  */
 const DEFAULT_TAX_RATE = 0
@@ -112,16 +107,18 @@ export class PricingCalculator implements IPricingCalculator {
       }
     }
 
-    // Pet fee (flat fee per stay)
+    // Pet fee (flat fee per stay) — only when configured on the site
     if (occupancy.hasPets()) {
-      const petFee = siteConfig.petFee ?? DEFAULT_PET_FEE
-      lineItems.push({
-        description: 'Pet fee',
-        quantity: 1,
-        unitPrice: petFee,
-        amount: petFee,
-        category: 'fee',
-      })
+      const petFee = siteConfig.petFee ?? 0
+      if (petFee > 0) {
+        lineItems.push({
+          description: 'Pet fee',
+          quantity: 1,
+          unitPrice: petFee,
+          amount: petFee,
+          category: 'fee',
+        })
+      }
     }
 
     // Cleaning fee

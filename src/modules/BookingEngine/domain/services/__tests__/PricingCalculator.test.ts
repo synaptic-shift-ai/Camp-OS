@@ -116,13 +116,12 @@ describe('PricingCalculator', () => {
       expect(petLineItem!.amount).toBe(2500)
     })
 
-    test('should use default pet fee when not configured', () => {
+    test('should not add pet fee when pet fee is not configured on site', () => {
       const checkIn = daysFromNow(14)
       const checkOut = daysFromNow(16)
 
       const config: SitePricingConfig = {
         basePricePerNight: 5000,
-        // No petFee configured - should use default $20
       }
 
       const dateRange = DateRange.create(checkIn, checkOut)
@@ -131,8 +130,7 @@ describe('PricingCalculator', () => {
       const result = calculator.calculatePriceFromConfig(config, dateRange, occupancy)
 
       const petLineItem = result.lineItems.find(l => l.description === 'Pet fee')
-      expect(petLineItem).toBeDefined()
-      expect(petLineItem!.amount).toBe(2000) // Default $20
+      expect(petLineItem).toBeUndefined()
     })
 
     test('should not add pet fee when no pets', () => {

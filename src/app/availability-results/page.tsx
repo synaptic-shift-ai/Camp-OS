@@ -58,7 +58,7 @@ const resolveGuestPetFeeCents = (pricingConfig: GuestPricingConfig | null): numb
   if (typeof pricingConfig?.pet_fee_cents === "number" && pricingConfig.pet_fee_cents >= 0) {
     return pricingConfig.pet_fee_cents
   }
-  return 2000
+  return 0
 }
 
 function AvailabilityResultsContent() {

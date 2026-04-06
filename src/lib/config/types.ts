@@ -375,7 +375,7 @@ export interface PricingConfig {
   /**
    * @deprecated Use user_defined_fees instead
    * Default pet fee in cents (can be overridden per site)
-   * @example 2000 = $20.00 pet fee
+   * @example 1500 = $15.00 pet fee
    */
   pet_fee_cents?: number
 }
@@ -1074,7 +1074,7 @@ export const DEFAULT_PRICING_CONFIG: PricingConfig = {
   extra_guest_fee_enabled: false,
   extra_guest_threshold: 2,
   extra_guest_fee_cents: 0,
-  pet_fee_cents: 2000, // $20.00 default
+  pet_fee_cents: 0,
 }
 
 /**

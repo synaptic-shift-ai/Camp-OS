@@ -15,6 +15,8 @@ import { MarkNoShowCommandHandler } from '@/modules/BookingEngine/application/co
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/reservations/[id]/no-show
@@ -102,6 +104,19 @@ export async function POST(
         error(ErrorCodes.VALIDATION_ERROR, result.message),
         { status: statusCode }
       )
+    }
+
+    if (property != null && property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber = result.reservation.confirmationNumber.value
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: result.reservation.propertyId,
+        action: 'no_show',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Marked reservation as no-show (confirmation ${confirmationNumber})`,
+      })
     }
 
     revalidatePath('/dashboard/reservations')

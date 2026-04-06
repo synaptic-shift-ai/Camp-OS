@@ -21,6 +21,8 @@ import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/Reser
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 import { sendCancellationNotice } from '@/lib/email/send'
 import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/reservations/[id]/cancel
@@ -389,6 +391,19 @@ export async function POST(
         refundStatus,
       }).catch((err) => {
         console.error('[Reservation API v1] Failed to send cancellation notice:', err)
+      })
+    }
+
+    if (property != null && property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber = reservation.confirmationNumber.value
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: reservation.propertyId,
+        action: 'cancelled',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Cancelled reservation (confirmation ${confirmationNumber})`,
       })
     }
 

@@ -19,6 +19,8 @@ import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { AvailabilityService } from '@/modules/BookingEngine/domain/services/AvailabilityService'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/reservations/[id]/extend
@@ -129,6 +131,19 @@ export async function POST(
         error(ErrorCodes.VALIDATION_ERROR, result.message),
         { status: statusCode }
       )
+    }
+
+    if (property?.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber = result.reservation.confirmationNumber.value
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: result.reservation.propertyId,
+        action: 'extended',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Extended reservation (confirmation ${confirmationNumber})`,
+      })
     }
 
     // Convert to DTO with additional info

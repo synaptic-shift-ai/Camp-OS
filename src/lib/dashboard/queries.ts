@@ -5,7 +5,9 @@
  * All queries enforce multi-tenant isolation via property_id.
  */
 
+import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { Database } from '@/contracts/db'
 import type {
   ReservationStatus,
@@ -111,6 +113,18 @@ export interface DashboardReservation {
   checkInNotes: string | null
 }
 
+export interface DashboardActivityLog {
+  /** Primary key UUID; stable row identity (not shown in the ID column). */
+  rowId: string
+  /** Per-property sequence for UI only: 001 = oldest log for this property, counts up with each new log. */
+  displayId: string
+  action: string
+  resource: string
+  userDisplayName: string
+  createdAt: string
+  details: string | null
+}
+
 export interface DashboardPayment {
   id: string
   reservationId: string
@@ -164,6 +178,90 @@ export interface PaymentFilters {
   status?: PaymentStatus
   startDate?: string
   endDate?: string
+}
+
+// ============================================================================
+// Activity Logs Queries
+// ============================================================================
+
+function formatPropertyActivityDisplayId(sequence: number, totalForProperty: number): string {
+  const width = Math.max(3, String(totalForProperty).length)
+  return String(sequence).padStart(width, '0')
+}
+
+function displayNameFromAuthUser(user: User): string {
+  const meta = user.user_metadata as Record<string, unknown> | undefined
+  const fullName = typeof meta?.full_name === 'string' ? meta.full_name.trim() : ''
+  if (fullName.length > 0) return fullName
+  return user.email ?? 'Unknown user'
+}
+
+async function resolveActivityLogActorDisplayNames(userIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(userIds.filter(Boolean))]
+  const map = new Map<string, string>()
+  if (unique.length === 0) return map
+
+  const service = createServiceRoleClient()
+  await Promise.all(
+    unique.map(async (id) => {
+      const { data, error } = await service.auth.admin.getUserById(id)
+      if (error || !data?.user) {
+        map.set(id, 'Unknown user')
+        return
+      }
+      map.set(id, displayNameFromAuthUser(data.user))
+    })
+  )
+  return map
+}
+
+export async function getPropertyActivityLogs(propertyId: string): Promise<DashboardActivityLog[]> {
+  const supabase = await createClient()
+
+  const { count: totalCount, error: countError } = await supabase
+    .from('activity_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('property_id', propertyId)
+
+  if (countError) {
+    console.error('Failed to count activity logs', countError)
+    return []
+  }
+
+  const total = totalCount ?? 0
+
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('id, action, resource, user_id, created_at, details')
+    .eq('property_id', propertyId)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) {
+    console.error('Failed to fetch activity logs', error)
+    return []
+  }
+
+  const rows = data ?? []
+  const chronological = [...rows].reverse()
+  const n = chronological.length
+  const actorIds = chronological.map((r) => r.user_id).filter((id): id is string => id != null)
+  const displayNameByUserId = await resolveActivityLogActorDisplayNames(actorIds)
+
+  return chronological.map((row, index) => {
+    const sequence = total - n + 1 + index
+    const userDisplayName =
+      row.user_id == null ? '—' : (displayNameByUserId.get(row.user_id) ?? 'Unknown user')
+    return {
+      rowId: row.id,
+      displayId: formatPropertyActivityDisplayId(sequence, total),
+      action: row.action,
+      resource: row.resource,
+      userDisplayName,
+      createdAt: row.created_at,
+      details: row.details ?? null,
+    }
+  })
 }
 
 // ============================================================================

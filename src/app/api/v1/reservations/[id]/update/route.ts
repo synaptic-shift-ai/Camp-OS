@@ -14,6 +14,8 @@ import {
   isStayWithinOpenPeriodByIsoDates,
   buildOpenPeriodBookingErrorMessage,
 } from '@/lib/booking/open-period'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function PATCH(
   request: NextRequest,
@@ -181,6 +183,22 @@ export async function PATCH(
       console.error('[Reservations API v1] Update error:', updateError)
       return error(ErrorCodes.SYS_001, request, {
         message: 'Failed to update reservation',
+      })
+    }
+
+    if (property?.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber =
+        typeof reservation.confirmation_number === 'string'
+          ? reservation.confirmation_number
+          : reservationId
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: reservation.sites.property_id as string,
+        action: 'updated',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Updated reservation (confirmation ${confirmationNumber})`,
       })
     }
 

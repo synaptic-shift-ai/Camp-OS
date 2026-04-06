@@ -18,6 +18,8 @@ import { RecordPaymentCommandHandler } from '@/modules/BookingEngine/application
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/reservations/[id]/payment
@@ -109,6 +111,19 @@ export async function POST(
       paymentMethod: validatedRequest.paymentMethod,
       stripePaymentIntentId: validatedRequest.stripePaymentIntentId ?? null,
     })
+
+    if (property != null && property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber = reservation.confirmationNumber.value
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: reservation.propertyId,
+        action: 'manual_payment',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Recorded manual payment for reservation (confirmation ${confirmationNumber})`,
+      })
+    }
 
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)

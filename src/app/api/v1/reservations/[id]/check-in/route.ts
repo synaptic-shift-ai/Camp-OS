@@ -19,6 +19,8 @@ import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { asYyyyMmDd, dayOfWeekFromYyyyMmDd } from '@/lib/utils'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/reservations/[id]/check-in
@@ -219,6 +221,19 @@ export async function POST(
           ErrorCodes.INTERNAL_ERROR.status
         )
       }
+    }
+
+    if (property != null && property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber = reservation.confirmationNumber.value
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: reservation.propertyId,
+        action: 'checked_in',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Checked in guest (confirmation ${confirmationNumber})`,
+      })
     }
 
     // Convert to DTO

@@ -18,6 +18,8 @@ import {
   declineRenewal,
 } from '@/lib/booking/actions'
 import type { ProcessActionRequest } from '@/lib/booking/types'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function POST(
   request: NextRequest,
@@ -142,6 +144,23 @@ export async function POST(
     if (!result.success) {
       return error(ErrorCodes.SYS_001, request, {
         message: result.error?.message || 'Action failed',
+      })
+    }
+
+    if (property != null && property.company_id && result.reservation) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const updated = result.reservation
+      const confirmationNumber =
+        typeof updated.confirmation_number === 'string'
+          ? updated.confirmation_number
+          : reservationId
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: reservation.property_id,
+        action: body.action,
+        resource: 'reservation',
+        userId: user.id,
+        details: `${body.action} reservation (confirmation ${confirmationNumber})`,
       })
     }
 

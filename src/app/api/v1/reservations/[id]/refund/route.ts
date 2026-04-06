@@ -20,6 +20,8 @@ import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyA
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { sendRefundIssuedEmail } from '@/lib/email/send'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/reservations/[id]/refund
@@ -179,6 +181,19 @@ export async function POST(
         ...(refundPaymentMethod ? { refundPaymentMethod } : {}),
       }).catch((err) => {
         console.error('[Reservations API v1] Failed to send refund-issued email:', err)
+      })
+    }
+
+    if (property != null && property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      const confirmationNumber = reservation.confirmationNumber.value
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: reservation.propertyId,
+        action: 'refund_issued',
+        resource: 'reservation',
+        userId: user.id,
+        details: `Issued refund for reservation (confirmation ${confirmationNumber})`,
       })
     }
 

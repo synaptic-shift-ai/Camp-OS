@@ -22,6 +22,7 @@ import {
   isStayWithinOpenPeriodByIsoDates,
   buildOpenPeriodBookingErrorMessage,
 } from '@/lib/booking/open-period'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 
 /**
  * POST /api/v1/properties/[propertyId]/reservations/manual
@@ -50,7 +51,7 @@ export async function POST(
     // Verify property ownership (BP-4: Multi-tenant isolation)
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name, owner_id, settings')
+      .select('id, name, owner_id, settings, company_id')
       .eq('id', propertyId)
       .single()
 
@@ -157,6 +158,16 @@ export async function POST(
         propertyId,
       })
       console.log('[Manual Reservation v1] Command handler succeeded:', { reservationId: result.id })
+      if (property.company_id) {
+        await recordActivityLog(supabaseServiceRole, {
+          companyId: property.company_id,
+          propertyId,
+          action: 'created',
+          resource: 'reservation',
+          userId: user.id,
+          details: `Manual reservation for ${result.guestName} (confirmation ${result.confirmationNumber})`,
+        })
+      }
     } catch (cmdError) {
       console.error('[Manual Reservation v1] Command handler failed:', cmdError)
       throw cmdError

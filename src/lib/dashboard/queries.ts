@@ -215,10 +215,49 @@ async function resolveActivityLogActorDisplayNames(userIds: string[]): Promise<M
   return map
 }
 
+export type ActivityLogListFilters = {
+  search?: string | null
+  action?: string | null
+  resource?: string | null
+  /** Inclusive start day, `yyyy-MM-dd` (interpreted in the Node runtime local timezone). */
+  dateFrom?: string | null
+  /** Inclusive end day, `yyyy-MM-dd` (interpreted in the Node runtime local timezone). */
+  dateTo?: string | null
+}
+
+function activityLogParseYmdLocalMidnight(ymd: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim())
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2]) - 1
+  const d = Number(m[3])
+  const start = new Date(y, mo, d, 0, 0, 0, 0)
+  if (start.getFullYear() !== y || start.getMonth() !== mo || start.getDate() !== d) return null
+  return start
+}
+
+function activityLogLocalDayStartIso(ymd: string): string | null {
+  const start = activityLogParseYmdLocalMidnight(ymd)
+  return start ? start.toISOString() : null
+}
+
+function activityLogLocalDayEndExclusiveIso(ymd: string): string | null {
+  const start = activityLogParseYmdLocalMidnight(ymd)
+  if (!start) return null
+  const endExclusive = new Date(start)
+  endExclusive.setDate(endExclusive.getDate() + 1)
+  return endExclusive.toISOString()
+}
+
+function escapeIlikePattern(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
 export async function getPropertyActivityLogs(
   propertyId: string,
   page = 1,
-  limit = 10
+  limit = 10,
+  filters: ActivityLogListFilters = {}
 ): Promise<{ data: DashboardActivityLog[]; total: number }> {
   const supabase = await createClient()
 
@@ -236,10 +275,43 @@ export async function getPropertyActivityLogs(
   const companyId = propertyRow.company_id
   const activityScope = `property_id.eq.${propertyId},and(company_id.eq.${companyId},property_id.is.null)`
 
-  const { count: totalCount, error: countError } = await supabase
+  const actionFilter = filters.action?.trim()
+  const resourceFilter = filters.resource?.trim()
+  const searchRaw = filters.search?.trim() ?? ''
+  const searchEscaped = searchRaw.length > 0 ? escapeIlikePattern(searchRaw) : null
+
+  let dateFromYmd = filters.dateFrom?.trim() ?? null
+  let dateToYmd = filters.dateTo?.trim() ?? null
+  if (dateFromYmd && dateToYmd && dateFromYmd > dateToYmd) {
+    ;[dateFromYmd, dateToYmd] = [dateToYmd, dateFromYmd]
+  }
+  const createdAtGte = dateFromYmd ? activityLogLocalDayStartIso(dateFromYmd) : null
+  const createdAtLt = dateToYmd ? activityLogLocalDayEndExclusiveIso(dateToYmd) : null
+
+  let countBuilder = supabase
     .from('activity_log')
     .select('*', { count: 'exact', head: true })
     .or(activityScope)
+
+  if (actionFilter && actionFilter !== 'all') {
+    countBuilder = countBuilder.eq('action', actionFilter)
+  }
+  if (resourceFilter && resourceFilter !== 'all') {
+    countBuilder = countBuilder.eq('resource', resourceFilter)
+  }
+  if (searchEscaped != null) {
+    countBuilder = countBuilder.or(
+      `details.ilike.%${searchEscaped}%,action.ilike.%${searchEscaped}%,resource.ilike.%${searchEscaped}%`
+    )
+  }
+  if (createdAtGte) {
+    countBuilder = countBuilder.gte('created_at', createdAtGte)
+  }
+  if (createdAtLt) {
+    countBuilder = countBuilder.lt('created_at', createdAtLt)
+  }
+
+  const { count: totalCount, error: countError } = await countBuilder
 
   if (countError) {
     console.error('Failed to count activity logs', countError)
@@ -252,10 +324,30 @@ export async function getPropertyActivityLogs(
   const offset = (safePage - 1) * safeLimit
   const rangeEnd = offset + safeLimit - 1
 
-  const { data, error } = await supabase
+  let dataBuilder = supabase
     .from('activity_log')
     .select('id, action, resource, user_id, created_at, details')
     .or(activityScope)
+
+  if (actionFilter && actionFilter !== 'all') {
+    dataBuilder = dataBuilder.eq('action', actionFilter)
+  }
+  if (resourceFilter && resourceFilter !== 'all') {
+    dataBuilder = dataBuilder.eq('resource', resourceFilter)
+  }
+  if (searchEscaped != null) {
+    dataBuilder = dataBuilder.or(
+      `details.ilike.%${searchEscaped}%,action.ilike.%${searchEscaped}%,resource.ilike.%${searchEscaped}%`
+    )
+  }
+  if (createdAtGte) {
+    dataBuilder = dataBuilder.gte('created_at', createdAtGte)
+  }
+  if (createdAtLt) {
+    dataBuilder = dataBuilder.lt('created_at', createdAtLt)
+  }
+
+  const { data, error } = await dataBuilder
     .order('created_at', { ascending: false })
     .range(offset, rangeEnd)
 
@@ -265,13 +357,11 @@ export async function getPropertyActivityLogs(
   }
 
   const rows = data ?? []
-  const chronological = [...rows].reverse()
-  const n = chronological.length
-  const actorIds = chronological.map((r) => r.user_id).filter((id): id is string => id != null)
+  const actorIds = rows.map((r) => r.user_id).filter((id): id is string => id != null)
   const displayNameByUserId = await resolveActivityLogActorDisplayNames(actorIds)
 
-  const dataResult = chronological.map((row, index) => {
-    const sequence = total - offset - n + 1 + index
+  const dataResult = rows.map((row, index) => {
+    const sequence = total - offset - index
     const userDisplayName =
       row.user_id == null ? 'System' : (displayNameByUserId.get(row.user_id) ?? 'Unknown user')
     return {

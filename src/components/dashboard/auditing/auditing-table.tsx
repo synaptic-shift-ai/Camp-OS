@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
@@ -24,13 +24,15 @@ type AuditingTableProps = {
 }
 
 export default function AuditingTable({
-    propertyId,
+    propertyId: _propertyId,
     activityLogs,
     currentPage,
     pageSize,
     total,
 }: AuditingTableProps) {
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
     const [isPending, startTransition] = useTransition()
     const rows = activityLogs ?? []
 
@@ -40,10 +42,11 @@ export default function AuditingTable({
     const endIndex = Math.min(total, clampedCurrentPage * pageSize)
 
     const buildPageHref = (page: number) => {
-        const params = new URLSearchParams()
+        const params = new URLSearchParams(searchParams.toString())
         params.set("page", String(page))
         params.set("pageSize", String(pageSize))
-        return `/dashboard/${propertyId}/auditing?${params.toString()}`
+        const q = params.toString()
+        return q ? `${pathname}?${q}` : pathname
     }
 
     const goToPage = (page: number) => {
@@ -54,10 +57,11 @@ export default function AuditingTable({
 
     const handlePageSizeChange = (nextPageSize: number) => {
         startTransition(() => {
-            const params = new URLSearchParams()
+            const params = new URLSearchParams(searchParams.toString())
             params.set("page", "1")
             params.set("pageSize", String(nextPageSize))
-            router.push(`/dashboard/${propertyId}/auditing?${params.toString()}`)
+            const q = params.toString()
+            router.push(q ? `${pathname}?${q}` : pathname)
         })
     }
 

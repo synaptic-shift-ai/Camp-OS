@@ -51,6 +51,16 @@ export interface BookingDateRangePickerProps {
   advanceNoticeDays?: number
   openPeriodFrom?: string | null
   openPeriodUntil?: string | null
+  /**
+   * When true, only `blackoutDates` can disable days (e.g. activity / report filters).
+   * Booking rules, past-date blocks, windows, and open period are skipped.
+   */
+  allowPastDates?: boolean
+  /**
+   * `start` = panel’s left edge with the trigger (default).
+   * `end` = panel’s right edge with the trigger — avoids clipping when the trigger is on the viewport edge.
+   */
+  dropdownAlign?: 'start' | 'end'
   disabled?: boolean
   className?: string
   numberOfMonths?: number
@@ -65,9 +75,15 @@ function isDateDisabled(
   advanceNoticeDays?: number,
   openPeriodFrom?: string | null,
   openPeriodUntil?: string | null,
+  allowPastDates?: boolean,
 ) {
-  const d = new Date(date); d.setHours(0, 0, 0, 0)
-  const t = new Date(); t.setHours(0, 0, 0, 0)
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  if (allowPastDates) {
+    return blackout.includes(format(date, 'yyyy-MM-dd'))
+  }
+  const t = new Date()
+  t.setHours(0, 0, 0, 0)
   if (d < t) return true
 
   const minDaysBySameDay = sameDayOk ? 0 : 1
@@ -281,6 +297,8 @@ export function BookingDateRangePicker({
   advanceNoticeDays,
   openPeriodFrom,
   openPeriodUntil,
+  allowPastDates = false,
+  dropdownAlign = 'start',
   disabled = false,
   className,
   numberOfMonths = 1,
@@ -308,13 +326,23 @@ export function BookingDateRangePicker({
         advanceNoticeDays,
         openPeriodFrom,
         openPeriodUntil,
+        allowPastDates,
       ),
-    [sameDayBookingEnabled, blackoutDates, bookingWindowDays, advanceNoticeDays, openPeriodFrom, openPeriodUntil],
+    [
+      sameDayBookingEnabled,
+      blackoutDates,
+      bookingWindowDays,
+      advanceNoticeDays,
+      openPeriodFrom,
+      openPeriodUntil,
+      allowPastDates,
+    ],
   )
 
   const hasValue = Boolean(value?.from)
   const hasRange = Boolean(value?.from && value?.to)
   const isDashboard = variant === 'dashboard'
+  const alignEnd = dropdownAlign === 'end'
 
   return (
     <div ref={ref} className={cn('relative w-full space-y-2', className)}>
@@ -376,12 +404,16 @@ export function BookingDateRangePicker({
 
       <div
         className={cn(
-          'absolute left-0 top-full z-50 mt-1.5 w-full min-w-[20rem]',
+          'absolute top-full z-50 mt-1.5 min-w-[20rem]',
+          alignEnd
+            ? 'right-0 left-auto w-max max-w-[min(calc(100vw-1.5rem),24rem)]'
+            : 'left-0 w-full',
           'rounded-2xl border shadow-lg',
           isDashboard
             ? 'bg-popover text-popover-foreground border-border'
             : 'bg-white border-[#e2e8f0] shadow-2xl shadow-black/10 dark:bg-popover dark:text-popover-foreground dark:border-border',
-          'origin-top transition-all duration-200',
+          alignEnd ? 'origin-top-right' : 'origin-top',
+          'transition-all duration-200',
           open
             ? 'scale-100 opacity-100 pointer-events-auto'
             : 'scale-95 opacity-0 pointer-events-none',

@@ -29,7 +29,7 @@ export type AmenityEditPayload = {
 type Amenity = {
   id: string
   name: string
-  description: string
+  description: string | null
 }
 
 const amenityPresets = [
@@ -74,7 +74,7 @@ export function EditAmenitiesDialog({
       setPreset("Other")
       setCustomName(amenityToEdit.name)
     }
-    setDescription(amenityToEdit.description)
+    setDescription(amenityToEdit.description ?? "")
   }, [open, amenityToEdit])
 
   const name = preset === "Other" ? customName.trim() : preset

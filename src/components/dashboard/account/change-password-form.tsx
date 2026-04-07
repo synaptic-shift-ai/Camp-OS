@@ -46,6 +46,19 @@ export function ChangePasswordForm() {
         throw error
       }
 
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (token) {
+        try {
+          await fetch("/api/v1/activity/record-password-change", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        } catch {
+          /* best-effort */
+        }
+      }
+
       setNewPassword("")
       setConfirmPassword("")
       toast({

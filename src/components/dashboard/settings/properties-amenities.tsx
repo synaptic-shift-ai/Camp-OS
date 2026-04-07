@@ -29,13 +29,13 @@ const SEASON_ALERT_TOAST_CLASS =
 type Amenity = {
     id: string
     name: string
-    description: string
+    description: string | null
 }
 
 type PropertyAmenity = {
     id: string
     name: string
-    description: string
+    description: string | null
     icon_url?: string | null
 }
 
@@ -77,7 +77,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
             {
                 id: crypto.randomUUID(),
                 name: normalizedName,
-                description: propertyAmenity.description.trim(),
+                description: (propertyAmenity.description ?? "").trim(),
                 icon_url: propertyAmenity.icon_url?.trim() || null,
             },
         ])
@@ -92,7 +92,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
             {
                 id: crypto.randomUUID(),
                 name: normalizedName,
-                description: amenity.description.trim(),
+                description: (amenity.description ?? "").trim(),
             },
         ])
     }
@@ -114,7 +114,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                     ? {
                         ...amenity,
                         name: normalizedName,
-                        description: payload.description.trim(),
+                        description: (payload.description ?? "").trim(),
                     }
                     : amenity,
             ),
@@ -146,7 +146,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                     ? {
                         ...amenity,
                         name: normalizedName,
-                        description: payload.description.trim(),
+                        description: (payload.description ?? "").trim(),
                         icon_url: payload.icon_url?.trim() || null,
                     }
                     : amenity,
@@ -204,14 +204,14 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                 amenities: propertyAmenities.map((amenity) => ({
                     id: amenity.id,
                     name: amenity.name,
-                    description: amenity.description.trim() || null,
+                    description: amenity.description?.trim() || null,
                     icon_url: amenity.icon_url?.trim() || null,
                 })),
 
                 site_amenities: amenities.map((amenity) => ({
                     id: amenity.id,
                     name: amenity.name,
-                    description: amenity.description.trim() || null,
+                    description: amenity.description?.trim() || null,
                 })),
             }
 

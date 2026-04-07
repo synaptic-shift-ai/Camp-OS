@@ -138,6 +138,21 @@ export async function POST(
 
     // After check-out the site needs turnover to housekeeping
     if (reservation.siteId) {
+      const { data: siteRow, error: siteLookupError } = await supabase
+        .from('sites')
+        .select('id, site_number')
+        .eq('id', reservation.siteId)
+        .eq('property_id', reservation.propertyId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (siteLookupError || !siteRow) {
+        return NextResponse.json(
+          error(ErrorCodes.RESOURCE_NOT_FOUND, 'Site not found for this reservation'),
+          { status: 404 }
+        )
+      }
+
       const { error: siteUpdateError } = await supabase
         .from('sites')
         .update({
@@ -153,6 +168,18 @@ export async function POST(
           error(ErrorCodes.INTERNAL_ERROR, 'Guest was checked out but failed to update site status'),
           { status: 500 }
         )
+      }
+
+      if (property.company_id) {
+        const supabaseServiceRole = createServiceRoleClient()
+        await recordActivityLog(supabaseServiceRole, {
+          companyId: property.company_id,
+          propertyId: reservation.propertyId,
+          action: 'update',
+          resource: 'site',
+          userId: null,
+          details: `Site (number: ${siteRow.site_number}) marked as housekeeping`,
+        })
       }
     }
 

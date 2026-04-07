@@ -40,7 +40,7 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -48,7 +48,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        const { data: { user } } = await supabase.auth.getUser()
+        const user = signInData.user ?? (await supabase.auth.getUser()).data.user
 
         if (user) {
           if (!user.app_metadata?.custom_email_verified) {
@@ -58,6 +58,18 @@ export default function LoginPage() {
             router.push(`/verify-email?${params.toString()}`)
             router.refresh()
             return
+          }
+
+          const accessToken = signInData.session?.access_token
+          if (accessToken) {
+            try {
+              await fetch("/api/v1/activity/record-login", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+              })
+            } catch {
+              /* audit is best-effort; do not block sign-in */
+            }
           }
 
           const userType = user.user_metadata?.user_type

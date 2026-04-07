@@ -2,7 +2,45 @@ import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
 import { revalidatePath } from "next/cache"
-import { updatePropertyConfigSchema } from "@/lib/config/schemas"
+import {
+  updatePropertyConfigSchema,
+  type UpdatePropertyConfigInput,
+} from "@/lib/config/schemas"
+import { recordActivityLog } from "@/shared/activity-log/record-activity-log"
+
+const CONFIG_PATCH_ACTIVITY_KEYS = [
+  "deposit_config",
+  "pricing_config",
+  "booking_rules_config",
+  "rate_discounts_config",
+  "reservation_type_config",
+  "enabled_reservation_types",
+  "site_type_config",
+] as const satisfies readonly (keyof UpdatePropertyConfigInput)[]
+
+const CONFIG_PATCH_ACTIVITY_LABEL: Partial<Record<keyof UpdatePropertyConfigInput, string>> = {
+  site_type_config: "site type rate",
+  deposit_config: "deposit",
+  booking_rules_config: "booking rules",
+  rate_discounts_config: "discount",
+  pricing_config: "pricing",
+  reservation_type_config: "reservation types",
+  enabled_reservation_types: "reservation types",
+}
+
+function buildSettingsPatchActivityDetails(config: UpdatePropertyConfigInput): string {
+  const labels: string[] = []
+  const seen = new Set<string>()
+  for (const key of CONFIG_PATCH_ACTIVITY_KEYS) {
+    if (config[key] === undefined) continue
+    const label = CONFIG_PATCH_ACTIVITY_LABEL[key] ?? key.replace(/_config$/, "").replaceAll("_", " ")
+    if (seen.has(label)) continue
+    seen.add(label)
+    labels.push(label)
+  }
+  if (labels.length === 0) return "Updated property settings"
+  return `Updated property settings (${labels.join(" and ")})`
+}
 
 /**
  * PATCH /api/properties/[id]/settings
@@ -125,6 +163,18 @@ export async function PATCH(
         { error: "Failed to update property settings" },
         { status: 500 }
       )
+    }
+
+    if (property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: property.id,
+        action: 'update',
+        resource: 'settings',
+        userId: user.id,
+        details: buildSettingsPatchActivityDetails(configUpdates),
+      })
     }
 
     // Revalidate the settings page to reflect changes immediately

@@ -5,7 +5,7 @@ type DbClient = SupabaseClient<Database>
 
 export type RecordActivityLog = {
     companyId: string
-    propertyId: string
+    propertyId: string | null
     action: string
     resource: string
     userId: string | null

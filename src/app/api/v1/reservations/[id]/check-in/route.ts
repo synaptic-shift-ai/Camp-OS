@@ -127,7 +127,7 @@ export async function POST(
 
     const { data: siteRow, error: siteLookupError } = await supabase
       .from('sites')
-      .select('id, status')
+      .select('id, status, site_number')
       .eq('id', existingReservation.siteId)
       .eq('property_id', existingReservation.propertyId)
       .is('deleted_at', null)
@@ -220,6 +220,18 @@ export async function POST(
           'Guest was checked in but failed to update site status',
           ErrorCodes.INTERNAL_ERROR.status
         )
+      }
+
+      if (property.company_id) {
+        const supabaseServiceRole = createServiceRoleClient()
+        await recordActivityLog(supabaseServiceRole, {
+          companyId: property.company_id,
+          propertyId: reservation.propertyId,
+          action: 'update',
+          resource: 'site',
+          userId: null,
+          details: `Site (number: ${siteRow.site_number}) marked as occupied`,
+        })
       }
     }
 

@@ -61,6 +61,18 @@ export function SiteHeader({ initialUser = null }: SiteHeaderProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (token) {
+        try {
+          await fetch('/api/v1/activity/record-logout', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        } catch {
+          /* best-effort audit */
+        }
+      }
       await supabase.auth.signOut()
     } finally {
       setIsLoggingOut(false)

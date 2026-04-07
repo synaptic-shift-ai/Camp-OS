@@ -16,6 +16,8 @@ import {
   parseReservationTypesConfigFromDB,
   parseEnabledReservationTypesFromDB,
 } from '@/lib/config/resolution'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 // Validation schema for updating reservation types config
 const UpdateReservationTypesSchema = z.object({
@@ -227,6 +229,18 @@ export async function PUT(
         error(ErrorCodes.INTERNAL_ERROR, 'Failed to update reservation types config'),
         { status: 500 }
       )
+    }
+
+    if (property.company_id) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.company_id,
+        propertyId: property.id,
+        action: 'update',
+        resource: 'settings',
+        userId: user.id,
+        details: `Updated property settings (Reservation Types)`,
+      })
     }
 
     // Parse and return updated config

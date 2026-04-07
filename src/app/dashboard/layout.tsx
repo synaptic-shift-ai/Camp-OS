@@ -163,6 +163,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     const supabase = createClient()
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (token) {
+        await fetch("/api/v1/activity/record-logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      }
+    } catch {
+      /* audit is best-effort; do not block logout */
+    }
     await supabase.auth.signOut()
     window.location.href = "/login"
   }

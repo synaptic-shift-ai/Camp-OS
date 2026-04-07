@@ -22,6 +22,39 @@ import { UpdatePropertyCommandHandler } from '@/modules/PropertyManagement/appli
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
 import { toPropertyDTO } from '@/modules/PropertyManagement/application/DTOs/PropertyDTO'
 import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+
+const AMENITY_PATCH_KEYS = new Set<keyof UpdatePropertyRequest>(['amenities', 'site_amenities'])
+
+const CANCELLATION_TERMS_PATCH_KEYS = new Set<keyof UpdatePropertyRequest>([
+  'cancellation_policy',
+  'cancellation_policy_config',
+  'terms_and_conditions',
+])
+
+function buildPropertyPatchActivityDetails(req: UpdatePropertyRequest): string {
+  let hasProperty = false
+  let hasAmenities = false
+  let hasCancellationTerms = false
+  for (const key of Object.keys(req) as (keyof UpdatePropertyRequest)[]) {
+    if (req[key] === undefined) continue
+    if (AMENITY_PATCH_KEYS.has(key)) {
+      hasAmenities = true
+    } else if (CANCELLATION_TERMS_PATCH_KEYS.has(key)) {
+      hasCancellationTerms = true
+    } else {
+      hasProperty = true
+    }
+  }
+
+  const parts: string[] = []
+  if (hasProperty) parts.push('property')
+  if (hasAmenities) parts.push('amenities')
+  if (hasCancellationTerms) parts.push('terms & policies')
+  if (parts.length === 0) return 'Updated property settings'
+  return `Updated property settings (${parts.join(' and ')})`
+}
 
 /**
  * GET /api/v1/properties/[propertyId]
@@ -286,6 +319,18 @@ export async function PATCH(
       } catch (amenityCleanupErr) {
         console.error('[Properties API v1] amenity cleanup error:', amenityCleanupErr)
       }
+    }
+
+    if (property.companyId) {
+      const supabaseServiceRole = createServiceRoleClient()
+      await recordActivityLog(supabaseServiceRole, {
+        companyId: property.companyId,
+        propertyId: property.id,
+        action: 'update',
+        resource: 'settings',
+        userId: user.id,
+        details: buildPropertyPatchActivityDetails(validatedRequest),
+      })
     }
 
     // Convert to DTO

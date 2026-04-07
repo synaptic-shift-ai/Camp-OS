@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { recordLoginActivityLogForUser } from '@/shared/activity-log/record-login-activity-log'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -29,6 +30,8 @@ export async function GET(request: NextRequest) {
     userType: user.user_metadata?.user_type,
     emailVerified: user.email_confirmed_at ? true : false
   })
+
+  await recordLoginActivityLogForUser(user)
 
   // If this is a verification email click, user just verified their email
   // Update the user's email_verified status will happen automatically by Supabase

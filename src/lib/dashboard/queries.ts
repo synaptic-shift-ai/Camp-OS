@@ -215,31 +215,53 @@ async function resolveActivityLogActorDisplayNames(userIds: string[]): Promise<M
   return map
 }
 
-export async function getPropertyActivityLogs(propertyId: string): Promise<DashboardActivityLog[]> {
+export async function getPropertyActivityLogs(
+  propertyId: string,
+  page = 1,
+  limit = 10
+): Promise<{ data: DashboardActivityLog[]; total: number }> {
   const supabase = await createClient()
+
+  const { data: propertyRow, error: propertyLookupError } = await supabase
+    .from('properties')
+    .select('company_id')
+    .eq('id', propertyId)
+    .single()
+
+  if (propertyLookupError || !propertyRow?.company_id) {
+    console.error('Failed to resolve property for activity logs', propertyLookupError)
+    return { data: [], total: 0 }
+  }
+
+  const companyId = propertyRow.company_id
+  const activityScope = `property_id.eq.${propertyId},and(company_id.eq.${companyId},property_id.is.null)`
 
   const { count: totalCount, error: countError } = await supabase
     .from('activity_log')
     .select('*', { count: 'exact', head: true })
-    .eq('property_id', propertyId)
+    .or(activityScope)
 
   if (countError) {
     console.error('Failed to count activity logs', countError)
-    return []
+    return { data: [], total: 0 }
   }
 
   const total = totalCount ?? 0
+  const safeLimit = limit > 0 ? limit : 10
+  const safePage = page > 0 ? page : 1
+  const offset = (safePage - 1) * safeLimit
+  const rangeEnd = offset + safeLimit - 1
 
   const { data, error } = await supabase
     .from('activity_log')
     .select('id, action, resource, user_id, created_at, details')
-    .eq('property_id', propertyId)
+    .or(activityScope)
     .order('created_at', { ascending: false })
-    .limit(100)
+    .range(offset, rangeEnd)
 
   if (error) {
     console.error('Failed to fetch activity logs', error)
-    return []
+    return { data: [], total }
   }
 
   const rows = data ?? []
@@ -248,10 +270,10 @@ export async function getPropertyActivityLogs(propertyId: string): Promise<Dashb
   const actorIds = chronological.map((r) => r.user_id).filter((id): id is string => id != null)
   const displayNameByUserId = await resolveActivityLogActorDisplayNames(actorIds)
 
-  return chronological.map((row, index) => {
-    const sequence = total - n + 1 + index
+  const dataResult = chronological.map((row, index) => {
+    const sequence = total - offset - n + 1 + index
     const userDisplayName =
-      row.user_id == null ? '—' : (displayNameByUserId.get(row.user_id) ?? 'Unknown user')
+      row.user_id == null ? 'System' : (displayNameByUserId.get(row.user_id) ?? 'Unknown user')
     return {
       rowId: row.id,
       displayId: formatPropertyActivityDisplayId(sequence, total),
@@ -262,6 +284,8 @@ export async function getPropertyActivityLogs(propertyId: string): Promise<Dashb
       details: row.details ?? null,
     }
   })
+
+  return { data: dataResult, total }
 }
 
 // ============================================================================

@@ -42,7 +42,7 @@ export type PropertyAmenityEditPayload = {
 type PropertyAmenity = {
   id: string
   name: string
-  description: string
+  description: string | null
   icon_url?: string | null
 }
 
@@ -74,7 +74,7 @@ export function EditPropertyAmenitiesDialog({
       setPreset("Other")
       setCustomName(amenityToEdit.name)
     }
-    setDescription(amenityToEdit.description)
+    setDescription(amenityToEdit.description ?? "")
     setIconUrl(amenityToEdit.icon_url ?? "")
   }, [open, amenityToEdit])
 

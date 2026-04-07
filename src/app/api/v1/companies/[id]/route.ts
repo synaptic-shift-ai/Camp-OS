@@ -20,6 +20,8 @@ import {
 } from '@/modules/CompanyManagement'
 import type { CompanyDTO } from '@/modules/CompanyManagement'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * GET /api/v1/companies/[id]
@@ -167,7 +169,18 @@ export async function PATCH(
       )
     }
 
-    // 6. Return response
+    // 6. Record activity log
+    const supabaseServiceRole = createServiceRoleClient()
+    await recordActivityLog(supabaseServiceRole, {
+      companyId: companyId,
+      propertyId: null,
+      action: 'update',
+      resource: 'company',
+      userId: user.id,
+      details: `Updated company (name: ${validated.data.name})`,
+    })
+    
+    // 7. Return response
     return success(companyToDTO(result.company))
   } catch (err: unknown) {
     console.error('[Companies API v1] Update company error:', err)

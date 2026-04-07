@@ -223,6 +223,8 @@ export type ActivityLogListFilters = {
   dateFrom?: string | null
   /** Inclusive end day, `yyyy-MM-dd` (interpreted in the Node runtime local timezone). */
   dateTo?: string | null
+  sortBy?: 'displayId' | 'action' | 'resource' | 'userDisplayName' | 'createdAt' | 'details'
+  sortOrder?: 'asc' | 'desc'
 }
 
 function activityLogParseYmdLocalMidnight(ymd: string): Date | null {
@@ -347,9 +349,18 @@ export async function getPropertyActivityLogs(
     dataBuilder = dataBuilder.lt('created_at', createdAtLt)
   }
 
-  const { data, error } = await dataBuilder
-    .order('created_at', { ascending: false })
-    .range(offset, rangeEnd)
+  const sortBy = filters.sortBy ?? 'createdAt'
+  const sortOrder = filters.sortOrder ?? 'desc'
+
+  // Determine if we need to sort in DB or post-fetch
+  const needsPostFetchSort = sortBy === 'displayId' || sortBy === 'userDisplayName'
+
+  if (!needsPostFetchSort) {
+    const dbColumn = sortBy === 'createdAt' ? 'created_at' : sortBy
+    dataBuilder = dataBuilder.order(dbColumn, { ascending: sortOrder === 'asc' })
+  }
+
+  const { data, error } = await dataBuilder.range(offset, rangeEnd)
 
   if (error) {
     console.error('Failed to fetch activity logs', error)
@@ -360,7 +371,7 @@ export async function getPropertyActivityLogs(
   const actorIds = rows.map((r) => r.user_id).filter((id): id is string => id != null)
   const displayNameByUserId = await resolveActivityLogActorDisplayNames(actorIds)
 
-  const dataResult = rows.map((row, index) => {
+  let dataResult = rows.map((row, index) => {
     const sequence = total - offset - index
     const userDisplayName =
       row.user_id == null ? 'System' : (displayNameByUserId.get(row.user_id) ?? 'Unknown user')
@@ -374,6 +385,19 @@ export async function getPropertyActivityLogs(
       details: row.details ?? null,
     }
   })
+
+  // Post-fetch sorting for computed fields (displayId, userDisplayName)
+  if (needsPostFetchSort) {
+    dataResult.sort((a, b) => {
+      let comparison = 0
+      if (sortBy === 'displayId') {
+        comparison = a.displayId.localeCompare(b.displayId)
+      } else if (sortBy === 'userDisplayName') {
+        comparison = a.userDisplayName.localeCompare(b.userDisplayName)
+      }
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+  }
 
   return { data: dataResult, total }
 }

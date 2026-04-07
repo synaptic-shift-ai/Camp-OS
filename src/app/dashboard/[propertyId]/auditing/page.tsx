@@ -13,6 +13,8 @@ type pageProps = {
         resource?: string
         dateFrom?: string
         dateTo?: string
+        sortBy?: string
+        sortOrder?: string
         [key: string]: string | string[] | undefined
     }>
 }
@@ -39,6 +41,18 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
     const dateFrom = isValidYmd(rawFrom) ? rawFrom : ""
     const dateTo = isValidYmd(rawTo) ? rawTo : ""
 
+    type SortByOption = 'displayId' | 'action' | 'resource' | 'userDisplayName' | 'createdAt' | 'details'
+    type SortOrderOption = 'asc' | 'desc'
+    
+    const validSortByOptions: readonly SortByOption[] = ['displayId', 'action', 'resource', 'userDisplayName', 'createdAt', 'details']
+    const validSortOrderOptions: readonly SortOrderOption[] = ['asc', 'desc']
+    
+    const rawSortBy = typeof sp.sortBy === "string" ? sp.sortBy : "createdAt"
+    const rawSortOrder = typeof sp.sortOrder === "string" ? sp.sortOrder : "desc"
+    
+    const sortBy: SortByOption = validSortByOptions.includes(rawSortBy as SortByOption) ? (rawSortBy as SortByOption) : "createdAt"
+    const sortOrder: SortOrderOption = validSortOrderOptions.includes(rawSortOrder as SortOrderOption) ? (rawSortOrder as SortOrderOption) : "desc"
+
     const { data: activityLogs, total } = await getPropertyActivityLogs(
         propertyId,
         currentPage,
@@ -49,6 +63,8 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
             resource: resource || null,
             dateFrom: dateFrom || null,
             dateTo: dateTo || null,
+            sortBy,
+            sortOrder,
         }
     )
 
@@ -69,6 +85,8 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
                 currentPage={currentPage}
                 pageSize={pageSize}
                 total={total}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
             />
         </div>
     )

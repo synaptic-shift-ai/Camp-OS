@@ -323,6 +323,7 @@ export function EditReservationDialog({
             <BookingDateRangePicker
               variant="dashboard"
               label="Check-in & Check-out"
+              allowPastDates
               value={dateRange}
               onChange={setDateRange}
               sameDayBookingEnabled={bookingRulesConfig?.same_day_booking_enabled ?? true}

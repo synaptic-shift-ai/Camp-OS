@@ -1190,6 +1190,44 @@ export type Database = {
           },
         ]
       }
+      property_role_categories: {
+        Row: {
+          access: Json
+          created_at: string
+          id: string
+          name: string
+          property_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          access?: Json
+          created_at?: string
+          id?: string
+          name: string
+          property_id: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          access?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          property_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_role_categories_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_seasonal_periods: {
         Row: {
           base_rate_cents: number
@@ -1246,7 +1284,7 @@ export type Database = {
           id: string
           permissions: Json | null
           property_id: string | null
-          role: string | null
+          role: string
           updated_at: string | null
           user_id: string | null
         }
@@ -1255,7 +1293,7 @@ export type Database = {
           id?: string
           permissions?: Json | null
           property_id?: string | null
-          role?: string | null
+          role?: string
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1264,7 +1302,7 @@ export type Database = {
           id?: string
           permissions?: Json | null
           property_id?: string | null
-          role?: string | null
+          role?: string
           updated_at?: string | null
           user_id?: string | null
         }

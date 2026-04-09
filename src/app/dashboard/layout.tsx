@@ -48,6 +48,7 @@ const NAV_ITEMS = [
   { name: "Guests", path: "/guests", icon: Users },
   { name: "Payments", path: "/payments", icon: CreditCard },
   { name: "Analytics", path: "/analytics", icon: BarChart3 },
+  { name: "Staff Management", path: "/staff-management", icon: Users },
   { name: "Auditing", path: "/auditing", icon: History },
   { name: "Settings", path: "/settings", icon: Settings },
 ] as const

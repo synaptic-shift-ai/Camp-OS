@@ -48,7 +48,7 @@ export async function getFirstPropertyId(): Promise<string | null> {
 }
 
 /**
- * Fetches a property by ID and verifies the current user has access (company or owner).
+ * Fetches a property by ID and verifies the current user has access (company, owner, or staff assignment).
  * Returns null if not found or no access.
  */
 export async function getPropertyForUser(propertyId: string): Promise<{
@@ -130,10 +130,23 @@ export async function getPropertyForUser(propertyId: string): Promise<{
     .eq("owner_id", user.id)
     .maybeSingle()
 
-  const hasAccess =
+  const isOwnerOrCompanyUser =
     (company && property.company_id === company.id) || property.owner_id === user.id
 
-  if (!hasAccess) return null
+  if (isOwnerOrCompanyUser) return property
+
+  const { data: staffRow } = await supabase
+    .from("property_staff")
+    .select("id")
+    .eq("property_id", property.id)
+    .eq("user_id", user.id)
+    .in("status", ["active", "pending"])
+    .limit(1)
+    .maybeSingle()
+
+  const hasStaffAccess = Boolean(staffRow)
+
+  if (!hasStaffAccess) return null
 
   return property
 }

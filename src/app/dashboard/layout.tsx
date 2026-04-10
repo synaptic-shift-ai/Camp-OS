@@ -70,6 +70,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null)
   const [isCompanyLoading, setIsCompanyLoading] = useState(true)
   const [logoLoadFailed, setLogoLoadFailed] = useState(false)
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null)
+  const [userRoleLabel, setUserRoleLabel] = useState<string>("User")
+  const [isUserLoading, setIsUserLoading] = useState(true)
   const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
   const companyId = selectedProperty?.companyId ?? null
   const dashboardTitle = isLoading ? "Loading..." : companyName
@@ -83,6 +86,72 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       selectProperty(propertyIdFromUrl)
     }
   }, [propertyIdFromUrl, selectedPropertyId, selectProperty])
+
+  useEffect(() => {
+    let isCancelled = false
+    const supabase = createClient()
+
+    async function fetchCurrentUser() {
+      setIsUserLoading(true)
+      try {
+        const { data, error } = await supabase.auth.getUser()
+        if (error || !data.user) {
+          if (!isCancelled) {
+            setUserDisplayName(null)
+            setUserRoleLabel("User")
+          }
+          return
+        }
+
+        const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
+        const firstName = typeof metadata.first_name === "string" ? metadata.first_name.trim() : ""
+        const lastName = typeof metadata.last_name === "string" ? metadata.last_name.trim() : ""
+        const fullName = [firstName, lastName].filter(Boolean).join(" ")
+        const fallbackName =
+          typeof metadata.full_name === "string"
+            ? metadata.full_name
+            : typeof metadata.name === "string"
+              ? metadata.name
+              : ""
+        const resolvedName = fullName || fallbackName || data.user.email || "User"
+
+        const { data: ownerCompany } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("owner_id", data.user.id)
+          .limit(1)
+          .maybeSingle()
+
+        const userType = typeof metadata.user_type === "string" ? metadata.user_type : ""
+        const roleLabel =
+          ownerCompany?.id
+            ? "Owner"
+            : userType.length > 0
+            ? `${userType.charAt(0).toUpperCase()}${userType.slice(1)}`
+            : "Owner"
+
+        if (!isCancelled) {
+          setUserDisplayName(resolvedName)
+          setUserRoleLabel(roleLabel)
+        }
+      } catch {
+        if (!isCancelled) {
+          setUserDisplayName(null)
+          setUserRoleLabel("User")
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsUserLoading(false)
+        }
+      }
+    }
+
+    void fetchCurrentUser()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let isCancelled = false
@@ -244,8 +313,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start text-sm">
-                  <span className="font-medium">{isLoading ? "Loading..." : companyName || "Company"}</span>
-                  <span className="text-xs text-muted-foreground">Owner</span>
+                  <span className="font-medium">{isUserLoading ? "Loading..." : userDisplayName || "User"}</span>
+                  <span className="text-xs text-muted-foreground">{isUserLoading ? "..." : userRoleLabel}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>
@@ -350,9 +419,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       </Avatar>
                       <div className="flex flex-col items-start text-sm">
                         <span className="font-medium">
-                          {isLoading || isCompanyLoading ? "Loading..." : companyName || "Company"}
+                          {isUserLoading ? "Loading..." : userDisplayName || "User"}
                         </span>
-                        <span className="text-xs text-muted-foreground">Owner</span>
+                        <span className="text-xs text-muted-foreground">{isUserLoading ? "..." : userRoleLabel}</span>
                       </div>
                     </Button>
                   </DropdownMenuTrigger>

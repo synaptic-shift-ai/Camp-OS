@@ -21,6 +21,7 @@ type InviteStaffDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   propertyId: string
+  onInviteSent?: () => void
 }
 
 type DbRole = 'owner' | 'admin' | 'manager' | 'staff'
@@ -44,6 +45,7 @@ export default function InviteStaffDialog({
   open,
   onOpenChange,
   propertyId,
+  onInviteSent,
 }: InviteStaffDialogProps) {
     const router = useRouter()
     const { toast } = useToast()
@@ -52,7 +54,7 @@ export default function InviteStaffDialog({
     const [isLoadingCategories, setIsLoadingCategories] = useState(false)
     const [isInviting, setIsInviting] = useState(false)
     const [categoriesByRole, setCategoriesByRole] = useState<CategoriesByRole>({})
-    const [selectedRoleCategoryId, setSelectedRoleCategoryId] = useState<string>('')
+    const [selectedRoleCategoryIds, setSelectedRoleCategoryIds] = useState<string[]>([])
 
     const categoryRole = role === 'admin' || role === 'manager' || role === 'staff' ? role : null
 
@@ -73,7 +75,7 @@ export default function InviteStaffDialog({
       if (!open) return
       setEmail('')
       setRole('')
-      setSelectedRoleCategoryId('')
+      setSelectedRoleCategoryIds([])
       setCategoriesByRole({})
 
       void (async () => {
@@ -89,13 +91,18 @@ export default function InviteStaffDialog({
           }
           const payload = json.data?.categoriesByRole as CategoriesByRole | undefined
           if (payload) setCategoriesByRole(payload)
-        } catch {
-          // Fallback categories will still show
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Failed to load categories'
+          toast({
+            title: 'Failed to load categories',
+            description: message,
+            variant: 'destructive',
+          })
         } finally {
           setIsLoadingCategories(false)
         }
       })()
-    }, [open, propertyId])
+    }, [open, propertyId, toast])
 
     const handleInvite = async () => {
       if (isInviting) return
@@ -120,7 +127,7 @@ export default function InviteStaffDialog({
         return
       }
 
-      if (!selectedRoleCategoryId) {
+      if (selectedRoleCategoryIds.length === 0) {
         toast({
           title: 'Category is required',
           description: 'Please choose a category for this role.',
@@ -138,7 +145,7 @@ export default function InviteStaffDialog({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: trimmedEmail,
-              roleCategoryId: selectedRoleCategoryId,
+              roleCategoryIds: selectedRoleCategoryIds,
               status: 'pending',
             }),
           },
@@ -151,6 +158,7 @@ export default function InviteStaffDialog({
 
         toast({ title: 'Invite sent' })
         onOpenChange(false)
+        onInviteSent?.()
         router.refresh()
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error'
@@ -163,6 +171,39 @@ export default function InviteStaffDialog({
         setIsInviting(false)
       }
     }
+
+    const showConfigureCategoriesHint =
+      !isLoadingCategories &&
+      (role === 'admin' || role === 'manager' || role === 'staff') &&
+      categoriesForSelectedRole.length > 0 &&
+      !categoriesForSelectedRole.some((c) => c.id)
+
+    const categoryChoiceGrid = (
+      <div className="grid grid-cols-2 gap-3">
+        {categoriesForSelectedRole.map(({ id, name }) => (
+          <button
+            key={id || name}
+            type="button"
+            className={cn(
+              'flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left',
+              'hover:bg-muted/50',
+            )}
+            onClick={() => {
+              if (!id) return
+              setSelectedRoleCategoryIds((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+              )
+            }}
+            disabled={isLoadingCategories || !id}
+          >
+            <Checkbox checked={id ? selectedRoleCategoryIds.includes(id) : false} 
+              aria-label={name} 
+            />
+            <span className="text-sm font-medium">{name}</span>
+          </button>
+        ))}
+      </div>
+    )
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -180,7 +221,7 @@ export default function InviteStaffDialog({
                       value={role}
                       onValueChange={(v) => {
                         setRole(v as DbRole)
-                        setSelectedRoleCategoryId('')
+                        setSelectedRoleCategoryIds([])
                       }}
                     >
                         <SelectTrigger id="role">
@@ -196,37 +237,44 @@ export default function InviteStaffDialog({
                     </Select>
                 </div>
 
-                {categoryRole && (
+                {role === 'admin' && (
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-sm font-medium">Admin Categories</div>
+                      <div className="text-sm text-muted-foreground">
+                        Optionally assign categories to scope this admin&apos;s module access.
+                      </div>
+                    </div>
+                    {showConfigureCategoriesHint && (
+                      <p className="text-sm text-muted-foreground">
+                        No saved categories for this property yet. Open{' '}
+                        <span className="font-medium text-foreground">Manage Categories</span> on the
+                        staff page, save your admin categories, then open this dialog again.
+                      </p>
+                    )}
+                    {categoryChoiceGrid}
+                  </div>
+                )}
+
+                {(role === 'manager' || role === 'staff') && (
                   <div className="space-y-2">
                     <div>
                       <div className="text-sm font-medium">
-                        {ROLE_LABEL[categoryRole]} Categories
+                        {ROLE_LABEL[role]} Categories
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Optionally assign categories to scope this {ROLE_LABEL[categoryRole].toLowerCase()}'s module access.
+                        Optionally assign categories to scope this{' '}
+                        {ROLE_LABEL[role].toLowerCase()}&apos;s module access.
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {categoriesForSelectedRole.map(({ id, name }) => (
-                        <button
-                          key={id || name}
-                          type="button"
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left',
-                            'hover:bg-muted/50',
-                          )}
-                          onClick={() => {
-                            if (!id) return
-                            setSelectedRoleCategoryId(id)
-                          }}
-                          disabled={isLoadingCategories || !id}
-                        >
-                          <Checkbox checked={id ? selectedRoleCategoryId === id : false} aria-label={name} />
-                          <span className="text-sm font-medium">{name}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {showConfigureCategoriesHint && (
+                      <p className="text-sm text-muted-foreground">
+                        No saved categories for this property yet. Open{' '}
+                        <span className="font-medium text-foreground">Manage Categories</span> on the
+                        staff page, save your role categories, then open this dialog again.
+                      </p>
+                    )}
+                    {categoryChoiceGrid}
                   </div>
                 )}
 

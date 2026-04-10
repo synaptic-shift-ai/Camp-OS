@@ -1,16 +1,18 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
 
+const categoryNameRowSchema = z.object({ name: z.string().trim().min(1) })
+
 const BodySchema = z.object({
   categoriesByRole: z.object({
-    owner: z.array(z.object({ name: z.string().trim().min(1) })),
-    admin: z.array(z.object({ name: z.string().trim().min(1) })),
-    manager: z.array(z.object({ name: z.string().trim().min(1) })),
-    staff: z.array(z.object({ name: z.string().trim().min(1) })),
+    owner: z.array(categoryNameRowSchema).optional(),
+    admin: z.array(categoryNameRowSchema),
+    manager: z.array(categoryNameRowSchema),
+    staff: z.array(categoryNameRowSchema),
   }),
 })
 
@@ -107,9 +109,33 @@ export async function POST(
       })
     }
 
+    const incoming = parsed.data.categoriesByRole
+    let categoriesByRole: {
+      owner: { name: string }[]
+      admin: { name: string }[]
+      manager: { name: string }[]
+      staff: { name: string }[]
+    }
+    if (incoming.owner !== undefined) {
+      categoriesByRole = {
+        owner: incoming.owner,
+        admin: incoming.admin,
+        manager: incoming.manager,
+        staff: incoming.staff,
+      }
+    } else {
+      const current = await q.getPropertyRoleCategories({ propertyId })
+      categoriesByRole = {
+        owner: current.categoriesByRole.owner.map((c) => ({ name: c.name })),
+        admin: incoming.admin,
+        manager: incoming.manager,
+        staff: incoming.staff,
+      }
+    }
+
     const result = await q.savePropertyRolesCategories({
       propertyId,
-      categoriesByRole: parsed.data.categoriesByRole,
+      categoriesByRole,
     })
 
     return success(result, request)

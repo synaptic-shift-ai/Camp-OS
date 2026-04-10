@@ -69,7 +69,7 @@ export type AuthContext = {
   readonly emailVerified: boolean
   readonly emailConfirmedAt: string | null
   readonly userMetadata: {
-    user_type?: 'buyer' | 'explorer'
+    user_type?: 'buyer' | 'explorer' | 'staff'
     [key: string]: unknown
   }
 }

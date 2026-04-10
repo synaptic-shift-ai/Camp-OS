@@ -1285,6 +1285,8 @@ export type Database = {
           permissions: Json | null
           property_id: string | null
           role: string
+          role_category_id: string[] | null
+          status: string
           updated_at: string | null
           user_id: string | null
         }
@@ -1294,6 +1296,8 @@ export type Database = {
           permissions?: Json | null
           property_id?: string | null
           role?: string
+          role_category_id?: string[] | null
+          status?: string
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1303,6 +1307,8 @@ export type Database = {
           permissions?: Json | null
           property_id?: string | null
           role?: string
+          role_category_id?: string[] | null
+          status?: string
           updated_at?: string | null
           user_id?: string | null
         }

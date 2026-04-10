@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 
-type UiRole = 'owner' | 'admin' | 'manager' | 'staff'
+export type UiRole = 'owner' | 'admin' | 'manager' | 'staff'
 type DbRole = 'owner' | 'admin' | 'manager' | 'staff'
 
 const roleMap: Record<UiRole, DbRole> = {
@@ -9,6 +9,52 @@ const roleMap: Record<UiRole, DbRole> = {
   admin: 'admin',
   manager: 'manager',
   staff: 'staff',
+}
+
+export type StaffManagementTableRow = {
+  id: string
+  name: string
+  email: string
+  role: 'Owner' | 'Admin' | 'Manager' | 'Staff'
+  categories: string[] | 'All Categories'
+  status: 'Active' | 'Pending' | 'Inactive'
+  lastLogin: string
+}
+
+function formatStaffTableRoleLabel(dbRole: string): StaffManagementTableRow['role'] {
+  const r = dbRole.toLowerCase()
+  if (r === 'owner') return 'Owner'
+  if (r === 'admin' || r === 'property_admin') return 'Admin'
+  if (r === 'manager') return 'Manager'
+  return 'Staff'
+}
+
+function formatStaffTableStatus(raw: string): StaffManagementTableRow['status'] {
+  const s = raw.toLowerCase()
+  if (s === 'pending') return 'Pending'
+  if (s === 'inactive') return 'Inactive'
+  return 'Active'
+}
+
+function formatStaffTableLastLogin(iso: string | undefined): string {
+  if (!iso) return 'Never'
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    })
+  } catch {
+    return 'Never'
+  }
+}
+
+function formatStaffInviteRoleLabel(dbRole: string): string {
+  const r = dbRole.toLowerCase()
+  if (r === 'owner') return 'Owner'
+  if (r === 'admin' || r === 'property_admin') return 'Admin'
+  if (r === 'manager') return 'Manager'
+  if (r === 'staff') return 'Staff'
+  return dbRole ? dbRole.charAt(0).toUpperCase() + dbRole.slice(1) : '—'
 }
 
 export class StaffManagementQueries {
@@ -166,11 +212,216 @@ export class StaffManagementQueries {
     return { savedCount: desired.length }
   }
 
+  async listPropertyStaff(propertyId: string): Promise<{
+    id: string
+    user_id: string | null
+    role: string
+    status: string
+    role_category_id: string[] | null
+  }[]> {
+    const { data, error: selectError } = await this.supabase
+      .from('property_staff')
+      .select('id, user_id, role, status, role_category_id')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: true })
+
+    if (selectError) {
+      console.error('[StaffManagementQueries] Failed to list property staff', {
+        propertyId,
+        error: selectError,
+      })
+      throw selectError
+    }
+
+    return data ?? []
+  }
+
+  async getStaffInviteStaffContextByUserId(userId: string): Promise<{
+    roleLabel: string
+    categoryNames: string[]
+  }> {
+    const { data: staffRows, error: staffError } = await this.supabase
+      .from('property_staff')
+      .select('role, role_category_id, property_id, status, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    if (staffError) {
+      console.error('[StaffManagementQueries] Failed to load staff for invite', {
+        userId,
+        error: staffError,
+      })
+      throw staffError
+    }
+
+    const staffRow =
+      staffRows?.find((r) => r.status === 'pending') ?? staffRows?.[0] ?? null
+
+    if (!staffRow?.property_id) {
+      return { roleLabel: '—', categoryNames: [] }
+    }
+
+    const roleLabel = formatStaffInviteRoleLabel(staffRow.role ?? '')
+    const ids: string[] = staffRow.role_category_id ?? []
+    if (ids.length === 0) {
+      return { roleLabel, categoryNames: [] }
+    }
+
+    const { data: cats, error: catErr } = await this.supabase
+      .from('property_role_categories')
+      .select('id, name')
+      .eq('property_id', staffRow.property_id)
+      .in('id', ids)
+
+    if (catErr) {
+      console.error(
+        '[StaffManagementQueries] Failed to load categories for staff invite',
+        {
+          propertyId: staffRow.property_id,
+          userId,
+          error: catErr,
+        },
+      )
+      throw catErr
+    }
+
+    const byId = new Map(
+      (cats ?? []).map((c: { id: string; name: string }) => [c.id, c.name]),
+    )
+    const categoryNames = ids
+      .map((id: string) => byId.get(id))
+      .filter((n: string | undefined): n is string => Boolean(n))
+
+    return { roleLabel, categoryNames }
+  }
+
+  async activatePendingStaffForUser(userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('property_staff')
+      .update({ status: 'active' })
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+
+    if (error) {
+      console.error('[StaffManagementQueries] Failed to activate pending staff for user', {
+        userId,
+        error,
+      })
+      throw error
+    }
+  }
+
+  async listStaffForManagementTable(
+    propertyId: string,
+    adminClient: SupabaseClient,
+  ): Promise<StaffManagementTableRow[]> {
+    const rows = await this.listPropertyStaff(propertyId)
+
+    const { data: catRows, error: catErr } = await this.supabase
+      .from('property_role_categories')
+      .select('id, name')
+      .eq('property_id', propertyId)
+
+    if (catErr) {
+      console.error('[StaffManagementQueries] Failed to load category names for staff table', {
+        propertyId,
+        error: catErr,
+      })
+      throw catErr
+    }
+
+    const categoryNameById = new Map(
+      (catRows ?? []).map((c) => [c.id, c.name] as const),
+    )
+
+    return Promise.all(
+      rows.map(async (row) => {
+        const userId = row.user_id
+        let email = ''
+        let displayName = '—'
+        let lastSignIn: string | undefined
+
+        if (userId) {
+          const { data: authData, error: authErr } =
+            await adminClient.auth.admin.getUserById(userId)
+          if (!authErr && authData.user) {
+            const u = authData.user
+            email = u.email ?? ''
+            const meta = u.user_metadata as Record<string, unknown> | undefined
+            const fromFullOrName =
+              typeof meta?.full_name === 'string'
+                ? meta.full_name
+                : typeof meta?.name === 'string'
+                  ? meta.name
+                  : ''
+            const first =
+              typeof meta?.first_name === 'string' ? meta.first_name.trim() : ''
+            const last =
+              typeof meta?.last_name === 'string' ? meta.last_name.trim() : ''
+            const fromParts = [first, last].filter(Boolean).join(' ')
+            const resolved = fromFullOrName.trim() || fromParts.trim()
+            displayName = resolved || '—'
+            lastSignIn = u.last_sign_in_at ?? undefined
+          }
+        }
+
+        const ids = row.role_category_id ?? []
+        const categories: string[] | 'All Categories' =
+          ids.length === 0
+            ? 'All Categories'
+            : ids
+                .map((id) => categoryNameById.get(id))
+                .filter((n): n is string => Boolean(n))
+
+        return {
+          id: row.id,
+          name: displayName,
+          email: email || '—',
+          role: formatStaffTableRoleLabel(row.role),
+          categories,
+          status: formatStaffTableStatus(row.status),
+          lastLogin: formatStaffTableLastLogin(lastSignIn),
+        }
+      }),
+    )
+  }
+
+  async findAuthUserIdByEmail(
+    adminClient: SupabaseClient,
+    email: string,
+  ): Promise<string | null> {
+    const normalized = email.toLowerCase()
+    let page = 1
+    const perPage = 200
+
+    for (;;) {
+      const { data, error: listError } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage,
+      })
+
+      if (listError) {
+        throw new Error(listError.message)
+      }
+
+      const match = data.users.find(
+        (u) => (u.email ?? '').toLowerCase() === normalized,
+      )
+      if (match?.id) return match.id
+
+      if (data.nextPage == null) break
+      page = data.nextPage
+    }
+
+    return null
+  }
+
   async inviteStaff(input: {
     propertyId: string
     userId: string
     role: UiRole
-    roleCategoryId: string
+    roleCategoryIds: string[]
     status: 'pending' | 'active' | 'inactive'
   }): Promise<{ invitedCount: number }> {
     const { data: existingStaff } = await this.supabase
@@ -194,7 +445,7 @@ export class StaffManagementQueries {
         property_id: input.propertyId,
         user_id: input.userId,
         role: roleMap[input.role],
-        role_category_id: input.roleCategoryId,
+        role_category_id: input.roleCategoryIds,
         status: input.status,
         permissions: [],
       })

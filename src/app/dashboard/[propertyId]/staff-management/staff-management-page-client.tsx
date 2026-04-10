@@ -20,11 +20,18 @@ export default function StaffManagementStaffPageClient({
   propertyName,
 }: StaffManagementStaffPageClientProps) {
   const params = useParams<{ propertyId: string }>()
+  const propertyId =
+    typeof params.propertyId === 'string'
+      ? params.propertyId
+      : Array.isArray(params.propertyId)
+        ? (params.propertyId[0] ?? '')
+        : ''
   const router = useRouter()
   const { toast } = useToast()
   const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [inviteStaffOpen, setInviteStaffOpen] = useState(false)
   const [isSavingCategories, setIsSavingCategories] = useState(false)
+  const [staffTableReloadKey, setStaffTableReloadKey] = useState(0)
 
   const handleSaveCategories = async (categoriesByRole: Record<RoleId, CategoryRow[]>) => {
     if (isSavingCategories) return
@@ -32,7 +39,7 @@ export default function StaffManagementStaffPageClient({
     try {
       setIsSavingCategories(true)
       const res = await fetch(
-        `/api/v1/properties/${params.propertyId}/staff-management/categories`,
+        `/api/v1/properties/${propertyId}/staff-management/categories`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -49,7 +56,7 @@ export default function StaffManagementStaffPageClient({
       const json: any = await res.json().catch(() => null)
       if (!res.ok || json?.success !== true) {
         console.error('[StaffManagement] Save categories failed', {
-          url: `/api/v1/properties/${params.propertyId}/staff-management/categories`,
+          url: `/api/v1/properties/${propertyId}/staff-management/categories`,
           status: res.status,
           statusText: res.statusText,
           response: json,
@@ -80,20 +87,24 @@ export default function StaffManagementStaffPageClient({
           onInviteStaffClick={() => setInviteStaffOpen(true)}
         />
 
-        <StaffManagementTable />
+        <StaffManagementTable
+          propertyId={propertyId}
+          reloadKey={staffTableReloadKey}
+        />
       </div>
 
       <StaffManagementCategoriesDialog
         open={categoriesOpen}
         onOpenChange={setCategoriesOpen}
         onSave={handleSaveCategories}
-        propertyId={params.propertyId}
+        propertyId={propertyId}
       />
 
       <InviteStaffDialog
         open={inviteStaffOpen}
         onOpenChange={setInviteStaffOpen}
-        propertyId={params.propertyId}
+        propertyId={propertyId}
+        onInviteSent={() => setStaffTableReloadKey((k) => k + 1)}
       />
     </>
   )

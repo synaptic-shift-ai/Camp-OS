@@ -39,6 +39,10 @@ import {
   startTimer,
 } from './metrics'
 
+function isStaffUserType(userType: unknown): boolean {
+  return typeof userType === 'string' && userType === 'staff'
+}
+
 /**
  * Authentication middleware function
  *
@@ -288,6 +292,17 @@ export function createSubscriptionMiddleware(
     // Check if this route requires subscription
     if (!requiresActiveSubscription(pathname)) {
       logger.debug('Skipping subscription check for route', { pathname })
+      recordDuration('subscription-middleware', timer.end(), 'success')
+      return request
+    }
+
+    const userType = auth.userMetadata?.user_type
+    if (isStaffUserType(userType)) {
+      logger.info('Skipping owner subscription check for staff user', {
+        pathname,
+        userId: auth.userId,
+        userType,
+      })
       recordDuration('subscription-middleware', timer.end(), 'success')
       return request
     }

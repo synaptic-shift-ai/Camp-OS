@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import { Eye, Pencil, UserMinus } from "lucide-react"
 import {
   Table,
@@ -17,70 +18,16 @@ type StaffRow = {
   id: string
   name: string
   email: string
-  role: "Admin" | "Manager" | "Staff"
+  role: "Owner" | "Admin" | "Manager" | "Staff"
   categories: string[] | "All Categories"
   status: "Active" | "Pending" | "Inactive"
   lastLogin: string
-  pendingLabel?: string
 }
 
-const dummyRows: StaffRow[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    email: "sarah.chen@hotel.com",
-    role: "Admin",
-    categories: "All Categories",
-    status: "Active",
-    lastLogin: "Apr 8, 2026, 05:15 PM",
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    email: "marcus.j@hotel.com",
-    role: "Manager",
-    categories: ["Housekeeping", "Revenue"],
-    status: "Active",
-    lastLogin: "Apr 8, 2026, 12:45 AM",
-  },
-  {
-    id: "3",
-    name: "Elena Rodriguez",
-    email: "elena.r@hotel.com",
-    role: "Staff",
-    categories: ["Housekeeping", "Front Desk"],
-    status: "Active",
-    lastLogin: "Apr 8, 2026, 03:30 PM",
-  },
-  {
-    id: "4",
-    name: "—",
-    email: "new.hire@hotel.com",
-    role: "Staff",
-    categories: ["Maintenance"],
-    status: "Pending",
-    pendingLabel: "5d 0h left",
-    lastLogin: "Never",
-  },
-  {
-    id: "5",
-    name: "James Liu",
-    email: "james.liu@hotel.com",
-    role: "Staff",
-    categories: ["Housekeeping"],
-    status: "Inactive",
-    lastLogin: "Mar 15, 2026, 07:20 PM",
-  },
-  {
-    id: "6",
-    name: "Amara Obi",
-    email: "amara.obi@hotel.com",
-    role: "Staff",
-    categories: "All Categories",
-    status: "Active",
-    lastLogin: "Apr 8, 2026, 04:00 PM",
-  },
-]
+type StaffManagementTableProps = {
+  propertyId: string
+  reloadKey?: number
+}
 
 function initialsFromName(name: string): string {
   const trimmed = name.trim()
@@ -129,6 +76,10 @@ function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
     )
   }
 
+  if (categories.length === 0) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
       {categories.map((c) => (
@@ -144,9 +95,42 @@ function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
   )
 }
 
-export function StaffManagementTable() {
+export function StaffManagementTable({ propertyId, reloadKey = 0 }: StaffManagementTableProps) {
+  const [rows, setRows] = useState<StaffRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const loadStaff = useCallback(async () => {
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/staff-management/staff`,
+        { method: "GET" },
+      )
+      const json: { success?: boolean; data?: { staff?: StaffRow[] }; error?: { message?: string } } =
+        await res.json().catch(() => ({}))
+      if (!res.ok || json.success !== true) {
+        throw new Error(json.error?.message ?? "Failed to load staff")
+      }
+      setRows(Array.isArray(json.data?.staff) ? json.data!.staff! : [])
+    } catch (e: unknown) {
+      setRows([])
+      setLoadError(e instanceof Error ? e.message : "Failed to load staff")
+    } finally {
+      setLoading(false)
+    }
+  }, [propertyId])
+
+  useEffect(() => {
+    void loadStaff()
+  }, [loadStaff, reloadKey])
+
   return (
     <div className="border border-border/80 bg-card/50">
+      {loadError ? (
+        <div className="p-4 text-sm text-destructive">{loadError}</div>
+      ) : null}
       <Table className="text-xs">
         <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
@@ -171,66 +155,72 @@ export function StaffManagementTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {dummyRows.map((row) => (
-            <TableRow
-              key={row.id}
-              className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
-            >
-              <TableCell className="py-1.5">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
-                      {initialsFromName(row.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-foreground truncate">{row.name}</div>
-                    <div className="text-sm text-muted-foreground truncate">{row.email}</div>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="py-1.5 whitespace-nowrap">
-                <RolePill role={row.role} />
-              </TableCell>
-              <TableCell className="py-1.5">
-                <CategoryChips categories={row.categories} />
-              </TableCell>
-              <TableCell className="py-1.5">
-                <div className="flex items-center gap-3">
-                  <StatusPill status={row.status} />
-                  {row.pendingLabel ? (
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {row.pendingLabel}
-                    </span>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell className="py-1.5 text-sm text-muted-foreground whitespace-nowrap">
-                {row.lastLogin}
-              </TableCell>
-              <TableCell className="py-0.5">
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="xs" aria-label="View staff" className="h-8 w-8 p-0">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="xs" aria-label="Edit staff" className="h-8 w-8 p-0">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    aria-label="Remove staff"
-                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                  >
-                    <UserMinus className="h-4 w-4" />
-                  </Button>
-                </div>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                Loading staff…
               </TableCell>
             </TableRow>
-          ))}
+          ) : rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                No staff members yet.
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+              >
+                <TableCell className="py-1.5">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
+                        {initialsFromName(row.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-foreground truncate">{row.name}</div>
+                      <div className="text-sm text-muted-foreground truncate">{row.email}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="py-1.5 whitespace-nowrap">
+                  <RolePill role={row.role} />
+                </TableCell>
+                <TableCell className="py-1.5">
+                  <CategoryChips categories={row.categories} />
+                </TableCell>
+                <TableCell className="py-1.5">
+                  <StatusPill status={row.status} />
+                </TableCell>
+                <TableCell className="py-1.5 text-sm text-muted-foreground whitespace-nowrap">
+                  {row.lastLogin}
+                </TableCell>
+                <TableCell className="py-0.5">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="ghost" size="xs" aria-label="View staff" className="h-8 w-8 p-0">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="xs" aria-label="Edit staff" className="h-8 w-8 p-0">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Remove staff"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                    >
+                      <UserMinus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
   )
 }
-

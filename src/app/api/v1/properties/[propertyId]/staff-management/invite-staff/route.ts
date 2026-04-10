@@ -1,17 +1,61 @@
+import { createHash, randomBytes } from 'crypto'
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
+import {
+  StaffManagementQueries,
+  type UiRole,
+} from '@/lib/dashboard/staff-management-queries'
+import { sendEmail } from '@/lib/email/emailit'
+import { buildStaffInviteLinkEmailHtml } from '@/lib/email/templates/staff-invite-link'
 
-const BodySchema = z.object({
-  email: z.string().trim().email(),
-  roleCategoryId: z.string().uuid(),
-  status: z.enum(['pending', 'active', 'inactive']).optional(),
-  categories: z.array(z.string()).optional(),
-})
+const STAFF_INVITE_TOKEN_EXPIRY_DAYS = 7
+
+function hashStaffInviteToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+function getInviteBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '')
+}
+
+const BodySchema = z
+  .object({
+    email: z.string().trim().email(),
+    roleCategoryId: z.string().uuid().optional(),
+    roleCategoryIds: z.array(z.string().uuid()).optional(),
+    status: z.enum(['pending', 'active', 'inactive']).optional(),
+    categories: z.array(z.string()).optional(),
+  })
+  .transform((data) => {
+    const roleCategoryIds =
+      data.roleCategoryIds && data.roleCategoryIds.length > 0
+        ? [...new Set(data.roleCategoryIds)]
+        : data.roleCategoryId
+          ? [data.roleCategoryId]
+          : []
+    return {
+      email: data.email,
+      status: data.status,
+      categories: data.categories,
+      roleCategoryIds,
+    }
+  })
+  .refine((data) => data.roleCategoryIds.length > 0, {
+    message: 'At least one role category id is required',
+    path: ['roleCategoryIds'],
+  })
+
+function isUiRole(value: string): value is UiRole {
+  return value === 'owner' || value === 'admin' || value === 'manager' || value === 'staff'
+}
 
 export async function POST(
   request: NextRequest,
@@ -55,52 +99,138 @@ export async function POST(
       return error(ErrorCodes.AUTH_003, request)
     }
 
-    // Resolve roleCategoryId -> role string (and validate it belongs to this property)
-    const { data: roleCategory, error: roleCategoryError } = await supabase
+    const roleCategoryIds = parsed.data.roleCategoryIds
+
+    const { data: roleCategoryRows, error: roleCategoriesError } = await supabase
       .from('property_role_categories')
       .select('id, role')
       .eq('property_id', propertyId)
-      .eq('id', parsed.data.roleCategoryId)
-      .single()
+      .in('id', roleCategoryIds)
 
-    if (roleCategoryError || !roleCategory) {
+    if (
+      roleCategoriesError ||
+      !roleCategoryRows ||
+      roleCategoryRows.length !== roleCategoryIds.length
+    ) {
       return error(ErrorCodes.VALIDATION_ERROR, request, {
-        message: 'Invalid roleCategoryId for this property',
+        message: 'One or more roleCategoryIds are invalid for this property',
       })
     }
 
-    // Resolve email -> userId using service role (auth admin API)
+    const firstRole = roleCategoryRows[0]!.role
+    if (!roleCategoryRows.every((r) => r.role === firstRole)) {
+      return error(ErrorCodes.VALIDATION_ERROR, request, {
+        message: 'All role categories must share the same role',
+      })
+    }
+
+    if (!isUiRole(firstRole)) {
+      return error(ErrorCodes.VALIDATION_ERROR, request, {
+        message: 'Invalid role on category records',
+      })
+    }
+
     const service = createServiceRoleClient()
-    const { data: usersData, error: listError } = await service.auth.admin.listUsers({
-      perPage: 500,
-    })
 
-    if (listError) {
-      console.error('[StaffManagementInviteStaff] Failed to list users', {
-        message: listError.message,
+    let newUserId: string
+    try {
+      const existingId = await q.findAuthUserIdByEmail(service, parsed.data.email)
+      if (existingId) {
+        return error(
+          ErrorCodes.DUPLICATE_RESOURCE.code,
+          'This email already exists',
+          ErrorCodes.DUPLICATE_RESOURCE.status,
+          request,
+        )
+      }
+
+      const { data: created, error: createError } =
+        await service.auth.admin.createUser({
+          email: parsed.data.email,
+          password: randomBytes(32).toString('hex'),
+          email_confirm: false,
+          user_metadata: {
+            user_type: 'staff',
+          },
+        })
+
+      if (createError || !created.user?.id) {
+        const msg = createError?.message ?? 'Failed to create user'
+        if (/already|registered|exists/i.test(msg)) {
+          return error(
+            ErrorCodes.DUPLICATE_RESOURCE.code,
+            'This email already exists',
+            ErrorCodes.DUPLICATE_RESOURCE.status,
+            request,
+          )
+        }
+        return error(ErrorCodes.INTERNAL_ERROR, request, { message: msg })
+      }
+
+      newUserId = created.user.id
+
+      const inviteToken = randomBytes(32).toString('hex')
+      const tokenHash = hashStaffInviteToken(inviteToken)
+      const expiresAt = new Date(
+        Date.now() + STAFF_INVITE_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+      ).toISOString()
+      const appMetadata = created.user.app_metadata ?? {}
+
+      const { error: metaError } = await service.auth.admin.updateUserById(
+        newUserId,
+        {
+          app_metadata: {
+            ...appMetadata,
+            staff_invite_token_hash: tokenHash,
+            staff_invite_expires_at: expiresAt,
+            staff_invite_sent_at: new Date().toISOString(),
+          },
+        },
+      )
+
+      if (metaError) {
+        console.error('[StaffManagementInviteStaff] Failed to store invite token', {
+          message: metaError.message,
+        })
+        return error(ErrorCodes.INTERNAL_ERROR, request, { message: metaError.message })
+      }
+
+      const result = await q.inviteStaff({
+        propertyId,
+        userId: newUserId,
+        role: firstRole,
+        roleCategoryIds,
+        status: parsed.data.status ?? 'pending',
       })
-      return error(ErrorCodes.INTERNAL_ERROR, request, { message: listError.message })
-    }
 
-    const found = usersData.users.find(
-      (u) => (u.email ?? '').toLowerCase() === parsed.data.email.toLowerCase()
-    )
-
-    if (!found?.id) {
-      return error(ErrorCodes.RESOURCE_NOT_FOUND, request, {
-        message: 'User not found',
+      const baseUrl = getInviteBaseUrl()
+      const inviteUrl = `${baseUrl}/staff-invite?token=${encodeURIComponent(inviteToken)}&uid=${encodeURIComponent(newUserId)}`
+      const html = await buildStaffInviteLinkEmailHtml(
+        inviteUrl,
+        undefined,
+        `${STAFF_INVITE_TOKEN_EXPIRY_DAYS} days`,
+      )
+      const emailResult = await sendEmail({
+        to: parsed.data.email,
+        subject: "You're invited to CampOS — complete your registration",
+        html,
+        text: `You've been invited to join a property on CampOS. Create your password here (link expires in ${STAFF_INVITE_TOKEN_EXPIRY_DAYS} days):\n${inviteUrl}\n`,
       })
+
+      if (!emailResult.success) {
+        console.error('[StaffManagementInviteStaff] Invite email failed', {
+          error: emailResult.error,
+        })
+        return error(ErrorCodes.INTERNAL_ERROR, request, {
+          message: emailResult.error,
+        })
+      }
+
+      return success({ ...result, emailSent: true }, request)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return error(ErrorCodes.INTERNAL_ERROR, request, { message })
     }
-
-    const result = await q.inviteStaff({
-      propertyId,
-      userId: found.id,
-      role: roleCategory.role,
-      roleCategoryId: roleCategory.id,
-      status: parsed.data.status ?? 'pending',
-    })
-
-    return success(result, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[StaffManagementInviteStaff] Invite failed', { message, err })

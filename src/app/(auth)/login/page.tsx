@@ -46,16 +46,77 @@ export default function LoginPage() {
       })
 
       if (error) {
+        console.error("[LoginPage] signInWithPassword failed", {
+          message: error.message,
+          email,
+        })
         setError(error.message)
       } else {
         const user = signInData.user ?? (await supabase.auth.getUser()).data.user
 
         if (user) {
-          if (!user.app_metadata?.custom_email_verified) {
+          console.log("[LoginPage] User loaded after sign-in", {
+            userId: user.id,
+            email: user.email,
+            userType: user.user_metadata?.user_type,
+            hasSessionUser: Boolean(signInData.user),
+          })
+          const emailVerified =
+            Boolean(user.email_confirmed_at) || Boolean(user.app_metadata?.custom_email_verified)
+
+          console.log("[LoginPage] Email verification state", {
+            userId: user.id,
+            emailVerified,
+            emailConfirmedAt: user.email_confirmed_at,
+            customEmailVerified: user.app_metadata?.custom_email_verified,
+          })
+
+          if (!emailVerified) {
+            console.warn("[LoginPage] Redirecting to verify-email because email is not verified", {
+              userId: user.id,
+              email: user.email,
+            })
             await supabase.auth.signOut()
             const params = new URLSearchParams({ redirect: "/company-details" })
             if (user.email) params.set("email", user.email)
             router.push(`/verify-email?${params.toString()}`)
+            router.refresh()
+            return
+          }
+
+          const userType = user.user_metadata?.user_type
+          console.log("[LoginPage] user_type branch check", {
+            userId: user.id,
+            userType,
+          })
+
+          if (userType === 'staff') {
+            const { data: staffAssignment } = await supabase
+              .from('property_staff')
+              .select('property_id')
+              .eq('user_id', user.id)
+              .in('status', ['active', 'pending'])
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .maybeSingle()
+
+            console.log("[LoginPage] Staff assignment lookup result", {
+              userId: user.id,
+              staffPropertyId: staffAssignment?.property_id ?? null,
+            })
+
+            if (staffAssignment?.property_id) {
+              console.log("[LoginPage] Redirecting staff user to property dashboard", {
+                userId: user.id,
+                destination: `/dashboard/${staffAssignment.property_id}`,
+              })
+              router.push(`/dashboard/${staffAssignment.property_id}`)
+            } else {
+              console.warn("[LoginPage] Staff user has no property assignment; falling back to /dashboard", {
+                userId: user.id,
+              })
+              router.push("/dashboard")
+            }
             router.refresh()
             return
           }
@@ -72,8 +133,6 @@ export default function LoginPage() {
             }
           }
 
-          const userType = user.user_metadata?.user_type
-
           if (userType === 'explorer') {
             router.push("/resources")
             router.refresh()
@@ -87,7 +146,18 @@ export default function LoginPage() {
             .limit(1)
           const company = companies?.[0] ?? null
 
+          console.log("[LoginPage] Company lookup result", {
+            userId: user.id,
+            userType,
+            companyId: company?.id ?? null,
+            subscriptionStatus: company?.subscription_status ?? null,
+          })
+
           if (!company) {
+            console.warn("[LoginPage] Redirecting to /company-details because no company was found", {
+              userId: user.id,
+              userType,
+            })
             router.push("/company-details")
             router.refresh()
             return

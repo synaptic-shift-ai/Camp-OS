@@ -27,6 +27,7 @@ type StaffRow = {
 type StaffManagementTableProps = {
   propertyId: string
   reloadKey?: number
+  canManageStaff?: boolean
   search?: string
   role?: string
   category?: string
@@ -107,6 +108,7 @@ function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
 export function StaffManagementTable({
   propertyId,
   reloadKey = 0,
+  canManageStaff = false,
   search = "",
   role = "all",
   category = "all",
@@ -266,17 +268,21 @@ export function StaffManagementTable({
                     <Button variant="ghost" size="xs" aria-label="View staff" className="h-8 w-8 p-0">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="xs" aria-label="Edit staff" className="h-8 w-8 p-0">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="Remove staff"
-                      className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                    >
-                      <UserMinus className="h-4 w-4" />
-                    </Button>
+                    {canManageStaff ? (
+                      <>
+                        <Button variant="ghost" size="xs" aria-label="Edit staff" className="h-8 w-8 p-0">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          aria-label="Remove staff"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                        >
+                          <UserMinus className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </TableCell>
               </TableRow>

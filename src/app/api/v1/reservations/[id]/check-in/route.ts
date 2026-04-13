@@ -64,7 +64,7 @@ export async function POST(
     // RBAC: verify user has check-in access to this property
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId: existingReservation.propertyId,
-      minimumRole: 'staff',
+      minimumRole: 'manager',
       permission: 'reservations.check_in',
     })
     if (isDenied(access)) return access

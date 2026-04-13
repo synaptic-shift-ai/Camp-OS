@@ -10,6 +10,7 @@ import { TodaysArrivalsCard } from "@/components/dashboard/reservations/todays-a
 import type { ReservationStatus } from "@/contracts/booking"
 import { DepartureCheckOutButton } from "@/components/dashboard/reservations/departure-check-out-button"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { resolveDashboardAccess } from "@/lib/rbac/dashboard-guards"
 import { redirect } from "next/navigation"
 
 const statusColors: Record<ReservationStatus, string> = {
@@ -102,9 +103,11 @@ const siteTypeOrder = ["rv", "tent", "cabin", "glamping", "yurt", "other"]
 async function CurrentlyCheckedIn({
   propertyId,
   allowedSiteTypes,
+  canManageCheckInOut,
 }: {
   propertyId: string
   allowedSiteTypes?: string[] | null
+  canManageCheckInOut: boolean
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
   const filters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
@@ -151,6 +154,21 @@ async function CurrentlyCheckedIn({
           <div className="mb-2 grid grid-cols-3 gap-2 md:mb-4 md:grid-cols-4">
             {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
+              if (!canManageCheckInOut) {
+                return (
+                  <div
+                    key={type}
+                    className="flex min-h-16 w-full flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-1.5 text-center md:min-h-20 md:px-3 md:py-2"
+                  >
+                    <p className="text-sm leading-tight text-muted-foreground md:text-base">
+                      <span className="md:hidden">{siteTypeLabels[type]}</span>
+                      <span className="hidden md:inline">{siteTypeLabels[type]} Site</span>
+                    </p>
+                    <p className="text-xl font-bold leading-none md:text-2xl">{count}</p>
+                  </div>
+                )
+              }
+
               return (
                 <Link
                   key={type}
@@ -183,11 +201,13 @@ async function TodaysArrivalsAndDepartures({
   allowedSiteTypes,
   checkInTime,
   checkOutTime,
+  canManageCheckInOut,
 }: {
   propertyId: string
   allowedSiteTypes?: string[] | null
   checkInTime?: string | null
   checkOutTime?: string | null
+  canManageCheckInOut: boolean
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
   const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
@@ -204,7 +224,11 @@ async function TodaysArrivalsAndDepartures({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
-        <TodaysArrivalsCard arrivals={arrivals} checkInTime={checkInTime} />
+        <TodaysArrivalsCard
+          arrivals={arrivals}
+          checkInTime={checkInTime}
+          canManageCheckInOut={canManageCheckInOut}
+        />
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-semibold sm:text-2xl">Departures</CardTitle>
@@ -251,10 +275,12 @@ async function TodaysArrivalsAndDepartures({
                       <div className="ml-0 w-full flex-shrink-0 text-left sm:ml-3 sm:w-auto sm:text-right">
                         <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
                         <div className="mt-2 w-full sm:mt-1 sm:w-auto">
-                          <DepartureCheckOutButton
-                            reservationId={reservation.id}
-                            checkOutTime={checkOutTime}
-                          />
+                          {canManageCheckInOut ? (
+                            <DepartureCheckOutButton
+                              reservationId={reservation.id}
+                              checkOutTime={checkOutTime}
+                            />
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -442,6 +468,15 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
 
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+  const access = await resolveDashboardAccess(supabase, propertyId, user.id)
+  if (!access || !access.role) redirect("/auth/login")
+  const canManageCheckInOut = access.role !== "staff"
+
   const allowedSiteTypes = getAllowedSiteTypes(property)
 
   return (
@@ -489,6 +524,7 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           allowedSiteTypes={allowedSiteTypes}
           checkInTime={property.check_in_time}
           checkOutTime={property.check_out_time}
+          canManageCheckInOut={canManageCheckInOut}
         />
       </Suspense>
 
@@ -517,7 +553,11 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
           </div>
         }
       >
-        <CurrentlyCheckedIn propertyId={propertyId} allowedSiteTypes={allowedSiteTypes} />
+        <CurrentlyCheckedIn
+          propertyId={propertyId}
+          allowedSiteTypes={allowedSiteTypes}
+          canManageCheckInOut={canManageCheckInOut}
+        />
       </Suspense>
 
       <Suspense

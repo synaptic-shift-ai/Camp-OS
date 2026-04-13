@@ -1,6 +1,14 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { resolveUserPropertyAccess } from '@/lib/rbac/resolve-access'
-import { canAccessOperationsModules, canAccessPropertySettings, canManageStaffRoster, canViewFinancials } from '@/lib/rbac/dashboard-guards'
+import {
+  canAccessOperationsModules,
+  canAccessPropertySettings,
+  canManageStaffRoster,
+  canViewFinancials,
+  canViewStaffRoster,
+  canAccessHousekeepingModule,
+  canAccessMaintenanceModule,
+} from '@/lib/rbac/dashboard-guards'
 
 export type DashboardNavVisibility = {
   /** Operations modules (reservations, sites, guests, auditing, analytics) */
@@ -11,6 +19,10 @@ export type DashboardNavVisibility = {
   propertySettingsNavVisible: boolean
   /** Financial pages (transactions, refunds, deposits) — NEW */
   financialNavVisible: boolean
+  /** Housekeeping module page */
+  housekeepingNavVisible: boolean
+  /** Maintenance module page */
+  maintenanceNavVisible: boolean
 }
 
 export async function resolveDashboardNavVisibility(
@@ -27,27 +39,35 @@ export async function resolveDashboardNavVisibility(
       staffManagementNavVisible: false,
       propertySettingsNavVisible: false,
       financialNavVisible: false,
+      housekeepingNavVisible: false,
+      maintenanceNavVisible: false,
     }
   }
 
   return {
     operationsModulesNavVisible: canAccessOperationsModules(access),
-    staffManagementNavVisible: canManageStaffRoster(access),
+    staffManagementNavVisible: canViewStaffRoster(access),
     propertySettingsNavVisible: canAccessPropertySettings(access),
     financialNavVisible: canViewFinancials(access),
+    housekeepingNavVisible: canAccessHousekeepingModule(access),
+    maintenanceNavVisible: canAccessMaintenanceModule(access),
   }
 }
 
 export type DashboardUserLabels = {
   displayName: string
   roleLabel: string
+  isStaffUserType: boolean
 }
 
 export async function resolveDashboardUserLabels(
   supabase: SupabaseClient,
   user: User,
+  propertyId?: string,
 ): Promise<DashboardUserLabels> {
   const metadata = (user.user_metadata ?? {}) as Record<string, unknown>
+  const userType = typeof metadata.user_type === 'string' ? metadata.user_type.trim().toLowerCase() : ''
+  const isStaffUserType = userType === 'staff'
   const firstName = typeof metadata.first_name === 'string' ? metadata.first_name.trim() : ''
   const lastName = typeof metadata.last_name === 'string' ? metadata.last_name.trim() : ''
   const fullName = [firstName, lastName].filter(Boolean).join(' ')
@@ -66,13 +86,14 @@ export async function resolveDashboardUserLabels(
     .limit(1)
     .maybeSingle()
 
-  const userType = typeof metadata.user_type === 'string' ? metadata.user_type : ''
-  const roleLabel =
-    ownerCompany?.id
-      ? 'Owner'
-      : userType.length > 0
-        ? `${userType.charAt(0).toUpperCase()}${userType.slice(1)}`
-        : 'Owner'
+  let roleLabel = ownerCompany?.id ? 'Owner' : 'User'
 
-  return { displayName, roleLabel }
+  if (!ownerCompany?.id && propertyId && propertyId.length > 0) {
+    const access = await resolveUserPropertyAccess(supabase, propertyId, user.id)
+    if (access?.role) {
+      roleLabel = `${access.role.charAt(0).toUpperCase()}${access.role.slice(1)}`
+    }
+  }
+
+  return { displayName, roleLabel, isStaffUserType }
 }

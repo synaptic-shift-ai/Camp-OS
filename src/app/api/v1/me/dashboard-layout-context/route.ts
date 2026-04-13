@@ -21,12 +21,14 @@ export async function GET(request: NextRequest) {
     }
 
     const propertyId = request.nextUrl.searchParams.get('propertyId')?.trim() ?? ''
-    const labels = await resolveDashboardUserLabels(supabase, user)
+    const labels = await resolveDashboardUserLabels(supabase, user, propertyId)
 
     let staffManagementNavVisible = true
     let propertySettingsNavVisible = true
     let operationsModulesNavVisible = true
     let financialNavVisible = true
+    let housekeepingNavVisible = false
+    let maintenanceNavVisible = false
 
     if (propertyId.length > 0) {
       const nav = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
@@ -34,6 +36,8 @@ export async function GET(request: NextRequest) {
       propertySettingsNavVisible = nav.propertySettingsNavVisible
       operationsModulesNavVisible = nav.operationsModulesNavVisible
       financialNavVisible = nav.financialNavVisible
+      housekeepingNavVisible = nav.housekeepingNavVisible
+      maintenanceNavVisible = nav.maintenanceNavVisible
     }
 
     return success({
@@ -42,6 +46,8 @@ export async function GET(request: NextRequest) {
       propertySettingsNavVisible,
       operationsModulesNavVisible,
       financialNavVisible,
+      housekeepingNavVisible,
+      maintenanceNavVisible,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

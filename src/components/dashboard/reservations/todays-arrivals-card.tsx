@@ -24,12 +24,17 @@ interface TodaysArrivalsCardProps {
     }
   >
   checkInTime?: string | null | undefined
+  canManageCheckInOut?: boolean
 }
 
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCardProps) {
+export function TodaysArrivalsCard({
+  arrivals,
+  checkInTime,
+  canManageCheckInOut = true,
+}: TodaysArrivalsCardProps) {
   const { toast } = useToast()
   const [selectedReservation, setSelectedReservation] = useState<
     (Reservation & {
@@ -195,16 +200,18 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                       </p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleCheckIn(reservation)}
-                    disabled={loadingReservationId === reservation.id}
-                    className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Check In
-                  </Button>
+                  {canManageCheckInOut ? (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleCheckIn(reservation)}
+                      disabled={loadingReservationId === reservation.id}
+                      className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Check In
+                    </Button>
+                  ) : null}
                 </div>
               )
             })}
@@ -249,15 +256,17 @@ export function TodaysArrivalsCard({ arrivals, checkInTime }: TodaysArrivalsCard
                       </p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleCheckIn(reservation)}
-                    disabled={loadingReservationId === reservation.id}
-                    className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Check In
-                  </Button>
+                  {canManageCheckInOut ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleCheckIn(reservation)}
+                      disabled={loadingReservationId === reservation.id}
+                      className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Check In
+                    </Button>
+                  ) : null}
                 </div>
               )
             })}

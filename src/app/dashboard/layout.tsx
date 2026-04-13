@@ -25,6 +25,8 @@ import {
   Bell,
   Loader2,
   History,
+  Wrench,
+  ClipboardList,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -50,6 +52,8 @@ const NAV_ITEMS = [
   { name: "Analytics", path: "/analytics", icon: BarChart3 },
   { name: "Staff Management", path: "/staff-management", icon: Users },
   { name: "Auditing", path: "/auditing", icon: History },
+  { name: "Housekeeping", path: "/housekeeping", icon: ClipboardList },
+  { name: "Maintenance", path: "/maintenance", icon: Wrench },
   { name: "Settings", path: "/settings", icon: Settings },
 ] as const
 
@@ -76,11 +80,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [logoLoadFailed, setLogoLoadFailed] = useState(false)
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null)
   const [userRoleLabel, setUserRoleLabel] = useState<string>("User")
+  const [isStaffUserType, setIsStaffUserType] = useState(false)
   const [isUserLoading, setIsUserLoading] = useState(true)
-  const [staffManagementNavVisible, setStaffManagementNavVisible] = useState(true)
-  const [propertySettingsNavVisible, setPropertySettingsNavVisible] = useState(true)
-  const [operationsModulesNavVisible, setOperationsModulesNavVisible] = useState(true)
-  const [financialNavVisible, setFinancialNavVisible] = useState(true)
+  const [staffManagementNavVisible, setStaffManagementNavVisible] = useState(false)
+  const [propertySettingsNavVisible, setPropertySettingsNavVisible] = useState(false)
+  const [operationsModulesNavVisible, setOperationsModulesNavVisible] = useState(false)
+  const [financialNavVisible, setFinancialNavVisible] = useState(false)
+  const [housekeepingNavVisible, setHousekeepingNavVisible] = useState(false)
+  const [maintenanceNavVisible, setMaintenanceNavVisible] = useState(false)
   const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
   const companyId = selectedProperty?.companyId ?? null
   const dashboardTitle = isLoading ? "Loading..." : companyName
@@ -114,10 +121,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           data?: {
             displayName: string
             roleLabel: string
+            isStaffUserType?: boolean
             staffManagementNavVisible: boolean
             propertySettingsNavVisible: boolean
             operationsModulesNavVisible: boolean
             financialNavVisible?: boolean
+            housekeepingNavVisible?: boolean
+            maintenanceNavVisible?: boolean
           }
         } = await response.json()
 
@@ -126,27 +136,37 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         if (!response.ok || !result.success || !result.data) {
           setUserDisplayName(null)
           setUserRoleLabel("User")
-          setStaffManagementNavVisible(true)
-          setPropertySettingsNavVisible(true)
-          setOperationsModulesNavVisible(true)
+          setIsStaffUserType(false)
+          setStaffManagementNavVisible(false)
+          setPropertySettingsNavVisible(false)
+          setOperationsModulesNavVisible(false)
+          setFinancialNavVisible(false)
+          setHousekeepingNavVisible(false)
+          setMaintenanceNavVisible(false)
           return
         }
 
         const d = result.data
         setUserDisplayName(d.displayName)
         setUserRoleLabel(d.roleLabel)
+        setIsStaffUserType(d.isStaffUserType ?? false)
         setStaffManagementNavVisible(d.staffManagementNavVisible)
         setPropertySettingsNavVisible(d.propertySettingsNavVisible)
         setOperationsModulesNavVisible(d.operationsModulesNavVisible)
         setFinancialNavVisible(d.financialNavVisible ?? true)
+        setHousekeepingNavVisible(d.housekeepingNavVisible ?? false)
+        setMaintenanceNavVisible(d.maintenanceNavVisible ?? false)
       } catch {
         if (!cancelled) {
           setUserDisplayName(null)
           setUserRoleLabel("User")
-          setStaffManagementNavVisible(true)
-          setPropertySettingsNavVisible(true)
-          setOperationsModulesNavVisible(true)
-          setFinancialNavVisible(true)
+          setIsStaffUserType(false)
+          setStaffManagementNavVisible(false)
+          setPropertySettingsNavVisible(false)
+          setOperationsModulesNavVisible(false)
+          setFinancialNavVisible(false)
+          setHousekeepingNavVisible(false)
+          setMaintenanceNavVisible(false)
         }
       } finally {
         if (!cancelled) {
@@ -239,10 +259,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   const navItemsForUser = NAV_ITEMS.filter((item) => {
+    if (isUserLoading) return false
     if (item.path === "/staff-management" && !staffManagementNavVisible) return false
     if (item.path === "/settings" && !propertySettingsNavVisible) return false
     if (!operationsModulesNavVisible && OPERATIONS_MODULE_PATHS.has(item.path)) return false
     if (item.path === "/payments" && !financialNavVisible) return false
+    if (item.path === "/housekeeping" && !housekeepingNavVisible) return false
+    if (item.path === "/maintenance" && !maintenanceNavVisible) return false
     return true
   })
 
@@ -496,7 +519,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {/* Page Content */}
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col p-6">
-            <QuickTourPrompt />
+            {!isUserLoading && !isStaffUserType ? <QuickTourPrompt /> : null}
             {isPending ? (
               <div className="flex min-h-[200px] flex-1 items-center justify-center" aria-busy="true" aria-label="Loading">
                 <Loader2 className="h-12 w-12 animate-spin stroke-[1] text-muted-foreground" />

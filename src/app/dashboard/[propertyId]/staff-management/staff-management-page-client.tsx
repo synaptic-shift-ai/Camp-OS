@@ -17,12 +17,14 @@ import StaffManagementFilter, {
 
 type StaffManagementStaffPageClientProps = {
   propertyName: string
+  canManageStaff: boolean
 }
 
 const FILTER_DEBOUNCE_MS = 300
 
 export default function StaffManagementStaffPageClient({
   propertyName,
+  canManageStaff,
 }: StaffManagementStaffPageClientProps) {
   const params = useParams<{ propertyId: string }>()
   const propertyId =
@@ -115,8 +117,12 @@ export default function StaffManagementStaffPageClient({
       <div className="space-y-4 sm:space-y-6 px-6 pb-8">
         <StaffManagementPageHeader
           propertyName={propertyName}
-          onCategoriesClick={() => setCategoriesOpen(true)}
-          onInviteStaffClick={() => setInviteStaffOpen(true)}
+          {...(canManageStaff
+            ? {
+                onCategoriesClick: () => setCategoriesOpen(true),
+                onInviteStaffClick: () => setInviteStaffOpen(true),
+              }
+            : {})}
         />
 
         <StaffManagementFilter
@@ -135,18 +141,19 @@ export default function StaffManagementStaffPageClient({
           category={debouncedFilterValue.category}
           status={debouncedFilterValue.status}
           onFilterOptionsChange={setFilterOptions}
+          canManageStaff={canManageStaff}
         />
       </div>
 
       <StaffManagementCategoriesDialog
-        open={categoriesOpen}
+        open={canManageStaff ? categoriesOpen : false}
         onOpenChange={setCategoriesOpen}
         onSave={handleSaveCategories}
         propertyId={propertyId}
       />
 
       <InviteStaffDialog
-        open={inviteStaffOpen}
+        open={canManageStaff ? inviteStaffOpen : false}
         onOpenChange={setInviteStaffOpen}
         propertyId={propertyId}
         onInviteSent={() => setStaffTableReloadKey((k) => k + 1)}

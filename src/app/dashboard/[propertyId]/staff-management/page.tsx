@@ -1,6 +1,9 @@
 import StaffManagementStaffPageClient from './staff-management-page-client'
 import { getPropertyForUser } from '@/lib/dashboard/property-access'
-import { userCanManagePropertyStaffRoster } from '@/lib/dashboard/staff-management-page-access'
+import {
+  userCanManagePropertyStaffRoster,
+  userCanViewPropertyStaffRoster,
+} from '@/lib/dashboard/staff-management-page-access'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -19,10 +22,12 @@ export default async function StaffManagementPage({ params }: pageProps) {
   } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const canManageStaff = await userCanManagePropertyStaffRoster(supabase, propertyId, user.id)
-  if (!canManageStaff) {
+  const canViewStaff = await userCanViewPropertyStaffRoster(supabase, propertyId, user.id)
+  if (!canViewStaff) {
     redirect(`/dashboard/${propertyId}`)
   }
 
-  return <StaffManagementStaffPageClient propertyName={property.name} />
+  const canManageStaff = await userCanManagePropertyStaffRoster(supabase, propertyId, user.id)
+
+  return <StaffManagementStaffPageClient propertyName={property.name} canManageStaff={canManageStaff} />
 }

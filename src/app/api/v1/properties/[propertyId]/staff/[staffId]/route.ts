@@ -8,7 +8,6 @@
  * DELETE /api/v1/properties/[propertyId]/staff/[staffId] - Remove staff member
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
@@ -23,15 +22,14 @@ import {
   SupabasePropertyStaffRepository,
 } from '@/modules/StaffManagement'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
-import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
+import { resolveDashboardAccess, canManageStaffRoster, canViewStaffRoster } from '@/lib/rbac/dashboard-guards'
 
-async function verifyPropertyAccess(
+async function resolveAccess(
   supabase: Awaited<ReturnType<typeof createClient>>,
   propertyId: string,
-  userId: string
-): Promise<{ hasAccess: boolean; isAdmin: boolean }> {
-  const q = new StaffManagementQueries(supabase as SupabaseClient)
-  return q.verifyPropertyAccess({ propertyId, userId })
+  userId: string,
+) {
+  return resolveDashboardAccess(supabase as never, propertyId, userId)
 }
 
 /**
@@ -61,14 +59,14 @@ export async function GET(
     }
 
     // 2. Verify property access (BP-4: Tenant isolation)
-    const { hasAccess, isAdmin } = await verifyPropertyAccess(supabase, propertyId, user.id)
-    if (!hasAccess) {
+    const access = await resolveAccess(supabase, propertyId, user.id)
+    if (!access) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - no access to this property'),
         { status: 403 }
       )
     }
-    if (!isAdmin) {
+    if (!canViewStaffRoster(access)) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - elevated access required to view staff'),
         { status: 403 }
@@ -136,14 +134,14 @@ export async function PATCH(
     }
 
     // 2. Verify admin access (BP-4: Tenant isolation + permission check)
-    const { hasAccess, isAdmin } = await verifyPropertyAccess(supabase, propertyId, user.id)
-    if (!hasAccess) {
+    const access = await resolveAccess(supabase, propertyId, user.id)
+    if (!access) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - no access to this property'),
         { status: 403 }
       )
     }
-    if (!isAdmin) {
+    if (!canManageStaffRoster(access)) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - admin access required to manage staff'),
         { status: 403 }
@@ -280,14 +278,14 @@ export async function DELETE(
     }
 
     // 2. Verify admin access (BP-4: Tenant isolation + permission check)
-    const { hasAccess, isAdmin } = await verifyPropertyAccess(supabase, propertyId, user.id)
-    if (!hasAccess) {
+    const access = await resolveAccess(supabase, propertyId, user.id)
+    if (!access) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - no access to this property'),
         { status: 403 }
       )
     }
-    if (!isAdmin) {
+    if (!canManageStaffRoster(access)) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - admin access required to manage staff'),
         { status: 403 }

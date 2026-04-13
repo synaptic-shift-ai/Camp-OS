@@ -11,6 +11,7 @@ import type { ResolvedAccess } from '@/lib/rbac/resolve-access'
 import { resolveUserPropertyAccess } from '@/lib/rbac/resolve-access'
 import { isManagerOrAbove, isAdminOrAbove } from '@/lib/rbac/roles'
 import { hasPermission } from '@/lib/rbac/permissions'
+import { staffHasPermission } from '@/lib/rbac/staff-categories'
 
 /**
  * Resolve access for a dashboard page. Returns null if no access.
@@ -46,6 +47,27 @@ export function canAccessOperationsModules(access: ResolvedAccess): boolean {
 export function canAccessPropertySettings(access: ResolvedAccess): boolean {
   if (!access.role) return false
   return isAdminOrAbove(access.role)
+}
+
+export function canViewStaffRoster(access: ResolvedAccess): boolean {
+  if (!access.role) return false
+  return isManagerOrAbove(access.role)
+}
+
+/**
+ * Housekeeping dashboard is for staff with housekeeping category only.
+ */
+export function canAccessHousekeepingModule(access: ResolvedAccess): boolean {
+  if (access.role !== 'staff') return false
+  return staffHasPermission(access.categories, 'housekeeping.view_assigned')
+}
+
+/**
+ * Maintenance dashboard is for staff with maintenance category only.
+ */
+export function canAccessMaintenanceModule(access: ResolvedAccess): boolean {
+  if (access.role !== 'staff') return false
+  return staffHasPermission(access.categories, 'maintenance.view_assigned')
 }
 
 /**

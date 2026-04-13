@@ -9,8 +9,10 @@ import {
   StaffManagementQueries,
   type UiRole,
 } from '@/lib/dashboard/staff-management-queries'
+import { resolveDashboardAccess, canManageStaffRoster } from '@/lib/rbac/dashboard-guards'
 import { sendEmail } from '@/lib/email/emailit'
 import { buildStaffInviteLinkEmailHtml } from '@/lib/email/templates/staff-invite-link'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 
 const STAFF_INVITE_TOKEN_EXPIRY_DAYS = 7
 
@@ -70,7 +72,11 @@ export async function POST(
         propertyId,
         authError: authError?.message ?? null,
       })
-      return error(ErrorCodes.AUTH_001, request)
+      return errorFlatMessage(
+        authError?.message ?? ErrorCodes.AUTH_001.message,
+        ErrorCodes.AUTH_001.status,
+        request,
+      )
     }
 
     const parsed = BodySchema.safeParse(await request.json())
@@ -81,12 +87,8 @@ export async function POST(
     }
 
     const q = new StaffManagementQueries(supabase as any)
-    const { hasAccess, isAdmin } = await q.verifyPropertyAccess({
-      propertyId,
-      userId: user.id,
-    })
-
-    if (!hasAccess) {
+    const access = await resolveDashboardAccess(supabase as never, propertyId, user.id)
+    if (!access) {
       return errorFlatMessage(
         'No access to this property. Confirm the property ID, and that your user is the company owner or has a property_staff row for this property.',
         ErrorCodes.AUTH_002.status,
@@ -94,9 +96,9 @@ export async function POST(
       )
     }
 
-    if (!isAdmin) {
+    if (!canManageStaffRoster(access)) {
       return errorFlatMessage(
-        'Inviting staff requires an elevated property role (owner, admin, property_admin, or manager). Basic staff cannot invite.',
+        'Inviting staff requires an admin-level property role (owner, admin, or property_admin).',
         ErrorCodes.AUTH_002.status,
         request,
       )
@@ -204,6 +206,17 @@ export async function POST(
         status: parsed.data.status ?? 'pending',
       })
 
+      if (access.companyId) {
+        await recordActivityLog(service, {
+          companyId: access.companyId,
+          propertyId,
+          action: 'create',
+          resource: 'staff',
+          userId: user.id,
+          details: `Invited staff ${parsed.data.email} with role ${firstRole}.`,
+        })
+      }
+
       const baseUrl = getInviteBaseUrl()
       const inviteUrl = `${baseUrl}/staff-invite?token=${encodeURIComponent(inviteToken)}&uid=${encodeURIComponent(newUserId)}`
       const html = await buildStaffInviteLinkEmailHtml(
@@ -224,6 +237,17 @@ export async function POST(
         })
         return error(ErrorCodes.INTERNAL_ERROR, request, {
           message: emailResult.error,
+        })
+      }
+
+      if (access.companyId) {
+        await recordActivityLog(service, {
+          companyId: access.companyId,
+          propertyId,
+          action: 'create',
+          resource: 'staff_invite_email',
+          userId: null,
+          details: `System sent staff invite email to ${parsed.data.email}.`,
         })
       }
 

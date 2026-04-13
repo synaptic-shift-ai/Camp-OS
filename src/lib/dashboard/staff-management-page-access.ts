@@ -4,7 +4,17 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resolveDashboardAccess, canManageStaffRoster } from '@/lib/rbac/dashboard-guards'
+import { resolveDashboardAccess, canManageStaffRoster, canViewStaffRoster } from '@/lib/rbac/dashboard-guards'
+
+export async function userCanViewPropertyStaffRoster(
+  supabase: SupabaseClient,
+  propertyId: string,
+  userId: string,
+): Promise<boolean> {
+  const access = await resolveDashboardAccess(supabase, propertyId, userId)
+  if (!access) return false
+  return canViewStaffRoster(access)
+}
 
 export async function userCanManagePropertyStaffRoster(
   supabase: SupabaseClient,

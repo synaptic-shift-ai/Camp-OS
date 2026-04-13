@@ -25,14 +25,18 @@ export default function StaffManagementPageHeader({
                     <ShieldCheckIcon className="h-4 w-4" />
                     Access
                 </Button>
-                <Button type="button" variant="outline" onClick={onCategoriesClick}>
-                    <Tag className="h-4 w-4" />
-                    Categories
-                </Button>
-                <Button type="button" onClick={onInviteStaffClick}>
-                    <UserPlusIcon className="h-4 w-4" />
-                    Invite Staff
-                </Button>
+                {onCategoriesClick ? (
+                    <Button type="button" variant="outline" onClick={onCategoriesClick}>
+                        <Tag className="h-4 w-4" />
+                        Categories
+                    </Button>
+                ) : null}
+                {onInviteStaffClick ? (
+                    <Button type="button" onClick={onInviteStaffClick}>
+                        <UserPlusIcon className="h-4 w-4" />
+                        Invite Staff
+                    </Button>
+                ) : null}
             </div>
         </div>
     )

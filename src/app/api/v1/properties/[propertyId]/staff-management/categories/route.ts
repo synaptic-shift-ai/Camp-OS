@@ -4,6 +4,7 @@ import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
+import { resolveDashboardAccess, canManageStaffRoster, canViewStaffRoster } from '@/lib/rbac/dashboard-guards'
 
 const categoryNameRowSchema = z.object({ name: z.string().trim().min(1) })
 
@@ -29,12 +30,9 @@ export async function GET(
     }
 
     const q = new StaffManagementQueries(supabase as any)
-    const { hasAccess, isAdmin } = await q.verifyPropertyAccess({
-      propertyId,
-      userId: user.id,
-    })
+    const access = await resolveDashboardAccess(supabase as never, propertyId, user.id)
 
-    if (!hasAccess) {
+    if (!access) {
       return error(
         ErrorCodes.AUTH_002.code,
         'No access to this property. Confirm the property ID and your assignment or company ownership.',
@@ -43,7 +41,7 @@ export async function GET(
       )
     }
 
-    if (!isAdmin) {
+    if (!canViewStaffRoster(access)) {
       return error(
         ErrorCodes.AUTH_002.code,
         'Role categories require an elevated property role (owner, admin, property_admin, or manager).',
@@ -80,12 +78,9 @@ export async function POST(
     }
 
     const q = new StaffManagementQueries(supabase as any)
-    const { hasAccess, isAdmin } = await q.verifyPropertyAccess({
-      propertyId,
-      userId: user.id,
-    })
+    const access = await resolveDashboardAccess(supabase as never, propertyId, user.id)
 
-    if (!hasAccess) {
+    if (!access) {
       console.error('[StaffManagementCategories] Forbidden - no access', {
         propertyId,
         userId: user.id,
@@ -98,14 +93,14 @@ export async function POST(
       )
     }
 
-    if (!isAdmin) {
+    if (!canManageStaffRoster(access)) {
       console.error('[StaffManagementCategories] Forbidden - admin required', {
         propertyId,
         userId: user.id,
       })
       return error(
         ErrorCodes.AUTH_002.code,
-        'Saving role categories requires an elevated property role (owner, admin, property_admin, or manager).',
+        'Saving role categories requires an admin-level property role (owner, admin, or property_admin).',
         ErrorCodes.AUTH_002.status,
         request,
       )

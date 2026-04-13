@@ -70,4 +70,14 @@ export {
 } from './require-access'
 
 // Dashboard guards
-export { resolveDashboardAccess, canAccessOperationsModules, canAccessPropertySettings, canManageStaffRoster, canViewFinancials, canProcessRefunds } from './dashboard-guards'
+export {
+  resolveDashboardAccess,
+  canAccessOperationsModules,
+  canAccessPropertySettings,
+  canViewStaffRoster,
+  canManageStaffRoster,
+  canViewFinancials,
+  canProcessRefunds,
+  canAccessHousekeepingModule,
+  canAccessMaintenanceModule,
+} from './dashboard-guards'

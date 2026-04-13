@@ -11,10 +11,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-
-// Validation schema for updating a seasonal period
 const UpdateSeasonalPeriodSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   start_month: z.number().min(1).max(12).optional(),
@@ -48,21 +47,14 @@ export async function GET(
       return NextResponse.json(error(ErrorCodes.AUTH_001), { status: 401 })
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
+    // Verify property exists
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
@@ -73,14 +65,6 @@ export async function GET(
       return NextResponse.json(
         error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 404 }
-      )
-    }
-
-    // Verify tenant access (BP-4)
-    if (property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
-        { status: 403 }
       )
     }
 
@@ -134,21 +118,14 @@ export async function PUT(
       return NextResponse.json(error(ErrorCodes.AUTH_001), { status: 401 })
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'manager',
+    })
+    if (isDenied(access)) return access
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
+    // Verify property exists
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
@@ -159,14 +136,6 @@ export async function PUT(
       return NextResponse.json(
         error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 404 }
-      )
-    }
-
-    // Verify tenant access (BP-4)
-    if (property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
-        { status: 403 }
       )
     }
 
@@ -258,21 +227,14 @@ export async function DELETE(
       return NextResponse.json(error(ErrorCodes.AUTH_001), { status: 401 })
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'manager',
+    })
+    if (isDenied(access)) return access
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
+    // Verify property exists
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
@@ -283,14 +245,6 @@ export async function DELETE(
       return NextResponse.json(
         error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 404 }
-      )
-    }
-
-    // Verify tenant access (BP-4)
-    if (property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
-        { status: 403 }
       )
     }
 

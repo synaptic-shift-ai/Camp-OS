@@ -3,11 +3,16 @@
  *
  * Represents the set of permissions for a staff member.
  * Permissions can be derived from roles or customized individually.
+ *
+ * NOTE: The authoritative authorization system lives in `src/lib/rbac/`.
+ * For route-level authorization, use `requirePropertyAccess()` from `src/lib/rbac/require-access.ts`.
+ * This class is a legacy domain convenience wrapper.
  */
 
 import { ValueObject } from '@/shared/domain/ValueObject'
 import type { StaffRole } from './StaffRole'
 
+// Legacy permission keys (colon-separated). Used in the domain layer only.
 export type PermissionKey =
   | 'reservations:read'
   | 'reservations:create'
@@ -44,6 +49,15 @@ const ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
     'staff:read', 'staff:manage',
     'settings:read', 'settings:manage',
   ],
+  admin: [
+    'reservations:read', 'reservations:create', 'reservations:update', 'reservations:delete',
+    'reservations:check_in', 'reservations:check_out',
+    'guests:read', 'guests:create', 'guests:update',
+    'sites:read', 'sites:update', 'sites:create', 'sites:delete',
+    'financial:read', 'financial:manage', 'financial:refund',
+    'staff:read', 'staff:manage',
+    'settings:read', 'settings:manage',
+  ],
   manager: [
     'reservations:read', 'reservations:create', 'reservations:update',
     'reservations:check_in', 'reservations:check_out',
@@ -59,11 +73,6 @@ const ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
     'guests:read', 'guests:create',
     'sites:read',
   ],
-  viewer: [
-    'reservations:read',
-    'guests:read',
-    'sites:read',
-  ],
 }
 
 export class Permissions extends ValueObject<PermissionsProps> {
@@ -76,9 +85,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Factory method to create from array of permission keys
-   *
-   * @param permissions - Array of permission keys
-   * @returns Permissions instance
    */
   public static create(permissions: PermissionKey[]): Permissions {
     return new Permissions({ permissions: new Set(permissions) })
@@ -86,9 +92,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Create permissions from a role's default permissions
-   *
-   * @param role - Staff role
-   * @returns Permissions instance with role defaults
    */
   public static fromRole(role: StaffRole): Permissions {
     const rolePerms = ROLE_PERMISSIONS[role.value] || []
@@ -112,9 +115,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Reconstitute from persistence (JSON object or array)
-   *
-   * @param data - Persisted permissions data
-   * @returns Permissions instance
    */
   public static fromPersistence(data: unknown): Permissions {
     if (!data) {
@@ -142,9 +142,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Check if a specific permission is granted
-   *
-   * @param permission - Permission key to check
-   * @returns True if permission is granted
    */
   public has(permission: PermissionKey): boolean {
     return this.props.permissions.has(permission)
@@ -152,9 +149,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Check if any of the given permissions are granted
-   *
-   * @param permissions - Permission keys to check
-   * @returns True if at least one permission is granted
    */
   public hasAny(permissions: PermissionKey[]): boolean {
     return permissions.some((p) => this.props.permissions.has(p))
@@ -162,9 +156,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Check if all of the given permissions are granted
-   *
-   * @param permissions - Permission keys to check
-   * @returns True if all permissions are granted
    */
   public hasAll(permissions: PermissionKey[]): boolean {
     return permissions.every((p) => this.props.permissions.has(p))
@@ -172,9 +163,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Add a permission
-   *
-   * @param permission - Permission to add
-   * @returns New Permissions instance with added permission
    */
   public add(permission: PermissionKey): Permissions {
     const newPerms = new Set(this.props.permissions)
@@ -184,9 +172,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Remove a permission
-   *
-   * @param permission - Permission to remove
-   * @returns New Permissions instance without the permission
    */
   public remove(permission: PermissionKey): Permissions {
     const newPerms = new Set(this.props.permissions)
@@ -196,9 +181,6 @@ export class Permissions extends ValueObject<PermissionsProps> {
 
   /**
    * Merge with another permissions set
-   *
-   * @param other - Permissions to merge
-   * @returns New Permissions with combined permissions
    */
   public merge(other: Permissions): Permissions {
     const merged = new Set([...this.props.permissions, ...other.props.permissions])

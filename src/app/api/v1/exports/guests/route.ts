@@ -7,6 +7,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { success, error } from "@/lib/api/response"
 import { ErrorCodes } from "@/lib/api/errors"
+import { requirePropertyMembership, isDenied } from '@/lib/rbac'
 import { getGuests, type GuestFilters } from "@/lib/dashboard/queries"
 
 type ExportGuestsBody = {
@@ -16,8 +17,9 @@ type ExportGuestsBody = {
   }
 }
 
-async function assertUserOwnsProperty(
+async function assertUserHasPropertyAccess(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
   propertyId: string
 ): Promise<unknown> {
   const {
@@ -29,27 +31,19 @@ async function assertUserOwnsProperty(
     throw new Error(ErrorCodes.AUTH_004.code)
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("owner_id", user.id)
-    .single()
-
-  if (companyError || !company) {
-    throw new Error(ErrorCodes.RESOURCE_NOT_FOUND.code)
-  }
-
-  const { data: property, error: propertyError } = await supabase
-    .from("properties")
-    .select("id, company_id, site_type_config")
-    .eq("id", propertyId)
-    .single()
-
-  if (propertyError || !property || property.company_id !== company.id) {
+  const access = await requirePropertyMembership(supabase, user.id, propertyId)
+  if (isDenied(access)) {
     throw new Error(ErrorCodes.AUTH_003.code)
   }
 
-  return property.site_type_config
+  // Fetch property data needed by caller
+  const { data: property } = await supabase
+    .from('properties')
+    .select('id, company_id, site_type_config')
+    .eq('id', propertyId)
+    .single()
+
+  return property?.site_type_config ?? null
 }
 
 export async function POST(request: NextRequest) {
@@ -68,7 +62,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     let siteTypeConfig: unknown = null
     try {
-      siteTypeConfig = await assertUserOwnsProperty(supabase, propertyId)
+      siteTypeConfig = await assertUserHasPropertyAccess(supabase, (await supabase.auth.getUser()).data!.user!.id, propertyId)
     } catch (authErr) {
       const code = authErr instanceof Error ? authErr.message : ErrorCodes.AUTH_004.code
       const errDef = Object.values(ErrorCodes).find((d: any) => d.code === code)

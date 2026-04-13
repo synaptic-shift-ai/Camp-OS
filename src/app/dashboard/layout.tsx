@@ -53,6 +53,10 @@ const NAV_ITEMS = [
   { name: "Settings", path: "/settings", icon: Settings },
 ] as const
 
+const OPERATIONS_MODULE_PATHS = new Set<
+  (typeof NAV_ITEMS)[number]["path"]
+>(["/reservations", "/sites", "/guests", "/payments", "/analytics", "/auditing"])
+
 const COMPANY_DETAILS_UPDATED_EVENT = "company-details-updated"
 
 type CompanyDetailsUpdatedEventDetail = {
@@ -73,6 +77,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null)
   const [userRoleLabel, setUserRoleLabel] = useState<string>("User")
   const [isUserLoading, setIsUserLoading] = useState(true)
+  const [staffManagementNavVisible, setStaffManagementNavVisible] = useState(true)
+  const [propertySettingsNavVisible, setPropertySettingsNavVisible] = useState(true)
+  const [operationsModulesNavVisible, setOperationsModulesNavVisible] = useState(true)
+  const [financialNavVisible, setFinancialNavVisible] = useState(true)
   const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
   const companyId = selectedProperty?.companyId ?? null
   const dashboardTitle = isLoading ? "Loading..." : companyName
@@ -88,70 +96,69 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }, [propertyIdFromUrl, selectedPropertyId, selectProperty])
 
   useEffect(() => {
-    let isCancelled = false
-    const supabase = createClient()
+    let cancelled = false
+    setIsUserLoading(true)
 
-    async function fetchCurrentUser() {
-      setIsUserLoading(true)
+    const query =
+      propertyIdFromUrl && propertyIdFromUrl.length > 0
+        ? `?propertyId=${encodeURIComponent(propertyIdFromUrl)}`
+        : ""
+
+    void (async () => {
       try {
-        const { data, error } = await supabase.auth.getUser()
-        if (error || !data.user) {
-          if (!isCancelled) {
-            setUserDisplayName(null)
-            setUserRoleLabel("User")
+        const response = await fetch(`/api/v1/me/dashboard-layout-context${query}`, {
+          credentials: "include",
+        })
+        const result: {
+          success?: boolean
+          data?: {
+            displayName: string
+            roleLabel: string
+            staffManagementNavVisible: boolean
+            propertySettingsNavVisible: boolean
+            operationsModulesNavVisible: boolean
+            financialNavVisible?: boolean
           }
+        } = await response.json()
+
+        if (cancelled) return
+
+        if (!response.ok || !result.success || !result.data) {
+          setUserDisplayName(null)
+          setUserRoleLabel("User")
+          setStaffManagementNavVisible(true)
+          setPropertySettingsNavVisible(true)
+          setOperationsModulesNavVisible(true)
           return
         }
 
-        const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
-        const firstName = typeof metadata.first_name === "string" ? metadata.first_name.trim() : ""
-        const lastName = typeof metadata.last_name === "string" ? metadata.last_name.trim() : ""
-        const fullName = [firstName, lastName].filter(Boolean).join(" ")
-        const fallbackName =
-          typeof metadata.full_name === "string"
-            ? metadata.full_name
-            : typeof metadata.name === "string"
-              ? metadata.name
-              : ""
-        const resolvedName = fullName || fallbackName || data.user.email || "User"
-
-        const { data: ownerCompany } = await supabase
-          .from("companies")
-          .select("id")
-          .eq("owner_id", data.user.id)
-          .limit(1)
-          .maybeSingle()
-
-        const userType = typeof metadata.user_type === "string" ? metadata.user_type : ""
-        const roleLabel =
-          ownerCompany?.id
-            ? "Owner"
-            : userType.length > 0
-            ? `${userType.charAt(0).toUpperCase()}${userType.slice(1)}`
-            : "Owner"
-
-        if (!isCancelled) {
-          setUserDisplayName(resolvedName)
-          setUserRoleLabel(roleLabel)
-        }
+        const d = result.data
+        setUserDisplayName(d.displayName)
+        setUserRoleLabel(d.roleLabel)
+        setStaffManagementNavVisible(d.staffManagementNavVisible)
+        setPropertySettingsNavVisible(d.propertySettingsNavVisible)
+        setOperationsModulesNavVisible(d.operationsModulesNavVisible)
+        setFinancialNavVisible(d.financialNavVisible ?? true)
       } catch {
-        if (!isCancelled) {
+        if (!cancelled) {
           setUserDisplayName(null)
           setUserRoleLabel("User")
+          setStaffManagementNavVisible(true)
+          setPropertySettingsNavVisible(true)
+          setOperationsModulesNavVisible(true)
+          setFinancialNavVisible(true)
         }
       } finally {
-        if (!isCancelled) {
+        if (!cancelled) {
           setIsUserLoading(false)
         }
       }
-    }
-
-    void fetchCurrentUser()
+    })()
 
     return () => {
-      isCancelled = true
+      cancelled = true
     }
-  }, [])
+  }, [propertyIdFromUrl])
 
   useEffect(() => {
     let isCancelled = false
@@ -231,6 +238,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     })
   }
 
+  const navItemsForUser = NAV_ITEMS.filter((item) => {
+    if (item.path === "/staff-management" && !staffManagementNavVisible) return false
+    if (item.path === "/settings" && !propertySettingsNavVisible) return false
+    if (!operationsModulesNavVisible && OPERATIONS_MODULE_PATHS.has(item.path)) return false
+    if (item.path === "/payments" && !financialNavVisible) return false
+    return true
+  })
+
   const handleLogout = async () => {
     const supabase = createClient()
     try {
@@ -275,7 +290,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <PropertySwitcher />
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
-            {NAV_ITEMS.map((item) => {
+            {navItemsForUser.map((item) => {
               const href = `${dashboardBase}${item.path}`
               const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
               return (
@@ -377,7 +392,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
               <ScrollArea className="flex-1 px-3 py-4">
                 <nav className="space-y-1">
-                  {NAV_ITEMS.map((item) => {
+                  {navItemsForUser.map((item) => {
                     const href = `${dashboardBase}${item.path}`
                     const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
                     return (

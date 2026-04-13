@@ -7,13 +7,14 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { success, error } from "@/lib/api/response"
 import { ErrorCodes } from "@/lib/api/errors"
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { getPayments } from "@/lib/dashboard/queries"
 
 type ExportPaymentsBody = {
   propertyId: string
 }
 
-async function assertUserOwnsProperty(supabase: Awaited<ReturnType<typeof createClient>>, propertyId: string) {
+async function assertUserHasPropertyAccess(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, propertyId: string) {
   const {
     data: { user },
     error: authError,
@@ -23,23 +24,12 @@ async function assertUserOwnsProperty(supabase: Awaited<ReturnType<typeof create
     throw new Error(ErrorCodes.AUTH_004.code)
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("owner_id", user.id)
-    .single()
-
-  if (companyError || !company) {
-    throw new Error(ErrorCodes.RESOURCE_NOT_FOUND.code)
-  }
-
-  const { data: property, error: propertyError } = await supabase
-    .from("properties")
-    .select("id, company_id")
-    .eq("id", propertyId)
-    .single()
-
-  if (propertyError || !property || property.company_id !== company.id) {
+  const access = await requirePropertyAccess(supabase, user.id, {
+    propertyId,
+    minimumRole: 'staff',
+    permission: 'financial.view_transactions',
+  })
+  if (isDenied(access)) {
     throw new Error(ErrorCodes.AUTH_003.code)
   }
 }
@@ -58,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
     try {
-      await assertUserOwnsProperty(supabase, propertyId)
+      await assertUserHasPropertyAccess(supabase, (await supabase.auth.getUser()).data!.user!.id, propertyId)
     } catch (authErr) {
       const code = authErr instanceof Error ? authErr.message : ErrorCodes.AUTH_004.code
       const errDef = Object.values(ErrorCodes).find((d: any) => d.code === code)

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useProperty } from '@/components/property-context'
 import { useToast } from '@/hooks/use-toast'
+import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 
 // Shared animation duration — dropzone fades OUT, then gallery fades IN
 const FADE_MS = 350
@@ -252,6 +253,12 @@ const DropzoneCoverContent = ({
           scheduledRef.current.clear()
           if (inputRef?.current) inputRef.current.value = ''
         }, 600 + FADE_MS)
+      } else {
+        toast({
+          title: 'Could not save cover photo',
+          description: getApiFailureMessage(result) ?? 'Failed to update property',
+          variant: 'destructive',
+        })
       }
     }
     patch()

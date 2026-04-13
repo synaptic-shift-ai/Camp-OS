@@ -15,6 +15,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
 import { toPropertyDTO } from '@/modules/PropertyManagement/application/DTOs/PropertyDTO'
@@ -29,7 +30,7 @@ export async function POST(
   { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { propertyId: id } = await params
+    const { propertyId } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -45,37 +46,22 @@ export async function POST(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has owner access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'owner',
+    })
+    if (isDenied(access)) return access
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
+    // Verify property exists
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
-    const property = await queryHandler.execute({ id })
+    const property = await queryHandler.execute({ id: propertyId })
 
     if (!property) {
       return NextResponse.json(
         error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 404 }
-      )
-    }
-
-    // Verify tenant access (BP-4)
-    if (property.companyId !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
-        { status: 403 }
       )
     }
 

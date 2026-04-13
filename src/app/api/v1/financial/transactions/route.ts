@@ -9,8 +9,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import {
-  RecordPaymentRequestSchema,
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { RecordPaymentRequestSchema,
   TransactionFiltersSchema,
 } from '@/types/api/v1/schemas/financial'
 import { RecordPaymentCommandHandler } from '@/modules/Financial/application/commands/RecordPaymentCommand'
@@ -42,29 +42,56 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's company and properties (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has view access (GET uses properties from RBAC)
+    // First get the user's accessible properties
+    const { data: staffRows, error: staffError } = await supabase
+      .from('property_staff')
+      .select('property_id')
+      .eq('user_id', user.id)
+      .in('status', ['active', 'pending'])
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Get all properties for this company
-    const { data: properties, error: propertiesError } = await supabase
+    // Get properties owned by user via companies
+    const { data: ownedProperties } = await supabase
       .from('properties')
       .select('id')
-      .eq('company_id', company.id)
+      .eq('owner_id', user.id)
 
-    if (propertiesError || !properties || properties.length === 0) {
+    const ownedPropertyIds = (ownedProperties ?? []).map(p => p.id)
+    const staffPropertyIds = [...new Set((staffRows ?? []).map(r => r.property_id).filter((id): id is string => id !== null))]
+
+    // Combine: owned properties + staff-assigned properties
+    const allPropertyIds = [...new Set([
+      ...ownedPropertyIds,
+      ...staffPropertyIds,
+    ])]
+
+    if (allPropertyIds.length === 0) {
       return success({ transactions: [], count: 0, limit: 20, offset: 0 })
     }
+
+    // RBAC check each property (takes first valid access for permission check)
+    let hasAccess = false
+    let firstValidAccess: Awaited<ReturnType<typeof requirePropertyAccess>> | null = null
+    for (const pid of allPropertyIds) {
+      const a = await requirePropertyAccess(supabase, user.id, {
+        propertyId: pid,
+        minimumRole: 'staff',
+        permission: 'financial.view_transactions',
+      })
+      if (!isDenied(a)) {
+        hasAccess = true
+        firstValidAccess = a
+        break
+      }
+    }
+    if (!hasAccess) return firstValidAccess as any
+
+    // Get all properties the user has access to
+    const { data: accessibleProperties } = await supabase
+      .from('properties')
+      .select('id')
+      .in('id', allPropertyIds)
+
 
     // Parse query parameters
     const { searchParams } = new URL(request.url)
@@ -93,7 +120,7 @@ export async function GET(request: NextRequest) {
     const queryHandler = new GetPropertyTransactionsQueryHandler(repository)
 
     const allTransactions = []
-    for (const property of properties) {
+    for (const property of accessibleProperties ?? []) {
       // Build filters object conditionally to satisfy exactOptionalPropertyTypes
       const queryFilters: {
         type?: TransactionType
@@ -176,20 +203,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
     // Parse and validate request body
     const body = await request.json()
 
@@ -205,10 +218,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify reservation exists and belongs to company
+    // Verify reservation exists
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
-      .select('id, property_id, properties!inner(id, company_id)')
+      .select('id, property_id')
       .eq('id', validatedRequest.reservationId)
       .single()
 
@@ -219,13 +232,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify tenant access (BP-4)
-    if ((reservation as any).properties.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
-        { status: 403 }
-      )
-    }
+    // RBAC: verify user has payment recording access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: reservation.property_id,
+      minimumRole: 'staff',
+      permission: 'financial.record_payment',
+    })
+    if (isDenied(access)) return access
+
 
     // Execute command using application layer
     const transactionRepository = new SupabaseTransactionRepository(supabase)

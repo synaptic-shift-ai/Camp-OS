@@ -8,6 +8,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { HoldSecurityDepositRequestSchema } from '@/types/api/v1/schemas/financial'
 import { HoldSecurityDepositCommandHandler } from '@/modules/Financial/application/commands/HoldSecurityDepositCommand'
 import { SupabaseSecurityDepositRepository } from '@/modules/Financial/infrastructure/SupabaseSecurityDepositRepository'
@@ -35,20 +36,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's company
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
     // Parse and validate request body
     const body = await request.json()
 
@@ -64,10 +51,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify reservation exists and belongs to company
+    // Verify reservation exists
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
-      .select('id, property_id, properties!inner(id, company_id)')
+      .select('id, property_id')
       .eq('id', validatedRequest.reservationId)
       .single()
 
@@ -78,13 +65,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify tenant access (BP-4)
-    if ((reservation as any).properties.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
-        { status: 403 }
-      )
-    }
+    // RBAC: verify user has transaction view access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: reservation.property_id,
+      minimumRole: 'manager',
+      permission: 'financial.view_transactions',
+    })
+    if (isDenied(access)) return access
+
 
     // Execute command
     const depositRepository = new SupabaseSecurityDepositRepository(supabase)

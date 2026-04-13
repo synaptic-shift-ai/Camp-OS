@@ -8,6 +8,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { GetInvoiceQueryHandler } from '@/modules/Financial/application/queries/GetInvoiceQuery'
 import { SupabaseInvoiceRepository } from '@/modules/Financial/infrastructure/SupabaseInvoiceRepository'
 import { toInvoiceDTO } from '@/modules/Financial/application/DTOs/InvoiceDTO'
@@ -38,20 +39,6 @@ export async function GET(
       )
     }
 
-    // Get user's company
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
     // Execute query
     const repository = new SupabaseInvoiceRepository(supabase)
     const queryHandler = new GetInvoiceQueryHandler(repository)
@@ -64,19 +51,14 @@ export async function GET(
       )
     }
 
-    // Verify tenant access (BP-4)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, company_id')
-      .eq('id', invoice.propertyId)
-      .single()
+    // RBAC: verify user has view access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: invoice.propertyId,
+      minimumRole: 'staff',
+      permission: 'financial.view_transactions',
+    })
+    if (isDenied(access)) return access
 
-    if (propertyError || !property || property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - invoice belongs to different company'),
-        { status: 403 }
-      )
-    }
 
     // Convert to DTO
     const invoiceDTO = toInvoiceDTO(invoice)

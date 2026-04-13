@@ -9,6 +9,7 @@
 
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -92,19 +93,14 @@ export async function POST(
       property_id: string // Narrow the type after validation
     }
 
-    // Verify user has access to this property (BP-4: Multi-tenant isolation)
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has read access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: reservation.property_id,
+      minimumRole: 'staff',
+      permission: 'reservations.read',
+    })
+    if (isDenied(access)) return access
 
-    const isOwner = typedReservation.property.owner_id === user.id
-    const hasCompanyAccess = company !== null
-
-    if (!isOwner && !hasCompanyAccess) {
-      return error(ErrorCodes.AUTH_002, request)
-    }
 
     // Validate reservation can receive payment
     if (typedReservation.payment_status === 'paid') {

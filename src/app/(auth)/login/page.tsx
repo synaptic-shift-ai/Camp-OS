@@ -52,6 +52,32 @@ export default function LoginPage() {
         })
         setError(error.message)
       } else {
+        const logAuthToken =
+          process.env.NODE_ENV === "development" ||
+          process.env.NEXT_PUBLIC_LOG_AUTH_TOKEN === "true"
+        if (logAuthToken) {
+          const accessToken = signInData.session?.access_token
+          if (accessToken) {
+            console.log("[LoginPage] access_token after sign-in", accessToken)
+          } else {
+            console.warn("[LoginPage] Sign-in succeeded but session has no access_token yet")
+          }
+
+          if (typeof document !== "undefined") {
+            const rawCookies = document.cookie
+            if (rawCookies.length > 0) {
+              console.log(
+                "[LoginPage] document.cookie after sign-in (non-HttpOnly only)",
+                rawCookies,
+              )
+            } else {
+              console.log(
+                "[LoginPage] document.cookie is empty after sign-in — auth cookies are often HttpOnly; copy the full Cookie header from DevTools → Network (a request to this origin) or Application → Cookies for Postman.",
+              )
+            }
+          }
+        }
+
         const user = signInData.user ?? (await supabase.auth.getUser()).data.user
 
         if (user) {

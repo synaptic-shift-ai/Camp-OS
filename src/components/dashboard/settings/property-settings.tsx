@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { OpenPeriodDatePicker } from '@/components/dashboard/settings/open-period-date-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
 
 const SEASON_ALERT_TOAST_CLASS =
@@ -207,7 +208,7 @@ export function PropertySettings({
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || 'Failed to disconnect Stripe')
+        throw new Error(getApiFailureMessage(result) || 'Failed to disconnect Stripe')
       }
 
       setStripeStatus({
@@ -282,7 +283,7 @@ export function PropertySettings({
       })
       const result = await response.json()
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message ?? 'Failed to save')
+        throw new Error(getApiFailureMessage(result) ?? 'Failed to save')
       }
       initialOpenPeriodRef.current = {
         from: openFrom,

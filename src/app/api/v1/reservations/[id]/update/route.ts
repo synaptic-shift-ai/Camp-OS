@@ -8,8 +8,8 @@ import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import {
-  extractOpenPeriodFromPropertySettings,
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { extractOpenPeriodFromPropertySettings,
   openPeriodRestrictsBookings,
   isStayWithinOpenPeriodByIsoDates,
   buildOpenPeriodBookingErrorMessage,
@@ -70,7 +70,7 @@ export async function PATCH(
       })
     }
 
-    // Fetch the reservation to verify ownership (BP-4: Multi-tenant isolation)
+    // Verify tenant access via RBAC (BP-4: Multi-tenant isolation)
     const { data: reservation, error: fetchError } = await supabase
       .from('reservations')
       .select('*, sites(property_id)')
@@ -81,12 +81,13 @@ export async function PATCH(
       return error(ErrorCodes.RES_001, request)
     }
 
-    // Verify tenant access via company ownership
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has update access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: reservation.sites.property_id,
+      minimumRole: 'manager',
+      permission: 'reservations.update',
+    })
+    if (isDenied(access)) return access
 
     const { data: property } = await supabase
       .from('properties')
@@ -94,12 +95,6 @@ export async function PATCH(
       .eq('id', reservation.sites.property_id)
       .single()
 
-    const isOwner = property?.owner_id === user.id
-    const isCompanyOwner = company && property?.company_id === company.id
-
-    if (!isOwner && !isCompanyOwner) {
-      return error(ErrorCodes.AUTH_002, request)
-    }
 
     const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property?.settings)
     if (
@@ -186,14 +181,14 @@ export async function PATCH(
       })
     }
 
-    if (property?.company_id) {
+    if (access.companyId) {
       const supabaseServiceRole = createServiceRoleClient()
       const confirmationNumber =
         typeof reservation.confirmation_number === 'string'
           ? reservation.confirmation_number
           : reservationId
       await recordActivityLog(supabaseServiceRole, {
-        companyId: property.company_id,
+        companyId: access.companyId,
         propertyId: reservation.sites.property_id as string,
         action: 'updated',
         resource: 'reservation',

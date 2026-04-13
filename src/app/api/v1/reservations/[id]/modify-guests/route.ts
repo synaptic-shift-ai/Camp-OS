@@ -10,8 +10,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import {
-  ModifyReservationGuestsRequestSchema,
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { ModifyReservationGuestsRequestSchema,
   type ModifyReservationGuestsRequest,
 } from '@/types/api/v1/schemas/reservations'
 import { ModifyReservationGuestsCommandHandler } from '@/modules/BookingEngine/application/commands/ModifyReservationGuestsCommand'
@@ -46,21 +46,7 @@ export async function POST(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify reservation exists and belongs to company
+    // Verify reservation exists
     const repository = new SupabaseReservationRepository(supabase)
     const queryHandler = new GetReservationQueryHandler(repository)
     const existingReservation = await queryHandler.execute({ id: reservationId })
@@ -72,19 +58,14 @@ export async function POST(
       )
     }
 
-    // Verify tenant access (BP-4)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, company_id')
-      .eq('id', existingReservation.propertyId)
-      .single()
+    // RBAC: verify user has modify-guests access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingReservation.propertyId,
+      minimumRole: 'manager',
+      permission: 'reservations.modify_guests',
+    })
+    if (isDenied(access)) return access
 
-    if (propertyError || !property || property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
-        { status: 403 }
-      )
-    }
 
     // Parse and validate request body
     const body = await request.json()

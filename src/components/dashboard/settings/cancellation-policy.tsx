@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, FileText, ShieldAlert, Plus, Pencil, Trash2 } from 'lucide-react'
 import {
   CancellationRuleDialog,
@@ -103,7 +104,7 @@ export function CancellationPolicySettings({
 
             const result = await response.json()
             if (!response.ok || !result.success) {
-              throw new Error(result.error?.message ?? 'Failed to save cancellation policy')
+              throw new Error(getApiFailureMessage(result) ?? 'Failed to save cancellation policy')
             }
             toast({
               title: 'Terms & policy saved',

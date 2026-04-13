@@ -14,6 +14,7 @@ import { Building2, Save } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 
 const propertyDetailsSchema = z.object({
@@ -134,7 +135,7 @@ const PropertyDetailsStepComponent = (
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || "Failed to save property details")
+        throw new Error(getApiFailureMessage(result) || "Failed to save property details")
       }
 
       await refreshProperties()
@@ -167,7 +168,7 @@ const PropertyDetailsStepComponent = (
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || "Failed to save property details")
+        throw new Error(getApiFailureMessage(result) || "Failed to save property details")
       }
 
       await refreshProperties()

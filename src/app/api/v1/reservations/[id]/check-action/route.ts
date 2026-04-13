@@ -11,8 +11,8 @@ import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import {
-  checkExtensionAvailability,
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { checkExtensionAvailability,
   checkRenewalAvailability,
 } from '@/lib/booking/availability-check'
 import type { CheckActionRequest } from '@/lib/booking/types'
@@ -47,25 +47,14 @@ export async function POST(
       return error(ErrorCodes.RES_001, request)
     }
 
-    // Check property access via company ownership
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has read access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: reservation.property_id,
+      minimumRole: 'staff',
+      permission: 'reservations.read',
+    })
+    if (isDenied(access)) return access
 
-    const { data: property } = await supabase
-      .from('properties')
-      .select('id, company_id, owner_id')
-      .eq('id', reservation.property_id)
-      .single()
-
-    const isOwner = property?.owner_id === user.id
-    const isCompanyOwner = company && property?.company_id === company.id
-
-    if (!isOwner && !isCompanyOwner) {
-      return error(ErrorCodes.AUTH_002, request)
-    }
 
     // Perform availability check based on action type
     let result

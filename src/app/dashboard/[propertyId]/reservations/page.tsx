@@ -1,6 +1,8 @@
+import { createClient } from "@/lib/supabase/server"
 import { getReservations, getDistinctSiteTypes, getSites } from "@/lib/dashboard/queries"
 import type { ReservationFilters } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
 import type { BookingRulesConfig, RateDiscountsConfig } from "@/lib/config/types"
 import type { ReservationStatus } from "@/contracts/booking"
 import { redirect } from "next/navigation"
@@ -49,6 +51,13 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
   const isTimelineView = viewParam === "timeline" || viewParam === "grid"
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
 
   const rawSiteTypeConfig = (property as { site_type_config?: { allowed_site_types?: string[] } } | null)?.site_type_config ?? null
   const allowedSiteTypes =

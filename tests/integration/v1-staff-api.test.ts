@@ -29,7 +29,7 @@ describe('Staff API v1 Contract Tests', () => {
   // ========================================================================
 
   describe('StaffRoleSchema', () => {
-    const validRoles = ['owner', 'manager', 'staff', 'viewer'] as const
+    const validRoles = ['owner', 'admin', 'manager', 'staff'] as const
 
     validRoles.forEach((role) => {
       it(`should accept valid role: ${role}`, () => {
@@ -163,7 +163,7 @@ describe('Staff API v1 Contract Tests', () => {
       expect(result.success).toBe(false)
     })
 
-    const assignableRoles = ['manager', 'staff', 'viewer'] as const
+    const assignableRoles = ['admin', 'manager', 'staff'] as const
     assignableRoles.forEach((role) => {
       it(`should accept assignable role: ${role}`, () => {
         const request = {
@@ -311,13 +311,13 @@ describe('Staff API v1 Contract Tests', () => {
       expect(() => StaffResponseSchema.parse(ownerResponse)).not.toThrow()
     })
 
-    it('should validate viewer staff response with minimal permissions', () => {
-      const viewerResponse: StaffResponse = {
+    it('should validate staff response with minimal permissions', () => {
+      const staffResponse: StaffResponse = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         propertyId: '660e8400-e29b-41d4-a716-446655440001',
         userId: '770e8400-e29b-41d4-a716-446655440002',
-        role: 'viewer',
-        roleDisplayName: 'Viewer',
+        role: 'staff',
+        roleDisplayName: 'Staff',
         isAdmin: false,
         isOwner: false,
         permissions: ['reservations:read', 'guests:read', 'sites:read'],
@@ -325,7 +325,7 @@ describe('Staff API v1 Contract Tests', () => {
         updatedAt: '2025-01-01T00:00:00Z',
       }
 
-      expect(() => StaffResponseSchema.parse(viewerResponse)).not.toThrow()
+      expect(() => StaffResponseSchema.parse(staffResponse)).not.toThrow()
     })
 
     it('should reject invalid UUID for id', () => {

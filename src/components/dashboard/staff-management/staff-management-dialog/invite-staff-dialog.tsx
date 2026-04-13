@@ -151,9 +151,14 @@ export default function InviteStaffDialog({
           },
         )
 
-        const json: any = await res.json().catch(() => null)
+        const json: { success?: boolean; message?: string; error?: { message?: string } } | null =
+          await res.json().catch(() => null)
         if (!res.ok || json?.success !== true) {
-          throw new Error(json?.error?.message ?? 'Failed to invite staff')
+          const errText =
+            (typeof json?.message === 'string' && json.message) ||
+            json?.error?.message ||
+            'Failed to invite staff'
+          throw new Error(errText)
         }
 
         toast({ title: 'Invite sent' })

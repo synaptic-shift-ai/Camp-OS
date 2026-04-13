@@ -22,6 +22,7 @@ import { ReviewLaunchStep } from "./review-launch-step"
 import { WizardPropertyDetailsSections } from "./wizard-property-details-sections"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 
 type PropertySection =
   | "location"
@@ -577,7 +578,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
         })
         const result = await response.json()
         if (!response.ok || !result.success) {
-          throw new Error(result.error?.message || "Failed to save property details")
+          throw new Error(getApiFailureMessage(result) || "Failed to save property details")
         }
 
         // 2. Save settings: merge draft over server config for THIS property only.
@@ -657,7 +658,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
         })
         const result = await response.json()
         if (!result.success) {
-          throw new Error(result.error?.message ?? "Failed to complete onboarding")
+          throw new Error(getApiFailureMessage(result) ?? "Failed to complete onboarding")
         }
       }
       try {

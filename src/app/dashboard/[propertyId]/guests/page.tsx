@@ -1,5 +1,7 @@
+import { createClient } from "@/lib/supabase/server"
 import { getDistinctSiteTypes, getGuests } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
 import { redirect } from "next/navigation"
 import { GuestsPageHeader } from "@/components/dashboard/guests/guests-page-header"
 import { GuestsTable } from "@/components/dashboard/guests/guests-table"
@@ -21,6 +23,13 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
   const { propertyId } = await params
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
 
   const search = await searchParams
   const searchQuery = typeof search.search === "string" ? search.search : undefined

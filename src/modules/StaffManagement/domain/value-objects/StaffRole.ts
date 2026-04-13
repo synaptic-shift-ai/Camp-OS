@@ -7,7 +7,7 @@
 
 import { ValueObject } from '@/shared/domain/ValueObject'
 
-export type StaffRoleType = 'owner' | 'manager' | 'staff' | 'viewer'
+export type StaffRoleType = 'owner' | 'admin' | 'manager' | 'staff'
 
 interface StaffRoleProps {
   value: StaffRoleType
@@ -15,9 +15,9 @@ interface StaffRoleProps {
 
 export class StaffRole extends ValueObject<StaffRoleProps> {
   public static readonly OWNER = new StaffRole({ value: 'owner' })
+  public static readonly ADMIN = new StaffRole({ value: 'admin' })
   public static readonly MANAGER = new StaffRole({ value: 'manager' })
   public static readonly STAFF = new StaffRole({ value: 'staff' })
-  public static readonly VIEWER = new StaffRole({ value: 'viewer' })
 
   /**
    * Get the role value
@@ -35,20 +35,25 @@ export class StaffRole extends ValueObject<StaffRoleProps> {
    */
   public static fromString(role: string | null): StaffRole {
     if (!role) {
-      return StaffRole.VIEWER
+      return StaffRole.STAFF
     }
 
-    const normalized = role.toLowerCase() as StaffRoleType
+    const normalized = role.toLowerCase()
 
     switch (normalized) {
       case 'owner':
         return StaffRole.OWNER
+      case 'admin':
+      case 'property_admin':
+        return StaffRole.ADMIN
       case 'manager':
         return StaffRole.MANAGER
       case 'staff':
         return StaffRole.STAFF
       case 'viewer':
-        return StaffRole.VIEWER
+        // Backward compatibility: viewer → staff
+        console.warn('[StaffRole] "viewer" role is deprecated, mapping to "staff"')
+        return StaffRole.STAFF
       default:
         throw new Error(`Invalid staff role: ${role}`)
     }
@@ -58,15 +63,15 @@ export class StaffRole extends ValueObject<StaffRoleProps> {
    * Check if this role has higher authority than another
    */
   public hasHigherAuthorityThan(other: StaffRole): boolean {
-    const order: StaffRoleType[] = ['viewer', 'staff', 'manager', 'owner']
+    const order: StaffRoleType[] = ['staff', 'manager', 'admin', 'owner']
     return order.indexOf(this.props.value) > order.indexOf(other.props.value)
   }
 
   /**
-   * Check if this is an admin role (owner or manager)
+   * Check if this is an admin role (owner or admin)
    */
   get isAdmin(): boolean {
-    return this.props.value === 'owner' || this.props.value === 'manager'
+    return this.props.value === 'owner' || this.props.value === 'admin'
   }
 
   /**
@@ -77,17 +82,24 @@ export class StaffRole extends ValueObject<StaffRoleProps> {
   }
 
   /**
-   * Check if this role can manage staff
+   * Check if this role can manage staff (admin or above)
    */
   get canManageStaff(): boolean {
-    return this.props.value === 'owner' || this.props.value === 'manager'
+    return this.props.value === 'owner' || this.props.value === 'admin'
   }
 
   /**
-   * Check if this role can manage financial data
+   * Check if this role can manage financial data (admin or above)
    */
   get canManageFinancials(): boolean {
-    return this.props.value === 'owner' || this.props.value === 'manager'
+    return this.props.value === 'owner' || this.props.value === 'admin'
+  }
+
+  /**
+   * Check if this is an elevated role (manager or above)
+   */
+  get isElevated(): boolean {
+    return this.props.value !== 'staff'
   }
 
   /**
@@ -96,9 +108,9 @@ export class StaffRole extends ValueObject<StaffRoleProps> {
   get displayName(): string {
     const names: Record<StaffRoleType, string> = {
       owner: 'Owner',
+      admin: 'Admin',
       manager: 'Manager',
       staff: 'Staff',
-      viewer: 'Viewer',
     }
     return names[this.props.value]
   }

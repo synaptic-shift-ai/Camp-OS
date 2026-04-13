@@ -12,7 +12,7 @@ import { z } from 'zod'
 // Enum Schemas
 // ============================================================================
 
-export const StaffRoleSchema = z.enum(['owner', 'manager', 'staff', 'viewer'])
+export const StaffRoleSchema = z.enum(['owner', 'admin', 'manager', 'staff'])
 
 export const PermissionKeySchema = z.enum([
   'reservations:read',

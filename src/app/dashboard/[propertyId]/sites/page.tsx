@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-container"
 import { createClient } from "@/lib/supabase/server"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
 import { redirect } from "next/navigation"
 import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 import { SitesContent } from "@/components/dashboard/sites/sites-content"
@@ -152,12 +153,19 @@ export default async function SitesPage({ params, searchParams }: PageProps) {
   const search = await searchParams
   const isWizardMode = search.wizard === "true"
 
+  const property = await getPropertyForUser(propertyId)
+  if (!property) redirect("/auth/login")
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+
   if (isWizardMode) {
     return <WizardContainer initialPropertyId={propertyId} />
   }
-
-  const property = await getPropertyForUser(propertyId)
-  if (!property) redirect("/auth/login")
 
   return (
     <div className="space-y-6">

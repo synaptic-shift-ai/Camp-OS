@@ -12,6 +12,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { UpdateGuestRequestSchema, type UpdateGuestRequest } from '@/types/api/v1/schemas/guests'
@@ -50,34 +51,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const guestDTO = await queryHandler.execute({ guestId: id })
 
-    // Verify user has access to this guest's property (BP-4: Multi-tenant isolation)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, company_id')
-      .eq('id', guestDTO.propertyId)
-      .single()
-
-    if (propertyError || !property) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify user owns the company (tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - guest belongs to different company'),
-        { status: 403 }
-      )
-    }
+    // Verify user has access to this guest's property (RBAC)
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: guestDTO.propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
     const { data: guestRow } = await supabase
       .from('guests')
@@ -186,20 +165,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       )
     }
 
-    // Verify user owns the company (tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - guest belongs to different company'),
-        { status: 403 }
-      )
-    }
+    // Verify user has access to this guest's property (RBAC)
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingGuestDTO.propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
     // Parse and validate request body
     const body = await request.json()
@@ -291,40 +262,25 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const queryHandler = new GetGuestQueryHandler(repository)
     const existingGuestDTO = await queryHandler.execute({ guestId: id })
 
-    // Verify user has access to this guest's property (BP-4: Multi-tenant isolation)
-    const { data: property, error: propertyError } = await supabase
+    // Verify user has access to this guest's property (RBAC)
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingGuestDTO.propertyId,
+      minimumRole: 'manager',
+    })
+    if (isDenied(access)) return access
+
+    // Fetch property for activity log
+    const { data: property } = await supabase
       .from('properties')
       .select('id, company_id')
       .eq('id', existingGuestDTO.propertyId)
       .single()
 
-    if (propertyError || !property) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify user owns the company (tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - guest belongs to different company'),
-        { status: 403 }
-      )
-    }
-
     // Execute soft-delete command
     const commandHandler = new DeleteGuestCommandHandler(repository)
     await commandHandler.execute({ guestId: id, propertyId: existingGuestDTO.propertyId })
 
-    if (property.company_id) {
+    if (property?.company_id) {
       const supabaseServiceRole = createServiceRoleClient()
       await recordActivityLog(supabaseServiceRole, {
         companyId: property.company_id,

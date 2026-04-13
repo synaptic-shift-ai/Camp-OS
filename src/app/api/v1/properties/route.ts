@@ -34,6 +34,7 @@ import {
   type CreatePropertyRequest,
   type ListPropertiesQuery,
 } from '@/types/api/v1/schemas/properties'
+import { requirePropertyAccess, requirePropertyMembership, isDenied } from '@/lib/rbac'
 import { ListPropertiesQueryHandler } from '@/modules/PropertyManagement/application/queries/ListPropertiesQuery'
 import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/application/commands/CreatePropertyCommand'
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
@@ -108,6 +109,8 @@ export async function GET(request: NextRequest) {
     const limit = validatedQuery.per_page
     const offset = (validatedQuery.page - 1) * limit
 
+    // Get user's accessible properties (BP-4: Multi-tenant isolation)
+    // First check company ownership
     const { data: company } = await supabase
       .from('companies')
       .select('id')
@@ -248,12 +251,26 @@ export async function POST(request: NextRequest) {
       .from('companies')
       .select('id')
       .eq('owner_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (companyError || !company) {
+      // Check if user has staff access to any property
+      const { data: staffRows } = await supabase
+        .from('property_staff')
+        .select('property_id')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'pending'])
+        .limit(1)
+
+      if (!staffRows || staffRows.length === 0) {
+        return NextResponse.json(
+          error(ErrorCodes.AUTH_003, 'No company or property access found'),
+          { status: 403 }
+        )
+      }
       return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
+        error(ErrorCodes.AUTH_003, 'Property creation requires company ownership'),
+        { status: 403 }
       )
     }
 

@@ -11,6 +11,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import {
@@ -46,34 +47,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const queryHandler = new GetGuestQueryHandler(repository)
     const existingGuestDTO = await queryHandler.execute({ guestId: id })
 
-    // Verify user has access to this guest's property (BP-4: Multi-tenant isolation)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, company_id')
-      .eq('id', existingGuestDTO.propertyId)
-      .single()
-
-    if (propertyError || !property) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify user owns the company (tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - guest belongs to different company'),
-        { status: 403 }
-      )
-    }
+    // Verify user has access to this guest's property (RBAC)
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingGuestDTO.propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
     // Parse and validate request body
     const body = await request.json()

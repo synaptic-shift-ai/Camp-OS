@@ -4,32 +4,43 @@
  * Tests for StaffManagement value objects.
  */
 
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, vi } from 'vitest'
 import { StaffRole } from '../value-objects/StaffRole'
 import { Permissions } from '../value-objects/Permissions'
 
 describe('StaffRole', () => {
   test('should have static instances', () => {
     expect(StaffRole.OWNER.value).toBe('owner')
+    expect(StaffRole.ADMIN.value).toBe('admin')
     expect(StaffRole.MANAGER.value).toBe('manager')
     expect(StaffRole.STAFF.value).toBe('staff')
-    expect(StaffRole.VIEWER.value).toBe('viewer')
   })
 
   test('fromString should return correct instance', () => {
     expect(StaffRole.fromString('owner')).toBe(StaffRole.OWNER)
+    expect(StaffRole.fromString('admin')).toBe(StaffRole.ADMIN)
+    expect(StaffRole.fromString('property_admin')).toBe(StaffRole.ADMIN)
     expect(StaffRole.fromString('manager')).toBe(StaffRole.MANAGER)
     expect(StaffRole.fromString('staff')).toBe(StaffRole.STAFF)
-    expect(StaffRole.fromString('viewer')).toBe(StaffRole.VIEWER)
   })
 
   test('fromString should be case insensitive', () => {
     expect(StaffRole.fromString('OWNER')).toBe(StaffRole.OWNER)
     expect(StaffRole.fromString('Manager')).toBe(StaffRole.MANAGER)
+    expect(StaffRole.fromString('PROPERTY_ADMIN')).toBe(StaffRole.ADMIN)
   })
 
-  test('fromString should default to VIEWER for null', () => {
-    expect(StaffRole.fromString(null)).toBe(StaffRole.VIEWER)
+  test('fromString should default to STAFF for null', () => {
+    expect(StaffRole.fromString(null)).toBe(StaffRole.STAFF)
+  })
+
+  test('fromString should map viewer to staff with deprecation warning', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(StaffRole.fromString('viewer')).toBe(StaffRole.STAFF)
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('viewer" role is deprecated')
+    )
+    warnSpy.mockRestore()
   })
 
   test('fromString should throw for invalid role', () => {
@@ -38,45 +49,45 @@ describe('StaffRole', () => {
 
   test('hasHigherAuthorityThan works correctly', () => {
     expect(StaffRole.OWNER.hasHigherAuthorityThan(StaffRole.MANAGER)).toBe(true)
+    expect(StaffRole.ADMIN.hasHigherAuthorityThan(StaffRole.MANAGER)).toBe(true)
     expect(StaffRole.MANAGER.hasHigherAuthorityThan(StaffRole.STAFF)).toBe(true)
-    expect(StaffRole.STAFF.hasHigherAuthorityThan(StaffRole.VIEWER)).toBe(true)
-    expect(StaffRole.VIEWER.hasHigherAuthorityThan(StaffRole.OWNER)).toBe(false)
-    expect(StaffRole.STAFF.hasHigherAuthorityThan(StaffRole.MANAGER)).toBe(false)
+    expect(StaffRole.STAFF.hasHigherAuthorityThan(StaffRole.OWNER)).toBe(false)
+    expect(StaffRole.MANAGER.hasHigherAuthorityThan(StaffRole.ADMIN)).toBe(false)
   })
 
   test('isAdmin returns correct values', () => {
     expect(StaffRole.OWNER.isAdmin).toBe(true)
-    expect(StaffRole.MANAGER.isAdmin).toBe(true)
+    expect(StaffRole.ADMIN.isAdmin).toBe(true)
+    expect(StaffRole.MANAGER.isAdmin).toBe(false)
     expect(StaffRole.STAFF.isAdmin).toBe(false)
-    expect(StaffRole.VIEWER.isAdmin).toBe(false)
   })
 
   test('isOwner returns correct values', () => {
     expect(StaffRole.OWNER.isOwner).toBe(true)
+    expect(StaffRole.ADMIN.isOwner).toBe(false)
     expect(StaffRole.MANAGER.isOwner).toBe(false)
     expect(StaffRole.STAFF.isOwner).toBe(false)
-    expect(StaffRole.VIEWER.isOwner).toBe(false)
   })
 
   test('canManageStaff returns correct values', () => {
     expect(StaffRole.OWNER.canManageStaff).toBe(true)
-    expect(StaffRole.MANAGER.canManageStaff).toBe(true)
+    expect(StaffRole.ADMIN.canManageStaff).toBe(true)
+    expect(StaffRole.MANAGER.canManageStaff).toBe(false)
     expect(StaffRole.STAFF.canManageStaff).toBe(false)
-    expect(StaffRole.VIEWER.canManageStaff).toBe(false)
   })
 
   test('canManageFinancials returns correct values', () => {
     expect(StaffRole.OWNER.canManageFinancials).toBe(true)
-    expect(StaffRole.MANAGER.canManageFinancials).toBe(true)
+    expect(StaffRole.ADMIN.canManageFinancials).toBe(true)
+    expect(StaffRole.MANAGER.canManageFinancials).toBe(false)
     expect(StaffRole.STAFF.canManageFinancials).toBe(false)
-    expect(StaffRole.VIEWER.canManageFinancials).toBe(false)
   })
 
   test('displayName returns correct values', () => {
     expect(StaffRole.OWNER.displayName).toBe('Owner')
+    expect(StaffRole.ADMIN.displayName).toBe('Admin')
     expect(StaffRole.MANAGER.displayName).toBe('Manager')
     expect(StaffRole.STAFF.displayName).toBe('Staff')
-    expect(StaffRole.VIEWER.displayName).toBe('Viewer')
   })
 
   test('toString returns value', () => {
@@ -98,12 +109,18 @@ describe('Permissions', () => {
 
     test('fromRole should create permissions based on role', () => {
       const ownerPerms = Permissions.fromRole(StaffRole.OWNER)
-      const viewerPerms = Permissions.fromRole(StaffRole.VIEWER)
+      const staffPerms = Permissions.fromRole(StaffRole.STAFF)
 
       expect(ownerPerms.has('staff:manage')).toBe(true)
       expect(ownerPerms.has('settings:manage')).toBe(true)
-      expect(viewerPerms.has('staff:manage')).toBe(false)
-      expect(viewerPerms.has('reservations:read')).toBe(true)
+      // Staff has no operational permissions in the legacy model mapping
+      expect(staffPerms.has('staff:manage')).toBe(false)
+    })
+
+    test('fromRole should work for admin', () => {
+      const adminPerms = Permissions.fromRole(StaffRole.ADMIN)
+      expect(adminPerms.has('staff:manage')).toBe(true)
+      expect(adminPerms.has('financial:refund')).toBe(true)
     })
 
     test('none should create empty permissions', () => {
@@ -226,6 +243,16 @@ describe('Permissions', () => {
       expect(permissions.has('settings:manage')).toBe(true)
     })
 
+    test('admin role has same operational permissions as owner', () => {
+      const permissions = Permissions.fromRole(StaffRole.ADMIN)
+
+      expect(permissions.has('reservations:delete')).toBe(true)
+      expect(permissions.has('sites:delete')).toBe(true)
+      expect(permissions.has('financial:refund')).toBe(true)
+      expect(permissions.has('staff:manage')).toBe(true)
+      expect(permissions.has('settings:manage')).toBe(true)
+    })
+
     test('manager role has subset of owner permissions', () => {
       const permissions = Permissions.fromRole(StaffRole.MANAGER)
 
@@ -236,7 +263,7 @@ describe('Permissions', () => {
       expect(permissions.has('staff:manage')).toBe(false)
     })
 
-    test('staff role has limited permissions', () => {
+    test('staff role has minimal permissions', () => {
       const permissions = Permissions.fromRole(StaffRole.STAFF)
 
       expect(permissions.has('reservations:read')).toBe(true)
@@ -244,16 +271,6 @@ describe('Permissions', () => {
       expect(permissions.has('guests:create')).toBe(true)
       expect(permissions.has('guests:update')).toBe(false)
       expect(permissions.has('financial:read')).toBe(false)
-    })
-
-    test('viewer role has read-only permissions', () => {
-      const permissions = Permissions.fromRole(StaffRole.VIEWER)
-
-      expect(permissions.has('reservations:read')).toBe(true)
-      expect(permissions.has('guests:read')).toBe(true)
-      expect(permissions.has('sites:read')).toBe(true)
-      expect(permissions.has('reservations:create')).toBe(false)
-      expect(permissions.has('guests:create')).toBe(false)
     })
   })
 })

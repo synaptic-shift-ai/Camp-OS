@@ -12,6 +12,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import {
   CreateReservationRequestSchema,
   type CreateReservationRequest,
@@ -48,31 +49,24 @@ export async function POST(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has reservation create access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+      permission: 'reservations.create',
+    })
+    if (isDenied(access)) return access
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property belongs to company
+    // Verify property exists
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
       .eq('id', propertyId)
-      .eq('company_id', company.id)
       .single()
 
     if (propertyError || !property) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property not found or access denied'),
+        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 403 }
       )
     }
@@ -170,31 +164,24 @@ export async function GET(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has reservation read access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+      permission: 'reservations.read',
+    })
+    if (isDenied(access)) return access
 
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property belongs to company
+    // Verify property exists
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id')
       .eq('id', propertyId)
-      .eq('company_id', company.id)
       .single()
 
     if (propertyError || !property) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property not found or access denied'),
+        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 403 }
       )
     }

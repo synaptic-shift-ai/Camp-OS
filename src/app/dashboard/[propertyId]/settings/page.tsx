@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { userCanAccessPropertySettingsPage } from "@/lib/dashboard/property-settings-page-access"
 import { TabsContent } from "@/components/ui/tabs"
 import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tabs"
 import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
@@ -60,6 +61,20 @@ type PageProps = { params: Promise<{ propertyId: string }> }
 
 export default async function SettingsPage({ params }: PageProps) {
   const { propertyId } = await params
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  const canOpenSettings = await userCanAccessPropertySettingsPage(supabase, propertyId, user.id)
+  if (!canOpenSettings) {
+    redirect(`/dashboard/${propertyId}`)
+  }
+
   const property = await getPropertyWithSeasonal(propertyId)
 
   if (!property) {

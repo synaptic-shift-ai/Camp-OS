@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import {
   CreateManualReservationRequestSchema,
 } from '@/types/api/v1/schemas/reservations'
@@ -59,20 +60,14 @@ export async function POST(
       return error(ErrorCodes.PROP_001, request)
     }
 
-    // Verify user has access to this property
-    // Check if user is owner or has staff access
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+      permission: 'reservations.create',
+    })
+    if (isDenied(access)) return access
 
-    const isOwner = property.owner_id === user.id
-    const hasCompanyAccess = company !== null
-
-    if (!isOwner && !hasCompanyAccess) {
-      return error(ErrorCodes.AUTH_002, request)
-    }
 
     // Parse and validate request body
     const body = await request.json()

@@ -8,6 +8,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { GetTransactionQueryHandler } from '@/modules/Financial/application/queries/GetTransactionQuery'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { toTransactionDTO } from '@/modules/Financial/application/DTOs/TransactionDTO'
@@ -38,20 +39,6 @@ export async function GET(
       )
     }
 
-    // Get user's company
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
     // Execute query
     const repository = new SupabaseTransactionRepository(supabase)
     const queryHandler = new GetTransactionQueryHandler(repository)
@@ -64,19 +51,14 @@ export async function GET(
       )
     }
 
-    // Verify tenant access (BP-4)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, company_id')
-      .eq('id', transaction.propertyId)
-      .single()
+    // RBAC: verify user has view access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: transaction.propertyId,
+      minimumRole: 'staff',
+      permission: 'financial.view_transactions',
+    })
+    if (isDenied(access)) return access
 
-    if (propertyError || !property || property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - transaction belongs to different company'),
-        { status: 403 }
-      )
-    }
 
     // Convert to DTO
     const transactionDTO = toTransactionDTO(transaction)

@@ -22,6 +22,7 @@ import {
 import { DeletePropertyAmenitiesDialog } from "./properties-amenities-dialog/delete-property-amenities-dialog"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { useState, useEffect } from "react"
+import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 
 const SEASON_ALERT_TOAST_CLASS =
     "border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white"
@@ -223,7 +224,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
 
             const result = await response.json()
             if (!response.ok || !result.success) {
-                throw new Error(result.error?.message ?? "Failed to save amenities")
+                throw new Error(getApiFailureMessage(result) ?? "Failed to save amenities")
             }
 
             toast({
@@ -262,7 +263,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                     setPropertyAmenities(Array.isArray(dbPropertyAmenities) ? dbPropertyAmenities : [])
                     setAmenities(Array.isArray(dbSiteAmenities) ? dbSiteAmenities : [])
                 } else {
-                    throw new Error(result.error?.message ?? "Failed to fetch amenities")
+                    throw new Error(getApiFailureMessage(result) ?? "Failed to fetch amenities")
                 }
             } catch (err) {
                 if (cancelled) return

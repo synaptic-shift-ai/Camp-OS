@@ -21,6 +21,7 @@ import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { getPricingSourceType } from '@/lib/site-pricing-source'
 import { CreateSiteRequestSchema } from '@/types/api/v1/schemas/sites'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteManagement/application/commands/CreateSiteCommand'
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
 import { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
@@ -78,8 +79,14 @@ export async function POST(
       )
     }
 
-    // BP-4: Verify user has access to this property; also fetch pricing config
-    // for property-defaults substitution (matches single-site POST behaviour)
+    // RBAC: verify user has access to this property; also fetch pricing config
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
+
+    // Fetch pricing config
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id, reservation_type_config')
@@ -93,20 +100,6 @@ export async function POST(
       )
     }
 
-    // Verify user owns this property's company
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Access denied to this property'),
-        { status: 403 }
-      )
-    }
 
     // Check for duplicate site numbers in request
     const siteNumbers = validatedRequest.map((s) => s.siteNumber)

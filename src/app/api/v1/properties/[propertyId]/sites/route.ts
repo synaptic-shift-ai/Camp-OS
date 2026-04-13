@@ -31,6 +31,7 @@ import {
   type CreateSiteRequest,
   type ListSitesQuery,
 } from '@/types/api/v1/schemas/sites'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { ListSitesQueryHandler } from '@/modules/SiteManagement/application/queries/ListSitesQuery'
 import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteManagement/application/commands/CreateSiteCommand'
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
@@ -108,10 +109,17 @@ export async function GET(
       )
     }
 
-    // BP-4: Verify user has access to this property (multi-tenant isolation)
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
+
+    // Fetch property for pricing defaults
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, company_id')
+      .select('id, company_id, reservation_type_config')
       .eq('id', propertyId)
       .single()
 
@@ -122,20 +130,6 @@ export async function GET(
       )
     }
 
-    // Verify user owns this property's company
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_002, 'Access denied to this property'),
-        { status: 403 }
-      )
-    }
 
     // Execute query using application layer
     const repository = new SupabaseSiteRepository(new SupabaseContext(supabase))
@@ -244,7 +238,14 @@ export async function POST(
       )
     }
 
-    // BP-4: Verify user has access to this property and fetch pricing defaults
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
+
+    // Fetch property for pricing defaults
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id, reservation_type_config')
@@ -258,20 +259,6 @@ export async function POST(
       )
     }
 
-    // Verify user owns this property's company
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!company) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_002, 'Access denied to this property'),
-        { status: 403 }
-      )
-    }
 
     // Determine effective base price:
     // If not manual pricing (property_default or site_type_default) and basePrice is 0,

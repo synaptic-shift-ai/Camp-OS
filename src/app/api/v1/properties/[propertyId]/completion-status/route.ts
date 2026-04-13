@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { generateBookingSlug } from '@/lib/booking/slug-utils'
 
 /**
@@ -50,17 +51,13 @@ export async function GET(
       return NextResponse.json(error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'), { status: 404 })
     }
 
-    // BP-4: Verify user owns this property's company
-    const { data: company } = await supabaseServiceRole
-      .from('companies')
-      .select('id')
-      .eq('id', property.company_id)
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has access to this property (owner only for completion status)
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'owner',
+    })
+    if (isDenied(access)) return access
 
-    if (!company) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
-    }
 
     // Fetch sites for this property
     const { data: sites, error: sitesError } = await supabaseServiceRole

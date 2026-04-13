@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'crypto'
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { success, error } from '@/lib/api/response'
+import { success, error, errorFlatMessage } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import {
   StaffManagementQueries,
@@ -63,12 +63,7 @@ export async function POST(
 ) {
   try {
     const { propertyId } = await params
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    const { supabase, user, error: authError } = await createSupabaseClientForApiRoute(request)
 
     if (authError || !user) {
       console.error('[StaffManagementInviteStaff] Unauthorized', {
@@ -92,11 +87,19 @@ export async function POST(
     })
 
     if (!hasAccess) {
-      return error(ErrorCodes.AUTH_002, request)
+      return errorFlatMessage(
+        'No access to this property. Confirm the property ID, and that your user is the company owner or has a property_staff row for this property.',
+        ErrorCodes.AUTH_002.status,
+        request,
+      )
     }
 
     if (!isAdmin) {
-      return error(ErrorCodes.AUTH_003, request)
+      return errorFlatMessage(
+        'Inviting staff requires an elevated property role (owner, admin, property_admin, or manager). Basic staff cannot invite.',
+        ErrorCodes.AUTH_002.status,
+        request,
+      )
     }
 
     const roleCategoryIds = parsed.data.roleCategoryIds
@@ -136,8 +139,7 @@ export async function POST(
     try {
       const existingId = await q.findAuthUserIdByEmail(service, parsed.data.email)
       if (existingId) {
-        return error(
-          ErrorCodes.DUPLICATE_RESOURCE.code,
+        return errorFlatMessage(
           'This email already exists',
           ErrorCodes.DUPLICATE_RESOURCE.status,
           request,
@@ -157,8 +159,7 @@ export async function POST(
       if (createError || !created.user?.id) {
         const msg = createError?.message ?? 'Failed to create user'
         if (/already|registered|exists/i.test(msg)) {
-          return error(
-            ErrorCodes.DUPLICATE_RESOURCE.code,
+          return errorFlatMessage(
             'This email already exists',
             ErrorCodes.DUPLICATE_RESOURCE.status,
             request,

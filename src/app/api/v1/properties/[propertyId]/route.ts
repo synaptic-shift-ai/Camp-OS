@@ -12,10 +12,12 @@
  * - onboarding_completed field ALWAYS present
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { success, error } from '@/lib/api/response'
+import { success, error, errorFlatMessage } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { userCanAccessPropertySettingsPage } from '@/lib/dashboard/property-settings-page-access'
 import { UpdatePropertyRequestSchema, type UpdatePropertyRequest } from '@/types/api/v1/schemas/properties'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
 import { UpdatePropertyCommandHandler } from '@/modules/PropertyManagement/application/commands/UpdatePropertyCommand'
@@ -76,10 +78,7 @@ export async function GET(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_001),
-        { status: 401 }
-      )
+      return error(ErrorCodes.AUTH_001)
     }
 
     const repository = new SupabasePropertyRepository(supabase)
@@ -88,49 +87,22 @@ export async function GET(
     const property = await queryHandler.execute({ id })
 
     if (!property) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
-        { status: 404 }
-      )
+      return error(ErrorCodes.RESOURCE_NOT_FOUND)
     }
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .maybeSingle()
-
-    const isOwnerOrCompanyUser =
-      (company !== null && property.companyId === company.id) || property.ownerId === user.id
-
-    if (isOwnerOrCompanyUser) {
-      return success(toPropertyDTO(property))
-    }
-
-    const { data: staffRow } = await supabase
-      .from('property_staff')
-      .select('id')
-      .eq('property_id', property.id)
-      .eq('user_id', user.id)
-      .in('status', ['active', 'pending'])
-      .maybeSingle()
-
-    if (!staffRow) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - no access to this property'),
-        { status: 403 }
-      )
-    }
+    // RBAC: verify user has read access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: id,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
     return success(toPropertyDTO(property))
   } catch (err: any) {
     console.error('[Properties API v1] GET by ID error:', err)
-    return NextResponse.json(
-      error(ErrorCodes.INTERNAL_ERROR, 'Failed to fetch property', {
-        message: err.message,
-      }),
-      { status: 500 }
-    )
+    return error(ErrorCodes.INTERNAL_ERROR, undefined, {
+      message: err.message,
+    })
   }
 }
 
@@ -154,43 +126,23 @@ export async function PATCH(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_001),
-        { status: 401 }
-      )
+      return error(ErrorCodes.AUTH_001)
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
     const existingProperty = await queryHandler.execute({ id })
 
     if (!existingProperty) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
-        { status: 404 }
-      )
+      return error(ErrorCodes.RESOURCE_NOT_FOUND)
     }
 
-    // Verify tenant access (BP-4)
-    if (existingProperty.companyId !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
-        { status: 403 }
+    const canUpdate = await userCanAccessPropertySettingsPage(supabase, id, user.id)
+    if (!canUpdate) {
+      return errorFlatMessage(
+        ErrorCodes.AUTH_002.message,
+        ErrorCodes.AUTH_002.status,
+        request
       )
     }
 
@@ -201,12 +153,9 @@ export async function PATCH(
     try {
       validatedRequest = UpdatePropertyRequestSchema.parse(body)
     } catch (validationError: any) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, 'Invalid request body', {
-          errors: validationError.errors,
-        }),
-        { status: 400 }
-      )
+      return error(ErrorCodes.VALIDATION_ERROR, undefined, {
+        errors: validationError.errors,
+      })
     }
 
     // Merge partial settings onto existing (undefined in patch = keep current)
@@ -344,18 +293,12 @@ export async function PATCH(
 
     // Handle domain validation errors
     if (err.message.includes('not found')) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, err.message),
-        { status: 404 }
-      )
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, undefined, { message: err.message })
     }
 
-    return NextResponse.json(
-      error(ErrorCodes.INTERNAL_ERROR, 'Failed to update property', {
-        message: err.message,
-      }),
-      { status: 500 }
-    )
+    return error(ErrorCodes.INTERNAL_ERROR, undefined, {
+      message: err.message,
+    })
   }
 }
 
@@ -379,45 +322,24 @@ export async function DELETE(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_001),
-        { status: 401 }
-      )
+      return error(ErrorCodes.AUTH_001)
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
     const property = await queryHandler.execute({ id })
 
     if (!property) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
-        { status: 404 }
-      )
+      return error(ErrorCodes.RESOURCE_NOT_FOUND)
     }
 
-    // Verify tenant access (BP-4)
-    if (property.companyId !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
-        { status: 403 }
-      )
-    }
+    // RBAC: verify user has owner access (only owner can delete)
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: id,
+      minimumRole: 'owner',
+    })
+    if (isDenied(access)) return access
+
 
     // Soft delete (sets status to INACTIVE)
     await repository.delete(id)
@@ -425,11 +347,8 @@ export async function DELETE(
     return success({ deleted: true, id })
   } catch (err: any) {
     console.error('[Properties API v1] DELETE error:', err)
-    return NextResponse.json(
-      error(ErrorCodes.INTERNAL_ERROR, 'Failed to delete property', {
-        message: err.message,
-      }),
-      { status: 500 }
-    )
+    return error(ErrorCodes.INTERNAL_ERROR, undefined, {
+      message: err.message,
+    })
   }
 }

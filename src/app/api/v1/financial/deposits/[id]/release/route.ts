@@ -8,6 +8,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { ReleaseSecurityDepositCommandHandler } from '@/modules/Financial/application/commands/ReleaseSecurityDepositCommand'
 import { SupabaseSecurityDepositRepository } from '@/modules/Financial/infrastructure/SupabaseSecurityDepositRepository'
 import { toSecurityDepositDTO } from '@/modules/Financial/application/DTOs/SecurityDepositDTO'
@@ -38,21 +39,7 @@ export async function POST(
       )
     }
 
-    // Get user's company
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify deposit exists and belongs to company
+    // Verify deposit exists
     const depositRepository = new SupabaseSecurityDepositRepository(supabase)
     const existingDeposit = await depositRepository.findById(depositId)
 
@@ -63,19 +50,14 @@ export async function POST(
       )
     }
 
-    // Verify tenant access (BP-4)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, company_id')
-      .eq('id', existingDeposit.propertyId)
-      .single()
+    // RBAC: verify user has refund access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingDeposit.propertyId,
+      minimumRole: 'admin',
+      permission: 'financial.refund',
+    })
+    if (isDenied(access)) return access
 
-    if (propertyError || !property || property.company_id !== company.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - deposit belongs to different company'),
-        { status: 403 }
-      )
-    }
 
     // Execute command
     const commandHandler = new ReleaseSecurityDepositCommandHandler(depositRepository)

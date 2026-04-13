@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { isElevatedPropertyStaffRole } from '@/lib/dashboard/property-staff-roles'
 
 export type UiRole = 'owner' | 'admin' | 'manager' | 'staff'
 type DbRole = 'owner' | 'admin' | 'manager' | 'staff'
@@ -57,6 +58,8 @@ function formatStaffInviteRoleLabel(dbRole: string): string {
   return dbRole ? dbRole.charAt(0).toUpperCase() + dbRole.slice(1) : '—'
 }
 
+export { isElevatedPropertyStaffRole } from '@/lib/dashboard/property-staff-roles'
+
 export class StaffManagementQueries {
   constructor(private readonly supabase: SupabaseClient) {}
 
@@ -97,11 +100,7 @@ export class StaffManagementQueries {
       .single()
 
     if (staffRecord) {
-      const isAdmin =
-        staffRecord.role === 'owner' ||
-        staffRecord.role === 'admin' ||
-        staffRecord.role === 'property_admin' ||
-        staffRecord.role === 'manager'
+      const isAdmin = isElevatedPropertyStaffRole(staffRecord.role)
       return { hasAccess: true, isAdmin }
     }
 

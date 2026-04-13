@@ -27,6 +27,15 @@ type StaffRow = {
 type StaffManagementTableProps = {
   propertyId: string
   reloadKey?: number
+  search?: string
+  role?: string
+  category?: string
+  status?: string
+  onFilterOptionsChange?: (options: {
+    roles: string[]
+    categories: string[]
+    statuses: string[]
+  }) => void
 }
 
 function initialsFromName(name: string): string {
@@ -95,7 +104,15 @@ function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
   )
 }
 
-export function StaffManagementTable({ propertyId, reloadKey = 0 }: StaffManagementTableProps) {
+export function StaffManagementTable({
+  propertyId,
+  reloadKey = 0,
+  search = "",
+  role = "all",
+  category = "all",
+  status = "all",
+  onFilterOptionsChange,
+}: StaffManagementTableProps) {
   const [rows, setRows] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -125,6 +142,52 @@ export function StaffManagementTable({ propertyId, reloadKey = 0 }: StaffManagem
   useEffect(() => {
     void loadStaff()
   }, [loadStaff, reloadKey])
+
+  useEffect(() => {
+    if (!onFilterOptionsChange) return
+
+    const roleSet = new Set<string>()
+    const categorySet = new Set<string>()
+    const statusSet = new Set<string>()
+
+    for (const row of rows) {
+      roleSet.add(row.role)
+      statusSet.add(row.status)
+
+      if (row.categories === "All Categories") {
+        categorySet.add("All Categories")
+      } else {
+        for (const categoryName of row.categories) {
+          categorySet.add(categoryName)
+        }
+      }
+    }
+
+    onFilterOptionsChange({
+      roles: Array.from(roleSet).sort(),
+      categories: Array.from(categorySet).sort(),
+      statuses: Array.from(statusSet).sort(),
+    })
+  }, [onFilterOptionsChange, rows])
+
+  const normalizedSearch = search.trim().toLowerCase()
+  const filteredRows = rows.filter((row) => {
+    const matchesSearch =
+      normalizedSearch.length === 0 ||
+      row.name.toLowerCase().includes(normalizedSearch) ||
+      row.email.toLowerCase().includes(normalizedSearch)
+
+    const matchesRole = role === "all" || row.role === role
+    const matchesStatus = status === "all" || row.status === status
+
+    const matchesCategory =
+      category === "all" ||
+      (row.categories === "All Categories"
+        ? category === "All Categories"
+        : row.categories.includes(category))
+
+    return matchesSearch && matchesRole && matchesStatus && matchesCategory
+  })
 
   return (
     <div className="border border-border/80 bg-card/50">
@@ -161,14 +224,14 @@ export function StaffManagementTable({ propertyId, reloadKey = 0 }: StaffManagem
                 Loading staff…
               </TableCell>
             </TableRow>
-          ) : rows.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                No staff members yet.
+                No staff matches the selected filters.
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((row) => (
+            filteredRows.map((row) => (
               <TableRow
                 key={row.id}
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"

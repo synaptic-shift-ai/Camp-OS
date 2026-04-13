@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import StaffManagementPageHeader from '@/components/dashboard/staff-management/staff-management-page-header'
 import {
@@ -11,10 +11,15 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import InviteStaffDialog from '@/components/dashboard/staff-management/staff-management-dialog/invite-staff-dialog'
 import { StaffManagementTable } from '@/components/dashboard/staff-management/staff-management-table'
+import StaffManagementFilter, {
+  type StaffManagementFilterValue,
+} from '@/components/dashboard/staff-management/staff-management-filter'
 
 type StaffManagementStaffPageClientProps = {
   propertyName: string
 }
+
+const FILTER_DEBOUNCE_MS = 300
 
 export default function StaffManagementStaffPageClient({
   propertyName,
@@ -32,6 +37,33 @@ export default function StaffManagementStaffPageClient({
   const [inviteStaffOpen, setInviteStaffOpen] = useState(false)
   const [isSavingCategories, setIsSavingCategories] = useState(false)
   const [staffTableReloadKey, setStaffTableReloadKey] = useState(0)
+  const [filterValue, setFilterValue] = useState<StaffManagementFilterValue>({
+    search: '',
+    role: 'all',
+    category: 'all',
+    status: 'all',
+  })
+  const [debouncedFilterValue, setDebouncedFilterValue] =
+    useState<StaffManagementFilterValue>(filterValue)
+  const [filterOptions, setFilterOptions] = useState<{
+    roles: string[]
+    categories: string[]
+    statuses: string[]
+  }>({
+    roles: [],
+    categories: [],
+    statuses: [],
+  })
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFilterValue(filterValue)
+    }, FILTER_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [filterValue])
 
   const handleSaveCategories = async (categoriesByRole: Record<RoleId, CategoryRow[]>) => {
     if (isSavingCategories) return
@@ -87,9 +119,22 @@ export default function StaffManagementStaffPageClient({
           onInviteStaffClick={() => setInviteStaffOpen(true)}
         />
 
+        <StaffManagementFilter
+          value={filterValue}
+          onChange={setFilterValue}
+          roleOptions={filterOptions.roles}
+          categoryOptions={filterOptions.categories}
+          statusOptions={filterOptions.statuses}
+        />
+
         <StaffManagementTable
           propertyId={propertyId}
           reloadKey={staffTableReloadKey}
+          search={debouncedFilterValue.search}
+          role={debouncedFilterValue.role}
+          category={debouncedFilterValue.category}
+          status={debouncedFilterValue.status}
+          onFilterOptionsChange={setFilterOptions}
         />
       </div>
 

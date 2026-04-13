@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -11,25 +11,34 @@ export async function GET(
 ) {
   try {
     const { propertyId } = await params
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    const { supabase, user, error: authError } = await createSupabaseClientForApiRoute(request)
 
     if (authError || !user) {
       return error(ErrorCodes.AUTH_001, request)
     }
 
     const q = new StaffManagementQueries(supabase as any)
-    const { hasAccess } = await q.verifyPropertyAccess({
+    const { hasAccess, isAdmin } = await q.verifyPropertyAccess({
       propertyId,
       userId: user.id,
     })
 
     if (!hasAccess) {
-      return error(ErrorCodes.AUTH_002, request)
+      return error(
+        ErrorCodes.AUTH_002.code,
+        'No access to this property. Confirm the property ID and your assignment or company ownership.',
+        ErrorCodes.AUTH_002.status,
+        request,
+      )
+    }
+
+    if (!isAdmin) {
+      return error(
+        ErrorCodes.AUTH_002.code,
+        'Viewing the staff list requires an elevated property role (owner, admin, property_admin, or manager).',
+        ErrorCodes.AUTH_002.status,
+        request,
+      )
     }
 
     const admin = createServiceRoleClient()

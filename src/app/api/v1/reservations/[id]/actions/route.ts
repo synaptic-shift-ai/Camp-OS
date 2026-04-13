@@ -11,8 +11,8 @@ import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
-import {
-  processExtension,
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { processExtension,
   processRenewal,
   offerRenewal,
   declineRenewal,
@@ -51,25 +51,21 @@ export async function POST(
       return error(ErrorCodes.RES_001, request)
     }
 
-    // Check property access via company ownership
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // RBAC: verify user has reservation action access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: reservation.property_id,
+      minimumRole: 'staff',
+      permission: 'reservations.read',
+    })
+    if (isDenied(access)) return access
 
+    // Fetch property for tenant context
     const { data: property } = await supabase
       .from('properties')
-      .select('id, company_id, owner_id')
+      .select('id, company_id')
       .eq('id', reservation.property_id)
       .single()
 
-    const isOwner = property?.owner_id === user.id
-    const isCompanyOwner = company && property?.company_id === company.id
-
-    if (!isOwner && !isCompanyOwner) {
-      return error(ErrorCodes.AUTH_002, request)
-    }
 
     // Process action based on type
     let result
@@ -147,7 +143,7 @@ export async function POST(
       })
     }
 
-    if (property != null && property.company_id && result.reservation) {
+    if (access.companyId && result.reservation) {
       const supabaseServiceRole = createServiceRoleClient()
       const updated = result.reservation
       const confirmationNumber =
@@ -155,7 +151,7 @@ export async function POST(
           ? updated.confirmation_number
           : reservationId
       await recordActivityLog(supabaseServiceRole, {
-        companyId: property.company_id,
+        companyId: access.companyId,
         propertyId: reservation.property_id,
         action: body.action,
         resource: 'reservation',

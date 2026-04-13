@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Building2,
 } from "lucide-react"
+import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 
 interface PropertyWithStatus {
   id: string
@@ -167,7 +168,7 @@ export function StripeConnectStep({ property: _property, onComplete, onSkip }: S
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || "Failed to disconnect Stripe")
+        throw new Error(getApiFailureMessage(result) || "Failed to disconnect Stripe")
       }
 
       // Reload properties to show updated status

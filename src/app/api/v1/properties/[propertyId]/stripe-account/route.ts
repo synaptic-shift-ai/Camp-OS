@@ -14,8 +14,10 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
+import { userCanAccessPropertySettingsPage } from '@/lib/dashboard/property-settings-page-access'
 /**
  * DELETE /api/v1/properties/[propertyId]/stripe-account
  *
@@ -42,21 +44,6 @@ export async function DELETE(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify property exists and belongs to company
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
     const property = await queryHandler.execute({ id })
@@ -68,13 +55,20 @@ export async function DELETE(
       )
     }
 
-    // Verify tenant access (BP-4)
-    if (property.companyId !== company.id) {
+    const allowedForPropertySettings = await userCanAccessPropertySettingsPage(supabase, id, user.id)
+    if (!allowedForPropertySettings) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
+        error(ErrorCodes.AUTH_003, 'Forbidden - insufficient permissions for property settings'),
         { status: 403 }
       )
     }
+
+    // RBAC: verify user has owner/manager access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: id,
+      minimumRole: 'owner',
+    })
+    if (isDenied(access)) return access
 
     // Disconnect Stripe by setting to notConnected state
     // Note: This is done at the infrastructure level since connectStripe exists

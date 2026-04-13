@@ -14,6 +14,7 @@ import {
   CheckInRequestSchema,
   type CheckInRequest,
 } from '@/types/api/v1/schemas/reservations'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { CheckInGuestCommandHandler } from '@/modules/BookingEngine/application/commands/CheckInGuestCommand'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
@@ -48,21 +49,7 @@ export async function POST(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Verify reservation exists and belongs to company
+    // Verify reservation exists
     const repository = new SupabaseReservationRepository(supabase)
     const queryHandler = new GetReservationQueryHandler(repository)
     const existingReservation = await queryHandler.execute({ id: reservationId })
@@ -74,17 +61,25 @@ export async function POST(
       )
     }
 
-    // Verify tenant access (BP-4)
+    // RBAC: verify user has check-in access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingReservation.propertyId,
+      minimumRole: 'staff',
+      permission: 'reservations.check_in',
+    })
+    if (isDenied(access)) return access
+
+    // Fetch property for booking rules
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('id, company_id, booking_rules_config')
       .eq('id', existingReservation.propertyId)
       .single()
 
-    if (propertyError || !property || property.company_id !== company.id) {
+    if (propertyError || !property) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - reservation belongs to different company'),
-        { status: 403 }
+        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
+        { status: 404 }
       )
     }
 
@@ -222,10 +217,10 @@ export async function POST(
         )
       }
 
-      if (property.company_id) {
+      if (access.companyId) {
         const supabaseServiceRole = createServiceRoleClient()
         await recordActivityLog(supabaseServiceRole, {
-          companyId: property.company_id,
+          companyId: access.companyId,
           propertyId: reservation.propertyId,
           action: 'update',
           resource: 'site',
@@ -235,11 +230,11 @@ export async function POST(
       }
     }
 
-    if (property != null && property.company_id) {
+    if (access.companyId) {
       const supabaseServiceRole = createServiceRoleClient()
       const confirmationNumber = reservation.confirmationNumber.value
       await recordActivityLog(supabaseServiceRole, {
-        companyId: property.company_id,
+        companyId: access.companyId,
         propertyId: reservation.propertyId,
         action: 'checked_in',
         resource: 'reservation',

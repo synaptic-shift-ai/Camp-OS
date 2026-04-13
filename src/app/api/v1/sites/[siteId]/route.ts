@@ -9,6 +9,7 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { getPricingSourceType, serializePricingSourceForPricingOverride } from '@/lib/site-pricing-source'
@@ -48,17 +49,12 @@ export async function GET(
       return NextResponse.json(error(ErrorCodes.RESOURCE_NOT_FOUND, 'Site not found'), { status: 404 })
     }
 
-    // BP-4: Verify user owns this property's company
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', site.properties.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!company) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
-    }
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: site.property_id,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
     // Remove nested properties from response
     const { properties: _properties, ...siteData } = site
@@ -103,17 +99,12 @@ export async function PUT(
       return NextResponse.json(error(ErrorCodes.RESOURCE_NOT_FOUND, 'Site not found'), { status: 404 })
     }
 
-    // BP-4: Verify user owns this property's company
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', existingSite.properties.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!company) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
-    }
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingSite.property_id,
+      minimumRole: 'manager',
+    })
+    if (isDenied(access)) return access
 
     const body = await request.json()
 
@@ -329,17 +320,12 @@ export async function DELETE(
       return error(ErrorCodes.RESOURCE_NOT_FOUND, request)
     }
 
-    // BP-4: Verify user owns this property's company
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('id', existingSite.properties.company_id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!company) {
-      return error(ErrorCodes.AUTH_002, request)
-    }
+    // RBAC: verify user has access to this property
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId: existingSite.property_id,
+      minimumRole: 'owner',
+    })
+    if (isDenied(access)) return access
 
     // Check for active or future reservations before attempting delete.
     // These reservations block deletion due to integrity/business rules.

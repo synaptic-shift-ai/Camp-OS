@@ -1,8 +1,10 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Clock, CreditCard } from "lucide-react"
+import { createClient } from "@/lib/supabase/server"
 import { getPayments, getDashboardStats } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
 import { redirect } from "next/navigation"
 import { PaymentsTable } from "@/components/dashboard/payments/payments-table"
 import { PaymentsPageHeader } from "@/components/dashboard/payments/payments-page-header"
@@ -62,6 +64,13 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   const { propertyId } = await params
   const property = await getPropertyForUser(propertyId)
   if (!property) redirect("/auth/login")
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
 
   const { page: pageParam, pageSize: pageSizeParam } = await searchParams
   const currentPage =

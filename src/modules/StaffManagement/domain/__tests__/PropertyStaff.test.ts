@@ -181,7 +181,7 @@ describe('PropertyStaff', () => {
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
       staff.clearDomainEvents()
 
@@ -205,7 +205,7 @@ describe('PropertyStaff', () => {
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
       staff.clearDomainEvents()
 
@@ -221,11 +221,11 @@ describe('PropertyStaff', () => {
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
       staff.clearDomainEvents()
 
-      staff.addPermission('reservations:read', ids.adminId) // viewer already has this
+      staff.addPermission('reservations:read', ids.adminId) // staff already has this
 
       const events = staff.getDomainEvents()
       expect(events).toHaveLength(0)
@@ -240,7 +240,7 @@ describe('PropertyStaff', () => {
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
       staff.clearDomainEvents()
 
@@ -256,11 +256,11 @@ describe('PropertyStaff', () => {
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
       staff.clearDomainEvents()
 
-      staff.removePermission('staff:manage', ids.adminId) // viewer doesn't have this
+      staff.removePermission('staff:manage', ids.adminId) // staff doesn't have this
 
       const events = staff.getDomainEvents()
       expect(events).toHaveLength(0)
@@ -333,25 +333,25 @@ describe('PropertyStaff', () => {
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
 
-      expect(staff.hasAnyPermission(['reservations:read', 'staff:manage'])).toBe(true)
+      expect(staff.hasAnyPermission(['reservations:read', 'reservations:check_in'])).toBe(true)
       expect(staff.hasAnyPermission(['staff:manage', 'settings:manage'])).toBe(false)
     })
 
     test('hasAllPermissions checks multiple permissions', () => {
       const ids = createTestIds()
 
-      // Viewer only has read permissions
+      // Staff has read + check_in + check_out permissions
       const staff = PropertyStaff.create({
         id: ids.staffId,
         propertyId: ids.propertyId,
         userId: ids.userId,
-        role: 'viewer',
+        role: 'staff',
       })
 
-      expect(staff.hasAllPermissions(['reservations:read', 'guests:read'])).toBe(true)
+      expect(staff.hasAllPermissions(['reservations:read', 'reservations:check_in'])).toBe(true)
       expect(staff.hasAllPermissions(['reservations:read', 'staff:manage'])).toBe(false)
     })
   })
@@ -406,14 +406,14 @@ describe('PropertyStaff', () => {
         role: 'staff',
       })
 
-      const viewer = PropertyStaff.create({
-        id: 'viewer-id',
+      const otherStaff = PropertyStaff.create({
+        id: 'staff-2-id',
         propertyId,
-        userId: 'viewer-user-id',
-        role: 'viewer',
+        userId: 'staff-2-user-id',
+        role: 'staff',
       })
 
-      expect(staffMember.canManage(viewer)).toBe(false) // staff doesn't have staff:manage
+      expect(staffMember.canManage(otherStaff)).toBe(false) // staff doesn't have staff:manage
     })
   })
 
@@ -422,14 +422,14 @@ describe('PropertyStaff', () => {
       const ids = createTestIds()
 
       const owner = PropertyStaff.create({ ...ids, id: 'id-1', role: 'owner' })
-      const manager = PropertyStaff.create({ ...ids, id: 'id-2', role: 'manager' })
-      const staff = PropertyStaff.create({ ...ids, id: 'id-3', role: 'staff' })
-      const viewer = PropertyStaff.create({ ...ids, id: 'id-4', role: 'viewer' })
+      const admin = PropertyStaff.create({ ...ids, id: 'id-2', role: 'admin' })
+      const manager = PropertyStaff.create({ ...ids, id: 'id-3', role: 'manager' })
+      const staff = PropertyStaff.create({ ...ids, id: 'id-4', role: 'staff' })
 
       expect(owner.isAdmin).toBe(true)
-      expect(manager.isAdmin).toBe(true)
+      expect(admin.isAdmin).toBe(true)
+      expect(manager.isAdmin).toBe(false)
       expect(staff.isAdmin).toBe(false)
-      expect(viewer.isAdmin).toBe(false)
     })
 
     test('isOwner returns correct values', () => {

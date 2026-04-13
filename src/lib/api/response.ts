@@ -66,6 +66,12 @@ export type ApiErrorResponse = {
   meta: Omit<ApiMeta, 'pagination'>
 }
 
+/** Minimal `{ success: false, message }` shape for specific endpoints (e.g. invite-staff duplicate email). */
+export type ApiFlatErrorResponse = {
+  success: false
+  message: string
+}
+
 /**
  * Create a successful API response
  *
@@ -198,6 +204,23 @@ export function error(
   nextResponse.headers.set('X-API-Version', version)
   nextResponse.headers.set('X-Request-ID', requestId)
 
+  return nextResponse
+}
+
+/**
+ * Error response with only `success` and `message` (no `error` / `meta` envelope).
+ */
+export function errorFlatMessage(
+  message: string,
+  status: number,
+  request?: NextRequest
+): NextResponse<ApiFlatErrorResponse> {
+  const nextResponse = NextResponse.json(
+    { success: false as const, message },
+    { status },
+  )
+  const requestId = request?.headers.get('x-request-id') || randomUUID()
+  nextResponse.headers.set('X-Request-ID', requestId)
   return nextResponse
 }
 

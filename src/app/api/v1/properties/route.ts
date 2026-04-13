@@ -39,7 +39,23 @@ import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/appli
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
 import { toPropertyDTO, toPropertyDTOs } from '@/modules/PropertyManagement/application/DTOs/PropertyDTO'
 import { PropertySettings } from '@/modules/PropertyManagement/domain/PropertySettings'
+import type { Property } from '@/modules/PropertyManagement/domain/Property'
 import { v4 as uuidv4 } from 'uuid'
+
+function applyPropertyListFilters(
+  properties: Property[],
+  status?: ListPropertiesQuery['status'],
+  onboardingComplete?: boolean
+): Property[] {
+  let list = properties
+  if (status !== undefined) {
+    list = list.filter((p) => p.status === status)
+  }
+  if (onboardingComplete !== undefined) {
+    list = list.filter((p) => p.isOnboardingComplete() === onboardingComplete)
+  }
+  return list
+}
 
 /**
  * GET /api/v1/properties
@@ -69,21 +85,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Parse and validate query parameters
     const url = new URL(request.url)
     const queryParams = {
       page: parseInt(url.searchParams.get('page') || '1'),
@@ -104,39 +105,112 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Calculate offset
     const limit = validatedQuery.per_page
     const offset = (validatedQuery.page - 1) * limit
 
-    // Execute query using application layer
+    const { data: company } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('owner_id', user.id)
+      .maybeSingle()
+
     const repository = new SupabasePropertyRepository(supabase)
-    const queryHandler = new ListPropertiesQueryHandler(repository)
 
-    const result = await queryHandler.execute({
-      companyId: company.id,
-      ...(validatedQuery.status !== undefined && { status: validatedQuery.status }),
-      ...(validatedQuery.onboarding_complete !== undefined && { onboardingComplete: validatedQuery.onboarding_complete }),
-      limit,
-      offset,
-    })
+    if (company?.id) {
+      const queryHandler = new ListPropertiesQueryHandler(repository)
 
-    // Convert domain entities to DTOs
-    const propertyDTOs = toPropertyDTOs(result.properties)
+      const result = await queryHandler.execute({
+        companyId: company.id,
+        ...(validatedQuery.status !== undefined && { status: validatedQuery.status }),
+        ...(validatedQuery.onboarding_complete !== undefined && {
+          onboardingComplete: validatedQuery.onboarding_complete,
+        }),
+        limit,
+        offset,
+      })
 
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(result.total / limit)
-    const hasNextPage = validatedQuery.page < totalPages
-    const hasPreviousPage = validatedQuery.page > 1
+      const propertyDTOs = toPropertyDTOs(result.properties)
+      const totalPages = Math.ceil(result.total / limit)
+
+      return success({
+        items: propertyDTOs,
+        pagination: {
+          page: validatedQuery.page,
+          per_page: limit,
+          total: result.total,
+          total_pages: totalPages,
+          has_next_page: validatedQuery.page < totalPages,
+          has_previous_page: validatedQuery.page > 1,
+        },
+      })
+    }
+
+    const { data: staffRows, error: staffError } = await supabase
+      .from('property_staff')
+      .select('property_id')
+      .eq('user_id', user.id)
+      .in('status', ['active', 'pending'])
+
+    if (staffError) {
+      console.error('[Properties API v1] GET staff assignments error:', staffError)
+      return NextResponse.json(
+        error(ErrorCodes.INTERNAL_ERROR, 'Failed to list properties'),
+        { status: 500 }
+      )
+    }
+
+    const propertyIds = [
+      ...new Set(
+        (staffRows ?? [])
+          .map((r) => r.property_id)
+          .filter((id): id is string => id !== null)
+      ),
+    ]
+
+    if (propertyIds.length === 0) {
+      return success({
+        items: [],
+        pagination: {
+          page: validatedQuery.page,
+          per_page: limit,
+          total: 0,
+          total_pages: 0,
+          has_next_page: false,
+          has_previous_page: false,
+        },
+      })
+    }
+
+    const staffProperties: Property[] = []
+    for (const propertyId of propertyIds) {
+      const p = await repository.findById(propertyId)
+      if (p) {
+        staffProperties.push(p)
+      }
+    }
+
+    staffProperties.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+
+    const filtered = applyPropertyListFilters(
+      staffProperties,
+      validatedQuery.status,
+      validatedQuery.onboarding_complete
+    )
+
+    const total = filtered.length
+    const pageSlice = filtered.slice(offset, offset + limit)
+    const propertyDTOs = toPropertyDTOs(pageSlice)
+    const totalPages = Math.ceil(total / limit) || 0
 
     return success({
       items: propertyDTOs,
       pagination: {
         page: validatedQuery.page,
         per_page: limit,
-        total: result.total,
+        total,
         total_pages: totalPages,
-        has_next_page: hasNextPage,
-        has_previous_page: hasPreviousPage,
+        has_next_page: validatedQuery.page < totalPages,
+        has_previous_page: validatedQuery.page > 1,
       },
     })
   } catch (err: any) {

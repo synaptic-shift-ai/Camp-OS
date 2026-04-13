@@ -82,21 +82,6 @@ export async function GET(
       )
     }
 
-    // Get user's company (BP-4: Multi-tenant isolation)
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
-        { status: 404 }
-      )
-    }
-
-    // Execute query using application layer
     const repository = new SupabasePropertyRepository(supabase)
     const queryHandler = new GetPropertyQueryHandler(repository)
 
@@ -109,18 +94,35 @@ export async function GET(
       )
     }
 
-    // Verify tenant access (BP-4)
-    if (property.companyId !== company.id) {
+    const { data: company } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('owner_id', user.id)
+      .maybeSingle()
+
+    const isOwnerOrCompanyUser =
+      (company !== null && property.companyId === company.id) || property.ownerId === user.id
+
+    if (isOwnerOrCompanyUser) {
+      return success(toPropertyDTO(property))
+    }
+
+    const { data: staffRow } = await supabase
+      .from('property_staff')
+      .select('id')
+      .eq('property_id', property.id)
+      .eq('user_id', user.id)
+      .in('status', ['active', 'pending'])
+      .maybeSingle()
+
+    if (!staffRow) {
       return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - property belongs to different company'),
+        error(ErrorCodes.AUTH_003, 'Forbidden - no access to this property'),
         { status: 403 }
       )
     }
 
-    // Convert to DTO
-    const propertyDTO = toPropertyDTO(property)
-
-    return success(propertyDTO)
+    return success(toPropertyDTO(property))
   } catch (err: any) {
     console.error('[Properties API v1] GET by ID error:', err)
     return NextResponse.json(

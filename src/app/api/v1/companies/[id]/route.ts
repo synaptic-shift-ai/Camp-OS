@@ -22,11 +22,26 @@ import type { CompanyDTO } from '@/modules/CompanyManagement'
 import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { userHasStaffAssignmentToCompany } from '@/lib/dashboard/company-access'
+
+function companyDtoForStaffReader(dto: CompanyDTO): CompanyDTO {
+  return {
+    ...dto,
+    subscription: {
+      ...dto.subscription,
+      stripeCustomerId: null,
+      subscriptionId: null,
+    },
+    onboardingToken: null,
+  }
+}
 
 /**
  * GET /api/v1/companies/[id]
  *
- * Get a company by ID. User must be the owner.
+ * Company owner: full DTO (user-scoped Supabase when RLS allows).
+ * Property staff assigned to a property under this company: branding + safe fields via
+ * service-role load after assignment check (BP-4). Others: 403/404.
  */
 export async function GET(
   request: NextRequest,
@@ -49,30 +64,54 @@ export async function GET(
       )
     }
 
-    // 2. Execute query
+    const isStaffForCompany = await userHasStaffAssignmentToCompany(
+      supabase,
+      user.id,
+      companyId
+    )
+
     const repository = new SupabaseCompanyRepository(supabase)
     const handler = new GetCompanyQueryHandler(repository)
     const result = await handler.execute({ companyId })
 
-    if (!result.success) {
+    if (result.success) {
+      const company = result.company
+      if (company.ownerId === user.id) {
+        return success(company)
+      }
+      if (isStaffForCompany) {
+        return success(companyDtoForStaffReader(company))
+      }
       return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, result.error.message),
-        { status: 404 }
-      )
-    }
-
-    // 3. Verify ownership (BP-4: Tenant isolation)
-    // result.company is already a CompanyDTO from the query handler
-    const company: CompanyDTO = result.company
-    if (company.ownerId !== user.id) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - not your company'),
+        error(ErrorCodes.AUTH_003, 'Forbidden - no access to this company'),
         { status: 403 }
       )
     }
 
-    // 4. Return response (already a DTO)
-    return success(company)
+    if (isStaffForCompany) {
+      const serviceSupabase = createServiceRoleClient()
+      const serviceRepo = new SupabaseCompanyRepository(serviceSupabase)
+      const serviceHandler = new GetCompanyQueryHandler(serviceRepo)
+      const sr = await serviceHandler.execute({ companyId })
+      if (!sr.success) {
+        return NextResponse.json(
+          error(ErrorCodes.RESOURCE_NOT_FOUND, sr.error.message),
+          { status: 404 }
+        )
+      }
+      if (sr.company.id !== companyId) {
+        return NextResponse.json(
+          error(ErrorCodes.RESOURCE_NOT_FOUND, 'Company not found'),
+          { status: 404 }
+        )
+      }
+      return success(companyDtoForStaffReader(sr.company))
+    }
+
+    return NextResponse.json(
+      error(ErrorCodes.RESOURCE_NOT_FOUND, result.error.message),
+      { status: 404 }
+    )
   } catch (err: unknown) {
     console.error('[Companies API v1] Get company error:', err)
 

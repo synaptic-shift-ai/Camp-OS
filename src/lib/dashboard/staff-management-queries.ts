@@ -460,4 +460,190 @@ export class StaffManagementQueries {
 
     return { invitedCount: 1 }
   }
+
+  async updatePropertyStaffAssignment(input: {
+    propertyId: string
+    staffId: string
+    role: 'admin' | 'manager' | 'staff'
+    allCategories: boolean
+    roleCategoryIds: string[]
+  }): Promise<void> {
+    const { data: row, error: fetchErr } = await this.supabase
+      .from('property_staff')
+      .select('id, role')
+      .eq('id', input.staffId)
+      .eq('property_id', input.propertyId)
+      .maybeSingle()
+
+    if (fetchErr) {
+      console.error('[StaffManagementQueries] Failed to load staff row for update', {
+        propertyId: input.propertyId,
+        staffId: input.staffId,
+        error: fetchErr,
+      })
+      throw fetchErr
+    }
+
+    if (!row) {
+      throw new Error('Staff assignment not found')
+    }
+
+    const currentRole = (row.role ?? '').toLowerCase()
+    if (currentRole === 'owner') {
+      throw new Error('Cannot change property owner from staff management')
+    }
+
+    const nextCategoryIds = input.allCategories ? [] : [...new Set(input.roleCategoryIds)]
+
+    if (!input.allCategories) {
+      if (nextCategoryIds.length === 0) {
+        throw new Error('Select at least one category, or choose All Categories')
+      }
+
+      const { data: cats, error: catErr } = await this.supabase
+        .from('property_role_categories')
+        .select('id, role')
+        .eq('property_id', input.propertyId)
+        .in('id', nextCategoryIds)
+
+      if (catErr) {
+        console.error('[StaffManagementQueries] Failed to validate role categories', {
+          propertyId: input.propertyId,
+          error: catErr,
+        })
+        throw catErr
+      }
+
+      if (!cats || cats.length !== nextCategoryIds.length) {
+        throw new Error('One or more category ids are invalid for this property')
+      }
+
+      for (const c of cats) {
+        const cr = String(c.role ?? '').toLowerCase()
+        const matchesAdmin = input.role === 'admin' && (cr === 'admin' || cr === 'property_admin')
+        const matchesOther = input.role !== 'admin' && cr === input.role
+        if (!matchesAdmin && !matchesOther) {
+          throw new Error('Each selected category must belong to the chosen role')
+        }
+      }
+    }
+
+    const { error: upErr } = await this.supabase
+      .from('property_staff')
+      .update({
+        role: input.role,
+        role_category_id: nextCategoryIds,
+      })
+      .eq('id', input.staffId)
+      .eq('property_id', input.propertyId)
+
+    if (upErr) {
+      console.error('[StaffManagementQueries] Failed to update property staff', {
+        propertyId: input.propertyId,
+        staffId: input.staffId,
+        error: upErr,
+      })
+      throw upErr
+    }
+  }
+
+  async deactivatePropertyStaffAssignment(input: {
+    propertyId: string
+    staffId: string
+  }): Promise<void> {
+    const { data: row, error: fetchErr } = await this.supabase
+      .from('property_staff')
+      .select('id, role, status')
+      .eq('id', input.staffId)
+      .eq('property_id', input.propertyId)
+      .maybeSingle()
+
+    if (fetchErr) {
+      console.error('[StaffManagementQueries] Failed to load staff row for deactivate', {
+        propertyId: input.propertyId,
+        staffId: input.staffId,
+        error: fetchErr,
+      })
+      throw fetchErr
+    }
+
+    if (!row) {
+      throw new Error('Staff assignment not found')
+    }
+
+    const currentRole = (row.role ?? '').toLowerCase()
+    if (currentRole === 'owner') {
+      throw new Error('Cannot deactivate property owner from staff management')
+    }
+
+    const currentStatus = (row.status ?? '').toLowerCase()
+    if (currentStatus === 'inactive') {
+      throw new Error('Staff member is already inactive')
+    }
+
+    const { error: upErr } = await this.supabase
+      .from('property_staff')
+      .update({ status: 'inactive' })
+      .eq('id', input.staffId)
+      .eq('property_id', input.propertyId)
+
+    if (upErr) {
+      console.error('[StaffManagementQueries] Failed to deactivate property staff', {
+        propertyId: input.propertyId,
+        staffId: input.staffId,
+        error: upErr,
+      })
+      throw upErr
+    }
+  }
+
+  async reactivatePropertyStaffAssignment(input: {
+    propertyId: string
+    staffId: string
+  }): Promise<void> {
+    const { data: row, error: fetchErr } = await this.supabase
+      .from('property_staff')
+      .select('id, role, status')
+      .eq('id', input.staffId)
+      .eq('property_id', input.propertyId)
+      .maybeSingle()
+
+    if (fetchErr) {
+      console.error('[StaffManagementQueries] Failed to load staff row for reactivate', {
+        propertyId: input.propertyId,
+        staffId: input.staffId,
+        error: fetchErr,
+      })
+      throw fetchErr
+    }
+
+    if (!row) {
+      throw new Error('Staff assignment not found')
+    }
+
+    const currentRole = (row.role ?? '').toLowerCase()
+    if (currentRole === 'owner') {
+      throw new Error('Cannot change property owner status from staff management')
+    }
+
+    const currentStatus = (row.status ?? '').toLowerCase()
+    if (currentStatus !== 'inactive') {
+      throw new Error('Only inactive staff members can be reactivated')
+    }
+
+    const { error: upErr } = await this.supabase
+      .from('property_staff')
+      .update({ status: 'active' })
+      .eq('id', input.staffId)
+      .eq('property_id', input.propertyId)
+
+    if (upErr) {
+      console.error('[StaffManagementQueries] Failed to reactivate property staff', {
+        propertyId: input.propertyId,
+        staffId: input.staffId,
+        error: upErr,
+      })
+      throw upErr
+    }
+  }
 }

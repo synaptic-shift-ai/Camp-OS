@@ -371,7 +371,7 @@ export async function getPropertyActivityLogs(
   const actorIds = rows.map((r) => r.user_id).filter((id): id is string => id != null)
   const displayNameByUserId = await resolveActivityLogActorDisplayNames(actorIds)
 
-  let dataResult = rows.map((row, index) => {
+  const dataResult = rows.map((row, index) => {
     const sequence = total - offset - index
     const userDisplayName =
       row.user_id == null ? 'System' : (displayNameByUserId.get(row.user_id) ?? 'Unknown user')

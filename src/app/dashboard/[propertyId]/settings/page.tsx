@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { userCanAccessPropertySettingsPage } from "@/lib/dashboard/property-settings-page-access"
+import { resolveDashboardAccess, canAccessPropertySettings } from "@/lib/rbac/dashboard-guards"
 import { TabsContent } from "@/components/ui/tabs"
 import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tabs"
 import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
@@ -70,9 +70,9 @@ export default async function SettingsPage({ params }: PageProps) {
     redirect("/auth/login")
   }
 
-  const canOpenSettings = await userCanAccessPropertySettingsPage(supabase, propertyId, user.id)
-  if (!canOpenSettings) {
-    redirect(`/dashboard/${propertyId}`)
+  const access = await resolveDashboardAccess(supabase, propertyId, user.id)
+  if (!access || !canAccessPropertySettings(access)) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
   const property = await getPropertyWithSeasonal(propertyId)

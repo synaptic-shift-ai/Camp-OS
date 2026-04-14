@@ -20,7 +20,7 @@ export default async function MaintenancePage({ params }: PageProps) {
 
   const access = await resolveDashboardAccess(supabase, propertyId, user.id)
   if (!access || !canAccessMaintenanceModule(access)) {
-    redirect(`/dashboard/${propertyId}`)
+    redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
   return (

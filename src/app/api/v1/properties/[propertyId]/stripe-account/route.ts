@@ -17,7 +17,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
-import { userCanAccessPropertySettingsPage } from '@/lib/dashboard/property-settings-page-access'
+import { resolveDashboardAccess, canAccessPropertySettings } from '@/lib/rbac/dashboard-guards'
 /**
  * DELETE /api/v1/properties/[propertyId]/stripe-account
  *
@@ -55,7 +55,8 @@ export async function DELETE(
       )
     }
 
-    const allowedForPropertySettings = await userCanAccessPropertySettingsPage(supabase, id, user.id)
+    const dashAccess = await resolveDashboardAccess(supabase, id, user.id)
+    const allowedForPropertySettings = !!dashAccess && canAccessPropertySettings(dashAccess)
     if (!allowedForPropertySettings) {
       return NextResponse.json(
         error(ErrorCodes.AUTH_003, 'Forbidden - insufficient permissions for property settings'),

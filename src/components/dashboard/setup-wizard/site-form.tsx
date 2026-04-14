@@ -125,7 +125,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     if (successes.length === 0) return
     setSiteImageUrls((prev) => {
       const existingUrls = new Set(prev)
-      let next = [...prev]
+      const next = [...prev]
       for (const name of successes) {
         const { data } = supabase.storage.from(SITE_IMAGES_BUCKET).getPublicUrl(`${siteImagesPath}/${name}`)
         if (!existingUrls.has(data.publicUrl) && next.length < MAX_SITE_IMAGES) {

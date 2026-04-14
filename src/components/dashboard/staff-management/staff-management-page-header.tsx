@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { ShieldCheckIcon, Tag, UserPlusIcon } from 'lucide-react'
+import { PermissionGate } from '@/components/ui/permission-gate'
 
 type StaffManagementPageHeaderProps = {
   propertyName: string
@@ -26,16 +27,20 @@ export default function StaffManagementPageHeader({
                     Access
                 </Button>
                 {onCategoriesClick ? (
-                    <Button type="button" variant="outline" onClick={onCategoriesClick}>
-                        <Tag className="h-4 w-4" />
-                        Categories
-                    </Button>
+                    <PermissionGate permission="global.change_staff_role">
+                      <Button type="button" variant="outline" onClick={onCategoriesClick}>
+                          <Tag className="h-4 w-4" />
+                          Categories
+                      </Button>
+                    </PermissionGate>
                 ) : null}
                 {onInviteStaffClick ? (
-                    <Button type="button" onClick={onInviteStaffClick}>
-                        <UserPlusIcon className="h-4 w-4" />
-                        Invite Staff
-                    </Button>
+                    <PermissionGate permission="global.invite_staff">
+                      <Button type="button" onClick={onInviteStaffClick}>
+                          <UserPlusIcon className="h-4 w-4" />
+                          Invite Staff
+                      </Button>
+                    </PermissionGate>
                 ) : null}
             </div>
         </div>

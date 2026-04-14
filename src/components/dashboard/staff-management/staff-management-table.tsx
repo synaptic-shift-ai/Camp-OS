@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Eye, Pencil, UserMinus } from "lucide-react"
+import { Eye, Pencil, UserCheck, UserMinus } from "lucide-react"
+import type { EditStaffDialogStaff } from "@/components/dashboard/staff-management/staff-management-dialog/edit-staff-dialog"
+import type { DeactivateStaffDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/deactivate-staff-dialog"
 import {
   Table,
   TableBody,
@@ -13,6 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useToast } from "@/hooks/use-toast"
+import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
+import { PermissionGate } from "@/components/ui/permission-gate"
 
 type StaffRow = {
   id: string
@@ -27,7 +32,6 @@ type StaffRow = {
 type StaffManagementTableProps = {
   propertyId: string
   reloadKey?: number
-  canManageStaff?: boolean
   search?: string
   role?: string
   category?: string
@@ -37,6 +41,9 @@ type StaffManagementTableProps = {
     categories: string[]
     statuses: string[]
   }) => void
+  onEditStaff?: (staff: EditStaffDialogStaff) => void
+  onDeactivateStaff?: (staff: DeactivateStaffDialogTarget) => void
+  onReactivateStaff?: (staff: { id: string; name: string }) => void
 }
 
 function initialsFromName(name: string): string {
@@ -108,16 +115,19 @@ function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
 export function StaffManagementTable({
   propertyId,
   reloadKey = 0,
-  canManageStaff = false,
   search = "",
   role = "all",
   category = "all",
   status = "all",
   onFilterOptionsChange,
+  onEditStaff,
+  onDeactivateStaff,
+  onReactivateStaff,
 }: StaffManagementTableProps) {
   const [rows, setRows] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const loadStaff = useCallback(async () => {
     setLoading(true)
@@ -135,7 +145,16 @@ export function StaffManagementTable({
       setRows(Array.isArray(json.data?.staff) ? json.data!.staff! : [])
     } catch (e: unknown) {
       setRows([])
-      setLoadError(e instanceof Error ? e.message : "Failed to load staff")
+      if (isAccessDeniedError(e)) {
+        setLoadError('Access denied')
+        toast({
+          title: 'Access denied',
+          description: "You don't have permission to view staff. Contact your property administrator if you believe this is an error.",
+          variant: 'destructive',
+        })
+      } else {
+        setLoadError(e instanceof Error ? e.message : "Failed to load staff")
+      }
     } finally {
       setLoading(false)
     }
@@ -268,21 +287,67 @@ export function StaffManagementTable({
                     <Button variant="ghost" size="xs" aria-label="View staff" className="h-8 w-8 p-0">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {canManageStaff ? (
-                      <>
-                        <Button variant="ghost" size="xs" aria-label="Edit staff" className="h-8 w-8 p-0">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                    <PermissionGate permission="global.change_staff_role">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Edit staff"
+                        className="h-8 w-8 p-0"
+                        disabled={row.role === "Owner"}
+                        title={row.role === "Owner" ? "Owner role cannot be edited here" : "Edit role and access"}
+                        onClick={() =>
+                          onEditStaff?.({
+                            id: row.id,
+                            name: row.name,
+                            role: row.role,
+                            categories: row.categories,
+                          })
+                        }
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </PermissionGate>
+                    <PermissionGate permission="global.deactivate_staff">
+                      {row.status === "Inactive" ? (
                         <Button
                           variant="ghost"
                           size="xs"
-                          aria-label="Remove staff"
+                          aria-label="Reactivate staff"
+                          className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                          disabled={row.role === "Owner"}
+                          title={
+                            row.role === "Owner"
+                              ? "Owner status cannot be changed here"
+                              : "Restore access for this staff member"
+                          }
+                          onClick={() => onReactivateStaff?.({ id: row.id, name: row.name })}
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          aria-label="Deactivate staff"
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                          disabled={row.role === "Owner"}
+                          title={
+                            row.role === "Owner"
+                              ? "Owner cannot be deactivated"
+                              : "Deactivate staff member"
+                          }
+                          onClick={() =>
+                            onDeactivateStaff?.({
+                              id: row.id,
+                              name: row.name,
+                              status: row.status,
+                            })
+                          }
                         >
                           <UserMinus className="h-4 w-4" />
                         </Button>
-                      </>
-                    ) : null}
+                      )}
+                    </PermissionGate>
                   </div>
                 </TableCell>
               </TableRow>

@@ -24,6 +24,6 @@ export async function redirectIfOperationsDashboardModulesForbidden(
 ): Promise<void> {
   const access = await resolveDashboardAccess(supabase, propertyId, userId)
   if (!access || !canAccessOperationsModules(access)) {
-    redirect(`/dashboard/${propertyId}`)
+    redirect(`/dashboard/${propertyId}/access-denied`)
   }
 }

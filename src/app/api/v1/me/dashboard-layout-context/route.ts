@@ -3,6 +3,7 @@ import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import {
+  isStaffAssignmentInactiveForProperty,
   resolveDashboardNavVisibility,
   resolveDashboardUserLabels,
 } from '@/lib/dashboard/dashboard-layout-context'
@@ -30,7 +31,15 @@ export async function GET(request: NextRequest) {
     let housekeepingNavVisible = false
     let maintenanceNavVisible = false
 
+    let staffDeactivatedForProperty = false
+
     if (propertyId.length > 0) {
+      staffDeactivatedForProperty = await isStaffAssignmentInactiveForProperty(
+        supabase,
+        propertyId,
+        user.id,
+      )
+
       const nav = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
       staffManagementNavVisible = nav.staffManagementNavVisible
       propertySettingsNavVisible = nav.propertySettingsNavVisible
@@ -42,6 +51,7 @@ export async function GET(request: NextRequest) {
 
     return success({
       ...labels,
+      staffDeactivatedForProperty,
       staffManagementNavVisible,
       propertySettingsNavVisible,
       operationsModulesNavVisible,

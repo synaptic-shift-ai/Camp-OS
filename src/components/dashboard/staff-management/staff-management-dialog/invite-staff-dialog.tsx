@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 
 type InviteStaffDialogProps = {
   open: boolean
@@ -92,6 +93,14 @@ export default function InviteStaffDialog({
           const payload = json.data?.categoriesByRole as CategoriesByRole | undefined
           if (payload) setCategoriesByRole(payload)
         } catch (err: unknown) {
+          if (isAccessDeniedError(err)) {
+            toast({
+              title: 'Access denied',
+              description: "You don't have permission to view categories. Contact your property administrator if you believe this is an error.",
+              variant: 'destructive',
+            })
+            return
+          }
           const message = err instanceof Error ? err.message : 'Failed to load categories'
           toast({
             title: 'Failed to load categories',
@@ -166,6 +175,14 @@ export default function InviteStaffDialog({
         onInviteSent?.()
         router.refresh()
       } catch (err: unknown) {
+        if (isAccessDeniedError(err)) {
+          toast({
+            title: 'Access denied',
+            description: "You don't have permission for this action. Contact your property administrator if you believe this is an error.",
+            variant: 'destructive',
+          })
+          return
+        }
         const message = err instanceof Error ? err.message : 'Unknown error'
         toast({
           title: 'Failed to invite staff',

@@ -26,6 +26,7 @@ import { AlertCircle, Loader2, Calendar } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
+import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
 import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
@@ -580,6 +581,15 @@ export function ExtendDialog({
       setOpen(false)
       router.refresh()
     } catch (err) {
+      if (isAccessDeniedError(err)) {
+        toast({
+          title: 'Access denied',
+          description: "You don't have permission for this action. Contact your property administrator if you believe this is an error.",
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
+        return
+      }
       console.error('[ExtendDialog] Error:', err)
       toast({
         title: 'Extend failed',

@@ -7,6 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { getStaffDeactivationPublicUrl } from "@/lib/dashboard/staff-deactivation-public-url"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -42,6 +43,7 @@ import { PropertySwitcher } from "@/components/dashboard/property-switcher"
 import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
 import { SetupCompleteToast } from "@/components/dashboard/setup-complete-toast"
 import { QuickTourPrompt } from "@/components/dashboard/quick-tour-prompt"
+import { PermissionProvider } from "@/hooks/use-permissions"
 
 const NAV_ITEMS = [
   { name: "Overview", path: "", icon: LayoutDashboard },
@@ -122,6 +124,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             displayName: string
             roleLabel: string
             isStaffUserType?: boolean
+            staffDeactivatedForProperty?: boolean
             staffManagementNavVisible: boolean
             propertySettingsNavVisible: boolean
             operationsModulesNavVisible: boolean
@@ -132,6 +135,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         } = await response.json()
 
         if (cancelled) return
+
+        if (result.success === true && result.data?.staffDeactivatedForProperty === true) {
+          const supabase = createClient()
+          await supabase.auth.signOut()
+          window.location.replace(getStaffDeactivationPublicUrl())
+          return
+        }
 
         if (!response.ok || !result.success || !result.data) {
           setUserDisplayName(null)
@@ -178,7 +188,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [propertyIdFromUrl])
+  }, [propertyIdFromUrl, pathname])
 
   useEffect(() => {
     let isCancelled = false
@@ -525,9 +535,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <Loader2 className="h-12 w-12 animate-spin stroke-[1] text-muted-foreground" />
               </div>
             ) : (
-              <div className="pb-20">
-                {children}
-              </div>
+              <PermissionProvider propertyId={propertyIdFromUrl}>
+                <div className="pb-20">
+                  {children}
+                </div>
+              </PermissionProvider>
             )}
           </div>
         </main>

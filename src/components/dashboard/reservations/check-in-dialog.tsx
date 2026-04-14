@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText, AlertTriangle } from 'lucide-react'
 import {
   AmericanExpressFlatRoundedIcon,
@@ -238,6 +239,15 @@ export function CheckInDialog({
       onOpenChange(false)
       router.refresh()
     } catch (err) {
+      if (isAccessDeniedError(err)) {
+        toast({
+          title: 'Access denied',
+          description: "You don't have permission for this action. Contact your property administrator if you believe this is an error.",
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
+        return
+      }
       console.error('Check-in error:', err)
       toast({
         title: 'Check-in failed',

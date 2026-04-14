@@ -24,6 +24,7 @@ import { AlertCircle, Banknote, CreditCard, DollarSign, FileText, Loader2 } from
 import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 
 interface ManualPaymentDialogProps {
   reservationId: string
@@ -111,6 +112,15 @@ export function ManualPaymentDialog({
       setOpen(false)
       router.refresh()
     } catch (err) {
+      if (isAccessDeniedError(err)) {
+        toast({
+          title: 'Access denied',
+          description: "You don't have permission for this action. Contact your property administrator if you believe this is an error.",
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
+        return
+      }
       console.error("[ManualPaymentDialog] Error recording payment", err)
       toast({
         title: "Payment failed",

@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 import { useRouter } from "next/navigation"
 import { DollarSign } from "lucide-react"
 import {
@@ -217,6 +218,15 @@ export function CancelReservationDialog({
       handleOpenChange(false)
       router.refresh()
     } catch (err) {
+      if (isAccessDeniedError(err)) {
+        toast({
+          title: 'Access denied',
+          description: "You don't have permission for this action. Contact your property administrator if you believe this is an error.",
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
+        return
+      }
       console.error("Cancel reservation error:", err)
       toast({
         title: "Cancellation failed",

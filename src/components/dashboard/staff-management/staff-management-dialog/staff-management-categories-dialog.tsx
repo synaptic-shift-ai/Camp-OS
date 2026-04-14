@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { Plus, Tag, Trash2 } from 'lucide-react'
 
 export type RoleId = 'admin' | 'manager' | 'staff'
@@ -127,6 +128,14 @@ export function StaffManagementCategoriesDialog({
           setByRole(mergeFromDb(categoriesByRole))
         }
       } catch (err: unknown) {
+        if (isAccessDeniedError(err)) {
+          toast({
+            title: 'Access denied',
+            description: "You don't have permission to view categories. Contact your property administrator if you believe this is an error.",
+            variant: 'destructive',
+          })
+          return
+        }
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[StaffManagement] Load categories failed', {
           propertyId,

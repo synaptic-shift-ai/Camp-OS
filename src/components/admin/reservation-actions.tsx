@@ -21,6 +21,7 @@ import { RenewDialog } from "./renew-dialog"
 import { ManualPaymentDialog } from "./manual-payment-dialog"
 import { RefundReservationDialog } from "./refund-reservation-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 import type { RateDiscountsConfig } from "@/lib/config/types"
 import { cn } from "@/lib/utils"
 
@@ -117,6 +118,15 @@ export function ReservationActions({
       })
       router.refresh()
     } catch (err) {
+      if (isAccessDeniedError(err)) {
+        toast({
+          title: 'Access denied',
+          description: "You don't have permission for this action. Contact your property administrator if you believe this is an error.",
+          variant: 'destructive',
+          className: SEASON_ALERT_TOAST_CLASS,
+        })
+        return
+      }
       console.error("Mark no-show error:", err)
       toast({
         title: "Error",

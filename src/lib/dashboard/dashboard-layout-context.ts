@@ -3,7 +3,6 @@ import { resolveUserPropertyAccess } from '@/lib/rbac/resolve-access'
 import {
   canAccessOperationsModules,
   canAccessPropertySettings,
-  canManageStaffRoster,
   canViewFinancials,
   canViewStaffRoster,
   canAccessHousekeepingModule,
@@ -23,6 +22,22 @@ export type DashboardNavVisibility = {
   housekeepingNavVisible: boolean
   /** Maintenance module page */
   maintenanceNavVisible: boolean
+}
+
+export async function isStaffAssignmentInactiveForProperty(
+  supabase: SupabaseClient,
+  propertyId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('property_staff')
+    .select('status')
+    .eq('property_id', propertyId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error || !data?.status) return false
+  return String(data.status).toLowerCase() === 'inactive'
 }
 
 export async function resolveDashboardNavVisibility(

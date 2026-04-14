@@ -341,7 +341,7 @@ export async function calculateReservationPriceEnhanced(
     let nightIdx = 0
     const surchargeStart = new Date(checkInDate + 'T00:00:00')
     const surchargeEnd = new Date(checkOutDate + 'T00:00:00')
-    let cursor = new Date(surchargeStart)
+    const cursor = new Date(surchargeStart)
     while (cursor < surchargeEnd) {
       if (nightIdx >= remainderStartNightIndex) {
         const dateStr = cursor.toISOString().split('T')[0]!

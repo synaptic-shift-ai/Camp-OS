@@ -29,6 +29,12 @@ export default function LoginPage() {
     if (searchParams.get("reset") === "success") {
       setSuccess("Your password has been updated. You can now sign in.")
       router.replace("/login", { scroll: false })
+      return
+    }
+
+    if (searchParams.get("reason") === "staff_deactivated") {
+      setError("Your account is deactivated. Please contact your administrator.")
+      router.replace("/login", { scroll: false })
     }
   }, [searchParams, router])
 
@@ -116,33 +122,36 @@ export default function LoginPage() {
             userType,
           })
 
-          if (userType === 'staff') {
-            const { data: staffAssignment } = await supabase
-              .from('property_staff')
-              .select('property_id')
-              .eq('user_id', user.id)
-              .in('status', ['active', 'pending'])
-              .order('created_at', { ascending: true })
-              .limit(1)
-              .maybeSingle()
+          const { data: staffAssignmentAny } = await supabase
+            .from('property_staff')
+            .select('property_id, status')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
 
-            console.log("[LoginPage] Staff assignment lookup result", {
+          console.log("[LoginPage] Staff assignment lookup result", {
+            userId: user.id,
+            staffPropertyId: staffAssignmentAny?.property_id ?? null,
+            staffStatus: staffAssignmentAny?.status ?? null,
+          })
+
+          if (staffAssignmentAny?.status === 'inactive') {
+            await supabase.auth.signOut()
+            setError("Your account is deactivated. Please contact your administrator.")
+            return
+          }
+
+          if (
+            staffAssignmentAny?.property_id &&
+            (staffAssignmentAny.status === 'active' || staffAssignmentAny.status === 'pending')
+          ) {
+            console.log("[LoginPage] Redirecting staff user to property dashboard", {
               userId: user.id,
-              staffPropertyId: staffAssignment?.property_id ?? null,
+              destination: `/dashboard/${staffAssignmentAny.property_id}`,
+              staffStatus: staffAssignmentAny.status,
             })
-
-            if (staffAssignment?.property_id) {
-              console.log("[LoginPage] Redirecting staff user to property dashboard", {
-                userId: user.id,
-                destination: `/dashboard/${staffAssignment.property_id}`,
-              })
-              router.push(`/dashboard/${staffAssignment.property_id}`)
-            } else {
-              console.warn("[LoginPage] Staff user has no property assignment; falling back to /dashboard", {
-                userId: user.id,
-              })
-              router.push("/dashboard")
-            }
+            router.push(`/dashboard/${staffAssignmentAny.property_id}`)
             router.refresh()
             return
           }

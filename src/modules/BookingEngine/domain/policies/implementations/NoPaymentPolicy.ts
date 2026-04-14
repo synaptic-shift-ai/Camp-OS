@@ -20,7 +20,7 @@ import type {
 export class NoPaymentPolicy implements IConfirmationPolicy {
   readonly policyType = 'no_payment'
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   canConfirm(_context: ConfirmationContext): PolicyResult {
     // No payment requirements - always allow
     return { allowed: true }

@@ -13,6 +13,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { UpdateGuestRequestSchema, type UpdateGuestRequest } from '@/types/api/v1/schemas/guests'
@@ -57,6 +58,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+    const guestActions = await resolveModuleActionAccess({
+      supabase,
+      propertyId: guestDTO.propertyId,
+      userId: user.id,
+      moduleKey: 'guests',
+      actions: ['view'] as const,
+      fallbackForCategory: (role, categoryName) => {
+        if (role === 'owner' || role === 'admin') return { view: true }
+        const normalized = categoryName.trim().toLowerCase()
+        if ((role === 'manager' || role === 'staff') && normalized === 'front desk') return { view: true }
+        return { view: false }
+      },
+    })
+    if (!guestActions.view) {
+      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    }
 
     const { data: guestRow } = await supabase
       .from('guests')
@@ -171,6 +188,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+    const guestActions = await resolveModuleActionAccess({
+      supabase,
+      propertyId: existingGuestDTO.propertyId,
+      userId: user.id,
+      moduleKey: 'guests',
+      actions: ['edit'] as const,
+      fallbackForCategory: (role) => {
+        if (role === 'owner' || role === 'admin') return { edit: true }
+        return { edit: false }
+      },
+    })
+    if (!guestActions.edit) {
+      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    }
 
     // Parse and validate request body
     const body = await request.json()
@@ -268,6 +299,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       minimumRole: 'manager',
     })
     if (isDenied(access)) return access
+    const guestActions = await resolveModuleActionAccess({
+      supabase,
+      propertyId: existingGuestDTO.propertyId,
+      userId: user.id,
+      moduleKey: 'guests',
+      actions: ['delete'] as const,
+      fallbackForCategory: (role) => {
+        if (role === 'owner' || role === 'admin') return { delete: true }
+        return { delete: false }
+      },
+    })
+    if (!guestActions.delete) {
+      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    }
 
     // Fetch property for activity log
     const { data: property } = await supabase

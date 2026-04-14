@@ -22,6 +22,8 @@ interface GuestsPageHeaderProps {
   currentPage: number
   total: number
   searchQuery: string | null
+  canCreateGuest: boolean
+  canExportGuests: boolean
 }
 
 const SEASON_ALERT_TOAST_CLASS =
@@ -34,7 +36,13 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-export function GuestsPageHeader({ propertyId, total, searchQuery }: GuestsPageHeaderProps) {
+export function GuestsPageHeader({
+  propertyId,
+  total,
+  searchQuery,
+  canCreateGuest,
+  canExportGuests,
+}: GuestsPageHeaderProps) {
   const [addGuestOpen, setAddGuestOpen] = useState(false)
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
@@ -121,21 +129,23 @@ export function GuestsPageHeader({ propertyId, total, searchQuery }: GuestsPageH
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <ExportMenu
             onExport={handleExport}
-            disabled={isExporting || total <= 0}
+            disabled={isExporting || total <= 0 || !canExportGuests}
             aria-label="Export guests"
           />
-          <Button
-            className="gap-2"
-            size="sm"
-            onClick={() => setAddGuestOpen(true)}
-            disabled={!propertyId}
-          >
-            <Plus className="h-4 w-4" />
-            Add Guest
-          </Button>
+          {canCreateGuest && (
+            <Button
+              className="gap-2"
+              size="sm"
+              onClick={() => setAddGuestOpen(true)}
+              disabled={!propertyId}
+            >
+              <Plus className="h-4 w-4" />
+              Add Guest
+            </Button>
+          )}
         </div>
       </div>
-      {propertyId && (
+      {propertyId && canCreateGuest && (
         <AddGuestDialog
           open={addGuestOpen}
           onOpenChange={setAddGuestOpen}

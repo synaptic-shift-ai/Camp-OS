@@ -31,6 +31,8 @@ type GuestsTableProps = {
   sortBy: "guest" | "totalStays" | "totalSpent" | "lastVisit"
   sortOrder: "asc" | "desc"
   searchField: "name" | "email"
+  canEditGuest: boolean
+  canDeleteGuest: boolean
 }
 
 export function GuestsTable({
@@ -44,6 +46,8 @@ export function GuestsTable({
   sortBy,
   sortOrder,
   searchField,
+  canEditGuest,
+  canDeleteGuest,
 }: GuestsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -205,6 +209,8 @@ export function GuestsTable({
                     guest={guest}
                     propertyId={propertyId}
                     onViewReservations={handleViewReservations}
+                    canEditGuest={canEditGuest}
+                    canDeleteGuest={canDeleteGuest}
                   />
                 </div>
               </div>
@@ -314,6 +320,8 @@ export function GuestsTable({
                       guest={guest}
                       propertyId={propertyId}
                       onViewReservations={handleViewReservations}
+                      canEditGuest={canEditGuest}
+                      canDeleteGuest={canDeleteGuest}
                     />
                   </TableCell>
                 </TableRow>

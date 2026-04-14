@@ -56,7 +56,12 @@ async function resolveCategoryNames(
 
   if (!data || data.length === 0) return []
 
-  return normaliseCategories(data.map((row) => row.name))
+  const normalizedNames = data.map((row) => {
+    const rawName = typeof row.name === 'string' ? row.name.trim().toLowerCase() : ''
+    return rawName.replace(/[\s-]+/g, '_')
+  })
+
+  return normaliseCategories(normalizedNames)
 }
 
 // ─── Resolver ──────────────────────────────────────────────────────────────────

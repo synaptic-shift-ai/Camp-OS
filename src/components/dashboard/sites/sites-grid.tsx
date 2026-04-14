@@ -67,6 +67,9 @@ type Site = Database['public']['Tables']['sites']['Row']
 interface SitesGridProps {
   sites: Site[]
   propertyPricingConfig?: PropertyPricingConfig | undefined
+  canEditSite: boolean
+  canDeleteSite: boolean
+  canUpdateSiteStatus: boolean
 }
 
 /**
@@ -213,7 +216,13 @@ function formatMoney(cents: number): string {
   }).format(cents / 100)
 }
 
-export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
+export function SitesGrid({
+  sites,
+  propertyPricingConfig,
+  canEditSite,
+  canDeleteSite,
+  canUpdateSiteStatus,
+}: SitesGridProps) {
   const [editingSite, setEditingSite] = useState<Site | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
   const [viewingSite, setViewingSite] = useState<Site | null>(null)
@@ -225,11 +234,13 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
 
   const handleEditClick = (site: Site, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!canEditSite) return
     setEditingSite(site)
   }
 
   const handleDeleteClick = (site: Site, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!canDeleteSite) return
     setDeletingSite(site)
   }
 
@@ -240,6 +251,7 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
 
   const handleStatusChange = async (site: Site, newStatus: SiteStatus, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!canUpdateSiteStatus) return
 
     if (newStatus === 'housekeeping' || newStatus === 'maintenance') {
       setStatusPopoverOpen(null)
@@ -336,60 +348,70 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
                           Mark as Available
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={(e) => handleEditClick(site, e)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Site
-                      </DropdownMenuItem>
+                      {canEditSite && (
+                        <DropdownMenuItem onClick={(e) => handleEditClick(site, e)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Site
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={(e) => handleCalendarClick(site, e)}>
                         <Calendar className="mr-2 h-4 w-4" />
                         View Calendar
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => handleDeleteClick(site, e)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Site
-                      </DropdownMenuItem>
+                      {canDeleteSite && <DropdownMenuSeparator />}
+                      {canDeleteSite && (
+                        <DropdownMenuItem
+                          onClick={(e) => handleDeleteClick(site, e)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Site
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Popover
-                    open={statusPopoverOpen === site.id}
-                    onOpenChange={(open) => setStatusPopoverOpen(open ? site.id : null)}
-                  >
-                    <PopoverTrigger asChild>
-                      <Badge
-                        variant="outline"
-                        className={`${statusColors[site.status as SiteStatus]} cursor-pointer hover:scale-105 transition-transform`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {site.status}
-                      </Badge>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-48 p-2" onClick={(e) => e.stopPropagation()}>
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-muted-foreground mb-2 px-2">
-                          Change Status
-                        </p>
-                        {(['available', 'reserved', 'booked', 'occupied', 'housekeeping', 'maintenance', 'unavailable'] as SiteStatus[]).map((status) => (
-                          <Button
-                            key={status}
-                            variant="ghost"
-                            size="sm"
-                            className={`w-full justify-start ${statusColors[status]}`}
-                            onClick={(e) => handleStatusChange(site, status, e)}
-                          >
-                            {status.charAt(0).toUpperCase() + status.slice(1)}
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  {canUpdateSiteStatus ? (
+                    <Popover
+                      open={statusPopoverOpen === site.id}
+                      onOpenChange={(open) => setStatusPopoverOpen(open ? site.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className={`${statusColors[site.status as SiteStatus]} cursor-pointer hover:scale-105 transition-transform`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {site.status}
+                        </Badge>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-2 px-2">
+                            Change Status
+                          </p>
+                          {(['available', 'reserved', 'booked', 'occupied', 'housekeeping', 'maintenance', 'unavailable'] as SiteStatus[]).map((status) => (
+                            <Button
+                              key={status}
+                              variant="ghost"
+                              size="sm"
+                              className={`w-full justify-start ${statusColors[status]}`}
+                              onClick={(e) => handleStatusChange(site, status, e)}
+                            >
+                              {status.charAt(0).toUpperCase() + status.slice(1)}
+                            </Button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Badge variant="outline" className={statusColors[site.status as SiteStatus]}>
+                      {site.status}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="capitalize">
                     {site.site_type}
                   </Badge>
@@ -500,6 +522,7 @@ export function SitesGrid({ sites, propertyPricingConfig }: SitesGridProps) {
           open={!!viewingSite}
           onOpenChange={(open) => !open && setViewingSite(null)}
           site={viewingSite}
+          canEditSite={canEditSite}
         />
       )}
 

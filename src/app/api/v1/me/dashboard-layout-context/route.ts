@@ -3,6 +3,10 @@ import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import {
+  DASHBOARD_NAV_MODULES,
+  type DashboardNavModuleKey,
+} from '@/lib/dashboard/dashboard-nav-modules'
+import {
   isStaffAssignmentInactiveForProperty,
   resolveDashboardNavVisibility,
   resolveDashboardUserLabels,
@@ -30,6 +34,9 @@ export async function GET(request: NextRequest) {
     let financialNavVisible = true
     let housekeepingNavVisible = false
     let maintenanceNavVisible = false
+    let moduleNavVisible = Object.fromEntries(
+      DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false]),
+    ) as Record<DashboardNavModuleKey, boolean>
 
     let staffDeactivatedForProperty = false
 
@@ -47,6 +54,7 @@ export async function GET(request: NextRequest) {
       financialNavVisible = nav.financialNavVisible
       housekeepingNavVisible = nav.housekeepingNavVisible
       maintenanceNavVisible = nav.maintenanceNavVisible
+      moduleNavVisible = nav.moduleNavVisible
     }
 
     return success({
@@ -58,6 +66,7 @@ export async function GET(request: NextRequest) {
       financialNavVisible,
       housekeepingNavVisible,
       maintenanceNavVisible,
+      moduleNavVisible,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

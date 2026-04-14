@@ -28,6 +28,7 @@ interface SiteDetailsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   site: Site
+  canEditSite: boolean
 }
 
 const statusColors: Record<SiteStatus, string> = {
@@ -49,7 +50,7 @@ const siteTypeLabels: Record<string, string> = {
   other: 'Other',
 }
 
-export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialogProps) {
+export function SiteDetailsDialog({ open, onOpenChange, site, canEditSite }: SiteDetailsDialogProps) {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [propertyAmenities, setPropertyAmenities] = useState<Array<{ id: string; name: string }> | null>(null)
   const legacyAmenityKeyToLabel: Record<string, string> = useMemo(
@@ -160,14 +161,16 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
                   {siteTypeLabels[siteType]} • {site.site_name || 'Unnamed Site'}
                 </DialogDescription>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowEditDialog(true)}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
+              {canEditSite && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowEditDialog(true)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              )}
             </div>
           </DialogHeader>
 
@@ -276,7 +279,7 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
       </Dialog>
 
       {/* Edit Dialog */}
-      {showEditDialog && (
+      {showEditDialog && canEditSite && (
         <EditSiteDialog
           open={showEditDialog}
           onOpenChange={(open) => {

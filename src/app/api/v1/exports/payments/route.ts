@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server"
 import { success, error } from "@/lib/api/response"
 import { ErrorCodes } from "@/lib/api/errors"
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
 import { getPayments } from "@/lib/dashboard/queries"
 
 type ExportPaymentsBody = {
@@ -47,6 +48,26 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(error(ErrorCodes.AUTH_001), { status: 401 })
+    }
+    const paymentActions = await resolveModuleActionAccess({
+      supabase,
+      propertyId,
+      userId: user.id,
+      moduleKey: "payments",
+      actions: ["export"] as const,
+      fallbackForCategory: (role) => {
+        if (role === "owner" || role === "admin") return { export: true }
+        return { export: false }
+      },
+    })
+    if (!paymentActions.export) {
+      return NextResponse.json(error(ErrorCodes.AUTH_002, "Access denied"), { status: 403 })
+    }
     try {
       await assertUserHasPropertyAccess(supabase, (await supabase.auth.getUser()).data!.user!.id, propertyId)
     } catch (authErr) {

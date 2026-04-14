@@ -2,7 +2,8 @@ import { Suspense } from "react"
 import { WizardContainer } from "@/components/dashboard/setup-wizard/wizard-container"
 import { createClient } from "@/lib/supabase/server"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { resolveUserPropertyAccess } from "@/lib/rbac/resolve-access"
 import { redirect } from "next/navigation"
 import { SitesPageHeader } from "@/components/dashboard/sites/sites-page-header"
 import { SitesContent } from "@/components/dashboard/sites/sites-content"
@@ -42,11 +43,141 @@ export type PropertyPricingConfig = {
   siteTypeConfig?: { site_type_rates?: SiteTypeRatesConfig } | null
 }
 
+type UiRole = 'owner' | 'admin' | 'manager' | 'staff'
+
+type SitesActionPermissions = {
+  view: boolean
+  create: boolean
+  edit: boolean
+  delete: boolean
+}
+
 const TYPE_LABELS: Record<string, string> = {
   nightly: 'Nightly',
   weekly: 'Weekly',
   monthly: 'Monthly',
   seasonal: 'Seasonal',
+}
+
+function toUiRole(rawRole: string | null): UiRole {
+  const normalized = (rawRole ?? '').toLowerCase()
+  if (normalized === 'owner') return 'owner'
+  if (normalized === 'admin' || normalized === 'property_admin') return 'admin'
+  if (normalized === 'manager') return 'manager'
+  return 'staff'
+}
+
+function normalizeAccessPayload(
+  raw: unknown,
+): { moduleAccessControl?: Record<string, Record<string, boolean>> } | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const maybe = raw as { moduleAccessControl?: unknown }
+  if (
+    !maybe.moduleAccessControl ||
+    typeof maybe.moduleAccessControl !== 'object' ||
+    Array.isArray(maybe.moduleAccessControl)
+  ) {
+    return null
+  }
+  return { moduleAccessControl: maybe.moduleAccessControl as Record<string, Record<string, boolean>> }
+}
+
+function fallbackSitesPermissionsForCategory(role: UiRole, categoryName: string): SitesActionPermissions {
+  if (role === 'owner' || role === 'admin') {
+    return { view: true, create: true, edit: true, delete: true }
+  }
+
+  const category = categoryName.trim().toLowerCase()
+  if (role === 'manager' && (category === 'front desk' || category === 'housekeeping' || category === 'maintenance')) {
+    return { view: true, create: false, edit: false, delete: false }
+  }
+
+  return { view: false, create: false, edit: false, delete: false }
+}
+
+async function resolveSitesActionPermissions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  userId: string,
+): Promise<SitesActionPermissions> {
+  const resolvedAccess = await resolveUserPropertyAccess(supabase, propertyId, userId)
+  if (resolvedAccess?.isOwner) {
+    return { view: true, create: true, edit: true, delete: true }
+  }
+
+  const { data: staffAssignment } = await supabase
+    .from('property_staff')
+    .select('role, role_category_id')
+    .eq('property_id', propertyId)
+    .eq('user_id', userId)
+    .in('status', ['active', 'pending'])
+    .maybeSingle()
+
+  // Fallback: if no explicit staff-role assignment exists, keep elevated users fully enabled.
+  if (!staffAssignment?.role && resolvedAccess?.isElevated) {
+    return { view: true, create: true, edit: true, delete: true }
+  }
+
+  const role = toUiRole(typeof staffAssignment?.role === 'string' ? staffAssignment.role : null)
+  if (role === 'owner') {
+    return { view: true, create: true, edit: true, delete: true }
+  }
+
+  const categoryIds = staffAssignment?.role_category_id ?? []
+  if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+    if (role === 'admin') {
+      // Admin fallback when no category rows are assigned.
+      return { view: true, create: true, edit: true, delete: true }
+    }
+    return { view: false, create: false, edit: false, delete: false }
+  }
+
+  const { data: categoryRows } = await supabase
+    .from('property_role_categories')
+    .select('name, access')
+    .eq('property_id', propertyId)
+    .eq('role', role)
+    .in('id', categoryIds)
+
+  const resolved: SitesActionPermissions = { view: false, create: false, edit: false, delete: false }
+  const rows = categoryRows ?? []
+  const hasExplicitSitesAccess = rows.some((row) => {
+    const access = normalizeAccessPayload(row.access)
+    return Boolean(access?.moduleAccessControl?.sites)
+  })
+
+  if (rows.length === 0) {
+    if (role === 'admin') {
+      // Admin fallback when assigned categories could not be resolved.
+      return { view: true, create: true, edit: true, delete: true }
+    }
+    return resolved
+  }
+
+  // If at least one category has explicit sites access config, honor explicit
+  // entries only so "false" toggles are not overridden by fallback defaults.
+  if (hasExplicitSitesAccess) {
+    for (const row of rows) {
+      const access = normalizeAccessPayload(row.access)
+      const sitesAccess = access?.moduleAccessControl?.sites
+      if (!sitesAccess) continue
+      resolved.view = resolved.view || sitesAccess.view === true
+      resolved.create = resolved.create || sitesAccess.create === true
+      resolved.edit = resolved.edit || sitesAccess.edit === true
+      resolved.delete = resolved.delete || sitesAccess.delete === true
+    }
+    return resolved
+  }
+
+  for (const row of rows) {
+    const fallback = fallbackSitesPermissionsForCategory(role, row.name ?? '')
+    resolved.view = resolved.view || fallback.view
+    resolved.create = resolved.create || fallback.create
+    resolved.edit = resolved.edit || fallback.edit
+    resolved.delete = resolved.delete || fallback.delete
+  }
+
+  return resolved
 }
 
 async function getPropertyWithPricing(propertyId: string): Promise<{
@@ -93,7 +224,19 @@ async function getPropertyWithPricing(propertyId: string): Promise<{
   }
 }
 
-async function SitesView({ propertyId }: { propertyId: string }) {
+async function SitesView({
+  propertyId,
+  canCreateSite,
+  canEditSite,
+  canDeleteSite,
+  canUpdateSiteStatus,
+}: {
+  propertyId: string
+  canCreateSite: boolean
+  canEditSite: boolean
+  canDeleteSite: boolean
+  canUpdateSiteStatus: boolean
+}) {
   const property = await getPropertyWithPricing(propertyId)
 
   if (!property) {
@@ -116,7 +259,7 @@ async function SitesView({ propertyId }: { propertyId: string }) {
   if (!sites || sites.length === 0) {
     return (
       <>
-        <SitesPageHeader propertyId={property.id} sites={[]} />
+        <SitesPageHeader propertyId={property.id} sites={[]} canCreateSite={canCreateSite} />
         <div className="text-center py-12">
           <p className="text-muted-foreground">No sites yet. Add your first site!</p>
         </div>
@@ -137,8 +280,18 @@ async function SitesView({ propertyId }: { propertyId: string }) {
   // Pass sites and property pricing config to client component
   return (
     <div className="space-y-4 sm:space-y-6">
-      <SitesPageHeader propertyId={property.id} sites={sitesForDisplay} />
-      <SitesContent sites={sitesForDisplay} propertyPricingConfig={property.pricingConfig} />
+      <SitesPageHeader
+        propertyId={property.id}
+        sites={sitesForDisplay}
+        canCreateSite={canCreateSite}
+      />
+      <SitesContent
+        sites={sitesForDisplay}
+        propertyPricingConfig={property.pricingConfig}
+        canEditSite={canEditSite}
+        canDeleteSite={canDeleteSite}
+        canUpdateSiteStatus={canUpdateSiteStatus}
+      />
     </div>
   )
 }
@@ -161,7 +314,11 @@ export default async function SitesPage({ params, searchParams }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
-  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible.sites) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
+  const sitePermissions = await resolveSitesActionPermissions(supabase, propertyId, user.id)
 
   if (isWizardMode) {
     return <WizardContainer initialPropertyId={propertyId} />
@@ -193,7 +350,13 @@ export default async function SitesPage({ params, searchParams }: PageProps) {
           </div>
         }
       >
-        <SitesView propertyId={propertyId} />
+        <SitesView
+          propertyId={propertyId}
+          canCreateSite={sitePermissions.create}
+          canEditSite={sitePermissions.edit}
+          canDeleteSite={sitePermissions.delete}
+          canUpdateSiteStatus={sitePermissions.edit}
+        />
       </Suspense>
     </div>
   )

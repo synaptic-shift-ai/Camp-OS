@@ -66,6 +66,7 @@ const NAV_ITEM_ICONS = {
 } satisfies Record<DashboardNavModuleKey, LucideIcon>
 
 const NAV_ITEMS = DASHBOARD_NAV_MODULES.map((m) => ({
+  key: m.key,
   name: m.name,
   path: m.path,
   icon: NAV_ITEM_ICONS[m.key],
@@ -98,6 +99,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [financialNavVisible, setFinancialNavVisible] = useState(false)
   const [housekeepingNavVisible, setHousekeepingNavVisible] = useState(false)
   const [maintenanceNavVisible, setMaintenanceNavVisible] = useState(false)
+  const [moduleNavVisible, setModuleNavVisible] = useState<Record<DashboardNavModuleKey, boolean>>(
+    Object.fromEntries(DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false])) as Record<
+      DashboardNavModuleKey,
+      boolean
+    >,
+  )
   const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
   const companyId = selectedProperty?.companyId ?? null
   const dashboardTitle = isLoading ? "Loading..." : companyName
@@ -139,6 +146,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             financialNavVisible?: boolean
             housekeepingNavVisible?: boolean
             maintenanceNavVisible?: boolean
+            moduleNavVisible?: Partial<Record<DashboardNavModuleKey, boolean>>
           }
         } = await response.json()
 
@@ -161,6 +169,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           setFinancialNavVisible(false)
           setHousekeepingNavVisible(false)
           setMaintenanceNavVisible(false)
+          setModuleNavVisible(
+            Object.fromEntries(DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false])) as Record<
+              DashboardNavModuleKey,
+              boolean
+            >,
+          )
           return
         }
 
@@ -174,6 +188,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         setFinancialNavVisible(d.financialNavVisible ?? true)
         setHousekeepingNavVisible(d.housekeepingNavVisible ?? false)
         setMaintenanceNavVisible(d.maintenanceNavVisible ?? false)
+        setModuleNavVisible({
+          ...Object.fromEntries(DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false])),
+          ...(d.moduleNavVisible ?? {}),
+        } as Record<DashboardNavModuleKey, boolean>)
       } catch {
         if (!cancelled) {
           setUserDisplayName(null)
@@ -185,6 +203,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           setFinancialNavVisible(false)
           setHousekeepingNavVisible(false)
           setMaintenanceNavVisible(false)
+          setModuleNavVisible(
+            Object.fromEntries(DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false])) as Record<
+              DashboardNavModuleKey,
+              boolean
+            >,
+          )
         }
       } finally {
         if (!cancelled) {
@@ -278,9 +302,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const navItemsForUser = NAV_ITEMS.filter((item) => {
     if (isUserLoading) return false
+    if (moduleNavVisible[item.key] === false) return false
     if (item.path === "/staff-management" && !staffManagementNavVisible) return false
     if (item.path === "/settings" && !propertySettingsNavVisible) return false
-    if (!operationsModulesNavVisible && DASHBOARD_OPERATIONS_MODULE_PATHS.has(item.path)) return false
+    if (
+      !operationsModulesNavVisible &&
+      DASHBOARD_OPERATIONS_MODULE_PATHS.has(item.path) &&
+      moduleNavVisible[item.key] !== true
+    ) {
+      return false
+    }
     if (item.path === "/payments" && !financialNavVisible) return false
     if (item.path === "/housekeeping" && !housekeepingNavVisible) return false
     if (item.path === "/maintenance" && !maintenanceNavVisible) return false

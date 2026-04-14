@@ -4,7 +4,7 @@ import AuditingTable from "@/components/dashboard/auditing/auditing-table"
 import { createClient } from "@/lib/supabase/server"
 import { getPropertyActivityLogs } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
 import { redirect } from "next/navigation"
 
 type pageProps = {
@@ -38,7 +38,10 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
         data: { user },
     } = await supabase.auth.getUser()
     if (!user) redirect("/auth/login")
-    await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+    const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+    if (!navVisibility.moduleNavVisible.auditing) {
+        redirect(`/dashboard/${propertyId}/access-denied`)
+    }
 
     const sp = await searchParams
 

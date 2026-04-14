@@ -11,6 +11,7 @@ type PaymentsPageHeaderProps = {
   payments: DashboardPayment[]
   currentPage: number
   total: number
+  canExportPayments: boolean
 }
 
 function formatMoney(cents: number): string {
@@ -28,7 +29,7 @@ function formatDate(dateString: string): string {
   })
 }
 
-export function PaymentsPageHeader({ propertyId, total }: PaymentsPageHeaderProps) {
+export function PaymentsPageHeader({ propertyId, total, canExportPayments }: PaymentsPageHeaderProps) {
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
 
@@ -101,7 +102,7 @@ export function PaymentsPageHeader({ propertyId, total }: PaymentsPageHeaderProp
       <div className="self-end sm:self-auto">
         <ExportMenu
           onExport={handleExport}
-          disabled={isExporting || total <= 0}
+          disabled={isExporting || total <= 0 || !canExportPayments}
           aria-label="Export payments"
         />
       </div>

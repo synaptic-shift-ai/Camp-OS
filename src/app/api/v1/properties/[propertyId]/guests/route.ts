@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import {
   CreateGuestRequestSchema,
   ListGuestsQuerySchema,
@@ -59,6 +60,22 @@ export async function GET(
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+    const guestActions = await resolveModuleActionAccess({
+      supabase,
+      propertyId,
+      userId: user.id,
+      moduleKey: 'guests',
+      actions: ['view'] as const,
+      fallbackForCategory: (role, categoryName) => {
+        if (role === 'owner' || role === 'admin') return { view: true }
+        const normalized = categoryName.trim().toLowerCase()
+        if ((role === 'manager' || role === 'staff') && normalized === 'front desk') return { view: true }
+        return { view: false }
+      },
+    })
+    if (!guestActions.view) {
+      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    }
 
     // Parse query parameters
     const { searchParams } = new URL(request.url)
@@ -165,6 +182,20 @@ export async function POST(
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+    const guestActions = await resolveModuleActionAccess({
+      supabase,
+      propertyId,
+      userId: user.id,
+      moduleKey: 'guests',
+      actions: ['create'] as const,
+      fallbackForCategory: (role) => {
+        if (role === 'owner' || role === 'admin') return { create: true }
+        return { create: false }
+      },
+    })
+    if (!guestActions.create) {
+      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    }
 
     // Parse and validate request body
     const body = await request.json()

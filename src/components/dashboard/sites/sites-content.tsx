@@ -18,9 +18,18 @@ type Site = Database['public']['Tables']['sites']['Row']
 interface SitesContentProps {
   sites: Site[]
   propertyPricingConfig?: PropertyPricingConfig | undefined
+  canEditSite: boolean
+  canDeleteSite: boolean
+  canUpdateSiteStatus: boolean
 }
 
-export function SitesContent({ sites, propertyPricingConfig }: SitesContentProps) {
+export function SitesContent({
+  sites,
+  propertyPricingConfig,
+  canEditSite,
+  canDeleteSite,
+  canUpdateSiteStatus,
+}: SitesContentProps) {
   const [activeFilter, setActiveFilter] = useState<SiteStatus>('all')
 
   // Calculate stats from sites
@@ -74,6 +83,9 @@ export function SitesContent({ sites, propertyPricingConfig }: SitesContentProps
         sites={filteredSites}
         totalSitesByType={totalSitesByType}
         propertyPricingConfig={propertyPricingConfig}
+        canEditSite={canEditSite}
+        canDeleteSite={canDeleteSite}
+        canUpdateSiteStatus={canUpdateSiteStatus}
       />
     </div>
   )

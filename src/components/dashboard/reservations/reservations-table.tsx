@@ -73,6 +73,11 @@ type ReservationsTableProps = {
   bookingRulesConfig?: BookingRulesConfig | null | undefined
   checkInTime?: string | null
   checkOutTime?: string | null
+  canCreateReservation: boolean
+  canModifyReservation: boolean
+  canCheckInReservation: boolean
+  canCheckOutReservation: boolean
+  canCancelReservation: boolean
 }
 
 export function ReservationsTable({
@@ -91,6 +96,11 @@ export function ReservationsTable({
   bookingRulesConfig,
   checkInTime,
   checkOutTime,
+  canCreateReservation,
+  canModifyReservation,
+  canCheckInReservation,
+  canCheckOutReservation,
+  canCancelReservation,
 }: ReservationsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -249,12 +259,14 @@ export function ReservationsTable({
           <p className="mx-auto mt-3 max-w-xl text-base text-muted-foreground">
             Once guests book a stay, their reservation details will appear here.
           </p>
-          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button size="lg" onClick={() => router.push(`/dashboard/${propertyId}/reservations/new`)}>
-              <CalendarPlus2 className="mr-2 h-4 w-4" />
-              Create reservation
-            </Button>
-          </div>
+          {canCreateReservation && (
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button size="lg" onClick={() => router.push(`/dashboard/${propertyId}/reservations/new`)}>
+                <CalendarPlus2 className="mr-2 h-4 w-4" />
+                Create reservation
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -346,6 +358,10 @@ export function ReservationsTable({
                         allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
                         checkInTime={checkInTime}
                         checkOutTime={checkOutTime}
+                        canModify={canModifyReservation}
+                        canCheckIn={canCheckInReservation}
+                        canCheckOut={canCheckOutReservation}
+                        canCancel={canCancelReservation}
                       />
                     </div>
                   </div>
@@ -575,6 +591,10 @@ export function ReservationsTable({
                         allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
                         checkInTime={checkInTime}
                         checkOutTime={checkOutTime}
+                        canModify={canModifyReservation}
+                        canCheckIn={canCheckInReservation}
+                        canCheckOut={canCheckOutReservation}
+                        canCancel={canCancelReservation}
                       />
                     </TableCell>
                   </TableRow>
@@ -621,6 +641,10 @@ export function ReservationsTable({
         }}
         reservation={selectedReservation}
         onPrimaryGuestClick={(guest) => setGuestSheetGuest(guest)}
+        canModify={canModifyReservation}
+        canCheckIn={canCheckInReservation}
+        canCheckOut={canCheckOutReservation}
+        canCancel={canCancelReservation}
       />
 
       {guestSheetGuest && (

@@ -5,7 +5,8 @@ import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tab
 import { DollarSign, TrendingUp, Users, Calendar } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
 import { redirect } from "next/navigation"
 import {
   getDashboardStats,
@@ -442,7 +443,24 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps)
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
-  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible.analytics) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
+  const analyticsActions = await resolveModuleActionAccess({
+    supabase,
+    propertyId,
+    userId: user.id,
+    moduleKey: "analytics",
+    actions: ["view"] as const,
+    fallbackForCategory: (role) => {
+      if (role === "owner" || role === "admin") return { view: true }
+      return { view: false }
+    },
+  })
+  if (!analyticsActions.view) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
 
   const search = await searchParams
   const dateRange = search.range

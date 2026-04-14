@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { getReservations, getDistinctSiteTypes, getSites } from "@/lib/dashboard/queries"
 import type { ReservationFilters } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { resolveUserPropertyAccess } from "@/lib/rbac/resolve-access"
 import type { BookingRulesConfig, RateDiscountsConfig } from "@/lib/config/types"
 import type { ReservationStatus } from "@/contracts/booking"
 import { redirect } from "next/navigation"
@@ -11,7 +12,6 @@ import { ReservationsTimeline } from "@/components/dashboard/reservations/timeli
 import { ReservationsViewSwitcher } from "@/components/dashboard/reservations/reservations-view-switcher"
 import { ReservationsPageHeader } from "@/components/dashboard/reservations/reservations-page-header"
 import { ReservationFilters as ReservationFiltersBar } from "@/components/dashboard/reservations/reservation-filters"
-import { LayoutGrid, List } from "lucide-react"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -29,6 +29,151 @@ type PageProps = {
     periodStart?: string
     periodEnd?: string
   }>
+}
+
+type UiRole = 'owner' | 'admin' | 'manager' | 'staff'
+
+type ReservationActionPermissions = {
+  view: boolean
+  create: boolean
+  modify: boolean
+  checkIn: boolean
+  checkOut: boolean
+  cancel: boolean
+}
+
+function toUiRole(rawRole: string | null): UiRole {
+  const normalized = (rawRole ?? '').toLowerCase()
+  if (normalized === 'owner') return 'owner'
+  if (normalized === 'admin' || normalized === 'property_admin') return 'admin'
+  if (normalized === 'manager') return 'manager'
+  return 'staff'
+}
+
+function normalizeAccessPayload(
+  raw: unknown,
+): { moduleAccessControl?: Record<string, Record<string, boolean>> } | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const maybe = raw as { moduleAccessControl?: unknown }
+  if (
+    !maybe.moduleAccessControl ||
+    typeof maybe.moduleAccessControl !== 'object' ||
+    Array.isArray(maybe.moduleAccessControl)
+  ) {
+    return null
+  }
+  return { moduleAccessControl: maybe.moduleAccessControl as Record<string, Record<string, boolean>> }
+}
+
+function fallbackReservationsPermissionsForCategory(
+  role: UiRole,
+  categoryName: string,
+): ReservationActionPermissions {
+  if (role === 'owner' || role === 'admin') {
+    return { view: true, create: true, modify: true, checkIn: true, checkOut: true, cancel: true }
+  }
+
+  const category = categoryName.trim().toLowerCase()
+  if (role === 'manager' && category === 'front desk') {
+    return { view: true, create: false, modify: false, checkIn: true, checkOut: true, cancel: false }
+  }
+  if (role === 'staff' && category === 'front desk') {
+    return { view: true, create: false, modify: false, checkIn: true, checkOut: true, cancel: false }
+  }
+
+  return { view: false, create: false, modify: false, checkIn: false, checkOut: false, cancel: false }
+}
+
+async function resolveReservationActionPermissions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  userId: string,
+): Promise<ReservationActionPermissions> {
+  const resolvedAccess = await resolveUserPropertyAccess(supabase, propertyId, userId)
+  if (resolvedAccess?.isOwner) {
+    return { view: true, create: true, modify: true, checkIn: true, checkOut: true, cancel: true }
+  }
+
+  const { data: staffAssignment } = await supabase
+    .from('property_staff')
+    .select('role, role_category_id')
+    .eq('property_id', propertyId)
+    .eq('user_id', userId)
+    .in('status', ['active', 'pending'])
+    .maybeSingle()
+
+  if (!staffAssignment?.role && resolvedAccess?.isElevated) {
+    return { view: true, create: true, modify: true, checkIn: true, checkOut: true, cancel: true }
+  }
+
+  const role = toUiRole(typeof staffAssignment?.role === 'string' ? staffAssignment.role : null)
+  if (role === 'owner') {
+    return { view: true, create: true, modify: true, checkIn: true, checkOut: true, cancel: true }
+  }
+
+  const categoryIds = staffAssignment?.role_category_id ?? []
+  if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+    if (role === 'admin') {
+      return { view: true, create: true, modify: true, checkIn: true, checkOut: true, cancel: true }
+    }
+    return { view: false, create: false, modify: false, checkIn: false, checkOut: false, cancel: false }
+  }
+
+  const { data: categoryRows } = await supabase
+    .from('property_role_categories')
+    .select('name, access')
+    .eq('property_id', propertyId)
+    .eq('role', role)
+    .in('id', categoryIds)
+
+  const rows = categoryRows ?? []
+  const resolved: ReservationActionPermissions = {
+    view: false,
+    create: false,
+    modify: false,
+    checkIn: false,
+    checkOut: false,
+    cancel: false,
+  }
+
+  if (rows.length === 0) {
+    if (role === 'admin') {
+      return { view: true, create: true, modify: true, checkIn: true, checkOut: true, cancel: true }
+    }
+    return resolved
+  }
+
+  const hasExplicitReservationsAccess = rows.some((row) => {
+    const access = normalizeAccessPayload(row.access)
+    return Boolean(access?.moduleAccessControl?.reservations)
+  })
+
+  if (hasExplicitReservationsAccess) {
+    for (const row of rows) {
+      const access = normalizeAccessPayload(row.access)
+      const reservationAccess = access?.moduleAccessControl?.reservations
+      if (!reservationAccess) continue
+      resolved.view = resolved.view || reservationAccess.view === true
+      resolved.create = resolved.create || reservationAccess.create === true
+      resolved.modify = resolved.modify || reservationAccess.modify === true
+      resolved.checkIn = resolved.checkIn || reservationAccess['check-in'] === true
+      resolved.checkOut = resolved.checkOut || reservationAccess['check-out'] === true
+      resolved.cancel = resolved.cancel || reservationAccess.cancel === true
+    }
+    return resolved
+  }
+
+  for (const row of rows) {
+    const fallback = fallbackReservationsPermissionsForCategory(role, row.name ?? '')
+    resolved.view = resolved.view || fallback.view
+    resolved.create = resolved.create || fallback.create
+    resolved.modify = resolved.modify || fallback.modify
+    resolved.checkIn = resolved.checkIn || fallback.checkIn
+    resolved.checkOut = resolved.checkOut || fallback.checkOut
+    resolved.cancel = resolved.cancel || fallback.cancel
+  }
+
+  return resolved
 }
 
 export default async function ReservationsPage({ params, searchParams }: PageProps) {
@@ -57,7 +202,11 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
-  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible.reservations) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
+  const reservationPermissions = await resolveReservationActionPermissions(supabase, propertyId, user.id)
 
   const rawSiteTypeConfig = (property as { site_type_config?: { allowed_site_types?: string[] } } | null)?.site_type_config ?? null
   const allowedSiteTypes =
@@ -251,6 +400,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
         currentPage={currentPage}
         total={total}
         siteType={siteTypeFilter ?? null}
+        canCreateReservation={reservationPermissions.create}
       />
 
       <div className="space-y-2">
@@ -305,6 +455,11 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
             bookingRulesConfig={property.booking_rules_config as BookingRulesConfig | null}
             checkInTime={property.check_in_time}
             checkOutTime={property.check_out_time}
+            canCreateReservation={reservationPermissions.create}
+            canModifyReservation={reservationPermissions.modify}
+            canCheckInReservation={reservationPermissions.checkIn}
+            canCheckOutReservation={reservationPermissions.checkOut}
+            canCancelReservation={reservationPermissions.cancel}
           />
         )}
       </div>

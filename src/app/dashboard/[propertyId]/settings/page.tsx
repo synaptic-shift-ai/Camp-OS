@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { resolveDashboardAccess, canAccessPropertySettings } from "@/lib/rbac/dashboard-guards"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
 import { TabsContent } from "@/components/ui/tabs"
 import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tabs"
 import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
@@ -70,8 +71,22 @@ export default async function SettingsPage({ params }: PageProps) {
     redirect("/auth/login")
   }
 
-  const access = await resolveDashboardAccess(supabase, propertyId, user.id)
-  if (!access || !canAccessPropertySettings(access)) {
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible.settings) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
+  const settingsActions = await resolveModuleActionAccess({
+    supabase,
+    propertyId,
+    userId: user.id,
+    moduleKey: "settings",
+    actions: ["view", "edit"] as const,
+    fallbackForCategory: (role) => {
+      if (role === "owner" || role === "admin") return { view: true, edit: true }
+      return { view: false, edit: false }
+    },
+  })
+  if (!settingsActions.view) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 

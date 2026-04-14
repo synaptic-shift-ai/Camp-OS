@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { createClient } from "@/lib/supabase/server"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
 import { AccountSettingsTabs } from "@/components/dashboard/account/account-settings-tabs"
 
 type PageProps = { params: Promise<{ propertyId: string }> }
@@ -14,6 +16,20 @@ export default async function AccountPage({ params }: PageProps) {
 
   if (!property.company_id) {
     redirect(`/dashboard/${propertyId}`)
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.accountProfileNavVisible) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
   return (

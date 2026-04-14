@@ -1,6 +1,12 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { resolveUserPropertyAccess } from '@/lib/rbac/resolve-access'
 import {
+  DASHBOARD_NAV_MODULES,
+  DASHBOARD_ROLE_ACCESS_MODULES,
+  type DashboardNavModuleKey,
+  type RoleAccessControlModuleKey,
+} from '@/lib/dashboard/dashboard-nav-modules'
+import {
   canAccessOperationsModules,
   canAccessPropertySettings,
   canViewFinancials,
@@ -8,6 +14,7 @@ import {
   canAccessHousekeepingModule,
   canAccessMaintenanceModule,
 } from '@/lib/rbac/dashboard-guards'
+import type { UiRole } from '@/lib/dashboard/staff-management-queries'
 
 export type DashboardNavVisibility = {
   /** Operations modules (reservations, sites, guests, auditing, analytics) */
@@ -22,6 +29,145 @@ export type DashboardNavVisibility = {
   housekeepingNavVisible: boolean
   /** Maintenance module page */
   maintenanceNavVisible: boolean
+  /** Account profile page visibility */
+  accountProfileNavVisible: boolean
+  /** Per-module nav visibility for sidebar rendering */
+  moduleNavVisible: Record<DashboardNavModuleKey, boolean>
+}
+
+type RoleCategoryAccessPayload = {
+  moduleAccessControl?: Record<string, Record<string, boolean>>
+} | null
+
+function toUiRole(rawRole: string | null): UiRole {
+  const normalized = (rawRole ?? '').toLowerCase()
+  if (normalized === 'owner') return 'owner'
+  if (normalized === 'admin' || normalized === 'property_admin') return 'admin'
+  if (normalized === 'manager') return 'manager'
+  return 'staff'
+}
+
+function fallbackModuleViewForRoleCategory(
+  role: UiRole,
+  categoryName: string,
+  moduleKey: RoleAccessControlModuleKey,
+): boolean {
+  const category = categoryName.trim().toLowerCase()
+
+  if (role === 'owner' || role === 'admin') return true
+
+  if (role === 'manager' && category === 'front desk') {
+    return (
+      moduleKey === 'overview' ||
+      moduleKey === 'staff-management' ||
+      moduleKey === 'reservations' ||
+      moduleKey === 'sites' ||
+      moduleKey === 'guests'
+    )
+  }
+  if (role === 'manager' && category === 'housekeeping') {
+    return (
+      moduleKey === 'overview' ||
+      moduleKey === 'staff-management' ||
+      moduleKey === 'sites' ||
+      moduleKey === 'housekeeping'
+    )
+  }
+  if (role === 'manager' && category === 'maintenance') {
+    return (
+      moduleKey === 'overview' ||
+      moduleKey === 'staff-management' ||
+      moduleKey === 'sites' ||
+      moduleKey === 'maintenance'
+    )
+  }
+
+  if (role === 'staff' && category === 'front desk') {
+    return moduleKey === 'overview'
+  }
+
+  if (role === 'staff' && category === 'housekeeping') {
+    return moduleKey === 'overview' || moduleKey === 'housekeeping'
+  }
+  if (role === 'staff' && category === 'maintenance') {
+    return moduleKey === 'overview' || moduleKey === 'maintenance'
+  }
+
+  return false
+}
+
+function normalizeAccessPayload(raw: unknown): RoleCategoryAccessPayload {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const maybe = raw as { moduleAccessControl?: unknown }
+  if (
+    !maybe.moduleAccessControl ||
+    typeof maybe.moduleAccessControl !== 'object' ||
+    Array.isArray(maybe.moduleAccessControl)
+  ) {
+    return null
+  }
+  return {
+    moduleAccessControl: maybe.moduleAccessControl as Record<string, Record<string, boolean>>,
+  }
+}
+
+async function resolveCategoryBasedModuleNavVisibility(
+  supabase: SupabaseClient,
+  propertyId: string,
+  userId: string,
+): Promise<{
+  hasCategoryAssignments: boolean
+  role: UiRole | null
+  moduleAccessVisible: Record<RoleAccessControlModuleKey, boolean>
+}> {
+  const emptyVisibility = Object.fromEntries(
+    DASHBOARD_ROLE_ACCESS_MODULES.map((mod) => [mod.key, false]),
+  ) as Record<RoleAccessControlModuleKey, boolean>
+
+  const { data: staffAssignment } = await supabase
+    .from('property_staff')
+    .select('role, role_category_id')
+    .eq('property_id', propertyId)
+    .eq('user_id', userId)
+    .in('status', ['active', 'pending'])
+    .maybeSingle()
+
+  const categoryIds = staffAssignment?.role_category_id ?? []
+  if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+    return { hasCategoryAssignments: false, role: null, moduleAccessVisible: emptyVisibility }
+  }
+
+  const role = toUiRole(typeof staffAssignment?.role === 'string' ? staffAssignment.role : null)
+  const { data: categoryRows } = await supabase
+    .from('property_role_categories')
+    .select('name, access')
+    .eq('property_id', propertyId)
+    .eq('role', role)
+    .in('id', categoryIds)
+
+  const rows = categoryRows ?? []
+  const moduleAccessVisible = { ...emptyVisibility }
+
+  for (const mod of DASHBOARD_ROLE_ACCESS_MODULES) {
+    const hasExplicitView = rows.some((row) => {
+      const access = normalizeAccessPayload(row.access)
+      return typeof access?.moduleAccessControl?.[mod.key]?.view === 'boolean'
+    })
+
+    if (hasExplicitView) {
+      moduleAccessVisible[mod.key] = rows.some((row) => {
+        const access = normalizeAccessPayload(row.access)
+        return access?.moduleAccessControl?.[mod.key]?.view === true
+      })
+      continue
+    }
+
+    moduleAccessVisible[mod.key] = rows.some((row) =>
+      fallbackModuleViewForRoleCategory(role, row.name ?? '', mod.key),
+    )
+  }
+
+  return { hasCategoryAssignments: true, role, moduleAccessVisible }
 }
 
 export async function isStaffAssignmentInactiveForProperty(
@@ -56,16 +202,57 @@ export async function resolveDashboardNavVisibility(
       financialNavVisible: false,
       housekeepingNavVisible: false,
       maintenanceNavVisible: false,
+      accountProfileNavVisible: false,
+      moduleNavVisible: Object.fromEntries(
+        DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false]),
+      ) as Record<DashboardNavModuleKey, boolean>,
     }
   }
+
+  const categoryBasedNav = await resolveCategoryBasedModuleNavVisibility(
+    supabase,
+    propertyId,
+    userId,
+  )
+
+  const roleBasedModuleAccessVisible = {
+    overview: true,
+    reservations: canAccessOperationsModules(access),
+    sites: canAccessOperationsModules(access),
+    guests: canAccessOperationsModules(access),
+    payments: canViewFinancials(access),
+    analytics: canAccessOperationsModules(access),
+    housekeeping: canAccessHousekeepingModule(access),
+    maintenance: canAccessMaintenanceModule(access),
+    'staff-management': canViewStaffRoster(access),
+    auditing: canAccessOperationsModules(access),
+    settings: canAccessPropertySettings(access),
+    'account-profile': true,
+  } satisfies Record<RoleAccessControlModuleKey, boolean>
+
+  const shouldUseCategoryBasedModules =
+    categoryBasedNav.hasCategoryAssignments &&
+    (categoryBasedNav.role === 'staff' ||
+      categoryBasedNav.role === 'manager' ||
+      categoryBasedNav.role === 'admin')
+
+  const moduleAccessVisible = shouldUseCategoryBasedModules
+    ? categoryBasedNav.moduleAccessVisible
+    : roleBasedModuleAccessVisible
+
+  const moduleNavVisible = Object.fromEntries(
+    DASHBOARD_NAV_MODULES.map((mod) => [mod.key, moduleAccessVisible[mod.key]]),
+  ) as Record<DashboardNavModuleKey, boolean>
 
   return {
     operationsModulesNavVisible: canAccessOperationsModules(access),
     staffManagementNavVisible: canViewStaffRoster(access),
     propertySettingsNavVisible: canAccessPropertySettings(access),
     financialNavVisible: canViewFinancials(access),
-    housekeepingNavVisible: canAccessHousekeepingModule(access),
-    maintenanceNavVisible: canAccessMaintenanceModule(access),
+    housekeepingNavVisible: moduleNavVisible.housekeeping,
+    maintenanceNavVisible: moduleNavVisible.maintenance,
+    accountProfileNavVisible: moduleAccessVisible['account-profile'],
+    moduleNavVisible,
   }
 }
 

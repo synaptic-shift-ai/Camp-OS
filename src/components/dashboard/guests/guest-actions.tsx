@@ -26,9 +26,17 @@ interface GuestActionsProps {
   guest: DashboardGuest
   propertyId: string
   onViewReservations?: (guest: DashboardGuest) => void
+  canEditGuest: boolean
+  canDeleteGuest: boolean
 }
 
-export function GuestActions({ guest, propertyId, onViewReservations }: GuestActionsProps) {
+export function GuestActions({
+  guest,
+  propertyId,
+  onViewReservations,
+  canEditGuest,
+  canDeleteGuest,
+}: GuestActionsProps) {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [reservationsOpen, setReservationsOpen] = useState(false)
@@ -55,16 +63,20 @@ export function GuestActions({ guest, propertyId, onViewReservations }: GuestAct
           >
             View Reservations
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-            Edit Guest
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onSelect={() => setDeleteOpen(true)}
-          >
-            Delete Guest
-          </DropdownMenuItem>
+          {canEditGuest && (
+            <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+              Edit Guest
+            </DropdownMenuItem>
+          )}
+          {canDeleteGuest && <DropdownMenuSeparator />}
+          {canDeleteGuest && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => setDeleteOpen(true)}
+            >
+              Delete Guest
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -76,8 +88,8 @@ export function GuestActions({ guest, propertyId, onViewReservations }: GuestAct
           propertyId={propertyId}
         />
       )}
-      <EditGuestDialog open={editOpen} onOpenChange={setEditOpen} guest={guest} />
-      <DeleteGuestDialog open={deleteOpen} onOpenChange={setDeleteOpen} guest={guest} />
+      {canEditGuest && <EditGuestDialog open={editOpen} onOpenChange={setEditOpen} guest={guest} />}
+      {canDeleteGuest && <DeleteGuestDialog open={deleteOpen} onOpenChange={setDeleteOpen} guest={guest} />}
     </>
   )
 }

@@ -21,9 +21,10 @@ type Site = Database['public']['Tables']['sites']['Row']
 interface SitesPageHeaderProps {
   propertyId: string | null
   sites: Site[]
+  canCreateSite: boolean
 }
 
-export function SitesPageHeader({ propertyId, sites }: SitesPageHeaderProps) {
+export function SitesPageHeader({ propertyId, sites, canCreateSite }: SitesPageHeaderProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
 
@@ -72,7 +73,7 @@ export function SitesPageHeader({ propertyId, sites }: SitesPageHeaderProps) {
             className="gap-2"
             size="sm"
             onClick={() => setIsAddDialogOpen(true)}
-            disabled={!propertyId}
+            disabled={!propertyId || !canCreateSite}
           >
             <Plus className="h-4 w-4" />
             Add Site

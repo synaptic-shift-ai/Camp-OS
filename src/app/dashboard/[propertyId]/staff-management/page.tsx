@@ -1,6 +1,6 @@
 import StaffManagementStaffPageClient from './staff-management-page-client'
 import { getPropertyForUser } from '@/lib/dashboard/property-access'
-import { resolveDashboardAccess, canViewStaffRoster } from '@/lib/rbac/dashboard-guards'
+import { resolveDashboardNavVisibility } from '@/lib/dashboard/dashboard-layout-context'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -19,8 +19,8 @@ export default async function StaffManagementPage({ params }: pageProps) {
   } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const access = await resolveDashboardAccess(supabase, propertyId, user.id)
-  if (!access || !canViewStaffRoster(access)) {
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible['staff-management']) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 

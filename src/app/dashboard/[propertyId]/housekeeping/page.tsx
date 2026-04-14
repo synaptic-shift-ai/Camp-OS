@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { canAccessHousekeepingModule, resolveDashboardAccess } from "@/lib/rbac/dashboard-guards"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -18,8 +18,8 @@ export default async function HousekeepingPage({ params }: PageProps) {
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const access = await resolveDashboardAccess(supabase, propertyId, user.id)
-  if (!access || !canAccessHousekeepingModule(access)) {
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.housekeepingNavVisible) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 

@@ -20,6 +20,9 @@ interface SitesAccordionProps {
   sites: Site[]
   totalSitesByType: Record<string, number>
   propertyPricingConfig?: PropertyPricingConfig | undefined
+  canEditSite: boolean
+  canDeleteSite: boolean
+  canUpdateSiteStatus: boolean
 }
 
 const siteTypeLabels: Record<string, string> = {
@@ -33,7 +36,14 @@ const siteTypeLabels: Record<string, string> = {
 
 const siteTypeOrder = ['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other']
 
-export function SitesAccordion({ sites, totalSitesByType, propertyPricingConfig }: SitesAccordionProps) {
+export function SitesAccordion({
+  sites,
+  totalSitesByType,
+  propertyPricingConfig,
+  canEditSite,
+  canDeleteSite,
+  canUpdateSiteStatus,
+}: SitesAccordionProps) {
   // Group sites by type
   const sitesByType = sites.reduce((acc, site) => {
     const type = site.site_type || 'other'
@@ -120,7 +130,13 @@ export function SitesAccordion({ sites, totalSitesByType, propertyPricingConfig 
             {/* Accordion Content */}
             {isExpanded && !isEmpty && (
               <div className="px-4 pb-4">
-                <SitesGrid sites={typeSites} propertyPricingConfig={propertyPricingConfig} />
+                <SitesGrid
+                  sites={typeSites}
+                  propertyPricingConfig={propertyPricingConfig}
+                  canEditSite={canEditSite}
+                  canDeleteSite={canDeleteSite}
+                  canUpdateSiteStatus={canUpdateSiteStatus}
+                />
               </div>
             )}
           </div>

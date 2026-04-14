@@ -95,6 +95,10 @@ export type ReservationDetailDialogProps = {
   onPrimaryGuestClick?: (guest: DashboardGuest) => void
   overlayClassName?: string
   contentClassName?: string
+  canModify?: boolean
+  canCheckIn?: boolean
+  canCheckOut?: boolean
+  canCancel?: boolean
 }
 
 export function ReservationDetailDialog({
@@ -108,6 +112,10 @@ export function ReservationDetailDialog({
   onPrimaryGuestClick,
   overlayClassName,
   contentClassName,
+  canModify = true,
+  canCheckIn = true,
+  canCheckOut = true,
+  canCancel = true,
 }: ReservationDetailDialogProps) {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
@@ -201,6 +209,10 @@ export function ReservationDetailDialog({
                   allowedCheckOutDays={bookingRulesConfig?.allowed_checkout_days ?? []}
                   checkInTime={checkInTime}
                   checkOutTime={checkOutTime}
+                  canModify={canModify}
+                  canCheckIn={canCheckIn}
+                  canCheckOut={canCheckOut}
+                  canCancel={canCancel}
                 />
               </div>
               <DialogDescription className="capitalize">

@@ -18,6 +18,7 @@ type ReservationsPageHeaderProps = {
   currentPage: number
   total: number
   siteType?: string | null
+  canCreateReservation: boolean
 }
 
 function formatDate(dateString: string): string {
@@ -39,6 +40,7 @@ export function ReservationsPageHeader({
   propertyId,
   total,
   siteType,
+  canCreateReservation,
 }: ReservationsPageHeaderProps) {
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
@@ -157,12 +159,14 @@ export function ReservationsPageHeader({
           disabled={isExporting || !total}
           aria-label="Export reservations"
         />
-        <Link href={`/dashboard/${propertyId}/reservations/new`}>
-          <Button className="gap-2" size="sm">
-            <Plus className="h-4 w-4" />
-            New Reservation
-          </Button>
-        </Link>
+        {canCreateReservation && (
+          <Link href={`/dashboard/${propertyId}/reservations/new`}>
+            <Button className="gap-2" size="sm">
+              <Plus className="h-4 w-4" />
+              New Reservation
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   )

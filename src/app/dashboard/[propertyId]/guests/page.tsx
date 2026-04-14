@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { getDistinctSiteTypes, getGuests } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
 import { redirect } from "next/navigation"
 import { GuestsPageHeader } from "@/components/dashboard/guests/guests-page-header"
 import { GuestsTable } from "@/components/dashboard/guests/guests-table"
@@ -29,7 +30,30 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
-  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible.guests) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
+  const guestActions = await resolveModuleActionAccess({
+    supabase,
+    propertyId,
+    userId: user.id,
+    moduleKey: "guests",
+    actions: ["view", "create", "edit", "delete", "export"] as const,
+    fallbackForCategory: (role, categoryName) => {
+      if (role === "owner" || role === "admin") {
+        return { view: true, create: true, edit: true, delete: true, export: true }
+      }
+      const normalized = categoryName.trim().toLowerCase()
+      if ((role === "manager" || role === "staff") && normalized === "front desk") {
+        return { view: true, create: false, edit: false, delete: false, export: false }
+      }
+      return { view: false, create: false, edit: false, delete: false, export: false }
+    },
+  })
+  if (!guestActions.view) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
 
   const search = await searchParams
   const searchQuery = typeof search.search === "string" ? search.search : undefined
@@ -98,6 +122,8 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
         currentPage={currentPage}
         total={total}
         searchQuery={searchQuery ?? null}
+        canCreateGuest={guestActions.create ?? false}
+        canExportGuests={guestActions.export ?? false}
       />
 
       <div className="space-y-2">
@@ -119,6 +145,8 @@ export default async function GuestsPage({ params, searchParams }: PageProps) {
           sortBy={sortBy}
           sortOrder={sortOrder}
           searchField={searchField}
+          canEditGuest={guestActions.edit ?? false}
+          canDeleteGuest={guestActions.delete ?? false}
         />
       </div>
     </div>

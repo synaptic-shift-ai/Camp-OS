@@ -1,10 +1,11 @@
 import { Suspense } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Clock, CreditCard } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { getPayments, getDashboardStats } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
-import { redirectIfOperationsDashboardModulesForbidden } from "@/lib/dashboard/operations-modules-page-access"
+import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
 import { redirect } from "next/navigation"
 import { PaymentsTable } from "@/components/dashboard/payments/payments-table"
 import { PaymentsPageHeader } from "@/components/dashboard/payments/payments-page-header"
@@ -70,7 +71,24 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
-  await redirectIfOperationsDashboardModulesForbidden(supabase, propertyId, user.id)
+  const navVisibility = await resolveDashboardNavVisibility(supabase, propertyId, user.id)
+  if (!navVisibility.moduleNavVisible.payments) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
+  const paymentActions = await resolveModuleActionAccess({
+    supabase,
+    propertyId,
+    userId: user.id,
+    moduleKey: "payments",
+    actions: ["view", "export"] as const,
+    fallbackForCategory: (role) => {
+      if (role === "owner" || role === "admin") return { view: true, export: true }
+      return { view: false, export: false }
+    },
+  })
+  if (!paymentActions.view) {
+    redirect(`/dashboard/${propertyId}/access-denied`)
+  }
 
   const { page: pageParam, pageSize: pageSizeParam } = await searchParams
   const currentPage =
@@ -90,6 +108,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
         payments={payments}
         currentPage={currentPage}
         total={total}
+        canExportPayments={paymentActions.export ?? false}
       />
 
       <Suspense

@@ -57,6 +57,10 @@ interface ReservationActionsProps {
   checkInTime?: string | null | undefined
   checkOutTime?: string | null | undefined
   actionTriggerClassName?: string
+  canModify?: boolean
+  canCheckIn?: boolean
+  canCheckOut?: boolean
+  canCancel?: boolean
 }
 
 export function ReservationActions({
@@ -88,6 +92,10 @@ export function ReservationActions({
   checkInTime,
   checkOutTime,
   actionTriggerClassName,
+  canModify = true,
+  canCheckIn = true,
+  canCheckOut = true,
+  canCancel = true,
 }: ReservationActionsProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -141,16 +149,21 @@ export function ReservationActions({
   // Only show extend/renew for confirmed or checked-in reservations
   const canExtendOrRenew = status === 'confirmed' || status === 'checked_in'
 
-  const showCancel = status !== 'cancelled' && status !== 'checked_out' && status !== 'checked_in' && status !== 'no_show'
+  const showCancel =
+    canCancel &&
+    status !== 'cancelled' &&
+    status !== 'checked_out' &&
+    status !== 'checked_in' &&
+    status !== 'no_show'
 
   // Renewals are primarily for seasonal/monthly bookings
   const showRenew = canExtendOrRenew && ['seasonal', 'monthly', 'long_term'].includes(bookingType)
 
-  const showManualPayment = !!hasOutstandingBalance
+  const showManualPayment = canModify && !!hasOutstandingBalance
 
-  const showRefund = canRefund && maxRefundableCents > 0
+  const showRefund = canModify && canRefund && maxRefundableCents > 0
 
-  const showNoShowStatus = status === 'pending' || status === 'confirmed'
+  const showNoShowStatus = canModify && (status === 'pending' || status === 'confirmed')
   const checkInReached = (() => {
     const d = new Date(checkIn)
     const t = new Date()
@@ -159,6 +172,14 @@ export function ReservationActions({
     return d.getTime() <= t.getTime()
   })()
   const showNoShowButton = showNoShowStatus && checkInReached
+  const showExtend = canModify && canExtendOrRenew
+  const showAnyActions =
+    canCheckIn ||
+    canCheckOut ||
+    canModify ||
+    canCancel
+
+  if (!showAnyActions) return null
 
   return (
     <DropdownMenu>
@@ -170,36 +191,42 @@ export function ReservationActions({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <CheckInButton
-          reservationId={reservationId}
-          status={status}
-          reservationCheckInDate={checkIn}
-          blackoutDates={blackoutDates}
-          allowedCheckInDays={allowedCheckInDays}
-          checkInTime={checkInTime}
-        />
-        <CheckOutButton
-          reservationId={reservationId}
-          status={status}
-          allowedCheckOutDays={allowedCheckOutDays}
-          checkOutTime={checkOutTime}
-        />
-        <EditReservationDialog
-          reservationId={reservationId}
-          confirmationNumber={confirmationNumber}
-          guestName={guestName}
-          checkIn={checkIn}
-          checkOut={checkOut}
-          numAdults={numAdults}
-          numChildren={numChildren}
-          numPets={numPets}
-          specialRequests={specialRequests ?? null}
-          trigger={
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-              Edit Reservation
-            </DropdownMenuItem>
-          }
-        />
+        {canCheckIn && (
+          <CheckInButton
+            reservationId={reservationId}
+            status={status}
+            reservationCheckInDate={checkIn}
+            blackoutDates={blackoutDates}
+            allowedCheckInDays={allowedCheckInDays}
+            checkInTime={checkInTime}
+          />
+        )}
+        {canCheckOut && (
+          <CheckOutButton
+            reservationId={reservationId}
+            status={status}
+            allowedCheckOutDays={allowedCheckOutDays}
+            checkOutTime={checkOutTime}
+          />
+        )}
+        {canModify && (
+          <EditReservationDialog
+            reservationId={reservationId}
+            confirmationNumber={confirmationNumber}
+            guestName={guestName}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            numAdults={numAdults}
+            numChildren={numChildren}
+            numPets={numPets}
+            specialRequests={specialRequests ?? null}
+            trigger={
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                Edit Reservation
+              </DropdownMenuItem>
+            }
+          />
+        )}
         {showManualPayment && (
           <ManualPaymentDialog
             reservationId={reservationId}
@@ -214,7 +241,7 @@ export function ReservationActions({
             }
           />
         )}
-        {canExtendOrRenew && (
+        {showExtend && (
           <>
             <DropdownMenuSeparator />
             <ExtendDialog

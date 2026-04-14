@@ -6,12 +6,14 @@ import { PermissionGate } from '@/components/ui/permission-gate'
 
 type StaffManagementPageHeaderProps = {
   propertyName: string
+  onAccessClick?: () => void
   onCategoriesClick?: () => void
   onInviteStaffClick?: () => void
 }
 
 export default function StaffManagementPageHeader({
   propertyName,
+  onAccessClick,
   onCategoriesClick,
   onInviteStaffClick,
 }: StaffManagementPageHeaderProps) {
@@ -22,7 +24,7 @@ export default function StaffManagementPageHeader({
                 <p className="text-sm text-muted-foreground sm:text-base">{propertyName}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" onClick={onAccessClick}>
                     <ShieldCheckIcon className="h-4 w-4" />
                     Access
                 </Button>

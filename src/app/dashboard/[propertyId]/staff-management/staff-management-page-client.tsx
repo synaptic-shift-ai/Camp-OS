@@ -10,6 +10,7 @@ import {
 } from '@/components/dashboard/staff-management/staff-management-dialog/staff-management-categories-dialog'
 import { useToast } from '@/hooks/use-toast'
 import InviteStaffDialog from '@/components/dashboard/staff-management/staff-management-dialog/invite-staff-dialog'
+import { StaffAccessDialog } from '@/components/dashboard/staff-management/staff-management-dialog/staff-access-dialog'
 import {
   EditStaffDialog,
   type EditStaffDialogStaff,
@@ -42,6 +43,7 @@ export default function StaffManagementStaffPageClient({
   const router = useRouter()
   const { toast } = useToast()
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [staffAccessOpen, setStaffAccessOpen] = useState(false)
   const [inviteStaffOpen, setInviteStaffOpen] = useState(false)
   const [editStaffOpen, setEditStaffOpen] = useState(false)
   const [editStaffTarget, setEditStaffTarget] = useState<EditStaffDialogStaff | null>(null)
@@ -158,6 +160,7 @@ export default function StaffManagementStaffPageClient({
       <div className="space-y-4 sm:space-y-6 px-6 pb-8">
         <StaffManagementPageHeader
           propertyName={propertyName}
+          onAccessClick={() => setStaffAccessOpen(true)}
           onCategoriesClick={() => setCategoriesOpen(true)}
           onInviteStaffClick={() => setInviteStaffOpen(true)}
         />
@@ -189,6 +192,12 @@ export default function StaffManagementStaffPageClient({
           onReactivateStaff={handleReactivateStaff}
         />
       </div>
+
+      <StaffAccessDialog
+        open={staffAccessOpen}
+        onOpenChange={setStaffAccessOpen}
+        propertyId={propertyId}
+      />
 
       <StaffManagementCategoriesDialog
         open={categoriesOpen}

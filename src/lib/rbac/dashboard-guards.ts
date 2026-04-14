@@ -55,18 +55,20 @@ export function canViewStaffRoster(access: ResolvedAccess): boolean {
 }
 
 /**
- * Housekeeping dashboard is for staff with housekeeping category only.
+ * Housekeeping dashboard: owner/admin/manager, or staff with housekeeping category.
  */
 export function canAccessHousekeepingModule(access: ResolvedAccess): boolean {
-  if (access.role !== 'staff') return false
+  if (!access.role) return false
+  if (isManagerOrAbove(access.role)) return true
   return staffHasPermission(access.categories, 'housekeeping.view_assigned')
 }
 
 /**
- * Maintenance dashboard is for staff with maintenance category only.
+ * Maintenance dashboard: owner/admin/manager, or staff with maintenance category.
  */
 export function canAccessMaintenanceModule(access: ResolvedAccess): boolean {
-  if (access.role !== 'staff') return false
+  if (!access.role) return false
+  if (isManagerOrAbove(access.role)) return true
   return staffHasPermission(access.categories, 'maintenance.view_assigned')
 }
 

@@ -17,6 +17,17 @@ const BodySchema = z.object({
   }),
 })
 
+const AccessSchema = z.object({
+  selectedModuleKey: z.string().trim().min(1),
+  moduleAccessControl: z.record(z.record(z.boolean())),
+})
+
+const PatchBodySchema = z.object({
+  categoryId: z.string().uuid(),
+  role: z.enum(['owner', 'admin', 'manager', 'staff']),
+  access: AccessSchema,
+})
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ propertyId: string }> },
@@ -154,6 +165,60 @@ export async function POST(
       message,
       err,
     })
+    return error(ErrorCodes.INTERNAL_ERROR, request, { message })
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ propertyId: string }> }
+) {
+  try {
+    const { propertyId } = await params
+    const { supabase, user, error: authError } = await createSupabaseClientForApiRoute(request)
+
+    if (authError || !user) {
+      return error(ErrorCodes.AUTH_001, request)
+    }
+
+    const q = new StaffManagementQueries(supabase as any)
+    const access = await resolveDashboardAccess(supabase as never, propertyId, user.id)
+
+    if (!access) {
+      return error(
+        ErrorCodes.AUTH_002.code,
+        'No access to this property. Confirm the property ID and your assignment or company ownership.',
+        ErrorCodes.AUTH_002.status,
+        request,
+      )
+    }
+
+    if (!canManageStaffRoster(access)) {
+      return error(
+        ErrorCodes.AUTH_002.code,
+        'Saving role access requires an admin-level property role (owner, admin, or property_admin).',
+        ErrorCodes.AUTH_002.status,
+        request,
+      )
+    }
+
+    const parsed = PatchBodySchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return error(ErrorCodes.VALIDATION_ERROR, request, {
+        errors: parsed.error.errors,
+      })
+    }
+
+    await q.savePropertyRoleCategoryAccess({
+      propertyId,
+      categoryId: parsed.data.categoryId,
+      role: parsed.data.role,
+      access: parsed.data.access,
+    })
+
+    return success({ saved: true }, request)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })
   }
 }

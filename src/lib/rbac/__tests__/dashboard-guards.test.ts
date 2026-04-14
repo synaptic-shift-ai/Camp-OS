@@ -148,8 +148,12 @@ describe('canAccessHousekeepingModule', () => {
     ).toBe(false)
   })
 
-  it('manager returns false (non-staff)', () => {
-    expect(canAccessHousekeepingModule(makeAccess({ role: 'manager' }))).toBe(false)
+  it('manager returns true', () => {
+    expect(canAccessHousekeepingModule(makeAccess({ role: 'manager' }))).toBe(true)
+  })
+
+  it('owner returns true', () => {
+    expect(canAccessHousekeepingModule(makeAccess({ role: 'owner' }))).toBe(true)
   })
 
   it('staff with \'all\' category returns true', () => {
@@ -174,8 +178,12 @@ describe('canAccessMaintenanceModule', () => {
     ).toBe(false)
   })
 
-  it('admin returns false (non-staff)', () => {
-    expect(canAccessMaintenanceModule(makeAccess({ role: 'admin' }))).toBe(false)
+  it('admin returns true', () => {
+    expect(canAccessMaintenanceModule(makeAccess({ role: 'admin' }))).toBe(true)
+  })
+
+  it('owner returns true', () => {
+    expect(canAccessMaintenanceModule(makeAccess({ role: 'owner' }))).toBe(true)
   })
 })
 

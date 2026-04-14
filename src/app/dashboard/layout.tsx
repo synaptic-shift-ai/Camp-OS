@@ -44,24 +44,32 @@ import { SetupCheckGate } from "@/components/dashboard/setup-check-gate"
 import { SetupCompleteToast } from "@/components/dashboard/setup-complete-toast"
 import { QuickTourPrompt } from "@/components/dashboard/quick-tour-prompt"
 import { PermissionProvider } from "@/hooks/use-permissions"
+import {
+  DASHBOARD_NAV_MODULES,
+  DASHBOARD_OPERATIONS_MODULE_PATHS,
+  type DashboardNavModuleKey,
+} from "@/lib/dashboard/dashboard-nav-modules"
+import type { LucideIcon } from "lucide-react"
 
-const NAV_ITEMS = [
-  { name: "Overview", path: "", icon: LayoutDashboard },
-  { name: "Reservations", path: "/reservations", icon: Calendar },
-  { name: "Sites", path: "/sites", icon: Tent },
-  { name: "Guests", path: "/guests", icon: Users },
-  { name: "Payments", path: "/payments", icon: CreditCard },
-  { name: "Analytics", path: "/analytics", icon: BarChart3 },
-  { name: "Staff Management", path: "/staff-management", icon: Users },
-  { name: "Auditing", path: "/auditing", icon: History },
-  { name: "Housekeeping", path: "/housekeeping", icon: ClipboardList },
-  { name: "Maintenance", path: "/maintenance", icon: Wrench },
-  { name: "Settings", path: "/settings", icon: Settings },
-] as const
+const NAV_ITEM_ICONS = {
+  overview: LayoutDashboard,
+  reservations: Calendar,
+  sites: Tent,
+  guests: Users,
+  payments: CreditCard,
+  analytics: BarChart3,
+  housekeeping: ClipboardList,
+  maintenance: Wrench,
+  "staff-management": Users,
+  auditing: History,
+  settings: Settings,
+} satisfies Record<DashboardNavModuleKey, LucideIcon>
 
-const OPERATIONS_MODULE_PATHS = new Set<
-  (typeof NAV_ITEMS)[number]["path"]
->(["/reservations", "/sites", "/guests", "/payments", "/analytics", "/auditing"])
+const NAV_ITEMS = DASHBOARD_NAV_MODULES.map((m) => ({
+  name: m.name,
+  path: m.path,
+  icon: NAV_ITEM_ICONS[m.key],
+}))
 
 const COMPANY_DETAILS_UPDATED_EVENT = "company-details-updated"
 
@@ -272,7 +280,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     if (isUserLoading) return false
     if (item.path === "/staff-management" && !staffManagementNavVisible) return false
     if (item.path === "/settings" && !propertySettingsNavVisible) return false
-    if (!operationsModulesNavVisible && OPERATIONS_MODULE_PATHS.has(item.path)) return false
+    if (!operationsModulesNavVisible && DASHBOARD_OPERATIONS_MODULE_PATHS.has(item.path)) return false
     if (item.path === "/payments" && !financialNavVisible) return false
     if (item.path === "/housekeeping" && !housekeepingNavVisible) return false
     if (item.path === "/maintenance" && !maintenanceNavVisible) return false

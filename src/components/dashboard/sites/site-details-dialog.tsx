@@ -132,6 +132,14 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
     })
   }, [propertyAmenities, site.amenities, legacyAmenityKeyToLabel])
 
+  const blackoutDates: string[] = useMemo(() => {
+    const raw = (site.availability_rules as any)?.blackout_dates
+    if (!Array.isArray(raw)) return []
+    return raw
+      .filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort()
+  }, [site.availability_rules])
+
   const formatPrice = (cents: number | null) => {
     if (!cents) return 'Not set'
     return `$${(cents / 100).toFixed(2)}`
@@ -241,6 +249,20 @@ export function SiteDetailsDialog({ open, onOpenChange, site }: SiteDetailsDialo
                 </div>
               </div>
             ) : null}
+
+            {/* Blackout Dates Section */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2">Blackout Dates</h3>
+              {blackoutDates.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {blackoutDates.map((date) => (
+                    <Badge key={date} variant="secondary">{date}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No blackout dates configured.</p>
+              )}
+            </div>
 
             {/* Description Section */}
             {site.description && (

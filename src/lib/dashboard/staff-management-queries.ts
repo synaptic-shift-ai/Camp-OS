@@ -5,6 +5,11 @@ import { isElevatedPropertyStaffRole } from '@/lib/dashboard/property-staff-role
 export type UiRole = 'owner' | 'admin' | 'manager' | 'staff'
 type DbRole = 'owner' | 'admin' | 'manager' | 'staff'
 
+export type RoleCategoryAccess = {
+  selectedModuleKey?: string
+  moduleAccessControl?: Record<string, Record<string, boolean>>
+}
+
 const roleMap: Record<UiRole, DbRole> = {
   owner: 'owner',
   admin: 'admin',
@@ -109,10 +114,10 @@ export class StaffManagementQueries {
 
   async getPropertyRoleCategories(input: {
     propertyId: string
-  }): Promise<{ categoriesByRole: Record<UiRole, { id: string; name: string }[]> }> {
+  }): Promise<{ categoriesByRole: Record<UiRole, { id: string; name: string; access: RoleCategoryAccess }[]> }> {
     const { data, error: selectError } = await this.supabase
       .from('property_role_categories')
-      .select('id, role, name')
+      .select('id, role, name, access')
       .eq('property_id', input.propertyId)
       .in('role', ['owner', 'admin', 'manager', 'staff'])
       .order('name', { ascending: true })
@@ -125,7 +130,7 @@ export class StaffManagementQueries {
       throw selectError
     }
 
-    const grouped: Record<UiRole, { id: string; name: string }[]> = {
+    const grouped: Record<UiRole, { id: string; name: string; access: RoleCategoryAccess }[]> = {
       owner: [],
       admin: [],
       manager: [],
@@ -135,7 +140,11 @@ export class StaffManagementQueries {
     for (const row of data ?? []) {
       const role = row.role as UiRole
       if (role !== 'owner' && role !== 'admin' && role !== 'manager' && role !== 'staff') continue
-      grouped[role].push({ id: row.id, name: row.name })
+      grouped[role].push({
+        id: row.id,
+        name: row.name,
+        access: (row.access as RoleCategoryAccess) ?? {},
+      })
     }
 
     return { categoriesByRole: grouped }
@@ -145,23 +154,11 @@ export class StaffManagementQueries {
     propertyId: string
     categoriesByRole: Record<UiRole, { name: string }[]>
   }): Promise<{ savedCount: number }> {
-    const desired = (Object.keys(input.categoriesByRole) as UiRole[]).flatMap(
-      (uiRole) => {
-        const role = roleMap[uiRole]
-        return input.categoriesByRole[uiRole].map((c) => ({
-          property_id: input.propertyId,
-          role,
-          name: c.name.trim(),
-          access: {},
-        }))
-      },
-    )
-
     const roles: DbRole[] = ['owner', 'admin', 'manager', 'staff']
 
     const { data: existing, error: existingError } = await this.supabase
       .from('property_role_categories')
-      .select('id, role, name')
+      .select('id, role, name, access')
       .eq('property_id', input.propertyId)
       .in('role', roles)
 
@@ -172,6 +169,25 @@ export class StaffManagementQueries {
       })
       throw existingError
     }
+
+    const existingAccessByKey = new Map(
+      (existing ?? []).map((r) => [`${r.role}::${r.name}`, (r.access as RoleCategoryAccess) ?? {}]),
+    )
+
+    const desired = (Object.keys(input.categoriesByRole) as UiRole[]).flatMap(
+      (uiRole) => {
+        const role = roleMap[uiRole]
+        return input.categoriesByRole[uiRole].map((c) => {
+          const name = c.name.trim()
+          return {
+            property_id: input.propertyId,
+            role,
+            name,
+            access: existingAccessByKey.get(`${role}::${name}`) ?? {},
+          }
+        })
+      },
+    )
 
     const desiredKey = new Set(desired.map((r) => `${r.role}::${r.name}`))
     const toDeleteIds = (existing ?? [])
@@ -209,6 +225,30 @@ export class StaffManagementQueries {
     }
 
     return { savedCount: desired.length }
+  }
+
+  async savePropertyRoleCategoryAccess(input: {
+    propertyId: string
+    categoryId: string
+    role: UiRole
+    access: RoleCategoryAccess
+  }): Promise<void> {
+    const { error: upErr } = await this.supabase
+      .from('property_role_categories')
+      .update({ access: input.access })
+      .eq('id', input.categoryId)
+      .eq('property_id', input.propertyId)
+      .eq('role', roleMap[input.role])
+
+    if (upErr) {
+      console.error('[StaffManagementQueries] Failed to save role category access', {
+        propertyId: input.propertyId,
+        categoryId: input.categoryId,
+        role: input.role,
+        error: upErr,
+      })
+      throw upErr
+    }
   }
 
   async listPropertyStaff(propertyId: string): Promise<{

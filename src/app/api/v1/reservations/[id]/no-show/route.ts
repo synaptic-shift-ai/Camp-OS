@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canModifyReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { MarkNoShowCommandHandler } from '@/modules/BookingEngine/application/commands/MarkNoShowCommand'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
@@ -65,6 +66,20 @@ export async function POST(
       permission: 'reservations.noshow',
     })
     if (isDenied(access)) return access
+
+    const canModifyReservation = await canModifyReservationsModule(
+      supabase,
+      existingReservation.propertyId,
+      user.id,
+    )
+    if (!canModifyReservation) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to modify the reservation',
+        ErrorCodes.AUTH_006.status,
+        _request,
+      )
+    }
 
 
     // Execute command using application layer

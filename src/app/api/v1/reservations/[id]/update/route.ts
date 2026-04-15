@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canModifyReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { extractOpenPeriodFromPropertySettings,
   openPeriodRestrictsBookings,
   isStayWithinOpenPeriodByIsoDates,
@@ -88,6 +89,20 @@ export async function PATCH(
       permission: 'reservations.update',
     })
     if (isDenied(access)) return access
+
+    const canModifyReservation = await canModifyReservationsModule(
+      supabase,
+      reservation.sites.property_id,
+      user.id,
+    )
+    if (!canModifyReservation) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to modify the reservation',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     const { data: property } = await supabase
       .from('properties')

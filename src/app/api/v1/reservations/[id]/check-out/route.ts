@@ -15,6 +15,7 @@ import {
   type CheckOutRequest,
 } from '@/types/api/v1/schemas/reservations'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canCheckOutReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { CheckOutGuestCommandHandler } from '@/modules/BookingEngine/application/commands/CheckOutGuestCommand'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
@@ -64,9 +65,23 @@ export async function POST(
     // RBAC: Staff Access "Check-out guests" (reservations.check_out)
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId: existingReservation.propertyId,
-      permission: 'reservations.check_out',
+      minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+
+    const canCheckOut = await canCheckOutReservationsModule(
+      supabase,
+      existingReservation.propertyId,
+      user.id,
+    )
+    if (!canCheckOut) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to checkout the reservation',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     // Fetch property for booking rules
     const { data: property, error: propertyError } = await supabase

@@ -15,6 +15,7 @@ import {
   type CheckInRequest,
 } from '@/types/api/v1/schemas/reservations'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canCheckInReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { CheckInGuestCommandHandler } from '@/modules/BookingEngine/application/commands/CheckInGuestCommand'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
@@ -64,10 +65,23 @@ export async function POST(
     // RBAC: verify user has check-in access to this property
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId: existingReservation.propertyId,
-      minimumRole: 'manager',
-      permission: 'reservations.check_in',
+      minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+
+    const canCheckIn = await canCheckInReservationsModule(
+      supabase,
+      existingReservation.propertyId,
+      user.id,
+    )
+    if (!canCheckIn) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to checkin the reservation',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     // Fetch property for booking rules
     const { data: property, error: propertyError } = await supabase

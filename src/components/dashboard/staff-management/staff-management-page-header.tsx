@@ -24,12 +24,17 @@ export default function StaffManagementPageHeader({
                 <p className="text-sm text-muted-foreground sm:text-base">{propertyName}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <Button type="button" variant="outline" onClick={onAccessClick}>
-                    <ShieldCheckIcon className="h-4 w-4" />
-                    Access
-                </Button>
+                <PermissionGate anyOfRoles={['owner']}>
+                  <Button type="button" variant="outline" onClick={onAccessClick}>
+                      <ShieldCheckIcon className="h-4 w-4" />
+                      Access
+                  </Button>
+                </PermissionGate>
                 {onCategoriesClick ? (
-                    <PermissionGate permission="global.change_staff_role">
+                    <PermissionGate
+                      permission="global.change_staff_role"
+                      anyOfRoles={['owner', 'admin']}
+                    >
                       <Button type="button" variant="outline" onClick={onCategoriesClick}>
                           <Tag className="h-4 w-4" />
                           Categories

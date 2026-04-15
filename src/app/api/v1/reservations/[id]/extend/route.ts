@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canModifyReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { ExtendReservationRequestSchema,
   type ExtendReservationRequest,
 } from '@/types/api/v1/schemas/reservations'
@@ -67,6 +68,20 @@ export async function POST(
       permission: 'reservations.extend',
     })
     if (isDenied(access)) return access
+
+    const canModifyReservation = await canModifyReservationsModule(
+      supabase,
+      existingReservation.propertyId,
+      user.id,
+    )
+    if (!canModifyReservation) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to modify the reservation',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
 
     // Parse and validate request body

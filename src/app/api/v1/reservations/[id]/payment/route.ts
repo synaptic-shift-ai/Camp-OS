@@ -15,6 +15,7 @@ import {
   type RecordPaymentRequest,
 } from '@/types/api/v1/schemas/reservations'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canModifyReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { RecordPaymentCommandHandler } from '@/modules/BookingEngine/application/commands/RecordPaymentCommand'
 import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/queries/GetReservationQuery'
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
@@ -67,6 +68,20 @@ export async function POST(
       permission: 'financial.record_payment',
     })
     if (isDenied(access)) return access
+
+    const canModifyReservation = await canModifyReservationsModule(
+      supabase,
+      existingReservation.propertyId,
+      user.id,
+    )
+    if (!canModifyReservation) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to modify the reservation',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
 
     // Parse and validate request body

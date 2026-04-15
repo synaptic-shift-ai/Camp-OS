@@ -1,10 +1,16 @@
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
-import { resolveDashboardAccess, canManageStaffRoster, canViewStaffRoster } from '@/lib/rbac/dashboard-guards'
+import {
+  resolveDashboardAccess,
+  canManageStaffAccess,
+  canManageStaffRoster,
+  canViewStaffRoster,
+} from '@/lib/rbac/dashboard-guards'
 
 const categoryNameRowSchema = z.object({ name: z.string().trim().min(1) })
 
@@ -153,7 +159,10 @@ export async function POST(
       }
     }
 
-    const result = await q.savePropertyRolesCategories({
+    const service = createServiceRoleClient()
+    const adminQueries = new StaffManagementQueries(service as any)
+
+    const result = await adminQueries.savePropertyRolesCategories({
       propertyId,
       categoriesByRole,
     })
@@ -193,10 +202,10 @@ export async function PATCH(
       )
     }
 
-    if (!canManageStaffRoster(access)) {
+    if (!canManageStaffAccess(access)) {
       return error(
         ErrorCodes.AUTH_002.code,
-        'Saving role access requires an admin-level property role (owner, admin, or property_admin).',
+        'Saving role access requires an owner role.',
         ErrorCodes.AUTH_002.status,
         request,
       )
@@ -209,7 +218,10 @@ export async function PATCH(
       })
     }
 
-    await q.savePropertyRoleCategoryAccess({
+    const service = createServiceRoleClient()
+    const adminQueries = new StaffManagementQueries(service as any)
+
+    await adminQueries.savePropertyRoleCategoryAccess({
       propertyId,
       categoryId: parsed.data.categoryId,
       role: parsed.data.role,

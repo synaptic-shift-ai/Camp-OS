@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server"
 import { success, error } from "@/lib/api/response"
 import { ErrorCodes } from "@/lib/api/errors"
 import { requirePropertyMembership, isDenied } from '@/lib/rbac'
-import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
+import { canExportGuestsModule } from '@/lib/dashboard/guests-module-access'
 import { getGuests, type GuestFilters } from "@/lib/dashboard/queries"
 
 type ExportGuestsBody = {
@@ -67,19 +67,14 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(error(ErrorCodes.AUTH_001), { status: 401 })
     }
-    const guestActions = await resolveModuleActionAccess({
-      supabase,
-      propertyId,
-      userId: user.id,
-      moduleKey: "guests",
-      actions: ["export"] as const,
-      fallbackForCategory: (role) => {
-        if (role === "owner" || role === "admin") return { export: true }
-        return { export: false }
-      },
-    })
-    if (!guestActions.export) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, "Access denied"), { status: 403 })
+    const canExportGuests = await canExportGuestsModule(supabase, propertyId, user.id)
+    if (!canExportGuests) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to export guest data',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
     }
     let siteTypeConfig: unknown = null
     try {

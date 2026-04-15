@@ -32,6 +32,7 @@ import {
   type ListSitesQuery,
 } from '@/types/api/v1/schemas/sites'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canCreateSitesModule } from '@/lib/dashboard/sites-module-access'
 import { ListSitesQueryHandler } from '@/modules/SiteManagement/application/queries/ListSitesQuery'
 import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteManagement/application/commands/CreateSiteCommand'
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
@@ -115,6 +116,16 @@ export async function GET(
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+
+    const canCreateSite = await canCreateSitesModule(supabase, propertyId, user.id)
+    if (!canCreateSite) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to create site',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     // Fetch property for pricing defaults
     const { data: property, error: propertyError } = await supabase

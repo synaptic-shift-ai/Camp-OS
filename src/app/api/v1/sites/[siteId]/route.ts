@@ -10,6 +10,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canDeleteSitesModule, canEditSitesModule } from '@/lib/dashboard/sites-module-access'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { getPricingSourceType, serializePricingSourceForPricingOverride } from '@/lib/site-pricing-source'
@@ -105,6 +106,16 @@ export async function PUT(
       minimumRole: 'manager',
     })
     if (isDenied(access)) return access
+
+    const canEditSite = await canEditSitesModule(supabase, existingSite.property_id, user.id)
+    if (!canEditSite) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to edit site',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     const body = await request.json()
 
@@ -326,6 +337,16 @@ export async function DELETE(
       minimumRole: 'owner',
     })
     if (isDenied(access)) return access
+
+    const canDeleteSite = await canDeleteSitesModule(supabase, existingSite.property_id, user.id)
+    if (!canDeleteSite) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to delete site',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     // Check for active or future reservations before attempting delete.
     // These reservations block deletion due to integrity/business rules.

@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canCancelReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import { CancelReservationRequestSchema,
   type CancelReservationRequest,
 } from '@/types/api/v1/schemas/reservations'
@@ -116,10 +117,22 @@ export async function POST(
     // RBAC: verify user has cancel access to this property
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId: existingReservation.propertyId,
-      minimumRole: 'manager',
-      permission: 'reservations.cancel',
+      minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+
+    const canCancel = await canCancelReservationsModule(
+      supabase,
+      existingReservation.propertyId,
+      user.id,
+    )
+    if (!canCancel) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to cancel the reservation',
+        ErrorCodes.AUTH_006.status,
+      )
+    }
 
     // Fetch property for cancellation policy
     const { data: property, error: propertyError } = await supabase

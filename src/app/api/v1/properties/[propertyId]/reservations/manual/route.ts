@@ -13,6 +13,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canCreateReservationsModule } from '@/lib/dashboard/reservations-module-access'
 import {
   CreateManualReservationRequestSchema,
 } from '@/types/api/v1/schemas/reservations'
@@ -64,9 +65,18 @@ export async function POST(
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId,
       minimumRole: 'staff',
-      permission: 'reservations.create',
     })
     if (isDenied(access)) return access
+
+    const canCreateReservation = await canCreateReservationsModule(supabase, propertyId, user.id)
+    if (!canCreateReservation) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to create manual reservation',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
 
     // Parse and validate request body

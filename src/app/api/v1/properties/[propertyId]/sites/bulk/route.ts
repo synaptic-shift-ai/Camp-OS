@@ -22,6 +22,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { getPricingSourceType } from '@/lib/site-pricing-source'
 import { CreateSiteRequestSchema } from '@/types/api/v1/schemas/sites'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canCreateSitesModule } from '@/lib/dashboard/sites-module-access'
 import { CreateSiteCommandHandler as CreateSiteCommand } from '@/modules/SiteManagement/application/commands/CreateSiteCommand'
 import { SupabaseSiteRepository } from '@/modules/SiteManagement/infrastructure/SupabaseSiteRepository'
 import { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
@@ -85,6 +86,16 @@ export async function POST(
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
+
+    const canCreateSite = await canCreateSitesModule(supabase, propertyId, user.id)
+    if (!canCreateSite) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to create site',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
+    }
 
     // Fetch pricing config
     const { data: property, error: propertyError } = await supabase

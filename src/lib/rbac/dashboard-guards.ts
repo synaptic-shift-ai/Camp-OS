@@ -83,6 +83,16 @@ export function canManageStaffRoster(access: ResolvedAccess): boolean {
 }
 
 /**
+ * Check if a user can manage staff access control payloads.
+ *
+ * Owner only.
+ */
+export function canManageStaffAccess(access: ResolvedAccess): boolean {
+  if (!access.role) return false
+  return access.role === 'owner'
+}
+
+/**
  * Check if a user can view financial data (transactions, balances, reports).
  *
  * Admin+ always. Manager+ by role permission.

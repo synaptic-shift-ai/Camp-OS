@@ -14,6 +14,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
+import { canDeleteGuestsModule, canEditGuestsModule } from '@/lib/dashboard/guests-module-access'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { UpdateGuestRequestSchema, type UpdateGuestRequest } from '@/types/api/v1/schemas/guests'
@@ -188,19 +189,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       minimumRole: 'staff',
     })
     if (isDenied(access)) return access
-    const guestActions = await resolveModuleActionAccess({
-      supabase,
-      propertyId: existingGuestDTO.propertyId,
-      userId: user.id,
-      moduleKey: 'guests',
-      actions: ['edit'] as const,
-      fallbackForCategory: (role) => {
-        if (role === 'owner' || role === 'admin') return { edit: true }
-        return { edit: false }
-      },
-    })
-    if (!guestActions.edit) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    const canEditGuest = await canEditGuestsModule(supabase, existingGuestDTO.propertyId, user.id)
+    if (!canEditGuest) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to edit guest',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
     }
 
     // Parse and validate request body
@@ -299,19 +295,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       minimumRole: 'manager',
     })
     if (isDenied(access)) return access
-    const guestActions = await resolveModuleActionAccess({
-      supabase,
-      propertyId: existingGuestDTO.propertyId,
-      userId: user.id,
-      moduleKey: 'guests',
-      actions: ['delete'] as const,
-      fallbackForCategory: (role) => {
-        if (role === 'owner' || role === 'admin') return { delete: true }
-        return { delete: false }
-      },
-    })
-    if (!guestActions.delete) {
-      return NextResponse.json(error(ErrorCodes.AUTH_002, 'Access denied'), { status: 403 })
+    const canDeleteGuest = await canDeleteGuestsModule(supabase, existingGuestDTO.propertyId, user.id)
+    if (!canDeleteGuest) {
+      return error(
+        ErrorCodes.AUTH_006.code,
+        'You do not have permission to delete guest',
+        ErrorCodes.AUTH_006.status,
+        request,
+      )
     }
 
     // Fetch property for activity log

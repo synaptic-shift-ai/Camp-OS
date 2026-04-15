@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Eye, Pencil, UserCheck, UserMinus } from "lucide-react"
 import type { EditStaffDialogStaff } from "@/components/dashboard/staff-management/staff-management-dialog/edit-staff-dialog"
 import type { DeactivateStaffDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/deactivate-staff-dialog"
+import type { StaffDetailsDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/staff-details-dialog"
 import {
   Table,
   TableBody,
@@ -42,6 +43,7 @@ type StaffManagementTableProps = {
     statuses: string[]
   }) => void
   onEditStaff?: (staff: EditStaffDialogStaff) => void
+  onViewStaff?: (staff: StaffDetailsDialogTarget) => void
   onDeactivateStaff?: (staff: DeactivateStaffDialogTarget) => void
   onReactivateStaff?: (staff: { id: string; name: string }) => void
 }
@@ -121,6 +123,7 @@ export function StaffManagementTable({
   status = "all",
   onFilterOptionsChange,
   onEditStaff,
+  onViewStaff,
   onDeactivateStaff,
   onReactivateStaff,
 }: StaffManagementTableProps) {
@@ -284,7 +287,23 @@ export function StaffManagementTable({
                 </TableCell>
                 <TableCell className="py-0.5">
                   <div className="flex items-center justify-end gap-2">
-                    <Button variant="ghost" size="xs" aria-label="View staff" className="h-8 w-8 p-0">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      aria-label="View staff"
+                      className="h-8 w-8 p-0"
+                      onClick={() =>
+                        onViewStaff?.({
+                          id: row.id,
+                          name: row.name,
+                          email: row.email,
+                          role: row.role,
+                          categories: row.categories,
+                          status: row.status,
+                          lastLogin: row.lastLogin,
+                        })
+                      }
+                    >
                       <Eye className="h-4 w-4" />
                     </Button>
                     <PermissionGate permission="global.change_staff_role">

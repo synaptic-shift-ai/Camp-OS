@@ -19,6 +19,10 @@ import {
   DeactivateStaffDialog,
   type DeactivateStaffDialogTarget,
 } from '@/components/dashboard/staff-management/staff-management-dialog/deactivate-staff-dialog'
+import {
+  StaffDetailsDialog,
+  type StaffDetailsDialogTarget,
+} from '@/components/dashboard/staff-management/staff-management-dialog/staff-details-dialog'
 import { StaffManagementTable } from '@/components/dashboard/staff-management/staff-management-table'
 import StaffManagementFilter, {
   type StaffManagementFilterValue,
@@ -45,6 +49,8 @@ export default function StaffManagementStaffPageClient({
   const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [staffAccessOpen, setStaffAccessOpen] = useState(false)
   const [inviteStaffOpen, setInviteStaffOpen] = useState(false)
+  const [staffDetailsOpen, setStaffDetailsOpen] = useState(false)
+  const [staffDetailsTarget, setStaffDetailsTarget] = useState<StaffDetailsDialogTarget | null>(null)
   const [editStaffOpen, setEditStaffOpen] = useState(false)
   const [editStaffTarget, setEditStaffTarget] = useState<EditStaffDialogStaff | null>(null)
   const [deactivateStaffOpen, setDeactivateStaffOpen] = useState(false)
@@ -181,6 +187,10 @@ export default function StaffManagementStaffPageClient({
           category={debouncedFilterValue.category}
           status={debouncedFilterValue.status}
           onFilterOptionsChange={setFilterOptions}
+          onViewStaff={(staffMember: StaffDetailsDialogTarget) => {
+            setStaffDetailsTarget(staffMember)
+            setStaffDetailsOpen(true)
+          }}
           onEditStaff={(staffMember: EditStaffDialogStaff) => {
             setEditStaffTarget(staffMember)
             setEditStaffOpen(true)
@@ -211,6 +221,15 @@ export default function StaffManagementStaffPageClient({
         onOpenChange={setInviteStaffOpen}
         propertyId={propertyId}
         onInviteSent={() => setStaffTableReloadKey((k) => k + 1)}
+      />
+
+      <StaffDetailsDialog
+        open={staffDetailsOpen}
+        onOpenChange={(next) => {
+          setStaffDetailsOpen(next)
+          if (!next) setStaffDetailsTarget(null)
+        }}
+        staff={staffDetailsTarget}
       />
 
       <EditStaffDialog

@@ -282,6 +282,64 @@ export function createSubscriptionMiddleware(
     // Record request
     recordRequest('subscription-middleware', pathname)
 
+    const onboardingOnlyRoutes = ['/company-details', '/choose-plan', '/onboarding', '/payment']
+    const isOnOnboardingRoute = onboardingOnlyRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
+
+    if (isOnOnboardingRoute) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          const origin = request.middlewareContext.origin || 'http://localhost:3000'
+          const url = new URL('/login', origin)
+
+          logger.info('Redirecting unauthenticated user away from onboarding-only route', {
+            from: pathname,
+            to: url.pathname,
+          })
+
+          if (!RedirectLoopDetector.check(request, url.pathname)) {
+            recordDuration('subscription-middleware', timer.end(), 'failure')
+            return request
+          }
+
+          recordRedirect('subscription-middleware', url.pathname)
+          recordDuration('subscription-middleware', timer.end(), 'redirect')
+          const response = NextResponse.redirect(url)
+          RedirectLoopDetector.incrementCount(response)
+          return response
+        }
+
+        const userType = user.user_metadata?.user_type
+        if (isStaffUserType(userType)) {
+          const origin = request.middlewareContext.origin || 'http://localhost:3000'
+          const url = new URL('/dashboard', origin)
+
+          logger.info('Redirecting staff user away from onboarding-only route', {
+            from: pathname,
+            to: url.pathname,
+            userId: user.id,
+            userType,
+          })
+
+          if (!RedirectLoopDetector.check(request, url.pathname)) {
+            recordDuration('subscription-middleware', timer.end(), 'failure')
+            return request
+          }
+
+          recordRedirect('subscription-middleware', url.pathname)
+          recordDuration('subscription-middleware', timer.end(), 'redirect')
+          const response = NextResponse.redirect(url)
+          RedirectLoopDetector.incrementCount(response)
+          return response
+        }
+
+      } catch {
+      }
+      recordDuration('subscription-middleware', timer.end(), 'success')
+      return request
+    }
+
     // Skip if auth context not present
     if (!auth) {
       logger.debug('Skipping subscription check - no auth context', { pathname })

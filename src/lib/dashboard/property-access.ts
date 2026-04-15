@@ -44,7 +44,18 @@ export async function getFirstPropertyId(): Promise<string | null> {
     .limit(1)
     .maybeSingle()
 
-  return fallback?.id ?? null
+  if (fallback?.id) return fallback.id
+
+  const { data: staffAssignment } = await supabase
+    .from("property_staff")
+    .select("property_id")
+    .eq("user_id", user.id)
+    .in("status", ["active", "pending"])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  return staffAssignment?.property_id ?? null
 }
 
 /**

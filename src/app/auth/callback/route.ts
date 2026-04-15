@@ -44,8 +44,29 @@ export async function GET(request: NextRequest) {
   if (userType === 'explorer') {
     redirectUrl = new URL('/resources', requestUrl.origin)
     console.log('[Auth Callback] Redirecting verified explorer to resources')
+  } else if (userType === 'staff') {
+    const { data: staffAssignment } = await supabase
+      .from('property_staff')
+      .select('property_id, status')
+      .eq('user_id', user.id)
+      .in('status', ['active', 'pending'])
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (staffAssignment?.property_id) {
+      redirectUrl = new URL(`/dashboard/${staffAssignment.property_id}`, requestUrl.origin)
+      console.log('[Auth Callback] Staff user with assignment - redirecting to property dashboard', {
+        propertyId: staffAssignment.property_id,
+        status: staffAssignment.status,
+      })
+    } else {
+      // Staff user with no property assignment - redirect to login with error
+      redirectUrl = new URL('/login?error=No property assigned. Please contact your administrator.', requestUrl.origin)
+      console.log('[Auth Callback] Staff user with no assignment - redirecting to login')
+    }
   } else {
-    // Buyers - check property and subscription status
+    // Buyers/owners - check property and subscription status
     const { data: properties } = await supabase
       .from('properties')
       .select('id, onboarding_completed, subscription_status')

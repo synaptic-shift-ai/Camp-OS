@@ -735,6 +735,128 @@ export type Database = {
           },
         ]
       }
+      housekeeping_tasks: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          property_id: string
+          site_id: string
+          staff_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          property_id: string
+          site_id: string
+          staff_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          property_id?: string
+          site_id?: string
+          staff_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "housekeeping_tasks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "housekeeping_tasks_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "housekeeping_tasks_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "property_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_tasks: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          property_id: string
+          site_id: string
+          staff_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          property_id: string
+          site_id: string
+          staff_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          property_id?: string
+          site_id?: string
+          staff_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_tasks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_tasks_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_tasks_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "property_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       module_licenses: {
         Row: {
           company_id: string
@@ -1192,7 +1314,7 @@ export type Database = {
       }
       property_role_categories: {
         Row: {
-          access: Json
+          access: Json | null
           created_at: string
           id: string
           name: string
@@ -1201,7 +1323,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          access?: Json
+          access?: Json | null
           created_at?: string
           id?: string
           name: string
@@ -1210,7 +1332,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          access?: Json
+          access?: Json | null
           created_at?: string
           id?: string
           name?: string

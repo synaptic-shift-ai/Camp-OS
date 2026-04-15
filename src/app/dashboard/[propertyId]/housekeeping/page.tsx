@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import { HousekeepingPageContent } from "@/components/dashboard/housekeeping/housekeeping-page-content"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -23,15 +24,5 @@ export default async function HousekeepingPage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Housekeeping</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">{property.name}</p>
-      </div>
-      <div className="border border-border/80 bg-card/50 p-4 text-sm text-muted-foreground">
-        Housekeeping module is ready for assigned housekeeping staff.
-      </div>
-    </div>
-  )
+  return <HousekeepingPageContent propertyName={property.name} />
 }

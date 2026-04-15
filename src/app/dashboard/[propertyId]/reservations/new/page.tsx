@@ -281,6 +281,13 @@ export default function NewReservationPage() {
   const numPets = watch("numPets")
   const pets = watch("pets")
   const paymentMethod = watch("paymentMethod")
+  const paidAmount = watch("paidAmount")
+
+  // Compute overpayment state for real-time warning
+  const paidAmountCents = paidAmount ? Math.round(parseFloat(paidAmount) * 100) : 0
+  const totalCents = summaryTotalCents ?? 0
+  const isOverpayment = paidAmountCents > 0 && totalCents > 0 && paidAmountCents > totalCents
+  const totalDollars = totalCents / 100
   const validPetsCount = (pets ?? []).filter((pet) => {
     if (!pet) return false
     const hasName = typeof pet.name === 'string' && pet.name.trim().length > 0
@@ -555,6 +562,14 @@ export default function NewReservationPage() {
       const paidAmountCents = data.paidAmount
         ? Math.round(parseFloat(data.paidAmount) * 100)
         : 0
+
+      // Validate payment doesn't exceed total (overpayment protection)
+      const totalDueCents = summaryTotalCents ?? 0
+      if (paidAmountCents > 0 && totalDueCents > 0 && paidAmountCents > totalDueCents) {
+        setError(`Payment amount cannot exceed total due of ${formatMoney(totalDueCents)}`)
+        setLoading(false)
+        return
+      }
 
       // Prepare spouse data (only if filled in) - use camelCase for v1 API
       const spouseData = data.spouse?.first_name && data.spouse?.last_name
@@ -1329,17 +1344,41 @@ export default function NewReservationPage() {
 
                   <div>
                     <Label htmlFor="paidAmount">Amount Paid (Optional)</Label>
-                    <Input
-                      id="paidAmount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      {...register("paidAmount")}
-                    />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          id="paidAmount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          className={isOverpayment ? "border-destructive focus-visible:ring-destructive" : ""}
+                          {...register("paidAmount")}
+                        />
+                      </div>
+                      {totalCents > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => setValue("paidAmount", String(totalDollars))}
+                        >
+                          Set to Total
+                        </Button>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Leave empty if payment will be collected later
                     </p>
+                    {isOverpayment && (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Payment amount exceeds total due of {formatMoney(totalCents)}. Please adjust the payment amount.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
 
                   <div>

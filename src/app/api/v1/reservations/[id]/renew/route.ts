@@ -62,7 +62,6 @@ export async function POST(
     // RBAC: verify user has renew access to this property
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId: existingReservation.propertyId,
-      minimumRole: 'manager',
       permission: 'reservations.renew',
     })
     if (isDenied(access)) return access

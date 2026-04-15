@@ -15,6 +15,9 @@ import { roleMeetsMinimum } from './roles'
 export type PermissionKey =
   // Global
   | 'global.view_own_profile'
+  | 'global.edit_own_profile'
+  | 'global.view_company'
+  | 'global.edit_company'
   | 'global.change_password'
   | 'global.view_staff_list'
   | 'global.invite_staff'
@@ -115,7 +118,12 @@ export type PermissionKey =
 /** Full set for owner: all permissions. */
 const OWNER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   // Global
-  'global.view_own_profile', 'global.change_password', 'global.view_staff_list',
+  'global.view_own_profile',
+  'global.edit_own_profile',
+  'global.view_company',
+  'global.edit_company',
+  'global.change_password',
+  'global.view_staff_list',
   'global.invite_staff', 'global.deactivate_staff', 'global.change_staff_role',
   'global.view_billing', 'global.manage_property_settings',
   // Reservations
@@ -162,7 +170,12 @@ const OWNER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
 /** Admin permissions: full operational access minus billing/plan/account management. */
 const ADMIN_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   // Global
-  'global.view_own_profile', 'global.change_password', 'global.view_staff_list',
+  'global.view_own_profile',
+  'global.edit_own_profile',
+  'global.view_company',
+  'global.edit_company',
+  'global.change_password',
+  'global.view_staff_list',
   'global.invite_staff', 'global.deactivate_staff', 'global.change_staff_role',
   'global.manage_property_settings',
   // Reservations
@@ -209,7 +222,12 @@ const ADMIN_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
 /** Manager permissions: elevated operational access, no pricing/financial config. */
 const MANAGER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   // Global
-  'global.view_own_profile', 'global.change_password', 'global.view_staff_list',
+  'global.view_own_profile',
+  'global.edit_own_profile',
+  'global.view_company',
+  'global.edit_company',
+  'global.change_password',
+  'global.view_staff_list',
   // Reservations
   'reservations.read', 'reservations.create', 'reservations.update',
   'reservations.check_in', 'reservations.check_out', 'reservations.cancel',

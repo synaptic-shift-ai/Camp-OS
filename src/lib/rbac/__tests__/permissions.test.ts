@@ -13,6 +13,8 @@ describe('permissions', () => {
       const perms = getPermissionsForRole('owner')
       // Spot-check critical permissions
       expect(perms.has('global.view_own_profile')).toBe(true)
+      expect(perms.has('global.view_company')).toBe(true)
+      expect(perms.has('global.edit_company')).toBe(true)
       expect(perms.has('global.view_billing')).toBe(true)
       expect(perms.has('financial.refund')).toBe(true)
       expect(perms.has('reservations.refund')).toBe(true)
@@ -33,6 +35,7 @@ describe('permissions', () => {
 
     it('manager has operational permissions, no financial config', () => {
       const perms = getPermissionsForRole('manager')
+      expect(perms.has('global.view_company')).toBe(true)
       expect(perms.has('reservations.read')).toBe(true)
       expect(perms.has('reservations.check_in')).toBe(true)
       expect(perms.has('financial.view_balance')).toBe(true)
@@ -49,6 +52,7 @@ describe('permissions', () => {
       expect(perms.has('global.view_own_profile')).toBe(true)
       expect(perms.has('global.change_password')).toBe(true)
       expect(perms.has('docs.view_guest')).toBe(true)
+      expect(perms.has('global.view_company')).toBe(false)
       // Staff should NOT have operational permissions by default
       expect(perms.has('reservations.read')).toBe(false)
       expect(perms.has('financial.view_balance')).toBe(false)

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { usePermissions } from "@/hooks/use-permissions"
 import { createClient } from "@/lib/supabase/client"
 
 type CompanyDetailsFormProps = {
@@ -20,6 +21,8 @@ const COMPANY_DETAILS_UPDATED_EVENT = "company-details-updated"
 
 export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
   const { toast } = useToast()
+  const { can, isLoading: permissionsLoading } = usePermissions()
+  const canEditCompany = !permissionsLoading && can("global.edit_company")
   const logoInputRef = useRef<HTMLInputElement>(null)
 
   const [companyName, setCompanyName] = useState("")
@@ -114,6 +117,9 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
   }, [])
 
   const handleLogoFileSelect = (file: File | null) => {
+    if (!canEditCompany) {
+      return
+    }
     if (!file) {
       setSelectedLogoFile(null)
       setLogoPreviewUrl(null)
@@ -184,6 +190,9 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
   }
 
   const handleSaveCompany = async () => {
+    if (!canEditCompany) {
+      return
+    }
     if (!companyName.trim()) {
       toast({
         title: "Company name is required",
@@ -251,7 +260,9 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
         <CardHeader>
           <CardTitle>Company Details</CardTitle>
           <CardDescription>
-            Update your company account information.
+            {canEditCompany
+              ? "Update your company account information."
+              : "View your company account information."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -268,7 +279,7 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
                   value={companyName}
                   onChange={(event) => setCompanyName(event.target.value)}
                   placeholder="Campgrounds Unlimited"
-                  disabled={savingCompany}
+                  disabled={savingCompany || !canEditCompany}
                 />
               </div>
               <div className="space-y-2">
@@ -291,7 +302,9 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
         <CardHeader>
           <CardTitle>Company Logo</CardTitle>
           <CardDescription>
-            Upload a logo image and save it to your company profile.
+            {canEditCompany
+              ? "Upload a logo image and save it to your company profile."
+              : "Company logo shown below."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -306,7 +319,7 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
                 id="company-logo"
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                disabled={savingCompany || uploadingLogo}
+                disabled={savingCompany || uploadingLogo || !canEditCompany}
                 onChange={(event) => handleLogoFileSelect(event.target.files?.[0] ?? null)}
                 className="hidden"
               />
@@ -326,7 +339,7 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
                         <button
                           type="button"
                           onClick={handleChangeLogoClick}
-                          disabled={savingCompany || uploadingLogo}
+                          disabled={savingCompany || uploadingLogo || !canEditCompany}
                           className="flex-1 rounded bg-black/60 px-2 py-1 text-xs text-white transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Change
@@ -334,7 +347,7 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
                         <button
                           type="button"
                           onClick={handleRemoveLogo}
-                          disabled={savingCompany || uploadingLogo}
+                          disabled={savingCompany || uploadingLogo || !canEditCompany}
                           className="rounded bg-destructive/80 px-2 py-1 text-xs text-white transition hover:bg-destructive disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Remove
@@ -345,7 +358,7 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
                     <button
                       type="button"
                       onClick={handleChangeLogoClick}
-                      disabled={savingCompany || uploadingLogo}
+                      disabled={savingCompany || uploadingLogo || !canEditCompany}
                       className="flex h-56 w-full items-center justify-center rounded-md bg-muted/30 text-sm text-muted-foreground transition hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Click to upload company logo
@@ -355,7 +368,10 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
               </div>
             </>
           )}
-          <Button onClick={handleSaveCompany} disabled={companyLoading || savingCompany || uploadingLogo}>
+          <Button
+            onClick={handleSaveCompany}
+            disabled={companyLoading || savingCompany || uploadingLogo || !canEditCompany}
+          >
             {savingCompany || uploadingLogo ? "Saving..." : "Save Company Details"}
           </Button>
         </CardContent>

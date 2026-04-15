@@ -39,6 +39,8 @@ function normalizeAccessPayload(raw: unknown): RoleCategoryAccessPayload {
 const MODULE_PERMISSION_TO_RBAC: Partial<Record<RoleAccessControlModuleKey, Partial<Record<string, PermissionKey>>>> = {
   'account-profile': {
     view: 'global.view_own_profile',
+    edit: 'global.edit_own_profile',
+    'view-company': 'global.view_company',
     'change-password': 'global.change_password',
   },
   'staff-management': {
@@ -96,7 +98,12 @@ function buildDefaultAccessForRoleCategory(
 
   if (role === 'owner' || role === 'admin') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       'staff-management': { view: true, invite: true, edit: true, deactivate: true },
       reservations: { view: true, create: true, modify: true, 'check-in': true, 'check-out': true, cancel: true },
       payments: { view: true },
@@ -110,7 +117,12 @@ function buildDefaultAccessForRoleCategory(
 
   if (role === 'manager' && category === 'front desk') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       'staff-management': { view: true },
       reservations: { view: true, 'check-in': true, 'check-out': true },
     }
@@ -118,7 +130,12 @@ function buildDefaultAccessForRoleCategory(
 
   if (role === 'manager' && category === 'housekeeping') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       'staff-management': { view: true },
       housekeeping: { view: true, create: true, update: true },
     }
@@ -126,7 +143,12 @@ function buildDefaultAccessForRoleCategory(
 
   if (role === 'manager' && category === 'maintenance') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       'staff-management': { view: true },
       maintenance: { view: true, create: true, update: true },
     }
@@ -134,14 +156,24 @@ function buildDefaultAccessForRoleCategory(
 
   if (role === 'staff' && category === 'front desk') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       reservations: { view: true, 'check-in': true, 'check-out': true },
     }
   }
 
   if (role === 'staff' && category === 'housekeeping') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       overview: { view: true },
       housekeeping: { view: true },
     }
@@ -149,7 +181,12 @@ function buildDefaultAccessForRoleCategory(
 
   if (role === 'staff' && category === 'maintenance') {
     return {
-      'account-profile': { view: true, 'change-password': true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
       overview: { view: true },
       maintenance: { view: true },
     }

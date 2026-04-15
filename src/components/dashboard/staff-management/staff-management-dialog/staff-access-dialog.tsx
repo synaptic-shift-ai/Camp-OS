@@ -25,8 +25,8 @@ const rowBase =
 const rowSelected = 'bg-[#F5F5F0] text-foreground dark:bg-accent dark:text-accent-foreground'
 const rowUnselected = 'bg-transparent text-foreground'
 
-/** `property_staff.role` values used in the product (plus platform-level operator). */
-export const PROPERTY_STAFF_ACCESS_ROLES = ['owner', 'admin', 'manager', 'staff'] as const
+/** Roles shown in Staff Access Management (owner is excluded; owner access is implicit). */
+export const PROPERTY_STAFF_ACCESS_ROLES = ['admin', 'manager', 'staff'] as const
 
 export type PropertyStaffAccessRole = (typeof PROPERTY_STAFF_ACCESS_ROLES)[number]
 
@@ -105,7 +105,6 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'view', name: 'View profile' },
     { id: 'edit', name: 'Edit name and email' },
     { id: 'view-company', name: 'View company' },
-    { id: 'edit-company', name: 'Edit company' },
     { id: 'change-password', name: 'Change password' },
   ],
 }
@@ -144,7 +143,6 @@ function buildStaffHousekeepingFallbackPermissionState(): Record<string, boolean
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-  next['account-profile:edit-company'] = false
 
   return next
 }
@@ -166,7 +164,6 @@ function buildStaffMaintenanceFallbackPermissionState(): Record<string, boolean>
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-  next['account-profile:edit-company'] = false
 
   return next
 }
@@ -187,7 +184,6 @@ function buildStaffFrontDeskFallbackPermissionState(): Record<string, boolean> {
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-  next['account-profile:edit-company'] = false
 
   return next
 }
@@ -214,7 +210,6 @@ function buildManagerFrontDeskFallbackPermissionState(): Record<string, boolean>
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-  next['account-profile:edit-company'] = false
 
   return next
 }
@@ -240,7 +235,6 @@ function buildManagerHousekeepingFallbackPermissionState(): Record<string, boole
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-  next['account-profile:edit-company'] = false
 
   return next
 }
@@ -266,7 +260,6 @@ function buildManagerMaintenanceFallbackPermissionState(): Record<string, boolea
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-  next['account-profile:edit-company'] = false
 
   return next
 }
@@ -413,18 +406,10 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       const normalizedCategoryName = selectedCategory.name.trim().toLowerCase()
       const isStaffRole = selectedRole === 'staff'
       const isManagerRole = selectedRole === 'manager'
-      const isOwnerRole = selectedRole === 'owner'
       const isAdminRole = selectedRole === 'admin'
 
-      if (isOwnerRole) {
-        setPermissionEnabled(buildDefaultPermissionState())
-        return
-      }
-
       if (isAdminRole) {
-        const next = buildDefaultPermissionState()
-        next['account-profile:edit-company'] = false
-        setPermissionEnabled(next)
+        setPermissionEnabled(buildDefaultPermissionState())
         return
       }
 
@@ -444,9 +429,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       }
 
       if (isStaffRole) {
-        const next = buildDefaultPermissionState()
-        next['account-profile:edit-company'] = false
-        setPermissionEnabled(next)
+        setPermissionEnabled(buildDefaultPermissionState())
         return
       }
 
@@ -466,9 +449,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       }
 
       if (isManagerRole) {
-        const next = buildDefaultPermissionState()
-        next['account-profile:edit-company'] = false
-        setPermissionEnabled(next)
+        setPermissionEnabled(buildDefaultPermissionState())
         return
       }
 

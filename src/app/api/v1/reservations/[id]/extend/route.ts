@@ -64,7 +64,6 @@ export async function POST(
     // RBAC: verify user has extend access to this property
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId: existingReservation.propertyId,
-      minimumRole: 'manager',
       permission: 'reservations.extend',
     })
     if (isDenied(access)) return access

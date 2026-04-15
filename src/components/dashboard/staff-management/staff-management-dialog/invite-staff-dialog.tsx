@@ -251,7 +251,6 @@ export default function InviteStaffDialog({
                         </SelectTrigger>
                         
                         <SelectContent>
-                            <SelectItem value="owner">Owner</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
                             <SelectItem value="staff">Staff</SelectItem>

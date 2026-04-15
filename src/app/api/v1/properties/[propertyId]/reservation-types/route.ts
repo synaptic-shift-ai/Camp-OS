@@ -11,6 +11,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canEditPropertySettingsModule } from '@/lib/dashboard/property-settings-module-edit'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import {
@@ -147,6 +148,11 @@ export async function PUT(
       minimumRole: 'manager',
     })
     if (isDenied(access)) return access
+
+    const canEditSettings = await canEditPropertySettingsModule(supabase, propertyId, user.id)
+    if (!canEditSettings) {
+      return error(ErrorCodes.AUTH_006, request)
+    }
 
     // Verify property exists
     const { data: property, error: propertyError } = await supabase

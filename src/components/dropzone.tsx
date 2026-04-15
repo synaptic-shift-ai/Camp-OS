@@ -156,6 +156,8 @@ type DropzoneCoverContentProps = {
   onDeleted?: () => void
   propertyId: string
   bucketName?: string
+  /** When false, hide change/remove controls (view-only). Default true. */
+  allowEditing?: boolean
 }
 
 const DropzoneCoverContent = ({
@@ -165,6 +167,7 @@ const DropzoneCoverContent = ({
   onDeleted,
   propertyId,
   bucketName = 'cover-property-images',
+  allowEditing = true,
 }: DropzoneCoverContentProps) => {
   const { files, setFiles, onUpload, loading, successes, errors, inputRef } = useDropzoneContext()
   const supabase = useMemo(() => createClient(), [])
@@ -297,7 +300,7 @@ const DropzoneCoverContent = ({
         </div>
       )}
       {/* Change + Delete buttons */}
-      {!loading && !deleting && (
+      {allowEditing && !loading && !deleting && (
         <div className="absolute bottom-1.5 left-1.5 right-1.5 flex gap-1">
           <button
             type="button"
@@ -480,6 +483,8 @@ type DropzoneUploadedContentProps = {
   storagePath?: string
   upload: Pick<UseSupabaseUploadReturn, 'files' | 'successes' | 'isSuccess' | 'setFiles'>
   onPersistedCountChange?: (count: number) => void
+  /** When false, hide per-image delete. Default true. */
+  allowEditing?: boolean
 }
 
 const DropzoneUploadedContent = ({
@@ -490,6 +495,7 @@ const DropzoneUploadedContent = ({
   storagePath,
   upload,
   onPersistedCountChange,
+  allowEditing = true,
 }: DropzoneUploadedContentProps) => {
   const { successes } = upload
   const { toast } = useToast()
@@ -611,17 +617,19 @@ const DropzoneUploadedContent = ({
                 className="absolute inset-0 w-full h-full object-cover"
               />
               {/* Delete button — top right, always visible so user can remove excess images */}
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => handleDelete(img)}
-                className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md flex items-center justify-center backdrop-blur-sm bg-black/50 hover:bg-destructive/90 text-white opacity-90 hover:opacity-100 transition"
-              >
-                {isDeleting
-                  ? <Loader2 size={13} className="animate-spin" />
-                  : <Trash2 size={13} />
-                }
-              </button>
+              {allowEditing && (
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => handleDelete(img)}
+                  className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md flex items-center justify-center backdrop-blur-sm bg-black/50 hover:bg-destructive/90 text-white opacity-90 hover:opacity-100 transition"
+                >
+                  {isDeleting
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <Trash2 size={13} />
+                  }
+                </button>
+              )}
               {/* Filename — bottom bar, blurred bg */}
               <div className="absolute bottom-0 left-0 right-0 px-2 pt-6 pb-1.5 bg-gradient-to-t from-black/50 to-transparent">
                 <p title={img.name} className="text-white text-[11px] font-medium truncate leading-tight">

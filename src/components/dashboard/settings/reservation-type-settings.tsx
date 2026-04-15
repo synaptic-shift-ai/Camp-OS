@@ -52,6 +52,7 @@ interface ReservationTypeSettingsProps {
   initialConfig?: PropertyReservationTypesConfig
   initialEnabledTypes?: BookingType[]
   initialSeasonalPeriods?: SeasonalPeriod[]
+  canEdit?: boolean
 }
 
 const MONTHS = [
@@ -109,7 +110,9 @@ export function ReservationTypeSettings({
   initialConfig,
   initialEnabledTypes,
   initialSeasonalPeriods,
+  canEdit = true,
 }: ReservationTypeSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -368,6 +371,7 @@ export function ReservationTypeSettings({
                 </div>
                 <Switch
                   checked={enabledTypes.includes(type)}
+                  disabled={readOnly}
                   onCheckedChange={() => toggleReservationType(type)}
                 />
               </div>
@@ -390,6 +394,7 @@ export function ReservationTypeSettings({
                         min="0"
                         className="pl-7"
                         placeholder="Enter rate"
+                        disabled={readOnly}
                         value={
                           focusedRateField === type
                             ? rateInputValue
@@ -420,6 +425,7 @@ export function ReservationTypeSettings({
                       type="number"
                       min="1"
                       max="365"
+                      disabled={readOnly}
                       value={config[type].min_nights}
                       onChange={(e) =>
                         updateTypeConfig(type, 'min_nights', parseInt(e.target.value) || 1)
@@ -434,6 +440,7 @@ export function ReservationTypeSettings({
                       min="1"
                       max="365"
                       placeholder="No limit"
+                      disabled={readOnly}
                       value={config[type].max_nights ?? ''}
                       onChange={(e) =>
                         updateTypeConfig(
@@ -491,7 +498,7 @@ export function ReservationTypeSettings({
                     <TableHead>Date Range</TableHead>
                     <TableHead>Base Rate</TableHead>
                     <TableHead>Recurring</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    {canEdit && <TableHead className="w-[100px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -504,6 +511,7 @@ export function ReservationTypeSettings({
                       </TableCell>
                       <TableCell>{formatCentsToDollars(period.base_rate_cents)}</TableCell>
                       <TableCell>{period.recurring ? 'Yes' : 'No'}</TableCell>
+                      {canEdit && (
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -522,6 +530,7 @@ export function ReservationTypeSettings({
                           </Button>
                         </div>
                       </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -532,14 +541,17 @@ export function ReservationTypeSettings({
       )}
 
       {/* Save Button and Messages */}
+      {canEdit && (
       <div className="flex items-center justify-between">
         <Button onClick={handleSaveConfig} disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Reservation Types'}
         </Button>
       </div>
+      )}
 
       {/* Seasonal Period Dialog */}
+      {canEdit && (
       <Dialog open={isSeasonDialogOpen} onOpenChange={setIsSeasonDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -693,6 +705,7 @@ export function ReservationTypeSettings({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
 }

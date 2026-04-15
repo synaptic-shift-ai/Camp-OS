@@ -61,6 +61,11 @@ export const ErrorCodes = {
     message: 'Invalid credentials',
     status: 401,
   },
+  AUTH_006: {
+    code: 'AUTH_006',
+    message: 'You do not have permission to edit property settings.',
+    status: 403,
+  },
 
   // ============================================================
   // Reservations (RES_xxx)

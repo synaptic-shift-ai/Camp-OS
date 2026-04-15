@@ -42,9 +42,10 @@ type PropertyAmenity = {
 
 type PropertiesAmenitiesProps = {
     propertyId: string
+    canEdit?: boolean
 }
 
-export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
+export function PropertiesAmenities({ propertyId, canEdit = true }: PropertiesAmenitiesProps) {
     const { toast } = useToast()
     const [isAddAmenitiesDialogOpen, setIsAddAmenitiesDialogOpen] = useState(false)
     const [isAddPropertyAmenitiesDialogOpen, setIsAddPropertyAmenitiesDialogOpen] = useState(false)
@@ -295,10 +296,12 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                             <CardTitle>Property Amenities</CardTitle>
                             <CardDescription>Configure the amenities available at your property.</CardDescription>
                         </div>
+                        {canEdit && (
                         <Button onClick={() => setIsAddPropertyAmenitiesDialogOpen(true)}>
                             <Plus className="h-4 w-4" />
                             Add Property Amenity
                         </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -329,6 +332,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                                             ) : null}
                                         </div>
 
+                                        {canEdit && (
                                         <div className="flex shrink-0 gap-1">
                                             <Button
                                                 type="button"
@@ -349,6 +353,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -364,10 +369,12 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                             <CardTitle>Site Amenities</CardTitle>
                             <CardDescription>Configure the amenities available at your sites.</CardDescription>
                         </div>
+                        {canEdit && (
                         <Button onClick={() => setIsAddAmenitiesDialogOpen(true)}>
                             <Plus className="h-4 w-4" />
                             Add Site Amenity
                         </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -398,6 +405,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                                             ) : null}
                                         </div>
 
+                                        {canEdit && (
                                         <div className="flex shrink-0 gap-1">
                                             <Button
                                                 type="button"
@@ -418,6 +426,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -426,6 +435,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                 </CardContent>
             </Card>
 
+            {canEdit && (
             <div className="flex justify-end">
                 <Button
                     type="button"
@@ -435,6 +445,7 @@ export function PropertiesAmenities({ propertyId }: PropertiesAmenitiesProps) {
                     {isSaving ? "Saving..." : "Save Amenities"}
                 </Button>
             </div>
+            )}
 
             <AddAmenitiesDialog
                 open={isAddAmenitiesDialogOpen}

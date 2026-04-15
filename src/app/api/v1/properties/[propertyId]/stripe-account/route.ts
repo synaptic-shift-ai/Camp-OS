@@ -17,7 +17,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
 import { SupabasePropertyRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyRepository'
-import { resolveDashboardAccess, canAccessPropertySettings } from '@/lib/rbac/dashboard-guards'
+import { canEditPropertySettingsModule } from '@/lib/dashboard/property-settings-module-edit'
 /**
  * DELETE /api/v1/properties/[propertyId]/stripe-account
  *
@@ -38,10 +38,7 @@ export async function DELETE(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_001, 'Unauthorized'),
-        { status: 401 }
-      )
+      return error(ErrorCodes.AUTH_001)
     }
 
     const repository = new SupabasePropertyRepository(supabase)
@@ -55,13 +52,9 @@ export async function DELETE(
       )
     }
 
-    const dashAccess = await resolveDashboardAccess(supabase, id, user.id)
-    const allowedForPropertySettings = !!dashAccess && canAccessPropertySettings(dashAccess)
-    if (!allowedForPropertySettings) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_003, 'Forbidden - insufficient permissions for property settings'),
-        { status: 403 }
-      )
+    const canEditSettings = await canEditPropertySettingsModule(supabase, id, user.id)
+    if (!canEditSettings) {
+      return error(ErrorCodes.AUTH_006, request)
     }
 
     // RBAC: verify user has owner/manager access to this property

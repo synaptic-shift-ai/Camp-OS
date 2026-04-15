@@ -71,6 +71,7 @@ interface ReservationTypeSettingsProps {
     weekly?: Partial<SiteTypeRateConfig>
     monthly?: Partial<SiteTypeRateConfig>
   }>
+  canEdit?: boolean
 }
 
 /** Order for accordion; values must match DB site_type (case-insensitive). */
@@ -151,7 +152,9 @@ export function SiteTypeRateSettings({
   initialSiteTypes = [],
   initialAllowedSiteTypes,
   initialSiteTypeRates,
+  canEdit = true,
 }: ReservationTypeSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -483,6 +486,7 @@ export function SiteTypeRateSettings({
                         Select which site types your property offers
                         </CardDescription>
                     </div>
+                    {canEdit && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full shrink-0 sm:w-auto">
@@ -534,6 +538,7 @@ export function SiteTypeRateSettings({
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    )}
                 </div>
             </CardHeader>
             <CardContent>
@@ -550,6 +555,7 @@ export function SiteTypeRateSettings({
                       className="inline-flex max-w-full items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"
                     >
                       <span className="min-w-0 truncate">{siteType} Site</span>
+                      {canEdit && (
                       <button
                         type="button"
                         className="shrink-0 touch-manipulation text-xs text-muted-foreground hover:text-destructive"
@@ -563,6 +569,7 @@ export function SiteTypeRateSettings({
                       >
                         ×
                       </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -639,6 +646,7 @@ export function SiteTypeRateSettings({
                                   min="0"
                                   className="pl-7"
                                   placeholder="Enter rate"
+                                  disabled={readOnly}
                                   value={
                                     focusedSiteTypeRateField === `${siteType}-${type}`
                                       ? siteRateInputValue
@@ -678,6 +686,7 @@ export function SiteTypeRateSettings({
                                 type="number"
                                 min="1"
                                 max="365"
+                                disabled={readOnly}
                                 value={rates[type].min_nights}
                                 onChange={(e) =>
                                   updateSiteTypeConfig(
@@ -697,6 +706,7 @@ export function SiteTypeRateSettings({
                                 min="1"
                                 max="365"
                                 placeholder="No limit"
+                                disabled={readOnly}
                                 value={rates[type].max_nights ?? ''}
                                 onChange={(e) =>
                                   updateSiteTypeConfig(
@@ -720,6 +730,7 @@ export function SiteTypeRateSettings({
         )}
 
       {/* Save Button and Messages */}
+      {canEdit && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button
           onClick={handleSaveConfig}
@@ -730,8 +741,10 @@ export function SiteTypeRateSettings({
           {isSaving ? 'Saving...' : 'Save Site Type Rates'}
         </Button>
       </div>
+      )}
 
       {/* Seasonal Period Dialog */}
+      {canEdit && (
       <Dialog open={isSeasonDialogOpen} onOpenChange={setIsSeasonDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -885,6 +898,7 @@ export function SiteTypeRateSettings({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
 }

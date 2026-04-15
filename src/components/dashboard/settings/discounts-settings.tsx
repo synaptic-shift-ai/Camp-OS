@@ -35,6 +35,7 @@ interface DiscountsSettingsProps {
   openPeriodFrom?: string | null
   openPeriodUntil?: string | null
   onSave?: (config: RateDiscountsConfig) => Promise<void>
+  canEdit?: boolean
 }
 
 // Discount type options for the dropdown
@@ -129,7 +130,9 @@ export function DiscountsSettings({
   openPeriodFrom,
   openPeriodUntil,
   onSave,
+  canEdit = true,
 }: DiscountsSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -345,12 +348,14 @@ export function DiscountsSettings({
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              {canEdit && (
               <DialogTrigger asChild>
                 <Button onClick={openAddDialog} className="w-full shrink-0 sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Discount
                 </Button>
               </DialogTrigger>
+              )}
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingDiscount ? 'Edit Discount' : 'Add Discount'}</DialogTitle>
@@ -596,10 +601,12 @@ export function DiscountsSettings({
                   <div className="flex shrink-0 items-center justify-end gap-1 border-t border-border/60 pt-3 sm:gap-2 sm:border-0 sm:pt-0">
                     <Switch
                       checked={discount.enabled}
+                      disabled={readOnly}
                       onCheckedChange={() => toggleDiscountEnabled(discount.id)}
                       className="shrink-0"
                       aria-label={discount.enabled ? `Disable ${discount.title}` : `Enable ${discount.title}`}
                     />
+                    {canEdit && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -610,6 +617,8 @@ export function DiscountsSettings({
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    )}
+                    {canEdit && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -620,6 +629,7 @@ export function DiscountsSettings({
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -629,12 +639,14 @@ export function DiscountsSettings({
       </Card>
 
       {/* Save Button and Messages */}
+      {canEdit && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button onClick={handleSave} disabled={isSaving} className="w-full shrink-0 sm:w-auto">
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Discounts'}
         </Button>
       </div>
+      )}
     </div>
   )
 }

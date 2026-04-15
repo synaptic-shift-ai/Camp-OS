@@ -42,6 +42,7 @@ interface BookingRulesSettingsProps {
   openPeriodFrom?: string | null
   openPeriodUntil?: string | null
   onSave?: (config: BookingRulesConfig) => Promise<void>
+  canEdit?: boolean
 }
 
 /** Local calendar date from YYYY-MM-DD (avoids UTC shift from parseISO). */
@@ -83,7 +84,9 @@ export function BookingRulesSettings({
   openPeriodFrom,
   openPeriodUntil,
   onSave,
+  canEdit = true,
 }: BookingRulesSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -202,7 +205,10 @@ export function BookingRulesSettings({
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(onSubmit)}
+        className="space-y-6"
+      >
       {/* Stay Duration Rules */}
       <Card>
         <CardHeader>
@@ -219,6 +225,7 @@ export function BookingRulesSettings({
                 min="1"
                 max="365"
                 placeholder="1"
+                disabled={readOnly}
                 {...register('min_stay_nights', { valueAsNumber: true })}
               />
               {errors.min_stay_nights?.message != null && (
@@ -237,6 +244,7 @@ export function BookingRulesSettings({
                 min="1"
                 max="365"
                 placeholder="Optional - leave blank for no limit"
+                disabled={readOnly}
                 {...register('max_stay_nights', {
                   setValueAs: v => v === '' || v === null ? null : parseInt(v),
                 })}
@@ -266,6 +274,7 @@ export function BookingRulesSettings({
             max={10080}
             step={1}
             placeholder="5"
+            disabled={readOnly}
             {...register('checkout_hold_minutes', { valueAsNumber: true })}
           />
           {errors.checkout_hold_minutes?.message != null && (
@@ -293,6 +302,7 @@ export function BookingRulesSettings({
                 min="1"
                 max="730"
                 placeholder="365"
+                disabled={readOnly}
                 {...register('booking_window_days', { valueAsNumber: true })}
               />
               {errors.booking_window_days?.message != null && (
@@ -311,6 +321,7 @@ export function BookingRulesSettings({
                 min="0"
                 max="90"
                 placeholder="0"
+                disabled={readOnly}
                 {...register('advance_notice_days', { valueAsNumber: true })}
               />
               {errors.advance_notice_days?.message != null && (
@@ -331,6 +342,7 @@ export function BookingRulesSettings({
             </div>
             <Switch
               checked={sameDayBookingEnabled}
+              disabled={readOnly}
               onCheckedChange={(checked) => setValue('same_day_booking_enabled', checked, { shouldDirty: true })}
             />
           </div>
@@ -344,6 +356,7 @@ export function BookingRulesSettings({
             </div>
             <Switch
               checked={instantBookingEnabled}
+              disabled={readOnly}
               onCheckedChange={(checked) => setValue('instant_booking_enabled', checked, { shouldDirty: true })}
             />
           </div>
@@ -363,6 +376,7 @@ export function BookingRulesSettings({
                 <Checkbox
                   id={`checkin-${day.value}`}
                   checked={allowedCheckinDays.includes(day.value)}
+                  disabled={readOnly}
                   onCheckedChange={() => toggleCheckinDay(day.value)}
                 />
                 <Label htmlFor={`checkin-${day.value}`} className="cursor-pointer">
@@ -399,6 +413,7 @@ export function BookingRulesSettings({
                 <Checkbox
                   id={`checkout-${day.value}`}
                   checked={allowedCheckoutDays.includes(day.value)}
+                  disabled={readOnly}
                   onCheckedChange={() => toggleCheckoutDay(day.value)}
                 />
                 <Label htmlFor={`checkout-${day.value}`} className="cursor-pointer">
@@ -429,10 +444,12 @@ export function BookingRulesSettings({
               <CardTitle>Holiday Reservation Configuration</CardTitle>
               <CardDescription>Configure how holiday reservations are handled</CardDescription>
             </div>
+            {canEdit && (
             <Button type="button" size="sm" onClick={openAddHolidayDialog}>
               <Plus className="h-4 w-4" />
               Add Holiday
             </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -468,9 +485,11 @@ export function BookingRulesSettings({
                       <Switch
                         id={`holiday-enabled-${rule.id}`}
                         checked={rule.enabled}
+                        disabled={readOnly}
                         onCheckedChange={(checked) => setHolidayRuleEnabled(rule.id, checked)}
                       />
                     </div>
+                    {canEdit && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -481,6 +500,8 @@ export function BookingRulesSettings({
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    )}
+                    {canEdit && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -491,6 +512,7 @@ export function BookingRulesSettings({
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -500,14 +522,17 @@ export function BookingRulesSettings({
       </Card>
 
       {/* Save Button and Messages */}
+      {canEdit && (
       <div className="flex items-center justify-between">
         <Button type="submit" disabled={isSaving || !isDirty}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Booking Rules'}
         </Button>
       </div>
+      )}
       </form>
 
+      {canEdit && (
       <AddHolidayDialog
         open={isAddHolidayDialogOpen}
         onOpenChange={handleHolidayDialogOpenChange}
@@ -526,6 +551,7 @@ export function BookingRulesSettings({
           setHolidayBeingEdited(null)
         }}
       />
+      )}
     </>
   )
 }

@@ -21,11 +21,13 @@ function CoverDropzoneSection({
   coverUrl,
   onUploaded,
   onDeleted,
+  allowEditing,
 }: {
   propertyId: string
   coverUrl: string | null
   onUploaded: (url: string, name: string) => void
   onDeleted: () => void
+  allowEditing: boolean
 }) {
   const coverUpload = useSupabaseUpload({
     bucketName: "cover-property-images",
@@ -49,6 +51,7 @@ function CoverDropzoneSection({
         currentCoverUrl={coverUrl}
         onUploaded={onUploaded}
         onDeleted={onDeleted}
+        allowEditing={allowEditing}
       />
     </Dropzone>
   )
@@ -57,11 +60,13 @@ function CoverDropzoneSection({
 export type PropertyImagesSectionProps = {
   propertyId: string
   initialCoverUrl?: string | null
+  canEdit?: boolean
 }
 
 export function PropertyImagesSection({
   propertyId,
   initialCoverUrl,
+  canEdit = true,
 }: PropertyImagesSectionProps) {
   const [coverUrl, setCoverUrl] = useState<string | null>(initialCoverUrl ?? null)
   const [uploadedGalleryCount, setUploadedGalleryCount] = useState(0)
@@ -90,50 +95,80 @@ export function PropertyImagesSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-start">
-          <div className="w-full sm:w-64 sm:shrink-0 flex flex-col">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Cover photo</p>
-            <CoverDropzoneSection
-              key={coverKey}
+        {canEdit ? (
+          <>
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <div className="w-full sm:w-64 sm:shrink-0 flex flex-col">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Cover photo</p>
+                <CoverDropzoneSection
+                  key={coverKey}
+                  propertyId={propertyId}
+                  coverUrl={coverUrl}
+                  allowEditing
+                  onUploaded={(url) => setCoverUrl(url)}
+                  onDeleted={() => {
+                    setCoverUrl(null)
+                    setCoverKey((k) => k + 1)
+                  }}
+                />
+              </div>
+
+              <div className="w-full sm:flex-1 sm:min-w-0 flex flex-col">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Gallery images</p>
+                <Dropzone
+                  {...galleryUpload}
+                  uploadedCount={uploadedGalleryCount}
+                  className={
+                    galleryAtMax
+                      ? "h-48 flex flex-col overflow-hidden opacity-60 pointer-events-none"
+                      : "h-48 flex flex-col overflow-hidden"
+                  }
+                >
+                  {galleryUpload.files.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <DropzoneEmptyState />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full overflow-y-auto p-2">
+                      <DropzoneContent layout="grid" className="mt-0" />
+                    </div>
+                  )}
+                </Dropzone>
+              </div>
+            </div>
+
+            <DropzoneUploadedContent
               propertyId={propertyId}
-              coverUrl={coverUrl}
-              onUploaded={(url) => setCoverUrl(url)}
-              onDeleted={() => {
-                setCoverUrl(null)
-                setCoverKey((k) => k + 1)
-              }}
+              upload={galleryUpload}
+              onPersistedCountChange={setUploadedGalleryCount}
             />
-          </div>
-
-          <div className="w-full sm:flex-1 sm:min-w-0 flex flex-col">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Gallery images</p>
-            <Dropzone
-              {...galleryUpload}
-              uploadedCount={uploadedGalleryCount}
-              className={
-                galleryAtMax
-                  ? "h-48 flex flex-col overflow-hidden opacity-60 pointer-events-none"
-                  : "h-48 flex flex-col overflow-hidden"
-              }
-            >
-              {galleryUpload.files.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <DropzoneEmptyState />
-                </div>
-              ) : (
-                <div className="w-full h-full overflow-y-auto p-2">
-                  <DropzoneContent layout="grid" className="mt-0" />
-                </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="w-full sm:w-64 sm:shrink-0 flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Cover photo</p>
+              <div className="relative flex h-48 items-center justify-center overflow-hidden rounded-lg border bg-muted/30">
+                {coverUrl ? (
+                  <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <p className="px-2 text-center text-sm text-muted-foreground">No cover photo</p>
+                )}
+              </div>
+            </div>
+            <div className="min-w-0 flex-1 flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Gallery images</p>
+              <DropzoneUploadedContent
+                propertyId={propertyId}
+                upload={galleryUpload}
+                allowEditing={false}
+                onPersistedCountChange={setUploadedGalleryCount}
+              />
+              {uploadedGalleryCount === 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">No gallery images uploaded.</p>
               )}
-            </Dropzone>
+            </div>
           </div>
-        </div>
-
-        <DropzoneUploadedContent
-          propertyId={propertyId}
-          upload={galleryUpload}
-          onPersistedCountChange={setUploadedGalleryCount}
-        />
+        )}
       </CardContent>
     </Card>
   )

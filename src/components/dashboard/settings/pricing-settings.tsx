@@ -34,12 +34,14 @@ interface PricingSettingsProps {
   initialConfig?: PricingConfig
   propertyId: string
   onSave?: (config: PricingConfig) => Promise<void>
+  canEdit?: boolean
 }
 
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSettingsProps) {
+export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = true }: PricingSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -147,7 +149,10 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
       {/* Tax Configuration */}
       <Card>
         <CardHeader>
@@ -165,7 +170,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
                 min="0"
                 max="100"
                 placeholder="8.5"
-                {...register('tax_rate_percentage', { valueAsNumber: true })}
+                {...register('tax_rate_percentage', { valueAsNumber: true, disabled: readOnly })}
               />
               {errors.tax_rate_percentage && (
                 <p className="text-sm text-destructive">{errors.tax_rate_percentage.message}</p>
@@ -180,7 +185,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
               <Input
                 id="tax_name"
                 placeholder="Sales Tax"
-                {...register('tax_name')}
+                {...register('tax_name', { disabled: readOnly })}
               />
               {errors.tax_name && <p className="text-sm text-destructive">{errors.tax_name.message}</p>}
               <p className="text-sm text-muted-foreground">
@@ -202,9 +207,10 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
             <Label htmlFor="service_fee_type">Service Fee Type</Label>
             <Select
               value={serviceFeeType ?? 'none'}
+              disabled={readOnly}
               onValueChange={(value) => setValue('service_fee_type', value as any, { shouldDirty: true })}
             >
-              <SelectTrigger id="service_fee_type">
+              <SelectTrigger id="service_fee_type" disabled={readOnly}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -226,7 +232,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
                 min="0"
                 max="100"
                 placeholder="5.0"
-                {...register('service_fee_percentage', { valueAsNumber: true })}
+                {...register('service_fee_percentage', { valueAsNumber: true, disabled: readOnly })}
               />
               {errors.service_fee_percentage && (
                 <p className="text-sm text-destructive">{errors.service_fee_percentage.message}</p>
@@ -278,7 +284,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
               step="0.01"
               min="0"
               placeholder="25.00"
-              {...register('default_cleaning_fee_dollars', { valueAsNumber: true })}
+              {...register('default_cleaning_fee_dollars', { valueAsNumber: true, disabled: readOnly })}
             />
             {errors.default_cleaning_fee_dollars && (
               <p className="text-sm text-destructive">{errors.default_cleaning_fee_dollars.message}</p>
@@ -312,7 +318,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
               step="0.01"
               min="0"
               placeholder="20.00"
-              {...register('pet_fee_dollars', { valueAsNumber: true })}
+              {...register('pet_fee_dollars', { valueAsNumber: true, disabled: readOnly })}
             />
             {errors.pet_fee_dollars && (
               <p className="text-sm text-destructive">{errors.pet_fee_dollars.message}</p>
@@ -355,7 +361,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
                     min="1"
                     max="20"
                     placeholder="2"
-                    {...register('extra_guest_threshold', { valueAsNumber: true })}
+                    {...register('extra_guest_threshold', { valueAsNumber: true, disabled: readOnly })}
                   />
                   {errors.extra_guest_threshold && (
                     <p className="text-sm text-destructive">{errors.extra_guest_threshold.message}</p>
@@ -396,12 +402,14 @@ export function PricingSettings({ initialConfig, propertyId, onSave }: PricingSe
       </Card>
 
       {/* Save Button and Messages */}
-      <div className="flex items-center justify-between">
-        <Button type="submit" disabled={isSaving || !isDirty}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSaving ? 'Saving...' : 'Save Pricing Settings'}
-        </Button>
-      </div>
+      {canEdit && (
+        <div className="flex items-center justify-between">
+          <Button type="submit" disabled={isSaving || !isDirty}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? 'Saving...' : 'Save Pricing Settings'}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

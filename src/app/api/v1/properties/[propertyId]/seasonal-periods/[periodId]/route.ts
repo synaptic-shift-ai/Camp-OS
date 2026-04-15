@@ -12,6 +12,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { canEditPropertySettingsModule } from '@/lib/dashboard/property-settings-module-edit'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 const UpdateSeasonalPeriodSchema = z.object({
@@ -139,6 +140,11 @@ export async function PUT(
       )
     }
 
+    const canEditSettings = await canEditPropertySettingsModule(supabase, propertyId, user.id)
+    if (!canEditSettings) {
+      return error(ErrorCodes.AUTH_006, request)
+    }
+
     // Verify seasonal period exists and belongs to property
     const { data: existingPeriod, error: existingError } = await supabase
       .from('property_seasonal_periods')
@@ -246,6 +252,11 @@ export async function DELETE(
         error(ErrorCodes.RESOURCE_NOT_FOUND, 'Property not found'),
         { status: 404 }
       )
+    }
+
+    const canEditSettings = await canEditPropertySettingsModule(supabase, propertyId, user.id)
+    if (!canEditSettings) {
+      return error(ErrorCodes.AUTH_006, request)
     }
 
     // Verify seasonal period exists and belongs to property

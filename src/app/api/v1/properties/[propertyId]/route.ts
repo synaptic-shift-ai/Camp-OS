@@ -14,10 +14,10 @@
 
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { success, error, errorFlatMessage } from '@/lib/api/response'
+import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
-import { resolveDashboardAccess, canAccessPropertySettings } from '@/lib/rbac/dashboard-guards'
+import { canEditPropertySettingsModule } from '@/lib/dashboard/property-settings-module-edit'
 import { UpdatePropertyRequestSchema, type UpdatePropertyRequest } from '@/types/api/v1/schemas/properties'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
 import { UpdatePropertyCommandHandler } from '@/modules/PropertyManagement/application/commands/UpdatePropertyCommand'
@@ -137,14 +137,9 @@ export async function PATCH(
       return error(ErrorCodes.RESOURCE_NOT_FOUND)
     }
 
-    const access = await resolveDashboardAccess(supabase, id, user.id)
-    const canUpdate = !!access && canAccessPropertySettings(access)
+    const canUpdate = await canEditPropertySettingsModule(supabase, id, user.id)
     if (!canUpdate) {
-      return errorFlatMessage(
-        ErrorCodes.AUTH_002.message,
-        ErrorCodes.AUTH_002.status,
-        request
-      )
+      return error(ErrorCodes.AUTH_006, request)
     }
 
     // Parse and validate request body

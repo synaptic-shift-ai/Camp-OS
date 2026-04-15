@@ -35,6 +35,7 @@ interface FeesSettingsProps {
   openPeriodFrom?: string | null
   openPeriodUntil?: string | null
   onSave?: (config: PricingConfig) => Promise<void>
+  canEdit?: boolean
 }
 
 // Charge type options for the dropdown
@@ -135,7 +136,9 @@ export function FeesSettings({
   openPeriodFrom,
   openPeriodUntil,
   onSave,
+  canEdit = true,
 }: FeesSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -363,6 +366,7 @@ export function FeesSettings({
                 max="100"
                 placeholder="8.5"
                 value={taxRatePercentage || ''}
+                disabled={readOnly}
                 onChange={(e) => setTaxRatePercentage(parseFloat(e.target.value) || 0)}
               />
               <p className="text-sm text-muted-foreground">
@@ -376,6 +380,7 @@ export function FeesSettings({
                 id="tax_name"
                 placeholder="Sales Tax"
                 value={taxName}
+                disabled={readOnly}
                 onChange={(e) => setTaxName(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
@@ -397,12 +402,14 @@ export function FeesSettings({
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              {canEdit && (
               <DialogTrigger asChild>
                 <Button onClick={openAddDialog} className="w-full shrink-0 sm:w-auto" size="sm">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Charge
                 </Button>
               </DialogTrigger>
+              )}
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingFee ? 'Edit Charge' : 'Add Charge'}</DialogTitle>
@@ -645,10 +652,12 @@ export function FeesSettings({
                     <div className="flex items-center gap-1 sm:gap-2">
                       <Switch
                         checked={fee.enabled}
+                        disabled={readOnly}
                         onCheckedChange={() => toggleFeeEnabled(fee.id)}
                         className="shrink-0"
                         aria-label={fee.enabled ? `Disable ${fee.title}` : `Enable ${fee.title}`}
                       />
+                      {canEdit && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -659,6 +668,8 @@ export function FeesSettings({
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      )}
+                      {canEdit && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -669,6 +680,7 @@ export function FeesSettings({
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -679,12 +691,14 @@ export function FeesSettings({
       </Card>
 
       {/* Save Button and Messages */}
+      {canEdit && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button onClick={handleSave} disabled={isSaving} className="w-full shrink-0 sm:w-auto" size="sm">
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving...' : 'Save Additional Charges'}
         </Button>
       </div>
+      )}
     </div>
   )
 }

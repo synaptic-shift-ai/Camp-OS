@@ -90,6 +90,8 @@ export default async function SettingsPage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
+  const canEditSettings = settingsActions.edit === true
+
   const property = await getPropertyWithSeasonal(propertyId)
 
   if (!property) {
@@ -125,14 +127,18 @@ export default async function SettingsPage({ params }: PageProps) {
       <div>
         <h1 className="text-3xl font-heading font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your property settings and preferences
+          {canEditSettings
+            ? "Manage your property settings and preferences"
+            : "View your property settings (editing is disabled for your role)."}
         </p>
       </div>
 
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Configure your property-wide defaults below. You can override these settings per-site from the Sites page.
+          {canEditSettings
+            ? "Configure your property-wide defaults below. You can override these settings per-site from the Sites page."
+            : "You can review property-wide defaults below. Changes are not available with your current access."}
         </AlertDescription>
       </Alert>
 
@@ -140,6 +146,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="property" className="space-y-4">
           <PropertySettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             initial={{
               name: property.name,
               description: property.description ?? null,
@@ -168,16 +175,18 @@ export default async function SettingsPage({ params }: PageProps) {
           <PropertyImagesSection
             propertyId={property.id}
             initialCoverUrl={property.hero_image_url ?? null}
+            canEdit={canEditSettings}
           />
         </TabsContent>
 
         <TabsContent value="amenities_configuration" className="space-y-4">
-          <PropertiesAmenities propertyId={property.id} />
+          <PropertiesAmenities propertyId={property.id} canEdit={canEditSettings} />
         </TabsContent>
 
         <TabsContent value="fees" className="space-y-4">
           <FeesSettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             openPeriodFrom={openPeriodFrom}
             openPeriodUntil={openPeriodUntil}
             {...(property.pricing_config != null && {
@@ -189,6 +198,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="reservation-types" className="space-y-4">
           <ReservationTypeSettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             initialConfig={parseReservationTypesConfigFromDB(property.reservation_type_config)}
             initialEnabledTypes={parseEnabledReservationTypesFromDB(property.enabled_reservation_types)}
             initialSeasonalPeriods={property.seasonalPeriods as SeasonalPeriod[]}
@@ -198,6 +208,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="site-types-rates" className="space-y-4">
           <SiteTypeRateSettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             initialSiteTypes={siteTypes}
             initialAllowedSiteTypes={allowedSiteTypesFromConfig}
             initialSiteTypeRates={siteypeRatesFromConfig}
@@ -207,6 +218,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="deposits" className="space-y-4">
           <DepositSettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             {...(property.deposit_config != null && {
               initialConfig: property.deposit_config as DepositConfig,
             })}
@@ -216,6 +228,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="booking-rules" className="space-y-4">
           <BookingRulesSettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             openPeriodFrom={openPeriodFrom}
             openPeriodUntil={openPeriodUntil}
             {...(property.booking_rules_config != null && {
@@ -227,6 +240,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="cancellation-policy" className="space-y-4">
           <CancellationPolicySettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             initialTermsAndConditions={property.terms_and_conditions ?? null}
             initialCancellationPolicy={
               property.cancellation_policy ??
@@ -246,6 +260,7 @@ export default async function SettingsPage({ params }: PageProps) {
         <TabsContent value="discounts" className="space-y-4">
           <DiscountsSettings
             propertyId={property.id}
+            canEdit={canEditSettings}
             openPeriodFrom={openPeriodFrom}
             openPeriodUntil={openPeriodUntil}
             {...(property.rate_discounts_config != null && {

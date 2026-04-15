@@ -40,6 +40,7 @@ interface CancellationPolicySettingsProps {
   initialTermsAndConditions: string | null
   initialCancellationPolicy: string | null
   initialCancellationRules?: CancellationRule[]
+  canEdit?: boolean
 }
 
 const DEFAULT_PLACEHOLDER =
@@ -53,7 +54,9 @@ export function CancellationPolicySettings({
   initialTermsAndConditions,
   initialCancellationPolicy,
   initialCancellationRules,
+  canEdit = true,
 }: CancellationPolicySettingsProps) {
+    const readOnly = !canEdit
     const router = useRouter()
     const { toast } = useToast()
     const [isSaving, setIsSaving] = useState(false)
@@ -141,7 +144,7 @@ export function CancellationPolicySettings({
               <Label htmlFor="termsAndConditions">Terms and Conditions</Label>
               <Textarea
                 id="termsAndConditions"
-                {...register('termsAndConditions')}
+                {...register('termsAndConditions', { disabled: readOnly })}
                 rows={6}
                 className={errors.termsAndConditions ? 'border-destructive' : ''}
               />
@@ -167,7 +170,7 @@ export function CancellationPolicySettings({
                 <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
                 <Textarea
                     id="cancellationPolicy"
-                    {...register('cancellationPolicy')}
+                    {...register('cancellationPolicy', { disabled: readOnly })}
                     placeholder={DEFAULT_PLACEHOLDER}
                     rows={6}
                     className={errors.cancellationPolicy ? 'border-destructive' : ''}
@@ -191,6 +194,7 @@ export function CancellationPolicySettings({
                   Set up flexible cancellation rules to suit your property and guests.
                 </CardDescription>
               </div>
+              {canEdit && (
               <Button
                 onClick={() => {
                   setEditingRule(null)
@@ -201,6 +205,7 @@ export function CancellationPolicySettings({
                 <Plus className="mr-2 h-4 w-4" />
                 Add Rules
               </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -224,6 +229,7 @@ export function CancellationPolicySettings({
                         Refund {rule.refund_percentage}% • {rule.days_before_reservation} days before check-in
                       </p>
                     </div>
+                    {canEdit && (
                     <div className="flex items-center justify-end gap-1 border-t border-border/60 pt-2 sm:border-0 sm:pt-0">
                       <Button
                         type="button"
@@ -250,6 +256,7 @@ export function CancellationPolicySettings({
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -257,6 +264,7 @@ export function CancellationPolicySettings({
           </CardContent>
         </Card>
 
+        {canEdit && (
         <CancellationRuleDialog
           open={isRuleDialogOpen}
           onOpenChange={(open) => {
@@ -279,7 +287,9 @@ export function CancellationPolicySettings({
           title={editingRule ? 'Edit cancellation rule' : 'Add cancellation rule'}
           submitLabel={editingRule ? 'Save changes' : 'Add rule'}
         />
+        )}
 
+        {canEdit && (
         <div className="flex items-center justify-end">
           <Button
             type="button"
@@ -297,6 +307,7 @@ export function CancellationPolicySettings({
             )}
           </Button>
         </div>
+        )}
       </div>
     )
 }

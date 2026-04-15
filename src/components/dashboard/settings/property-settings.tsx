@@ -82,6 +82,8 @@ interface PropertySettingsProps {
   stripeConnected: boolean
   stripeConnectedAt?: string | null
   stripeAccountId?: string | null
+  /** When false, fields are disabled and save / Stripe actions are hidden. */
+  canEdit?: boolean
 }
 
 export function PropertySettings({
@@ -90,7 +92,9 @@ export function PropertySettings({
   stripeConnected,
   stripeConnectedAt,
   stripeAccountId,
+  canEdit = true,
 }: PropertySettingsProps) {
+  const readOnly = !canEdit
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [isStripeUpdating, setIsStripeUpdating] = useState(false)
@@ -319,12 +323,15 @@ export function PropertySettings({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form
+            onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(onSubmit)}
+            className="space-y-6"
+          >
             <div className="space-y-2">
               <Label htmlFor="name">Property name</Label>
               <Input
                 id="name"
-                {...register('name')}
+                {...register('name', { disabled: readOnly })}
                 placeholder="e.g. Pine Lake Campground"
                 className={errors.name ? 'border-destructive' : ''}
               />
@@ -337,7 +344,7 @@ export function PropertySettings({
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                {...register('description')}
+                {...register('description', { disabled: readOnly })}
                 placeholder="Describe your property"
                 className="min-h-40"
               />
@@ -347,7 +354,7 @@ export function PropertySettings({
               <Label htmlFor="address">Street address</Label>
               <Input
                 id="address"
-                {...register('address')}
+                {...register('address', { disabled: readOnly })}
                 placeholder="123 Camp Road"
                 className={errors.address ? 'border-destructive' : ''}
               />
@@ -361,7 +368,7 @@ export function PropertySettings({
                 <Label htmlFor="city">City</Label>
                 <Input
                   id="city"
-                  {...register('city')}
+                  {...register('city', { disabled: readOnly })}
                   placeholder="City"
                   className={errors.city ? 'border-destructive' : ''}
                 />
@@ -373,7 +380,7 @@ export function PropertySettings({
                 <Label htmlFor="state">State / Province</Label>
                 <Input
                   id="state"
-                  {...register('state')}
+                  {...register('state', { disabled: readOnly })}
                   placeholder="State"
                   className={errors.state ? 'border-destructive' : ''}
                 />
@@ -385,7 +392,7 @@ export function PropertySettings({
                 <Label htmlFor="zipCode">ZIP / Postal code</Label>
                 <Input
                   id="zipCode"
-                  {...register('zipCode')}
+                  {...register('zipCode', { disabled: readOnly })}
                   placeholder="ZIP"
                   className={errors.zipCode ? 'border-destructive' : ''}
                 />
@@ -400,7 +407,7 @@ export function PropertySettings({
               <Input
                 id="phone"
                 type="tel"
-                {...register('phone')}
+                {...register('phone', { disabled: readOnly })}
                 placeholder="(555) 123-4567"
                 className={errors.phone ? 'border-destructive' : ''}
               />
@@ -414,7 +421,7 @@ export function PropertySettings({
               <Input
                 id="email"
                 type="email"
-                {...register('email')}
+                {...register('email', { disabled: readOnly })}
                 placeholder="office@example.com"
                 className={errors.email ? 'border-destructive' : ''}
               />
@@ -438,6 +445,7 @@ export function PropertySettings({
                     value={openFrom}
                     onChange={handleOpenFromSelect}
                     placeholder="Select dates"
+                    readOnly={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
@@ -449,6 +457,7 @@ export function PropertySettings({
                     value={openUntil}
                     onChange={handleOpenUntilSelect}
                     placeholder="Select dates"
+                    readOnly={readOnly}
                   />
                 </div>
               </div>
@@ -467,7 +476,7 @@ export function PropertySettings({
                       WebkitAppearance: 'none',
                       MozAppearance: 'textfield',
                     }}
-                    {...register('checkInTime')}
+                    {...register('checkInTime', { disabled: readOnly })}
                   />
                 </div>
 
@@ -481,7 +490,7 @@ export function PropertySettings({
                       WebkitAppearance: 'none',
                       MozAppearance: 'textfield',
                     }}
-                    {...register('checkOutTime')}
+                    {...register('checkOutTime', { disabled: readOnly })}
                   />
                 </div>
               </div>
@@ -493,19 +502,21 @@ export function PropertySettings({
               )}
             </div>
 
-            <Button
-              type="submit"
-              disabled={isSaving || (!isDirty && !openPeriodDirty)}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                'Save changes'
-              )}
-            </Button>
+            {canEdit && (
+              <Button
+                type="submit"
+                disabled={isSaving || (!isDirty && !openPeriodDirty)}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  'Save changes'
+                )}
+              </Button>
+            )}
           </form>
         </CardContent>
       </Card>
@@ -565,46 +576,48 @@ export function PropertySettings({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            {stripeStatus.connected ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleStripeDisconnect}
-                disabled={isStripeUpdating}
-              >
-                {isStripeUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Disconnecting…
-                  </>
-                ) : (
-                  <>
-                    <Unplug className="mr-2 h-4 w-4" />
-                    Disconnect Stripe
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleStripeConnect}
-                disabled={isStripeUpdating}
-              >
-                {isStripeUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Redirecting to Stripe…
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Connect Stripe
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+          {canEdit && (
+            <div className="flex flex-wrap gap-3">
+              {stripeStatus.connected ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleStripeDisconnect}
+                  disabled={isStripeUpdating}
+                >
+                  {isStripeUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Disconnecting…
+                    </>
+                  ) : (
+                    <>
+                      <Unplug className="mr-2 h-4 w-4" />
+                      Disconnect Stripe
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleStripeConnect}
+                  disabled={isStripeUpdating}
+                >
+                  {isStripeUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Redirecting to Stripe…
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Connect Stripe
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </>

@@ -7,6 +7,13 @@ import {
   type UpdatePropertyConfigInput,
 } from "@/lib/config/schemas"
 import { recordActivityLog } from "@/shared/activity-log/record-activity-log"
+import {
+  canEditPropertySettingsModule,
+  canViewPropertySettingsModule,
+  PROPERTY_SETTINGS_EDIT_FORBIDDEN_MESSAGE,
+  PROPERTY_SETTINGS_VIEW_FORBIDDEN_MESSAGE,
+} from "@/lib/dashboard/property-settings-module-edit"
+import { requirePropertyAccess, isDenied } from "@/lib/rbac"
 
 const CONFIG_PATCH_ACTIVITY_KEYS = [
   "deposit_config",
@@ -97,20 +104,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
-    // Verify user owns the property through company ownership
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from("companies")
-      .select("id, owner_id")
-      .eq("id", property.company_id)
-      .single()
+    const propertyAccess = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(propertyAccess)) return propertyAccess
 
-    if (companyError || !company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 })
-    }
-
-    if (company.owner_id !== user.id) {
+    const canEditSettings = await canEditPropertySettingsModule(supabase, propertyId, user.id)
+    if (!canEditSettings) {
       return NextResponse.json(
-        { error: "Unauthorized - You do not own this property" },
+        { error: PROPERTY_SETTINGS_EDIT_FORBIDDEN_MESSAGE },
         { status: 403 }
       )
     }
@@ -211,6 +214,19 @@ export async function GET(
 
     const { id: propertyId } = await params
 
+    const propertyAccess = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+    })
+    if (isDenied(propertyAccess)) return propertyAccess
+
+    const canViewSettings = await canViewPropertySettingsModule(supabase, propertyId, user.id)
+    if (!canViewSettings) {
+      return NextResponse.json(
+        { error: PROPERTY_SETTINGS_VIEW_FORBIDDEN_MESSAGE },
+        { status: 403 }
+      )
+    }
+
     // Create service role client to bypass RLS
     const supabaseAdmin = createServiceRoleClient()
 
@@ -232,24 +248,6 @@ export async function GET(
 
     if (propertyError || !property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
-    }
-
-    // Verify user owns the property through company ownership
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from("companies")
-      .select("id, owner_id")
-      .eq("id", property.company_id)
-      .single()
-
-    if (companyError || !company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 })
-    }
-
-    if (company.owner_id !== user.id) {
-      return NextResponse.json(
-        { error: "Unauthorized - You do not own this property" },
-        { status: 403 }
-      )
     }
 
     return NextResponse.json({

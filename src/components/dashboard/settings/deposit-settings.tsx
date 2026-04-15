@@ -35,6 +35,7 @@ interface DepositSettingsProps {
   initialConfig?: DepositConfig
   propertyId: string
   onSave?: (config: DepositConfig) => Promise<void>
+  canEdit?: boolean
 }
 
 const BOOKING_TYPES: { value: BookingType; label: string; description: string }[] = [
@@ -48,7 +49,8 @@ const BOOKING_TYPES: { value: BookingType; label: string; description: string }[
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSettingsProps) {
+export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = true }: DepositSettingsProps) {
+  const readOnly = !canEdit
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -155,7 +157,10 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
       {/* Deposit Requirement */}
       <Card>
         <CardHeader>
@@ -199,9 +204,10 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
               <Label htmlFor="deposit_type">Deposit Type</Label>
               <Select
                 value={depositType}
+                disabled={readOnly}
                 onValueChange={(value) => setValue('deposit_type', value as any, { shouldDirty: true })}
               >
-                <SelectTrigger id="deposit_type">
+                <SelectTrigger id="deposit_type" disabled={readOnly}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,6 +228,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
                   max="100"
                   step="1"
                   placeholder="25"
+                  disabled={readOnly}
                   {...register('deposit_percentage', { valueAsNumber: true })}
                 />
                 {errors.deposit_percentage && (
@@ -242,6 +249,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
                   min="0"
                   step="0.01"
                   placeholder="100.00"
+                  disabled={readOnly}
                   {...register('deposit_amount_dollars', { valueAsNumber: true })}
                 />
                 {errors.deposit_amount_dollars && (
@@ -279,6 +287,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
                   <Checkbox
                     id={`booking-type-${type.value}`}
                     checked={appliesToBookingTypes.includes(type.value)}
+                    disabled={readOnly}
                     onCheckedChange={() => toggleBookingType(type.value)}
                   />
                   <div className="grid gap-1.5 leading-none">
@@ -326,6 +335,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
               </div>
               <Switch
                 checked={exemptIfPaidInFull}
+                disabled={readOnly}
                 onCheckedChange={(checked) => setValue('exempt_if_paid_in_full', checked, { shouldDirty: true })}
               />
             </div>
@@ -340,6 +350,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
                 min="0"
                 max="90"
                 placeholder="Optional - leave blank for no requirement"
+                disabled={readOnly}
                 {...register('full_payment_required_days_before', {
                   setValueAs: v => v === '' || v === null ? null : parseInt(v),
                 })}
@@ -363,12 +374,14 @@ export function DepositSettings({ initialConfig, propertyId, onSave }: DepositSe
       )}
 
       {/* Save Button and Messages */}
-      <div className="flex items-center justify-between">
-        <Button type="submit" disabled={isSaving || !isDirty}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSaving ? 'Saving...' : 'Save Deposit Settings'}
-        </Button>
-      </div>
+      {canEdit && (
+        <div className="flex items-center justify-between">
+          <Button type="submit" disabled={isSaving || !isDirty}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? 'Saving...' : 'Save Deposit Settings'}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

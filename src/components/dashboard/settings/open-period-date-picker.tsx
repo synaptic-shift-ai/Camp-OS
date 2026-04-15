@@ -122,6 +122,8 @@ export type OpenPeriodDatePickerProps = {
   value: Date | undefined
   onChange: (d: Date | undefined) => void
   placeholder?: string
+  /** When true, show the selected value only (no calendar popover). */
+  readOnly?: boolean
 }
 
 export function OpenPeriodDatePicker({
@@ -129,9 +131,29 @@ export function OpenPeriodDatePicker({
   value,
   onChange,
   placeholder = 'Select dates',
+  readOnly = false,
 }: OpenPeriodDatePickerProps) {
   const [open, setOpen] = React.useState(false)
   const hasValue = Boolean(value)
+
+  if (readOnly) {
+    return (
+      <div
+        id={id}
+        className={cn(
+          'flex h-10 w-full items-center justify-between rounded-md border-2 border-input bg-muted/40 px-3 py-2 text-sm',
+          'text-muted-foreground',
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <CalendarIcon className="h-4 w-4 shrink-0" />
+          <span className="truncate">
+            {hasValue && value ? format(value, 'MMM d, yyyy') : placeholder}
+          </span>
+        </span>
+      </div>
+    )
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

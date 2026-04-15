@@ -73,11 +73,26 @@ const NAV_ITEMS = DASHBOARD_NAV_MODULES.map((m) => ({
 }))
 
 const COMPANY_DETAILS_UPDATED_EVENT = "company-details-updated"
+const NAV_LOADING_ROW_COUNT = 7
 
 type CompanyDetailsUpdatedEventDetail = {
   companyId: string
   name: string
   companyLogoUrl: string | null
+}
+
+type DashboardLayoutContextData = {
+  displayName: string
+  roleLabel: string
+  isStaffUserType?: boolean
+  staffDeactivatedForProperty?: boolean
+  staffManagementNavVisible: boolean
+  propertySettingsNavVisible: boolean
+  operationsModulesNavVisible: boolean
+  financialNavVisible?: boolean
+  housekeepingNavVisible?: boolean
+  maintenanceNavVisible?: boolean
+  moduleNavVisible?: Partial<Record<DashboardNavModuleKey, boolean>>
 }
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -105,6 +120,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       boolean
     >,
   )
+  const [layoutContextCache, setLayoutContextCache] = useState<Record<string, DashboardLayoutContextData>>({})
   const { selectedProperty, selectedPropertyId, selectProperty, isLoading } = useProperty()
   const companyId = selectedProperty?.companyId ?? null
   const dashboardTitle = isLoading ? "Loading..." : companyName
@@ -121,6 +137,33 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    const layoutCacheKey = propertyIdFromUrl && propertyIdFromUrl.length > 0 ? propertyIdFromUrl : "__no_property__"
+    const cachedContext = layoutContextCache[layoutCacheKey]
+
+    const applyContext = (d: DashboardLayoutContextData) => {
+      setUserDisplayName(d.displayName)
+      setUserRoleLabel(d.roleLabel)
+      setIsStaffUserType(d.isStaffUserType ?? false)
+      setStaffManagementNavVisible(d.staffManagementNavVisible)
+      setPropertySettingsNavVisible(d.propertySettingsNavVisible)
+      setOperationsModulesNavVisible(d.operationsModulesNavVisible)
+      setFinancialNavVisible(d.financialNavVisible ?? true)
+      setHousekeepingNavVisible(d.housekeepingNavVisible ?? false)
+      setMaintenanceNavVisible(d.maintenanceNavVisible ?? false)
+      setModuleNavVisible({
+        ...Object.fromEntries(DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false])),
+        ...(d.moduleNavVisible ?? {}),
+      } as Record<DashboardNavModuleKey, boolean>)
+    }
+
+    if (cachedContext) {
+      applyContext(cachedContext)
+      setIsUserLoading(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
     setIsUserLoading(true)
 
     const query =
@@ -135,19 +178,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         })
         const result: {
           success?: boolean
-          data?: {
-            displayName: string
-            roleLabel: string
-            isStaffUserType?: boolean
-            staffDeactivatedForProperty?: boolean
-            staffManagementNavVisible: boolean
-            propertySettingsNavVisible: boolean
-            operationsModulesNavVisible: boolean
-            financialNavVisible?: boolean
-            housekeepingNavVisible?: boolean
-            maintenanceNavVisible?: boolean
-            moduleNavVisible?: Partial<Record<DashboardNavModuleKey, boolean>>
-          }
+          data?: DashboardLayoutContextData
         } = await response.json()
 
         if (cancelled) return
@@ -179,19 +210,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         }
 
         const d = result.data
-        setUserDisplayName(d.displayName)
-        setUserRoleLabel(d.roleLabel)
-        setIsStaffUserType(d.isStaffUserType ?? false)
-        setStaffManagementNavVisible(d.staffManagementNavVisible)
-        setPropertySettingsNavVisible(d.propertySettingsNavVisible)
-        setOperationsModulesNavVisible(d.operationsModulesNavVisible)
-        setFinancialNavVisible(d.financialNavVisible ?? true)
-        setHousekeepingNavVisible(d.housekeepingNavVisible ?? false)
-        setMaintenanceNavVisible(d.maintenanceNavVisible ?? false)
-        setModuleNavVisible({
-          ...Object.fromEntries(DASHBOARD_NAV_MODULES.map((mod) => [mod.key, false])),
-          ...(d.moduleNavVisible ?? {}),
-        } as Record<DashboardNavModuleKey, boolean>)
+        applyContext(d)
+        setLayoutContextCache((prev) => ({ ...prev, [layoutCacheKey]: d }))
       } catch {
         if (!cancelled) {
           setUserDisplayName(null)
@@ -220,7 +240,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [propertyIdFromUrl, pathname])
+  }, [propertyIdFromUrl, layoutContextCache])
 
   useEffect(() => {
     let isCancelled = false
@@ -362,31 +382,44 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <PropertySwitcher />
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
-            {navItemsForUser.map((item) => {
-              const href = `${dashboardBase}${item.path}`
-              const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
-              return (
-                <a
-                  key={item.name}
-                  href={href}
-                  onClick={(e) => {
-                    if (e.button === 0) {
-                      e.preventDefault()
-                      handleNavClick(href)
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                  )}
+            {isUserLoading ? (
+              Array.from({ length: NAV_LOADING_ROW_COUNT }).map((_, idx) => (
+                <div
+                  key={`desktop-nav-loading-${idx}`}
+                  className="flex items-center gap-3 rounded-sm px-3 py-2"
+                  aria-hidden="true"
                 >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
-                </a>
-              )
-            })}
+                  <div className="h-5 w-5 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+                </div>
+              ))
+            ) : (
+              navItemsForUser.map((item) => {
+                const href = `${dashboardBase}${item.path}`
+                const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
+                return (
+                  <a
+                    key={item.name}
+                    href={href}
+                    onClick={(e) => {
+                      if (e.button === 0) {
+                        e.preventDefault()
+                        handleNavClick(href)
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </a>
+                )
+              })
+            )}
           </nav>
         </ScrollArea>
         <div className="border-t border-border p-4">
@@ -464,32 +497,45 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
               <ScrollArea className="flex-1 px-3 py-4">
                 <nav className="space-y-1">
-                  {navItemsForUser.map((item) => {
-                    const href = `${dashboardBase}${item.path}`
-                    const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
-                    return (
-                      <Link
-                        key={item.name}
-                        href={href}
-                        prefetch={true}
-                        onClick={(e) => {
-                          if (e.button === 0) {
-                            e.preventDefault()
-                            handleNavClick(href, true)
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
-                          isActive
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                        )}
+                  {isUserLoading ? (
+                    Array.from({ length: NAV_LOADING_ROW_COUNT }).map((_, idx) => (
+                      <div
+                        key={`mobile-nav-loading-${idx}`}
+                        className="flex items-center gap-3 rounded-sm px-3 py-2"
+                        aria-hidden="true"
                       >
-                        <item.icon className="h-5 w-5" />
-                        {item.name}
-                      </Link>
-                    )
-                  })}
+                        <div className="h-5 w-5 animate-pulse rounded bg-muted" />
+                        <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+                      </div>
+                    ))
+                  ) : (
+                    navItemsForUser.map((item) => {
+                      const href = `${dashboardBase}${item.path}`
+                      const isActive = pathname === href || (item.path !== "" && pathname.startsWith(href + "/"))
+                      return (
+                        <Link
+                          key={item.name}
+                          href={href}
+                          prefetch={true}
+                          onClick={(e) => {
+                            if (e.button === 0) {
+                              e.preventDefault()
+                              handleNavClick(href, true)
+                            }
+                          }}
+                          className={cn(
+                            "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                        >
+                          <item.icon className="h-5 w-5" />
+                          {item.name}
+                        </Link>
+                      )
+                    })
+                  )}
                 </nav>
               </ScrollArea>
               <div className="border-t border-border p-4">

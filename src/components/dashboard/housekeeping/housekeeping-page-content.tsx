@@ -6,6 +6,11 @@ import { HousekeepingPageHeader } from "./housekeeping-page-header"
 import { HousekeepingTable, type HousekeepingTaskRow } from "./housekeeping-table"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
 import { useToast } from "@/hooks/use-toast"
+import {
+  AddTaskDialog,
+  type AddHousekeepingTaskInput,
+} from "./housekeeping-dialog.tsx/add-task-dialog"
+import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
 
 type HousekeepingPageContentProps = {
   propertyName: string
@@ -65,6 +70,9 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
   const { toast } = useToast()
   const [filters, setFilters] = useState<HousekeepingFilterValue>(INITIAL_FILTERS)
   const [loading, setLoading] = useState(false)
+  const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
+  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<HousekeepingTaskRow | null>(null)
   const [rows, setRows] = useState<HousekeepingTaskRow[]>(INITIAL_TASKS)
 
   const statusOptions = useMemo(
@@ -135,18 +143,18 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
     })
   }
 
-  const handleAddTask = () => {
+  const handleAddTask = (input: AddHousekeepingTaskInput) => {
     const nextId = `hk-${rows.length + 1}`
     setRows((currentRows) => [
       {
         id: nextId,
-        siteName: "Site TBD",
-        task: "New housekeeping task",
-        assignee: null,
-        status: "Pending",
-        priority: "Medium",
-        dueTime: "TBD",
-        zone: "Unassigned",
+        siteName: input.siteName,
+        task: input.task,
+        assignee: input.assignee,
+        status: input.status,
+        priority: input.priority,
+        dueTime: input.dueTime,
+        zone: input.zone,
       },
       ...currentRows,
     ])
@@ -157,6 +165,35 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
     })
   }
 
+  const handleOpenEditTask = (row: HousekeepingTaskRow) => {
+    setEditingTask(row)
+    setIsEditTaskDialogOpen(true)
+  }
+
+  const handleEditTask = (input: AddHousekeepingTaskInput & { id: string }) => {
+    setRows((currentRows) =>
+      currentRows.map((row) =>
+        row.id === input.id
+          ? {
+              ...row,
+              siteName: input.siteName,
+              task: input.task,
+              assignee: input.assignee,
+              status: input.status,
+              priority: input.priority,
+              dueTime: input.dueTime,
+              zone: input.zone,
+            }
+          : row,
+      ),
+    )
+
+    toast({
+      title: "Task updated",
+      description: "Housekeeping task details were updated successfully.",
+    })
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <HousekeepingPageHeader
@@ -164,7 +201,7 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
         pendingTasksCount={pendingTasksCount}
         onRefreshClick={handleRefresh}
         onExportClick={handleExport}
-        onAddTaskClick={handleAddTask}
+        onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
       />
       <HousekeepingFilter
         value={filters}
@@ -173,7 +210,22 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
         priorityOptions={priorityOptions}
         zoneOptions={zoneOptions}
       />
-      <HousekeepingTable rows={filteredRows} loading={loading} />
+      <HousekeepingTable
+        rows={filteredRows}
+        loading={loading}
+        onEdit={handleOpenEditTask}
+      />
+      <AddTaskDialog
+        open={isAddTaskDialogOpen}
+        onOpenChange={setIsAddTaskDialogOpen}
+        onSubmit={handleAddTask}
+      />
+      <EditTaskDialog
+        open={isEditTaskDialogOpen}
+        onOpenChange={setIsEditTaskDialogOpen}
+        task={editingTask}
+        onSubmit={handleEditTask}
+      />
     </div>
   )
 }

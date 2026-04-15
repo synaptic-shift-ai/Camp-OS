@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import StaffManagementPageHeader from '@/components/dashboard/staff-management/staff-management-page-header'
 import {
@@ -24,18 +24,37 @@ import {
   type StaffDetailsDialogTarget,
 } from '@/components/dashboard/staff-management/staff-management-dialog/staff-details-dialog'
 import { StaffManagementTable } from '@/components/dashboard/staff-management/staff-management-table'
-import StaffManagementFilter, {
-  type StaffManagementFilterValue,
-} from '@/components/dashboard/staff-management/staff-management-filter'
+import StaffManagementFilter from '@/components/dashboard/staff-management/staff-management-filter'
+import type { StaffManagementTableRow } from '@/lib/dashboard/staff-management-queries'
 
 type StaffManagementStaffPageClientProps = {
   propertyName: string
+  staff: StaffManagementTableRow[]
+  total: number
+  currentPage: number
+  pageSize: number
+  search: string
+  role: string
+  category: string
+  status: string
+  filterOptions: {
+    roles: string[]
+    categories: string[]
+    statuses: string[]
+  }
 }
-
-const FILTER_DEBOUNCE_MS = 300
 
 export default function StaffManagementStaffPageClient({
   propertyName,
+  staff,
+  total,
+  currentPage,
+  pageSize,
+  search,
+  role,
+  category,
+  status,
+  filterOptions,
 }: StaffManagementStaffPageClientProps) {
   const params = useParams<{ propertyId: string }>()
   const propertyId =
@@ -57,34 +76,6 @@ export default function StaffManagementStaffPageClient({
   const [deactivateStaffTarget, setDeactivateStaffTarget] =
     useState<DeactivateStaffDialogTarget | null>(null)
   const [isSavingCategories, setIsSavingCategories] = useState(false)
-  const [staffTableReloadKey, setStaffTableReloadKey] = useState(0)
-  const [filterValue, setFilterValue] = useState<StaffManagementFilterValue>({
-    search: '',
-    role: 'all',
-    category: 'all',
-    status: 'all',
-  })
-  const [debouncedFilterValue, setDebouncedFilterValue] =
-    useState<StaffManagementFilterValue>(filterValue)
-  const [filterOptions, setFilterOptions] = useState<{
-    roles: string[]
-    categories: string[]
-    statuses: string[]
-  }>({
-    roles: [],
-    categories: [],
-    statuses: [],
-  })
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedFilterValue(filterValue)
-    }, FILTER_DEBOUNCE_MS)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [filterValue])
 
   const handleReactivateStaff = useCallback(
     async (target: { id: string; name: string }) => {
@@ -102,7 +93,6 @@ export default function StaffManagementStaffPageClient({
           throw new Error(json.error?.message ?? 'Failed to reactivate staff member')
         }
         toast({ title: 'Staff member reactivated', description: `${target.name} can access this property again.` })
-        setStaffTableReloadKey((k) => k + 1)
         router.refresh()
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error'
@@ -172,8 +162,11 @@ export default function StaffManagementStaffPageClient({
         />
 
         <StaffManagementFilter
-          value={filterValue}
-          onChange={setFilterValue}
+          propertyId={propertyId}
+          defaultSearch={search}
+          defaultRole={role}
+          defaultCategory={category}
+          defaultStatus={status}
           roleOptions={filterOptions.roles}
           categoryOptions={filterOptions.categories}
           statusOptions={filterOptions.statuses}
@@ -181,12 +174,10 @@ export default function StaffManagementStaffPageClient({
 
         <StaffManagementTable
           propertyId={propertyId}
-          reloadKey={staffTableReloadKey}
-          search={debouncedFilterValue.search}
-          role={debouncedFilterValue.role}
-          category={debouncedFilterValue.category}
-          status={debouncedFilterValue.status}
-          onFilterOptionsChange={setFilterOptions}
+          staff={staff}
+          total={total}
+          currentPage={currentPage}
+          pageSize={pageSize}
           onViewStaff={(staffMember: StaffDetailsDialogTarget) => {
             setStaffDetailsTarget(staffMember)
             setStaffDetailsOpen(true)
@@ -220,7 +211,7 @@ export default function StaffManagementStaffPageClient({
         open={inviteStaffOpen}
         onOpenChange={setInviteStaffOpen}
         propertyId={propertyId}
-        onInviteSent={() => setStaffTableReloadKey((k) => k + 1)}
+        onInviteSent={() => router.refresh()}
       />
 
       <StaffDetailsDialog
@@ -241,7 +232,7 @@ export default function StaffManagementStaffPageClient({
         propertyId={propertyId}
         propertyName={propertyName}
         staff={editStaffTarget}
-        onSaved={() => setStaffTableReloadKey((k) => k + 1)}
+        onSaved={() => router.refresh()}
       />
 
       <DeactivateStaffDialog
@@ -252,7 +243,7 @@ export default function StaffManagementStaffPageClient({
         }}
         propertyId={propertyId}
         staff={deactivateStaffTarget}
-        onDeactivated={() => setStaffTableReloadKey((k) => k + 1)}
+        onDeactivated={() => router.refresh()}
       />
     </>
   )

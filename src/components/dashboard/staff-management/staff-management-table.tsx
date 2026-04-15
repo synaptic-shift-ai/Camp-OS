@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useTransition } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Eye, Pencil, UserCheck, UserMinus } from "lucide-react"
 import type { EditStaffDialogStaff } from "@/components/dashboard/staff-management/staff-management-dialog/edit-staff-dialog"
 import type { DeactivateStaffDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/deactivate-staff-dialog"
@@ -16,32 +17,17 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useToast } from "@/hooks/use-toast"
-import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
+import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { PermissionGate } from "@/components/ui/permission-gate"
-
-type StaffRow = {
-  id: string
-  name: string
-  email: string
-  role: "Owner" | "Admin" | "Manager" | "Staff"
-  categories: string[] | "All Categories"
-  status: "Active" | "Pending" | "Inactive"
-  lastLogin: string
-}
+import type { StaffManagementTableRow } from "@/lib/dashboard/staff-management-queries"
 
 type StaffManagementTableProps = {
   propertyId: string
-  reloadKey?: number
-  search?: string
-  role?: string
-  category?: string
-  status?: string
-  onFilterOptionsChange?: (options: {
-    roles: string[]
-    categories: string[]
-    statuses: string[]
-  }) => void
+  staff: StaffManagementTableRow[]
+  total: number
+  currentPage: number
+  pageSize: number
   onEditStaff?: (staff: EditStaffDialogStaff) => void
   onViewStaff?: (staff: StaffDetailsDialogTarget) => void
   onDeactivateStaff?: (staff: DeactivateStaffDialogTarget) => void
@@ -57,7 +43,7 @@ function initialsFromName(name: string): string {
   return `${first}${last}`.toUpperCase() || "N"
 }
 
-function StatusPill({ status }: { status: StaffRow["status"] }) {
+function StatusPill({ status }: { status: StaffManagementTableRow["status"] }) {
   const base =
     "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border whitespace-nowrap"
 
@@ -72,7 +58,7 @@ function StatusPill({ status }: { status: StaffRow["status"] }) {
   return <span className={`${base} border-muted bg-background text-muted-foreground`}>Inactive</span>
 }
 
-function RolePill({ role }: { role: StaffRow["role"] }) {
+function RolePill({ role }: { role: StaffManagementTableRow["role"] }) {
   return (
     <Badge
       variant="secondary"
@@ -83,7 +69,7 @@ function RolePill({ role }: { role: StaffRow["role"] }) {
   )
 }
 
-function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
+function CategoryChips({ categories }: { categories: StaffManagementTableRow["categories"] }) {
   if (categories === "All Categories") {
     return (
       <Badge
@@ -115,265 +101,231 @@ function CategoryChips({ categories }: { categories: StaffRow["categories"] }) {
 }
 
 export function StaffManagementTable({
-  propertyId,
-  reloadKey = 0,
-  search = "",
-  role = "all",
-  category = "all",
-  status = "all",
-  onFilterOptionsChange,
+  propertyId: _propertyId,
+  staff,
+  total,
+  currentPage,
+  pageSize,
   onEditStaff,
   onViewStaff,
   onDeactivateStaff,
   onReactivateStaff,
 }: StaffManagementTableProps) {
-  const [rows, setRows] = useState<StaffRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const { toast } = useToast()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
 
-  const loadStaff = useCallback(async () => {
-    setLoading(true)
-    setLoadError(null)
-    try {
-      const res = await fetch(
-        `/api/v1/properties/${propertyId}/staff-management/staff`,
-        { method: "GET" },
-      )
-      const json: { success?: boolean; data?: { staff?: StaffRow[] }; error?: { message?: string } } =
-        await res.json().catch(() => ({}))
-      if (!res.ok || json.success !== true) {
-        throw new Error(json.error?.message ?? "Failed to load staff")
-      }
-      setRows(Array.isArray(json.data?.staff) ? json.data!.staff! : [])
-    } catch (e: unknown) {
-      setRows([])
-      if (isAccessDeniedError(e)) {
-        setLoadError('Access denied')
-        toast({
-          title: 'Access denied',
-          description: "You don't have permission to view staff. Contact your property administrator if you believe this is an error.",
-          variant: 'destructive',
-        })
-      } else {
-        setLoadError(e instanceof Error ? e.message : "Failed to load staff")
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [propertyId])
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const clampedCurrentPage = Math.min(Math.max(currentPage, 1), totalPages)
+  const startIndex = total === 0 ? 0 : (clampedCurrentPage - 1) * pageSize + 1
+  const endIndex = Math.min(total, clampedCurrentPage * pageSize)
 
-  useEffect(() => {
-    void loadStaff()
-  }, [loadStaff, reloadKey])
+  const buildPageHref = (page: number, size?: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", String(page))
+    params.set("pageSize", String(size ?? pageSize))
+    const q = params.toString()
+    return q ? `${pathname}?${q}` : pathname
+  }
 
-  useEffect(() => {
-    if (!onFilterOptionsChange) return
-
-    const roleSet = new Set<string>()
-    const categorySet = new Set<string>()
-    const statusSet = new Set<string>()
-
-    for (const row of rows) {
-      roleSet.add(row.role)
-      statusSet.add(row.status)
-
-      if (row.categories === "All Categories") {
-        categorySet.add("All Categories")
-      } else {
-        for (const categoryName of row.categories) {
-          categorySet.add(categoryName)
-        }
-      }
-    }
-
-    onFilterOptionsChange({
-      roles: Array.from(roleSet).sort(),
-      categories: Array.from(categorySet).sort(),
-      statuses: Array.from(statusSet).sort(),
+  const goToPage = (page: number) => {
+    startTransition(() => {
+      router.push(buildPageHref(page))
     })
-  }, [onFilterOptionsChange, rows])
+  }
 
-  const normalizedSearch = search.trim().toLowerCase()
-  const filteredRows = rows.filter((row) => {
-    const matchesSearch =
-      normalizedSearch.length === 0 ||
-      row.name.toLowerCase().includes(normalizedSearch) ||
-      row.email.toLowerCase().includes(normalizedSearch)
-
-    const matchesRole = role === "all" || row.role === role
-    const matchesStatus = status === "all" || row.status === status
-
-    const matchesCategory =
-      category === "all" ||
-      (row.categories === "All Categories"
-        ? category === "All Categories"
-        : row.categories.includes(category))
-
-    return matchesSearch && matchesRole && matchesStatus && matchesCategory
-  })
+  const handlePageSizeChange = (nextPageSize: number) => {
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("page", "1")
+      params.set("pageSize", String(nextPageSize))
+      const q = params.toString()
+      router.push(q ? `${pathname}?${q}` : pathname)
+    })
+  }
 
   return (
-    <div className="border border-border/80 bg-card/50">
-      {loadError ? (
-        <div className="p-4 text-sm text-destructive">{loadError}</div>
-      ) : null}
-      <Table className="text-xs">
-        <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
-          <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-            <TableHead className="w-[320px] py-1.5 dark:text-white/90 text-black/90 font-medium">
-              Member
-            </TableHead>
-            <TableHead className="w-[140px] py-1.5 dark:text-white/90 text-black/90 font-medium">
-              Role
-            </TableHead>
-            <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
-              Categories
-            </TableHead>
-            <TableHead className="w-[140px] py-1.5 dark:text-white/90 text-black/90 font-medium">
-              Status
-            </TableHead>
-            <TableHead className="w-[180px] py-1.5 dark:text-white/90 text-black/90 font-medium">
-              Last Login
-            </TableHead>
-            <TableHead className="w-[140px] py-1.5 text-right dark:text-white/90 text-black/90 font-medium">
-              Actions
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-            <TableRow>
-              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                Loading staff…
-              </TableCell>
+    <>
+      <div className="border border-border/80 bg-card/50">
+        <Table className="text-xs">
+          <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
+            <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
+              <TableHead className="w-[320px] py-1.5 dark:text-white/90 text-black/90 font-medium">
+                Member
+              </TableHead>
+              <TableHead className="w-[140px] py-1.5 dark:text-white/90 text-black/90 font-medium">
+                Role
+              </TableHead>
+              <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                Categories
+              </TableHead>
+              <TableHead className="w-[140px] py-1.5 dark:text-white/90 text-black/90 font-medium">
+                Status
+              </TableHead>
+              <TableHead className="w-[180px] py-1.5 dark:text-white/90 text-black/90 font-medium">
+                Last Login
+              </TableHead>
+              <TableHead className="w-[140px] py-1.5 text-right dark:text-white/90 text-black/90 font-medium">
+                Actions
+              </TableHead>
             </TableRow>
-          ) : filteredRows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                No staff matches the selected filters.
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredRows.map((row) => (
-              <TableRow
-                key={row.id}
-                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
-              >
-                <TableCell className="py-1.5">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
-                        {initialsFromName(row.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-foreground truncate">{row.name}</div>
-                      <div className="text-sm text-muted-foreground truncate">{row.email}</div>
+          </TableHeader>
+          <TableBody>
+            {staff.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  No staff matches the selected filters.
+                </TableCell>
+              </TableRow>
+            ) : (
+              staff.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                >
+                  <TableCell className="py-1.5">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
+                          {initialsFromName(row.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-foreground truncate">{row.name}</div>
+                        <div className="text-sm text-muted-foreground truncate">{row.email}</div>
+                      </div>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell className="py-1.5 whitespace-nowrap">
-                  <RolePill role={row.role} />
-                </TableCell>
-                <TableCell className="py-1.5">
-                  <CategoryChips categories={row.categories} />
-                </TableCell>
-                <TableCell className="py-1.5">
-                  <StatusPill status={row.status} />
-                </TableCell>
-                <TableCell className="py-1.5 text-sm text-muted-foreground whitespace-nowrap">
-                  {row.lastLogin}
-                </TableCell>
-                <TableCell className="py-0.5">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="View staff"
-                      className="h-8 w-8 p-0"
-                      onClick={() =>
-                        onViewStaff?.({
-                          id: row.id,
-                          name: row.name,
-                          email: row.email,
-                          role: row.role,
-                          categories: row.categories,
-                          status: row.status,
-                          lastLogin: row.lastLogin,
-                        })
-                      }
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <PermissionGate permission="global.change_staff_role">
+                  </TableCell>
+                  <TableCell className="py-1.5 whitespace-nowrap">
+                    <RolePill role={row.role} />
+                  </TableCell>
+                  <TableCell className="py-1.5">
+                    <CategoryChips categories={row.categories} />
+                  </TableCell>
+                  <TableCell className="py-1.5">
+                    <StatusPill status={row.status} />
+                  </TableCell>
+                  <TableCell className="py-1.5 text-sm text-muted-foreground whitespace-nowrap">
+                    {row.lastLogin}
+                  </TableCell>
+                  <TableCell className="py-0.5">
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="xs"
-                        aria-label="Edit staff"
+                        aria-label="View staff"
                         className="h-8 w-8 p-0"
-                        disabled={row.role === "Owner"}
-                        title={row.role === "Owner" ? "Owner role cannot be edited here" : "Edit role and access"}
                         onClick={() =>
-                          onEditStaff?.({
+                          onViewStaff?.({
                             id: row.id,
                             name: row.name,
+                            email: row.email,
                             role: row.role,
                             categories: row.categories,
+                            status: row.status,
+                            lastLogin: row.lastLogin,
                           })
                         }
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    </PermissionGate>
-                    <PermissionGate permission="global.deactivate_staff">
-                      {row.status === "Inactive" ? (
+                      <PermissionGate permission="global.change_staff_role">
                         <Button
                           variant="ghost"
                           size="xs"
-                          aria-label="Reactivate staff"
-                          className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                          aria-label="Edit staff"
+                          className="h-8 w-8 p-0"
                           disabled={row.role === "Owner"}
-                          title={
-                            row.role === "Owner"
-                              ? "Owner status cannot be changed here"
-                              : "Restore access for this staff member"
-                          }
-                          onClick={() => onReactivateStaff?.({ id: row.id, name: row.name })}
-                        >
-                          <UserCheck className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-label="Deactivate staff"
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                          disabled={row.role === "Owner"}
-                          title={
-                            row.role === "Owner"
-                              ? "Owner cannot be deactivated"
-                              : "Deactivate staff member"
-                          }
+                          title={row.role === "Owner" ? "Owner role cannot be edited here" : "Edit role and access"}
                           onClick={() =>
-                            onDeactivateStaff?.({
+                            onEditStaff?.({
                               id: row.id,
                               name: row.name,
-                              status: row.status,
+                              role: row.role,
+                              categories: row.categories,
                             })
                           }
                         >
-                          <UserMinus className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      )}
-                    </PermissionGate>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+                      </PermissionGate>
+                      <PermissionGate permission="global.deactivate_staff">
+                        {row.status === "Inactive" ? (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            aria-label="Reactivate staff"
+                            className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            disabled={row.role === "Owner"}
+                            title={
+                              row.role === "Owner"
+                                ? "Owner status cannot be changed here"
+                                : "Restore access for this staff member"
+                            }
+                            onClick={() => onReactivateStaff?.({ id: row.id, name: row.name })}
+                          >
+                            <UserCheck className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            aria-label="Deactivate staff"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                            disabled={row.role === "Owner"}
+                            title={
+                              row.role === "Owner"
+                                ? "Owner cannot be deactivated"
+                                : "Deactivate staff member"
+                            }
+                            onClick={() =>
+                              onDeactivateStaff?.({
+                                id: row.id,
+                                name: row.name,
+                                status: row.status,
+                              })
+                            }
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </PermissionGate>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination footer — matches auditing/guests/reservations pattern */}
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium">{total}</span> staff members
+          </div>
+          <PageSizeSelector
+            value={pageSize}
+            onChange={handlePageSizeChange}
+            disabled={isPending}
+          />
+        </div>
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination
+            currentPage={clampedCurrentPage}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            disabled={isPending}
+            windowSize={2}
+          />
+        </div>
+      </div>
+    </>
   )
 }

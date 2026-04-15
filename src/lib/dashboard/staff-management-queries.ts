@@ -426,6 +426,171 @@ export class StaffManagementQueries {
     )
   }
 
+  /**
+   * Batch-fetch auth user metadata for a set of user IDs.
+   * Uses `admin.listUsers()` (up to 500 per page) instead of N×`getUserById()`.
+   */
+  private async batchFetchAuthUsers(
+    adminClient: SupabaseClient,
+    userIds: string[],
+  ): Promise<Map<string, { email: string; displayName: string; lastSignIn: string | undefined }>> {
+    const result = new Map<string, { email: string; displayName: string; lastSignIn: string | undefined }>()
+    const neededIds = new Set(userIds.filter(Boolean))
+    if (neededIds.size === 0) return result
+
+    let page = 1
+    const perPage = 500
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with break
+    while (true) {
+      const { data, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage })
+      if (listError) {
+        console.error('[StaffManagementQueries] listUsers batch fetch failed', { page, error: listError })
+        throw listError
+      }
+
+      for (const u of data.users) {
+        if (!neededIds.has(u.id)) continue
+
+        const meta = u.user_metadata as Record<string, unknown> | undefined
+        const fromFullOrName =
+          typeof meta?.full_name === 'string'
+            ? meta.full_name
+            : typeof meta?.name === 'string'
+              ? meta.name
+              : ''
+        const first = typeof meta?.first_name === 'string' ? meta.first_name.trim() : ''
+        const last = typeof meta?.last_name === 'string' ? meta.last_name.trim() : ''
+        const fromParts = [first, last].filter(Boolean).join(' ')
+        const resolved = fromFullOrName.trim() || fromParts.trim()
+
+        result.set(u.id, {
+          email: u.email ?? '',
+          displayName: resolved || '—',
+          lastSignIn: u.last_sign_in_at ?? undefined,
+        })
+      }
+
+      // Stop early if we've found all users we need
+      if (result.size >= neededIds.size) break
+
+      if (data.nextPage == null) break
+      page = data.nextPage
+    }
+
+    return result
+  }
+
+  async listStaffForManagementTablePaginated(
+    propertyId: string,
+    adminClient: SupabaseClient,
+    options: {
+      page?: number
+      pageSize?: number
+      search?: string
+      role?: string
+      category?: string
+      status?: string
+    } = {},
+  ): Promise<{
+    staff: StaffManagementTableRow[]
+    total: number
+    filterOptions: { roles: string[]; categories: string[]; statuses: string[] }
+  }> {
+    const page = options.page ?? 1
+    const pageSize = options.pageSize ?? 10
+    const search = (options.search ?? '').trim().toLowerCase()
+    const roleFilter = options.role ?? 'all'
+    const categoryFilter = options.category ?? 'all'
+    const statusFilter = options.status ?? 'all'
+
+    // 1. Fetch ALL property_staff rows (lightweight — needed for filter options + total count)
+    const rows = await this.listPropertyStaff(propertyId)
+
+    // 2. Fetch category names
+    const { data: catRows, error: catErr } = await this.supabase
+      .from('property_role_categories')
+      .select('id, name')
+      .eq('property_id', propertyId)
+
+    if (catErr) {
+      console.error('[StaffManagementQueries] Failed to load category names', { propertyId, error: catErr })
+      throw catErr
+    }
+
+    const categoryNameById = new Map((catRows ?? []).map((c) => [c.id, c.name] as const))
+
+    // 3. Batch-fetch auth metadata for all staff user IDs
+    const allUserIds = rows.map((r) => r.user_id).filter((id): id is string => Boolean(id))
+    const authMap = await this.batchFetchAuthUsers(adminClient, allUserIds)
+
+    // 4. Build full StaffManagementTableRow[] with all data
+    const allRows: StaffManagementTableRow[] = rows.map((row) => {
+      const auth = row.user_id ? authMap.get(row.user_id) : undefined
+
+      const ids = row.role_category_id ?? []
+      const categories: string[] | 'All Categories' =
+        ids.length === 0
+          ? 'All Categories'
+          : ids.map((id) => categoryNameById.get(id)).filter((n): n is string => Boolean(n))
+
+      return {
+        id: row.id,
+        name: auth?.displayName ?? '—',
+        email: auth?.email ?? '—',
+        role: formatStaffTableRoleLabel(row.role),
+        categories,
+        status: formatStaffTableStatus(row.status),
+        lastLogin: formatStaffTableLastLogin(auth?.lastSignIn),
+      }
+    })
+
+    // 5. Compute filter options from full dataset (not paginated)
+    const roleSet = new Set<string>()
+    const categorySet = new Set<string>()
+    const statusSet = new Set<string>()
+    for (const r of allRows) {
+      roleSet.add(r.role)
+      statusSet.add(r.status)
+      if (r.categories === 'All Categories') {
+        categorySet.add('All Categories')
+      } else {
+        for (const c of r.categories) categorySet.add(c)
+      }
+    }
+
+    // 6. Apply filters
+    const filtered = allRows.filter((r) => {
+      const matchesSearch =
+        search.length === 0 ||
+        r.name.toLowerCase().includes(search) ||
+        r.email.toLowerCase().includes(search)
+      const matchesRole = roleFilter === 'all' || r.role === roleFilter
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
+      const matchesCategory =
+        categoryFilter === 'all' ||
+        (r.categories === 'All Categories'
+          ? categoryFilter === 'All Categories'
+          : r.categories.includes(categoryFilter))
+      return matchesSearch && matchesRole && matchesStatus && matchesCategory
+    })
+
+    // 7. Paginate
+    const total = filtered.length
+    const start = (page - 1) * pageSize
+    const paged = filtered.slice(start, start + pageSize)
+
+    return {
+      staff: paged,
+      total,
+      filterOptions: {
+        roles: Array.from(roleSet).sort(),
+        categories: Array.from(categorySet).sort(),
+        statuses: Array.from(statusSet).sort(),
+      },
+    }
+  }
+
   async findAuthUserIdByEmail(
     adminClient: SupabaseClient,
     email: string,

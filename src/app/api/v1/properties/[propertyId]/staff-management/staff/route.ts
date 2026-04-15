@@ -24,11 +24,26 @@ export async function GET(
     })
     if (isDenied(access)) return access
 
+    const sp = request.nextUrl.searchParams
+    const page = Math.max(1, Number(sp.get('page')) || 1)
+    const pageSize = Math.max(1, Number(sp.get('pageSize')) || 10)
+    const search = sp.get('search') ?? ''
+    const role = sp.get('role') ?? 'all'
+    const category = sp.get('category') ?? 'all'
+    const status = sp.get('status') ?? 'all'
+
     const q = new StaffManagementQueries(supabase as any)
     const admin = createServiceRoleClient()
-    const staff = await q.listStaffForManagementTable(propertyId, admin)
+    const result = await q.listStaffForManagementTablePaginated(propertyId, admin, {
+      page,
+      pageSize,
+      search,
+      role,
+      category,
+      status,
+    })
 
-    return success({ staff }, request)
+    return success(result, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

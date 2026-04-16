@@ -29,10 +29,10 @@ export function HousekeepingPageHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        <ExportMenu
+        {/* <ExportMenu
           onExport={(format) => onExportClick?.(format)}
           aria-label="Export housekeeping tasks"
-        />
+        /> */}
 
         <Button type="button" size="sm" onClick={onAddTaskClick}>
           <Plus className="h-4 w-4" />

@@ -14,8 +14,11 @@ import { Eye, Pencil, Trash2 } from "lucide-react"
 
 export type HousekeepingTaskRow = {
   id: string
+  siteId?: string
   siteName: string
   task: string
+  description: string | null
+  assigneeId?: string | null
   assignee: string | null
   status: "Pending" | "In Progress" | "Done"
   priority: "Low" | "Medium" | "High"
@@ -98,6 +101,9 @@ export function HousekeepingTable({
             <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Task
             </TableHead>
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
+              Description
+            </TableHead>
             <TableHead className="w-[180px] py-1.5 text-black/90 dark:text-white/90 font-medium">
               Asignee
             </TableHead>
@@ -112,13 +118,13 @@ export function HousekeepingTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                 Loading housekeeping tasks...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -134,8 +140,10 @@ export function HousekeepingTable({
                 <TableCell className="py-1.5">
                   <div className="space-y-0.5">
                     <div className="text-sm text-foreground">{row.task}</div>
-                    {row.zone ? <div className="text-xs text-muted-foreground">{row.zone}</div> : null}
                   </div>
+                </TableCell>
+                <TableCell className="py-1.5 text-sm text-muted-foreground">
+                  {row.description?.trim() || "—"}
                 </TableCell>
                 <TableCell className="py-1.5 text-sm text-muted-foreground">
                   {row.assignee ?? "Unassigned"}

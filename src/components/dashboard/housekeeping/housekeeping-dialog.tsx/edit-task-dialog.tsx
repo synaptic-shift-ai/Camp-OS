@@ -27,12 +27,18 @@ type EditTaskDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   task: HousekeepingTaskRow | null
-  onSubmit: (input: AddHousekeepingTaskInput & { id: string }) => void
+  siteOptions: Array<{ id: string; label: string }>
+  assigneeOptions: Array<{ id: string; label: string }>
+  isSubmitting?: boolean
+  onSubmit: (input: AddHousekeepingTaskInput & { id: string }) => Promise<void>
 }
 
 const EMPTY_FORM: AddHousekeepingTaskInput = {
+  siteId: "",
   siteName: "",
   task: "",
+  description: "",
+  assigneeId: null,
   assignee: null,
   status: "Pending",
   priority: "Medium",
@@ -40,7 +46,15 @@ const EMPTY_FORM: AddHousekeepingTaskInput = {
   zone: "",
 }
 
-export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskDialogProps) {
+export function EditTaskDialog({
+  open,
+  onOpenChange,
+  task,
+  siteOptions,
+  assigneeOptions,
+  isSubmitting = false,
+  onSubmit,
+}: EditTaskDialogProps) {
   const [form, setForm] = useState<AddHousekeepingTaskInput>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,8 +66,11 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
     }
 
     setForm({
+      siteId: task.siteId ?? "",
       siteName: task.siteName,
       task: task.task,
+      description: task.description ?? "",
+      assigneeId: task.assigneeId ?? null,
       assignee: task.assignee,
       status: task.status,
       priority: task.priority,
@@ -63,30 +80,40 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
     setError(null)
   }, [open, task])
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!task) return
 
+    const siteId = (form.siteId ?? "").trim()
     const siteName = form.siteName.trim()
     const taskName = form.task.trim()
+    const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
 
-    if (!siteName || !taskName) {
+    if (!siteId || !siteName || !taskName) {
       setError("Site and task are required.")
       return
     }
 
-    onSubmit({
-      id: task.id,
-      siteName,
-      task: taskName,
-      assignee,
-      status: form.status,
-      priority: task.priority,
-      dueTime: task.dueTime,
-      zone: task.zone ?? "Unassigned",
-    })
-    onOpenChange(false)
+    try {
+      await onSubmit({
+        id: task.id,
+        siteId,
+        siteName,
+        task: taskName,
+        description,
+        assigneeId: form.assigneeId ?? null,
+        assignee,
+        status: form.status,
+        priority: task.priority,
+        dueTime: task.dueTime,
+        zone: task.zone ?? "Unassigned",
+      })
+      onOpenChange(false)
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : "Failed to update task."
+      setError(message)
+    }
   }
 
   return (
@@ -107,36 +134,83 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit-housekeeping-site">Site *</Label>
-              <Input
-                id="edit-housekeeping-site"
-                value={form.siteName}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, siteName: event.target.value }))
-                }
-                required
-              />
+              <Select
+                value={form.siteId ?? ""}
+                onValueChange={(value) => {
+                  const selectedSite = siteOptions.find((site) => site.id === value)
+                  setForm((prev) => ({
+                    ...prev,
+                    siteId: value,
+                    siteName: selectedSite?.label ?? "",
+                  }))
+                }}
+              >
+                <SelectTrigger id="edit-housekeeping-site">
+                  <SelectValue placeholder="Select a site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {siteOptions.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="edit-housekeeping-assignee">Assignee</Label>
-              <Input
-                id="edit-housekeeping-assignee"
-                value={form.assignee ?? ""}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, assignee: event.target.value }))
-                }
-              />
+              <Select
+                value={form.assigneeId ?? "unassigned"}
+                onValueChange={(value) => {
+                  if (value === "unassigned") {
+                    setForm((prev) => ({ ...prev, assigneeId: null, assignee: null }))
+                    return
+                  }
+                  const selectedAssignee = assigneeOptions.find((option) => option.id === value)
+                  setForm((prev) => ({
+                    ...prev,
+                    assigneeId: value,
+                    assignee: selectedAssignee?.label ?? null,
+                  }))
+                }}
+              >
+                <SelectTrigger id="edit-housekeeping-assignee">
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {assigneeOptions.map((assignee) => (
+                    <SelectItem key={assignee.id} value={assignee.id}>
+                      {assignee.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-housekeeping-task">Task *</Label>
-            <Textarea
+            <Label htmlFor="edit-housekeeping-task">Task Title *</Label>
+            <Input
               id="edit-housekeeping-task"
               value={form.task}
               onChange={(event) => setForm((prev) => ({ ...prev, task: event.target.value }))}
-              rows={3}
+              placeholder="Enter task title"
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-housekeeping-description">Description</Label>
+            <Textarea
+              id="edit-housekeeping-description"
+              value={form.description ?? ""}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, description: event.target.value }))
+              }
+              placeholder="Add task details (optional)"
+              rows={3}
             />
           </div>
 
@@ -160,10 +234,12 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

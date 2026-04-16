@@ -22,8 +22,11 @@ import {
 } from "@/components/ui/select"
 
 export type AddHousekeepingTaskInput = {
+  siteId?: string
   siteName: string
   task: string
+  description?: string
+  assigneeId?: string | null
   assignee: string | null
   status: "Pending" | "In Progress" | "Done"
   priority: "Low" | "Medium" | "High"
@@ -34,12 +37,18 @@ export type AddHousekeepingTaskInput = {
 type AddTaskDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (input: AddHousekeepingTaskInput) => void
+  siteOptions: Array<{ id: string; label: string }>
+  assigneeOptions: Array<{ id: string; label: string }>
+  isSubmitting?: boolean
+  onSubmit: (input: AddHousekeepingTaskInput) => Promise<void>
 }
 
 const INITIAL_FORM: AddHousekeepingTaskInput = {
+  siteId: "",
   siteName: "",
   task: "",
+  description: "",
+  assigneeId: null,
   assignee: null,
   status: "Pending",
   priority: "Medium",
@@ -47,7 +56,14 @@ const INITIAL_FORM: AddHousekeepingTaskInput = {
   zone: "",
 }
 
-export function AddTaskDialog({ open, onOpenChange, onSubmit }: AddTaskDialogProps) {
+export function AddTaskDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  siteOptions,
+  assigneeOptions,
+  isSubmitting = false,
+}: AddTaskDialogProps) {
   const [form, setForm] = useState<AddHousekeepingTaskInput>(INITIAL_FORM)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,29 +73,38 @@ export function AddTaskDialog({ open, onOpenChange, onSubmit }: AddTaskDialogPro
     setError(null)
   }, [open])
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
 
+    const siteId = (form.siteId ?? "").trim()
     const siteName = form.siteName.trim()
     const task = form.task.trim()
+    const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
 
-    if (!siteName || !task) {
+    if (!siteId || !siteName || !task) {
       setError("Site and task are required.")
       return
     }
 
-    onSubmit({
-      ...form,
-      siteName,
-      task,
-      priority: "Medium",
-      dueTime: "TBD",
-      zone: "Unassigned",
-      assignee,
-    })
-    onOpenChange(false)
+    try {
+      await onSubmit({
+        ...form,
+        siteId,
+        siteName,
+        task,
+        description,
+        priority: "Medium",
+        dueTime: "TBD",
+        zone: "Unassigned",
+        assignee,
+      })
+      onOpenChange(false)
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : "Failed to create task."
+      setError(message)
+    }
   }
 
   return (
@@ -102,39 +127,83 @@ export function AddTaskDialog({ open, onOpenChange, onSubmit }: AddTaskDialogPro
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="housekeeping-site">Site *</Label>
-              <Input
-                id="housekeeping-site"
-                value={form.siteName}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, siteName: event.target.value }))
-                }
-                placeholder="Site A12"
-                required
-              />
+              <Select
+                value={form.siteId ?? ""}
+                onValueChange={(value) => {
+                  const selectedSite = siteOptions.find((site) => site.id === value)
+                  setForm((prev) => ({
+                    ...prev,
+                    siteId: value,
+                    siteName: selectedSite?.label ?? "",
+                  }))
+                }}
+              >
+                <SelectTrigger id="housekeeping-site">
+                  <SelectValue placeholder="Select a site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {siteOptions.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="housekeeping-assignee">Assignee</Label>
-              <Input
-                id="housekeeping-assignee"
-                value={form.assignee ?? ""}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, assignee: event.target.value }))
-                }
-                placeholder="Team member name"
-              />
+              <Select
+                value={form.assigneeId ?? "unassigned"}
+                onValueChange={(value) => {
+                  if (value === "unassigned") {
+                    setForm((prev) => ({ ...prev, assigneeId: null, assignee: null }))
+                    return
+                  }
+                  const selectedAssignee = assigneeOptions.find((option) => option.id === value)
+                  setForm((prev) => ({
+                    ...prev,
+                    assigneeId: value,
+                    assignee: selectedAssignee?.label ?? null,
+                  }))
+                }}
+              >
+                <SelectTrigger id="housekeeping-assignee">
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {assigneeOptions.map((assignee) => (
+                    <SelectItem key={assignee.id} value={assignee.id}>
+                      {assignee.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="housekeeping-task">Task *</Label>
-            <Textarea
+            <Label htmlFor="housekeeping-task">Task Title *</Label>
+            <Input
               id="housekeeping-task"
               value={form.task}
               onChange={(event) => setForm((prev) => ({ ...prev, task: event.target.value }))}
-              placeholder="Describe the housekeeping task"
-              rows={3}
+              placeholder="Enter task title"
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="housekeeping-description">Description</Label>
+            <Textarea
+              id="housekeeping-description"
+              value={form.description ?? ""}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, description: event.target.value }))
+              }
+              placeholder="Add task details (optional)"
+              rows={3}
             />
           </div>
 
@@ -158,10 +227,12 @@ export function AddTaskDialog({ open, onOpenChange, onSubmit }: AddTaskDialogPro
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Add Task</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Task"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

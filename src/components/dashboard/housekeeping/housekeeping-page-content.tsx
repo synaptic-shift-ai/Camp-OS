@@ -1,9 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { HousekeepingFilter, type HousekeepingFilterValue } from "./housekeeping-filter"
 import { HousekeepingPageHeader } from "./housekeeping-page-header"
 import { HousekeepingTable, type HousekeepingTaskRow } from "./housekeeping-table"
+import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -11,121 +13,208 @@ import {
   type AddHousekeepingTaskInput,
 } from "./housekeeping-dialog.tsx/add-task-dialog"
 import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
+import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
+import { TaskDetailsDialog } from "./housekeeping-dialog.tsx/task-details-dialog"
 
 type HousekeepingPageContentProps = {
+  propertyId: string
   propertyName: string
+  siteOptions: Array<{ id: string; label: string }>
+  assigneeOptions: Array<{ id: string; label: string }>
 }
-
-const INITIAL_TASKS: HousekeepingTaskRow[] = [
-  {
-    id: "hk-1",
-    siteName: "Site A12",
-    task: "Turnover clean after checkout",
-    assignee: "Maya Patel",
-    status: "In Progress",
-    priority: "High",
-    dueTime: "10:00 AM",
-    zone: "North Loop",
-  },
-  {
-    id: "hk-2",
-    siteName: "Cabin C03",
-    task: "Restock bathroom supplies",
-    assignee: null,
-    status: "Pending",
-    priority: "Medium",
-    dueTime: "11:30 AM",
-    zone: "Cabin Row",
-  },
-  {
-    id: "hk-3",
-    siteName: "Site B04",
-    task: "Final inspection",
-    assignee: "Jordan Lee",
-    status: "Done",
-    priority: "Low",
-    dueTime: "09:15 AM",
-    zone: "South Loop",
-  },
-  {
-    id: "hk-4",
-    siteName: "Yurt Y02",
-    task: "Linen change and reset",
-    assignee: "Ari Santos",
-    status: "Pending",
-    priority: "High",
-    dueTime: "01:00 PM",
-    zone: "Glamping Ridge",
-  },
-]
 
 const INITIAL_FILTERS: HousekeepingFilterValue = {
   search: "",
+  siteId: "all",
+  assigneeId: "all",
   status: "all",
-  priority: "all",
-  zone: "all",
 }
 
-export function HousekeepingPageContent({ propertyName }: HousekeepingPageContentProps) {
+function toApiStatus(status: AddHousekeepingTaskInput["status"]): "pending" | "in_progress" | "done" {
+  if (status === "In Progress") return "in_progress"
+  if (status === "Done") return "done"
+  return "pending"
+}
+
+function fromApiStatus(status: string): HousekeepingTaskRow["status"] {
+  if (status === "in_progress") return "In Progress"
+  if (status === "done") return "Done"
+  return "Pending"
+}
+
+function filterStatusToApi(
+  status: HousekeepingFilterValue["status"],
+): "pending" | "in_progress" | "done" | null {
+  if (status === "all") return null
+  if (status === "In Progress") return "in_progress"
+  if (status === "Done") return "done"
+  return "pending"
+}
+
+const FILTER_DEBOUNCE_MS = 400
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), delayMs)
+    return () => window.clearTimeout(id)
+  }, [value, delayMs])
+  return debounced
+}
+
+type ApiHousekeepingTask = {
+  id: string
+  site_id: string
+  title: string
+  description: string | null
+  status: string
+  staff_id: string | null
+  site: { site_name: string | null; site_number: string | null } | null
+}
+
+export function HousekeepingPageContent({
+  propertyId,
+  propertyName,
+  siteOptions,
+  assigneeOptions,
+}: HousekeepingPageContentProps) {
   const { toast } = useToast()
   const [filters, setFilters] = useState<HousekeepingFilterValue>(INITIAL_FILTERS)
+  const debouncedFilters = useDebouncedValue(filters, FILTER_DEBOUNCE_MS)
+  const filtersForApi = useMemo(
+    () => ({
+      siteId: debouncedFilters.siteId,
+      assigneeId: debouncedFilters.assigneeId,
+      status: debouncedFilters.status,
+      search: debouncedFilters.search,
+    }),
+    [debouncedFilters],
+  )
+  const assigneeOptionsRef = useRef(assigneeOptions)
+  assigneeOptionsRef.current = assigneeOptions
+  const assigneeOptionsKey = useMemo(
+    () => assigneeOptions.map((option) => `${option.id}:${option.label}`).join("\u001f"),
+    [assigneeOptions],
+  )
+
+  const filtersApiKey = useMemo(
+    () =>
+      `${filtersForApi.search}|${filtersForApi.siteId}|${filtersForApi.assigneeId}|${filtersForApi.status}`,
+    [filtersForApi],
+  )
+
+  const pageRef = useRef(1)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [total, setTotal] = useState(0)
+
   const [loading, setLoading] = useState(false)
+  const [isCreatingTask, setIsCreatingTask] = useState(false)
+  const [isUpdatingTask, setIsUpdatingTask] = useState(false)
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<HousekeepingTaskRow | null>(null)
-  const [rows, setRows] = useState<HousekeepingTaskRow[]>(INITIAL_TASKS)
+  const [taskPendingDelete, setTaskPendingDelete] = useState<HousekeepingTaskRow | null>(null)
+  const [viewingTask, setViewingTask] = useState<HousekeepingTaskRow | null>(null)
+  const [rows, setRows] = useState<HousekeepingTaskRow[]>([])
+  const [openTaskCount, setOpenTaskCount] = useState(0)
 
-  const statusOptions = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.status))).sort(),
-    [rows],
-  )
-  const priorityOptions = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.priority))).sort(),
-    [rows],
-  )
-  const zoneOptions = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.zone).filter(Boolean) as string[])).sort(),
-    [rows],
-  )
+  useEffect(() => {
+    pageRef.current = 1
+    setPage(1)
+  }, [filtersApiKey, perPage])
 
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = filters.search.trim().toLowerCase()
+  const loadTasks = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      const search = filtersForApi.search.trim()
+      if (search.length > 0) {
+        params.set("search", search)
+      }
+      if (filtersForApi.siteId !== "all") {
+        params.set("siteId", filtersForApi.siteId)
+      }
+      if (filtersForApi.assigneeId !== "all") {
+        params.set("assigneeId", filtersForApi.assigneeId)
+      }
+      const statusParam = filterStatusToApi(filtersForApi.status)
+      if (statusParam) {
+        params.set("status", statusParam)
+      }
+      params.set("page", String(pageRef.current))
+      params.set("per_page", String(perPage))
+      const query = params.toString()
+      const response = await fetch(
+        `/api/v1/properties/${propertyId}/housekeeping${query ? `?${query}` : ""}`,
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to load housekeeping tasks."
+        throw new Error(message)
+      }
 
-    return rows.filter((row) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        row.siteName.toLowerCase().includes(normalizedSearch) ||
-        row.task.toLowerCase().includes(normalizedSearch) ||
-        (row.assignee?.toLowerCase().includes(normalizedSearch) ?? false)
+      const opts = assigneeOptionsRef.current
+      const assigneeLabelById = new Map(opts.map((option) => [option.id, option.label]))
+      const mappedRows: HousekeepingTaskRow[] = (payload.data?.tasks ?? []).map((task: ApiHousekeepingTask) => ({
+        id: task.id,
+        siteId: task.site_id,
+        siteName: task.site?.site_name?.trim() || task.site?.site_number || "Unknown site",
+        task: task.title,
+        description: task.description,
+        assigneeId: task.staff_id,
+        assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
+        status: fromApiStatus(task.status),
+        priority: "Medium",
+        dueTime: "TBD",
+        zone: "Unassigned",
+      }))
+      setRows(mappedRows)
+      const apiTotal = typeof payload.data?.total === "number" ? payload.data.total : mappedRows.length
+      setTotal(apiTotal)
+      const totalPages = Math.max(1, Math.ceil(apiTotal / perPage))
+      setPage((current) => {
+        const next = Math.min(current, totalPages)
+        pageRef.current = next
+        return next
+      })
+      const count = payload.data?.openTaskCount
+      setOpenTaskCount(typeof count === "number" ? count : mappedRows.filter((row) => row.status !== "Done").length)
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : "Failed to load tasks."
+      toast({
+        title: "Unable to load tasks",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [propertyId, filtersForApi, perPage, toast])
 
-      const matchesStatus = filters.status === "all" || row.status === filters.status
-      const matchesPriority = filters.priority === "all" || row.priority === filters.priority
-      const matchesZone = filters.zone === "all" || row.zone === filters.zone
-
-      return matchesSearch && matchesStatus && matchesPriority && matchesZone
-    })
-  }, [filters, rows])
-
-  const pendingTasksCount = useMemo(
-    () => rows.filter((row) => row.status !== "Done").length,
-    [rows],
-  )
+  useEffect(() => {
+    void loadTasks()
+  }, [loadTasks, assigneeOptionsKey, page])
 
   const handleRefresh = () => {
-    setLoading(true)
-    window.setTimeout(() => {
-      setRows((currentRows) => [...currentRows])
-      setLoading(false)
-    }, 450)
+    void loadTasks()
   }
 
   const handleExport = (format: string) => {
     if (format !== "csv") return
 
     const filename = buildExportFilename("HOUSEKEEPING")
-    exportToCsv<HousekeepingTaskRow>(filename, filteredRows, [
+    exportToCsv<HousekeepingTaskRow>(filename, rows, [
       { key: "siteName", header: "Site" },
       { key: "task", header: "Task" },
+      {
+        key: "description",
+        header: "Description",
+        accessor: (row) => row.description ?? "—",
+      },
       {
         key: "assignee",
         header: "Asignee",
@@ -139,30 +228,48 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
 
     toast({
       title: "Export ready",
-      description: "Housekeeping CSV has been downloaded.",
+      description: "Housekeeping CSV has been downloaded (current page only).",
     })
   }
 
-  const handleAddTask = (input: AddHousekeepingTaskInput) => {
-    const nextId = `hk-${rows.length + 1}`
-    setRows((currentRows) => [
-      {
-        id: nextId,
-        siteName: input.siteName,
-        task: input.task,
-        assignee: input.assignee,
-        status: input.status,
-        priority: input.priority,
-        dueTime: input.dueTime,
-        zone: input.zone,
-      },
-      ...currentRows,
-    ])
+  const handleAddTask = async (input: AddHousekeepingTaskInput) => {
+    if (!input.siteId) {
+      throw new Error("Site is required.")
+    }
+    setIsCreatingTask(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/housekeeping`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          siteId: input.siteId,
+          staffId: input.assigneeId ?? null,
+          title: input.task,
+          description: input.description?.trim() ? input.description.trim() : null,
+          status: toApiStatus(input.status),
+        }),
+      })
 
-    toast({
-      title: "Task added",
-      description: "A new housekeeping task has been added to the table.",
-    })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to create housekeeping task."
+        throw new Error(message)
+      }
+
+      await loadTasks()
+
+      toast({
+        title: "Task added",
+        description: "A new housekeeping task has been added to the table.",
+      })
+    } finally {
+      setIsCreatingTask(false)
+    }
   }
 
   const handleOpenEditTask = (row: HousekeepingTaskRow) => {
@@ -170,35 +277,74 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
     setIsEditTaskDialogOpen(true)
   }
 
-  const handleEditTask = (input: AddHousekeepingTaskInput & { id: string }) => {
-    setRows((currentRows) =>
-      currentRows.map((row) =>
-        row.id === input.id
-          ? {
-              ...row,
-              siteName: input.siteName,
-              task: input.task,
-              assignee: input.assignee,
-              status: input.status,
-              priority: input.priority,
-              dueTime: input.dueTime,
-              zone: input.zone,
-            }
-          : row,
-      ),
-    )
-
-    toast({
-      title: "Task updated",
-      description: "Housekeeping task details were updated successfully.",
-    })
+  const handleViewTask = (row: HousekeepingTaskRow) => {
+    setViewingTask(row)
   }
+
+  const handleRequestDeleteTask = (row: HousekeepingTaskRow) => {
+    setTaskPendingDelete(row)
+  }
+
+  const handleEditTask = async (input: AddHousekeepingTaskInput & { id: string }) => {
+    if (!input.siteId) {
+      throw new Error("Site is required.")
+    }
+    const siteId = input.siteId
+
+    setIsUpdatingTask(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/housekeeping/${input.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          siteId,
+          staffId: input.assigneeId ?? null,
+          title: input.task,
+          description: input.description?.trim() ? input.description.trim() : null,
+          status: toApiStatus(input.status),
+        }),
+      })
+
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to update housekeeping task."
+        throw new Error(message)
+      }
+
+      await loadTasks()
+
+      toast({
+        title: "Task updated",
+        description: "Housekeeping task details were updated successfully.",
+      })
+    } finally {
+      setIsUpdatingTask(false)
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1
+  const endIndex = total === 0 ? 0 : Math.min(page * perPage, total)
+
+  const goToPage = useCallback(
+    (next: number) => {
+      const clamped = Math.max(1, Math.min(next, totalPages))
+      pageRef.current = clamped
+      setPage(clamped)
+    },
+    [totalPages],
+  )
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <HousekeepingPageHeader
         propertyName={propertyName}
-        pendingTasksCount={pendingTasksCount}
+        pendingTasksCount={openTaskCount}
         onRefreshClick={handleRefresh}
         onExportClick={handleExport}
         onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
@@ -206,25 +352,88 @@ export function HousekeepingPageContent({ propertyName }: HousekeepingPageConten
       <HousekeepingFilter
         value={filters}
         onChange={setFilters}
-        statusOptions={statusOptions}
-        priorityOptions={priorityOptions}
-        zoneOptions={zoneOptions}
+        siteOptions={siteOptions}
+        assigneeOptions={assigneeOptions}
       />
       <HousekeepingTable
-        rows={filteredRows}
+        rows={rows}
         loading={loading}
+        emptyMessage={
+          total === 0 && !loading
+            ? "No housekeeping tasks match the selected filters."
+            : "No tasks on this page."
+        }
+        onView={handleViewTask}
         onEdit={handleOpenEditTask}
+        onDelete={handleRequestDeleteTask}
       />
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium">{total}</span> tasks
+          </div>
+          <PageSizeSelector value={perPage} onChange={setPerPage} disabled={loading} />
+        </div>
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            disabled={loading}
+            windowSize={2}
+          />
+        </div>
+      </div>
       <AddTaskDialog
         open={isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}
+        siteOptions={siteOptions}
+        assigneeOptions={assigneeOptions}
+        isSubmitting={isCreatingTask}
         onSubmit={handleAddTask}
+      />
+      <TaskDetailsDialog
+        open={viewingTask !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewingTask(null)
+          }
+        }}
+        task={viewingTask}
       />
       <EditTaskDialog
         open={isEditTaskDialogOpen}
         onOpenChange={setIsEditTaskDialogOpen}
         task={editingTask}
+        siteOptions={siteOptions}
+        assigneeOptions={assigneeOptions}
+        isSubmitting={isUpdatingTask}
         onSubmit={handleEditTask}
+      />
+      <DeleteTaskConfirmationDialog
+        open={taskPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTaskPendingDelete(null)
+          }
+        }}
+        propertyId={propertyId}
+        task={
+          taskPendingDelete
+            ? {
+                id: taskPendingDelete.id,
+                task: taskPendingDelete.task,
+                siteName: taskPendingDelete.siteName,
+              }
+            : null
+        }
+        onDeleted={() => {
+          void loadTasks()
+        }}
       />
     </div>
   )

@@ -201,11 +201,18 @@ function resolvePermissionsFromCategoryAccess(
 ): ReadonlySet<PermissionKey> {
   const resolved = new Set<PermissionKey>()
   for (const category of categories) {
-    const accessMap =
-      category.access?.moduleAccessControl ??
-      buildDefaultAccessForRoleCategory(role, category.name)
+    const defaultAccessMap = buildDefaultAccessForRoleCategory(role, category.name)
+    const explicitAccessMap = category.access?.moduleAccessControl ?? {}
+    const moduleKeys = new Set<string>([
+      ...Object.keys(defaultAccessMap),
+      ...Object.keys(explicitAccessMap),
+    ])
 
-    for (const [moduleKey, perms] of Object.entries(accessMap)) {
+    for (const moduleKey of moduleKeys) {
+      const perms = {
+        ...(defaultAccessMap[moduleKey] ?? {}),
+        ...(explicitAccessMap[moduleKey] ?? {}),
+      }
       const modulePermissions =
         MODULE_PERMISSION_TO_RBAC[moduleKey as RoleAccessControlModuleKey]
       if (!modulePermissions) continue
@@ -282,7 +289,8 @@ export async function GET(request: NextRequest) {
           name: row.name,
           access: normalizeAccessPayload(row.access),
         }))
-        allPerms = new Set(resolvePermissionsFromCategoryAccess(role, normalized))
+        const categoryDerivedPerms = resolvePermissionsFromCategoryAccess(role, normalized)
+        allPerms = new Set([...allPerms, ...categoryDerivedPerms])
       }
     }
 

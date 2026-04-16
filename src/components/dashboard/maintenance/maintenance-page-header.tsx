@@ -2,14 +2,14 @@
 
 import { Button } from "@/components/ui/button"
 import { ExportMenu } from "@/components/ui/export-menu"
-import { ClipboardList, Plus, RotateCw } from "lucide-react"
+import { Plus } from "lucide-react"
 
 type MaintenancePageHeaderProps = {
   propertyName: string
   openTasksCount?: number
   onRefreshClick?: () => void
   onExportClick?: (format: string) => void
-  onAddTaskClick?: () => void
+  onAddTaskClick: () => void
 }
 
 export function MaintenancePageHeader({
@@ -29,10 +29,10 @@ export function MaintenancePageHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        <ExportMenu
+        {/* <ExportMenu
           onExport={(format) => onExportClick?.(format)}
           aria-label="Export maintenance tasks"
-        />
+        /> */}
 
         <Button type="button" size="sm" onClick={onAddTaskClick}>
           <Plus className="h-4 w-4" />

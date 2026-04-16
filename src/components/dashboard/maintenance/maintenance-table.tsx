@@ -13,8 +13,11 @@ import { Eye, Pencil, Trash2 } from "lucide-react"
 
 export type MaintenanceTaskRow = {
   id: string
+  siteId?: string
   siteName: string
   task: string
+  description?: string | null
+  assigneeId?: string | null
   assignee: string | null
   status: "Open" | "In Progress" | "Completed"
   priority: "Low" | "Medium" | "High"
@@ -69,6 +72,9 @@ export function MaintenanceTable({
             <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Task
             </TableHead>
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
+              Description
+            </TableHead>
             <TableHead className="w-[180px] py-1.5 text-black/90 dark:text-white/90 font-medium">
               Asignee
             </TableHead>
@@ -83,13 +89,13 @@ export function MaintenanceTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                 Loading maintenance tasks...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -109,6 +115,9 @@ export function MaintenanceTable({
                       <div className="text-xs text-muted-foreground">{row.category}</div>
                     ) : null}
                   </div>
+                </TableCell>
+                <TableCell className="py-1.5 text-sm text-muted-foreground">
+                  {row.description?.trim() ? row.description : "—"}
                 </TableCell>
                 <TableCell className="py-1.5 text-sm text-muted-foreground">
                   {row.assignee ?? "Unassigned"}

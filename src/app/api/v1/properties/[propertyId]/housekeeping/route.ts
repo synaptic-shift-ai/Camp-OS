@@ -136,20 +136,20 @@ export async function POST(
         const parsed = CreateHousekeepingTaskRequestSchema.safeParse(body)
 
         if (!parsed.success) {
-        return error(ErrorCodes.VALIDATION_ERROR, request, {
-            errors: parsed.error.format(),
-        })
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+              errors: parsed.error.format(),
+          })
         }
 
         const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
         const housekeepingTask = await queries.createHousekeepingTask({
-        propertyId,
-        siteId: parsed.data.siteId,
-        staffId: parsed.data.staffId ?? null,
-        title: parsed.data.title,
-        description: parsed.data.description ?? null,
-        createdBy: user.id,
-        ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+          propertyId,
+          siteId: parsed.data.siteId,
+          staffId: parsed.data.staffId ?? null,
+          title: parsed.data.title,
+          description: parsed.data.description ?? null,
+          createdBy: user.id,
+          ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         })
 
         return success({ housekeepingTask }, request)

@@ -149,22 +149,14 @@ async function resolveCategoryBasedModuleNavVisibility(
   const moduleAccessVisible = { ...emptyVisibility }
 
   for (const mod of DASHBOARD_ROLE_ACCESS_MODULES) {
-    const hasExplicitView = rows.some((row) => {
+    moduleAccessVisible[mod.key] = rows.some((row) => {
       const access = normalizeAccessPayload(row.access)
-      return typeof access?.moduleAccessControl?.[mod.key]?.view === 'boolean'
+      const explicitView = access?.moduleAccessControl?.[mod.key]?.view
+      if (typeof explicitView === 'boolean') {
+        return explicitView
+      }
+      return fallbackModuleViewForRoleCategory(role, row.name ?? '', mod.key)
     })
-
-    if (hasExplicitView) {
-      moduleAccessVisible[mod.key] = rows.some((row) => {
-        const access = normalizeAccessPayload(row.access)
-        return access?.moduleAccessControl?.[mod.key]?.view === true
-      })
-      continue
-    }
-
-    moduleAccessVisible[mod.key] = rows.some((row) =>
-      fallbackModuleViewForRoleCategory(role, row.name ?? '', mod.key),
-    )
   }
 
   return { hasCategoryAssignments: true, role, moduleAccessVisible }

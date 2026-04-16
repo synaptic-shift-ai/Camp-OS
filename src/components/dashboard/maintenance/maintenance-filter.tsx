@@ -12,28 +12,26 @@ import {
 
 export type MaintenanceFilterValue = {
   search: string
+  siteId: string
+  assigneeId: string
   status: string
-  priority: string
-  category: string
 }
 
 type MaintenanceFilterProps = {
   value: MaintenanceFilterValue
   onChange: (next: MaintenanceFilterValue) => void
-  statusOptions: string[]
-  priorityOptions: string[]
-  categoryOptions: string[]
+  siteOptions: Array<{ id: string; label: string }>
+  assigneeOptions: Array<{ id: string; label: string }>
 }
 
 export function MaintenanceFilter({
   value,
   onChange,
-  statusOptions,
-  priorityOptions,
-  categoryOptions,
+  siteOptions,
+  assigneeOptions,
 }: MaintenanceFilterProps) {
   return (
-    <div className="grid gap-4 border border-border/80 bg-card/50 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(9.5rem,0.9fr)_minmax(9.5rem,0.9fr)_minmax(9.5rem,0.9fr)] lg:items-end">
+    <div className="grid gap-4 border border-border/80 bg-card/50 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
       <div className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-1">
         <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Search
@@ -43,11 +41,53 @@ export function MaintenanceFilter({
           <Input
             value={value.search}
             onChange={(e) => onChange({ ...value, search: e.target.value })}
-            placeholder="Search by site, issue, or assignee..."
+            placeholder="Search by task, description, site, or assignee..."
             className="h-9 rounded-none bg-card/50 pl-8 text-sm"
             aria-label="Search maintenance tasks"
           />
         </div>
+      </div>
+
+      <div className="min-w-0 space-y-1">
+        <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Site
+        </label>
+        <Select value={value.siteId} onValueChange={(siteId) => onChange({ ...value, siteId })}>
+          <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+            <SelectValue placeholder="Site" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64">
+            <SelectItem value="all">All sites</SelectItem>
+            {siteOptions.map((site) => (
+              <SelectItem key={site.id} value={site.id}>
+                {site.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="min-w-0 space-y-1">
+        <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Assignee
+        </label>
+        <Select
+          value={value.assigneeId}
+          onValueChange={(assigneeId) => onChange({ ...value, assigneeId })}
+        >
+          <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+            <SelectValue placeholder="Assignee" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64">
+            <SelectItem value="all">All assignees</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {assigneeOptions.map((person) => (
+              <SelectItem key={person.id} value={person.id}>
+                {person.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="min-w-0 space-y-1">
@@ -60,55 +100,9 @@ export function MaintenanceFilter({
           </SelectTrigger>
           <SelectContent className="max-h-64">
             <SelectItem value="all">All statuses</SelectItem>
-            {statusOptions.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="min-w-0 space-y-1">
-        <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Priority
-        </label>
-        <Select
-          value={value.priority}
-          onValueChange={(priority) => onChange({ ...value, priority })}
-        >
-          <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent className="max-h-64">
-            <SelectItem value="all">All priorities</SelectItem>
-            {priorityOptions.map((priority) => (
-              <SelectItem key={priority} value={priority}>
-                {priority}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="min-w-0 space-y-1">
-        <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Category
-        </label>
-        <Select
-          value={value.category}
-          onValueChange={(category) => onChange({ ...value, category })}
-        >
-          <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent className="max-h-64">
-            <SelectItem value="all">All categories</SelectItem>
-            {categoryOptions.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
-            ))}
+            <SelectItem value="Open">Open</SelectItem>
+            <SelectItem value="In Progress">In Progress</SelectItem>
+            <SelectItem value="Completed">Completed</SelectItem>
           </SelectContent>
         </Select>
       </div>

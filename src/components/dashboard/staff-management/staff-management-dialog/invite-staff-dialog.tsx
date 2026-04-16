@@ -200,8 +200,17 @@ export default function InviteStaffDialog({
       categoriesForSelectedRole.length > 0 &&
       !categoriesForSelectedRole.some((c) => c.id)
 
+    const selectableCategoryIds = useMemo(
+      () => categoriesForSelectedRole.map((c) => c.id).filter(Boolean),
+      [categoriesForSelectedRole],
+    )
+    const hasSelectableCategories = selectableCategoryIds.length > 0
+    const allCategoriesSelected =
+      hasSelectableCategories &&
+      selectableCategoryIds.every((id) => selectedRoleCategoryIds.includes(id))
+
     const categoryChoiceGrid = (
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {categoriesForSelectedRole.map(({ id, name }) => (
           <button
             key={id || name}
@@ -218,12 +227,29 @@ export default function InviteStaffDialog({
             }}
             disabled={isLoadingCategories || !id}
           >
-            <Checkbox checked={id ? selectedRoleCategoryIds.includes(id) : false} 
-              aria-label={name} 
-            />
+            <Checkbox checked={id ? selectedRoleCategoryIds.includes(id) : false} aria-label={name} />
             <span className="text-sm font-medium">{name}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className={cn(
+            'flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left',
+            'hover:bg-muted/50',
+          )}
+          onClick={() => {
+            if (!hasSelectableCategories) return
+            setSelectedRoleCategoryIds((prev) =>
+              allCategoriesSelected
+                ? prev.filter((id) => !selectableCategoryIds.includes(id))
+                : selectableCategoryIds,
+            )
+          }}
+          disabled={isLoadingCategories || !hasSelectableCategories}
+        >
+          <Checkbox checked={allCategoriesSelected} aria-label="All categories" />
+          <span className="text-sm font-medium">All Categories</span>
+        </button>
       </div>
     )
 

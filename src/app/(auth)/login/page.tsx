@@ -142,6 +142,18 @@ export default function LoginPage() {
             return
           }
 
+          const accessToken = signInData.session?.access_token
+          if (accessToken) {
+            try {
+              await fetch("/api/v1/activity/record-login", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+              })
+            } catch {
+              /* audit is best-effort; do not block sign-in */
+            }
+          }
+
           if (
             staffAssignmentAny?.property_id &&
             (staffAssignmentAny.status === 'active' || staffAssignmentAny.status === 'pending')
@@ -154,18 +166,6 @@ export default function LoginPage() {
             router.push(`/dashboard/${staffAssignmentAny.property_id}`)
             router.refresh()
             return
-          }
-
-          const accessToken = signInData.session?.access_token
-          if (accessToken) {
-            try {
-              await fetch("/api/v1/activity/record-login", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${accessToken}` },
-              })
-            } catch {
-              /* audit is best-effort; do not block sign-in */
-            }
           }
 
           if (userType === 'explorer') {

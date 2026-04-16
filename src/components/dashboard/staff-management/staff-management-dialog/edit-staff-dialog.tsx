@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, Check, Save } from 'lucide-react'
+import { Building2, Save } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
@@ -181,17 +182,36 @@ export function EditStaffDialog({
     categoriesForSelectedRole.length > 0 &&
     !categoriesForSelectedRole.some((c) => c.id)
 
+  const selectableCategoryIds = useMemo(
+    () => categoriesForSelectedRole.map((c) => c.id).filter(Boolean),
+    [categoriesForSelectedRole],
+  )
+  const allCategoriesChecked =
+    allCategories ||
+    (selectableCategoryIds.length > 0 &&
+      selectableCategoryIds.every((id) => selectedRoleCategoryIds.includes(id)))
+
   const toggleAllCategories = () => {
+    if (allCategoriesChecked) {
+      setAllCategories(false)
+      setSelectedRoleCategoryIds([])
+      return
+    }
     setAllCategories(true)
-    setSelectedRoleCategoryIds([])
+    setSelectedRoleCategoryIds(selectableCategoryIds)
   }
 
   const toggleCategoryId = (id: string) => {
     if (!id) return
-    setAllCategories(false)
-    setSelectedRoleCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    )
+    setSelectedRoleCategoryIds((prev) => {
+      const base = allCategoriesChecked ? selectableCategoryIds : prev
+      const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id]
+      const nowAllSelected =
+        selectableCategoryIds.length > 0 &&
+        selectableCategoryIds.every((categoryId) => next.includes(categoryId))
+      setAllCategories(nowAllSelected)
+      return next
+    })
   }
 
   const handleSave = async () => {
@@ -257,28 +277,19 @@ export function EditStaffDialog({
   const categoryCards = (
     <div className="grid grid-cols-2 gap-3">
       {gridItems.map(({ id, name }) => {
-        const selected = !allCategories && Boolean(id) && selectedRoleCategoryIds.includes(id)
+        const selected = Boolean(id) && (allCategoriesChecked || selectedRoleCategoryIds.includes(id))
         return (
           <button
             key={id || name}
             type="button"
             disabled={isLoadingCategories || !id}
             className={cn(
-              'flex min-h-[52px] items-center gap-3 rounded-lg border-2 px-3 py-3 text-left transition-colors',
-              selected
-                ? 'border-[#1d61f2] bg-[#1d61f2] text-white shadow-sm'
-                : 'border-border bg-muted/30 hover:bg-muted/50',
+              'flex min-h-[52px] items-center gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left transition-colors',
+              'hover:bg-muted/50',
             )}
             onClick={() => toggleCategoryId(id)}
           >
-            {selected ? (
-              <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
-            ) : (
-              <span
-                className="h-4 w-4 shrink-0 rounded border border-muted-foreground/35 bg-background"
-                aria-hidden
-              />
-            )}
+            <Checkbox checked={selected} aria-label={name} />
             <span className="text-sm font-medium">{name}</span>
           </button>
         )
@@ -286,21 +297,12 @@ export function EditStaffDialog({
       <button
         type="button"
         className={cn(
-          'flex min-h-[52px] items-center gap-3 rounded-lg border-2 px-3 py-3 text-left transition-colors',
-          allCategories
-            ? 'border-[#1d61f2] bg-[#1d61f2] text-white shadow-sm'
-            : 'border-border bg-muted/30 hover:bg-muted/50',
+          'flex min-h-[52px] items-center gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left transition-colors',
+          'hover:bg-muted/50',
         )}
         onClick={toggleAllCategories}
       >
-        {allCategories ? (
-          <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
-        ) : (
-          <span
-            className="h-4 w-4 shrink-0 rounded border border-muted-foreground/35 bg-background"
-            aria-hidden
-          />
-        )}
+        <Checkbox checked={allCategoriesChecked} aria-label="All Categories" />
         <span className="text-sm font-medium">All Categories</span>
       </button>
     </div>
@@ -342,7 +344,7 @@ export function EditStaffDialog({
               >
                 <SelectTrigger
                   id="edit-staff-role"
-                  className="h-11 rounded-lg border-2 border-[#1d61f2] bg-background text-left font-medium shadow-none focus:ring-2 focus:ring-[#1d61f2]/25"
+                  className="h-11 rounded-lg border border-input bg-background text-left font-medium shadow-none focus:ring-2 focus:ring-ring/25"
                 >
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
@@ -384,7 +386,7 @@ export function EditStaffDialog({
               </Button>
               <Button
                 type="button"
-                className="rounded-lg bg-[#1d63ed] hover:bg-[#1d63ed]/90"
+                className="rounded-lg"
                 onClick={() => void handleSave()}
                 disabled={isSaving || isLoadingCategories}
               >

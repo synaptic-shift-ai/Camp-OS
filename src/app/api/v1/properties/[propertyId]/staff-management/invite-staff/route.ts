@@ -214,7 +214,7 @@ export async function POST(
           resource: 'staff',
           userId: user.id,
           details: `Invited staff ${parsed.data.email} with role ${firstRole}.`,
-        })
+        }, { failOpen: false })
       }
 
       const baseUrl = getInviteBaseUrl()
@@ -248,7 +248,7 @@ export async function POST(
           resource: 'staff_invite_email',
           userId: null,
           details: `System sent staff invite email to ${parsed.data.email}.`,
-        })
+        }, { failOpen: false })
       }
 
       return success({ ...result, emailSent: true }, request)

@@ -6,10 +6,18 @@ export type RecordLoginActivityResult =
   | { logged: true }
   | { logged: false; reason: string }
 
+function isUserEmailVerifiedForAudit(user: User): boolean {
+  return Boolean(user.email_confirmed_at) || Boolean(user.app_metadata?.custom_email_verified)
+}
+
 function displayNameForActivityDetails(user: User): string {
   const meta = user.user_metadata as Record<string, unknown> | undefined
   const fullName = typeof meta?.full_name === 'string' ? meta.full_name.trim() : ''
   if (fullName.length > 0) return fullName
+  const firstName = typeof meta?.first_name === 'string' ? meta.first_name.trim() : ''
+  const lastName = typeof meta?.last_name === 'string' ? meta.last_name.trim() : ''
+  const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim()
+  if (combinedName.length > 0) return combinedName
   return user.email ?? 'User'
 }
 
@@ -50,7 +58,7 @@ async function resolveCompanyIdForUser(
 }
 
 export async function recordLoginActivityLogForUser(user: User): Promise<RecordLoginActivityResult> {
-  if (!user.app_metadata?.custom_email_verified) {
+  if (!isUserEmailVerifiedForAudit(user)) {
     return { logged: false, reason: 'unverified' }
   }
   if (user.user_metadata?.user_type === 'explorer') {
@@ -79,7 +87,7 @@ export async function recordLoginActivityLogForUser(user: User): Promise<RecordL
 }
 
 export async function recordLogoutActivityLogForUser(user: User): Promise<RecordLoginActivityResult> {
-  if (!user.app_metadata?.custom_email_verified) {
+  if (!isUserEmailVerifiedForAudit(user)) {
     return { logged: false, reason: 'unverified' }
   }
 
@@ -109,7 +117,7 @@ export async function recordLogoutActivityLogForUser(user: User): Promise<Record
 }
 
 export async function recordPasswordChangeActivityLogForUser(user: User): Promise<RecordLoginActivityResult> {
-  if (!user.app_metadata?.custom_email_verified) {
+  if (!isUserEmailVerifiedForAudit(user)) {
     return { logged: false, reason: 'unverified' }
   }
 

@@ -2,10 +2,12 @@ import { type NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
 import { resolveDashboardAccess, canManageStaffRoster } from '@/lib/rbac/dashboard-guards'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 
 const StaffStatusBodySchema = z.object({
   status: z.enum(['inactive', 'active']),
@@ -72,13 +74,42 @@ export async function PATCH(
     }
 
     const q = new StaffManagementQueries(supabase as unknown as SupabaseClient)
+    const service = createServiceRoleClient()
 
     if ('status' in parsed.data) {
       if (parsed.data.status === 'inactive') {
         await q.deactivatePropertyStaffAssignment({ propertyId, staffId })
+        if (access.companyId) {
+          await recordActivityLog(
+            service,
+            {
+              companyId: access.companyId,
+              propertyId,
+              action: 'update',
+              resource: 'staff',
+              userId: user.id,
+              details: `Deactivated staff assignment`,
+            },
+            { failOpen: false },
+          )
+        }
         return success({ deactivated: true }, request)
       }
       await q.reactivatePropertyStaffAssignment({ propertyId, staffId })
+      if (access.companyId) {
+        await recordActivityLog(
+          service,
+          {
+            companyId: access.companyId,
+            propertyId,
+            action: 'update',
+            resource: 'staff',
+            userId: user.id,
+            details: `Reactivated staff assignment`,
+          },
+          { failOpen: false },
+        )
+      }
       return success({ reactivated: true }, request)
     }
 
@@ -89,6 +120,20 @@ export async function PATCH(
       allCategories: parsed.data.allCategories,
       roleCategoryIds: parsed.data.roleCategoryIds,
     })
+    if (access.companyId) {
+      await recordActivityLog(
+        service,
+        {
+          companyId: access.companyId,
+          propertyId,
+          action: 'update',
+          resource: 'staff',
+          userId: user.id,
+          details: `Updated staff assignment role to ${parsed.data.role}.`,
+        },
+        { failOpen: false },
+      )
+    }
 
     return success({ updated: true }, request)
   } catch (err: unknown) {

@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
 import { HousekeepingPageContent } from "@/components/dashboard/housekeeping/housekeeping-page-content"
+import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -12,6 +13,21 @@ type PageProps = {
 type SelectOption = {
   id: string
   label: string
+}
+
+function housekeepingFallbackForCategory(
+  role: "owner" | "admin" | "manager" | "staff",
+  categoryName: string,
+): Record<string, boolean> {
+  if (role === "owner" || role === "admin") return { view: true, create: true, update: true, delete: true }
+  const category = categoryName.trim().toLowerCase()
+  if (role === "manager" && category === "housekeeping") {
+    return { view: true, create: true, update: true, delete: true }
+  }
+  if (role === "staff" && category === "housekeeping") {
+    return { view: true, create: false, update: false, delete: false }
+  }
+  return { view: false, create: false, update: false, delete: false }
 }
 
 async function getHousekeepingPageOptions(
@@ -102,7 +118,17 @@ export default async function HousekeepingPage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  const { siteOptions, assigneeOptions } = await getHousekeepingPageOptions(supabase, propertyId)
+  const [{ siteOptions, assigneeOptions }, taskActionAccess] = await Promise.all([
+    getHousekeepingPageOptions(supabase, propertyId),
+    resolveModuleActionAccess({
+      supabase,
+      propertyId,
+      userId: user.id,
+      moduleKey: "housekeeping",
+      actions: ["create", "update", "delete"],
+      fallbackForCategory: housekeepingFallbackForCategory,
+    }),
+  ])
 
   return (
     <HousekeepingPageContent
@@ -110,6 +136,9 @@ export default async function HousekeepingPage({ params }: PageProps) {
       propertyName={property.name}
       siteOptions={siteOptions}
       assigneeOptions={assigneeOptions}
+      canCreateTask={taskActionAccess.create === true}
+      canEditTask={taskActionAccess.update === true}
+      canDeleteTask={taskActionAccess.delete === true}
     />
   )
 }

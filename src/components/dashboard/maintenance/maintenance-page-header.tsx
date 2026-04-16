@@ -10,6 +10,7 @@ type MaintenancePageHeaderProps = {
   onRefreshClick?: () => void
   onExportClick?: (format: string) => void
   onAddTaskClick: () => void
+  canCreateTask?: boolean
 }
 
 export function MaintenancePageHeader({
@@ -18,6 +19,7 @@ export function MaintenancePageHeader({
   onRefreshClick,
   onExportClick,
   onAddTaskClick,
+  canCreateTask = true,
 }: MaintenancePageHeaderProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -34,10 +36,12 @@ export function MaintenancePageHeader({
           aria-label="Export maintenance tasks"
         /> */}
 
-        <Button type="button" size="sm" onClick={onAddTaskClick}>
-          <Plus className="h-4 w-4" />
-          Add Task
-        </Button>
+        {canCreateTask && (
+          <Button type="button" size="sm" onClick={onAddTaskClick}>
+            <Plus className="h-4 w-4" />
+            Add Task
+          </Button>
+        )}
       </div>
     </div>
   )

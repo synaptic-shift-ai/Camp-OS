@@ -698,9 +698,28 @@ export class StaffManagementQueries {
       throw new Error('Cannot change property owner from staff management')
     }
 
-    const nextCategoryIds = input.allCategories ? [] : [...new Set(input.roleCategoryIds)]
+    let nextCategoryIds = [...new Set(input.roleCategoryIds)]
 
-    if (!input.allCategories) {
+    if (input.allCategories) {
+      const adminRoleValues = ['admin', 'property_admin'] as const
+      const roleValues = input.role === 'admin' ? adminRoleValues : [input.role]
+      const { data: allRoleCategories, error: allRoleCategoriesErr } = await this.supabase
+        .from('property_role_categories')
+        .select('id')
+        .eq('property_id', input.propertyId)
+        .in('role', roleValues as unknown as string[])
+
+      if (allRoleCategoriesErr) {
+        console.error('[StaffManagementQueries] Failed to load all categories for role', {
+          propertyId: input.propertyId,
+          role: input.role,
+          error: allRoleCategoriesErr,
+        })
+        throw allRoleCategoriesErr
+      }
+
+      nextCategoryIds = (allRoleCategories ?? []).map((c) => c.id)
+    } else {
       if (nextCategoryIds.length === 0) {
         throw new Error('Select at least one category, or choose All Categories')
       }

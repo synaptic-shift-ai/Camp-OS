@@ -21,6 +21,7 @@ type AuditingFilterProps = {
     defaultResource?: string
     defaultDateFrom?: string
     defaultDateTo?: string
+    resourceOptions?: string[]
 }
 
 function buildAuditingHref(
@@ -79,6 +80,7 @@ export default function AuditingFilter({
     defaultResource = "all",
     defaultDateFrom = "",
     defaultDateTo = "",
+    resourceOptions = [],
 }: AuditingFilterProps) {
     const router = useRouter()
     const pathname = usePathname()
@@ -123,6 +125,22 @@ export default function AuditingFilter({
         },
         [pathname, router, searchParams]
     )
+
+    const normalizedResourceOptions = Array.from(
+        new Set(resourceOptions.map((value) => value.trim()).filter(Boolean))
+    )
+    const selectedResourceValue = (
+        defaultResource === "all" || normalizedResourceOptions.includes(defaultResource)
+    )
+        ? defaultResource
+        : "all"
+
+    const formatResourceLabel = (value: string): string =>
+        value
+            .replace(/[_-]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/\b\w/g, (char) => char.toUpperCase())
 
     return (
         <div
@@ -185,7 +203,7 @@ export default function AuditingFilter({
                     Resource
                 </label>
                 <Select
-                    value={defaultResource}
+                    value={selectedResourceValue}
                     onValueChange={(value) =>
                         pushPatch({ resource: value === "all" ? undefined : value })
                     }
@@ -195,13 +213,11 @@ export default function AuditingFilter({
                     </SelectTrigger>
                     <SelectContent className="max-h-64">
                         <SelectItem value="all">All resources</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="account settings">Account settings</SelectItem>
-                        <SelectItem value="settings">Settings</SelectItem>
-                        <SelectItem value="company">Company</SelectItem>
-                        <SelectItem value="site">Site</SelectItem>
-                        <SelectItem value="reservation">Reservation</SelectItem>
-                        <SelectItem value="guest">Guest</SelectItem>
+                        {normalizedResourceOptions.map((resourceValue) => (
+                            <SelectItem key={resourceValue} value={resourceValue}>
+                                {formatResourceLabel(resourceValue)}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>

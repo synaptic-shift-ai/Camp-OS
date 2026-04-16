@@ -5,6 +5,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import {
   resolveDashboardAccess,
   canManageStaffAccess,
@@ -167,6 +168,21 @@ export async function POST(
       categoriesByRole,
     })
 
+    if (access.companyId) {
+      await recordActivityLog(
+        service,
+        {
+          companyId: access.companyId,
+          propertyId,
+          action: 'create',
+          resource: 'role_category',
+          userId: user.id,
+          details: 'Saved staff role categories.',
+        },
+        { failOpen: false },
+      )
+    }
+
     return success(result, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
@@ -227,6 +243,21 @@ export async function PATCH(
       role: parsed.data.role,
       access: parsed.data.access,
     })
+
+    if (access.companyId) {
+      await recordActivityLog(
+        service,
+        {
+          companyId: access.companyId,
+          propertyId,
+          action: 'update',
+          resource: 'role_access',
+          userId: user.id,
+          details: `Updated access for role category ${parsed.data.role}.`,
+        },
+        { failOpen: false },
+      )
+    }
 
     return success({ saved: true }, request)
   } catch (err: unknown) {

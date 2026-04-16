@@ -93,28 +93,18 @@ export async function resolveModuleActionAccess({
     return role === "admin" ? buildFullActions(actions) : buildEmptyActions(actions)
   }
 
-  const hasExplicitModuleAccess = rows.some((row) => {
-    const access = normalizeAccessPayload(row.access)
-    return Boolean(access?.moduleAccessControl?.[moduleKey])
-  })
-
   const resolved = buildEmptyActions(actions)
-  if (hasExplicitModuleAccess) {
-    for (const row of rows) {
-      const access = normalizeAccessPayload(row.access)
-      const moduleAccess = access?.moduleAccessControl?.[moduleKey]
-      if (!moduleAccess) continue
-      for (const action of actions) {
-        resolved[action] = resolved[action] || moduleAccess[action] === true
-      }
-    }
-    return resolved
-  }
-
   for (const row of rows) {
     const fallback = fallbackForCategory(role, row.name ?? "")
+    const access = normalizeAccessPayload(row.access)
+    const moduleAccess = access?.moduleAccessControl?.[moduleKey] ?? null
+
     for (const action of actions) {
-      resolved[action] = resolved[action] || fallback[action] === true
+      const hasExplicitToggle = moduleAccess != null && Object.prototype.hasOwnProperty.call(moduleAccess, action)
+      const allowedForRow = hasExplicitToggle
+        ? moduleAccess?.[action] === true
+        : fallback[action] === true
+      resolved[action] = resolved[action] || allowedForRow
     }
   }
 

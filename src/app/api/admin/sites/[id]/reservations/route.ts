@@ -9,6 +9,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import * as Sentry from '@sentry/nextjs'
+import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 
 export async function GET(
   request: NextRequest,
@@ -36,30 +37,23 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's property (multi-tenant isolation)
-    const { data: property, error: propertyError } = await supabase
-      .from('properties')
-      .select('id, name')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (propertyError || !property) {
-      return NextResponse.json({ error: 'Property not found' }, { status: 404 })
-    }
-
-    const propertyId = property.id
-
-    // Verify site belongs to this property
+    // Resolve site + property first, then enforce RBAC on that property.
     const { data: site, error: siteError } = await supabase
       .from('sites')
       .select('id, property_id')
       .eq('id', siteId)
-      .eq('property_id', propertyId) // Tenant isolation
       .single()
 
     if (siteError || !site) {
       return NextResponse.json({ error: 'Site not found' }, { status: 404 })
     }
+
+    const propertyId = site.property_id
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+    })
+    if (isDenied(access)) return access
 
     // Build query for reservations
     let query = supabase

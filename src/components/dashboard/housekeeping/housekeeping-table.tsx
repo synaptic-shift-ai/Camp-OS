@@ -33,6 +33,8 @@ type HousekeepingTableProps = {
   onView?: (row: HousekeepingTaskRow) => void
   onEdit?: (row: HousekeepingTaskRow) => void
   onDelete?: (row: HousekeepingTaskRow) => void
+  canEditTask?: boolean
+  canDeleteTask?: boolean
 }
 
 function StatusPill({ status }: { status: HousekeepingTaskRow["status"] }) {
@@ -89,6 +91,8 @@ export function HousekeepingTable({
   onView,
   onEdit,
   onDelete,
+  canEditTask = true,
+  canDeleteTask = true,
 }: HousekeepingTableProps) {
   return (
     <div className="border border-border/80 bg-card/50">
@@ -162,24 +166,28 @@ export function HousekeepingTable({
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="Edit task"
-                      className="h-8 w-8 p-0"
-                      onClick={() => onEdit?.(row)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="Delete task"
-                      className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                      onClick={() => onDelete?.(row)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canEditTask && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Edit task"
+                        className="h-8 w-8 p-0"
+                        onClick={() => onEdit?.(row)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDeleteTask && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Delete task"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => onDelete?.(row)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

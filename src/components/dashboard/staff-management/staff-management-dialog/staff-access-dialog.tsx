@@ -80,12 +80,14 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
   housekeeping: [
     { id: 'view', name: 'View tasks' },
     { id: 'create', name: 'Create tasks' },
-    { id: 'update', name: 'Update task status' },
+    { id: 'update', name: 'Edit tasks' },
+    { id: 'delete', name: 'Delete task' },
   ],
   maintenance: [
     { id: 'view', name: 'View tasks' },
     { id: 'create', name: 'Create tasks' },
-    { id: 'update', name: 'Update task status' },
+    { id: 'update', name: 'Edit tasks' },
+    { id: 'delete', name: 'Delete task' },
   ],
   'staff-management': [
     { id: 'view', name: 'View staff' },
@@ -230,6 +232,7 @@ function buildManagerHousekeepingFallbackPermissionState(): Record<string, boole
   next['housekeeping:view'] = true
   next['housekeeping:create'] = true
   next['housekeeping:update'] = true
+  next['housekeeping:delete'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {
@@ -255,6 +258,7 @@ function buildManagerMaintenanceFallbackPermissionState(): Record<string, boolea
   next['maintenance:view'] = true
   next['maintenance:create'] = true
   next['maintenance:update'] = true
+  next['maintenance:delete'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {

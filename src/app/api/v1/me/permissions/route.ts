@@ -64,11 +64,13 @@ const MODULE_PERMISSION_TO_RBAC: Partial<Record<RoleAccessControlModuleKey, Part
     view: 'housekeeping.view_assigned',
     create: 'housekeeping.create_manual',
     update: 'housekeeping.start_complete',
+    delete: 'housekeeping.reassign',
   },
   maintenance: {
     view: 'maintenance.view_assigned',
     create: 'maintenance.create_wo',
     update: 'maintenance.update_assigned',
+    delete: 'maintenance.update_assigned',
   },
   analytics: {
     view: 'marketing_seo.view_analytics',
@@ -107,8 +109,8 @@ function buildDefaultAccessForRoleCategory(
       'staff-management': { view: true, invite: true, edit: true, deactivate: true },
       reservations: { view: true, create: true, modify: true, 'check-in': true, 'check-out': true, cancel: true },
       payments: { view: true },
-      housekeeping: { view: true, create: true, update: true },
-      maintenance: { view: true, create: true, update: true },
+      housekeeping: { view: true, create: true, update: true, delete: true },
+      maintenance: { view: true, create: true, update: true, delete: true },
       analytics: { view: true },
       auditing: { view: true },
       settings: { view: true, edit: true },
@@ -137,7 +139,7 @@ function buildDefaultAccessForRoleCategory(
         'change-password': true,
       },
       'staff-management': { view: true },
-      housekeeping: { view: true, create: true, update: true },
+      housekeeping: { view: true, create: true, update: true, delete: true },
     }
   }
 
@@ -150,7 +152,7 @@ function buildDefaultAccessForRoleCategory(
         'change-password': true,
       },
       'staff-management': { view: true },
-      maintenance: { view: true, create: true, update: true },
+      maintenance: { view: true, create: true, update: true, delete: true },
     }
   }
 

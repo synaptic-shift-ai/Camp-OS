@@ -21,6 +21,9 @@ type MaintenancePageContentProps = {
   propertyName: string
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
+  canCreateTask: boolean
+  canEditTask: boolean
+  canDeleteTask: boolean
 }
 
 function toApiStatus(
@@ -70,6 +73,9 @@ export function MaintenancePageContent({
   propertyName,
   siteOptions,
   assigneeOptions,
+  canCreateTask,
+  canEditTask,
+  canDeleteTask,
 }: MaintenancePageContentProps) {
   const { toast } = useToast()
   const [filters, setFilters] = useState<MaintenanceFilterValue>(INITIAL_FILTERS)
@@ -355,6 +361,7 @@ export function MaintenancePageContent({
         onRefreshClick={handleRefresh}
         onExportClick={handleExport}
         onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
+        canCreateTask={canCreateTask}
       />
       <MaintenanceFilter
         value={filters}
@@ -369,6 +376,8 @@ export function MaintenancePageContent({
         onView={handleViewTask}
         onEdit={handleOpenEditTask}
         onDelete={handleRequestDeleteTask}
+        canEditTask={canEditTask}
+        canDeleteTask={canDeleteTask}
       />
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
@@ -392,7 +401,7 @@ export function MaintenancePageContent({
         </div>
       </div>
       <AddTaskDialog
-        open={isAddTaskDialogOpen}
+        open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
@@ -400,7 +409,7 @@ export function MaintenancePageContent({
         onSubmit={handleAddTask}
       />
       <EditTaskDialog
-        open={isEditTaskDialogOpen}
+        open={canEditTask && isEditTaskDialogOpen}
         onOpenChange={setIsEditTaskDialogOpen}
         task={editingTask}
         siteOptions={siteOptions}
@@ -409,7 +418,7 @@ export function MaintenancePageContent({
         onSubmit={handleEditTask}
       />
       <DeleteTaskConfirmationDialog
-        open={taskPendingDelete !== null}
+        open={canDeleteTask && taskPendingDelete !== null}
         onOpenChange={(open) => {
           if (!open) {
             setTaskPendingDelete(null)

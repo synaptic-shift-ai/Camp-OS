@@ -193,6 +193,10 @@ function displayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata as Record<string, unknown> | undefined
   const fullName = typeof meta?.full_name === 'string' ? meta.full_name.trim() : ''
   if (fullName.length > 0) return fullName
+  const firstName = typeof meta?.first_name === 'string' ? meta.first_name.trim() : ''
+  const lastName = typeof meta?.last_name === 'string' ? meta.last_name.trim() : ''
+  const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim()
+  if (combinedName.length > 0) return combinedName
   return user.email ?? 'Unknown user'
 }
 
@@ -400,6 +404,37 @@ export async function getPropertyActivityLogs(
   }
 
   return { data: dataResult, total }
+}
+
+export async function getPropertyActivityLogResources(propertyId: string): Promise<string[]> {
+  const supabase = await createClient()
+
+  const { data: propertyRow, error: propertyLookupError } = await supabase
+    .from('properties')
+    .select('company_id')
+    .eq('id', propertyId)
+    .single()
+
+  if (propertyLookupError || !propertyRow?.company_id) {
+    console.error('Failed to resolve property for activity log resources', propertyLookupError)
+    return []
+  }
+
+  const companyId = propertyRow.company_id
+  const activityScope = `property_id.eq.${propertyId},and(company_id.eq.${companyId},property_id.is.null)`
+
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('resource')
+    .or(activityScope)
+
+  if (error) {
+    console.error('Failed to fetch activity log resources', error)
+    return []
+  }
+
+  const resources = [...new Set((data ?? []).map((row) => row.resource).filter(Boolean))]
+  return resources.sort((a, b) => a.localeCompare(b))
 }
 
 // ============================================================================

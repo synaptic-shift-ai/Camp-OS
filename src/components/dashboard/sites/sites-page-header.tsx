@@ -69,15 +69,17 @@ export function SitesPageHeader({ propertyId, sites, canCreateSite }: SitesPageH
             <Upload className="h-4 w-4" />
             Import
           </Button>
-          <Button
-            className="gap-2"
-            size="sm"
-            onClick={() => setIsAddDialogOpen(true)}
-            disabled={!propertyId || !canCreateSite}
-          >
-            <Plus className="h-4 w-4" />
-            Add Site
-          </Button>
+          {canCreateSite && (
+            <Button
+              className="gap-2"
+              size="sm"
+              onClick={() => setIsAddDialogOpen(true)}
+              disabled={!propertyId}
+            >
+              <Plus className="h-4 w-4" />
+              Add Site
+            </Button>
+          )}
         </div>
       </div>
 

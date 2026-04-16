@@ -4,6 +4,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { error, success } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import {
     CreateMaintenanceTaskRequestSchema,
     ListMaintenanceTasksQuerySchema,
@@ -12,6 +15,21 @@ import {
     MaintenanceQueries,
     type ListMaintenanceTasksFilters,
 } from '@/lib/dashboard/maintenance/maintenance-queries'
+
+function maintenanceFallbackForCategory(
+    role: 'owner' | 'admin' | 'manager' | 'staff',
+    categoryName: string,
+): Record<string, boolean> {
+    if (role === 'owner' || role === 'admin') return { view: true, create: true, update: true, delete: true }
+    const category = categoryName.trim().toLowerCase()
+    if (role === 'manager' && category === 'maintenance') {
+        return { view: true, create: true, update: true, delete: true }
+    }
+    if (role === 'staff' && category === 'maintenance') {
+        return { view: true, create: false, update: false, delete: false }
+    }
+    return { view: false, create: false, update: false, delete: false }
+}
 
 export async function GET(
     request: NextRequest,
@@ -111,6 +129,23 @@ export async function POST(
 
         if (isDenied(access)) return access
 
+        const actionAccess = await resolveModuleActionAccess({
+            supabase: supabase as any,
+            propertyId,
+            userId: user.id,
+            moduleKey: 'maintenance',
+            actions: ['create'],
+            fallbackForCategory: maintenanceFallbackForCategory,
+        })
+        if (!actionAccess.create) {
+            return error(
+                ErrorCodes.AUTH_002.code,
+                'You do not have permission to create maintenance tasks.',
+                ErrorCodes.AUTH_002.status,
+                request,
+            )
+        }
+
         const body = await request.json()
         const parsed = CreateMaintenanceTaskRequestSchema.safeParse(body)
 
@@ -130,6 +165,31 @@ export async function POST(
             createdBy: user.id,
             ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         })
+
+        if (access.companyId) {
+            const service = createServiceRoleClient()
+            const { data: siteRow } = await supabase
+                .from('sites')
+                .select('site_name, site_number')
+                .eq('id', maintenanceTask.site_id)
+                .eq('property_id', propertyId)
+                .maybeSingle()
+            const auditSiteLabel = siteRow?.site_name?.trim()
+                || siteRow?.site_number
+                || maintenanceTask.site_id
+            await recordActivityLog(
+                service,
+                {
+                    companyId: access.companyId,
+                    propertyId,
+                    action: 'create',
+                    resource: 'maintenance',
+                    userId: user.id,
+                    details: `Created maintenance task "${maintenanceTask.title}" for site ${auditSiteLabel}.`,
+                },
+                { failOpen: false },
+            )
+        }
 
         return success({ maintenanceTask }, request)
     } catch (err) {

@@ -2,7 +2,7 @@ import AuditingPageHeader from "@/components/dashboard/auditing/auditing-page-he
 import AuditingFilter from "@/components/dashboard/auditing/auditing-filter"
 import AuditingTable from "@/components/dashboard/auditing/auditing-table"
 import { createClient } from "@/lib/supabase/server"
-import { getPropertyActivityLogs } from "@/lib/dashboard/queries"
+import { getPropertyActivityLogs, getPropertyActivityLogResources } from "@/lib/dashboard/queries"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
 import { redirect } from "next/navigation"
@@ -71,20 +71,23 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
     const sortBy: SortByOption = validSortByOptions.includes(rawSortBy as SortByOption) ? (rawSortBy as SortByOption) : "createdAt"
     const sortOrder: SortOrderOption = validSortOrderOptions.includes(rawSortOrder as SortOrderOption) ? (rawSortOrder as SortOrderOption) : "desc"
 
-    const { data: activityLogs, total } = await getPropertyActivityLogs(
-        propertyId,
-        currentPage,
-        pageSize,
-        {
-            search: q || null,
-            action: action || null,
-            resource: resource || null,
-            dateFrom: dateFrom || null,
-            dateTo: dateTo || null,
-            sortBy,
-            sortOrder,
-        }
-    )
+    const [{ data: activityLogs, total }, resourceOptions] = await Promise.all([
+        getPropertyActivityLogs(
+            propertyId,
+            currentPage,
+            pageSize,
+            {
+                search: q || null,
+                action: action || null,
+                resource: resource || null,
+                dateFrom: dateFrom || null,
+                dateTo: dateTo || null,
+                sortBy,
+                sortOrder,
+            }
+        ),
+        getPropertyActivityLogResources(propertyId),
+    ])
 
     return (
         <div className="space-y-2">
@@ -96,6 +99,7 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
                 defaultResource={resource}
                 defaultDateFrom={dateFrom}
                 defaultDateTo={dateTo}
+                resourceOptions={resourceOptions}
             />
             <AuditingTable
                 propertyId={propertyId}

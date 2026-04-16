@@ -342,7 +342,7 @@ export function SitesGrid({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <SiteCheckInButton siteId={site.id} siteStatus={site.status || 'unavailable'} />
-                      {(site.status === 'housekeeping' || site.status === 'maintenance') && (
+                      {canUpdateSiteStatus && (site.status === 'housekeeping' || site.status === 'maintenance') && (
                         <DropdownMenuItem onClick={(e) => handleStatusChange(site, 'available', e)}>
                           <CheckCircle2 className="mr-2 h-4 w-4" />
                           Mark as Available

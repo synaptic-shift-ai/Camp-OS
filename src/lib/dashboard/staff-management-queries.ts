@@ -54,6 +54,20 @@ function formatStaffTableLastLogin(iso: string | undefined): string {
   }
 }
 
+function defaultAccessForNewRoleCategory(): RoleCategoryAccess {
+  return {
+    moduleAccessControl: {
+      overview: { view: true },
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
+    },
+  }
+}
+
 function formatStaffInviteRoleLabel(dbRole: string): string {
   const r = dbRole.toLowerCase()
   if (r === 'owner') return 'Owner'
@@ -183,7 +197,7 @@ export class StaffManagementQueries {
             property_id: input.propertyId,
             role,
             name,
-            access: existingAccessByKey.get(`${role}::${name}`) ?? {},
+            access: existingAccessByKey.get(`${role}::${name}`) ?? defaultAccessForNewRoleCategory(),
           }
         })
       },

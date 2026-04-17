@@ -19,11 +19,11 @@ import type { UiRole } from '@/lib/dashboard/staff-management-queries'
 export type DashboardNavVisibility = {
   /** Operations modules (reservations, sites, guests, auditing, analytics) */
   operationsModulesNavVisible: boolean
-  /** Staff management page */
+  /** Staff Management sidebar link — mirrors `moduleNavVisible['staff-management']` */
   staffManagementNavVisible: boolean
   /** Property settings page */
   propertySettingsNavVisible: boolean
-  /** Financial pages (transactions, refunds, deposits) — NEW */
+  /** Payments sidebar link — mirrors `moduleNavVisible['payments']` */
   financialNavVisible: boolean
   /** Housekeeping module page */
   housekeepingNavVisible: boolean
@@ -91,6 +91,14 @@ function fallbackModuleViewForRoleCategory(
   }
   if (role === 'staff' && category === 'maintenance') {
     return moduleKey === 'overview' || moduleKey === 'maintenance'
+  }
+
+  if (role === 'staff') {
+    return moduleKey === 'overview' || moduleKey === 'account-profile'
+  }
+
+  if (role === 'manager') {
+    return moduleKey === 'overview' || moduleKey === 'account-profile'
   }
 
   return false
@@ -238,9 +246,9 @@ export async function resolveDashboardNavVisibility(
 
   return {
     operationsModulesNavVisible: canAccessOperationsModules(access),
-    staffManagementNavVisible: canViewStaffRoster(access),
+    staffManagementNavVisible: moduleNavVisible['staff-management'],
     propertySettingsNavVisible: canAccessPropertySettings(access),
-    financialNavVisible: canViewFinancials(access),
+    financialNavVisible: moduleNavVisible['payments'],
     housekeepingNavVisible: moduleNavVisible.housekeeping,
     maintenanceNavVisible: moduleNavVisible.maintenance,
     accountProfileNavVisible: moduleAccessVisible['account-profile'],

@@ -170,24 +170,19 @@ function buildStaffMaintenanceFallbackPermissionState(): Record<string, boolean>
   return next
 }
 
-function buildStaffFrontDeskFallbackPermissionState(): Record<string, boolean> {
-  const next: Record<string, boolean> = {}
-  for (const mod of DASHBOARD_ROLE_ACCESS_MODULES) {
-    const perms = PERMISSIONS_BY_ROLE_ACCESS_MODULE[mod.key] ?? []
-    for (const p of perms) {
-      next[`${mod.key}:${p.id}`] = false
-    }
-  }
-
-  // Required defaults when staff + front desk has no stored access
+/** Matches new role-category DB defaults: overview view + full profile; all other modules off. */
+function buildOverviewAndFullProfileDefaultPermissionState(): Record<string, boolean> {
+  const next = buildEmptyPermissionState()
   next['overview:view'] = true
-
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {
     next[`account-profile:${p.id}`] = true
   }
-
   return next
+}
+
+function buildStaffFrontDeskFallbackPermissionState(): Record<string, boolean> {
+  return buildOverviewAndFullProfileDefaultPermissionState()
 }
 
 function buildManagerFrontDeskFallbackPermissionState(): Record<string, boolean> {
@@ -213,6 +208,17 @@ function buildManagerFrontDeskFallbackPermissionState(): Record<string, boolean>
     next[`account-profile:${p.id}`] = true
   }
 
+  return next
+}
+
+function buildEmptyPermissionState(): Record<string, boolean> {
+  const next: Record<string, boolean> = {}
+  for (const mod of DASHBOARD_ROLE_ACCESS_MODULES) {
+    const perms = PERMISSIONS_BY_ROLE_ACCESS_MODULE[mod.key] ?? []
+    for (const p of perms) {
+      next[`${mod.key}:${p.id}`] = false
+    }
+  }
   return next
 }
 
@@ -406,7 +412,15 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       setSelectedModuleKey(access.selectedModuleKey as RoleAccessControlModuleKey)
     }
 
-    if (!access.moduleAccessControl) {
+    const mac = access.moduleAccessControl
+    const hasExplicitModuleAccess =
+      mac !== undefined &&
+      mac !== null &&
+      typeof mac === 'object' &&
+      !Array.isArray(mac) &&
+      Object.keys(mac).length > 0
+
+    if (!hasExplicitModuleAccess) {
       const normalizedCategoryName = selectedCategory.name.trim().toLowerCase()
       const isStaffRole = selectedRole === 'staff'
       const isManagerRole = selectedRole === 'manager'
@@ -433,7 +447,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       }
 
       if (isStaffRole) {
-        setPermissionEnabled(buildDefaultPermissionState())
+        setPermissionEnabled(buildOverviewAndFullProfileDefaultPermissionState())
         return
       }
 
@@ -453,18 +467,22 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       }
 
       if (isManagerRole) {
-        setPermissionEnabled(buildDefaultPermissionState())
+        setPermissionEnabled(buildOverviewAndFullProfileDefaultPermissionState())
         return
       }
 
-      setPermissionEnabled(buildDefaultPermissionState())
+      setPermissionEnabled(buildOverviewAndFullProfileDefaultPermissionState())
       return
     }
 
-    const nextPermissions = buildDefaultPermissionState()
-    for (const [moduleKey, perms] of Object.entries(access.moduleAccessControl)) {
+    const storedModuleAccess = mac as Record<string, Record<string, boolean>>
+    const nextPermissions = buildEmptyPermissionState()
+    for (const [moduleKey, perms] of Object.entries(storedModuleAccess)) {
       for (const [permId, enabled] of Object.entries(perms)) {
-        nextPermissions[`${moduleKey}:${permId}`] = Boolean(enabled)
+        const key = `${moduleKey}:${permId}`
+        if (Object.prototype.hasOwnProperty.call(nextPermissions, key)) {
+          nextPermissions[key] = Boolean(enabled)
+        }
       }
     }
     setPermissionEnabled(nextPermissions)

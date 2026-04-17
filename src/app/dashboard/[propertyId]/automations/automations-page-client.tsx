@@ -1,11 +1,16 @@
 "use client"
 
+import { useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DashboardSummaryCards } from '@/components/dashboard/automations/dashboard-summary-cards'
 import { PhaseDistribution } from '@/components/dashboard/automations/phase-distribution'
 import { RecentExecutionActivity } from '@/components/dashboard/automations/recent-execution-activity'
 import { ExecutionLogViewer } from '@/components/dashboard/automations/execution-log-viewer'
+import { TemplatesGrid } from '@/components/dashboard/automations/templates-grid'
+import { TemplateDetailDialog } from '@/components/dashboard/automations/template-detail-dialog'
+import { DEFAULT_AUTOMATION_TEMPLATES } from '@/lib/automations/templates'
+import type { AutomationTemplate } from '@/lib/automations/templates'
 import type { AutomationPhase, AutomationExecutionLogRow } from '@/lib/automations/types'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
 
@@ -39,12 +44,15 @@ type ExecutionLogData = {
 type AutomationsPageClientProps = AutomationsDashboardData & {
   executionLogData?: ExecutionLogData
   activeTab: string
+  propertyId?: string
+  tenantId?: string
 }
 
 export function AutomationsPageClient(data: AutomationsPageClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null)
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -70,7 +78,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="automations" disabled>Automations</TabsTrigger>
           <TabsTrigger value="execution-log">Execution Logs</TabsTrigger>
-          <TabsTrigger value="templates" disabled>Templates</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
@@ -112,9 +120,17 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
         </TabsContent>
 
         <TabsContent value="templates">
-          <div className="flex items-center justify-center h-64 text-muted-foreground">
-            <p>Coming Soon</p>
-          </div>
+          <TemplatesGrid
+            templates={DEFAULT_AUTOMATION_TEMPLATES}
+            onTemplateClick={setSelectedTemplate}
+          />
+          <TemplateDetailDialog
+            template={selectedTemplate}
+            open={!!selectedTemplate}
+            onOpenChange={(open) => !open && setSelectedTemplate(null)}
+            propertyId={data.propertyId ?? ''}
+            tenantId={data.tenantId ?? ''}
+          />
         </TabsContent>
       </Tabs>
     </div>

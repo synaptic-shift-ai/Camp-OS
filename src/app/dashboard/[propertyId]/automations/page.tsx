@@ -46,6 +46,24 @@ export default async function AutomationsPage({
     const sp = await searchParams
     const tab = typeof sp.tab === "string" ? sp.tab : "dashboard"
 
+    // ── Templates tab (no DB fetch needed — static constants) ────────────
+    if (tab === "templates") {
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={0}
+                activeCount={0}
+                inactiveCount={0}
+                phaseDistribution={[]}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="templates"
+                propertyId={propertyId}
+                tenantId={property.company_id ?? ''}
+            />
+        )
+    }
+
     // ── Execution Logs tab ────────────────────────────────────────────────
     if (tab === "execution-log") {
         const currentPage = Number.isNaN(Number(sp.page)) || !sp.page ? 1 : Math.max(1, Number(sp.page))

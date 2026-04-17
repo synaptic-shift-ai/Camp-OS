@@ -48,7 +48,7 @@ export default async function AuditingPage({ params, searchParams }: pageProps) 
     const currentPage = Number.isNaN(Number(sp.page)) || !sp.page ? 1 : Math.max(1, Number(sp.page))
     const parsedPageSize =
         Number.isNaN(Number(sp.pageSize)) || !sp.pageSize ? undefined : Number(sp.pageSize)
-    const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
+    const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 50
 
     const q = typeof sp.q === "string" ? sp.q : ""
     const action = typeof sp.action === "string" ? sp.action : "all"

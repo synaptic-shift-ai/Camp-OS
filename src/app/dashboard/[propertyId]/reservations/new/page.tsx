@@ -1346,13 +1346,18 @@ export default function NewReservationPage() {
                     <Label htmlFor="paidAmount">Amount Paid (Optional)</Label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          $
+                        </span>
                         <Input
                           id="paidAmount"
                           type="number"
                           step="0.01"
                           min="0"
                           placeholder="0.00"
-                          className={isOverpayment ? "border-destructive focus-visible:ring-destructive" : ""}
+                          className={`pl-7 ${
+                            isOverpayment ? "border-destructive focus-visible:ring-destructive" : ""
+                          }`}
                           {...register("paidAmount")}
                         />
                       </div>

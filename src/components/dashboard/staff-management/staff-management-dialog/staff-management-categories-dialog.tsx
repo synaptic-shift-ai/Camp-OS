@@ -216,7 +216,7 @@ export function StaffManagementCategoriesDialog({
                   'data-[state=active]:bg-background data-[state=active]:font-semibold data-[state=active]:shadow-sm',
                 )}
               >
-                {ROLE_LABEL[role]} {counts[role]}
+                {ROLE_LABEL[role]} ({counts[role]})
               </TabsTrigger>
             ))}
           </TabsList>

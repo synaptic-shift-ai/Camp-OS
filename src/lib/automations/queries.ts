@@ -13,7 +13,6 @@ import type {
   AutomationConditionRow,
   AutomationActionRow,
   AutomationBranchRow,
-  AutomationExecutionLogRow,
   AutomationPhase,
   AutomationScope,
   TriggerType,
@@ -512,28 +511,71 @@ export async function insertExecutionLog(entry: {
   }
 }
 
+export type ExecutionLogSortColumn = 'created_at' | 'execution_duration_ms' | 'event_type'
+export type ExecutionLogSortOrder = 'asc' | 'desc'
+
+export interface ExecutionLogRow {
+  id: string
+  automation_id: string | null
+  automation_name: string | null
+  property_id: string | null
+  tenant_id: string
+  event_type: string
+  entity_type: string | null
+  entity_id: string | null
+  conditions_passed: boolean | null
+  actions_executed: unknown[]
+  execution_duration_ms: number | null
+  skipped_reason: string | null
+  created_at: string
+}
+
+const VALID_SORT_COLUMNS: readonly string[] = ['created_at', 'execution_duration_ms', 'event_type']
+
 export async function listExecutionLogs(
   propertyId: string,
   filters?: {
     automationId?: string
+    automationIds?: string[]
     outcome?: 'passed' | 'skipped' | 'failed'
     dateFrom?: string
     dateTo?: string
+    search?: string
+    sortBy?: ExecutionLogSortColumn
+    sortOrder?: ExecutionLogSortOrder
     limit?: number
     offset?: number
   }
-): Promise<{ logs: AutomationExecutionLogRow[]; total: number }> {
+): Promise<{ logs: ExecutionLogRow[]; total: number }> {
   const supabase = await createClient()
+
+  const sortBy = VALID_SORT_COLUMNS.includes(filters?.sortBy ?? '')
+    ? (filters?.sortBy as ExecutionLogSortColumn)
+    : 'created_at'
+  const sortOrder: ExecutionLogSortOrder = filters?.sortOrder === 'asc' || filters?.sortOrder === 'desc'
+    ? filters.sortOrder
+    : 'desc'
 
   let query = supabase
     .from('automation_execution_log' as any)
     .select('*', { count: 'exact' })
     .eq('property_id', propertyId)
-    .order('created_at', { ascending: false })
+    .order(sortBy, { ascending: sortOrder === 'asc' })
 
   if (filters?.automationId) query = query.eq('automation_id', filters.automationId)
   if (filters?.dateFrom) query = query.gte('created_at', filters.dateFrom)
   if (filters?.dateTo) query = query.lte('created_at', filters.dateTo)
+  if (filters?.search) {
+    // Search by entity_type, entity_id, or automation name (via matching IDs)
+    const orClauses = [`entity_type.ilike.%${filters.search}%`, `entity_id.ilike.%${filters.search}%`]
+    if (filters.automationIds?.length) {
+      orClauses.push(`automation_id.in.(${filters.automationIds.join(',')})`)
+    }
+    query = query.or(orClauses.join(','))
+  } else if (filters?.automationIds?.length) {
+    // No text search but automation IDs from name match
+    query = query.in('automation_id', filters.automationIds)
+  }
 
   // outcome filter: passed = conditions_passed true, skipped = skipped_reason not null, failed = conditions_passed false
   if (filters?.outcome === 'passed') {
@@ -550,12 +592,21 @@ export async function listExecutionLogs(
   const { data, count, error } = await query
 
   if (error) {
-    console.error('[automations] listExecutionLogs failed', { propertyId, error })
+    // eslint-disable-next-line no-console
+    console.error('[automations] listExecutionLogs failed', JSON.stringify({ propertyId, error: { message: error.message, code: error.code, details: error.details, hint: error.hint } }, null, 2))
     throw error
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const logs: ExecutionLogRow[] = (data ?? []).map((row: any) => {
+    return {
+      ...row,
+      automation_name: null, // Join removed temporarily
+    }
+  })
+
   return {
-    logs: (data ?? []) as unknown as AutomationExecutionLogRow[],
+    logs,
     total: count ?? 0,
   }
 }

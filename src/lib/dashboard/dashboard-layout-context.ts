@@ -13,6 +13,7 @@ import {
   canViewStaffRoster,
   canAccessHousekeepingModule,
   canAccessMaintenanceModule,
+  canAccessAutomationsModule,
 } from '@/lib/rbac/dashboard-guards'
 import type { UiRole } from '@/lib/dashboard/staff-management-queries'
 
@@ -216,6 +217,7 @@ export async function resolveDashboardNavVisibility(
     analytics: canAccessOperationsModules(access),
     housekeeping: canAccessHousekeepingModule(access),
     maintenance: canAccessMaintenanceModule(access),
+    automations: canAccessAutomationsModule(access),
     'staff-management': canViewStaffRoster(access),
     auditing: canAccessOperationsModules(access),
     settings: canAccessPropertySettings(access),

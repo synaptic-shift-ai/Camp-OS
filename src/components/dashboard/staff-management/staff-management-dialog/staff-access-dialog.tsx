@@ -99,6 +99,11 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'view', name: 'View audit log' },
     // { id: 'export', name: 'Export audit data' },
   ],
+  automations: [
+    { id: 'view', name: 'View automations' },
+    { id: 'manage', name: 'Create and edit automations' },
+    { id: 'view-log', name: 'View execution log' },
+  ],
   settings: [
     { id: 'view', name: 'View settings' },
     { id: 'edit', name: 'Edit property settings' },

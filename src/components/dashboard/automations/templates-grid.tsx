@@ -153,7 +153,7 @@ export function TemplatesGrid({
                 </div>
 
                 {/* Template Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {group.templates.map((template) => {
                     const phaseColorClass = PHASE_COLORS[template.phase]
 

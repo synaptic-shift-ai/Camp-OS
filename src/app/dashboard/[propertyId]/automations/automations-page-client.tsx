@@ -10,11 +10,6 @@ import { DashboardSummaryCards } from '@/components/dashboard/automations/dashbo
 import { PhaseDistribution } from '@/components/dashboard/automations/phase-distribution'
 import { RecentExecutionActivity } from '@/components/dashboard/automations/recent-execution-activity'
 import { ExecutionLogViewer } from '@/components/dashboard/automations/execution-log-viewer'
-import { TemplatesGrid } from '@/components/dashboard/automations/templates-grid'
-import { TemplateDetailDialog } from '@/components/dashboard/automations/template-detail-dialog'
-import { DEFAULT_AUTOMATION_TEMPLATES } from '@/lib/automations/templates'
-import type { AutomationTemplate } from '@/lib/automations/templates'
-import type { AutomationPhase, AutomationExecutionLogRow, AutomationRow } from '@/lib/automations/types'
 import { AutomationBuilder } from '@/components/dashboard/automations/automation-builder'
 import { EmailTemplatesList } from '@/components/dashboard/automations/email-templates-list'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
@@ -60,7 +55,6 @@ const TAB_ITEMS = [
   { value: 'automations', label: 'Automations' },
   { value: 'execution-log', label: 'Execution Logs' },
   { value: 'email-templates', label: 'Email Templates' },
-  { value: 'templates', label: 'Templates' },
 ] as const
 
 const TAB_BUTTON_CLASS =
@@ -70,7 +64,6 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null)
   const [navigating, setNavigating] = useState(false)
 
   // Reset loading when server delivers new tab data
@@ -286,20 +279,6 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
               <p>Loading email templates…</p>
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="templates" className={navigating ? 'hidden' : undefined}>
-          <TemplatesGrid
-            templates={DEFAULT_AUTOMATION_TEMPLATES}
-            onTemplateClick={setSelectedTemplate}
-          />
-          <TemplateDetailDialog
-            template={selectedTemplate}
-            open={!!selectedTemplate}
-            onOpenChange={(open) => !open && setSelectedTemplate(null)}
-            propertyId={data.propertyId ?? ''}
-            companyId={data.companyId ?? ''}
-          />
         </TabsContent>
       </Tabs>
     </div>

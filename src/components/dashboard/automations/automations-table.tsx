@@ -80,19 +80,22 @@ export function AutomationsTable({
             <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Name
             </TableHead>
-            <TableHead className="w-[110px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="w-[60px] py-1.5 text-center text-black/90 dark:text-white/90 font-medium">
+              Order
+            </TableHead>
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Phase
             </TableHead>
-            <TableHead className="w-[160px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Trigger
             </TableHead>
-            <TableHead className="w-[100px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Status
             </TableHead>
-            <TableHead className="w-[90px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Terminal
             </TableHead>
-            <TableHead className="w-[120px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Created
             </TableHead>
             <TableHead className="w-[140px] py-1.5 text-right text-black/90 dark:text-white/90 font-medium">
@@ -103,13 +106,13 @@ export function AutomationsTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                 Loading automations...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -126,6 +129,9 @@ export function AutomationsTable({
                       <div className="text-xs text-muted-foreground">{row.description}</div>
                     ) : null}
                   </div>
+                </TableCell>
+                <TableCell className="py-1.5 text-center text-muted-foreground">
+                  {row.sort_order}
                 </TableCell>
                 <TableCell className="py-1.5">
                   <PhasePill phase={row.phase} />

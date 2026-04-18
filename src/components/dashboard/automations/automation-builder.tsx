@@ -7,10 +7,14 @@ import { Input } from "@/components/ui/input"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
-import { Plus, Search, RefreshCw } from "lucide-react"
+import { Plus, Search, RefreshCw, LayoutTemplate } from "lucide-react"
 import { AutomationsTable } from "./automations-table"
 import { AutomationViewDialog } from "./automation-view-dialog"
 import { AutomationDeleteDialog } from "./automation-delete-dialog"
+import { TemplatesGrid } from "./templates-grid"
+import { TemplateDetailDialog } from "./template-detail-dialog"
+import { DEFAULT_AUTOMATION_TEMPLATES, type AutomationTemplate } from "@/lib/automations/templates"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { PHASE_ORDER, type AutomationPhase, type AutomationRow } from "@/lib/automations/types"
 import { PHASE_COLORS } from "@/lib/automations/templates"
@@ -29,6 +33,8 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
   const [phaseFilter, setPhaseFilter] = useState<AutomationPhase | "all">("all")
   const [viewingAutomation, setViewingAutomation] = useState<AutomationRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AutomationRow | null>(null)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null)
 
   // Pagination
   const [page, setPage] = useState(1)
@@ -219,6 +225,10 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
+            <LayoutTemplate className="h-4 w-4 mr-1" />
+            Templates
+          </Button>
           <PermissionGate permission="automations.manage">
             <Button size="sm" onClick={() => router.push(`/dashboard/${propertyId}/automations/new`)}>
               <Plus className="h-4 w-4 mr-1" />
@@ -292,6 +302,26 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         automation={deleteTarget}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
         onConfirm={handleDeleted}
+      />
+
+      {/* Templates dialog */}
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Automation Templates</DialogTitle>
+          </DialogHeader>
+          <TemplatesGrid
+            templates={DEFAULT_AUTOMATION_TEMPLATES}
+            onTemplateClick={setSelectedTemplate}
+          />
+        </DialogContent>
+      </Dialog>
+      <TemplateDetailDialog
+        template={selectedTemplate}
+        open={!!selectedTemplate}
+        onOpenChange={(open) => !open && setSelectedTemplate(null)}
+        propertyId={propertyId}
+        companyId={companyId}
       />
     </div>
   )

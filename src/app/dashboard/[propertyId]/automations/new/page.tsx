@@ -24,7 +24,7 @@ export default async function NewAutomationPage({
         <AutomationFormPageClient
             mode="create"
             propertyId={propertyId}
-            tenantId={property.company_id ?? ''}
+            companyId={property.company_id ?? ''}
         />
     )
 }

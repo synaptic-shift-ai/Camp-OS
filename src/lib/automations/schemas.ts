@@ -137,7 +137,7 @@ export type ActionInput = z.infer<typeof ActionSchema>
 
 export const CreateAutomationSchema = z
   .object({
-    tenantId: z.string().uuid(),
+    companyId: z.string().uuid(),
     propertyId: z.string().uuid().nullable().optional(),
     name: z.string().min(1).max(255),
     description: z.string().max(2000).optional(),

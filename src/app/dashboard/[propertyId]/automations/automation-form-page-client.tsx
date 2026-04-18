@@ -83,7 +83,7 @@ type AutomationActionFormData = {
 type AutomationFormPageClientProps = {
   mode: "create" | "edit"
   propertyId: string
-  tenantId: string
+  companyId: string
   automationId?: string
   initialData?: {
     name: string
@@ -103,7 +103,7 @@ type AutomationFormPageClientProps = {
 export function AutomationFormPageClient({
   mode,
   propertyId,
-  tenantId,
+  companyId,
   automationId,
   initialData,
 }: AutomationFormPageClientProps) {
@@ -179,7 +179,7 @@ export function AutomationFormPageClient({
 
     try {
       CreateAutomationSchema.parse({
-        tenantId,
+        companyId,
         propertyId,
         name: name.trim(),
         description: description.trim() || undefined,
@@ -203,7 +203,7 @@ export function AutomationFormPageClient({
     }
 
     return errs
-  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, tenantId, propertyId])
+  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, propertyId])
 
   // ── Save ──────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -244,7 +244,7 @@ export function AutomationFormPageClient({
           actions: actionPayload,
         }
         : {
-          tenantId,
+          companyId,
           propertyId,
           name: name.trim(),
           description: description.trim() || undefined,
@@ -275,7 +275,7 @@ export function AutomationFormPageClient({
     } finally {
       setSaving(false)
     }
-  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, tenantId, validate, handleBack, toast])
+  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, validate, handleBack, toast])
 
   return (
     <div className="space-y-6">

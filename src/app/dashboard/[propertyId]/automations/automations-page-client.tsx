@@ -13,6 +13,7 @@ import { DEFAULT_AUTOMATION_TEMPLATES } from '@/lib/automations/templates'
 import type { AutomationTemplate } from '@/lib/automations/templates'
 import type { AutomationPhase, AutomationExecutionLogRow, AutomationRow } from '@/lib/automations/types'
 import { AutomationBuilder } from '@/components/dashboard/automations/automation-builder'
+import { EmailTemplatesList } from '@/components/dashboard/automations/email-templates-list'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
 
 type AutomationsDashboardData = {
@@ -46,8 +47,9 @@ type AutomationsPageClientProps = AutomationsDashboardData & {
   executionLogData?: ExecutionLogData
   activeTab: string
   propertyId?: string
-  tenantId?: string
+  companyId?: string
   automationsList?: AutomationRow[]
+  emailTemplates?: Array<Record<string, unknown>>
 }
 
 export function AutomationsPageClient(data: AutomationsPageClientProps) {
@@ -80,6 +82,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="automations">Automations</TabsTrigger>
           <TabsTrigger value="execution-log">Execution Logs</TabsTrigger>
+          <TabsTrigger value="email-templates">Email Templates</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
 
@@ -101,7 +104,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             <AutomationBuilder
               automations={data.automationsList}
               propertyId={data.propertyId}
-              tenantId={data.tenantId ?? ''}
+              companyId={data.companyId ?? ''}
             />
           ) : (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -129,6 +132,20 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           )}
         </TabsContent>
 
+        <TabsContent value="email-templates">
+          {data.propertyId && data.companyId ? (
+            <EmailTemplatesList
+              templates={data.emailTemplates ?? []}
+              propertyId={data.propertyId}
+              companyId={data.companyId}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              <p>Loading email templates…</p>
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="templates">
           <TemplatesGrid
             templates={DEFAULT_AUTOMATION_TEMPLATES}
@@ -139,7 +156,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             open={!!selectedTemplate}
             onOpenChange={(open) => !open && setSelectedTemplate(null)}
             propertyId={data.propertyId ?? ''}
-            tenantId={data.tenantId ?? ''}
+            companyId={data.companyId ?? ''}
           />
         </TabsContent>
       </Tabs>

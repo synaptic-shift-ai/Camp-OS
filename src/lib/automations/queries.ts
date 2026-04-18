@@ -104,7 +104,7 @@ export async function getAutomationWithDetails(automationId: string): Promise<{
 // ============================================================================
 
 export interface CreateAutomationInput {
-  tenantId: string
+  companyId: string
   propertyId: string | null
   name: string
   description?: string
@@ -151,7 +151,7 @@ export async function createAutomationWithDetails(data: CreateAutomationInput): 
   const { data: automation, error: autError } = await supabase
     .from('automations' as any)
     .insert({
-      tenant_id: data.tenantId,
+      company_id: data.companyId,
       property_id: data.propertyId,
       name: data.name,
       description: data.description ?? null,
@@ -475,7 +475,7 @@ export async function reorderAutomation(
 export async function insertExecutionLog(entry: {
   automationId: string | null
   propertyId: string | null
-  tenantId: string
+  companyId: string
   eventType: string
   entityType?: string
   entityId?: string
@@ -495,7 +495,7 @@ export async function insertExecutionLog(entry: {
     .insert({
       automation_id: entry.automationId,
       property_id: entry.propertyId,
-      tenant_id: entry.tenantId,
+      company_id: entry.companyId,
       event_type: entry.eventType,
       entity_type: entry.entityType ?? null,
       entity_id: entry.entityId ?? null,
@@ -519,7 +519,7 @@ export interface ExecutionLogRow {
   automation_id: string | null
   automation_name: string | null
   property_id: string | null
-  tenant_id: string
+  company_id: string
   event_type: string
   entity_type: string | null
   entity_id: string | null

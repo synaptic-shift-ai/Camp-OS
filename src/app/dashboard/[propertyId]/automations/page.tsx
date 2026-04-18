@@ -60,8 +60,40 @@ export default async function AutomationsPage({
                 recentLogs={[]}
                 activeTab="automations"
                 propertyId={propertyId}
-                tenantId={property.company_id ?? ''}
+                companyId={property.company_id ?? ''}
                 automationsList={automations}
+            />
+        )
+    }
+
+    // ── Email Templates tab ────────────────────────────────────────────
+    if (tab === "email-templates") {
+        const companyId = property.company_id
+        let emailTemplates: Array<Record<string, unknown>> = []
+        if (companyId) {
+            const supabase = await createClient()
+            const { data } = await supabase
+                .from('email_templates')
+                .select('*')
+                .eq('company_id', companyId)
+                .or(`property_id.is.null,property_id.eq.${propertyId}`)
+                .order('is_system_default', { ascending: false })
+                .order('name', { ascending: true })
+            emailTemplates = (data ?? []) as Array<Record<string, unknown>>
+        }
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={0}
+                activeCount={0}
+                inactiveCount={0}
+                phaseDistribution={[]}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="email-templates"
+                propertyId={propertyId}
+                companyId={companyId ?? ''}
+                emailTemplates={emailTemplates}
             />
         )
     }
@@ -79,7 +111,7 @@ export default async function AutomationsPage({
                 recentLogs={[]}
                 activeTab="templates"
                 propertyId={propertyId}
-                tenantId={property.company_id ?? ''}
+                companyId={property.company_id ?? ''}
             />
         )
     }

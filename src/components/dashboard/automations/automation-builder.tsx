@@ -18,10 +18,10 @@ import { PHASE_COLORS } from "@/lib/automations/templates"
 type AutomationBuilderProps = {
   automations: AutomationRow[]
   propertyId: string
-  tenantId: string
+  companyId: string
 }
 
-export function AutomationBuilder({ automations: initialAutomations, propertyId, tenantId }: AutomationBuilderProps) {
+export function AutomationBuilder({ automations: initialAutomations, propertyId, companyId }: AutomationBuilderProps) {
   const router = useRouter()
   const { toast } = useToast()
 
@@ -145,7 +145,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenantId,
+          companyId,
           propertyId,
           name: `${row.name} (Copy)`,
           description: row.description ?? undefined,
@@ -164,7 +164,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     } catch {
       toast({ title: "Failed to duplicate", variant: "destructive" })
     }
-  }, [propertyId, tenantId, toast, refresh])
+  }, [propertyId, companyId, toast, refresh])
 
   return (
     <div className="space-y-4">

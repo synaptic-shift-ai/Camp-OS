@@ -33,7 +33,7 @@ export type TemplateDetailDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   propertyId: string
-  tenantId: string
+  companyId: string
 }
 
 // ============================================================================
@@ -95,7 +95,7 @@ export function TemplateDetailDialog({
   open,
   onOpenChange,
   propertyId,
-  tenantId,
+  companyId,
 }: TemplateDetailDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -112,7 +112,7 @@ export function TemplateDetailDialog({
     try {
       // Build the request body
       const requestBody = {
-        tenantId,
+        companyId,
         propertyId,
         name: template.name,
         phase: template.phase,

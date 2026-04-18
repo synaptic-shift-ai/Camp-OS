@@ -30,7 +30,7 @@ export default async function EditAutomationPage({
         <AutomationFormPageClient
             mode="edit"
             propertyId={propertyId}
-            tenantId={property.company_id ?? ''}
+            companyId={property.company_id ?? ''}
             automationId={automationId}
             initialData={{
                 name: details.automation.name,

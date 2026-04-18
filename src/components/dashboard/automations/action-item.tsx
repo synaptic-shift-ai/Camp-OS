@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils"
 // Constants
 // ============================================================================
 
-const EMAIL_TEMPLATES = [
+const FALLBACK_EMAIL_TEMPLATES = [
   { value: "welcome_email", label: "Welcome Email" },
   { value: "check_in_reminder", label: "Check-in Reminder" },
   { value: "thank_you_email", label: "Thank You Email" },
@@ -37,6 +37,59 @@ const EMAIL_TEMPLATES = [
   { value: "pre_arrival", label: "Pre-Arrival Email" },
   { value: "lead_time_rejection", label: "Lead Time Rejection" },
 ]
+
+
+// ============================================================================
+// Dynamic template hook
+// ============================================================================
+
+function useEmailTemplates(propertyId: string | undefined) {
+  const [templates, setTemplates] = useState(FALLBACK_EMAIL_TEMPLATES)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!propertyId) return
+    let cancelled = false
+    setLoading(true)
+    fetch(`/api/v1/automations/email-templates?propertyId=${propertyId}`)
+      .then(res => res.json())
+      .then(payload => {
+        if (cancelled) return
+        const list = payload?.data?.emailTemplates ?? []
+        if (Array.isArray(list) && list.length > 0) {
+          setTemplates(list.map((t: Record<string, unknown>) => ({
+            value: String(t.slug),
+            label: String(t.name),
+          })))
+        }
+      })
+      .catch(() => { /* keep fallback */ })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [propertyId])
+
+  return { templates, loading }
+}
+
+function EmailTemplateSelector({ propertyId, actionConfig, onUpdate }: { propertyId?: string; actionConfig: Record<string, unknown>; onUpdate: (key: string, value: unknown) => void }) {
+  const { templates, loading } = useEmailTemplates(propertyId)
+  return (
+    <ConfigField label="Email Template">
+      <Select value={String(actionConfig.template ?? "")} onValueChange={v => onUpdate("template", v)}>
+        <SelectTrigger className="h-9 text-sm">
+          <SelectValue placeholder={loading ? "Loading templates..." : "Select a template..."} />
+        </SelectTrigger>
+        <SelectContent>
+          {templates.map(t => (
+            <SelectItem key={t.value} value={t.value} className="text-sm">
+              {t.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </ConfigField>
+  )
+}
 
 // ============================================================================
 // Component
@@ -51,6 +104,7 @@ type ActionItemProps = {
   onRemove: () => void
   onMoveUp: () => void
   onMoveDown: () => void
+  propertyId?: string
 }
 
 export function ActionItem({
@@ -62,6 +116,7 @@ export function ActionItem({
   onRemove,
   onMoveUp,
   onMoveDown,
+  propertyId,
 }: ActionItemProps) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -152,7 +207,7 @@ export function ActionItem({
         {/* Config body */}
         <CollapsibleContent>
           <div className="px-4 py-3 space-y-3 border-t bg-background">
-            <ActionConfigForm action={action} onUpdate={updateConfig} />
+            <ActionConfigForm action={action} onUpdate={updateConfig} {...(propertyId != null ? { propertyId } : {})} />
             {hasDelay && (
               <DelayConfig
                 delayValue={action.delayValue}
@@ -174,9 +229,11 @@ export function ActionItem({
 function ActionConfigForm({
   action,
   onUpdate,
+  propertyId,
 }: {
   action: AutomationActionFormData
   onUpdate: (key: string, value: unknown) => void
+  propertyId?: string
 }) {
   const { actionType, actionConfig } = action
 
@@ -427,22 +484,7 @@ function ActionConfigForm({
       )
 
     case "send_email":
-      return (
-        <ConfigField label="Email Template">
-          <Select value={String(actionConfig.template ?? "")} onValueChange={v => onUpdate("template", v)}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="Select a template..." />
-            </SelectTrigger>
-            <SelectContent>
-              {EMAIL_TEMPLATES.map(t => (
-                <SelectItem key={t.value} value={t.value} className="text-sm">
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ConfigField>
-      )
+      return <EmailTemplateSelector {...(propertyId != null ? { propertyId } : {})} actionConfig={actionConfig} onUpdate={onUpdate} />
 
     case "send_notification":
       return (

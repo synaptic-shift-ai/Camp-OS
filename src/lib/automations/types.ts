@@ -147,7 +147,7 @@ export interface EventContext {
 
 export interface AutomationRow {
   id: string
-  tenant_id: string
+  company_id: string
   property_id: string | null
   name: string
   description: string | null
@@ -206,7 +206,7 @@ export interface AutomationExecutionLogRow {
   id: string
   automation_id: string | null
   property_id: string | null
-  tenant_id: string
+  company_id: string
   event_type: string
   entity_type: string | null
   entity_id: string | null

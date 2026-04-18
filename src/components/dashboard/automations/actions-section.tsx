@@ -60,9 +60,10 @@ type ActionsSectionProps = {
   actions: AutomationActionFormData[]
   phase: AutomationPhase
   onChange: (actions: AutomationActionFormData[]) => void
+  propertyId?: string
 }
 
-export function ActionsSection({ actions, phase, onChange }: ActionsSectionProps) {
+export function ActionsSection({ actions, phase, onChange, propertyId }: ActionsSectionProps) {
   const availableActions = ACTIONS_BY_PHASE[phase] ?? []
 
   const addAction = (actionType: ActionType) => {
@@ -128,6 +129,7 @@ export function ActionsSection({ actions, phase, onChange }: ActionsSectionProps
               onRemove={() => removeAction(index)}
               onMoveUp={() => moveAction(index, "up")}
               onMoveDown={() => moveAction(index, "down")}
+              {...(propertyId != null ? { propertyId } : {})}
             />
           ))}
         </div>

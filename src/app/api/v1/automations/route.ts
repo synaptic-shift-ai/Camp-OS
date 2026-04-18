@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     })
 
     const input: Record<string, unknown> = {
-      tenantId: data.tenantId,
+      companyId: data.companyId,
       propertyId: data.propertyId ?? null,
       name: data.name,
       phase: data.phase as Parameters<typeof createAutomationWithDetails>[0]['phase'],

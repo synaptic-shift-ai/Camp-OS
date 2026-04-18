@@ -42,7 +42,7 @@ export async function logAutomationExecution(
   await insertExecutionLog({
     automationId: automation.id,
     propertyId: automation.property_id,
-    tenantId: automation.tenant_id,
+    companyId: automation.company_id,
     eventType: context.event.type,
     ...(entityType ? { entityType } : {}),
     ...(entityId ? { entityId } : {}),

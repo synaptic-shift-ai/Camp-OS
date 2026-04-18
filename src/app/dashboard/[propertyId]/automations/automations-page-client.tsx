@@ -11,7 +11,8 @@ import { TemplatesGrid } from '@/components/dashboard/automations/templates-grid
 import { TemplateDetailDialog } from '@/components/dashboard/automations/template-detail-dialog'
 import { DEFAULT_AUTOMATION_TEMPLATES } from '@/lib/automations/templates'
 import type { AutomationTemplate } from '@/lib/automations/templates'
-import type { AutomationPhase, AutomationExecutionLogRow } from '@/lib/automations/types'
+import type { AutomationPhase, AutomationExecutionLogRow, AutomationRow } from '@/lib/automations/types'
+import { AutomationBuilder } from '@/components/dashboard/automations/automation-builder'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
 
 type AutomationsDashboardData = {
@@ -46,6 +47,7 @@ type AutomationsPageClientProps = AutomationsDashboardData & {
   activeTab: string
   propertyId?: string
   tenantId?: string
+  automationsList?: AutomationRow[]
 }
 
 export function AutomationsPageClient(data: AutomationsPageClientProps) {
@@ -76,7 +78,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
       <Tabs value={data.activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="automations" disabled>Automations</TabsTrigger>
+          <TabsTrigger value="automations">Automations</TabsTrigger>
           <TabsTrigger value="execution-log">Execution Logs</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
@@ -95,9 +97,17 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
         </TabsContent>
 
         <TabsContent value="automations">
-          <div className="flex items-center justify-center h-64 text-muted-foreground">
-            <p>Coming Soon</p>
-          </div>
+          {data.automationsList && data.propertyId ? (
+            <AutomationBuilder
+              automations={data.automationsList}
+              propertyId={data.propertyId}
+              tenantId={data.tenantId ?? ''}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              <p>Loading automations…</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="execution-log">

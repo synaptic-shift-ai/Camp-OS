@@ -46,6 +46,26 @@ export default async function AutomationsPage({
     const sp = await searchParams
     const tab = typeof sp.tab === "string" ? sp.tab : "dashboard"
 
+    // ── Automations (builder) tab ────────────────────────────────────────
+    if (tab === "automations") {
+        const automations = await listAutomations(propertyId)
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={automations.length}
+                activeCount={automations.filter(a => a.is_active).length}
+                inactiveCount={automations.length - automations.filter(a => a.is_active).length}
+                phaseDistribution={PHASE_ORDER.map(phase => ({ phase, count: automations.filter(a => a.phase === phase).length }))}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="automations"
+                propertyId={propertyId}
+                tenantId={property.company_id ?? ''}
+                automationsList={automations}
+            />
+        )
+    }
+
     // ── Templates tab (no DB fetch needed — static constants) ────────────
     if (tab === "templates") {
         return (

@@ -55,7 +55,7 @@ export function RecentExecutionActivity({ executionSummary, recentLogs }: Props)
         <CardHeader>
           <CardTitle className="text-sm font-medium">Execution Log</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="sm:pt-0">
           {recentLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No execution activity in the last 30 days.</p>
           ) : (

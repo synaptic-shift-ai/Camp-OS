@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Pencil, Copy } from "lucide-react"
+import { Pencil, Copy, Zap } from "lucide-react"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { useEffect, useState } from "react"
 import type { AutomationRow, ActionType } from "@/lib/automations/types"
@@ -26,6 +26,7 @@ type AutomationViewDialogProps = {
   onOpenChange: (open: boolean) => void
   onEdit: () => void
   onDuplicate: () => void
+  onDryRun: () => void
 }
 
 type LoadedAutomation = {
@@ -88,6 +89,7 @@ export function AutomationViewDialog({
   onOpenChange,
   onEdit,
   onDuplicate,
+  onDryRun,
 }: AutomationViewDialogProps) {
   const [data, setData] = useState<LoadedAutomation | null>(null)
   const [loading, setLoading] = useState(false)
@@ -236,6 +238,10 @@ export function AutomationViewDialog({
               <Button variant="outline" onClick={onDuplicate}>
                 <Copy className="h-4 w-4 mr-1" />
                 Duplicate
+              </Button>
+              <Button variant="outline" onClick={onDryRun}>
+                <Zap className="h-4 w-4 mr-1" />
+                Dry Run
               </Button>
             </>
           </PermissionGate>

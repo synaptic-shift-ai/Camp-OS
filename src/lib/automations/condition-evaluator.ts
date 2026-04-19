@@ -254,3 +254,123 @@ function toObject(value: unknown): Record<string, unknown> | null {
   }
   return null
 }
+
+// ============================================================================
+// Detailed condition evaluation (for dry-run)
+// ============================================================================
+
+export interface ConditionEvaluationResult {
+  conditionId: string
+  variable: string
+  operator: ConditionOperator
+  expected: unknown
+  actual: unknown
+  passed: boolean
+}
+
+export interface ConditionGroupEvaluationResult {
+  groupId: string
+  logicOperator: LogicOperator
+  passed: boolean
+  conditions: ConditionEvaluationResult[]
+  childGroups: ConditionGroupEvaluationResult[]
+}
+
+export interface ConditionsEvaluationDetail {
+  passed: boolean
+  groups: ConditionGroupEvaluationResult[]
+}
+
+/**
+ * Evaluate conditions with detailed per-condition results.
+ * Same logic as evaluateConditions but returns pass/fail per condition.
+ */
+export function evaluateConditionsDetailed(
+  rootGroups: AutomationConditionGroupRow[],
+  allGroups: AutomationConditionGroupRow[],
+  conditions: AutomationConditionRow[],
+  eventContext: EventContext
+): ConditionsEvaluationDetail {
+  if (rootGroups.length === 0) {
+    return { passed: true, groups: [] }
+  }
+
+  const groupResults = rootGroups.map((group) =>
+    evaluateGroupDetailed(group, allGroups, conditions, eventContext, 0)
+  )
+
+  return {
+    passed: groupResults.every((r) => r.passed),
+    groups: groupResults,
+  }
+}
+
+function evaluateGroupDetailed(
+  group: AutomationConditionGroupRow,
+  allGroups: AutomationConditionGroupRow[],
+  conditions: AutomationConditionRow[],
+  eventContext: EventContext,
+  depth: number
+): ConditionGroupEvaluationResult {
+  if (depth > MAX_DEPTH) {
+    return {
+      groupId: group.id,
+      logicOperator: group.logic_operator,
+      passed: false,
+      conditions: [],
+      childGroups: [],
+    }
+  }
+
+  const childGroups = allGroups.filter((g) => g.parent_group_id === group.id)
+  const groupConditions = conditions
+    .filter((c) => c.group_id === group.id)
+    .sort((a, b) => a.sort_order - b.sort_order)
+
+  const conditionResults: ConditionEvaluationResult[] = groupConditions.map(
+    (condition) => {
+      const actual = resolveVariable(condition.variable, eventContext)
+      const passed =
+        actual !== undefined &&
+        applyOperator(
+          condition.operator as ConditionOperator,
+          actual,
+          condition.value
+        )
+      return {
+        conditionId: condition.id,
+        variable: condition.variable,
+        operator: condition.operator as ConditionOperator,
+        expected: condition.value,
+        actual,
+        passed,
+      }
+    }
+  )
+
+  const childGroupResults = childGroups.map((child) =>
+    evaluateGroupDetailed(child, allGroups, conditions, eventContext, depth + 1)
+  )
+
+  const allResults = [
+    ...conditionResults.map((r) => r.passed),
+    ...childGroupResults.map((r) => r.passed),
+  ]
+
+  let passed: boolean
+  if (allResults.length === 0) {
+    passed = true
+  } else if (group.logic_operator === 'AND') {
+    passed = allResults.every(Boolean)
+  } else {
+    passed = allResults.some(Boolean)
+  }
+
+  return {
+    groupId: group.id,
+    logicOperator: group.logic_operator,
+    passed,
+    conditions: conditionResults,
+    childGroups: childGroupResults,
+  }
+}

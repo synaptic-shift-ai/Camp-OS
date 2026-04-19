@@ -12,6 +12,7 @@ import { RecentExecutionActivity } from '@/components/dashboard/automations/rece
 import { ExecutionLogViewer } from '@/components/dashboard/automations/execution-log-viewer'
 import { AutomationBuilder } from '@/components/dashboard/automations/automation-builder'
 import { EmailTemplatesList } from '@/components/dashboard/automations/email-templates-list'
+import { ValidationTab } from '@/components/dashboard/automations/validation-tab'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
 
 type AutomationsDashboardData = {
@@ -54,6 +55,7 @@ const TAB_ITEMS = [
   { value: 'dashboard', label: 'Dashboard' },
   { value: 'automations', label: 'Automations' },
   { value: 'execution-log', label: 'Execution Logs' },
+  { value: 'validation', label: 'Validation' },
   { value: 'email-templates', label: 'Email Templates' },
 ] as const
 
@@ -263,6 +265,16 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           ) : (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
               <p>Loading execution logs…</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="validation" className={navigating ? 'hidden' : undefined}>
+          {data.propertyId ? (
+            <ValidationTab propertyId={data.propertyId} />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              <p>Loading validation…</p>
             </div>
           )}
         </TabsContent>

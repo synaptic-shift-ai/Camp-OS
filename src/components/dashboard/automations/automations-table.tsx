@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Eye, Pencil, Trash2, Copy } from "lucide-react"
+import { Eye, Pencil, Trash2, Copy, Zap } from "lucide-react"
 import type { AutomationRow } from "@/lib/automations/types"
 import { PHASE_COLORS } from "@/lib/automations/templates"
 import { cn } from "@/lib/utils"
@@ -24,6 +24,7 @@ type AutomationsTableProps = {
   onDuplicate?: (row: AutomationRow) => void
   onDelete?: (row: AutomationRow) => void
   onToggleActive?: (row: AutomationRow) => void
+  onDryRun?: (row: AutomationRow) => void
   canManage?: boolean
 }
 
@@ -70,6 +71,7 @@ export function AutomationsTable({
   onDuplicate,
   onDelete,
   onToggleActive: _onToggleActive,
+  onDryRun,
   canManage = true,
 }: AutomationsTableProps) {
   return (
@@ -158,6 +160,15 @@ export function AutomationsTable({
                       onClick={() => onView?.(row)}
                     >
                       <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Dry run simulation"
+                      className="h-8 w-8 p-0"
+                      onClick={() => onDryRun?.(row)}
+                    >
+                      <Zap className="h-4 w-4" />
                     </Button>
                     {canManage && (
                       <>

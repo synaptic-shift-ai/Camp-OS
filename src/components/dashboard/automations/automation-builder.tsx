@@ -13,6 +13,7 @@ import { AutomationViewDialog } from "./automation-view-dialog"
 import { AutomationDeleteDialog } from "./automation-delete-dialog"
 import { TemplatesGrid } from "./templates-grid"
 import { TemplateDetailDialog } from "./template-detail-dialog"
+import { DryRunDialog } from "./dry-run-dialog"
 import { DEFAULT_AUTOMATION_TEMPLATES, type AutomationTemplate } from "@/lib/automations/templates"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -33,6 +34,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
   const [phaseFilter, setPhaseFilter] = useState<AutomationPhase | "all">("all")
   const [viewingAutomation, setViewingAutomation] = useState<AutomationRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AutomationRow | null>(null)
+  const [dryRunTarget, setDryRunTarget] = useState<AutomationRow | null>(null)
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null)
 
@@ -252,6 +254,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onDuplicate={handleDuplicate}
         onDelete={row => setDeleteTarget(row)}
         onToggleActive={handleToggleActive}
+        onDryRun={row => setDryRunTarget(row)}
         canManage={true}
       />
 
@@ -295,6 +298,12 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             handleDuplicate(viewingAutomation)
           }
         }}
+        onDryRun={() => {
+          if (viewingAutomation) {
+            setViewingAutomation(null)
+            setDryRunTarget(viewingAutomation)
+          }
+        }}
       />
 
       {/* Delete dialog */}
@@ -303,6 +312,17 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
         onConfirm={handleDeleted}
       />
+
+      {/* Dry Run dialog */}
+      {dryRunTarget && (
+        <DryRunDialog
+          open={dryRunTarget !== null}
+          onOpenChange={(open) => { if (!open) setDryRunTarget(null) }}
+          automationId={dryRunTarget.id}
+          automationName={dryRunTarget.name}
+          propertyId={propertyId}
+        />
+      )}
 
       {/* Templates dialog */}
       <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>

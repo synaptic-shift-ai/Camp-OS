@@ -66,6 +66,24 @@ export default async function AutomationsPage({
         )
     }
 
+    // ── Validation tab ───────────────────────────────────────────────
+    if (tab === "validation") {
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={0}
+                activeCount={0}
+                inactiveCount={0}
+                phaseDistribution={[]}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="validation"
+                propertyId={propertyId}
+                companyId={property.company_id ?? ''}
+            />
+        )
+    }
+
     // ── Email Templates tab ────────────────────────────────────────────
     if (tab === "email-templates") {
         const companyId = property.company_id

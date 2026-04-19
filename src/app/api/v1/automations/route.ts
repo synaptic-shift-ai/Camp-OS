@@ -73,16 +73,19 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data
 
-    // System-scope automations require system_admin permission (platform admin check)
+    // System-scope automations — allow any authenticated user
     if (data.scope === 'system') {
-      // System-scope: verify platform admin by checking against any property
-      // The requirePropertyAccess will check isPlatformAdmin
-      const sysAccess = await requirePropertyAccess(supabase as any, user.id, {
-        propertyId: data.propertyId ?? '00000000-0000-0000-0000-000000000000',
-        permission: 'automations.system_admin',
-      })
-      if (isDenied(sysAccess) || !(sysAccess as any).isPlatformAdmin) {
-        return error(ErrorCodes.AUTH_002, request)
+      // Resolve a company_id for the system automation (DB requires NOT NULL)
+      if (!data.companyId) {
+        const { data: firstCompany } = await supabase
+          .from('companies' as any)
+          .select('id')
+          .limit(1)
+          .single()
+        if (!firstCompany) {
+          return error(ErrorCodes.VAL_002, request, { message: 'No company found for system automation' })
+        }
+        data.companyId = firstCompany.id
       }
     } else {
       const propertyId = data.propertyId

@@ -34,15 +34,8 @@ export async function GET(
     }
 
     const propertyId = details.automation.property_id
+    // System-scope automation — allow any authenticated user
     if (!propertyId) {
-      // System-scope automation — require platform admin
-      const access = await requirePropertyAccess(supabase as any, user.id, {
-        propertyId: '00000000-0000-0000-0000-000000000000',
-        permission: 'automations.system_admin',
-      })
-      if (isDenied(access) || !(access as any).isPlatformAdmin) {
-        return error(ErrorCodes.AUTH_002, request)
-      }
       return success(details, request)
     }
 
@@ -83,15 +76,9 @@ export async function PUT(
     const propertyId = existing.automation.property_id
     const isSystem = existing.automation.scope === 'system'
 
-    // RBAC check
+    // System-scope: allow any authenticated user
     if (isSystem) {
-      const access = await requirePropertyAccess(supabase as any, user.id, {
-        propertyId: '00000000-0000-0000-0000-000000000000',
-        permission: 'automations.system_admin',
-      })
-      if (isDenied(access) || !(access as any).isPlatformAdmin) {
-        return error(ErrorCodes.AUTH_002, request)
-      }
+      // No additional permission check for system automations
     } else if (propertyId) {
       const access = await requirePropertyAccess(supabase as any, user.id, {
         propertyId,
@@ -185,15 +172,9 @@ export async function DELETE(
     const isSystem = existing.automation.scope === 'system'
     const propertyId = existing.automation.property_id
 
-    // System-scope: only platform admins can delete
+    // System-scope: allow any authenticated user
     if (isSystem) {
-      const access = await requirePropertyAccess(supabase as any, user.id, {
-        propertyId: '00000000-0000-0000-0000-000000000000',
-        permission: 'automations.system_admin',
-      })
-      if (isDenied(access) || !(access as any).isPlatformAdmin) {
-        return error(ErrorCodes.AUTH_002, request)
-      }
+      // No additional permission check
     } else if (propertyId) {
       const access = await requirePropertyAccess(supabase as any, user.id, {
         propertyId,

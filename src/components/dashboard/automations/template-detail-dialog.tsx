@@ -34,6 +34,7 @@ export type TemplateDetailDialogProps = {
   onOpenChange: (open: boolean) => void
   propertyId: string
   companyId: string
+  systemMode?: boolean
 }
 
 // ============================================================================
@@ -96,6 +97,7 @@ export function TemplateDetailDialog({
   onOpenChange,
   propertyId,
   companyId,
+  systemMode,
 }: TemplateDetailDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -112,11 +114,11 @@ export function TemplateDetailDialog({
     try {
       // Build the request body
       const requestBody = {
-        companyId,
-        propertyId,
+        ...(systemMode ? {} : { companyId, propertyId }),
         name: template.name,
         phase: template.phase,
         triggerType: template.triggerType,
+        ...(systemMode ? { scope: 'system' } : {}),
         isActive: false, // Create as inactive so user can review
         isTerminal: template.phase === 'GUARD' && template.id === 'no-show-flag',
         conditionGroups: template.conditionGroups?.map((g) => ({

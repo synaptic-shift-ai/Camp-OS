@@ -6,10 +6,13 @@ import { createClient } from '@/lib/supabase/server'
 
 export default async function NewAutomationPage({
     params,
+    searchParams,
 }: {
     params: Promise<{ propertyId: string }>
+    searchParams: Promise<{ scope?: string }>
 }) {
     const { propertyId } = await params
+    const { scope } = await searchParams
     const property = await getPropertyForUser(propertyId)
     if (!property) redirect('/auth/login')
 
@@ -25,6 +28,7 @@ export default async function NewAutomationPage({
             mode="create"
             propertyId={propertyId}
             companyId={property.company_id ?? ''}
+            systemMode={scope === 'system'}
         />
     )
 }

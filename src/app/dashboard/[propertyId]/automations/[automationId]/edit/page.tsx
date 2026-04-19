@@ -7,10 +7,13 @@ import { getAutomationWithDetails } from '@/lib/automations/queries'
 
 export default async function EditAutomationPage({
     params,
+    searchParams,
 }: {
     params: Promise<{ propertyId: string; automationId: string }>
+    searchParams: Promise<{ scope?: string }>
 }) {
     const { propertyId, automationId } = await params
+    const { scope } = await searchParams
     const property = await getPropertyForUser(propertyId)
     if (!property) redirect('/auth/login')
 
@@ -23,7 +26,7 @@ export default async function EditAutomationPage({
 
     const details = await getAutomationWithDetails(automationId)
     if (!details) {
-        redirect(`/dashboard/${propertyId}/automations?tab=automations`)
+        redirect(`/dashboard/${propertyId}/automations?tab=${scope === 'system' ? 'system-automations' : 'automations'}`)
     }
 
     return (
@@ -32,6 +35,7 @@ export default async function EditAutomationPage({
             propertyId={propertyId}
             companyId={property.company_id ?? ''}
             automationId={automationId}
+            systemMode={scope === 'system'}
             initialData={{
                 name: details.automation.name,
                 description: details.automation.description,

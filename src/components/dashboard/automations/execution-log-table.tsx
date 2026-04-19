@@ -217,6 +217,9 @@ export function ExecutionLogTable({
                             <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                                 Entity
                             </TableHead>
+                            <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                                Entity
+                            </TableHead>
                             <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium text-center">
                                 Conditions
                             </TableHead>

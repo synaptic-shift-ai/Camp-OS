@@ -26,6 +26,7 @@ type AutomationsTableProps = {
   onToggleActive?: (row: AutomationRow) => void
   onDryRun?: (row: AutomationRow) => void
   canManage?: boolean
+  readOnlyIds?: Set<string>
 }
 
 function PhasePill({ phase }: { phase: string }) {
@@ -73,6 +74,7 @@ export function AutomationsTable({
   onToggleActive: _onToggleActive,
   onDryRun,
   canManage = true,
+  readOnlyIds,
 }: AutomationsTableProps) {
   return (
     <div className="border border-border/80 bg-card/50">
@@ -81,6 +83,9 @@ export function AutomationsTable({
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
             <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
               Name
+            </TableHead>
+            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
+              Scope
             </TableHead>
             <TableHead className="w-[60px] py-1.5 text-center text-black/90 dark:text-white/90 font-medium">
               Order
@@ -108,13 +113,13 @@ export function AutomationsTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                 Loading automations...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -126,11 +131,18 @@ export function AutomationsTable({
               >
                 <TableCell className="py-1.5">
                   <div className="space-y-0.5">
-                    <div className="text-sm font-medium text-foreground">{row.name}</div>
+                    <span className="text-sm font-medium text-foreground">{row.name}</span>
                     {row.description ? (
                       <div className="text-xs text-muted-foreground">{row.description}</div>
                     ) : null}
                   </div>
+                </TableCell>
+                <TableCell className="py-1.5">
+                  {row.scope === 'system' ? (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">System</span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-muted text-muted-foreground">Property</span>
+                  )}
                 </TableCell>
                 <TableCell className="py-1.5 text-center text-muted-foreground">
                   {row.sort_order}
@@ -170,7 +182,7 @@ export function AutomationsTable({
                     >
                       <Zap className="h-4 w-4" />
                     </Button>
-                    {canManage && (
+                    {canManage && !readOnlyIds?.has(row.id) && (
                       <>
                         <Button
                           variant="ghost"

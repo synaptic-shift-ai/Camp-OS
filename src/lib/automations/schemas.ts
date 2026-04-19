@@ -137,7 +137,7 @@ export type ActionInput = z.infer<typeof ActionSchema>
 
 export const CreateAutomationSchema = z
   .object({
-    companyId: z.string().uuid(),
+    companyId: z.string().uuid().optional(),
     propertyId: z.string().uuid().nullable().optional(),
     name: z.string().min(1).max(255),
     description: z.string().max(2000).optional(),
@@ -164,6 +164,13 @@ export const CreateAutomationSchema = z
       return true
     },
     { message: 'System-scoped automations must not specify a propertyId' }
+  )
+  .refine(
+    (data) => {
+      if (data.scope !== 'system' && !data.companyId) return false
+      return true
+    },
+    { message: 'companyId is required for property-scope automations' }
   )
 
 export type CreateAutomationInput = z.infer<typeof CreateAutomationSchema>

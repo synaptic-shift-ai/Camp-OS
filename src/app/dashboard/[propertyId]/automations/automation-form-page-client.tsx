@@ -85,6 +85,7 @@ type AutomationFormPageClientProps = {
   propertyId: string
   companyId: string
   automationId?: string
+  systemMode?: boolean
   initialData?: {
     name: string
     description: string | null
@@ -105,6 +106,7 @@ export function AutomationFormPageClient({
   propertyId,
   companyId,
   automationId,
+  systemMode,
   initialData,
 }: AutomationFormPageClientProps) {
   const router = useRouter()
@@ -141,7 +143,11 @@ export function AutomationFormPageClient({
   useEffect(() => {
     if (!isEdit || !automationId) return
 
-    fetch(`/api/v1/automations/${automationId}?propertyId=${propertyId}`)
+    const fetchUrl = systemMode
+      ? `/api/v1/automations/${automationId}`
+      : `/api/v1/automations/${automationId}?propertyId=${propertyId}`
+
+    fetch(fetchUrl)
       .then(res => { if (!res.ok) throw new Error(); return res.json() })
       .then(payload => {
         const data = payload.data ?? payload
@@ -163,12 +169,16 @@ export function AutomationFormPageClient({
         router.back()
       })
       .finally(() => setLoading(false))
-  }, [isEdit, automationId, propertyId, toast, router])
+  }, [isEdit, automationId, propertyId, systemMode, toast, router])
 
   // ── Navigate back ──────────────────────────────────────────────────────
   const handleBack = useCallback(() => {
-    router.push(`/dashboard/${propertyId}/automations?tab=automations`)
-  }, [router, propertyId])
+    if (systemMode) {
+      router.push(`/dashboard/${propertyId}/automations?tab=system-automations`)
+    } else {
+      router.push(`/dashboard/${propertyId}/automations?tab=automations`)
+    }
+  }, [router, propertyId, systemMode])
 
   // ── Validate ──────────────────────────────────────────────────────────
   const validate = useCallback((): string[] => {
@@ -179,8 +189,7 @@ export function AutomationFormPageClient({
 
     try {
       CreateAutomationSchema.parse({
-        companyId,
-        propertyId,
+        ...(systemMode ? {} : { companyId, propertyId }),
         name: name.trim(),
         description: description.trim() || undefined,
         phase,
@@ -188,6 +197,7 @@ export function AutomationFormPageClient({
         isActive,
         isTerminal,
         sortOrder,
+        ...(systemMode ? { scope: 'system' } : {}),
         conditionGroups: flattenTree(conditionGroups),
         actions: actions.map((a, _i) => ({
           actionType: a.actionType,
@@ -203,7 +213,7 @@ export function AutomationFormPageClient({
     }
 
     return errs
-  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, propertyId])
+  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, propertyId, systemMode])
 
   // ── Save ──────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -227,8 +237,12 @@ export function AutomationFormPageClient({
       }))
 
       const url = isEdit
-        ? `/api/v1/automations/${automationId}?propertyId=${propertyId}`
-        : `/api/v1/automations?propertyId=${propertyId}`
+        ? systemMode
+          ? `/api/v1/automations/${automationId}`
+          : `/api/v1/automations/${automationId}?propertyId=${propertyId}`
+        : systemMode
+          ? `/api/v1/automations`
+          : `/api/v1/automations?propertyId=${propertyId}`
 
       const method = isEdit ? "PUT" : "POST"
       const body = isEdit
@@ -244,12 +258,12 @@ export function AutomationFormPageClient({
           actions: actionPayload,
         }
         : {
-          companyId,
-          propertyId,
+          ...(systemMode ? {} : { companyId, propertyId }),
           name: name.trim(),
           description: description.trim() || undefined,
           phase,
           triggerType,
+          ...(systemMode ? { scope: 'system' } : {}),
           isActive,
           isTerminal,
           sortOrder,
@@ -275,7 +289,7 @@ export function AutomationFormPageClient({
     } finally {
       setSaving(false)
     }
-  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, validate, handleBack, toast])
+  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, handleBack, toast])
 
   return (
     <div className="space-y-6">
@@ -287,11 +301,25 @@ export function AutomationFormPageClient({
           </Button>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">
-              {isEdit ? "Edit Automation" : "New Automation"}
+              {isEdit
+                ? systemMode ? "Edit System Automation" : "Edit Automation"
+                : systemMode ? "New System Automation" : "New Automation"
+              }
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {isEdit ? "Modify this automation's configuration." : "Create a new automation rule."}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                {isEdit
+                  ? systemMode ? "Modify this system automation's configuration." : "Modify this automation's configuration."
+                  : systemMode ? "Create a new automation rule for all properties." : "Create a new automation rule."
+                }
+              </p>
+              {systemMode && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  This automation will run for every property.
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving || loading}>

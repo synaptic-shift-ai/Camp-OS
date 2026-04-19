@@ -40,6 +40,7 @@ export async function listAutomations(
 ): Promise<AutomationRow[]> {
   const supabase = await createClient()
 
+  // Fetch property-scoped automations
   let query = supabase
     .from('automations' as any)
     .select('*')
@@ -57,12 +58,52 @@ export async function listAutomations(
     throw error
   }
 
+  let results = ((data ?? []) as unknown as AutomationRow[])
+
+  // Also fetch system automations and append
+  let sysQuery = createServiceRoleClient()
+    .from('automations' as any)
+    .select('*')
+    .is('property_id', null)
+    .eq('scope', 'system')
+    .order('sort_order', { ascending: true })
+
+  if (filters?.phase) sysQuery = sysQuery.eq('phase', filters.phase)
+  if (filters?.isActive !== undefined) sysQuery = sysQuery.eq('is_active', filters.isActive)
+
+  const { data: sysData, error: sysError } = await sysQuery
+  if (sysError) {
+    console.error('[automations] listAutomations system query failed', { error: sysError })
+  } else {
+    results = [...results, ...((sysData ?? []) as unknown as AutomationRow[])]
+  }
+
+  return results
+}
+
+/**
+ * List system-scope automations (property_id IS NULL).
+ * Uses service-role client since system automations have no property context.
+ */
+export async function listSystemAutomations(): Promise<AutomationRow[]> {
+  const supabase = createServiceRoleClient()
+
+  const { data, error } = await supabase
+    .from('automations' as any)
+    .select('*')
+    .is('property_id', null)
+    .eq('scope', 'system')
+    .order('sort_order', { ascending: true })
+
+  if (error) {
+    console.error('[automations] listSystemAutomations failed', { error })
+    throw error
+  }
+
   return (data ?? []) as unknown as AutomationRow[]
 }
 
 /**
- * Get full automation with all child records.
- * Uses user-context client (RLS applies).
  */
 export async function getAutomationWithDetails(automationId: string): Promise<{
   automation: AutomationRow
@@ -518,6 +559,7 @@ export interface ExecutionLogRow {
   id: string
   automation_id: string | null
   automation_name: string | null
+  automation_scope: string | null
   property_id: string | null
   company_id: string
   event_type: string
@@ -547,7 +589,7 @@ export async function listExecutionLogs(
     offset?: number
   }
 ): Promise<{ logs: ExecutionLogRow[]; total: number }> {
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
 
   const sortBy = VALID_SORT_COLUMNS.includes(filters?.sortBy ?? '')
     ? (filters?.sortBy as ExecutionLogSortColumn)
@@ -601,7 +643,8 @@ export async function listExecutionLogs(
   const logs: ExecutionLogRow[] = (data ?? []).map((row: any) => {
     return {
       ...row,
-      automation_name: null, // Join removed temporarily
+      automation_name: null,
+      automation_scope: row.automations?.scope ?? null,
     }
   })
 

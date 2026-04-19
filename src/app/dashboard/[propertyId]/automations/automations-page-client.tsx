@@ -49,6 +49,7 @@ type AutomationsPageClientProps = AutomationsDashboardData & {
   companyId?: string
   automationsList?: AutomationRow[]
   emailTemplates?: Array<Record<string, unknown>>
+  systemAutomationsList?: AutomationRow[]
 }
 
 const TAB_ITEMS = [
@@ -57,6 +58,7 @@ const TAB_ITEMS = [
   { value: 'execution-log', label: 'Execution Logs' },
   { value: 'validation', label: 'Validation' },
   { value: 'email-templates', label: 'Email Templates' },
+  { value: 'system-automations', label: 'System Automations' },
 ] as const
 
 const TAB_BUTTON_CLASS =
@@ -246,6 +248,21 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           ) : (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
               <p>Loading automations…</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="system-automations" className={navigating ? 'hidden' : undefined}>
+          {data.systemAutomationsList ? (
+            <AutomationBuilder
+              automations={data.systemAutomationsList}
+              propertyId={data.propertyId ?? ''}
+              companyId={data.companyId ?? ''}
+              systemMode
+            />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              <p>Loading system automations…</p>
             </div>
           )}
         </TabsContent>

@@ -24,9 +24,10 @@ type AutomationBuilderProps = {
   automations: AutomationRow[]
   propertyId: string
   companyId: string
+  systemMode?: boolean
 }
 
-export function AutomationBuilder({ automations: initialAutomations, propertyId, companyId }: AutomationBuilderProps) {
+export function AutomationBuilder({ automations: initialAutomations, propertyId, companyId, systemMode }: AutomationBuilderProps) {
   const router = useRouter()
   const { toast } = useToast()
 
@@ -58,6 +59,11 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     return result
   }, [initialAutomations, search, phaseFilter])
 
+  const systemIds = useMemo(
+    () => new Set(initialAutomations.filter(a => a.scope === 'system').map(a => a.id)),
+    [initialAutomations]
+  )
+
   const total = filtered.length
   const totalPages = Math.max(1, Math.ceil(total / perPage))
   const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1
@@ -86,9 +92,12 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     router.refresh()
   }, [router])
 
+  const baseUrl = `/dashboard/${propertyId}/automations`
+
   const handleToggleActive = useCallback(async (row: AutomationRow) => {
     try {
-      const res = await fetch(`/api/v1/automations/${row.id}?propertyId=${propertyId}`, {
+      const url = systemMode ? `/api/v1/automations/${row.id}` : `/api/v1/automations/${row.id}?propertyId=${propertyId}`
+      const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !row.is_active }),
@@ -99,12 +108,13 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     } catch {
       toast({ title: "Failed to update", variant: "destructive" })
     }
-  }, [propertyId, toast, refresh])
+  }, [propertyId, systemMode, toast, refresh])
 
   const handleDeleted = useCallback(async () => {
     if (!deleteTarget) return
     try {
-      const res = await fetch(`/api/v1/automations/${deleteTarget.id}?propertyId=${propertyId}`, {
+      const url = systemMode ? `/api/v1/automations/${deleteTarget.id}` : `/api/v1/automations/${deleteTarget.id}?propertyId=${propertyId}`
+      const res = await fetch(url, {
         method: "DELETE",
       })
       if (!res.ok) throw new Error()
@@ -114,11 +124,12 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" })
     }
-  }, [deleteTarget, propertyId, toast, refresh])
+  }, [deleteTarget, propertyId, systemMode, toast, refresh])
 
   const handleDuplicate = useCallback(async (row: AutomationRow) => {
     try {
-      const res = await fetch(`/api/v1/automations/${row.id}?propertyId=${propertyId}`, {
+      const fetchUrl = systemMode ? `/api/v1/automations/${row.id}` : `/api/v1/automations/${row.id}?propertyId=${propertyId}`
+      const res = await fetch(fetchUrl, {
         method: "GET",
       })
       if (!res.ok) throw new Error()
@@ -153,12 +164,12 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyId,
-          propertyId,
+          ...(systemMode ? {} : { companyId, propertyId }),
           name: `${row.name} (Copy)`,
           description: row.description ?? undefined,
           phase: row.phase,
           triggerType: row.trigger_type,
+          ...(systemMode ? { scope: 'system' } : {}),
           isActive: false,
           isTerminal: row.is_terminal,
           conditionGroups,
@@ -172,7 +183,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     } catch {
       toast({ title: "Failed to duplicate", variant: "destructive" })
     }
-  }, [propertyId, companyId, toast, refresh])
+  }, [propertyId, companyId, systemMode, toast, refresh])
 
   return (
     <div className="space-y-4">
@@ -232,7 +243,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             Templates
           </Button>
           <PermissionGate permission="automations.manage">
-            <Button size="sm" onClick={() => router.push(`/dashboard/${propertyId}/automations/new`)}>
+            <Button size="sm" onClick={() => router.push(systemMode ? `/dashboard/${propertyId}/automations/new?scope=system` : `${baseUrl}/new`)}>
               <Plus className="h-4 w-4 mr-1" />
               Create Automation
             </Button>
@@ -250,12 +261,13 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             : "No automations match your search."
         }
         onView={row => setViewingAutomation(row)}
-        onEdit={row => router.push(`/dashboard/${propertyId}/automations/${row.id}/edit`)}
+        onEdit={row => router.push(systemMode ? `/dashboard/${propertyId}/automations/${row.id}/edit?scope=system` : `${baseUrl}/${row.id}/edit`)}
         onDuplicate={handleDuplicate}
         onDelete={row => setDeleteTarget(row)}
         onToggleActive={handleToggleActive}
         onDryRun={row => setDryRunTarget(row)}
         canManage={true}
+        readOnlyIds={systemMode ? undefined : systemIds}
       />
 
       {/* Pagination */}
@@ -290,7 +302,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onEdit={() => {
           if (viewingAutomation) {
             setViewingAutomation(null)
-            router.push(`/dashboard/${propertyId}/automations/${viewingAutomation.id}/edit`)
+            router.push(systemMode ? `/dashboard/${propertyId}/automations/${viewingAutomation.id}/edit?scope=system` : `${baseUrl}/${viewingAutomation.id}/edit`)
           }
         }}
         onDuplicate={() => {
@@ -342,6 +354,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onOpenChange={(open) => !open && setSelectedTemplate(null)}
         propertyId={propertyId}
         companyId={companyId}
+        systemMode={systemMode}
       />
     </div>
   )

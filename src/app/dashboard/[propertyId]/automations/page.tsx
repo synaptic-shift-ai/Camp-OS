@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getPropertyForUser } from '@/lib/dashboard/property-access'
 import { resolveDashboardNavVisibility } from '@/lib/dashboard/dashboard-layout-context'
-import { listAutomations, listExecutionLogs, type ExecutionLogSortColumn, type ExecutionLogSortOrder } from '@/lib/automations/queries'
+import { listAutomations, listSystemAutomations, listExecutionLogs, type ExecutionLogSortColumn, type ExecutionLogSortOrder } from '@/lib/automations/queries'
 import { PHASE_ORDER } from '@/lib/automations/types'
 import { AutomationsPageClient } from './automations-page-client'
 import { createClient } from '@/lib/supabase/server'
@@ -62,6 +62,26 @@ export default async function AutomationsPage({
                 propertyId={propertyId}
                 companyId={property.company_id ?? ''}
                 automationsList={automations}
+            />
+        )
+    }
+
+    // ── System Automations tab ────────────────────────────────────────
+    if (tab === "system-automations") {
+        const systemAutomations = await listSystemAutomations().catch(() => [])
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={0}
+                activeCount={0}
+                inactiveCount={0}
+                phaseDistribution={[]}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="system-automations"
+                propertyId={propertyId}
+                companyId={property.company_id ?? ''}
+                systemAutomationsList={systemAutomations}
             />
         )
     }

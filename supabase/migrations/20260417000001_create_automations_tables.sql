@@ -210,30 +210,39 @@ ALTER TABLE public.automation_branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_execution_log ENABLE ROW LEVEL SECURITY;
 
 -- Helper: tenant membership check for automations
-CREATE OR REPLACE FUNCTION public.is_automation_tenant_member(aut_id UUID)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_tenant_id UUID;
+DO $do$
 BEGIN
-    SELECT tenant_id INTO v_tenant_id FROM public.automations WHERE id = aut_id;
-    IF v_tenant_id IS NULL THEN RETURN false; END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automations' AND column_name = 'tenant_id'
+    ) THEN
+        CREATE OR REPLACE FUNCTION public.is_automation_tenant_member(aut_id UUID)
+        RETURNS BOOLEAN
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        SET search_path = public
+        AS $$
+        DECLARE
+            v_tenant_id UUID;
+        BEGIN
+            SELECT tenant_id INTO v_tenant_id FROM public.automations WHERE id = aut_id;
+            IF v_tenant_id IS NULL THEN RETURN false; END IF;
 
-    RETURN EXISTS (
-        SELECT 1 FROM public.companies c
-        WHERE c.id = v_tenant_id
-        AND c.owner_id = auth.uid()
-    ) OR EXISTS (
-        SELECT 1 FROM public.properties p
-        JOIN public.property_staff ps ON ps.property_id = p.id
-        WHERE p.company_id = v_tenant_id
-        AND ps.user_id = auth.uid()
-    );
+            RETURN EXISTS (
+                SELECT 1 FROM public.companies c
+                WHERE c.id = v_tenant_id
+                AND c.owner_id = auth.uid()
+            ) OR EXISTS (
+                SELECT 1 FROM public.properties p
+                JOIN public.property_staff ps ON ps.property_id = p.id
+                WHERE p.company_id = v_tenant_id
+                AND ps.user_id = auth.uid()
+            );
+        END;
+        $$;
+    END IF;
 END;
-$$;
+$do$;
 
 -- ============================================================================
 -- RLS: automations
@@ -249,68 +258,77 @@ CREATE POLICY "Service role full access on automations"
     USING (true)
     WITH CHECK (true);
 
--- SELECT: owner or staff of tenant's properties
-DROP POLICY IF EXISTS "automations_select_authenticated"
-    ON public.automations;
-CREATE POLICY "automations_select_authenticated"
-    ON public.automations
-    FOR SELECT
-    TO authenticated
-    USING (
-        tenant_id IN (
-            SELECT c.id FROM public.companies c
-            WHERE c.owner_id = auth.uid()
-        )
-        OR property_id IN (SELECT public.get_accessible_property_ids())
-    );
+-- Authenticated RLS policies on automations (skip if tenant_id was renamed to company_id)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automations' AND column_name = 'tenant_id'
+    ) THEN
+        -- SELECT: owner or staff of tenant's properties
+        DROP POLICY IF EXISTS "automations_select_authenticated"
+            ON public.automations;
+        CREATE POLICY "automations_select_authenticated"
+            ON public.automations
+            FOR SELECT
+            TO authenticated
+            USING (
+                tenant_id IN (
+                    SELECT c.id FROM public.companies c
+                    WHERE c.owner_id = auth.uid()
+                )
+                OR property_id IN (SELECT public.get_accessible_property_ids())
+            );
 
--- INSERT: tenant owners only
-DROP POLICY IF EXISTS "automations_insert_authenticated"
-    ON public.automations;
-CREATE POLICY "automations_insert_authenticated"
-    ON public.automations
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        tenant_id IN (
-            SELECT c.id FROM public.companies c
-            WHERE c.owner_id = auth.uid()
-        )
-    );
+        -- INSERT: tenant owners only
+        DROP POLICY IF EXISTS "automations_insert_authenticated"
+            ON public.automations;
+        CREATE POLICY "automations_insert_authenticated"
+            ON public.automations
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (
+                tenant_id IN (
+                    SELECT c.id FROM public.companies c
+                    WHERE c.owner_id = auth.uid()
+                )
+            );
 
--- UPDATE: tenant owners only
-DROP POLICY IF EXISTS "automations_update_authenticated"
-    ON public.automations;
-CREATE POLICY "automations_update_authenticated"
-    ON public.automations
-    FOR UPDATE
-    TO authenticated
-    USING (
-        tenant_id IN (
-            SELECT c.id FROM public.companies c
-            WHERE c.owner_id = auth.uid()
-        )
-    )
-    WITH CHECK (
-        tenant_id IN (
-            SELECT c.id FROM public.companies c
-            WHERE c.owner_id = auth.uid()
-        )
-    );
+        -- UPDATE: tenant owners only
+        DROP POLICY IF EXISTS "automations_update_authenticated"
+            ON public.automations;
+        CREATE POLICY "automations_update_authenticated"
+            ON public.automations
+            FOR UPDATE
+            TO authenticated
+            USING (
+                tenant_id IN (
+                    SELECT c.id FROM public.companies c
+                    WHERE c.owner_id = auth.uid()
+                )
+            )
+            WITH CHECK (
+                tenant_id IN (
+                    SELECT c.id FROM public.companies c
+                    WHERE c.owner_id = auth.uid()
+                )
+            );
 
--- DELETE: tenant owners only
-DROP POLICY IF EXISTS "automations_delete_authenticated"
-    ON public.automations;
-CREATE POLICY "automations_delete_authenticated"
-    ON public.automations
-    FOR DELETE
-    TO authenticated
-    USING (
-        tenant_id IN (
-            SELECT c.id FROM public.companies c
-            WHERE c.owner_id = auth.uid()
-        )
-    );
+        -- DELETE: tenant owners only
+        DROP POLICY IF EXISTS "automations_delete_authenticated"
+            ON public.automations;
+        CREATE POLICY "automations_delete_authenticated"
+            ON public.automations
+            FOR DELETE
+            TO authenticated
+            USING (
+                tenant_id IN (
+                    SELECT c.id FROM public.companies c
+                    WHERE c.owner_id = auth.uid()
+                )
+            );
+    END IF;
+END $$;
 
 -- ============================================================================
 -- RLS: automation_condition_groups (tenant via automation_id)
@@ -509,20 +527,29 @@ CREATE POLICY "Service role full access on automation_execution_log"
     USING (true)
     WITH CHECK (true);
 
--- SELECT: tenant owners or staff of tenant's properties
-DROP POLICY IF EXISTS "automation_execution_log_select_authenticated"
-    ON public.automation_execution_log;
-CREATE POLICY "automation_execution_log_select_authenticated"
-    ON public.automation_execution_log
-    FOR SELECT
-    TO authenticated
-    USING (
-        tenant_id IN (
-            SELECT c.id FROM public.companies c
-            WHERE c.owner_id = auth.uid()
-        )
-        OR property_id IN (SELECT public.get_accessible_property_ids())
-    );
+-- Authenticated RLS policies on automation_execution_log (skip if tenant_id was renamed to company_id)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automation_execution_log' AND column_name = 'tenant_id'
+    ) THEN
+        -- SELECT: tenant owners or staff of tenant's properties
+        DROP POLICY IF EXISTS "automation_execution_log_select_authenticated"
+            ON public.automation_execution_log;
+        CREATE POLICY "automation_execution_log_select_authenticated"
+            ON public.automation_execution_log
+            FOR SELECT
+            TO authenticated
+            USING (
+                tenant_id IN (
+                    SELECT c.id FROM public.companies c
+                    WHERE c.owner_id = auth.uid()
+                )
+                OR property_id IN (SELECT public.get_accessible_property_ids())
+            );
+    END IF;
+END $$;
 
 -- INSERT: service role only (no authenticated INSERT)
 DROP POLICY IF EXISTS "automation_execution_log_insert_authenticated"
@@ -548,4 +575,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.automation_actions TO authenticat
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.automation_branches TO authenticated;
 GRANT SELECT ON public.automation_execution_log TO authenticated;
 
-GRANT EXECUTE ON FUNCTION public.is_automation_tenant_member(UUID) TO authenticated, anon;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automations' AND column_name = 'tenant_id'
+    ) THEN
+        GRANT EXECUTE ON FUNCTION public.is_automation_tenant_member(UUID) TO authenticated, anon;
+    END IF;
+END $$;

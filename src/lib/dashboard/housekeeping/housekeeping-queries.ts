@@ -1,9 +1,63 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
-import type { Database } from '@/contracts/db'
+import type { Database, Json } from '@/contracts/db'
 
 type HousekeepingTaskRow = Database['public']['Tables']['housekeeping_tasks']['Row']
 type SiteRow = Database['public']['Tables']['sites']['Row']
+
+export type PropertyChecklistListItem = Pick<
+    Database['public']['Tables']['checklist']['Row'],
+    'id' | 'name' | 'description' | 'item' | 'created_at'
+>
+
+type ChecklistRow = Database['public']['Tables']['checklist']['Row']
+
+export type CreatePropertyChecklistInput = {
+    propertyId: string
+    createdBy: string
+    name: string
+    description: string | null
+    items: Array<{ label: string; notes: string | null }>
+}
+
+export type ChecklistTemplateLine = {
+    label: string
+    notes: string | null
+    done: boolean
+}
+
+export function parseChecklistTemplateLines(item: Json): ChecklistTemplateLine[] {
+    if (!Array.isArray(item)) return []
+
+    const lines: ChecklistTemplateLine[] = []
+    for (const entry of item) {
+        if (typeof entry === 'string') {
+            const label = entry.trim()
+            if (label.length > 0) lines.push({ label, notes: null, done: false })
+            continue
+        }
+        if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+            const record = entry as Record<string, unknown>
+            const labelRaw = record.label ?? record.text ?? record.title
+            if (typeof labelRaw !== 'string') continue
+            const label = labelRaw.trim()
+            if (!label) continue
+            const done = Boolean(record.done ?? record.checked ?? record.complete)
+            const notesRaw = record.notes
+            const notes =
+                typeof notesRaw === 'string' && notesRaw.trim().length > 0 ? notesRaw.trim() : null
+            lines.push({ label, notes, done })
+        }
+    }
+    return lines
+}
+
+export type UpdatePropertyChecklistInput = {
+    id: string
+    propertyId: string
+    name: string
+    description: string | null
+    items: Array<{ label: string; notes: string | null }>
+}
 
 export type CreateHousekeepingTaskInput = {
     propertyId: string
@@ -49,11 +103,6 @@ function escapeIlikePattern(raw: string): string {
 
 export class HousekeepingQueries {
     constructor(private supabase: SupabaseClient) {}
-
-    static async create(): Promise<HousekeepingQueries> {
-        const supabase = await createClient()
-        return new HousekeepingQueries(supabase as unknown as SupabaseClient)
-    }
 
     async createHousekeepingTask(input: CreateHousekeepingTaskInput): Promise<HousekeepingTaskRow> {
         const { data: siteRow, error: siteError } = await this.supabase
@@ -269,6 +318,151 @@ export class HousekeepingQueries {
                 propertyId: input.propertyId,
             })
             throw new Error(`Failed to delete housekeeping task: ${error.message}`)
+        }
+    }
+
+    async listPropertyChecklists(propertyId: string): Promise<PropertyChecklistListItem[]> {
+        const { data, error } = await this.supabase
+            .from('checklist')
+            .select('id, name, description, item, created_at')
+            .eq('property_id', propertyId)
+            .order('updated_at', { ascending: false })
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to list property checklists', {
+                propertyId,
+                error,
+            })
+            throw new Error(`Failed to list checklists: ${error.message}`)
+        }
+
+        return (data ?? []) as PropertyChecklistListItem[]
+    }
+
+    async createPropertyChecklist(input: CreatePropertyChecklistInput): Promise<ChecklistRow> {
+        const name = input.name.trim()
+        if (!name) {
+            throw new Error('Template name is required.')
+        }
+
+        const itemRows = input.items
+            .map((row) => ({
+                label: row.label.trim(),
+                notes: row.notes?.trim() ? row.notes.trim() : null,
+                done: false as const,
+            }))
+            .filter((row) => row.label.length > 0)
+
+        if (itemRows.length === 0) {
+            throw new Error('Add at least one checklist item with a name.')
+        }
+
+        const insertRow: Database['public']['Tables']['checklist']['Insert'] = {
+            property_id: input.propertyId,
+            created_by: input.createdBy,
+            name,
+            description: input.description?.trim() ? input.description.trim() : null,
+            item: itemRows as unknown as Json,
+        }
+
+        const { data, error } = await this.supabase.from('checklist').insert(insertRow).select().single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to create checklist', {
+                propertyId: input.propertyId,
+                error,
+            })
+            throw new Error(`Failed to save checklist: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to save checklist: no row returned')
+        }
+
+        return data
+    }
+
+    async updatePropertyChecklist(input: UpdatePropertyChecklistInput): Promise<ChecklistRow> {
+        const name = input.name.trim()
+        if (!name) {
+            throw new Error('Template name is required.')
+        }
+
+        const { data: existingRow, error: fetchError } = await this.supabase
+            .from('checklist')
+            .select('item')
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .maybeSingle()
+
+        if (fetchError) {
+            console.error('[HousekeepingQueries] Failed to load checklist for update', {
+                id: input.id,
+                fetchError,
+            })
+            throw new Error(`Failed to load checklist: ${fetchError.message}`)
+        }
+        if (!existingRow) {
+            throw new Error('Checklist not found for this property.')
+        }
+
+        const oldLines = parseChecklistTemplateLines(existingRow.item as Json)
+        const itemRows = input.items
+            .map((row, index) => ({
+                label: row.label.trim(),
+                ...(row.notes?.trim() ? { notes: row.notes.trim() } : {}),
+                done: oldLines[index]?.done ?? false,
+            }))
+            .filter((row) => row.label.length > 0)
+
+        if (itemRows.length === 0) {
+            throw new Error('Add at least one checklist item with a name.')
+        }
+
+        const updateRow: Database['public']['Tables']['checklist']['Update'] = {
+            name,
+            description: input.description?.trim() ? input.description.trim() : null,
+            item: itemRows as unknown as Json,
+        }
+
+        const { data, error } = await this.supabase
+            .from('checklist')
+            .update(updateRow)
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to update checklist', {
+                id: input.id,
+                propertyId: input.propertyId,
+                error,
+            })
+            throw new Error(`Failed to update checklist: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to update checklist: no row returned')
+        }
+
+        return data
+    }
+
+    async deletePropertyChecklist(input: { id: string; propertyId: string }): Promise<void> {
+        const { error } = await this.supabase
+            .from('checklist')
+            .delete()
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to delete checklist', {
+                error,
+                id: input.id,
+                propertyId: input.propertyId,
+            })
+            throw new Error(`Failed to delete checklist: ${error.message}`)
         }
     }
 }

@@ -1,15 +1,17 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ExportMenu } from "@/components/ui/export-menu"
-import { ClipboardList, Plus, RotateCw } from "lucide-react"
+import { ClipboardList, Plus } from "lucide-react"
+import type { HousekeepingViewMode } from "./housekeeping-view-switcher"
 
 type HousekeepingPageHeaderProps = {
   propertyName: string
   pendingTasksCount?: number
   onRefreshClick?: () => void
   onExportClick?: (format: string) => void
+  viewMode: HousekeepingViewMode
   onAddTaskClick?: () => void
+  onAddChecklistClick?: () => void
   canCreateTask?: boolean
 }
 
@@ -18,7 +20,9 @@ export function HousekeepingPageHeader({
   pendingTasksCount = 0,
   onRefreshClick,
   onExportClick,
+  viewMode,
   onAddTaskClick,
+  onAddChecklistClick,
   canCreateTask = true,
 }: HousekeepingPageHeaderProps) {
   return (
@@ -31,15 +35,23 @@ export function HousekeepingPageHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {/* <ExportMenu
-          onExport={(format) => onExportClick?.(format)}
-          aria-label="Export housekeeping tasks"
-        /> */}
-
         {canCreateTask && (
-          <Button type="button" size="sm" onClick={onAddTaskClick}>
-            <Plus className="h-4 w-4" />
-            Add Task
+          <Button
+            type="button"
+            size="sm"
+            onClick={viewMode === "tasks" ? onAddTaskClick : onAddChecklistClick}
+          >
+            {viewMode === "tasks" ? (
+              <>
+                <Plus className="h-4 w-4" />
+                Add Task
+              </>
+            ) : (
+              <>
+                <ClipboardList className="h-4 w-4" />
+                Add Checklist
+              </>
+            )}
           </Button>
         )}
       </div>

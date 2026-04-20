@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { CreateHousekeepingTaskRequestSchema, ListHousekeepingTasksQuerySchema } from './housekeeping'
+import {
+  CreateChecklistRequestSchema,
+  UpdateChecklistRequestSchema,
+  CreateHousekeepingTaskRequestSchema,
+  ListHousekeepingTasksQuerySchema,
+} from './housekeeping'
 
 describe('CreateHousekeepingTaskRequestSchema', () => {
   it('rejects when title is empty after trim', () => {
@@ -85,5 +90,48 @@ describe('ListHousekeepingTasksQuerySchema', () => {
       expect(result.data.page).toBe(3)
       expect(result.data.per_page).toBe(50)
     }
+  })
+})
+
+describe('CreateChecklistRequestSchema', () => {
+  it('rejects empty items array', () => {
+    const result = CreateChecklistRequestSchema.safeParse({
+      name: 'Turnover',
+      items: [],
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts minimal checklist with one item', () => {
+    const result = CreateChecklistRequestSchema.safeParse({
+      name: 'Standard Turnover Cleaning',
+      items: [{ label: 'Strip beds' }],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.name).toBe('Standard Turnover Cleaning')
+      expect(result.data.items).toHaveLength(1)
+    }
+  })
+
+  it('accepts description and item notes', () => {
+    const result = CreateChecklistRequestSchema.safeParse({
+      name: 'Deep clean',
+      description: 'Between stays',
+      items: [{ label: 'Bathroom', notes: 'Check grout' }],
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('UpdateChecklistRequestSchema', () => {
+  it('accepts the same payload as create checklist schema', () => {
+    const body = {
+      name: 'Turnover',
+      description: 'Between stays',
+      items: [{ label: 'Strip beds', notes: null as string | null }],
+    }
+    expect(CreateChecklistRequestSchema.safeParse(body).success).toBe(true)
+    expect(UpdateChecklistRequestSchema.safeParse(body).success).toBe(true)
   })
 })

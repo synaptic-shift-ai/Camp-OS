@@ -165,6 +165,353 @@ export type Database = {
           },
         ]
       }
+      automation_actions: {
+        Row: {
+          action_config: Json
+          action_type: string
+          automation_id: string
+          branch_id: string | null
+          created_at: string
+          delay_unit: string | null
+          delay_value: number | null
+          id: string
+          sort_order: number
+        }
+        Insert: {
+          action_config?: Json
+          action_type: string
+          automation_id: string
+          branch_id?: string | null
+          created_at?: string
+          delay_unit?: string | null
+          delay_value?: number | null
+          id?: string
+          sort_order?: number
+        }
+        Update: {
+          action_config?: Json
+          action_type?: string
+          automation_id?: string
+          branch_id?: string | null
+          created_at?: string
+          delay_unit?: string | null
+          delay_value?: number | null
+          id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_actions_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_actions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "automation_branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_branches: {
+        Row: {
+          automation_id: string
+          branch_type: string
+          created_at: string
+          id: string
+          parent_action_id: string
+        }
+        Insert: {
+          automation_id: string
+          branch_type: string
+          created_at?: string
+          id?: string
+          parent_action_id: string
+        }
+        Update: {
+          automation_id?: string
+          branch_type?: string
+          created_at?: string
+          id?: string
+          parent_action_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_branches_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_branches_parent_action_id_fkey"
+            columns: ["parent_action_id"]
+            isOneToOne: false
+            referencedRelation: "automation_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_condition_groups: {
+        Row: {
+          automation_id: string
+          created_at: string
+          id: string
+          logic_operator: string
+          parent_group_id: string | null
+          sort_order: number
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          id?: string
+          logic_operator: string
+          parent_group_id?: string | null
+          sort_order?: number
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          id?: string
+          logic_operator?: string
+          parent_group_id?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_condition_groups_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_condition_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "automation_condition_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_conditions: {
+        Row: {
+          automation_id: string
+          created_at: string
+          group_id: string
+          id: string
+          operator: string
+          sort_order: number
+          value: Json
+          variable: string
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          operator: string
+          sort_order?: number
+          value: Json
+          variable: string
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          operator?: string
+          sort_order?: number
+          value?: Json
+          variable?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_conditions_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_conditions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "automation_condition_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_execution_log: {
+        Row: {
+          actions_executed: Json
+          automation_id: string | null
+          company_id: string
+          conditions_passed: boolean | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string
+          execution_duration_ms: number | null
+          id: string
+          property_id: string | null
+          skipped_reason: string | null
+        }
+        Insert: {
+          actions_executed?: Json
+          automation_id?: string | null
+          company_id: string
+          conditions_passed?: boolean | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type: string
+          execution_duration_ms?: number | null
+          id?: string
+          property_id?: string | null
+          skipped_reason?: string | null
+        }
+        Update: {
+          actions_executed?: Json
+          automation_id?: string | null
+          company_id?: string
+          conditions_passed?: boolean | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string
+          execution_duration_ms?: number | null
+          id?: string
+          property_id?: string | null
+          skipped_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_execution_log_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_execution_log_tenant_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automations: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_terminal: boolean
+          name: string
+          phase: string
+          property_id: string | null
+          scope: string
+          sort_order: number
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_terminal?: boolean
+          name: string
+          phase: string
+          property_id?: string | null
+          scope?: string
+          sort_order?: number
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_terminal?: boolean
+          name?: string
+          phase?: string
+          property_id?: string | null
+          scope?: string
+          sort_order?: number
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automations_tenant_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          item: Json
+          name: string
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          item?: Json
+          name: string
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          item?: Json
+          name?: string
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           billing_cycle: string | null
@@ -230,6 +577,69 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      email_templates: {
+        Row: {
+          category: string
+          company_id: string
+          created_at: string
+          description: string | null
+          html_template: string
+          id: string
+          is_active: boolean
+          is_system_default: boolean
+          name: string
+          property_id: string | null
+          slug: string
+          subject_template: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          company_id: string
+          created_at?: string
+          description?: string | null
+          html_template?: string
+          id?: string
+          is_active?: boolean
+          is_system_default?: boolean
+          name: string
+          property_id?: string | null
+          slug: string
+          subject_template?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          html_template?: string
+          id?: string
+          is_active?: boolean
+          is_system_default?: boolean
+          name?: string
+          property_id?: string | null
+          slug?: string
+          subject_template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_store: {
         Row: {
@@ -740,10 +1150,14 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          end_date: string | null
           id: string
+          priority: string
           property_id: string
+          reservation_id: string | null
           site_id: string
           staff_id: string | null
+          start_date: string | null
           status: string
           title: string
           updated_at: string
@@ -752,10 +1166,14 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          end_date?: string | null
           id?: string
+          priority?: string
           property_id: string
+          reservation_id?: string | null
           site_id: string
           staff_id?: string | null
+          start_date?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -764,10 +1182,14 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          end_date?: string | null
           id?: string
+          priority?: string
           property_id?: string
+          reservation_id?: string | null
           site_id?: string
           staff_id?: string | null
+          start_date?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -778,6 +1200,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "housekeeping_tasks_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
             referencedColumns: ["id"]
           },
           {
@@ -2164,6 +2593,10 @@ export type Database = {
       get_effective_deposit_config: {
         Args: { site_id_param: string }
         Returns: Json
+      }
+      is_automation_company_member: {
+        Args: { aut_id: string }
+        Returns: boolean
       }
       is_eligible_for_renewal: {
         Args: { reservation_id: string }

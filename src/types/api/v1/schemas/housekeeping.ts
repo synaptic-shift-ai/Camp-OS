@@ -56,3 +56,25 @@ export const ListHousekeepingTasksQuerySchema = z.object({
 })
 
 export type ListHousekeepingTasksQuery = z.infer<typeof ListHousekeepingTasksQuerySchema>
+
+export const ChecklistItemRequestSchema = z.object({
+  label: z.string().trim().min(1).max(500),
+  notes: z.string().trim().max(2000).nullable().optional(),
+})
+
+export const CreateChecklistRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(5000).nullable().optional(),
+  items: z.array(ChecklistItemRequestSchema).min(1).max(200),
+})
+
+export type CreateChecklistRequest = z.infer<typeof CreateChecklistRequestSchema>
+
+/** Same shape as create; separate Zod object so bundlers always emit a real schema (alias caused undefined at runtime). */
+export const UpdateChecklistRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(5000).nullable().optional(),
+  items: z.array(ChecklistItemRequestSchema).min(1).max(200),
+})
+
+export type UpdateChecklistRequest = z.infer<typeof UpdateChecklistRequestSchema>

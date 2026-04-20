@@ -1,9 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { HousekeepingChecklistPanel } from "./housekeeping-checklist"
 import { HousekeepingFilter, type HousekeepingFilterValue } from "./housekeeping-filter"
 import { HousekeepingPageHeader } from "./housekeeping-page-header"
 import { HousekeepingTable, type HousekeepingTaskRow } from "./housekeeping-table"
+import {
+  HousekeepingViewSwitcher,
+  type HousekeepingViewMode,
+} from "./housekeeping-view-switcher"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
@@ -12,6 +17,10 @@ import {
   AddTaskDialog,
   type AddHousekeepingTaskInput,
 } from "./housekeeping-dialog.tsx/add-task-dialog"
+import {
+  AddChecklistDialog,
+  type AddChecklistTemplateInput,
+} from "./housekeeping-dialog.tsx/add-checklist-dialog"
 import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
 import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
 import { TaskDetailsDialog } from "./housekeeping-dialog.tsx/task-details-dialog"
@@ -118,12 +127,16 @@ export function HousekeepingPageContent({
   const [isCreatingTask, setIsCreatingTask] = useState(false)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
+  const [isAddChecklistDialogOpen, setIsAddChecklistDialogOpen] = useState(false)
+  const [isSavingChecklist, setIsSavingChecklist] = useState(false)
+  const [checklistRefreshKey, setChecklistRefreshKey] = useState(0)
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<HousekeepingTaskRow | null>(null)
   const [taskPendingDelete, setTaskPendingDelete] = useState<HousekeepingTaskRow | null>(null)
   const [viewingTask, setViewingTask] = useState<HousekeepingTaskRow | null>(null)
   const [rows, setRows] = useState<HousekeepingTaskRow[]>([])
   const [openTaskCount, setOpenTaskCount] = useState(0)
+  const [viewMode, setViewMode] = useState<HousekeepingViewMode>("tasks")
 
   useEffect(() => {
     pageRef.current = 1
@@ -236,6 +249,39 @@ export function HousekeepingPageContent({
       title: "Export ready",
       description: "Housekeeping CSV has been downloaded (current page only).",
     })
+  }
+
+  const handleSaveChecklistTemplate = async (input: AddChecklistTemplateInput) => {
+    setIsSavingChecklist(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/housekeeping/checklists`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: input.name,
+          description: input.description,
+          items: input.items.map((row) => ({
+            label: row.label,
+            notes: row.notes,
+          })),
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to save checklist template."
+        throw new Error(message)
+      }
+      setChecklistRefreshKey((key) => key + 1)
+      toast({
+        title: "Checklist saved",
+        description: "The template has been added to this property.",
+      })
+    } finally {
+      setIsSavingChecklist(false)
+    }
   }
 
   const handleAddTask = async (input: AddHousekeepingTaskInput) => {
@@ -353,50 +399,67 @@ export function HousekeepingPageContent({
         pendingTasksCount={openTaskCount}
         onRefreshClick={handleRefresh}
         onExportClick={handleExport}
+        viewMode={viewMode}
         onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
+        onAddChecklistClick={() => setIsAddChecklistDialogOpen(true)}
         canCreateTask={canCreateTask}
       />
-      <HousekeepingFilter
-        value={filters}
-        onChange={setFilters}
-        siteOptions={siteOptions}
-        assigneeOptions={assigneeOptions}
-      />
-      <HousekeepingTable
-        rows={rows}
-        loading={loading}
-        emptyMessage={
-          total === 0 && !loading
-            ? "No housekeeping tasks match the selected filters."
-            : "No tasks on this page."
-        }
-        onView={handleViewTask}
-        onEdit={handleOpenEditTask}
-        onDelete={handleRequestDeleteTask}
-        canEditTask={canEditTask}
-        canDeleteTask={canDeleteTask}
-      />
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-          <div>
-            Showing{" "}
-            <span className="font-medium">
-              {startIndex}–{endIndex}
-            </span>{" "}
-            of <span className="font-medium">{total}</span> tasks
-          </div>
-          <PageSizeSelector value={perPage} onChange={setPerPage} disabled={loading} />
-        </div>
-        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={goToPage}
-            disabled={loading}
-            windowSize={2}
-          />
-        </div>
+      <div className="space-y-2">
+        <HousekeepingViewSwitcher mode={viewMode} onModeChange={setViewMode} />
       </div>
+
+      {viewMode === "tasks" ? (
+        <>
+          <HousekeepingFilter
+            value={filters}
+            onChange={setFilters}
+            siteOptions={siteOptions}
+            assigneeOptions={assigneeOptions}
+          />
+          <HousekeepingTable
+            rows={rows}
+            loading={loading}
+            emptyMessage={
+              total === 0 && !loading
+                ? "No housekeeping tasks match the selected filters."
+                : "No tasks on this page."
+            }
+            onView={handleViewTask}
+            onEdit={handleOpenEditTask}
+            onDelete={handleRequestDeleteTask}
+            canEditTask={canEditTask}
+            canDeleteTask={canDeleteTask}
+          />
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+              <div>
+                Showing{" "}
+                <span className="font-medium">
+                  {startIndex}–{endIndex}
+                </span>{" "}
+                of <span className="font-medium">{total}</span> tasks
+              </div>
+              <PageSizeSelector value={perPage} onChange={setPerPage} disabled={loading} />
+            </div>
+            <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={goToPage}
+                disabled={loading}
+                windowSize={2}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <HousekeepingChecklistPanel
+          propertyId={propertyId}
+          refreshKey={checklistRefreshKey}
+          canEditChecklist={canEditTask}
+          canDeleteChecklist={canDeleteTask}
+        />
+      )}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}
@@ -404,6 +467,12 @@ export function HousekeepingPageContent({
         assigneeOptions={assigneeOptions}
         isSubmitting={isCreatingTask}
         onSubmit={handleAddTask}
+      />
+      <AddChecklistDialog
+        open={canCreateTask && isAddChecklistDialogOpen}
+        onOpenChange={setIsAddChecklistDialogOpen}
+        isSubmitting={isSavingChecklist}
+        onSubmit={handleSaveChecklistTemplate}
       />
       <TaskDetailsDialog
         open={viewingTask !== null}

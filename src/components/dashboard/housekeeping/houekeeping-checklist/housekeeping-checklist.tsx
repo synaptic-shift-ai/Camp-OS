@@ -11,8 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   EditChecklistDialog,
   type EditChecklistTemplateInput,
-} from "./housekeeping-dialog.tsx/edit-checklist-dialog"
-import { DeleteChecklistConfirmationDialog } from "./housekeeping-dialog.tsx/delete-checklist-confirmation-dialog"
+} from "../housekeeping-dialog.tsx/edit-checklist-dialog"
+import { DeleteChecklistConfirmationDialog } from "../housekeeping-dialog.tsx/delete-checklist-confirmation-dialog"
 import {
   Table,
   TableBody,
@@ -22,8 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Pagination } from "@/components/ui/pagination"
-import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { useToast } from "@/hooks/use-toast"
 import { formatShortDate } from "@/lib/utils"
 import { ClipboardList, Pencil, Trash2 } from "lucide-react"
@@ -53,8 +51,6 @@ export function HousekeepingChecklistPanel({
   const [checklistPendingDelete, setChecklistPendingDelete] = useState<PropertyChecklistListItem | null>(null)
   const [editingChecklist, setEditingChecklist] = useState<PropertyChecklistListItem | null>(null)
   const [isSavingChecklistEdit, setIsSavingChecklistEdit] = useState(false)
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(10)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -77,10 +73,6 @@ export function HousekeepingChecklistPanel({
   useEffect(() => {
     void load()
   }, [load, refreshKey])
-
-  useEffect(() => {
-    setPage(1)
-  }, [rows.length, perPage])
 
   const handleSaveChecklistEdit = async (input: EditChecklistTemplateInput) => {
     setIsSavingChecklistEdit(true)
@@ -157,15 +149,6 @@ export function HousekeepingChecklistPanel({
     )
   }
 
-  const total = rows.length
-  const totalPages = Math.max(1, Math.ceil(total / perPage))
-  const safePage = Math.min(page, totalPages)
-  const startIndex = total === 0 ? 0 : (safePage - 1) * perPage
-  const endIndex = startIndex + perPage
-  const pagedRows = rows.slice(startIndex, endIndex)
-  const displayStart = total === 0 ? 0 : startIndex + 1
-  const displayEnd = total === 0 ? 0 : Math.min(endIndex, total)
-
   return (
     <>
       <DeleteChecklistConfirmationDialog
@@ -213,7 +196,7 @@ export function HousekeepingChecklistPanel({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pagedRows.map((row) => {
+          {rows.map((row) => {
             const itemCount = countChecklistItems(row.item)
             const createdLabel = formatShortDate(row.created_at)
             return (
@@ -221,10 +204,10 @@ export function HousekeepingChecklistPanel({
                 key={row.id}
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
               >
-                <TableCell className="px-3 py-2 align-middle">
+                <TableCell className="px-3 py-2 align-top">
                   <div className="break-words text-sm font-semibold leading-snug text-foreground">{row.name}</div>
                 </TableCell>
-                <TableCell className="px-3 py-2 align-middle">
+                <TableCell className="px-3 py-2 align-top">
                   <div className="break-words text-sm leading-snug text-muted-foreground">
                     {row.description?.trim() ? row.description.trim() : "—"}
                   </div>
@@ -281,27 +264,6 @@ export function HousekeepingChecklistPanel({
         </TableBody>
       </Table>
     </div>
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-          <div>
-            Showing{" "}
-            <span className="font-medium">
-              {displayStart}–{displayEnd}
-            </span>{" "}
-            of <span className="font-medium">{total}</span> checklists
-          </div>
-          <PageSizeSelector value={perPage} onChange={setPerPage} disabled={loading} />
-        </div>
-        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            disabled={loading}
-            windowSize={2}
-          />
-        </div>
-      </div>
     </>
   )
 }

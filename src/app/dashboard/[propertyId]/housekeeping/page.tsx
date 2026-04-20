@@ -33,7 +33,7 @@ function housekeepingFallbackForCategory(
 async function getHousekeepingPageOptions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   propertyId: string,
-): Promise<{ siteOptions: SelectOption[]; assigneeOptions: SelectOption[] }> {
+): Promise<{ siteOptions: SelectOption[]; assigneeOptions: SelectOption[]; checklistOptions: SelectOption[] }> {
   const { data: sites } = await supabase
     .from("sites")
     .select("id, site_number, site_name")
@@ -96,9 +96,21 @@ async function getHousekeepingPageOptions(
       .sort((a, b) => a.label.localeCompare(b.label))
   }
 
+  const { data: checklists } = await supabase
+    .from("checklist")
+    .select("id, name")
+    .eq("property_id", propertyId)
+    .order("name", { ascending: true })
+
+  const checklistOptions = (checklists ?? []).map((row) => ({
+    id: row.id as string,
+    label: (row.name as string).trim(),
+  }))
+
   return {
     siteOptions,
     assigneeOptions,
+    checklistOptions,
   }
 }
 
@@ -118,7 +130,7 @@ export default async function HousekeepingPage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  const [{ siteOptions, assigneeOptions }, taskActionAccess] = await Promise.all([
+  const [{ siteOptions, assigneeOptions, checklistOptions }, taskActionAccess] = await Promise.all([
     getHousekeepingPageOptions(supabase, propertyId),
     resolveModuleActionAccess({
       supabase,
@@ -136,6 +148,7 @@ export default async function HousekeepingPage({ params }: PageProps) {
       propertyName={property.name}
       siteOptions={siteOptions}
       assigneeOptions={assigneeOptions}
+      checklistOptions={checklistOptions}
       canCreateTask={taskActionAccess.create === true}
       canEditTask={taskActionAccess.update === true}
       canDeleteTask={taskActionAccess.delete === true}

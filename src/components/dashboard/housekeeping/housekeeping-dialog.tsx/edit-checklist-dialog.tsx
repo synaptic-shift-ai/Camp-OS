@@ -35,10 +35,12 @@ function newItemRow(): ChecklistItemRow {
   return { id: crypto.randomUUID(), label: "", notes: "" }
 }
 
-function templateLinesToRows(lines: ReturnType<typeof parseChecklistTemplateLines>): ChecklistItemRow[] {
+function templateLinesToRows(
+  lines: Array<{ id?: string | null; label: string; notes: string | null }>,
+): ChecklistItemRow[] {
   if (lines.length === 0) return [newItemRow()]
   return lines.map((line) => ({
-    id: crypto.randomUUID(),
+    id: line.id ?? crypto.randomUUID(),
     label: line.label,
     notes: line.notes ?? "",
   }))
@@ -138,6 +140,7 @@ export function EditChecklistDialog({
 
     const payloadItems = items
       .map((row) => ({
+        id: row.id,
         label: row.label.trim(),
         notes: row.notes.trim() ? row.notes.trim() : null,
       }))

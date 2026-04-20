@@ -1,6 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import {
+  HousekeepingQueries,
+  parseChecklistTemplateLines,
+} from "@/lib/dashboard/housekeeping/housekeeping-queries"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   Dialog,
   DialogContent,
@@ -28,8 +34,13 @@ export type AddHousekeepingTaskInput = {
   description?: string
   assigneeId?: string | null
   assignee: string | null
+  reservationConfirmationId?: string
+  checklistTemplateId?: string | null
+  checklistItemDone?: Array<{ item_id: string; status: "pending" | "completed" }>
   status: "Pending" | "In Progress" | "Done"
-  priority: "Low" | "Medium" | "High"
+  priority: "Low" | "Medium" | "High" | "Urgent"
+  startDate?: string
+  dueDate?: string
   dueTime: string
   zone: string
 }
@@ -39,6 +50,10 @@ type AddTaskDialogProps = {
   onOpenChange: (open: boolean) => void
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
+  checklistOptions: Array<{ id: string; label: string }>
+  initialValues?: Partial<
+    Pick<AddHousekeepingTaskInput, "siteId" | "siteName" | "reservationConfirmationId">
+  >
   isSubmitting?: boolean
   onSubmit: (input: AddHousekeepingTaskInput) => Promise<void>
 }
@@ -50,8 +65,13 @@ const INITIAL_FORM: AddHousekeepingTaskInput = {
   description: "",
   assigneeId: null,
   assignee: null,
+  reservationConfirmationId: "",
+  checklistTemplateId: null,
+  checklistItemDone: [],
   status: "Pending",
   priority: "Medium",
+  startDate: "",
+  dueDate: "",
   dueTime: "",
   zone: "",
 }
@@ -62,16 +82,25 @@ export function AddTaskDialog({
   onSubmit,
   siteOptions,
   assigneeOptions,
+  checklistOptions,
+  initialValues,
   isSubmitting = false,
 }: AddTaskDialogProps) {
   const [form, setForm] = useState<AddHousekeepingTaskInput>(INITIAL_FORM)
+  const [checklistItems, setChecklistItems] = useState<
+    Array<{ id: string; label: string; notes: string | null }>
+  >([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
-    setForm(INITIAL_FORM)
+    setForm({
+      ...INITIAL_FORM,
+      ...initialValues,
+    })
+    setChecklistItems([])
     setError(null)
-  }, [open])
+  }, [open, initialValues])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -82,6 +111,14 @@ export function AddTaskDialog({
     const task = form.task.trim()
     const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
+    const reservationConfirmationId = form.reservationConfirmationId?.trim() ?? ""
+    const checklistItemDone =
+      checklistItems.length > 0
+        ? checklistItems.map((item) => ({
+            item_id: item.id,
+            status: "pending" as const,
+          }))
+        : form.checklistItemDone ?? []
 
     if (!siteId || !siteName || !task) {
       setError("Site and task are required.")
@@ -95,10 +132,11 @@ export function AddTaskDialog({
         siteName,
         task,
         description,
-        priority: "Medium",
         dueTime: "TBD",
         zone: "Unassigned",
         assignee,
+        reservationConfirmationId,
+        checklistItemDone,
       })
       onOpenChange(false)
     } catch (submitError) {
@@ -207,23 +245,186 @@ export function AddTaskDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={form.status}
-              onValueChange={(status: AddHousekeepingTaskInput["status"]) =>
-                setForm((prev) => ({ ...prev, status }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Done">Done</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="housekeeping-reservation-confirmation-id">
+                Reservation confirmation ID (optional)
+              </Label>
+              <Input
+                id="housekeeping-reservation-confirmation-id"
+                value={form.reservationConfirmationId ?? ""}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    reservationConfirmationId: event.target.value,
+                  }))
+                }
+                placeholder="e.g. RES-123456"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="housekeeping-checklist-template">Checklist Template</Label>
+              <Select
+                value={form.checklistTemplateId ?? "none"}
+                onValueChange={(value) => {
+                  if (value === "none") {
+                    setForm((prev) => ({
+                      ...prev,
+                      checklistTemplateId: null,
+                      checklistItemDone: [],
+                    }))
+                    setChecklistItems([])
+                    return
+                  }
+
+                  setForm((prev) => ({
+                    ...prev,
+                    checklistTemplateId: value,
+                  }))
+
+                  const loadChecklistItemDone = async () => {
+                    const supabase = createClient()
+                    const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
+
+                    try {
+                      const item = await queries.getChecklistTemplateItem(value)
+                      const parsed = parseChecklistTemplateLines(item ?? [])
+                      const mappedItems = parsed
+                        .map((line, index) => ({
+                          id: line.id ?? `${value}-${index + 1}`,
+                          label: line.label,
+                          notes: line.notes,
+                        }))
+                        .filter((line) => line.id.trim().length > 0)
+
+                      setChecklistItems(mappedItems)
+                      setForm((prev) => ({
+                        ...prev,
+                        checklistItemDone: mappedItems.map((line) => ({
+                          item_id: line.id,
+                          status: "pending" as const,
+                        })),
+                      }))
+                    } catch (loadError) {
+                      const message =
+                        loadError instanceof Error ? loadError.message : "Failed to load checklist items."
+                      setError(message)
+                      setChecklistItems([])
+                    }
+                  }
+
+                  void loadChecklistItemDone()
+                }}
+              >
+                <SelectTrigger id="housekeeping-checklist-template">
+                  <SelectValue placeholder="Select checklist template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {checklistOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {form.checklistTemplateId ? (
+            <div className="space-y-2 rounded-md border border-border/80 p-3">
+              <Label>Checklist Items</Label>
+              {checklistItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No checklist items found for this template.</p>
+              ) : (
+                <div className="space-y-2">
+                  {checklistItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-md border border-border/60 px-3 py-2"
+                    >
+                      <span className="text-sm">
+                        <span className="font-medium">{item.label}</span>
+                        {item.notes ? (
+                          <span className="block text-xs text-muted-foreground">{item.notes}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select
+                value={form.priority}
+                onValueChange={(priority: AddHousekeepingTaskInput["priority"]) =>
+                  setForm((prev) => ({ ...prev, priority }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(status: AddHousekeepingTaskInput["status"]) =>
+                  setForm((prev) => ({ ...prev, status }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="housekeeping-start-date">Start Date</Label>
+              <Input
+                id="housekeeping-start-date"
+                type="datetime-local"
+                value={form.startDate ?? ""}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    startDate: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="housekeeping-due-date">Due Date</Label>
+              <Input
+                id="housekeeping-due-date"
+                type="datetime-local"
+                value={form.dueDate ?? ""}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    dueDate: event.target.value,
+                  }))
+                }
+              />
+            </div>
           </div>
 
           <DialogFooter>

@@ -7,8 +7,9 @@
  * Displays reservation details, handles damage reporting, and calls check-out API.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AddTaskDialog,
+  type AddHousekeepingTaskInput,
+} from '@/components/dashboard/housekeeping/housekeeping-dialog.tsx/add-task-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { AlertCircle, Loader2, LogOut, DollarSign, Calendar, Users, Home, AlertTriangle } from 'lucide-react'
@@ -90,6 +95,11 @@ export function CheckOutDialog({
   const [checkOutNotes, setCheckOutNotes] = useState('')
   const [hasDamages, setHasDamages] = useState(false)
   const [showLateCheckOutWarning, setShowLateCheckOutWarning] = useState(false)
+  const [showFollowUpTaskDialog, setShowFollowUpTaskDialog] = useState(false)
+  const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false)
+  const [isCreatingTask, setIsCreatingTask] = useState(false)
+  const [checklistOptions, setChecklistOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [assigneeOptions, setAssigneeOptions] = useState<Array<{ id: string; label: string }>>([])
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationEndStr = normalizeDateString(reservation.check_out_date)
@@ -170,7 +180,7 @@ export function CheckOutDialog({
       })
 
       onOpenChange(false)
-      router.refresh()
+      setShowFollowUpTaskDialog(true)
     } catch (err) {
       if (isAccessDeniedError(err)) {
         toast({
@@ -197,8 +207,140 @@ export function CheckOutDialog({
     setCheckOutNotes('')
     setHasDamages(false)
     setError(null)
+    setShowFollowUpTaskDialog(false)
     onOpenChange(false)
   }
+
+  const handleCreateHousekeepingTask = () => {
+    setShowFollowUpTaskDialog(false)
+    setIsCreateTaskDialogOpen(true)
+  }
+
+  const handleSkipFollowUpTask = () => {
+    setShowFollowUpTaskDialog(false)
+    onOpenChange(false)
+    router.refresh()
+  }
+
+  const handleCreateTaskFromReservation = async (input: AddHousekeepingTaskInput) => {
+    const siteId = input.siteId || reservation.site_id
+    if (!siteId) {
+      throw new Error('Site is required.')
+    }
+
+    const toApiStatus = (status: AddHousekeepingTaskInput['status']): 'pending' | 'in_progress' | 'done' => {
+      if (status === 'In Progress') return 'in_progress'
+      if (status === 'Done') return 'done'
+      return 'pending'
+    }
+
+    const toApiPriority = (
+      priority: AddHousekeepingTaskInput['priority'],
+    ): 'low' | 'medium' | 'high' | 'urgent' => {
+      if (priority === 'Low') return 'low'
+      if (priority === 'High') return 'high'
+      if (priority === 'Urgent') return 'urgent'
+      return 'medium'
+    }
+
+    setIsCreatingTask(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${reservation.property_id}/housekeeping`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          siteId,
+          staffId: input.assigneeId ?? null,
+          title: input.task,
+          description: input.description?.trim() ? input.description.trim() : null,
+          status: toApiStatus(input.status),
+          reservationConfirmationId: reservation.confirmation_number,
+          priority: toApiPriority(input.priority),
+          startDate: input.startDate?.trim() ? input.startDate : undefined,
+          dueDate: input.dueDate?.trim() ? input.dueDate : undefined,
+          checklistTemplateId: input.checklistTemplateId ?? undefined,
+          checklistItemDone: input.checklistItemDone ?? [],
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          'Failed to create housekeeping task.'
+        throw new Error(message)
+      }
+
+      setIsCreateTaskDialogOpen(false)
+      onOpenChange(false)
+      toast({
+        title: 'Housekeeping task created',
+        description: 'A follow-up housekeeping task was created successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
+      router.refresh()
+    } finally {
+      setIsCreatingTask(false)
+    }
+  }
+
+  const followUpSiteLabel = reservation.site?.site_name?.trim() || reservation.site?.site_number || 'Site'
+  const followUpSiteOptions = reservation.site_id
+    ? [{ id: reservation.site_id, label: followUpSiteLabel }]
+    : []
+
+  const followUpInitialValues: Partial<
+    Pick<AddHousekeepingTaskInput, 'siteId' | 'siteName' | 'reservationConfirmationId'>
+  > = {
+    ...(reservation.site_id ? { siteId: reservation.site_id } : {}),
+    siteName: followUpSiteLabel,
+    reservationConfirmationId: reservation.confirmation_number,
+  }
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from('checklist')
+          .select('id, name')
+          .eq('property_id', reservation.property_id)
+          .order('name', { ascending: true })
+        if (error) throw error
+        setChecklistOptions(
+          (data ?? []).map((row) => ({
+            id: row.id as string,
+            label: (row.name as string).trim(),
+          })),
+        )
+      } catch {
+        setChecklistOptions([])
+      }
+    })()
+  }, [reservation.property_id])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/properties/${reservation.property_id}/housekeeping/assignees`,
+        )
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload?.success) {
+          throw new Error('Failed to load assignees')
+        }
+
+        setAssigneeOptions(
+          Array.isArray(payload.data?.assigneeOptions) ? payload.data.assigneeOptions : [],
+        )
+      } catch {
+        setAssigneeOptions([])
+      }
+    })()
+  }, [reservation.property_id])
 
   // Format dates
   const checkInDate = new Date(reservation.check_in_date).toLocaleDateString()
@@ -415,6 +557,41 @@ export function CheckOutDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog
+        open={showFollowUpTaskDialog}
+        onOpenChange={(next) => {
+          if (!next) {
+            handleSkipFollowUpTask()
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Create follow-up task</DialogTitle>
+            <DialogDescription>
+              {reservation.guest?.first_name} {reservation.guest?.last_name} just checked out of{" "}
+              {reservation.site?.site_name || `Unit ${reservation.site?.site_number}`}. Would you like to
+              create a housekeeping task to prepare the unit?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end gap-2">
+            <Button variant="ghost" onClick={handleSkipFollowUpTask}>
+              Skip
+            </Button>
+            <Button onClick={handleCreateHousekeepingTask}>Create Housekeeping Task</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AddTaskDialog
+        open={isCreateTaskDialogOpen}
+        onOpenChange={setIsCreateTaskDialogOpen}
+        siteOptions={followUpSiteOptions}
+        assigneeOptions={assigneeOptions}
+        checklistOptions={checklistOptions}
+        initialValues={followUpInitialValues}
+        isSubmitting={isCreatingTask}
+        onSubmit={handleCreateTaskFromReservation}
+      />
     </>
   )
 }

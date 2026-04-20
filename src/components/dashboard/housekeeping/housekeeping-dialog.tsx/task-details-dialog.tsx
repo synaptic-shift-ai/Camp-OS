@@ -1,5 +1,12 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import {
+  HousekeepingQueries,
+  parseChecklistTemplateLines,
+} from "@/lib/dashboard/housekeeping/housekeeping-queries"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   Dialog,
   DialogContent,
@@ -74,6 +81,64 @@ function PriorityDisplay({ priority }: { priority: HousekeepingTaskRow["priority
 }
 
 export function TaskDetailsDialog({ open, onOpenChange, task }: TaskDetailsDialogProps) {
+  const [checklistName, setChecklistName] = useState<string | null>(null)
+  const [checklistItems, setChecklistItems] = useState<Array<{ id: string; label: string; completed: boolean }>>(
+    [],
+  )
+  const [isChecklistLoading, setIsChecklistLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open || !task?.checklistId) {
+      setChecklistName(null)
+      setChecklistItems([])
+      setIsChecklistLoading(false)
+      return
+    }
+
+    let cancelled = false
+    const completedIds = new Set(
+      (task.checklistItemDone ?? [])
+        .filter((item) => item.status === "completed")
+        .map((item) => item.item_id),
+    )
+
+    const loadChecklist = async () => {
+      setIsChecklistLoading(true)
+      try {
+        const supabase = createClient()
+        const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
+        const template = await queries.getChecklistTemplateById(task.checklistId as string)
+        if (cancelled) return
+
+        if (!template) {
+          setChecklistName("Checklist")
+          setChecklistItems([])
+          return
+        }
+
+        const parsed = parseChecklistTemplateLines(template.item)
+        setChecklistName(template.name)
+        setChecklistItems(
+          parsed.map((line, index) => {
+            const id = line.id ?? `${template.id}-${index + 1}`
+            return {
+              id,
+              label: line.label,
+              completed: completedIds.has(id),
+            }
+          }),
+        )
+      } finally {
+        if (!cancelled) setIsChecklistLoading(false)
+      }
+    }
+
+    void loadChecklist()
+    return () => {
+      cancelled = true
+    }
+  }, [open, task])
+
   if (!task) {
     return null
   }
@@ -102,6 +167,30 @@ export function TaskDetailsDialog({ open, onOpenChange, task }: TaskDetailsDialo
               <span className="font-medium text-muted-foreground">Status</span>
               <StatusDisplay status={task.status} />
             </div>
+            {task.checklistId ? (
+              <div className="border-b border-border/60 py-2.5 text-sm">
+                <div className="mb-2">
+                  <span className="font-medium text-muted-foreground">Checklist</span>
+                  <p className="mt-1 text-foreground">{checklistName ?? "Checklist"}</p>
+                </div>
+                {isChecklistLoading ? (
+                  <p className="text-muted-foreground">Loading checklist items...</p>
+                ) : checklistItems.length === 0 ? (
+                  <p className="text-muted-foreground">No checklist items found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {checklistItems.map((item) => (
+                      <div key={item.id} className="rounded-md border border-border/60 px-3 py-2">
+                        <span className="text-foreground">{item.label}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {item.completed ? "Completed" : "Pending"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
         <DialogFooter>

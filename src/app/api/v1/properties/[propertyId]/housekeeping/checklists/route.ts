@@ -86,6 +86,7 @@ export async function POST(
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       items: parsed.data.items.map((row) => ({
+        id: row.id,
         label: row.label,
         notes: row.notes ?? null,
       })),

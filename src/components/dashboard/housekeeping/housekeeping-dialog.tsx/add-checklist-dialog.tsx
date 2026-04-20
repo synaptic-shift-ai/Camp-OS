@@ -19,7 +19,7 @@ import { GripVertical, Plus, X } from "lucide-react"
 export type AddChecklistTemplateInput = {
   name: string
   description: string | null
-  items: Array<{ label: string; notes: string | null }>
+  items: Array<{ id: string; label: string; notes: string | null }>
 }
 
 type ChecklistItemRow = {
@@ -119,6 +119,7 @@ export function AddChecklistDialog({
 
     const payloadItems = items
       .map((row) => ({
+        id: row.id,
         label: row.label.trim(),
         notes: row.notes.trim() ? row.notes.trim() : null,
       }))

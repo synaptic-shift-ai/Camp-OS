@@ -79,6 +79,51 @@ export async function PATCH(
       })
     }
 
+    let reservationId: string | null | undefined = undefined
+    if (parsed.data.reservationConfirmationId !== undefined) {
+      if (!parsed.data.reservationConfirmationId) {
+        reservationId = null
+      } else {
+        const { data: reservationRow, error: reservationError } = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('property_id', propertyId)
+          .eq('confirmation_number', parsed.data.reservationConfirmationId)
+          .maybeSingle()
+        if (reservationError) {
+          throw new Error(`Failed to validate reservation confirmation id: ${reservationError.message}`)
+        }
+        if (!reservationRow) {
+          throw new Error('Reservation confirmation id was not found for this property.')
+        }
+        reservationId = reservationRow.id
+      }
+    }
+
+    if (parsed.data.checklistTemplateId) {
+      const { data: checklistRow, error: checklistError } = await supabase
+        .from('checklist')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('id', parsed.data.checklistTemplateId)
+        .maybeSingle()
+      if (checklistError) {
+        throw new Error(`Failed to validate checklist template: ${checklistError.message}`)
+      }
+      if (!checklistRow) {
+        throw new Error('Checklist template was not found for this property.')
+      }
+    }
+
+    const toIsoOrNull = (value: string | undefined): string | null => {
+      if (!value) return null
+      const parsedDate = new Date(value)
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new Error(`Invalid date/time value: ${value}`)
+      }
+      return parsedDate.toISOString()
+    }
+
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
     const housekeepingTask = await queries.updateHousekeepingTask({
       id: housekeepingId,
@@ -88,6 +133,14 @@ export async function PATCH(
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
       ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+      ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
+      ...(reservationId !== undefined ? { reservationId } : {}),
+      ...(parsed.data.checklistTemplateId !== undefined ? { checklistId: parsed.data.checklistTemplateId } : {}),
+      ...(parsed.data.startDate !== undefined ? { startDate: toIsoOrNull(parsed.data.startDate) } : {}),
+      ...(parsed.data.dueDate !== undefined ? { endDate: toIsoOrNull(parsed.data.dueDate) } : {}),
+      ...(parsed.data.checklistItemDone !== undefined
+        ? { checklistItemDone: parsed.data.checklistItemDone }
+        : {}),
     })
 
     if (access.companyId) {
@@ -117,6 +170,13 @@ export async function PATCH(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[Housekeeping API v1] PATCH error:', err)
+    if (
+      message === 'Reservation confirmation id was not found for this property.' ||
+      message === 'Checklist template was not found for this property.' ||
+      message.startsWith('Invalid date/time value:')
+    ) {
+      return error(ErrorCodes.VALIDATION_ERROR, request, { message })
+    }
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })
   }
 }

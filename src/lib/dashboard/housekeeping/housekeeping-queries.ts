@@ -16,13 +16,13 @@ export type CreatePropertyChecklistInput = {
     createdBy: string
     name: string
     description: string | null
-    items: Array<{ label: string; notes: string | null }>
+    items: Array<{ id: string; label: string; notes: string | null }>
 }
 
 export type ChecklistTemplateLine = {
+    id: string | null
     label: string
     notes: string | null
-    done: boolean
 }
 
 export function parseChecklistTemplateLines(item: Json): ChecklistTemplateLine[] {
@@ -32,7 +32,7 @@ export function parseChecklistTemplateLines(item: Json): ChecklistTemplateLine[]
     for (const entry of item) {
         if (typeof entry === 'string') {
             const label = entry.trim()
-            if (label.length > 0) lines.push({ label, notes: null, done: false })
+            if (label.length > 0) lines.push({ id: null, label, notes: null })
             continue
         }
         if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
@@ -41,11 +41,12 @@ export function parseChecklistTemplateLines(item: Json): ChecklistTemplateLine[]
             if (typeof labelRaw !== 'string') continue
             const label = labelRaw.trim()
             if (!label) continue
-            const done = Boolean(record.done ?? record.checked ?? record.complete)
+            const idRaw = record.id
+            const id = typeof idRaw === 'string' && idRaw.trim().length > 0 ? idRaw.trim() : null
             const notesRaw = record.notes
             const notes =
                 typeof notesRaw === 'string' && notesRaw.trim().length > 0 ? notesRaw.trim() : null
-            lines.push({ label, notes, done })
+            lines.push({ id, label, notes })
         }
     }
     return lines
@@ -56,7 +57,7 @@ export type UpdatePropertyChecklistInput = {
     propertyId: string
     name: string
     description: string | null
-    items: Array<{ label: string; notes: string | null }>
+    items: Array<{ id: string; label: string; notes: string | null }>
 }
 
 export type CreateHousekeepingTaskInput = {
@@ -67,6 +68,12 @@ export type CreateHousekeepingTaskInput = {
     description?: string | null
     staffId?: string | null
     status?: 'pending' | 'in_progress' | 'done'
+    reservationId?: string | null
+    checklistId?: string | null
+    priority?: 'low' | 'medium' | 'high' | 'urgent'
+    startDate?: string | null
+    endDate?: string | null
+    checklistItemDone?: Array<{ item_id: string; status: 'pending' | 'completed' }>
 }
 
 export type UpdateHousekeepingTaskInput = {
@@ -77,6 +84,12 @@ export type UpdateHousekeepingTaskInput = {
     staffId?: string | null
     title?: string
     status?: 'pending' | 'in_progress' | 'done'
+    reservationId?: string | null
+    checklistId?: string | null
+    priority?: 'low' | 'medium' | 'high' | 'urgent'
+    startDate?: string | null
+    endDate?: string | null
+    checklistItemDone?: Array<{ item_id: string; status: 'pending' | 'completed' }>
 }
 
 export type ListHousekeepingTasksFilters = {
@@ -92,7 +105,12 @@ export type ListHousekeepingTasksPagination = {
 }
 
 export type ListHousekeepingTasksResult = {
-    tasks: Array<HousekeepingTaskRow & { site: Pick<SiteRow, 'site_name' | 'site_number'> | null }>
+    tasks: Array<
+        HousekeepingTaskRow & {
+            site: Pick<SiteRow, 'site_name' | 'site_number'> | null
+            reservation: Pick<Database['public']['Tables']['reservations']['Row'], 'confirmation_number'> | null
+        }
+    >
     total: number
 }
 
@@ -103,6 +121,31 @@ function escapeIlikePattern(raw: string): string {
 
 export class HousekeepingQueries {
     constructor(private supabase: SupabaseClient) {}
+
+    async getChecklistTemplateById(
+        checklistId: string,
+    ): Promise<Pick<ChecklistRow, 'id' | 'name' | 'item'> | null> {
+        const { data, error } = await this.supabase
+            .from('checklist')
+            .select('id, name, item')
+            .eq('id', checklistId)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to load checklist template', {
+                checklistId,
+                error,
+            })
+            throw new Error(`Failed to load checklist template: ${error.message}`)
+        }
+
+        return (data ?? null) as Pick<ChecklistRow, 'id' | 'name' | 'item'> | null
+    }
+
+    async getChecklistTemplateItem(checklistId: string): Promise<Json | null> {
+        const template = await this.getChecklistTemplateById(checklistId)
+        return template?.item ?? null
+    }
 
     async createHousekeepingTask(input: CreateHousekeepingTaskInput): Promise<HousekeepingTaskRow> {
         const { data: siteRow, error: siteError } = await this.supabase
@@ -147,7 +190,15 @@ export class HousekeepingQueries {
         title: input.title,
         description: input.description ?? null,
         staff_id: input.staffId ?? null,
+        reservation_id: input.reservationId ?? null,
+        checklist_id: input.checklistId ?? null,
         ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.priority !== undefined ? { priority: input.priority } : {}),
+        ...(input.startDate !== undefined ? { start_date: input.startDate } : {}),
+        ...(input.endDate !== undefined ? { end_date: input.endDate } : {}),
+        ...(input.checklistItemDone !== undefined
+            ? { checklist_item_done: input.checklistItemDone as unknown as Json }
+            : {}),
         }
 
         const { data, error } = await this.supabase
@@ -181,7 +232,8 @@ export class HousekeepingQueries {
             .select(
                 `
                 *,
-                site:sites(site_name, site_number)
+                site:sites(site_name, site_number),
+                reservation:reservations(confirmation_number)
             `,
                 { count: 'exact' },
             )
@@ -248,7 +300,10 @@ export class HousekeepingQueries {
 
         return {
             tasks: (data ?? []) as Array<
-                HousekeepingTaskRow & { site: Pick<SiteRow, 'site_name' | 'site_number'> | null }
+                HousekeepingTaskRow & {
+                    site: Pick<SiteRow, 'site_name' | 'site_number'> | null
+                    reservation: Pick<Database['public']['Tables']['reservations']['Row'], 'confirmation_number'> | null
+                }
             >,
             total: count ?? 0,
         }
@@ -279,6 +334,14 @@ export class HousekeepingQueries {
             ...(input.description !== undefined ? { description: input.description } : {}),
             ...(input.staffId !== undefined ? { staff_id: input.staffId } : {}),
             ...(input.status !== undefined ? { status: input.status } : {}),
+            ...(input.reservationId !== undefined ? { reservation_id: input.reservationId } : {}),
+            ...(input.checklistId !== undefined ? { checklist_id: input.checklistId } : {}),
+            ...(input.priority !== undefined ? { priority: input.priority } : {}),
+            ...(input.startDate !== undefined ? { start_date: input.startDate } : {}),
+            ...(input.endDate !== undefined ? { end_date: input.endDate } : {}),
+            ...(input.checklistItemDone !== undefined
+                ? { checklist_item_done: input.checklistItemDone as unknown as Json }
+                : {}),
         }
 
         const { data, error } = await this.supabase
@@ -347,9 +410,9 @@ export class HousekeepingQueries {
 
         const itemRows = input.items
             .map((row) => ({
+                id: row.id,
                 label: row.label.trim(),
                 notes: row.notes?.trim() ? row.notes.trim() : null,
-                done: false as const,
             }))
             .filter((row) => row.label.length > 0)
 
@@ -390,7 +453,7 @@ export class HousekeepingQueries {
 
         const { data: existingRow, error: fetchError } = await this.supabase
             .from('checklist')
-            .select('item')
+            .select('id')
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .maybeSingle()
@@ -406,12 +469,11 @@ export class HousekeepingQueries {
             throw new Error('Checklist not found for this property.')
         }
 
-        const oldLines = parseChecklistTemplateLines(existingRow.item as Json)
         const itemRows = input.items
-            .map((row, index) => ({
+            .map((row) => ({
+                id: row.id,
                 label: row.label.trim(),
                 ...(row.notes?.trim() ? { notes: row.notes.trim() } : {}),
-                done: oldLines[index]?.done ?? false,
             }))
             .filter((row) => row.label.length > 0)
 

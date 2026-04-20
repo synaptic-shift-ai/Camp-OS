@@ -1,11 +1,28 @@
 import { z } from 'zod'
 
+const emptyStringToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value
+
+const ChecklistItemDoneRequestSchema = z.object({
+  item_id: z.string().trim().min(1).max(120),
+  status: z.enum(['pending', 'completed']),
+})
+
 export const CreateHousekeepingTaskRequestSchema = z.object({
   siteId: z.string().uuid(),
   staffId: z.string().uuid().nullable().optional(),
   title: z.string().trim().min(1).max(500),
   description: z.string().trim().max(5000).nullable().optional(),
   status: z.enum(['pending', 'in_progress', 'done']).optional(),
+  reservationConfirmationId: z.preprocess(
+    emptyStringToUndefined,
+    z.string().trim().min(1).max(120).optional(),
+  ),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  startDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
+  dueDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
+  checklistTemplateId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
+  checklistItemDone: z.array(ChecklistItemDoneRequestSchema).optional(),
 })
 
 export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTaskRequestSchema>
@@ -16,14 +33,20 @@ export const UpdateHousekeepingTaskRequestSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   description: z.string().trim().max(5000).nullable().optional(),
   status: z.enum(['pending', 'in_progress', 'done']).optional(),
+  reservationConfirmationId: z.preprocess(
+    emptyStringToUndefined,
+    z.string().trim().min(1).max(120).optional(),
+  ),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  startDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
+  dueDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
+  checklistTemplateId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
+  checklistItemDone: z.array(ChecklistItemDoneRequestSchema).optional(),
 }).refine((payload) => Object.keys(payload).length > 0, {
   message: 'At least one field is required',
 })
 
 export type UpdateHousekeepingTaskRequest = z.infer<typeof UpdateHousekeepingTaskRequestSchema>
-
-const emptyStringToUndefined = (value: unknown) =>
-  typeof value === 'string' && value.trim() === '' ? undefined : value
 
 function parsePageParam(value: string | undefined): number {
   if (value === undefined || value.trim() === '') return 1
@@ -58,6 +81,7 @@ export const ListHousekeepingTasksQuerySchema = z.object({
 export type ListHousekeepingTasksQuery = z.infer<typeof ListHousekeepingTasksQuerySchema>
 
 export const ChecklistItemRequestSchema = z.object({
+  id: z.string().uuid(),
   label: z.string().trim().min(1).max(500),
   notes: z.string().trim().max(2000).nullable().optional(),
 })

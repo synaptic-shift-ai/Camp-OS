@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { HousekeepingChecklistPanel } from "./housekeeping-checklist"
-import { HousekeepingFilter, type HousekeepingFilterValue } from "./housekeeping-filter"
+import { HousekeepingFilter, type HousekeepingFilterValue } from "./housekeeping-task/housekeeping-filter"
 import { HousekeepingPageHeader } from "./housekeeping-page-header"
 import { HousekeepingTable, type HousekeepingTaskRow } from "./housekeeping-table"
 import {
@@ -22,6 +23,8 @@ import {
   type AddChecklistTemplateInput,
 } from "./housekeeping-dialog.tsx/add-checklist-dialog"
 import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
+import { ReassignTaskDialog } from "./housekeeping-dialog.tsx/reassign-task-dialog"
+import { CompleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/complete-task-confirmation-dialog"
 import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
 import { TaskDetailsDialog } from "./housekeeping-dialog.tsx/task-details-dialog"
 
@@ -30,6 +33,7 @@ type HousekeepingPageContentProps = {
   propertyName: string
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
+  checklistOptions: Array<{ id: string; label: string }>
   canCreateTask: boolean
   canEditTask: boolean
   canDeleteTask: boolean
@@ -48,10 +52,47 @@ function toApiStatus(status: AddHousekeepingTaskInput["status"]): "pending" | "i
   return "pending"
 }
 
+function toApiPriority(
+  priority: AddHousekeepingTaskInput["priority"],
+): "low" | "medium" | "high" | "urgent" {
+  if (priority === "Low") return "low"
+  if (priority === "High") return "high"
+  if (priority === "Urgent") return "urgent"
+  return "medium"
+}
+
 function fromApiStatus(status: string): HousekeepingTaskRow["status"] {
   if (status === "in_progress") return "In Progress"
   if (status === "done") return "Done"
   return "Pending"
+}
+
+function fromApiPriority(priority: string | null): HousekeepingTaskRow["priority"] {
+  if (priority === "low") return "Low"
+  if (priority === "high") return "High"
+  if (priority === "urgent") return "Urgent"
+  return "Medium"
+}
+
+function formatTaskDate(date: string | null): string {
+  if (!date) return "—"
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return "—"
+  return parsed.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+function toDatetimeLocalValue(date: string | null): string {
+  if (!date) return ""
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return ""
+  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
 }
 
 function filterStatusToApi(
@@ -81,6 +122,13 @@ type ApiHousekeepingTask = {
   description: string | null
   status: string
   staff_id: string | null
+  reservation_id: string | null
+  checklist_id: string | null
+  checklist_item_done: Array<{ item_id: string; status: "pending" | "completed" }> | null
+  priority: string | null
+  start_date: string | null
+  end_date: string | null
+  reservation: { confirmation_number: string | null } | null
   site: { site_name: string | null; site_number: string | null } | null
 }
 
@@ -89,10 +137,13 @@ export function HousekeepingPageContent({
   propertyName,
   siteOptions,
   assigneeOptions,
+  checklistOptions,
   canCreateTask,
   canEditTask,
   canDeleteTask,
 }: HousekeepingPageContentProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [filters, setFilters] = useState<HousekeepingFilterValue>(INITIAL_FILTERS)
   const debouncedFilters = useDebouncedValue(filters, FILTER_DEBOUNCE_MS)
@@ -132,11 +183,39 @@ export function HousekeepingPageContent({
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0)
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<HousekeepingTaskRow | null>(null)
+  const [isReassignTaskDialogOpen, setIsReassignTaskDialogOpen] = useState(false)
+  const [taskPendingReassign, setTaskPendingReassign] = useState<HousekeepingTaskRow | null>(null)
+  const [isReassigningTask, setIsReassigningTask] = useState(false)
+  const [taskPendingComplete, setTaskPendingComplete] = useState<HousekeepingTaskRow | null>(null)
   const [taskPendingDelete, setTaskPendingDelete] = useState<HousekeepingTaskRow | null>(null)
   const [viewingTask, setViewingTask] = useState<HousekeepingTaskRow | null>(null)
   const [rows, setRows] = useState<HousekeepingTaskRow[]>([])
   const [openTaskCount, setOpenTaskCount] = useState(0)
   const [viewMode, setViewMode] = useState<HousekeepingViewMode>("tasks")
+
+  const addTaskInitialValues = useMemo(() => {
+    const siteId = searchParams.get("siteId") ?? ""
+    const reservationConfirmationId = searchParams.get("reservationConfirmationId") ?? ""
+    const selectedSite = siteOptions.find((site) => site.id === siteId)
+
+    return {
+      ...(siteId ? { siteId } : {}),
+      siteName: selectedSite?.label ?? "",
+      reservationConfirmationId,
+    }
+  }, [searchParams, siteOptions])
+
+  useEffect(() => {
+    if (!canCreateTask) return
+    if (searchParams.get("openAddTask") !== "1") return
+
+    setIsAddTaskDialogOpen(true)
+
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("openAddTask")
+    const nextQuery = params.toString()
+    router.replace(`/dashboard/${propertyId}/housekeeping${nextQuery ? `?${nextQuery}` : ""}`)
+  }, [canCreateTask, searchParams, router, propertyId])
 
   useEffect(() => {
     pageRef.current = 1
@@ -182,13 +261,20 @@ export function HousekeepingPageContent({
         id: task.id,
         siteId: task.site_id,
         siteName: task.site?.site_name?.trim() || task.site?.site_number || "Unknown site",
+        reservationConfirmationId: task.reservation?.confirmation_number?.trim() || null,
+        checklistId: task.checklist_id,
+        checklistItemDone: task.checklist_item_done ?? [],
         task: task.title,
         description: task.description,
         assigneeId: task.staff_id,
         assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
         status: fromApiStatus(task.status),
-        priority: "Medium",
-        dueTime: "TBD",
+        priority: fromApiPriority(task.priority),
+        startDate: formatTaskDate(task.start_date),
+        dueDate: formatTaskDate(task.end_date),
+        startDateValue: toDatetimeLocalValue(task.start_date),
+        dueDateValue: toDatetimeLocalValue(task.end_date),
+        dueTime: formatTaskDate(task.end_date),
         zone: "Unassigned",
       }))
       setRows(mappedRows)
@@ -261,6 +347,7 @@ export function HousekeepingPageContent({
           name: input.name,
           description: input.description,
           items: input.items.map((row) => ({
+            id: row.id,
             label: row.label,
             notes: row.notes,
           })),
@@ -301,6 +388,14 @@ export function HousekeepingPageContent({
           title: input.task,
           description: input.description?.trim() ? input.description.trim() : null,
           status: toApiStatus(input.status),
+          reservationConfirmationId: input.reservationConfirmationId?.trim()
+            ? input.reservationConfirmationId.trim()
+            : undefined,
+          priority: toApiPriority(input.priority),
+          startDate: input.startDate?.trim() ? input.startDate : undefined,
+          dueDate: input.dueDate?.trim() ? input.dueDate : undefined,
+          checklistTemplateId: input.checklistTemplateId ?? undefined,
+          checklistItemDone: input.checklistItemDone ?? [],
         }),
       })
 
@@ -333,8 +428,56 @@ export function HousekeepingPageContent({
     setViewingTask(row)
   }
 
+  const handleOpenReassignTask = (row: HousekeepingTaskRow) => {
+    setTaskPendingReassign(row)
+    setIsReassignTaskDialogOpen(true)
+  }
+
   const handleRequestDeleteTask = (row: HousekeepingTaskRow) => {
     setTaskPendingDelete(row)
+  }
+
+  const handleRequestCompleteTask = (row: HousekeepingTaskRow) => {
+    setTaskPendingComplete(row)
+  }
+
+  const handleReassignTask = async (userId: string) => {
+    if (!taskPendingReassign) return
+
+    setIsReassigningTask(true)
+    try {
+      const response = await fetch(
+        `/api/v1/properties/${propertyId}/housekeeping/${taskPendingReassign.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            staffId: userId,
+          }),
+        },
+      )
+
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to reassign housekeeping task."
+        throw new Error(message)
+      }
+
+      await loadTasks()
+      setTaskPendingReassign(null)
+
+      toast({
+        title: "Task reassigned",
+        description: "Housekeeping task assignee updated successfully.",
+      })
+    } finally {
+      setIsReassigningTask(false)
+    }
   }
 
   const handleEditTask = async (input: AddHousekeepingTaskInput & { id: string }) => {
@@ -356,6 +499,14 @@ export function HousekeepingPageContent({
           title: input.task,
           description: input.description?.trim() ? input.description.trim() : null,
           status: toApiStatus(input.status),
+          reservationConfirmationId: input.reservationConfirmationId?.trim()
+            ? input.reservationConfirmationId.trim()
+            : undefined,
+          priority: toApiPriority(input.priority),
+          startDate: input.startDate?.trim() ? input.startDate : undefined,
+          dueDate: input.dueDate?.trim() ? input.dueDate : undefined,
+          checklistTemplateId: input.checklistTemplateId ?? undefined,
+          checklistItemDone: input.checklistItemDone ?? [],
         }),
       })
 
@@ -425,6 +576,8 @@ export function HousekeepingPageContent({
                 : "No tasks on this page."
             }
             onView={handleViewTask}
+            onReassign={handleOpenReassignTask}
+            onComplete={handleRequestCompleteTask}
             onEdit={handleOpenEditTask}
             onDelete={handleRequestDeleteTask}
             canEditTask={canEditTask}
@@ -465,6 +618,8 @@ export function HousekeepingPageContent({
         onOpenChange={setIsAddTaskDialogOpen}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
+        checklistOptions={checklistOptions}
+        initialValues={addTaskInitialValues}
         isSubmitting={isCreatingTask}
         onSubmit={handleAddTask}
       />
@@ -489,8 +644,22 @@ export function HousekeepingPageContent({
         task={editingTask}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
+        checklistOptions={checklistOptions}
         isSubmitting={isUpdatingTask}
         onSubmit={handleEditTask}
+      />
+      <ReassignTaskDialog
+        open={canEditTask && isReassignTaskDialogOpen}
+        onOpenChange={(open) => {
+          setIsReassignTaskDialogOpen(open)
+          if (!open) {
+            setTaskPendingReassign(null)
+          }
+        }}
+        userOptions={assigneeOptions}
+        currentUserId={taskPendingReassign?.assigneeId ?? null}
+        isSubmitting={isReassigningTask}
+        onSubmit={handleReassignTask}
       />
       <DeleteTaskConfirmationDialog
         open={canDeleteTask && taskPendingDelete !== null}
@@ -510,6 +679,28 @@ export function HousekeepingPageContent({
             : null
         }
         onDeleted={() => {
+          void loadTasks()
+        }}
+      />
+      <CompleteTaskConfirmationDialog
+        open={canEditTask && taskPendingComplete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTaskPendingComplete(null)
+          }
+        }}
+        propertyId={propertyId}
+        task={
+          taskPendingComplete
+            ? {
+                id: taskPendingComplete.id,
+                task: taskPendingComplete.task,
+                siteName: taskPendingComplete.siteName,
+              }
+            : null
+        }
+        onCompleted={() => {
+          setTaskPendingComplete(null)
           void loadTasks()
         }}
       />

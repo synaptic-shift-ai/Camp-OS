@@ -343,176 +343,155 @@ CREATE POLICY "Service role full access on automation_condition_groups"
     USING (true)
     WITH CHECK (true);
 
-DROP POLICY IF EXISTS "automation_condition_groups_select_authenticated"
-    ON public.automation_condition_groups;
-CREATE POLICY "automation_condition_groups_select_authenticated"
-    ON public.automation_condition_groups
-    FOR SELECT
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+-- Authenticated RLS policies for condition_groups, conditions, actions, and branches
+-- are wrapped in a single conditional block: they depend on
+-- public.is_automation_tenant_member(), which may not exist after the rename migration.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_proc
+        WHERE proname = 'is_automation_tenant_member'
+          AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+    ) THEN
 
-DROP POLICY IF EXISTS "automation_condition_groups_insert_authenticated"
-    ON public.automation_condition_groups;
-CREATE POLICY "automation_condition_groups_insert_authenticated"
-    ON public.automation_condition_groups
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
+        -- automation_condition_groups (4 policies)
+        DROP POLICY IF EXISTS "automation_condition_groups_select_authenticated"
+            ON public.automation_condition_groups;
+        CREATE POLICY "automation_condition_groups_select_authenticated"
+            ON public.automation_condition_groups
+            FOR SELECT
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_condition_groups_update_authenticated"
-    ON public.automation_condition_groups;
-CREATE POLICY "automation_condition_groups_update_authenticated"
-    ON public.automation_condition_groups
-    FOR UPDATE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id))
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_condition_groups_insert_authenticated"
+            ON public.automation_condition_groups;
+        CREATE POLICY "automation_condition_groups_insert_authenticated"
+            ON public.automation_condition_groups
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_condition_groups_delete_authenticated"
-    ON public.automation_condition_groups;
-CREATE POLICY "automation_condition_groups_delete_authenticated"
-    ON public.automation_condition_groups
-    FOR DELETE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_condition_groups_update_authenticated"
+            ON public.automation_condition_groups;
+        CREATE POLICY "automation_condition_groups_update_authenticated"
+            ON public.automation_condition_groups
+            FOR UPDATE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id))
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
--- ============================================================================
--- RLS: automation_conditions (tenant via automation_id)
--- ============================================================================
+        DROP POLICY IF EXISTS "automation_condition_groups_delete_authenticated"
+            ON public.automation_condition_groups;
+        CREATE POLICY "automation_condition_groups_delete_authenticated"
+            ON public.automation_condition_groups
+            FOR DELETE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "Service role full access on automation_conditions"
-    ON public.automation_conditions;
-CREATE POLICY "Service role full access on automation_conditions"
-    ON public.automation_conditions
-    FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
+        -- automation_conditions (4 policies)
+        DROP POLICY IF EXISTS "automation_conditions_select_authenticated"
+            ON public.automation_conditions;
+        CREATE POLICY "automation_conditions_select_authenticated"
+            ON public.automation_conditions
+            FOR SELECT
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_conditions_select_authenticated"
-    ON public.automation_conditions;
-CREATE POLICY "automation_conditions_select_authenticated"
-    ON public.automation_conditions
-    FOR SELECT
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_conditions_insert_authenticated"
+            ON public.automation_conditions;
+        CREATE POLICY "automation_conditions_insert_authenticated"
+            ON public.automation_conditions
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_conditions_insert_authenticated"
-    ON public.automation_conditions;
-CREATE POLICY "automation_conditions_insert_authenticated"
-    ON public.automation_conditions
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_conditions_update_authenticated"
+            ON public.automation_conditions;
+        CREATE POLICY "automation_conditions_update_authenticated"
+            ON public.automation_conditions
+            FOR UPDATE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id))
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_conditions_update_authenticated"
-    ON public.automation_conditions;
-CREATE POLICY "automation_conditions_update_authenticated"
-    ON public.automation_conditions
-    FOR UPDATE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id))
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_conditions_delete_authenticated"
+            ON public.automation_conditions;
+        CREATE POLICY "automation_conditions_delete_authenticated"
+            ON public.automation_conditions
+            FOR DELETE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_conditions_delete_authenticated"
-    ON public.automation_conditions;
-CREATE POLICY "automation_conditions_delete_authenticated"
-    ON public.automation_conditions
-    FOR DELETE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+        -- automation_actions (4 policies)
+        DROP POLICY IF EXISTS "automation_actions_select_authenticated"
+            ON public.automation_actions;
+        CREATE POLICY "automation_actions_select_authenticated"
+            ON public.automation_actions
+            FOR SELECT
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
--- ============================================================================
--- RLS: automation_actions (tenant via automation_id)
--- ============================================================================
+        DROP POLICY IF EXISTS "automation_actions_insert_authenticated"
+            ON public.automation_actions;
+        CREATE POLICY "automation_actions_insert_authenticated"
+            ON public.automation_actions
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "Service role full access on automation_actions"
-    ON public.automation_actions;
-CREATE POLICY "Service role full access on automation_actions"
-    ON public.automation_actions
-    FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
+        DROP POLICY IF EXISTS "automation_actions_update_authenticated"
+            ON public.automation_actions;
+        CREATE POLICY "automation_actions_update_authenticated"
+            ON public.automation_actions
+            FOR UPDATE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id))
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_actions_select_authenticated"
-    ON public.automation_actions;
-CREATE POLICY "automation_actions_select_authenticated"
-    ON public.automation_actions
-    FOR SELECT
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_actions_delete_authenticated"
+            ON public.automation_actions;
+        CREATE POLICY "automation_actions_delete_authenticated"
+            ON public.automation_actions
+            FOR DELETE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_actions_insert_authenticated"
-    ON public.automation_actions;
-CREATE POLICY "automation_actions_insert_authenticated"
-    ON public.automation_actions
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
+        -- automation_branches (4 policies)
+        DROP POLICY IF EXISTS "automation_branches_select_authenticated"
+            ON public.automation_branches;
+        CREATE POLICY "automation_branches_select_authenticated"
+            ON public.automation_branches
+            FOR SELECT
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_actions_update_authenticated"
-    ON public.automation_actions;
-CREATE POLICY "automation_actions_update_authenticated"
-    ON public.automation_actions
-    FOR UPDATE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id))
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_branches_insert_authenticated"
+            ON public.automation_branches;
+        CREATE POLICY "automation_branches_insert_authenticated"
+            ON public.automation_branches
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "automation_actions_delete_authenticated"
-    ON public.automation_actions;
-CREATE POLICY "automation_actions_delete_authenticated"
-    ON public.automation_actions
-    FOR DELETE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+        DROP POLICY IF EXISTS "automation_branches_update_authenticated"
+            ON public.automation_branches;
+        CREATE POLICY "automation_branches_update_authenticated"
+            ON public.automation_branches
+            FOR UPDATE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id))
+            WITH CHECK (public.is_automation_tenant_member(automation_id));
 
--- ============================================================================
--- RLS: automation_branches (tenant via automation_id)
--- ============================================================================
+        DROP POLICY IF EXISTS "automation_branches_delete_authenticated"
+            ON public.automation_branches;
+        CREATE POLICY "automation_branches_delete_authenticated"
+            ON public.automation_branches
+            FOR DELETE
+            TO authenticated
+            USING (public.is_automation_tenant_member(automation_id));
 
-DROP POLICY IF EXISTS "Service role full access on automation_branches"
-    ON public.automation_branches;
-CREATE POLICY "Service role full access on automation_branches"
-    ON public.automation_branches
-    FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
-DROP POLICY IF EXISTS "automation_branches_select_authenticated"
-    ON public.automation_branches;
-CREATE POLICY "automation_branches_select_authenticated"
-    ON public.automation_branches
-    FOR SELECT
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
-
-DROP POLICY IF EXISTS "automation_branches_insert_authenticated"
-    ON public.automation_branches;
-CREATE POLICY "automation_branches_insert_authenticated"
-    ON public.automation_branches
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
-
-DROP POLICY IF EXISTS "automation_branches_update_authenticated"
-    ON public.automation_branches;
-CREATE POLICY "automation_branches_update_authenticated"
-    ON public.automation_branches
-    FOR UPDATE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id))
-    WITH CHECK (public.is_automation_tenant_member(automation_id));
-
-DROP POLICY IF EXISTS "automation_branches_delete_authenticated"
-    ON public.automation_branches;
-CREATE POLICY "automation_branches_delete_authenticated"
-    ON public.automation_branches
-    FOR DELETE
-    TO authenticated
-    USING (public.is_automation_tenant_member(automation_id));
+    END IF;
+END $$;
 
 -- ============================================================================
 -- RLS: automation_execution_log

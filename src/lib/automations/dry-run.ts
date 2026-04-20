@@ -237,6 +237,14 @@ export async function dryRunAutomation(
         context
       )
 
+      const actionsWouldExecute = conditionsDetail.passed
+        ? actions.map((a) => ({
+            actionId: a.id,
+            actionType: a.action_type as ActionType,
+            actionConfig: (a.action_config ?? {}) as Record<string, unknown>,
+          }))
+        : null
+
       results.push({
         entityId: row.id as string,
         entityLabel,
@@ -244,13 +252,7 @@ export async function dryRunAutomation(
         triggerType,
         matched: conditionsDetail.passed,
         conditionsDetail,
-        actionsWouldExecute: conditionsDetail.passed
-          ? actions.map((a) => ({
-              actionId: a.id,
-              actionType: a.action_type as ActionType,
-              actionConfig: (a.action_config ?? {}) as Record<string, unknown>,
-            }))
-          : undefined,
+        ...(actionsWouldExecute ? { actionsWouldExecute } : {}),
       })
     } catch (err) {
       results.push({

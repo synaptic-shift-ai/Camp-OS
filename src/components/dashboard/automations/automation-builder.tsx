@@ -267,7 +267,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onToggleActive={handleToggleActive}
         onDryRun={row => setDryRunTarget(row)}
         canManage={true}
-        readOnlyIds={systemMode ? undefined : systemIds}
+        {...(!systemMode ? { readOnlyIds: systemIds } : {})}
       />
 
       {/* Pagination */}
@@ -354,7 +354,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onOpenChange={(open) => !open && setSelectedTemplate(null)}
         propertyId={propertyId}
         companyId={companyId}
-        systemMode={systemMode}
+        systemMode={systemMode ?? false}
       />
     </div>
   )

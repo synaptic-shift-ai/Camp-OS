@@ -4,6 +4,7 @@ import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { validateAutomations } from '@/lib/automations/validator'
+import type { AutomationRow } from '@/lib/automations/types'
 
 /**
  * POST /api/v1/automations/validation
@@ -42,7 +43,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch condition groups and actions to check per-automation details
-    const automationIds = (automations ?? []).map((a: any) => a.id)
+    const automationRows = (automations ?? []) as unknown as AutomationRow[]
+    const automationIds = automationRows.map((a) => a.id)
 
     let conditionGroups: any[] = []
     let actions: any[] = []
@@ -62,13 +64,13 @@ export async function POST(request: NextRequest) {
       actions = actionsRes.data ?? []
     }
 
-    const automationDetails = (automations ?? []).map((aut: any) => ({
+    const automationDetails = automationRows.map((aut) => ({
       automationId: aut.id,
       hasConditions: conditionGroups.some((g: any) => g.automation_id === aut.id),
       hasActions: actions.some((a: any) => a.automation_id === aut.id),
     }))
 
-    const result = validateAutomations(automations ?? [], automationDetails)
+    const result = validateAutomations(automationRows, automationDetails)
 
     return success(result, request)
   } catch (err: unknown) {

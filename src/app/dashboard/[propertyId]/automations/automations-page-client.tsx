@@ -14,6 +14,7 @@ import { AutomationBuilder } from '@/components/dashboard/automations/automation
 import { EmailTemplatesList } from '@/components/dashboard/automations/email-templates-list'
 import { ValidationTab } from '@/components/dashboard/automations/validation-tab'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
+import type { AutomationExecutionLogRow, AutomationPhase, AutomationRow } from '@/lib/automations/types'
 
 type AutomationsDashboardData = {
   propertyName: string
@@ -76,7 +77,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
   }, [data.activeTab])
 
   // Responsive tab bar state
-  const [visibleCount, setVisibleCount] = useState(TAB_ITEMS.length)
+  const [visibleCount, setVisibleCount] = useState<number>(TAB_ITEMS.length)
   const rowRef = useRef<HTMLDivElement>(null)
   const measureRefs = useRef<(HTMLButtonElement | null)[]>([])
   const moreRef = useRef<HTMLButtonElement>(null)

@@ -111,6 +111,13 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
     setDialogOpen(true)
   }
 
+  function openTestSend(t: Record<string, unknown>) {
+    setTestDialogTemplate(t)
+    setTestEmail("")
+    setTestError(null)
+    setTestSuccess(false)
+  }
+
   async function handleClone(t: Record<string, unknown>) {
     setActionLoading(t.id as string)
     try {
@@ -403,7 +410,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
           <DialogHeader>
             <DialogTitle>Delete Template</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{deleteTemplate?.name}&quot;? This action cannot be undone.
+              Are you sure you want to delete &quot;{String(deleteTemplate?.name ?? "")}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -422,7 +429,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
           <DialogHeader>
             <DialogTitle>Send Test Email</DialogTitle>
             <DialogDescription>
-              Send a test of &quot;{testDialogTemplate?.name}&quot; to the specified email address.
+              Send a test of &quot;{String(testDialogTemplate?.name ?? "")}&quot; to the specified email address.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">

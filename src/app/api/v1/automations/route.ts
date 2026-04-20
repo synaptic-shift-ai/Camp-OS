@@ -82,10 +82,11 @@ export async function POST(request: NextRequest) {
           .select('id')
           .limit(1)
           .single()
-        if (!firstCompany) {
+        const firstCompanyId = (firstCompany as { id?: string } | null)?.id
+        if (!firstCompanyId) {
           return error(ErrorCodes.VAL_002, request, { message: 'No company found for system automation' })
         }
-        data.companyId = firstCompany.id
+        data.companyId = firstCompanyId
       }
     } else {
       const propertyId = data.propertyId

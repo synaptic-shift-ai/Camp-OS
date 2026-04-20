@@ -94,8 +94,10 @@ const DEFAULT_SETTINGS: EmailSettings = {
 function extractSettings(html: string): EmailSettings | null {
   const match = html.match(/<!--email-settings:(.*?)-->/)
   if (!match) return null
+  const encoded = match[1]
+  if (!encoded) return null
   try {
-    const decoded = atob(match[1])
+    const decoded = atob(encoded)
     return JSON.parse(decoded) as EmailSettings
   } catch {
     return null

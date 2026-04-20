@@ -11,6 +11,7 @@ export const DASHBOARD_NAV_MODULES = [
   { key: 'analytics', name: 'Analytics', path: '/analytics' },
   { key: 'housekeeping', name: 'Housekeeping', path: '/housekeeping' },
   { key: 'maintenance', name: 'Maintenance', path: '/maintenance' },
+  { key: 'automations', name: 'Automations', path: '/automations' },
   { key: 'staff-management', name: 'Staff Management', path: '/staff-management' },
   { key: 'auditing', name: 'Auditing', path: '/auditing' },
   { key: 'settings', name: 'Settings', path: '/settings' },

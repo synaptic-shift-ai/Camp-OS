@@ -28,6 +28,7 @@ import {
   History,
   Wrench,
   ClipboardList,
+  Zap,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -61,6 +62,7 @@ const NAV_ITEM_ICONS = {
   housekeeping: ClipboardList,
   maintenance: Wrench,
   "staff-management": Users,
+  automations: Zap,
   auditing: History,
   settings: Settings,
 } satisfies Record<DashboardNavModuleKey, LucideIcon>

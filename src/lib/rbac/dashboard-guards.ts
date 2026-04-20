@@ -64,6 +64,15 @@ export function canAccessHousekeepingModule(access: ResolvedAccess): boolean {
 }
 
 /**
+ * Automations dashboard: owner/admin/manager, or staff with automations permission.
+ */
+export function canAccessAutomationsModule(access: ResolvedAccess): boolean {
+  if (!access.role) return false
+  if (isManagerOrAbove(access.role)) return true
+  return hasPermission(access.role, 'automations.view')
+}
+
+/**
  * Maintenance dashboard: owner/admin/manager, or staff with maintenance category.
  */
 export function canAccessMaintenanceModule(access: ResolvedAccess): boolean {

@@ -131,8 +131,6 @@ CREATE TABLE IF NOT EXISTS public.automation_execution_log (
 CREATE INDEX IF NOT EXISTS idx_automations_property_active_trigger
     ON public.automations (property_id, is_active, trigger_type);
 
-CREATE INDEX IF NOT EXISTS idx_automations_tenant_id
-    ON public.automations (tenant_id);
 
 CREATE INDEX IF NOT EXISTS idx_automation_execution_log_automation_id
     ON public.automation_execution_log (automation_id);
@@ -140,8 +138,27 @@ CREATE INDEX IF NOT EXISTS idx_automation_execution_log_automation_id
 CREATE INDEX IF NOT EXISTS idx_automation_execution_log_property_created
     ON public.automation_execution_log (property_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_automation_execution_log_tenant_id
-    ON public.automation_execution_log (tenant_id);
+DO $$
+BEGIN
+    -- automations tenant_id index (column may have been renamed to company_id)
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automations' AND column_name = 'tenant_id'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_automations_tenant_id
+            ON public.automations (tenant_id);
+    END IF;
+
+    -- automation_execution_log tenant_id index (column may have been renamed to company_id)
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automation_execution_log' AND column_name = 'tenant_id'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_automation_execution_log_tenant_id
+            ON public.automation_execution_log (tenant_id);
+    END IF;
+END $$;
+
 
 -- ============================================================================
 -- updated_at trigger for automations

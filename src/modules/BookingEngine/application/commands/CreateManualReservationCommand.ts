@@ -225,12 +225,6 @@ export class CreateManualReservationCommandHandler {
     const paidAmountCents = dto.paidAmountCents || 0
     const totalAmountCents = dto.totalAmountCents ?? reservation.total_amount
 
-    // Validate payment doesn't exceed total (overpayment protection)
-    if (paidAmountCents > 0 && totalAmountCents > 0 && paidAmountCents > totalAmountCents) {
-      const totalDollars = (totalAmountCents / 100).toFixed(2)
-      throw new Error(`Payment amount cannot exceed total due ($${totalDollars})`)
-    }
-
     const isFullyPaid = paidAmountCents >= totalAmountCents
     const paymentStatus = paidAmountCents > 0
       ? (isFullyPaid ? 'paid' : 'partial')

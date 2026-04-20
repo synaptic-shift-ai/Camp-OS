@@ -387,19 +387,7 @@ export const CreateManualReservationRequestSchema = z.object({
   // Notes
   specialRequests: z.string().max(1000).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
-}).refine(
-  (data) => {
-    // Overpayment protection: paid amount must not exceed total
-    if (data.paidAmountCents != null && data.paidAmountCents > 0 && data.totalAmountCents != null && data.totalAmountCents > 0) {
-      return data.paidAmountCents <= data.totalAmountCents
-    }
-    return true
-  },
-  {
-    message: 'Payment amount cannot exceed total due',
-    path: ['paidAmountCents'],
-  }
-)
+})
 
 export type CreateManualReservationRequest = z.infer<typeof CreateManualReservationRequestSchema>
 

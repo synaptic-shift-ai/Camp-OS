@@ -78,17 +78,33 @@ export function PermissionProvider({ propertyId, children }: PermissionProviderP
   const [rawRole, setRawRole] = useState<string | null>(null)
   const [categories, setCategories] = useState<StaffCategory[]>([])
   const [permissions, setPermissions] = useState<ReadonlySet<string>>(new Set())
-  const [isLoading, setIsLoading] = useState(false)
+  /** True until the first successful permissions load for this property (avoids false "deny" before fetch). */
+  const [isLoading, setIsLoading] = useState(() => Boolean(propertyId))
   const [error, setError] = useState<string | null>(null)
 
   // Ref to force re-fetch on demand
   const refreshTrigger = useRef(0)
 
+  /** After a successful fetch, equals `propertyId`. Used so poll/focus refetches do not set `isLoading`. */
+  const loadedPropertyIdRef = useRef<string | null>(null)
+
   // Polling timer ref (60s interval)
   const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  useEffect(() => {
+    if (!propertyId) {
+      loadedPropertyIdRef.current = null
+      setIsLoading(false)
+      return
+    }
+    if (loadedPropertyIdRef.current !== propertyId) {
+      setIsLoading(true)
+    }
+  }, [propertyId])
+
   const fetchPermissions = useCallback(async () => {
     if (!propertyId) {
+      loadedPropertyIdRef.current = null
       setRole(null)
       setRawRole(null)
       setCategories([])
@@ -98,7 +114,6 @@ export function PermissionProvider({ propertyId, children }: PermissionProviderP
       return
     }
 
-    setIsLoading(true)
     setError(null)
 
     try {
@@ -133,6 +148,7 @@ export function PermissionProvider({ propertyId, children }: PermissionProviderP
       setRawRole(d.rawRole)
       setCategories(d.categories ?? [])
       setPermissions(new Set(d.permissions ?? []))
+      loadedPropertyIdRef.current = propertyId
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions'
       setError(message)

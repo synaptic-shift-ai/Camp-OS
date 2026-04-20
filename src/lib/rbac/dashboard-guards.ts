@@ -83,9 +83,10 @@ export function canManageStaffRoster(access: ResolvedAccess): boolean {
 }
 
 /**
- * Check if a user can manage staff access control payloads.
+ * Check if a user can manage staff access control payloads (property owner role).
  *
- * Owner only.
+ * Delegated admin/manager/staff may still save via category-derived
+ * `global.manage_staff_module_access` — see staff-management categories API.
  */
 export function canManageStaffAccess(access: ResolvedAccess): boolean {
   if (!access.role) return false

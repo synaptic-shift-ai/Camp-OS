@@ -94,6 +94,7 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'invite', name: 'Invite staff' },
     { id: 'edit', name: 'Change roles' },
     { id: 'deactivate', name: 'Deactivate staff' },
+    { id: 'manage-access', name: 'Staff access management' },
   ],
   auditing: [
     { id: 'view', name: 'View audit log' },

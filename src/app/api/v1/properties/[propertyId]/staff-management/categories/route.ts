@@ -12,6 +12,10 @@ import {
   canManageStaffRoster,
   canViewStaffRoster,
 } from '@/lib/rbac/dashboard-guards'
+import { fetchCategoryDerivedPermissionKeys } from '@/lib/rbac/role-category-module-access'
+import type { PermissionKey } from '@/lib/rbac/permissions'
+
+const STAFF_ACCESS_MANAGEMENT_KEY: PermissionKey = 'global.manage_staff_module_access'
 
 const categoryNameRowSchema = z.object({ name: z.string().trim().min(1) })
 
@@ -59,10 +63,18 @@ export async function GET(
       )
     }
 
-    if (!canViewStaffRoster(access)) {
+    const categoryDerived = await fetchCategoryDerivedPermissionKeys(
+      supabase as never,
+      propertyId,
+      user.id,
+      access.rawRole,
+    )
+    const canLoadRoleAccessDialog = categoryDerived.has(STAFF_ACCESS_MANAGEMENT_KEY)
+
+    if (!canViewStaffRoster(access) && !canLoadRoleAccessDialog) {
       return error(
         ErrorCodes.AUTH_002.code,
-        'Role categories require an elevated property role (owner, admin, property_admin, or manager).',
+        'Role categories require an elevated property role (owner, admin, property_admin, or manager), or delegated staff access management permission.',
         ErrorCodes.AUTH_002.status,
         request,
       )
@@ -218,10 +230,18 @@ export async function PATCH(
       )
     }
 
-    if (!canManageStaffAccess(access)) {
+    const categoryDerived = await fetchCategoryDerivedPermissionKeys(
+      supabase as never,
+      propertyId,
+      user.id,
+      access.rawRole,
+    )
+    const canSaveRoleAccess = categoryDerived.has(STAFF_ACCESS_MANAGEMENT_KEY)
+
+    if (!canManageStaffAccess(access) && !canSaveRoleAccess) {
       return error(
         ErrorCodes.AUTH_002.code,
-        'Saving role access requires an owner role.',
+        'Saving role access requires a property owner or delegated staff access management permission.',
         ErrorCodes.AUTH_002.status,
         request,
       )

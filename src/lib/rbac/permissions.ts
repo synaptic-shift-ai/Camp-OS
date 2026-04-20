@@ -23,6 +23,7 @@ export type PermissionKey =
   | 'global.invite_staff'
   | 'global.deactivate_staff'
   | 'global.change_staff_role'
+  | 'global.manage_staff_module_access'
   | 'global.view_billing'
   | 'global.manage_property_settings'
   // Reservations

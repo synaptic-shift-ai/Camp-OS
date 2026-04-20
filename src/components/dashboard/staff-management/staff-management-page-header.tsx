@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { ShieldCheckIcon, Tag, UserPlusIcon } from 'lucide-react'
 import { PermissionGate } from '@/components/ui/permission-gate'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type StaffManagementPageHeaderProps = {
   propertyName: string
@@ -17,6 +18,10 @@ export default function StaffManagementPageHeader({
   onCategoriesClick,
   onInviteStaffClick,
 }: StaffManagementPageHeaderProps) {
+    const { can, isRole, isLoading } = usePermissions()
+    const showAccessButton =
+      !isLoading && (isRole('owner') || can('global.manage_staff_module_access'))
+
     return (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -24,12 +29,12 @@ export default function StaffManagementPageHeader({
                 <p className="text-sm text-muted-foreground sm:text-base">{propertyName}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <PermissionGate anyOfRoles={['owner']}>
+                {showAccessButton && onAccessClick ? (
                   <Button type="button" variant="outline" onClick={onAccessClick}>
                       <ShieldCheckIcon className="h-4 w-4" />
                       Access
                   </Button>
-                </PermissionGate>
+                ) : null}
                 {onCategoriesClick ? (
                     <PermissionGate
                       permission="global.change_staff_role"

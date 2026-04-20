@@ -6,8 +6,21 @@
 -- 1. Rename columns
 -- ============================================================================
 
-ALTER TABLE public.automations RENAME COLUMN tenant_id TO company_id;
-ALTER TABLE public.automation_execution_log RENAME COLUMN tenant_id TO company_id;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automations' AND column_name = 'tenant_id'
+    ) THEN
+        ALTER TABLE public.automations RENAME COLUMN tenant_id TO company_id;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'automation_execution_log' AND column_name = 'tenant_id'
+    ) THEN
+        ALTER TABLE public.automation_execution_log RENAME COLUMN tenant_id TO company_id;
+    END IF;
+END $$;
 
 -- ============================================================================
 -- 2. Rename indexes

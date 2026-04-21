@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   HousekeepingQueries,
@@ -13,6 +13,7 @@ import {
   type EditChecklistTemplateInput,
 } from "../housekeeping-dialog.tsx/edit-checklist-dialog"
 import { DeleteChecklistConfirmationDialog } from "../housekeeping-dialog.tsx/delete-checklist-confirmation-dialog"
+import { ChecklistDetailsDialog } from "../housekeeping-dialog.tsx/checklist-details-dialog"
 import {
   Table,
   TableBody,
@@ -22,9 +23,17 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 import { formatShortDate } from "@/lib/utils"
-import { ClipboardList, Pencil, Trash2 } from "lucide-react"
+import { ClipboardList, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 
 function countChecklistItems(item: PropertyChecklistListItem["item"]): number {
   return parseChecklistTemplateLines(item).length
@@ -50,7 +59,10 @@ export function HousekeepingChecklistPanel({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [checklistPendingDelete, setChecklistPendingDelete] = useState<PropertyChecklistListItem | null>(null)
   const [editingChecklist, setEditingChecklist] = useState<PropertyChecklistListItem | null>(null)
+  const [viewingChecklist, setViewingChecklist] = useState<PropertyChecklistListItem | null>(null)
   const [isSavingChecklistEdit, setIsSavingChecklistEdit] = useState(false)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +85,28 @@ export function HousekeepingChecklistPanel({
   useEffect(() => {
     void load()
   }, [load, refreshKey])
+
+  const total = rows.length
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  const pageRows = useMemo(() => {
+    const start = (page - 1) * perPage
+    return rows.slice(start, start + perPage)
+  }, [rows, page, perPage])
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages))
+  }, [rows, totalPages])
+
+  const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1
+  const endIndex = total === 0 ? 0 : Math.min(page * perPage, total)
+
+  const goToPage = useCallback(
+    (next: number) => {
+      const clamped = Math.max(1, Math.min(next, totalPages))
+      setPage(clamped)
+    },
+    [totalPages],
+  )
 
   const handleSaveChecklistEdit = async (input: EditChecklistTemplateInput) => {
     setIsSavingChecklistEdit(true)
@@ -175,6 +209,13 @@ export function HousekeepingChecklistPanel({
         isSubmitting={isSavingChecklistEdit}
         onSubmit={handleSaveChecklistEdit}
       />
+      <ChecklistDetailsDialog
+        open={viewingChecklist !== null}
+        onOpenChange={(next) => {
+          if (!next) setViewingChecklist(null)
+        }}
+        checklist={viewingChecklist}
+      />
       <div className="border border-border/80 bg-card/50">
       <Table className="min-w-[1200px] table-fixed text-xs">
         <colgroup>
@@ -196,7 +237,7 @@ export function HousekeepingChecklistPanel({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => {
+          {pageRows.map((row) => {
             const itemCount = countChecklistItems(row.item)
             const createdLabel = formatShortDate(row.created_at)
             return (
@@ -219,43 +260,41 @@ export function HousekeepingChecklistPanel({
                   {createdLabel}
                 </TableCell>
                 <TableCell className="px-3 py-2 align-middle">
-                  <div className="flex items-center justify-end gap-0.5">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-muted-foreground hover:text-foreground"
-                      aria-label={`Edit ${row.name}`}
-                      disabled={!canEditChecklist}
-                      title={
-                        canEditChecklist
-                          ? "Edit checklist template"
-                          : "You do not have permission to edit checklists"
-                      }
-                      onClick={() => {
-                        if (!canEditChecklist) return
-                        setEditingChecklist(row)
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                      aria-label={`Delete ${row.name}`}
-                      disabled={!canDeleteChecklist}
-                      title={
-                        canDeleteChecklist ? "Delete checklist" : "You do not have permission to delete checklists"
-                      }
-                      onClick={() => {
-                        if (!canDeleteChecklist) return
-                        setChecklistPendingDelete(row)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 p-0"
+                          aria-label={`Checklist actions for ${row.name}`}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => setViewingChecklist(row)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View checklist
+                        </DropdownMenuItem>
+                        {canEditChecklist ? (
+                          <DropdownMenuItem onClick={() => setEditingChecklist(row)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit checklist
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canDeleteChecklist ? (
+                          <DropdownMenuItem
+                            onClick={() => setChecklistPendingDelete(row)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete checklist
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -263,7 +302,35 @@ export function HousekeepingChecklistPanel({
           })}
         </TableBody>
       </Table>
-    </div>
+      </div>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium">{total}</span> checklists
+          </div>
+          <PageSizeSelector
+            value={perPage}
+            onChange={(next) => {
+              setPerPage(next)
+              setPage(1)
+            }}
+            disabled={loading}
+          />
+        </div>
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            disabled={loading}
+            windowSize={2}
+          />
+        </div>
+      </div>
     </>
   )
 }

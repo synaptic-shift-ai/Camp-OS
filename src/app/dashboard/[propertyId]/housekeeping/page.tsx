@@ -5,6 +5,7 @@ import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
 import { HousekeepingPageContent } from "@/components/dashboard/housekeeping/housekeeping-page-content"
 import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
+import { resolveUserPropertyAccess } from "@/lib/rbac"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -34,11 +35,12 @@ async function getHousekeepingPageOptions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   propertyId: string,
 ): Promise<{ siteOptions: SelectOption[]; assigneeOptions: SelectOption[]; checklistOptions: SelectOption[] }> {
+  // All non-deleted sites: tasks can reference a site after turnover (e.g. status becomes available);
+  // restricting to housekeeping-only would leave Edit Task with no matching SelectItem and an empty Site field.
   const { data: sites } = await supabase
     .from("sites")
     .select("id, site_number, site_name")
     .eq("property_id", propertyId)
-    .eq("status", "housekeeping")
     .is("deleted_at", null)
     .order("site_number", { ascending: true })
 
@@ -130,17 +132,21 @@ export default async function HousekeepingPage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  const [{ siteOptions, assigneeOptions, checklistOptions }, taskActionAccess] = await Promise.all([
-    getHousekeepingPageOptions(supabase, propertyId),
-    resolveModuleActionAccess({
-      supabase,
-      propertyId,
-      userId: user.id,
-      moduleKey: "housekeeping",
-      actions: ["create", "update", "delete"],
-      fallbackForCategory: housekeepingFallbackForCategory,
-    }),
-  ])
+  const [{ siteOptions, assigneeOptions, checklistOptions }, taskActionAccess, propertyAccess] =
+    await Promise.all([
+      getHousekeepingPageOptions(supabase, propertyId),
+      resolveModuleActionAccess({
+        supabase,
+        propertyId,
+        userId: user.id,
+        moduleKey: "housekeeping",
+        actions: ["create", "update", "delete"],
+        fallbackForCategory: housekeepingFallbackForCategory,
+      }),
+      resolveUserPropertyAccess(supabase, propertyId, user.id),
+    ])
+
+  const showAssigneeFilter = propertyAccess?.isElevated === true
 
   return (
     <HousekeepingPageContent
@@ -152,6 +158,7 @@ export default async function HousekeepingPage({ params }: PageProps) {
       canCreateTask={taskActionAccess.create === true}
       canEditTask={taskActionAccess.update === true}
       canDeleteTask={taskActionAccess.delete === true}
+      showAssigneeFilter={showAssigneeFilter}
     />
   )
 }

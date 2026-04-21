@@ -29,6 +29,9 @@ function housekeepingFallbackForCategory(
  * PATCH /api/v1/properties/[propertyId]/housekeeping/[housekeepingId]
  *
  * Update a housekeeping task for the property.
+ * When the task is done and no other non-done tasks remain for that site,
+ * the site is set to `available` if it was `housekeeping` or `maintenance`
+ * (uses service role for the site row so RLS cannot block housekeeping staff).
  */
 export async function PATCH(
   request: NextRequest,
@@ -142,6 +145,122 @@ export async function PATCH(
         ? { checklistItemDone: parsed.data.checklistItemDone }
         : {}),
     })
+
+    const siteAvailabilityLogPrefix = '[Housekeeping API v1] PATCH site-availability'
+    if (housekeepingTask.status === 'done') {
+      console.info(`${siteAvailabilityLogPrefix}: task is done, evaluating site update`, {
+        propertyId,
+        housekeepingTaskId: housekeepingTask.id,
+        siteId: housekeepingTask.site_id,
+      })
+      const openForSite = await queries.countOpenHousekeepingTasksForSite(propertyId, housekeepingTask.site_id)
+      if (openForSite > 0) {
+        console.info(`${siteAvailabilityLogPrefix}: skip — other open tasks for this site`, {
+          propertyId,
+          siteId: housekeepingTask.site_id,
+          housekeepingTaskId: housekeepingTask.id,
+          openTaskCountForSite: openForSite,
+        })
+      }
+      if (openForSite === 0) {
+        // Service role: completing staff may lack sites UPDATE under RLS; property is already authorized above.
+        const service = createServiceRoleClient()
+        const { data: siteRow, error: siteLoadError } = await service
+          .from('sites')
+          .select('id, status, site_name, site_number')
+          .eq('id', housekeepingTask.site_id)
+          .eq('property_id', propertyId)
+          .is('deleted_at', null)
+          .maybeSingle()
+
+        if (siteLoadError) {
+          console.error(`${siteAvailabilityLogPrefix}: failed to load site`, {
+            propertyId,
+            siteId: housekeepingTask.site_id,
+            housekeepingTaskId: housekeepingTask.id,
+            siteLoadError,
+          })
+        } else if (!siteRow) {
+          console.warn(`${siteAvailabilityLogPrefix}: skip — no site row (wrong id, property, or deleted)`, {
+            propertyId,
+            siteId: housekeepingTask.site_id,
+            housekeepingTaskId: housekeepingTask.id,
+          })
+        } else {
+          const normalizedStatus = (siteRow.status ?? '').trim().toLowerCase()
+          console.info(`${siteAvailabilityLogPrefix}: loaded site`, {
+            propertyId,
+            siteId: siteRow.id,
+            housekeepingTaskId: housekeepingTask.id,
+            rawStatus: siteRow.status,
+            normalizedStatus,
+          })
+          if (normalizedStatus === 'housekeeping' || normalizedStatus === 'maintenance') {
+            const timestamp = new Date().toISOString()
+            const { data: updatedSites, error: siteUpdateError } = await service
+              .from('sites')
+              .update({ status: 'available', updated_at: timestamp })
+              .eq('id', siteRow.id)
+              .eq('property_id', propertyId)
+              .is('deleted_at', null)
+              .select('id')
+
+            if (siteUpdateError) {
+              console.error(`${siteAvailabilityLogPrefix}: update failed`, {
+                propertyId,
+                siteId: siteRow.id,
+                housekeepingTaskId: housekeepingTask.id,
+                siteUpdateError,
+              })
+            } else if (!updatedSites?.length) {
+              console.error(`${siteAvailabilityLogPrefix}: update matched zero rows`, {
+                propertyId,
+                siteId: siteRow.id,
+                housekeepingTaskId: housekeepingTask.id,
+                hint: 'Check site still exists, property_id matches, deleted_at is null',
+              })
+            } else {
+              console.info(`${siteAvailabilityLogPrefix}: site set to available`, {
+                propertyId,
+                siteId: siteRow.id,
+                housekeepingTaskId: housekeepingTask.id,
+                previousStatus: siteRow.status,
+              })
+              if (access.companyId) {
+                const siteLabel =
+                  siteRow.site_name?.trim() || siteRow.site_number || housekeepingTask.site_id
+                await recordActivityLog(
+                  service,
+                  {
+                    companyId: access.companyId,
+                    propertyId,
+                    action: 'update',
+                    resource: 'site',
+                    userId: null,
+                    details: `Site ${siteLabel} marked available after last housekeeping task was completed.`,
+                  },
+                  { failOpen: false },
+                )
+              } else {
+                console.warn(`${siteAvailabilityLogPrefix}: no activity log — missing companyId on access`, {
+                  propertyId,
+                  siteId: siteRow.id,
+                })
+              }
+            }
+          } else {
+            console.info(`${siteAvailabilityLogPrefix}: skip — site status is not housekeeping or maintenance`, {
+              propertyId,
+              siteId: siteRow.id,
+              housekeepingTaskId: housekeepingTask.id,
+              rawStatus: siteRow.status,
+              normalizedStatus,
+              expectedOneOf: ['housekeeping', 'maintenance'],
+            })
+          }
+        }
+      }
+    }
 
     if (access.companyId) {
       const { data: siteRow } = await supabase

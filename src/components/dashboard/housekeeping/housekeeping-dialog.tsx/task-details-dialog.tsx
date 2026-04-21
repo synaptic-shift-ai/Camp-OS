@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { HousekeepingTaskRow } from "../housekeeping-table"
+import type { HousekeepingTaskRow } from "../housekeeping-task/housekeeping-table"
 
 type TaskDetailsDialogProps = {
   open: boolean

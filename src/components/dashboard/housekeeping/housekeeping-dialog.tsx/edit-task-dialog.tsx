@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { AddHousekeepingTaskInput } from "./add-task-dialog"
-import type { HousekeepingTaskRow } from "../housekeeping-table"
+import type { HousekeepingTaskRow } from "../housekeeping-task/housekeeping-table"
 
 type EditTaskDialogProps = {
   open: boolean
@@ -74,6 +74,13 @@ export function EditTaskDialog({
     Array<{ id: string; label: string; notes: string | null; checked: boolean }>
   >([])
   const [error, setError] = useState<string | null>(null)
+
+  const siteSelectOptions = useMemo(() => {
+    if (!task?.siteId) return siteOptions
+    if (siteOptions.some((s) => s.id === task.siteId)) return siteOptions
+    const label = task.siteName?.trim() || task.siteId
+    return [{ id: task.siteId, label }, ...siteOptions]
+  }, [siteOptions, task])
 
   useEffect(() => {
     if (!open) return
@@ -219,7 +226,7 @@ export function EditTaskDialog({
               <Select
                 value={form.siteId ?? ""}
                 onValueChange={(value) => {
-                  const selectedSite = siteOptions.find((site) => site.id === value)
+                  const selectedSite = siteSelectOptions.find((site) => site.id === value)
                   setForm((prev) => ({
                     ...prev,
                     siteId: value,
@@ -231,7 +238,7 @@ export function EditTaskDialog({
                   <SelectValue placeholder="Select a site" />
                 </SelectTrigger>
                 <SelectContent>
-                  {siteOptions.map((site) => (
+                  {siteSelectOptions.map((site) => (
                     <SelectItem key={site.id} value={site.id}>
                       {site.label}
                     </SelectItem>

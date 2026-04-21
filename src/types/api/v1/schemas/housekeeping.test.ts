@@ -58,13 +58,14 @@ describe('ListHousekeepingTasksQuerySchema', () => {
     }
   })
 
-  it('drops blank search and accepts assigneeId unassigned with siteId and status', () => {
+  it('drops blank search and accepts assigneeId unassigned with siteId, status, and priority', () => {
     const siteId = 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee'
     const result = ListHousekeepingTasksQuerySchema.safeParse({
       search: '   ',
       siteId,
       assigneeId: 'unassigned',
       status: 'pending',
+      priority: 'high',
     })
     expect(result.success).toBe(true)
     if (result.success) {
@@ -72,6 +73,7 @@ describe('ListHousekeepingTasksQuerySchema', () => {
         siteId,
         assigneeId: 'unassigned',
         status: 'pending',
+        priority: 'high',
         page: 1,
         per_page: 10,
       })

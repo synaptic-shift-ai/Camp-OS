@@ -36,8 +36,9 @@ function housekeepingFallbackForCategory(
  * Query parameters (all optional):
  * - search: free-text match on title, description, or site name/number
  * - siteId: UUID of site
- * - assigneeId: property_staff UUID, or "unassigned"
+ * - assigneeId: property_staff UUID, or "unassigned" (elevated roles only; staff are always scoped to their own row)
  * - status: pending | in_progress | done
+ * - priority: low | medium | high | urgent
  * - page: positive integer (default 1)
  * - per_page: 1–100 (default 10)
  */
@@ -64,12 +65,35 @@ export async function GET(
     })
     if (isDenied(access)) return access
 
+    let propertyStaffId: string | null = null
+    if (!access.isElevated) {
+      const { data: staffRow, error: staffLookupError } = await supabase
+        .from('property_staff')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('user_id', user.id)
+        .in('status', ['active', 'pending'])
+        .maybeSingle()
+
+      if (staffLookupError) {
+        console.error('[Housekeeping API v1] GET: property_staff lookup failed', staffLookupError)
+        return error(ErrorCodes.INTERNAL_ERROR, request, { message: staffLookupError.message })
+      }
+      if (!staffRow?.id) {
+        return error(ErrorCodes.VALIDATION_ERROR, request, {
+          message: 'No active staff assignment found for this property.',
+        })
+      }
+      propertyStaffId = staffRow.id as string
+    }
+
     const { searchParams } = new URL(request.url)
     const queryRaw = {
       search: searchParams.get('search') ?? undefined,
       siteId: searchParams.get('siteId') ?? undefined,
       assigneeId: searchParams.get('assigneeId') ?? undefined,
       status: searchParams.get('status') ?? undefined,
+      priority: searchParams.get('priority') ?? undefined,
       page: searchParams.get('page') ?? undefined,
       per_page: searchParams.get('per_page') ?? undefined,
     }
@@ -89,11 +113,18 @@ export async function GET(
     if (data.siteId !== undefined) {
       listFilters.siteId = data.siteId
     }
-    if (data.assigneeId !== undefined) {
-      listFilters.assigneeId = data.assigneeId
+    if (access.isElevated) {
+      if (data.assigneeId !== undefined) {
+        listFilters.assigneeId = data.assigneeId
+      }
+    } else if (propertyStaffId) {
+      listFilters.assigneeId = propertyStaffId
     }
     if (data.status !== undefined) {
       listFilters.status = data.status
+    }
+    if (data.priority !== undefined) {
+      listFilters.priority = data.priority
     }
 
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
@@ -103,7 +134,10 @@ export async function GET(
         Object.keys(listFilters).length > 0 ? listFilters : undefined,
         { page: data.page, perPage: data.per_page },
       ),
-      queries.countOpenHousekeepingTasks(propertyId),
+      queries.countOpenHousekeepingTasks(
+        propertyId,
+        propertyStaffId ? { assigneeId: propertyStaffId } : undefined,
+      ),
     ])
     return success(
       {

@@ -242,39 +242,38 @@ export function HousekeepingTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => (onReassign ?? onEdit)?.(row)}
-                          disabled={!canEditTask}
-                        >
-                          <UserRound className="mr-2 h-4 w-4" />
-                          Reassign task
-                        </DropdownMenuItem>
+                        {canEditTask ? (
+                          <DropdownMenuItem onClick={() => (onReassign ?? onEdit)?.(row)}>
+                            <UserRound className="mr-2 h-4 w-4" />
+                            Reassign task
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem onClick={() => onView?.(row)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View task
                         </DropdownMenuItem>
-                        {row.status !== "Done" ? (
-                          <DropdownMenuItem
-                            onClick={() => (onComplete ?? onEdit)?.(row)}
-                            disabled={!canEditTask}
-                          >
+                        {row.status !== "Done" && canEditTask ? (
+                          <DropdownMenuItem onClick={() => (onComplete ?? onEdit)?.(row)}>
                             <CheckCircle2 className="mr-2 h-4 w-4" />
                             Complete task
                           </DropdownMenuItem>
                         ) : null}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onEdit?.(row)} disabled={!canEditTask}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit task
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDelete?.(row)}
-                          disabled={!canDeleteTask}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete task
-                        </DropdownMenuItem>
+                        {canEditTask || canDeleteTask ? <DropdownMenuSeparator /> : null}
+                        {canEditTask ? (
+                          <DropdownMenuItem onClick={() => onEdit?.(row)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit task
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canDeleteTask ? (
+                          <DropdownMenuItem
+                            onClick={() => onDelete?.(row)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete task
+                          </DropdownMenuItem>
+                        ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

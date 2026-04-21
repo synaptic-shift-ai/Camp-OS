@@ -97,6 +97,7 @@ export type ListHousekeepingTasksFilters = {
     siteId?: string
     assigneeId?: 'unassigned' | string
     status?: 'pending' | 'in_progress' | 'done'
+    priority?: 'low' | 'medium' | 'high' | 'urgent'
 }
 
 export type ListHousekeepingTasksPagination = {
@@ -253,6 +254,12 @@ export class HousekeepingQueries {
             query = query.eq('status', filters.status)
         }
 
+        if (filters?.priority === 'medium') {
+            query = query.or('priority.eq.medium,priority.is.null')
+        } else if (filters?.priority) {
+            query = query.eq('priority', filters.priority)
+        }
+
         const search = filters?.search?.trim()
         if (search && search.length > 0) {
             const pattern = `%${escapeIlikePattern(search)}%`
@@ -309,12 +316,20 @@ export class HousekeepingQueries {
         }
     }
 
-    async countOpenHousekeepingTasks(propertyId: string): Promise<number> {
-        const { count, error } = await this.supabase
+    async countOpenHousekeepingTasks(propertyId: string, options?: { assigneeId?: string }): Promise<number> {
+        let query = this.supabase
             .from('housekeeping_tasks')
             .select('id', { count: 'exact', head: true })
             .eq('property_id', propertyId)
             .neq('status', 'done')
+
+        if (options?.assigneeId === 'unassigned') {
+            query = query.is('staff_id', null)
+        } else if (options?.assigneeId) {
+            query = query.eq('staff_id', options.assigneeId)
+        }
+
+        const { count, error } = await query
 
         if (error) {
             console.error('[HousekeepingQueries] Failed to count open housekeeping tasks', {
@@ -526,5 +541,25 @@ export class HousekeepingQueries {
             })
             throw new Error(`Failed to delete checklist: ${error.message}`)
         }
+    }
+
+    async countOpenHousekeepingTasksForSite(propertyId: string, siteId: string): Promise<number> {
+        const { count, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .select('id', { count: 'exact', head: true })
+            .eq('property_id', propertyId)
+            .eq('site_id', siteId)
+            .neq('status', 'done')
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to count open housekeeping task for site', {
+                propertyId,
+                siteId,
+                error,
+            })
+            throw new Error(`Failed to count housekeeping task for: ${error.message}`)
+        }
+
+        return count ?? 0
     }
 }

@@ -68,6 +68,7 @@ export const ListHousekeepingTasksQuerySchema = z.object({
   assigneeId: z
     .preprocess(emptyStringToUndefined, z.union([z.literal('unassigned'), z.string().uuid()]).optional()),
   status: z.enum(['pending', 'in_progress', 'done']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   page: z
     .string()
     .optional()

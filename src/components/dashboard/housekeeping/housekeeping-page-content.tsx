@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { HousekeepingChecklistPanel } from "./housekeeping-checklist"
+import { HousekeepingChecklistPanel } from "./housekeeping-checklist/housekeeping-checklist"
 import { HousekeepingFilter, type HousekeepingFilterValue } from "./housekeeping-task/housekeeping-filter"
-import { HousekeepingPageHeader } from "./housekeeping-page-header"
-import { HousekeepingTable, type HousekeepingTaskRow } from "./housekeeping-table"
+import { HousekeepingPageHeader } from "./housekeeping-task/housekeeping-page-header"
+import { HousekeepingTable, type HousekeepingTaskRow } from "./housekeeping-task/housekeeping-table"
 import {
   HousekeepingViewSwitcher,
   type HousekeepingViewMode,
@@ -37,6 +37,8 @@ type HousekeepingPageContentProps = {
   canCreateTask: boolean
   canEditTask: boolean
   canDeleteTask: boolean
+  /** When false (non-elevated staff), assignee filter is hidden; API already scopes tasks to the viewer. */
+  showAssigneeFilter?: boolean
 }
 
 const INITIAL_FILTERS: HousekeepingFilterValue = {
@@ -44,6 +46,7 @@ const INITIAL_FILTERS: HousekeepingFilterValue = {
   siteId: "all",
   assigneeId: "all",
   status: "all",
+  priority: "all",
 }
 
 function toApiStatus(status: AddHousekeepingTaskInput["status"]): "pending" | "in_progress" | "done" {
@@ -104,6 +107,16 @@ function filterStatusToApi(
   return "pending"
 }
 
+function filterPriorityToApi(
+  priority: HousekeepingFilterValue["priority"],
+): "low" | "medium" | "high" | "urgent" | null {
+  if (priority === "all") return null
+  if (priority === "Low") return "low"
+  if (priority === "High") return "high"
+  if (priority === "Urgent") return "urgent"
+  return "medium"
+}
+
 const FILTER_DEBOUNCE_MS = 400
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -141,6 +154,7 @@ export function HousekeepingPageContent({
   canCreateTask,
   canEditTask,
   canDeleteTask,
+  showAssigneeFilter = true,
 }: HousekeepingPageContentProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -152,6 +166,7 @@ export function HousekeepingPageContent({
       siteId: debouncedFilters.siteId,
       assigneeId: debouncedFilters.assigneeId,
       status: debouncedFilters.status,
+      priority: debouncedFilters.priority,
       search: debouncedFilters.search,
     }),
     [debouncedFilters],
@@ -165,7 +180,7 @@ export function HousekeepingPageContent({
 
   const filtersApiKey = useMemo(
     () =>
-      `${filtersForApi.search}|${filtersForApi.siteId}|${filtersForApi.assigneeId}|${filtersForApi.status}`,
+      `${filtersForApi.search}|${filtersForApi.siteId}|${filtersForApi.assigneeId}|${filtersForApi.status}|${filtersForApi.priority}`,
     [filtersForApi],
   )
 
@@ -239,6 +254,10 @@ export function HousekeepingPageContent({
       const statusParam = filterStatusToApi(filtersForApi.status)
       if (statusParam) {
         params.set("status", statusParam)
+      }
+      const priorityParam = filterPriorityToApi(filtersForApi.priority)
+      if (priorityParam) {
+        params.set("priority", priorityParam)
       }
       params.set("page", String(pageRef.current))
       params.set("per_page", String(perPage))
@@ -566,6 +585,7 @@ export function HousekeepingPageContent({
             onChange={setFilters}
             siteOptions={siteOptions}
             assigneeOptions={assigneeOptions}
+            showAssigneeFilter={showAssigneeFilter}
           />
           <HousekeepingTable
             rows={rows}

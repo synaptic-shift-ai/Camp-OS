@@ -6,6 +6,7 @@ const emptyStringToUndefined = (value: unknown) =>
 const ChecklistItemDoneRequestSchema = z.object({
   item_id: z.string().trim().min(1).max(120),
   status: z.enum(['pending', 'completed']),
+  completed_at: z.string().datetime().nullable().optional(),
 })
 
 export const CreateHousekeepingTaskRequestSchema = z.object({
@@ -103,3 +104,11 @@ export const UpdateChecklistRequestSchema = z.object({
 })
 
 export type UpdateChecklistRequest = z.infer<typeof UpdateChecklistRequestSchema>
+
+export const CreateHousekeepingTaskImageRequestSchema = z.object({
+  storagePath: z.string().trim().min(1).max(1000),
+})
+
+export type CreateHousekeepingTaskImageRequest = z.infer<
+  typeof CreateHousekeepingTaskImageRequestSchema
+>

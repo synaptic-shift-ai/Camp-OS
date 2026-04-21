@@ -45,6 +45,7 @@ type HousekeepingChecklistPanelProps = {
   refreshKey?: number
   canEditChecklist?: boolean
   canDeleteChecklist?: boolean
+  onChecklistDeleted?: (checklistId: string) => void
 }
 
 export function HousekeepingChecklistPanel({
@@ -52,6 +53,7 @@ export function HousekeepingChecklistPanel({
   refreshKey = 0,
   canEditChecklist = false,
   canDeleteChecklist = false,
+  onChecklistDeleted,
 }: HousekeepingChecklistPanelProps) {
   const { toast } = useToast()
   const [rows, setRows] = useState<PropertyChecklistListItem[]>([])
@@ -196,7 +198,8 @@ export function HousekeepingChecklistPanel({
             ? { id: checklistPendingDelete.id, name: checklistPendingDelete.name }
             : null
         }
-        onDeleted={() => {
+        onDeleted={(checklistId) => {
+          onChecklistDeleted?.(checklistId)
           void load()
         }}
       />
@@ -219,11 +222,11 @@ export function HousekeepingChecklistPanel({
       <div className="border border-border/80 bg-card/50">
       <Table className="min-w-[1200px] table-fixed text-xs">
         <colgroup>
-          <col style={{ width: "24%" }} />
-          <col style={{ width: "36%" }} />
-          <col style={{ width: "10%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "14%" }} />
+          <col style={{ width: "20%" }} />
+          <col style={{ width: "20%" }} />
+          <col style={{ width: "20%" }} />
+          <col style={{ width: "20%" }} />
+          <col style={{ width: "20%" }} />
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">

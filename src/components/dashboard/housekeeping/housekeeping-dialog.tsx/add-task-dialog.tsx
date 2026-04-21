@@ -51,6 +51,7 @@ type AddTaskDialogProps = {
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
   checklistOptions: Array<{ id: string; label: string }>
+  onCustomizeChecklist?: () => void
   initialValues?: Partial<
     Pick<AddHousekeepingTaskInput, "siteId" | "siteName" | "reservationConfirmationId">
   >
@@ -83,6 +84,7 @@ export function AddTaskDialog({
   siteOptions,
   assigneeOptions,
   checklistOptions,
+  onCustomizeChecklist,
   initialValues,
   isSubmitting = false,
 }: AddTaskDialogProps) {
@@ -112,6 +114,8 @@ export function AddTaskDialog({
     const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
     const reservationConfirmationId = form.reservationConfirmationId?.trim() ?? ""
+    const startDate = form.startDate?.trim() ?? ""
+    const dueDate = form.dueDate?.trim() ?? ""
     const checklistItemDone =
       checklistItems.length > 0
         ? checklistItems.map((item) => ({
@@ -122,6 +126,10 @@ export function AddTaskDialog({
 
     if (!siteId || !siteName || !task) {
       setError("Site and task are required.")
+      return
+    }
+    if (!startDate || !dueDate) {
+      setError("Start date and due date are required.")
       return
     }
 
@@ -267,6 +275,11 @@ export function AddTaskDialog({
               <Select
                 value={form.checklistTemplateId ?? "none"}
                 onValueChange={(value) => {
+                  if (value === "customize") {
+                    onCustomizeChecklist?.()
+                    return
+                  }
+
                   if (value === "none") {
                     setForm((prev) => ({
                       ...prev,
@@ -326,6 +339,7 @@ export function AddTaskDialog({
                       {option.label}
                     </SelectItem>
                   ))}
+                  <SelectItem value="customize">Customize (Create new checklist)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -409,6 +423,7 @@ export function AddTaskDialog({
                     startDate: event.target.value,
                   }))
                 }
+                required
               />
             </div>
             <div className="space-y-2">
@@ -423,6 +438,7 @@ export function AddTaskDialog({
                     dueDate: event.target.value,
                   }))
                 }
+                required
               />
             </div>
           </div>

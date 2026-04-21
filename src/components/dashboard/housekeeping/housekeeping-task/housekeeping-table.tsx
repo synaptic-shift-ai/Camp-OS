@@ -133,41 +133,50 @@ export function HousekeepingTable({
   canDeleteTask = true,
 }: HousekeepingTableProps) {
   return (
-    <div className="border border-border/80 bg-card/50">
-      <Table className="min-w-[1480px] text-xs">
+    <div className="overflow-x-auto border border-border/80 bg-card/50">
+      <Table className="min-w-[760px] w-full table-fixed text-xs lg:min-w-0">
+        <colgroup>
+          <col className="w-[8%]" />
+          <col className="w-[10%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[7%]" />
+          <col className="w-[6%]" />
+        </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-            <TableHead className="w-[140px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Task ID
             </TableHead>
-            <TableHead className="w-[140px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Site
             </TableHead>
-            <TableHead className="w-[170px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="hidden px-3 py-2 text-black/90 dark:text-white/90 font-medium lg:table-cell">
               Reservation ID
             </TableHead>
-            <TableHead className="w-[170px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Task Name
             </TableHead>
-            <TableHead className="w-[170px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Description
-            </TableHead>
-            <TableHead className="w-[150px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="hidden px-3 py-2 text-black/90 dark:text-white/90 font-medium md:table-cell">
               Assignee
             </TableHead>
-            <TableHead className="w-[155px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="hidden px-3 py-2 text-black/90 dark:text-white/90 font-medium xl:table-cell">
               Start Date
             </TableHead>
-            <TableHead className="w-[155px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="hidden px-3 py-2 text-black/90 dark:text-white/90 font-medium xl:table-cell">
               Due Date
             </TableHead>
-            <TableHead className="w-[110px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="hidden px-3 py-2 text-black/90 dark:text-white/90 font-medium md:table-cell">
               Priority
             </TableHead>
-            <TableHead className="w-[120px] px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-2 py-2 text-black/90 dark:text-white/90 font-medium">
               Status
             </TableHead>
-            <TableHead className="w-[90px] px-3 py-2 text-right text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-2 py-2 text-right text-black/90 dark:text-white/90 font-medium">
               Actions
             </TableHead>
           </TableRow>
@@ -175,13 +184,13 @@ export function HousekeepingTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                 Loading housekeeping tasks...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -195,40 +204,41 @@ export function HousekeepingTable({
                   <span title={row.id}>{toDisplayTaskId(row.id)}</span>
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
-                  {row.siteName}
+                  <span className="block truncate" title={row.siteName}>
+                    {row.siteName}
+                  </span>
                 </TableCell>
-                <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
-                  {row.reservationConfirmationId ?? "—"}
+                <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground whitespace-nowrap lg:table-cell">
+                  <span className="block truncate" title={row.reservationConfirmationId ?? "—"}>
+                    {row.reservationConfirmationId ?? "—"}
+                  </span>
                 </TableCell>
                 <TableCell className="px-3 py-2">
-                  <div className="space-y-0.5">
-                    <div className="text-sm text-foreground">{row.task}</div>
-                  </div>
-                </TableCell>
-                <TableCell className="px-3 py-2 text-sm text-muted-foreground">
                   <div
-                    className="max-w-[220px] truncate whitespace-nowrap"
-                    title={row.description?.trim() || "—"}
+                    className="max-w-[90px] truncate text-sm text-foreground md:max-w-[120px] lg:max-w-[160px]"
+                    title={row.task}
                   >
-                    {row.description?.trim() || "—"}
+                    {row.task}
                   </div>
                 </TableCell>
-                <TableCell className="px-3 py-2 text-sm text-muted-foreground leading-tight">
-                  {row.assignee ?? "Unassigned"}
+                <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground leading-tight md:table-cell">
+                  <span className="block truncate" title={row.assignee ?? "Unassigned"}>
+                    {row.assignee ?? "Unassigned"}
+                  </span>
                 </TableCell>
-                <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground whitespace-nowrap xl:table-cell">
                   {row.startDate ?? "—"}
                 </TableCell>
-                <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground whitespace-nowrap xl:table-cell">
                   {row.dueDate ?? "—"}
                 </TableCell>
-                <TableCell className="px-3 py-2">
+                <TableCell className="hidden px-3 py-2 md:table-cell">
                   <PriorityPill priority={row.priority} />
                 </TableCell>
-                <TableCell className="px-3 py-2 whitespace-nowrap">
+                <TableCell className="px-2 py-2 whitespace-nowrap">
                   <StatusPill status={row.status} />
                 </TableCell>
-                <TableCell className="px-3 py-2">
+                <TableCell className="px-2 py-2">
                   <div className="flex items-center justify-end">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

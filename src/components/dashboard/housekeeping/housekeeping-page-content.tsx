@@ -26,7 +26,6 @@ import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
 import { ReassignTaskDialog } from "./housekeeping-dialog.tsx/reassign-task-dialog"
 import { CompleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/complete-task-confirmation-dialog"
 import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
-import { TaskDetailsDialog } from "./housekeeping-dialog.tsx/task-details-dialog"
 
 type HousekeepingPageContentProps = {
   propertyId: string
@@ -203,10 +202,10 @@ export function HousekeepingPageContent({
   const [isReassigningTask, setIsReassigningTask] = useState(false)
   const [taskPendingComplete, setTaskPendingComplete] = useState<HousekeepingTaskRow | null>(null)
   const [taskPendingDelete, setTaskPendingDelete] = useState<HousekeepingTaskRow | null>(null)
-  const [viewingTask, setViewingTask] = useState<HousekeepingTaskRow | null>(null)
   const [rows, setRows] = useState<HousekeepingTaskRow[]>([])
   const [openTaskCount, setOpenTaskCount] = useState(0)
   const [viewMode, setViewMode] = useState<HousekeepingViewMode>("tasks")
+  const [liveChecklistOptions, setLiveChecklistOptions] = useState(checklistOptions)
 
   const addTaskInitialValues = useMemo(() => {
     const siteId = searchParams.get("siteId") ?? ""
@@ -231,6 +230,10 @@ export function HousekeepingPageContent({
     const nextQuery = params.toString()
     router.replace(`/dashboard/${propertyId}/housekeeping${nextQuery ? `?${nextQuery}` : ""}`)
   }, [canCreateTask, searchParams, router, propertyId])
+
+  useEffect(() => {
+    setLiveChecklistOptions(checklistOptions)
+  }, [checklistOptions])
 
   useEffect(() => {
     pageRef.current = 1
@@ -380,6 +383,20 @@ export function HousekeepingPageContent({
           "Failed to save checklist template."
         throw new Error(message)
       }
+      const createdChecklist = payload?.data?.checklist
+      if (createdChecklist?.id && typeof createdChecklist.name === "string") {
+        setLiveChecklistOptions((previous) => {
+          const next = [
+            ...previous.filter((option) => option.id !== createdChecklist.id),
+            {
+              id: createdChecklist.id,
+              label: createdChecklist.name.trim(),
+            },
+          ]
+          next.sort((a, b) => a.label.localeCompare(b.label))
+          return next
+        })
+      }
       setChecklistRefreshKey((key) => key + 1)
       toast({
         title: "Checklist saved",
@@ -444,7 +461,7 @@ export function HousekeepingPageContent({
   }
 
   const handleViewTask = (row: HousekeepingTaskRow) => {
-    setViewingTask(row)
+    router.push(`/dashboard/${propertyId}/housekeeping/${row.id}`)
   }
 
   const handleOpenReassignTask = (row: HousekeepingTaskRow) => {
@@ -457,7 +474,47 @@ export function HousekeepingPageContent({
   }
 
   const handleRequestCompleteTask = (row: HousekeepingTaskRow) => {
-    setTaskPendingComplete(row)
+    const checklistItems = row.checklistItemDone ?? []
+    const checklistRequired = Boolean(row.checklistId)
+    const checklistComplete = checklistRequired
+      ? checklistItems.length > 0 && checklistItems.every((item) => item.status === "completed")
+      : true
+
+    void (async () => {
+      try {
+        const imagesResponse = await fetch(
+          `/api/v1/properties/${propertyId}/housekeeping/${row.id}/images`,
+        )
+        const imagesPayload = await imagesResponse.json()
+        if (!imagesResponse.ok || !imagesPayload?.success) {
+          const message = imagesPayload?.error?.message ?? "Failed to load task images."
+          throw new Error(message)
+        }
+
+        const hasImage = Array.isArray(imagesPayload?.data?.images) && imagesPayload.data.images.length > 0
+        if (!checklistComplete || !hasImage) {
+          toast({
+            title: "Complete checklist and attach image first",
+            description:
+              "Please complete all checklist items and attach at least one image before completing this task.",
+          })
+          router.push(`/dashboard/${propertyId}/housekeeping/${row.id}`)
+          return
+        }
+
+        setTaskPendingComplete(row)
+      } catch (validationError) {
+        const message =
+          validationError instanceof Error
+            ? validationError.message
+            : "Failed to validate completion requirements."
+        toast({
+          title: "Unable to validate task completion",
+          description: message,
+          variant: "destructive",
+        })
+      }
+    })()
   }
 
   const handleReassignTask = async (userId: string) => {
@@ -631,6 +688,11 @@ export function HousekeepingPageContent({
           refreshKey={checklistRefreshKey}
           canEditChecklist={canEditTask}
           canDeleteChecklist={canDeleteTask}
+          onChecklistDeleted={(checklistId) => {
+            setLiveChecklistOptions((previous) =>
+              previous.filter((option) => option.id !== checklistId),
+            )
+          }}
         />
       )}
       <AddTaskDialog
@@ -638,7 +700,8 @@ export function HousekeepingPageContent({
         onOpenChange={setIsAddTaskDialogOpen}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
-        checklistOptions={checklistOptions}
+        checklistOptions={liveChecklistOptions}
+        onCustomizeChecklist={() => setIsAddChecklistDialogOpen(true)}
         initialValues={addTaskInitialValues}
         isSubmitting={isCreatingTask}
         onSubmit={handleAddTask}
@@ -649,22 +712,13 @@ export function HousekeepingPageContent({
         isSubmitting={isSavingChecklist}
         onSubmit={handleSaveChecklistTemplate}
       />
-      <TaskDetailsDialog
-        open={viewingTask !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setViewingTask(null)
-          }
-        }}
-        task={viewingTask}
-      />
       <EditTaskDialog
         open={canEditTask && isEditTaskDialogOpen}
         onOpenChange={setIsEditTaskDialogOpen}
         task={editingTask}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
-        checklistOptions={checklistOptions}
+        checklistOptions={liveChecklistOptions}
         isSubmitting={isUpdatingTask}
         onSubmit={handleEditTask}
       />

@@ -73,7 +73,11 @@ export type CreateHousekeepingTaskInput = {
     priority?: 'low' | 'medium' | 'high' | 'urgent'
     startDate?: string | null
     endDate?: string | null
-    checklistItemDone?: Array<{ item_id: string; status: 'pending' | 'completed' }>
+    checklistItemDone?: Array<{
+        item_id: string
+        status: 'pending' | 'completed'
+        completed_at?: string | null | undefined
+    }>
 }
 
 export type UpdateHousekeepingTaskInput = {
@@ -89,7 +93,11 @@ export type UpdateHousekeepingTaskInput = {
     priority?: 'low' | 'medium' | 'high' | 'urgent'
     startDate?: string | null
     endDate?: string | null
-    checklistItemDone?: Array<{ item_id: string; status: 'pending' | 'completed' }>
+    checklistItemDone?: Array<{
+        item_id: string
+        status: 'pending' | 'completed'
+        completed_at?: string | null | undefined
+    }>
 }
 
 export type ListHousekeepingTasksFilters = {
@@ -113,6 +121,33 @@ export type ListHousekeepingTasksResult = {
         }
     >
     total: number
+}
+
+export type TaskImageTaskType = 'housekeeping' | 'maintenance'
+
+export type TaskImageRow = {
+    id: string
+    property_id: string
+    task_type: TaskImageTaskType
+    task_id: string
+    storage_path: string
+    uploaded_by: string | null
+    created_at: string
+    updated_at: string
+}
+
+export type CreateTaskImageInput = {
+    propertyId: string
+    taskType: TaskImageTaskType
+    taskId: string
+    storagePath: string
+    uploadedBy: string
+}
+
+export type ListTaskImagesInput = {
+    propertyId: string
+    taskType: TaskImageTaskType
+    taskId: string
 }
 
 function escapeIlikePattern(raw: string): string {
@@ -541,6 +576,139 @@ export class HousekeepingQueries {
             })
             throw new Error(`Failed to delete checklist: ${error.message}`)
         }
+    }
+
+    async assertTaskExists(input: {
+        propertyId: string
+        taskType: TaskImageTaskType
+        taskId: string
+    }): Promise<void> {
+        console.info('[HousekeepingQueries] assertTaskExists start', input)
+        const tableName = input.taskType === 'housekeeping' ? 'housekeeping_tasks' : 'maintenance_tasks'
+        const { data, error } = await this.supabase
+            .from(tableName as 'housekeeping_tasks')
+            .select('id')
+            .eq('id', input.taskId)
+            .eq('property_id', input.propertyId)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[HousekeepingQueries] assertTaskExists query failed', {
+                ...input,
+                tableName,
+                error,
+            })
+            throw new Error(`Failed to validate ${input.taskType} task: ${error.message}`)
+        }
+        if (!data) {
+            console.warn('[HousekeepingQueries] assertTaskExists no row found', {
+                ...input,
+                tableName,
+            })
+            throw new Error(`${input.taskType} task not found for this property.`)
+        }
+        console.info('[HousekeepingQueries] assertTaskExists success', {
+            ...input,
+            tableName,
+        })
+    }
+
+    async createTaskImage(input: CreateTaskImageInput): Promise<TaskImageRow> {
+        console.info('[HousekeepingQueries] createTaskImage start', {
+            propertyId: input.propertyId,
+            taskType: input.taskType,
+            taskId: input.taskId,
+            storagePath: input.storagePath,
+            uploadedBy: input.uploadedBy,
+        })
+        await this.assertTaskExists({
+            propertyId: input.propertyId,
+            taskType: input.taskType,
+            taskId: input.taskId,
+        })
+
+        const { data, error } = await this.supabase
+            .from('task_images' as 'housekeeping_tasks')
+            .insert({
+                property_id: input.propertyId,
+                task_type: input.taskType,
+                task_id: input.taskId,
+                storage_path: input.storagePath,
+                uploaded_by: input.uploadedBy,
+            } as never)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] createTaskImage insert failed', {
+                propertyId: input.propertyId,
+                taskType: input.taskType,
+                taskId: input.taskId,
+                storagePath: input.storagePath,
+                error,
+            })
+            throw new Error(`Failed to create task image: ${error.message}`)
+        }
+        if (!data) {
+            console.error('[HousekeepingQueries] createTaskImage insert returned no row', {
+                propertyId: input.propertyId,
+                taskType: input.taskType,
+                taskId: input.taskId,
+                storagePath: input.storagePath,
+            })
+            throw new Error('Failed to create task image: no row returned')
+        }
+        console.info('[HousekeepingQueries] createTaskImage success', {
+            imageId: (data as unknown as TaskImageRow).id,
+            propertyId: input.propertyId,
+            taskType: input.taskType,
+            taskId: input.taskId,
+            storagePath: input.storagePath,
+        })
+
+        return data as unknown as TaskImageRow
+    }
+
+    async listTaskImages(input: ListTaskImagesInput): Promise<TaskImageRow[]> {
+        const { data, error } = await this.supabase
+            .from('task_images' as 'housekeeping_tasks')
+            .select('*')
+            .eq('property_id', input.propertyId)
+            .eq('task_type', input.taskType)
+            .eq('task_id', input.taskId)
+            .order('created_at', { ascending: false })
+
+        if (error) {
+            throw new Error(`Failed to list task images: ${error.message}`)
+        }
+
+        return (data ?? []) as unknown as TaskImageRow[]
+    }
+
+    async deleteTaskImage(input: {
+        propertyId: string
+        taskType: TaskImageTaskType
+        taskId: string
+        imageId: string
+    }): Promise<{ storagePath: string }> {
+        const { data, error } = await this.supabase
+            .from('task_images' as 'housekeeping_tasks')
+            .delete()
+            .eq('id', input.imageId)
+            .eq('property_id', input.propertyId)
+            .eq('task_type', input.taskType)
+            .eq('task_id', input.taskId)
+            .select('storage_path')
+            .single()
+
+        if (error) {
+            throw new Error(`Failed to delete task image: ${error.message}`)
+        }
+        if (!data?.storage_path) {
+            throw new Error('Failed to delete task image: storage path not found')
+        }
+
+        return { storagePath: data.storage_path as string }
     }
 
     async countOpenHousekeepingTasksForSite(propertyId: string, siteId: string): Promise<number> {

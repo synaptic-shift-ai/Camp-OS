@@ -274,9 +274,13 @@ export class Reservation extends AggregateRoot<string> {
   // ============================================================================
 
   /**
-   * Calculate remaining balance to be paid
+   * Calculate remaining balance owed (amount still due).
+   * When paid meets or exceeds total (including overpayment), returns zero — MoneyAmount cannot represent negative balances.
    */
   calculateBalance(): MoneyAmount {
+    if (this.paidAmount.isGreaterThanOrEqual(this.totalAmount)) {
+      return MoneyAmount.zero()
+    }
     return this.totalAmount.subtract(this.paidAmount)
   }
 
@@ -321,11 +325,11 @@ export class Reservation extends AggregateRoot<string> {
       throw new Error('Cannot receive payment for cancelled reservation')
     }
 
-    // Validate payment doesn't exceed total
+    // Overpayment is allowed (e.g. check-in adjustments); do not cap paid_amount at total.
     const newPaidAmount = this.paidAmount.add(amount)
-    if (newPaidAmount.isGreaterThan(this.totalAmount)) {
-      throw new Error('Payment amount exceeds reservation total')
-    }
+    // if (newPaidAmount.isGreaterThan(this.totalAmount)) {
+    //   throw new Error('Payment amount exceeds reservation total')
+    // }
 
     // Update paid amount
     this.props.paidAmount = newPaidAmount

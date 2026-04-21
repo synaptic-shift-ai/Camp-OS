@@ -147,14 +147,15 @@ describe('Reservation', () => {
       expect(reservation.isFullyPaid()).toBe(true)
     })
 
-    test('should reject payment exceeding total amount', () => {
+    test('should accept payment exceeding total amount', () => {
       const reservation = createTestReservation(propertyId, siteId, guestId)
 
       const overpayment = MoneyAmount.fromDollars(400)
+      reservation.receivePayment(overpayment, 'credit_card')
 
-      expect(() =>
-        reservation.receivePayment(overpayment, 'credit_card')
-      ).toThrow('Payment amount exceeds reservation total')
+      expect(reservation.paidAmount.dollars).toBe(400)
+      expect(reservation.paymentStatus).toBe(PaymentStatus.PAID)
+      expect(reservation.isFullyPaid()).toBe(true)
     })
 
     test('should reject payment for cancelled reservation', () => {
@@ -300,18 +301,22 @@ describe('Reservation', () => {
       expect(reservation.isActive()).toBe(true)
     })
 
-    test('should reject overpayment at check-in', () => {
+    test('should allow overpayment at check-in', () => {
       const reservation = createTestReservation(propertyId, siteId, guestId, 0)
       reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
       reservation.confirm()
+      reservation.clearDomainEvents()
 
       const staffId = randomUUID()
-      const extraPayment = MoneyAmount.fromDollars(50) // Would exceed total
+      const extraPayment = MoneyAmount.fromDollars(50)
+      reservation.checkIn(staffId, extraPayment, 'Extra collected at check-in')
 
-      // Overpayment not allowed
-      expect(() =>
-        reservation.checkIn(staffId, extraPayment, 'Attempted overpayment')
-      ).toThrow('Payment amount exceeds reservation total')
+      expect(reservation.status).toBe(ReservationStatus.CHECKED_IN)
+      expect(reservation.paidAmount.dollars).toBe(350)
+      expect(reservation.paymentStatus).toBe(PaymentStatus.PAID)
+      const eventNames = reservation.domainEvents.map((e) => e.constructor.name)
+      expect(eventNames).toContain('PaymentReceived')
+      expect(eventNames).toContain('GuestCheckedIn')
     })
 
     test('should reject checking in non-confirmed reservation', () => {
@@ -420,6 +425,15 @@ describe('Reservation', () => {
     test('should return zero for fully paid reservation', () => {
       const reservation = createTestReservation(propertyId, siteId, guestId)
       reservation.receivePayment(MoneyAmount.fromDollars(300), 'credit_card')
+
+      const balance = reservation.calculateBalance()
+
+      expect(balance.dollars).toBe(0)
+    })
+
+    test('should return zero when paid exceeds total (overpayment)', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(350), 'credit_card')
 
       const balance = reservation.calculateBalance()
 

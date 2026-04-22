@@ -27,6 +27,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  buildDatetimeIfComplete,
+  formatLocalDateKey,
+  formatLocalTimeHM,
+  splitDatetimeLocalValue,
+} from "@/lib/dashboard/housekeeping/datetime-local-parts"
 import type { AddHousekeepingTaskInput } from "./add-task-dialog"
 import type { HousekeepingTaskRow } from "../housekeeping-task/housekeeping-table"
 
@@ -74,6 +80,9 @@ export function EditTaskDialog({
     Array<{ id: string; label: string; notes: string | null; checked: boolean }>
   >([])
   const [error, setError] = useState<string | null>(null)
+
+  const todayKey = formatLocalDateKey(new Date())
+  const nowHm = formatLocalTimeHM(new Date())
 
   const siteSelectOptions = useMemo(() => {
     if (!task?.siteId) return siteOptions
@@ -178,6 +187,15 @@ export function EditTaskDialog({
       setError("Site and task are required.")
       return
     }
+    const now = new Date()
+    if (form.startDate && new Date(form.startDate) < now) {
+      setError("Start date must be today or in the future.")
+      return
+    }
+    if (form.dueDate && new Date(form.dueDate) < now) {
+      setError("Due date must be today or in the future.")
+      return
+    }
 
     try {
       await onSubmit({
@@ -207,7 +225,7 @@ export function EditTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Edit Housekeeping Task</DialogTitle>
           <DialogDescription>Update the task details and save your changes.</DialogDescription>
@@ -421,23 +439,79 @@ export function EditTaskDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-housekeeping-start-date">Start Date</Label>
-              <Input
-                id="edit-housekeeping-start-date"
-                type="datetime-local"
-                value={form.startDate ?? ""}
-                onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))}
-              />
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="edit-housekeeping-start-date">Start date</Label>
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                <Input
+                  id="edit-housekeeping-start-date"
+                  type="date"
+                  className="min-w-0"
+                  value={splitDatetimeLocalValue(form.startDate ?? "").date}
+                  onChange={(event) => {
+                    const date = event.target.value
+                    const time = splitDatetimeLocalValue(form.startDate ?? "").time
+                    setForm((prev) => ({
+                      ...prev,
+                      startDate: buildDatetimeIfComplete(date, time),
+                    }))
+                  }}
+                />
+                <Input
+                  id="edit-housekeeping-start-time"
+                  type="time"
+                  step={60}
+                  className="min-w-0"
+                  value={splitDatetimeLocalValue(form.startDate ?? "").time}
+                  min={
+                    splitDatetimeLocalValue(form.startDate ?? "").date === todayKey ? nowHm : undefined
+                  }
+                  onChange={(event) => {
+                    const time = event.target.value
+                    const date = splitDatetimeLocalValue(form.startDate ?? "").date
+                    setForm((prev) => ({
+                      ...prev,
+                      startDate: buildDatetimeIfComplete(date, time),
+                    }))
+                  }}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-housekeeping-due-date">Due Date</Label>
-              <Input
-                id="edit-housekeeping-due-date"
-                type="datetime-local"
-                value={form.dueDate ?? ""}
-                onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
-              />
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="edit-housekeeping-due-date">Due date</Label>
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                <Input
+                  id="edit-housekeeping-due-date"
+                  type="date"
+                  className="min-w-0"
+                  value={splitDatetimeLocalValue(form.dueDate ?? "").date}
+                  onChange={(event) => {
+                    const date = event.target.value
+                    const time = splitDatetimeLocalValue(form.dueDate ?? "").time
+                    setForm((prev) => ({
+                      ...prev,
+                      dueDate: buildDatetimeIfComplete(date, time),
+                    }))
+                  }}
+                />
+                <Input
+                  id="edit-housekeeping-due-time"
+                  type="time"
+                  step={60}
+                  className="min-w-0"
+                  value={splitDatetimeLocalValue(form.dueDate ?? "").time}
+                  min={
+                    splitDatetimeLocalValue(form.dueDate ?? "").date === todayKey ? nowHm : undefined
+                  }
+                  onChange={(event) => {
+                    const time = event.target.value
+                    const date = splitDatetimeLocalValue(form.dueDate ?? "").date
+                    setForm((prev) => ({
+                      ...prev,
+                      dueDate: buildDatetimeIfComplete(date, time),
+                    }))
+                  }}
+                />
+              </div>
             </div>
           </div>
 

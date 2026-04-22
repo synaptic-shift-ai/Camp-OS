@@ -281,6 +281,7 @@ export default function NewReservationPage() {
   const numPets = watch("numPets")
   const pets = watch("pets")
   const paymentMethod = watch("paymentMethod")
+  const paidAmount = watch("paidAmount")
   const totalCents = summaryTotalCents ?? 0
   const totalDollars = totalCents / 100
   const validPetsCount = (pets ?? []).filter((pet) => {
@@ -1409,6 +1410,7 @@ export default function NewReservationPage() {
                   checkOutDate={checkOutDate}
                   selectedDiscountIds={selectedDiscountIds}
                   selectedFeeIds={selectedFeeIds}
+                  paidAmount={paidAmount}
                   onTotalChange={setSummaryTotalCents}
                 />
               </div>
@@ -1465,6 +1467,7 @@ export default function NewReservationPage() {
             checkOutDate={checkOutDate}
             selectedDiscountIds={selectedDiscountIds}
             selectedFeeIds={selectedFeeIds}
+            paidAmount={paidAmount}
             onTotalChange={setSummaryTotalCents}
           />
         </div>

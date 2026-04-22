@@ -40,6 +40,7 @@ export const UpdateHousekeepingTaskRequestSchema = z.object({
   ),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   startDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
+  startAt: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
   dueDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
   checklistTemplateId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
   checklistItemDone: z.array(ChecklistItemDoneRequestSchema).optional(),

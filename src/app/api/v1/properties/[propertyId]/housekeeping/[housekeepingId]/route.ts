@@ -127,6 +127,22 @@ export async function PATCH(
       return parsedDate.toISOString()
     }
 
+    const startDateTime = parsed.data.startDate !== undefined ? toIsoOrNull(parsed.data.startDate) : null
+    const startedAt = parsed.data.startAt !== undefined ? toIsoOrNull(parsed.data.startAt) : null
+    const dueDateTime = parsed.data.dueDate !== undefined ? toIsoOrNull(parsed.data.dueDate) : null
+
+    const now = new Date()
+    if (startDateTime && new Date(startDateTime) < now) {
+      return error(ErrorCodes.VALIDATION_ERROR, request, {
+        message: 'Start date must be today or in the future.',
+      })
+    }
+    if (dueDateTime && new Date(dueDateTime) < now) {
+      return error(ErrorCodes.VALIDATION_ERROR, request, {
+        message: 'Due date must be today or in the future.',
+      })
+    }
+
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
     const housekeepingTask = await queries.updateHousekeepingTask({
       id: housekeepingId,
@@ -139,8 +155,9 @@ export async function PATCH(
       ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
       ...(reservationId !== undefined ? { reservationId } : {}),
       ...(parsed.data.checklistTemplateId !== undefined ? { checklistId: parsed.data.checklistTemplateId } : {}),
-      ...(parsed.data.startDate !== undefined ? { startDate: toIsoOrNull(parsed.data.startDate) } : {}),
-      ...(parsed.data.dueDate !== undefined ? { endDate: toIsoOrNull(parsed.data.dueDate) } : {}),
+      ...(startDateTime !== null ? { startDate: startDateTime } : {}),
+      ...(startedAt !== null ? { startAt: startedAt } : {}),
+      ...(dueDateTime !== null ? { endDate: dueDateTime } : {}),
       ...(parsed.data.checklistItemDone !== undefined
         ? { checklistItemDone: parsed.data.checklistItemDone }
         : {}),

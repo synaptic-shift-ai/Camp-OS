@@ -41,6 +41,7 @@ interface PricingSummaryProps {
   selectedDiscountIds?: string[]
   /** Manually selected fee IDs (for manual trigger_type fees) */
   selectedFeeIds?: string[]
+  paidAmount?: string | undefined
   onTotalChange?: (totalCents: number) => void
 }
 
@@ -72,6 +73,7 @@ export function PricingSummary({
   checkOutDate: _checkOutDate,
   selectedDiscountIds = [],
   selectedFeeIds = [],
+  paidAmount,
   onTotalChange,
 }: PricingSummaryProps) {
   const formatMoney = (amount: number) => {
@@ -453,6 +455,9 @@ export function PricingSummary({
   // Total
   const total = subtotalBeforeTax + taxAmount
   onTotalChange?.(Math.round(total * 100))
+  const paidAmountValue = Number.parseFloat(paidAmount ?? "")
+  const safePaidAmount = Number.isFinite(paidAmountValue) && paidAmountValue > 0 ? paidAmountValue : 0
+  const changeAmount = safePaidAmount > total ? safePaidAmount - total : 0
 
   // Deposit calculation (if applicable)
   let depositAmount = 0
@@ -536,6 +541,24 @@ export function PricingSummary({
             <span className="text-lg font-bold">Total</span>
             <span className="text-2xl font-bold text-primary">{formatMoney(total)}</span>
           </div>
+
+          {safePaidAmount > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Amount Paid</span>
+                  <span className="font-medium">{formatMoney(safePaidAmount)}</span>
+                </div>
+                {changeAmount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Change</span>
+                    <span className="font-semibold text-green-600">{formatMoney(changeAmount)}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Deposit info */}
           {depositAmount > 0 && (

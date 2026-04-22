@@ -3,7 +3,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, CheckCircle2, ListChecks, Loader2, SlidersHorizontal, Upload, X } from "lucide-react"
+import { ArrowLeft, CheckCircle2, ListChecks, Loader2, Play, SlidersHorizontal, Upload, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Json } from "@/contracts/db"
 import { parseChecklistTemplateLines } from "@/lib/dashboard/housekeeping/housekeeping-queries"
@@ -37,6 +37,7 @@ type TaskDetails = {
   created_at: string
   updated_at: string
   start_date: string | null
+  start_at: string | null
   end_date: string | null
   checklist_item_done: Json
   site: { site_name: string | null; site_number: string | null } | null
@@ -148,6 +149,8 @@ export function HousekeepingView({
   const [deletingImageIds, setDeletingImageIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [isStartingTask, setIsStartingTask] = useState(false)
+  const [isCompletingTask, setIsCompletingTask] = useState(false)
 
   const loadTask = useCallback(async () => {
     setLoading(true)
@@ -166,6 +169,7 @@ export function HousekeepingView({
           created_at,
           updated_at,
           start_date,
+          start_at,
           end_date,
           checklist_item_done,
           staff_id,
@@ -349,6 +353,114 @@ export function HousekeepingView({
       await loadTask()
     } finally {
       setIsReassigning(false)
+    }
+  }
+
+  const handleMarkAsComplete = async () => {
+    if (!task || isCompletingTask) return
+
+    const hasChecklistRows = checklistItems.length > 0
+    const allChecklistDone = checklistItems.every(
+      (item) => !item.id || checklistDoneIds.has(item.id),
+    )
+
+    if (hasChecklistRows && !allChecklistDone) {
+      toast({
+        title: "Checklist not complete",
+        description: "Finish every checklist item before marking this task complete.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (checklistImages.length === 0) {
+      toast({
+        title: "Photo required",
+        description: "Attach at least one image before marking this task complete.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCompletingTask(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/housekeeping/${housekeepingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to complete task."
+        throw new Error(message)
+      }
+
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "done",
+              updated_at: payload?.data?.housekeepingTask?.updated_at ?? previous.updated_at,
+            }
+          : previous,
+      )
+      toast({
+        title: "Task completed",
+        description: "The housekeeping task is now marked as done.",
+      })
+    } catch (completeError) {
+      const message =
+        completeError instanceof Error ? completeError.message : "Failed to complete housekeeping task."
+      toast({
+        title: "Unable to complete task",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsCompletingTask(false)
+    }
+  }
+
+  const handleStartTask = async () => {
+    if (!task || task.status !== "pending" || isStartingTask) return
+
+    setIsStartingTask(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/housekeeping/${housekeepingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "in_progress", startAt: new Date().toISOString() }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message = payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to start task."
+        throw new Error(message)
+      }
+
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "in_progress",
+              start_at: payload?.data?.housekeepingTask?.start_at ?? new Date().toISOString(),
+              updated_at: payload?.data?.housekeepingTask?.updated_at ?? previous.updated_at,
+            }
+          : previous,
+      )
+      toast({
+        title: "Task started",
+        description: "The housekeeping task is now in progress.",
+      })
+    } catch (startError) {
+      const message = startError instanceof Error ? startError.message : "Failed to start housekeeping task."
+      toast({
+        title: "Unable to start task",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsStartingTask(false)
     }
   }
 
@@ -560,10 +672,48 @@ export function HousekeepingView({
           </div>
         </div>
         {canEditTask ? (
-          <Button variant="outline" className="gap-2" onClick={() => setIsReassignOpen(true)}>
-            <SlidersHorizontal className="h-4 w-4" />
-            Reassign
-          </Button>
+          <>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {task.status !== "done" && (
+                <>
+                  {task.status === "pending" && (
+                    <Button
+                      type="button"
+                      className="gap-2"
+                      disabled={isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
+                      onClick={() => void handleStartTask()}
+                    >
+                      {isStartingTask ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                      Start Task
+                    </Button>
+                  )}
+
+                  <Button
+                    type="button"
+                    className="gap-2"
+                    disabled={task.status === "done" || isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
+                    onClick={() => void handleMarkAsComplete()}
+                  >
+                    {isCompletingTask ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    Mark as complete
+                  </Button>
+                </>
+              )}
+
+              <Button variant="outline" className="gap-2" onClick={() => setIsReassignOpen(true)}>
+                <SlidersHorizontal className="h-4 w-4" />
+                Reassign
+              </Button>
+            </div>
+          </>
         ) : null}
       </div>
 
@@ -732,7 +882,7 @@ export function HousekeepingView({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Started</span>
-                <span>{formatDateTime(task.start_date)}</span>
+                <span>{formatDateTime(task.start_at)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Completed</span>
@@ -754,12 +904,19 @@ export function HousekeepingView({
               <CardTitle className="text-base">Activity</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-0 text-sm">
-              <div>
-                <p className="font-medium text-foreground">
-                  {task.status === "done" ? "Task completed" : "Task status updated"}
-                </p>
-                <p className="text-muted-foreground">{formatDateTime(task.updated_at)}</p>
-              </div>
+              {task.start_at ? (
+                <div>
+                  <p className="font-medium text-foreground">Task completed</p>
+                  <p className="text-muted-foreground">{formatDateTime(task.updated_at)}</p>
+                </div>
+              ) : null}
+              
+              {task.start_at ? (
+                <div>
+                  <p className="font-medium text-foreground">Task started</p>
+                  <p className="text-muted-foreground">{formatDateTime(task.start_at)}</p>
+                </div>
+              ) : null}
               <div>
                 <p className="font-medium text-foreground">Task created</p>
                 <p className="text-muted-foreground">{formatDateTime(task.created_at)}</p>

@@ -92,6 +92,7 @@ export type UpdateHousekeepingTaskInput = {
     checklistId?: string | null
     priority?: 'low' | 'medium' | 'high' | 'urgent'
     startDate?: string | null
+    startAt?: string | null
     endDate?: string | null
     checklistItemDone?: Array<{
         item_id: string
@@ -388,6 +389,7 @@ export class HousekeepingQueries {
             ...(input.checklistId !== undefined ? { checklist_id: input.checklistId } : {}),
             ...(input.priority !== undefined ? { priority: input.priority } : {}),
             ...(input.startDate !== undefined ? { start_date: input.startDate } : {}),
+            ...(input.startAt !== undefined ? { start_at: input.startAt } : {}),
             ...(input.endDate !== undefined ? { end_date: input.endDate } : {}),
             ...(input.checklistItemDone !== undefined
                 ? { checklist_item_done: input.checklistItemDone as unknown as Json }
@@ -456,6 +458,29 @@ export class HousekeepingQueries {
         const name = input.name.trim()
         if (!name) {
             throw new Error('Template name is required.')
+        }
+
+        const { data: existingChecklists, error: existingChecklistsError } = await this.supabase
+            .from('checklist')
+            .select('id, name')
+            .eq('property_id', input.propertyId)
+
+        if (existingChecklistsError) {
+            console.error('[HousekeepingQueries] Failed to validate checklist name uniqueness', {
+                propertyId: input.propertyId,
+                error: existingChecklistsError,
+            })
+            throw new Error(`Failed to validate checklist name: ${existingChecklistsError.message}`)
+        }
+
+        const normalizedName = name.toLocaleLowerCase()
+        const hasDuplicateName = (existingChecklists ?? []).some((row) => {
+            const existingName = typeof row.name === 'string' ? row.name.trim().toLocaleLowerCase() : ''
+            return existingName.length > 0 && existingName === normalizedName
+        })
+
+        if (hasDuplicateName) {
+            throw new Error('A checklist with this title already exists.')
         }
 
         const itemRows = input.items

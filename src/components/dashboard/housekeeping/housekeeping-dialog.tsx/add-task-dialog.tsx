@@ -26,6 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  buildDatetimeIfComplete,
+  formatLocalDateKey,
+  formatLocalTimeHM,
+  splitDatetimeLocalValue,
+} from "@/lib/dashboard/housekeeping/datetime-local-parts"
 
 export type AddHousekeepingTaskInput = {
   siteId?: string
@@ -77,6 +83,8 @@ const INITIAL_FORM: AddHousekeepingTaskInput = {
   zone: "",
 }
 
+const MOBILE_PICKER_SPACE_PX = 320
+
 export function AddTaskDialog({
   open,
   onOpenChange,
@@ -93,6 +101,24 @@ export function AddTaskDialog({
     Array<{ id: string; label: string; notes: string | null }>
   >([])
   const [error, setError] = useState<string | null>(null)
+
+  const todayKey = formatLocalDateKey(new Date())
+  const nowHm = formatLocalTimeHM(new Date())
+  const startDateParts = splitDatetimeLocalValue(form.startDate ?? "")
+  const dueDateParts = splitDatetimeLocalValue(form.dueDate ?? "")
+
+  const ensureNativeTimePickerSpace = (input: HTMLInputElement) => {
+    const dialogContent = input.closest("[role='dialog']")
+    if (!(dialogContent instanceof HTMLElement)) return
+
+    // Native mobile time pickers can render tall overlays; pre-scroll to avoid bottom clipping.
+    const inputRect = input.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - inputRect.bottom
+    if (spaceBelow >= MOBILE_PICKER_SPACE_PX) return
+
+    const offset = MOBILE_PICKER_SPACE_PX - spaceBelow + 12
+    dialogContent.scrollBy({ top: offset, behavior: "smooth" })
+  }
 
   useEffect(() => {
     if (!open) return
@@ -132,6 +158,15 @@ export function AddTaskDialog({
       setError("Start date and due date are required.")
       return
     }
+    const now = new Date()
+    if (startDate && new Date(startDate) < now) {
+      setError("Start date must be today or in the future.")
+      return
+    }
+    if (dueDate && new Date(dueDate) < now) {
+      setError("Due date must be today or in the future.")
+      return
+    }
 
     try {
       await onSubmit({
@@ -155,7 +190,7 @@ export function AddTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Add Housekeeping Task</DialogTitle>
           <DialogDescription>
@@ -411,35 +446,81 @@ export function AddTaskDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="housekeeping-start-date">Start Date</Label>
-              <Input
-                id="housekeeping-start-date"
-                type="datetime-local"
-                value={form.startDate ?? ""}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    startDate: event.target.value,
-                  }))
-                }
-                required
-              />
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="housekeeping-start-date">Start date *</Label>
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                <Input
+                  id="housekeeping-start-date"
+                  type="date"
+                  className="min-w-0"
+                  value={startDateParts.date}
+                  min={todayKey}
+                  onChange={(event) => {
+                    const date = event.target.value
+                    const time = startDateParts.time
+                    setForm((prev) => ({
+                      ...prev,
+                      startDate: buildDatetimeIfComplete(date, time),
+                    }))
+                  }}
+                  required
+                />
+                <Input
+                  id="housekeeping-start-time"
+                  type="time"
+                  step={60}
+                  className="min-w-0"
+                  value={startDateParts.time}
+                  min={startDateParts.date === todayKey ? nowHm : undefined}
+                  onFocus={(event) => ensureNativeTimePickerSpace(event.currentTarget)}
+                  onChange={(event) => {
+                    const time = event.target.value
+                    setForm((prev) => ({
+                      ...prev,
+                      startDate: buildDatetimeIfComplete(startDateParts.date, time),
+                    }))
+                  }}
+                  required
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="housekeeping-due-date">Due Date</Label>
-              <Input
-                id="housekeeping-due-date"
-                type="datetime-local"
-                value={form.dueDate ?? ""}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    dueDate: event.target.value,
-                  }))
-                }
-                required
-              />
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="housekeeping-due-date">Due date *</Label>
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                <Input
+                  id="housekeeping-due-date"
+                  type="date"
+                  className="min-w-0"
+                  value={dueDateParts.date}
+                  min={todayKey}
+                  onChange={(event) => {
+                    const date = event.target.value
+                    const time = dueDateParts.time
+                    setForm((prev) => ({
+                      ...prev,
+                      dueDate: buildDatetimeIfComplete(date, time),
+                    }))
+                  }}
+                  required
+                />
+                <Input
+                  id="housekeeping-due-time"
+                  type="time"
+                  step={60}
+                  className="min-w-0"
+                  value={dueDateParts.time}
+                  min={dueDateParts.date === todayKey ? nowHm : undefined}
+                  onFocus={(event) => ensureNativeTimePickerSpace(event.currentTarget)}
+                  onChange={(event) => {
+                    const time = event.target.value
+                    setForm((prev) => ({
+                      ...prev,
+                      dueDate: buildDatetimeIfComplete(dueDateParts.date, time),
+                    }))
+                  }}
+                  required
+                />
+              </div>
             </div>
           </div>
 

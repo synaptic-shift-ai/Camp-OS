@@ -1159,6 +1159,7 @@ export type Database = {
           reservation_id: string | null
           site_id: string
           staff_id: string | null
+          start_at: string | null
           start_date: string | null
           status: string
           title: string
@@ -1177,6 +1178,7 @@ export type Database = {
           reservation_id?: string | null
           site_id: string
           staff_id?: string | null
+          start_at?: string | null
           start_date?: string | null
           status?: string
           title: string
@@ -1195,6 +1197,7 @@ export type Database = {
           reservation_id?: string | null
           site_id?: string
           staff_id?: string | null
+          start_at?: string | null
           start_date?: string | null
           status?: string
           title?: string

@@ -31,12 +31,74 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 import { formatShortDate } from "@/lib/utils"
-import { ClipboardList, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { CalendarDays, ClipboardList, Eye, ListChecks, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 
 function countChecklistItems(item: PropertyChecklistListItem["item"]): number {
   return parseChecklistTemplateLines(item).length
+}
+
+type ChecklistActionsMenuProps = {
+  row: PropertyChecklistListItem
+  canEditChecklist: boolean
+  canDeleteChecklist: boolean
+  onView: (row: PropertyChecklistListItem) => void
+  onEdit: (row: PropertyChecklistListItem) => void
+  onDelete: (row: PropertyChecklistListItem) => void
+}
+
+function ChecklistActionsMenu({
+  row,
+  canEditChecklist,
+  canDeleteChecklist,
+  onView,
+  onEdit,
+  onDelete,
+}: ChecklistActionsMenuProps) {
+  return (
+    <div
+      className="flex items-center justify-end"
+      onClick={(event) => {
+        event.stopPropagation()
+      }}
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 p-0"
+            aria-label={`Checklist actions for ${row.name}`}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => onView(row)}>
+            <Eye className="mr-2 h-4 w-4" />
+            View checklist
+          </DropdownMenuItem>
+          {canEditChecklist ? (
+            <DropdownMenuItem onClick={() => onEdit(row)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit checklist
+            </DropdownMenuItem>
+          ) : null}
+          {canDeleteChecklist ? (
+            <DropdownMenuItem
+              onClick={() => onDelete(row)}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete checklist
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
 }
 
 type HousekeepingChecklistPanelProps = {
@@ -219,7 +281,61 @@ export function HousekeepingChecklistPanel({
         }}
         checklist={viewingChecklist}
       />
-      <div className="border border-border/80 bg-card/50">
+      <div className="space-y-2 md:hidden">
+        {pageRows.map((row) => {
+          const itemCount = countChecklistItems(row.item)
+          const createdLabel = formatShortDate(row.created_at)
+          const description = row.description?.trim() ? row.description.trim() : null
+          return (
+            <div
+              key={row.id}
+              className="cursor-pointer rounded-md border border-border/80 bg-card/50 p-3"
+              onClick={() => setViewingChecklist(row)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-semibold leading-tight text-foreground">{row.name}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {description ? (
+                      <span className="line-clamp-2 break-words">{description}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </p>
+                </div>
+                <ChecklistActionsMenu
+                  row={row}
+                  canEditChecklist={canEditChecklist}
+                  canDeleteChecklist={canDeleteChecklist}
+                  onView={setViewingChecklist}
+                  onEdit={setEditingChecklist}
+                  onDelete={setChecklistPendingDelete}
+                />
+              </div>
+              <div className="mt-2">
+                <p
+                  className="truncate font-mono text-[11px] uppercase tracking-wide text-muted-foreground"
+                  title={row.id}
+                >
+                  {row.id}
+                </p>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <ListChecks className="h-3.5 w-3.5 shrink-0" />
+                  {itemCount} {itemCount === 1 ? "item" : "items"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                  {createdLabel}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="hidden border border-border/80 bg-card/50 md:block md:overflow-x-auto">
       <Table className="min-w-[1200px] table-fixed text-xs">
         <colgroup>
           <col style={{ width: "20%" }} />
@@ -263,42 +379,14 @@ export function HousekeepingChecklistPanel({
                   {createdLabel}
                 </TableCell>
                 <TableCell className="px-3 py-2 align-middle">
-                  <div className="flex items-center justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 p-0"
-                          aria-label={`Checklist actions for ${row.name}`}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => setViewingChecklist(row)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View checklist
-                        </DropdownMenuItem>
-                        {canEditChecklist ? (
-                          <DropdownMenuItem onClick={() => setEditingChecklist(row)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit checklist
-                          </DropdownMenuItem>
-                        ) : null}
-                        {canDeleteChecklist ? (
-                          <DropdownMenuItem
-                            onClick={() => setChecklistPendingDelete(row)}
-                            className="text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete checklist
-                          </DropdownMenuItem>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <ChecklistActionsMenu
+                    row={row}
+                    canEditChecklist={canEditChecklist}
+                    canDeleteChecklist={canDeleteChecklist}
+                    onView={setViewingChecklist}
+                    onEdit={setEditingChecklist}
+                    onDelete={setChecklistPendingDelete}
+                  />
                 </TableCell>
               </TableRow>
             )

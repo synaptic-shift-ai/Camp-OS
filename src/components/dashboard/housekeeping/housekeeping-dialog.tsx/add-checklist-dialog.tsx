@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { GripVertical, Plus, X } from "lucide-react"
 
@@ -45,6 +46,7 @@ export function AddChecklistDialog({
   isSubmitting = false,
   onSubmit,
 }: AddChecklistDialogProps) {
+  const { toast } = useToast()
   const formId = useId()
   const nameId = `${formId}-name`
   const descId = `${formId}-description`
@@ -126,7 +128,13 @@ export function AddChecklistDialog({
       .filter((row) => row.label.length > 0)
 
     if (payloadItems.length === 0) {
-      setError("Add at least one checklist item with a name.")
+      const message = "Add at least one checklist item with a name."
+      setError(message)
+      toast({
+        title: "Checklist item required",
+        description: message,
+        variant: "destructive",
+      })
       return
     }
 
@@ -141,6 +149,11 @@ export function AddChecklistDialog({
       const message =
         submitError instanceof Error ? submitError.message : "Failed to save checklist template."
       setError(message)
+      toast({
+        title: "Unable to save checklist",
+        description: message,
+        variant: "destructive",
+      })
     }
   }
 

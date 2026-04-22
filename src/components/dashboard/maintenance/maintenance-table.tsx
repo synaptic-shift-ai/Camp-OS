@@ -2,6 +2,13 @@
 
 import { Button } from "@/components/ui/button"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Table,
   TableBody,
   TableCell,
@@ -9,19 +16,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Eye, Pencil, Trash2 } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 
 export type MaintenanceTaskRow = {
   id: string
   siteId?: string
   siteName: string
+  siteTypeLabel?: string
   task: string
   description?: string | null
   assigneeId?: string | null
   assignee: string | null
   status: "Open" | "In Progress" | "Completed"
-  priority: "Low" | "Medium" | "High"
+  priority: "Low" | "Medium" | "High" | "Emergency"
   category?: string
+  source?: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
+  estimatedLaborCost?: number | null
+  estimatedPartsCost?: number | null
+  vendorName?: string | null
+  vendorEmail?: string | null
 }
 
 type MaintenanceTableProps = {
@@ -55,6 +68,73 @@ function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
   return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Open</span>
 }
 
+function PriorityPill({ priority }: { priority: MaintenanceTaskRow["priority"] }) {
+  const base = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border"
+
+  if (priority === "Emergency") {
+    return <span className={`${base} border-red-200 bg-red-50 text-red-700`}>Emergency</span>
+  }
+
+  if (priority === "High") {
+    return <span className={`${base} border-orange-200 bg-orange-50 text-orange-700`}>High</span>
+  }
+
+  if (priority === "Medium") {
+    return <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`}>Medium</span>
+  }
+
+  return <span className={`${base} border-zinc-200 bg-zinc-50 text-zinc-700`}>Low</span>
+}
+
+function formatWorkOrderDisplayId(position: number): string {
+  return `WO-${String(position).padStart(4, "0")}`
+}
+
+type TaskActionsMenuProps = {
+  row: MaintenanceTaskRow
+  onView?: MaintenanceTableProps["onView"]
+  onEdit?: MaintenanceTableProps["onEdit"]
+  onDelete?: MaintenanceTableProps["onDelete"]
+  canEditTask?: boolean
+  canDeleteTask?: boolean
+}
+
+function TaskActionsMenu({
+  row,
+  onView,
+  onEdit,
+  onDelete,
+  canEditTask = true,
+  canDeleteTask = true,
+}: TaskActionsMenuProps) {
+  return (
+    <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="xs" aria-label="Task actions" className="h-8 w-8 p-0">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => onView?.(row)}>View task</DropdownMenuItem>
+          {(canEditTask || canDeleteTask) && <DropdownMenuSeparator />}
+          {canEditTask ? (
+            <DropdownMenuItem onClick={() => onEdit?.(row)}>Edit task</DropdownMenuItem>
+          ) : null}
+          {canDeleteTask ? (
+            <DropdownMenuItem
+              onClick={() => onDelete?.(row)}
+              className="text-red-600 focus:text-red-600"
+            >
+              Delete task
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 export function MaintenanceTable({
   rows,
   loading = false,
@@ -66,26 +146,106 @@ export function MaintenanceTable({
   canDeleteTask = true,
 }: MaintenanceTableProps) {
   return (
-    <div className="border border-border/80 bg-card/50">
-      <Table className="text-xs">
+    <>
+      <div className="space-y-2 md:hidden">
+        {loading ? (
+          <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
+            Loading maintenance tasks...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
+            {emptyMessage}
+          </div>
+        ) : (
+          rows.map((row, index) => (
+            <div key={row.id} className="rounded-md border border-border/80 bg-card/50 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-semibold leading-tight text-foreground" title={row.task}>
+                    {row.task}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground" title={row.siteName}>
+                    {row.siteTypeLabel ? `${row.siteName} · ${row.siteTypeLabel}` : row.siteName}
+                  </p>
+                </div>
+                <TaskActionsMenu
+                  row={row}
+                  onView={onView}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  canEditTask={canEditTask}
+                  canDeleteTask={canDeleteTask}
+                />
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {formatWorkOrderDisplayId(index + 1)}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground" title={row.category ?? "Manual"}>
+                  {row.category ?? "Manual"}
+                </p>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-4 border-t border-border/70 pt-2 text-xs">
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Priority</p>
+                  <div className="mt-1">
+                    <PriorityPill priority={row.priority} />
+                  </div>
+                </div>
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Status</p>
+                  <div className="mt-1">
+                    <StatusPill status={row.status} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto border border-border/80 bg-card/50 md:block">
+      <Table className="min-w-[980px] w-full table-fixed text-xs lg:min-w-0">
+        <colgroup>
+          <col className="w-[9%]" />
+          <col className="w-[19%]" />
+          <col className="w-[10%]" />
+          <col className="w-[8%]" />
+          <col className="w-[15%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[7%]" />
+          <col className="w-[4%]" />
+        </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-            <TableHead className="w-[160px] py-1.5 text-black/90 dark:text-white/90 font-medium">
-              Site
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              ID
             </TableHead>
-            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
-              Task
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              Issue & Site
             </TableHead>
-            <TableHead className="py-1.5 text-black/90 dark:text-white/90 font-medium">
-              Description
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              Source
             </TableHead>
-            <TableHead className="w-[180px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              SLA
+            </TableHead>
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              Cost (Estimated / Actual)
+            </TableHead>
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Asignee
             </TableHead>
-            <TableHead className="w-[140px] py-1.5 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              Priority
+            </TableHead>
+            <TableHead className="px-2 py-2 text-black/90 dark:text-white/90 font-medium">
               Status
             </TableHead>
-            <TableHead className="w-[140px] py-1.5 text-right text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="px-1 py-2 text-right text-black/90 dark:text-white/90 font-medium">
               Actions
             </TableHead>
           </TableRow>
@@ -93,82 +253,79 @@ export function MaintenanceTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                 Loading maintenance tasks...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((row) => (
+            rows.map((row, index) => (
               <TableRow
                 key={row.id}
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
               >
-                <TableCell className="py-1.5 text-sm font-medium text-foreground whitespace-nowrap">
-                  {row.siteName}
+                <TableCell className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
+                  <span title={formatWorkOrderDisplayId(index + 1)}>
+                    {formatWorkOrderDisplayId(index + 1)}
+                  </span>
                 </TableCell>
-                <TableCell className="py-1.5">
-                  <div className="space-y-0.5">
-                    <div className="text-sm text-foreground">{row.task}</div>
-                    {row.category ? (
-                      <div className="text-xs text-muted-foreground">{row.category}</div>
-                    ) : null}
+                <TableCell className="px-3 py-2">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="truncate text-sm text-foreground" title={row.task}>
+                      {row.task}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground" title={row.siteName}>
+                      {row.siteTypeLabel ? `${row.siteName} · ${row.siteTypeLabel}` : row.siteName}
+                    </div>
                   </div>
                 </TableCell>
-                <TableCell className="py-1.5 text-sm text-muted-foreground">
-                  {row.description?.trim() ? row.description : "—"}
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground">
+                  <span className="block truncate" title={row.source ?? "Manual"}>
+                    {row.source ?? "Manual"}
+                  </span>
                 </TableCell>
-                <TableCell className="py-1.5 text-sm text-muted-foreground">
-                  {row.assignee ?? "Unassigned"}
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground">
+                  <span className="block truncate" title="—">
+                    —
+                  </span>
                 </TableCell>
-                <TableCell className="py-1.5">
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                  <span className="block truncate" title="—">
+                    —
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground">
+                  <span className="block truncate" title={row.assignee ?? "Unassigned"}>
+                    {row.assignee ?? "Unassigned"}
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-2 whitespace-nowrap">
+                  <PriorityPill priority={row.priority} />
+                </TableCell>
+                <TableCell className="px-2 py-2 whitespace-nowrap">
                   <StatusPill status={row.status} />
                 </TableCell>
-                <TableCell className="py-1.5">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="View task"
-                      className="h-8 w-8 p-0"
-                      onClick={() => onView?.(row)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {canEditTask && (
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        aria-label="Edit task"
-                        className="h-8 w-8 p-0"
-                        onClick={() => onEdit?.(row)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {canDeleteTask && (
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        aria-label="Delete task"
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                        onClick={() => onDelete?.(row)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                <TableCell className="px-1 py-2">
+                  <TaskActionsMenu
+                    row={row}
+                    onView={onView}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    canEditTask={canEditTask}
+                    canDeleteTask={canDeleteTask}
+                  />
                 </TableCell>
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   )
 }

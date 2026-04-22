@@ -23,6 +23,13 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     title: z.string().trim().min(1).max(500),
     description: z.string().trim().max(5000).nullable().optional(),
     status: z.enum(['open', 'in_progress', 'completed']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
+    category: z.enum(['electrical', 'plumbing', 'facility', 'cleaning_issue']).optional(),
+    source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
+    estimatedLaborCost: z.number().nonnegative().nullable().optional(),
+    estimatedPartsCost: z.number().nonnegative().nullable().optional(),
+    vendorName: z.string().trim().max(500).nullable().optional(),
+    vendorEmail: z.string().trim().email().max(500).nullable().optional(),
 })
 
 export const UpdateMaintenanceTaskRequestSchema = z.object({
@@ -31,6 +38,13 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     title: z.string().trim().min(1).max(500).optional(),
     description: z.string().trim().max(5000).nullable().optional(),
     status: z.enum(['open', 'in_progress', 'completed']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
+    category: z.enum(['electrical', 'plumbing', 'facility', 'cleaning_issue']).optional(),
+    source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
+    estimatedLaborCost: z.number().nonnegative().nullable().optional(),
+    estimatedPartsCost: z.number().nonnegative().nullable().optional(),
+    vendorName: z.string().trim().max(500).nullable().optional(),
+    vendorEmail: z.string().trim().email().max(500).nullable().optional(),
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: 'At least one field is required',
 })
@@ -43,6 +57,8 @@ export const ListMaintenanceTasksQuerySchema = z.object({
         z.union([z.string().uuid(), z.literal('unassigned')]).optional(),
     ),
     status: z.enum(['open', 'in_progress', 'completed']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
+    source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
     page: z
         .string()
         .optional()

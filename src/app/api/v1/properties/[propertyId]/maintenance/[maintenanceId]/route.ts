@@ -83,6 +83,13 @@ export async function PATCH(
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
       ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+      ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
+      ...(parsed.data.category !== undefined ? { category: parsed.data.category } : {}),
+      ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
+      ...(parsed.data.estimatedLaborCost !== undefined ? { estimatedLaborCost: parsed.data.estimatedLaborCost } : {}),
+      ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
+      ...(parsed.data.vendorName !== undefined ? { vendorName: parsed.data.vendorName } : {}),
+      ...(parsed.data.vendorEmail !== undefined ? { vendorEmail: parsed.data.vendorEmail } : {}),
     })
 
     if (access.companyId) {

@@ -13,6 +13,13 @@ export type CreateMaintenanceTaskInput = {
     description?: string | null
     staffId?: string | null
     status?: 'open' | 'in_progress' | 'completed'
+    priority?: 'low' | 'medium' | 'high' | 'emergency'
+    category?: 'electrical' | 'plumbing' | 'facility' | 'cleaning_issue'
+    source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
+    estimatedLaborCost?: number | null
+    estimatedPartsCost?: number | null
+    vendorName?: string | null
+    vendorEmail?: string | null
 }
 
 export type UpdateMaintenanceTaskInput = {
@@ -23,6 +30,13 @@ export type UpdateMaintenanceTaskInput = {
     staffId?: string | null
     title?: string
     status?: 'open' | 'in_progress' | 'completed'
+    priority?: 'low' | 'medium' | 'high' | 'emergency'
+    category?: 'electrical' | 'plumbing' | 'facility' | 'cleaning_issue'
+    source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
+    estimatedLaborCost?: number | null
+    estimatedPartsCost?: number | null
+    vendorName?: string | null
+    vendorEmail?: string | null
 }
 
 export type ListMaintenanceTasksFilters = {
@@ -30,10 +44,12 @@ export type ListMaintenanceTasksFilters = {
     siteId?: string
     assigneeId?: 'unassigned' | string
     status?: 'open' | 'in_progress' | 'completed'
+    priority?: 'low' | 'medium' | 'high' | 'emergency'
+    source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
 }
 
 export type ListMaintenanceTasksResult = {
-    tasks: Array<MaintenanceTaskRow & { site: Pick<SiteRow, 'site_name' | 'site_number'> | null }>
+    tasks: Array<MaintenanceTaskRow & { site: Pick<SiteRow, 'site_name' | 'site_number' | 'site_type'> | null }>
     total: number
 }
 
@@ -99,6 +115,13 @@ export class MaintenanceQueries {
             description: input.description ?? null,
             staff_id: input.staffId ?? null,
             ...(input.status !== undefined ? { status: input.status } : {}),
+            ...(input.priority !== undefined ? { priority: input.priority } : {}),
+            ...(input.category !== undefined ? { category: input.category } : {}),
+            ...(input.source !== undefined ? { source: input.source } : {}),
+            ...(input.estimatedLaborCost !== undefined ? { estimated_labor_cost: input.estimatedLaborCost } : {}),
+            ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
+            ...(input.vendorName !== undefined ? { vendor_name: input.vendorName } : {}),
+            ...(input.vendorEmail !== undefined ? { vendor_email: input.vendorEmail } : {}),
         }
 
         const { data, error } = await this.supabase
@@ -130,7 +153,7 @@ export class MaintenanceQueries {
         let query = this.supabase
             .from('maintenance_tasks')
             .select(
-                '*, site:sites(site_name, site_number)',
+                '*, site:sites(site_name, site_number, site_type)',
                 { count: 'exact' },
             )
             .eq('property_id', propertyId)
@@ -150,6 +173,12 @@ export class MaintenanceQueries {
 
         if (filters?.status) {
             query = query.eq('status', filters.status)
+        }
+        if (filters?.priority) {
+            query = query.eq('priority', filters.priority)
+        }
+        if (filters?.source) {
+            query = query.eq('source', filters.source)
         }
 
         const search = filters?.search?.trim()
@@ -227,6 +256,13 @@ export class MaintenanceQueries {
             ...(input.description !== undefined ? { description: input.description } : {}),
             ...(input.staffId !== undefined ? { staff_id: input.staffId } : {}),
             ...(input.status !== undefined ? { status: input.status } : {}),
+            ...(input.priority !== undefined ? { priority: input.priority } : {}),
+            ...(input.category !== undefined ? { category: input.category } : {}),
+            ...(input.source !== undefined ? { source: input.source } : {}),
+            ...(input.estimatedLaborCost !== undefined ? { estimated_labor_cost: input.estimatedLaborCost } : {}),
+            ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
+            ...(input.vendorName !== undefined ? { vendor_name: input.vendorName } : {}),
+            ...(input.vendorEmail !== undefined ? { vendor_email: input.vendorEmail } : {}),
         }
 
         const { data, error } = await this.supabase

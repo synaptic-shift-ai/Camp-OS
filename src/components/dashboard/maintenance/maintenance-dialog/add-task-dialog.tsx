@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
+
+export const MAINTENANCE_CATEGORY_OPTIONS = [
+  { id: "electrical", label: "Electrical", Icon: Zap },
+  { id: "plumbing", label: "Plumbing", Icon: Droplets },
+  { id: "facility", label: "Facility", Icon: Wrench },
+  { id: "cleaning_issue", label: "Cleaning Issue", Icon: Sparkles },
+] as const
+
+export type MaintenanceTaskCategory = (typeof MAINTENANCE_CATEGORY_OPTIONS)[number]["id"]
+
+export function maintenanceCategoryLabel(id: MaintenanceTaskCategory): string {
+  const found = MAINTENANCE_CATEGORY_OPTIONS.find((option) => option.id === id)
+  return found?.label ?? "Electrical"
+}
+
+/** Maps a stored display label (or id) back to a category id for forms. */
+export function parseMaintenanceTaskCategory(
+  value: string | null | undefined,
+): MaintenanceTaskCategory {
+  if (!value?.trim()) return "electrical"
+  const trimmed = value.trim().toLowerCase()
+  const byId = MAINTENANCE_CATEGORY_OPTIONS.find((option) => option.id === trimmed)
+  if (byId) return byId.id
+  const byLabel = MAINTENANCE_CATEGORY_OPTIONS.find(
+    (option) => option.label.toLowerCase() === trimmed,
+  )
+  return byLabel?.id ?? "electrical"
+}
+
+export function MaintenanceCategoryPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: MaintenanceTaskCategory
+  onChange: (value: MaintenanceTaskCategory) => void
+  disabled?: boolean
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Category"
+      className="flex flex-wrap gap-2 sm:flex-nowrap"
+    >
+      {MAINTENANCE_CATEGORY_OPTIONS.map(({ id, label, Icon }) => {
+        const selected = value === id
+        return (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            disabled={disabled}
+            onClick={() => onChange(id)}
+            className={cn(
+              "flex min-w-[calc(50%-0.25rem)] flex-1 flex-col items-center justify-center gap-2 rounded-lg border px-2 py-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:min-w-0",
+              selected
+                ? "border-emerald-700 bg-emerald-50 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-950/50 dark:text-emerald-100"
+                : "border-border bg-background text-foreground hover:bg-muted/40",
+            )}
+          >
+            <Icon className="size-5 shrink-0" aria-hidden />
+            <span className="text-balance text-center leading-tight">{label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export type AddMaintenanceTaskInput = {
   siteId?: string
@@ -29,6 +100,20 @@ export type AddMaintenanceTaskInput = {
   assigneeId?: string | null
   assignee: string | null
   status: "Open" | "In Progress" | "Completed"
+  priority: "Low" | "Medium" | "High" | "Emergency"
+  category: MaintenanceTaskCategory
+  source: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
+  estimatedLaborCost?: number | null
+  estimatedPartsCost?: number | null
+  vendorName?: string
+  vendorEmail?: string
+  images?: File[]
+}
+
+type LocalImageItem = {
+  id: string
+  file: File
+  previewUrl: string
 }
 
 type AddTaskDialogProps = {
@@ -41,6 +126,18 @@ type AddTaskDialogProps = {
 }
 
 const SITE_PLACEHOLDER_VALUE = "__maintenance_site_unselected__"
+export const SOURCE_OPTIONS = ["Guest", "Housekeeping", "Staff", "PM", "Checkout"] as const
+
+export function parseMaintenanceSource(
+  value: string | null | undefined,
+): "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout" {
+  const normalized = value?.trim().toLowerCase()
+  if (normalized === "guest") return "Guest"
+  if (normalized === "housekeeping") return "Housekeeping"
+  if (normalized === "pm") return "PM"
+  if (normalized === "checkout") return "Checkout"
+  return "Staff"
+}
 
 const INITIAL_FORM: AddMaintenanceTaskInput = {
   siteName: "",
@@ -49,6 +146,13 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   assigneeId: null,
   assignee: null,
   status: "Open",
+  priority: "Low",
+  category: "electrical",
+  source: "Staff",
+  estimatedLaborCost: null,
+  estimatedPartsCost: null,
+  vendorName: "",
+  vendorEmail: "",
 }
 
 export function AddTaskDialog({
@@ -61,12 +165,45 @@ export function AddTaskDialog({
 }: AddTaskDialogProps) {
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
   const [error, setError] = useState<string | null>(null)
+  const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
+
+  const clearLocalImages = () => {
+    setLocalImages((prev) => {
+      prev.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+      return []
+    })
+  }
 
   useEffect(() => {
     if (!open) return
     setForm(INITIAL_FORM)
     setError(null)
+    clearLocalImages()
   }, [open])
+
+  const handleImageSelection = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+
+    const nextItems = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .map((file) => ({
+        id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }))
+
+    if (nextItems.length === 0) return
+
+    setLocalImages((prev) => [...prev, ...nextItems])
+  }
+
+  const handleRemoveLocalImage = (id: string) => {
+    setLocalImages((prev) => {
+      const target = prev.find((item) => item.id === id)
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((item) => item.id !== id)
+    })
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -77,6 +214,8 @@ export function AddTaskDialog({
     const task = form.task.trim()
     const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
+    const vendorName = form.vendorName?.trim() ?? ""
+    const vendorEmail = form.vendorEmail?.trim() ?? ""
 
     if (!siteId || !siteName || !task) {
       setError("Site and task title are required.")
@@ -91,6 +230,9 @@ export function AddTaskDialog({
         task,
         description,
         assignee,
+        vendorName,
+        vendorEmail,
+        images: localImages.map((item) => item.file),
       })
       onOpenChange(false)
     } catch (submitError) {
@@ -181,6 +323,32 @@ export function AddTaskDialog({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="maintenance-task">Task title *</Label>
+              <Input
+                id="maintenance-task"
+                value={form.task}
+                onChange={(event) => setForm((prev) => ({ ...prev, task: event.target.value }))}
+                placeholder="Enter task title"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="maintenance-description">Description</Label>
+            <Textarea
+              id="maintenance-description"
+              value={form.description ?? ""}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, description: event.target.value }))
+              }
+              placeholder="Add details (optional)"
+              rows={3}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
               <Label htmlFor="maintenance-assignee">Assignee</Label>
               <Select
                 value={form.assigneeId ?? "unassigned"}
@@ -210,49 +378,211 @@ export function AddTaskDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Source</Label>
+              <Select
+                value={form.source}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    source: value as AddMaintenanceTaskInput["source"],
+                  }))
+                }
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOURCE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="maintenance-task">Task title *</Label>
-            <Input
-              id="maintenance-task"
-              value={form.task}
-              onChange={(event) => setForm((prev) => ({ ...prev, task: event.target.value }))}
-              placeholder="Enter task title"
-              required
+            <Label>Category</Label>
+            <MaintenanceCategoryPicker
+              value={form.category}
+              onChange={(category) => setForm((prev) => ({ ...prev, category }))}
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="maintenance-description">Description</Label>
-            <Textarea
-              id="maintenance-description"
-              value={form.description ?? ""}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, description: event.target.value }))
-              }
-              placeholder="Add details (optional)"
-              rows={3}
-            />
+            <Label>Cost Estimate</Label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Estimated Labor Cost</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input 
+                    type="number" 
+                    placeholder="Enter labor cost estimate" 
+                    className="pl-7"
+                    value={form.estimatedLaborCost ?? ""}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      setForm((prev) => ({
+                        ...prev,
+                        estimatedLaborCost: raw === "" ? null : Number(raw),
+                      }))
+                    }}
+                    min={0}
+                    step={1}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Estimated Parts Cost</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    $
+                  </span>
+                  <Input 
+                    type="number" 
+                    placeholder="Enter cost estimate" 
+                    className="pl-7"
+                    value={form.estimatedPartsCost ?? ""}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      setForm((prev) => ({
+                        ...prev,
+                        estimatedPartsCost: raw === "" ? null : Number(raw),
+                      }))
+                    }}
+                    min={0}
+                    step={1}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={form.status}
-              onValueChange={(status: AddMaintenanceTaskInput["status"]) =>
-                setForm((prev) => ({ ...prev, status }))
-              }
+            <Label>Vendor Details</Label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Vendor Name</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter vendor name"
+                  value={form.vendorName ?? ""}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, vendorName: event.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Vendor Email</Label>
+                <Input
+                  type="email"
+                  placeholder="Enter vendor email"
+                  value={form.vendorEmail ?? ""}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, vendorEmail: event.target.value }))
+                  }
+                />
+              </div> 
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(status: AddMaintenanceTaskInput["status"]) =>
+                  setForm((prev) => ({ ...prev, status }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select
+                value={form.priority}
+                onValueChange={(priority: AddMaintenanceTaskInput["priority"]) =>
+                  setForm((prev) => ({ ...prev, priority }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Emergency">Emergency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="maintenance-images">Task Images</Label>
+            <label
+              htmlFor="maintenance-images"
+              className={cn(
+                "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center transition-colors",
+                "border-[#d9d2c3] bg-transparent text-[#4f6149] hover:bg-muted/10",
+                isSubmitting && "pointer-events-none opacity-60",
+              )}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Open">Open</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
+              <Upload className="size-5" aria-hidden />
+              <span className="text-2xl leading-none">+</span>
+              <p className="text-base font-medium">Click to upload images</p>
+            </label>
+            <Input
+              id="maintenance-images"
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={isSubmitting}
+              className="sr-only"
+              onChange={(event) => {
+                handleImageSelection(event.target.files)
+                event.currentTarget.value = ""
+              }}
+            />
+            {localImages.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {localImages.map((item) => (
+                  <div key={item.id} className="relative overflow-hidden rounded-md border border-border">
+                    <img
+                      src={item.previewUrl}
+                      alt={item.file.name}
+                      className="h-24 w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLocalImage(item.id)}
+                      className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white hover:bg-black/75"
+                      aria-label={`Remove ${item.file.name}`}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                    <p className="truncate px-2 py-1 text-[11px] text-muted-foreground">
+                      {item.file.name}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter>

@@ -60,6 +60,8 @@ export async function GET(
             siteId: searchParams.get('siteId') ?? undefined,
             assigneeId: searchParams.get('assigneeId') ?? undefined,
             status: searchParams.get('status') ?? undefined,
+            priority: searchParams.get('priority') ?? undefined,
+            source: searchParams.get('source') ?? undefined,
             page: searchParams.get('page') ?? undefined,
             per_page: searchParams.get('per_page') ?? undefined,
         }
@@ -77,6 +79,8 @@ export async function GET(
         if (data.siteId !== undefined) listFilters.siteId = data.siteId
         if (data.assigneeId !== undefined) listFilters.assigneeId = data.assigneeId
         if (data.status !== undefined) listFilters.status = data.status
+        if (data.priority !== undefined) listFilters.priority = data.priority
+        if (data.source !== undefined) listFilters.source = data.source
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const [listResult, openTaskCount] = await Promise.all([
@@ -162,6 +166,13 @@ export async function POST(
             staffId: parsed.data.staffId ?? null,
             title: parsed.data.title,
             description: parsed.data.description ?? null,
+            ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
+            ...(parsed.data.category !== undefined ? { category: parsed.data.category } : {}),
+            ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
+            ...(parsed.data.estimatedLaborCost !== undefined ? { estimatedLaborCost: parsed.data.estimatedLaborCost } : {}),
+            ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
+            ...(parsed.data.vendorName !== undefined ? { vendorName: parsed.data.vendorName } : {}),
+            ...(parsed.data.vendorEmail !== undefined ? { vendorEmail: parsed.data.vendorEmail } : {}),
             createdBy: user.id,
             ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         })

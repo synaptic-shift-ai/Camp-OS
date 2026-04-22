@@ -1243,40 +1243,61 @@ export type Database = {
       }
       maintenance_tasks: {
         Row: {
+          category: string
           created_at: string
           created_by: string
           description: string | null
+          estimated_labor_cost: number | null
+          estimated_parts_cost: number | null
           id: string
+          priority: string
           property_id: string
           site_id: string
+          source: string
           staff_id: string | null
           status: string
           title: string
           updated_at: string
+          vendor_email: string | null
+          vendor_name: string | null
         }
         Insert: {
+          category?: string
           created_at?: string
           created_by: string
           description?: string | null
+          estimated_labor_cost?: number | null
+          estimated_parts_cost?: number | null
           id?: string
+          priority?: string
           property_id: string
           site_id: string
+          source?: string
           staff_id?: string | null
           status?: string
           title: string
           updated_at?: string
+          vendor_email?: string | null
+          vendor_name?: string | null
         }
         Update: {
+          category?: string
           created_at?: string
           created_by?: string
           description?: string | null
+          estimated_labor_cost?: number | null
+          estimated_parts_cost?: number | null
           id?: string
+          priority?: string
           property_id?: string
           site_id?: string
+          source?: string
           staff_id?: string | null
           status?: string
           title?: string
           updated_at?: string
+          vendor_email?: string | null
+          vendor_name?: string | null
         }
         Relationships: [
           {

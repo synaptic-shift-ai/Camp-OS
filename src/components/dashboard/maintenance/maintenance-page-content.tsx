@@ -7,7 +7,12 @@ import { MaintenanceFilter, type MaintenanceFilterValue } from "./maintenance-fi
 import { MaintenancePageHeader } from "./maintenance-page-header"
 import { MaintenanceTable, type MaintenanceTaskRow } from "./maintenance-table"
 import {
+  MaintenanceViewSwitcher,
+  type MaintenanceViewMode,
+} from "./maintenance-view-switcher"
+import {
   AddTaskDialog,
+  maintenanceCategoryLabel,
   type AddMaintenanceTaskInput,
 } from "./maintenance-dialog/add-task-dialog"
 import { Pagination } from "@/components/ui/pagination"
@@ -15,6 +20,9 @@ import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { EditTaskDialog } from "./maintenance-dialog/edit-task-dialog"
 import { DeleteTaskConfirmationDialog } from "./maintenance-dialog/delete-task-confirmation-dialog"
 import { TaskDetailsDialog } from "./maintenance-dialog/task-details-dialog"
+import { createClient } from "@/lib/supabase/client"
+
+const TASK_IMAGES_BUCKET = "maintenance-and-housekeeping-images"
 
 type MaintenancePageContentProps = {
   propertyId: string
@@ -45,6 +53,8 @@ const INITIAL_FILTERS: MaintenanceFilterValue = {
   siteId: "all",
   assigneeId: "all",
   status: "all",
+  priority: "all",
+  source: "all",
 }
 
 const FILTER_DEBOUNCE_MS = 400
@@ -58,14 +68,93 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced
 }
 
+function toApiPriority(
+  priority: AddMaintenanceTaskInput["priority"],
+): "low" | "medium" | "high" | "emergency" {
+  if (priority === "Low") return "low"
+  if (priority === "High") return "high"
+  if (priority === "Emergency") return "emergency"
+  return "medium"
+}
+
+function fromApiPriority(priority: string | null): MaintenanceTaskRow["priority"] {
+  if (priority === "low") return "Low"
+  if (priority === "high") return "High"
+  if (priority === "emergency") return "Emergency"
+  return "Medium"
+}
+
+function toApiSource(
+  source: AddMaintenanceTaskInput["source"],
+): "guest" | "housekeeping" | "staff" | "pm" | "checkout" {
+  if (source === "Guest") return "guest"
+  if (source === "Housekeeping") return "housekeeping"
+  if (source === "PM") return "pm"
+  if (source === "Checkout") return "checkout"
+  return "staff"
+}
+
+function filterPriorityToApi(
+  priority: MaintenanceFilterValue["priority"],
+): "low" | "medium" | "high" | "emergency" | null {
+  if (priority === "all") return null
+  if (priority === "Low") return "low"
+  if (priority === "High") return "high"
+  if (priority === "Emergency") return "emergency"
+  return "medium"
+}
+
+function filterSourceToApi(
+  source: MaintenanceFilterValue["source"],
+): "guest" | "housekeeping" | "staff" | "pm" | "checkout" | null {
+  if (source === "all") return null
+  if (source === "Guest") return "guest"
+  if (source === "Housekeeping") return "housekeeping"
+  if (source === "PM") return "pm"
+  if (source === "Checkout") return "checkout"
+  return "staff"
+}
+
+function fromApiSource(source: string | null): AddMaintenanceTaskInput["source"] {
+  if (source === "guest") return "Guest"
+  if (source === "housekeeping") return "Housekeeping"
+  if (source === "pm") return "PM"
+  if (source === "checkout") return "Checkout"
+  return "Staff"
+}
+
+function sanitizeFileName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "")
+    .toLowerCase()
+}
+
 type ApiMaintenanceTask = {
   id: string
   site_id: string
   title: string
   description: string | null
   status: string
+  priority: string | null
+  category: string | null
+  source: string | null
+  estimated_labor_cost: number | null
+  estimated_parts_cost: number | null
+  vendor_name: string | null
+  vendor_email: string | null
   staff_id: string | null
-  site: { site_name: string | null; site_number: string | null } | null
+  site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
+}
+
+function toSiteTypeLabel(siteType: string | null | undefined): string | undefined {
+  if (!siteType) return undefined
+  return siteType
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase())
 }
 
 export function MaintenancePageContent({
@@ -99,9 +188,10 @@ export function MaintenancePageContent({
   const [editingTask, setEditingTask] = useState<MaintenanceTaskRow | null>(null)
   const [taskPendingDelete, setTaskPendingDelete] = useState<MaintenanceTaskRow | null>(null)
   const [viewingTask, setViewingTask] = useState<MaintenanceTaskRow | null>(null)
+  const [viewMode, setViewMode] = useState<MaintenanceViewMode>("wo_list")
   const filtersApiKey = useMemo(
     () =>
-      `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}`,
+      `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}`,
     [debouncedFilters],
   )
 
@@ -121,7 +211,9 @@ export function MaintenancePageContent({
         (row.assignee?.toLowerCase().includes(normalizedSearch) ?? false)
 
       const matchesStatus = filters.status === "all" || row.status === filters.status
-      return matchesSearch && matchesStatus
+      const matchesPriority = filters.priority === "all" || row.priority === filters.priority
+      const matchesSource = filters.source === "all" || row.source === filters.source
+      return matchesSearch && matchesStatus && matchesPriority && matchesSource
     })
   }, [filters, rows])
 
@@ -140,6 +232,14 @@ export function MaintenancePageContent({
       }
       if (debouncedFilters.status !== "all") {
         params.set("status", toApiStatus(debouncedFilters.status as AddMaintenanceTaskInput["status"]))
+      }
+      const priorityParam = filterPriorityToApi(debouncedFilters.priority)
+      if (priorityParam) {
+        params.set("priority", priorityParam)
+      }
+      const sourceParam = filterSourceToApi(debouncedFilters.source)
+      if (sourceParam) {
+        params.set("source", sourceParam)
       }
       if (debouncedFilters.siteId !== "all") {
         params.set("siteId", debouncedFilters.siteId)
@@ -170,12 +270,19 @@ export function MaintenancePageContent({
         id: task.id,
         siteId: task.site_id,
         siteName: task.site?.site_name?.trim() || task.site?.site_number || "Unknown site",
+        siteTypeLabel: toSiteTypeLabel(task.site?.site_type),
         task: task.title,
         assigneeId: task.staff_id,
         description: task.description,
         assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
         status: fromApiStatus(task.status),
-        priority: "Medium",
+        priority: fromApiPriority(task.priority),
+        category: task.category ? maintenanceCategoryLabel(task.category as AddMaintenanceTaskInput["category"]) : undefined,
+        source: fromApiSource(task.source),
+        estimatedLaborCost: task.estimated_labor_cost,
+        estimatedPartsCost: task.estimated_parts_cost,
+        vendorName: task.vendor_name,
+        vendorEmail: task.vendor_email,
       }))
 
       setRows(mappedRows)
@@ -202,6 +309,8 @@ export function MaintenancePageContent({
     debouncedFilters.search,
     debouncedFilters.siteId,
     debouncedFilters.status,
+    debouncedFilters.priority,
+    debouncedFilters.source,
     perPage,
     propertyId,
     toast,
@@ -260,6 +369,13 @@ export function MaintenancePageContent({
           title: input.task,
           description: input.description?.trim() ? input.description.trim() : null,
           status: toApiStatus(input.status),
+          priority: toApiPriority(input.priority),
+          category: input.category,
+          source: toApiSource(input.source),
+          estimatedLaborCost: input.estimatedLaborCost ?? null,
+          estimatedPartsCost: input.estimatedPartsCost ?? null,
+          vendorName: input.vendorName?.trim() ? input.vendorName.trim() : null,
+          vendorEmail: input.vendorEmail?.trim() ? input.vendorEmail.trim() : null,
         }),
       })
 
@@ -270,6 +386,48 @@ export function MaintenancePageContent({
           payload?.error?.message ??
           "Failed to create maintenance task."
         throw new Error(message)
+      }
+
+      const maintenanceTaskId = payload?.data?.maintenanceTask?.id as string | undefined
+      if (!maintenanceTaskId) {
+        throw new Error("Task created but id was not returned.")
+      }
+
+      const imageFiles = input.images ?? []
+      if (imageFiles.length > 0) {
+        const supabase = createClient()
+        for (const file of imageFiles) {
+          const safeName = sanitizeFileName(file.name) || "image"
+          const storagePath = `property/${propertyId}/maintenance/${maintenanceTaskId}/${crypto.randomUUID()}-${safeName}`
+
+          const { error: uploadError } = await supabase.storage
+            .from(TASK_IMAGES_BUCKET)
+            .upload(storagePath, file, {
+              upsert: false,
+              contentType: file.type,
+            })
+
+          if (uploadError) {
+            throw new Error(uploadError.message)
+          }
+
+          const registerResponse = await fetch(
+            `/api/v1/properties/${propertyId}/maintenance/${maintenanceTaskId}/images`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ storagePath }),
+            },
+          )
+          const registerPayload = await registerResponse.json()
+
+          if (!registerResponse.ok || !registerPayload?.success) {
+            const message = registerPayload?.error?.message ?? "Failed to save uploaded image."
+            throw new Error(message)
+          }
+        }
       }
 
       await loadTasks()
@@ -313,6 +471,13 @@ export function MaintenancePageContent({
           title: input.task,
           description: input.description?.trim() ? input.description.trim() : null,
           status: toApiStatus(input.status),
+          priority: toApiPriority(input.priority),
+          category: input.category,
+          source: toApiSource(input.source),
+          estimatedLaborCost: input.estimatedLaborCost ?? null,
+          estimatedPartsCost: input.estimatedPartsCost ?? null,
+          vendorName: input.vendorName?.trim() ? input.vendorName.trim() : null,
+          vendorEmail: input.vendorEmail?.trim() ? input.vendorEmail.trim() : null,
         }),
       })
 
@@ -363,43 +528,55 @@ export function MaintenancePageContent({
         onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
         canCreateTask={canCreateTask}
       />
-      <MaintenanceFilter
-        value={filters}
-        onChange={setFilters}
-        siteOptions={siteOptions}
-        assigneeOptions={assigneeOptions}
-      />
-      <MaintenanceTable
-        rows={filteredRows}
-        loading={loading}
-        emptyMessage={emptyMessage}
-        onView={handleViewTask}
-        onEdit={handleOpenEditTask}
-        onDelete={handleRequestDeleteTask}
-        canEditTask={canEditTask}
-        canDeleteTask={canDeleteTask}
-      />
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-          <div>
-            Showing{" "}
-            <span className="font-medium">
-              {startIndex}-{endIndex}
-            </span>{" "}
-            of <span className="font-medium">{total}</span> tasks
-          </div>
-          <PageSizeSelector value={perPage} onChange={setPerPage} disabled={loading} />
-        </div>
-        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={goToPage}
-            disabled={loading}
-            windowSize={2}
+      <MaintenanceViewSwitcher mode={viewMode} onModeChange={setViewMode} />
+
+      {viewMode === "wo_list" ? (
+        <>
+          <MaintenanceFilter
+            value={filters}
+            onChange={setFilters}
+            siteOptions={siteOptions}
+            assigneeOptions={assigneeOptions}
           />
+          <MaintenanceTable
+            rows={filteredRows}
+            loading={loading}
+            emptyMessage={emptyMessage}
+            onView={handleViewTask}
+            onEdit={handleOpenEditTask}
+            onDelete={handleRequestDeleteTask}
+            canEditTask={canEditTask}
+            canDeleteTask={canDeleteTask}
+          />
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+              <div>
+                Showing{" "}
+                <span className="font-medium">
+                  {startIndex}-{endIndex}
+                </span>{" "}
+                of <span className="font-medium">{total}</span> tasks
+              </div>
+              <PageSizeSelector value={perPage} onChange={setPerPage} disabled={loading} />
+            </div>
+            <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={goToPage}
+                disabled={loading}
+                windowSize={2}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
+          {viewMode === "analytics"
+            ? "Maintenance analytics view coming soon."
+            : "Maintenance schedules view coming soon."}
         </div>
-      </div>
+      )}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}

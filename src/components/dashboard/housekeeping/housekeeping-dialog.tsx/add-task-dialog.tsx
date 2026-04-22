@@ -27,9 +27,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  buildDatetimeIfComplete,
   formatLocalDateKey,
   formatLocalTimeHM,
+  mergeDatetimeLocalValue,
   splitDatetimeLocalValue,
 } from "@/lib/dashboard/housekeeping/datetime-local-parts"
 
@@ -59,7 +59,10 @@ type AddTaskDialogProps = {
   checklistOptions: Array<{ id: string; label: string }>
   onCustomizeChecklist?: () => void
   initialValues?: Partial<
-    Pick<AddHousekeepingTaskInput, "siteId" | "siteName" | "reservationConfirmationId">
+    Pick<
+      AddHousekeepingTaskInput,
+      "siteId" | "siteName" | "reservationConfirmationId" | "startDate" | "dueDate"
+    >
   >
   isSubmitting?: boolean
   onSubmit: (input: AddHousekeepingTaskInput) => Promise<void>
@@ -101,12 +104,13 @@ export function AddTaskDialog({
     Array<{ id: string; label: string; notes: string | null }>
   >([])
   const [error, setError] = useState<string | null>(null)
+  const [startDateInput, setStartDateInput] = useState("")
+  const [startTimeInput, setStartTimeInput] = useState("")
+  const [dueDateInput, setDueDateInput] = useState("")
+  const [dueTimeInput, setDueTimeInput] = useState("")
 
   const todayKey = formatLocalDateKey(new Date())
   const nowHm = formatLocalTimeHM(new Date())
-  const startDateParts = splitDatetimeLocalValue(form.startDate ?? "")
-  const dueDateParts = splitDatetimeLocalValue(form.dueDate ?? "")
-
   const ensureNativeTimePickerSpace = (input: HTMLInputElement) => {
     const dialogContent = input.closest("[role='dialog']")
     if (!(dialogContent instanceof HTMLElement)) return
@@ -122,10 +126,16 @@ export function AddTaskDialog({
 
   useEffect(() => {
     if (!open) return
+    const initialStartParts = splitDatetimeLocalValue(initialValues?.startDate ?? "")
+    const initialDueParts = splitDatetimeLocalValue(initialValues?.dueDate ?? "")
     setForm({
       ...INITIAL_FORM,
       ...initialValues,
     })
+    setStartDateInput(initialStartParts.date)
+    setStartTimeInput(initialStartParts.time)
+    setDueDateInput(initialDueParts.date)
+    setDueTimeInput(initialDueParts.time)
     setChecklistItems([])
     setError(null)
   }, [open, initialValues])
@@ -453,14 +463,14 @@ export function AddTaskDialog({
                   id="housekeeping-start-date"
                   type="date"
                   className="min-w-0"
-                  value={startDateParts.date}
+                  value={startDateInput}
                   min={todayKey}
                   onChange={(event) => {
                     const date = event.target.value
-                    const time = startDateParts.time
+                    setStartDateInput(date)
                     setForm((prev) => ({
                       ...prev,
-                      startDate: buildDatetimeIfComplete(date, time),
+                      startDate: mergeDatetimeLocalValue(date, startTimeInput),
                     }))
                   }}
                   required
@@ -470,14 +480,15 @@ export function AddTaskDialog({
                   type="time"
                   step={60}
                   className="min-w-0"
-                  value={startDateParts.time}
-                  min={startDateParts.date === todayKey ? nowHm : undefined}
+                  value={startTimeInput}
+                  min={startDateInput === todayKey ? nowHm : undefined}
                   onFocus={(event) => ensureNativeTimePickerSpace(event.currentTarget)}
                   onChange={(event) => {
                     const time = event.target.value
+                    setStartTimeInput(time)
                     setForm((prev) => ({
                       ...prev,
-                      startDate: buildDatetimeIfComplete(startDateParts.date, time),
+                      startDate: mergeDatetimeLocalValue(startDateInput, time),
                     }))
                   }}
                   required
@@ -491,14 +502,14 @@ export function AddTaskDialog({
                   id="housekeeping-due-date"
                   type="date"
                   className="min-w-0"
-                  value={dueDateParts.date}
+                  value={dueDateInput}
                   min={todayKey}
                   onChange={(event) => {
                     const date = event.target.value
-                    const time = dueDateParts.time
+                    setDueDateInput(date)
                     setForm((prev) => ({
                       ...prev,
-                      dueDate: buildDatetimeIfComplete(date, time),
+                      dueDate: mergeDatetimeLocalValue(date, dueTimeInput),
                     }))
                   }}
                   required
@@ -508,14 +519,15 @@ export function AddTaskDialog({
                   type="time"
                   step={60}
                   className="min-w-0"
-                  value={dueDateParts.time}
-                  min={dueDateParts.date === todayKey ? nowHm : undefined}
+                  value={dueTimeInput}
+                  min={dueDateInput === todayKey ? nowHm : undefined}
                   onFocus={(event) => ensureNativeTimePickerSpace(event.currentTarget)}
                   onChange={(event) => {
                     const time = event.target.value
+                    setDueTimeInput(time)
                     setForm((prev) => ({
                       ...prev,
-                      dueDate: buildDatetimeIfComplete(dueDateParts.date, time),
+                      dueDate: mergeDatetimeLocalValue(dueDateInput, time),
                     }))
                   }}
                   required

@@ -643,6 +643,8 @@ export function HousekeepingView({
 
   const siteLabel = task.site?.site_name?.trim() || task.site?.site_number || "Unknown site"
   const assigneeLabel = task.staff_id ? assigneeLabelById.get(task.staff_id) ?? "Assigned" : "Unassigned"
+  const showStartTaskAction = task.status === "pending"
+  const showMarkCompleteAction = task.status !== "done"
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -673,13 +675,13 @@ export function HousekeepingView({
         </div>
         {canEditTask ? (
           <>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              {task.status !== "done" && (
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
+              {showMarkCompleteAction && (
                 <>
-                  {task.status === "pending" && (
+                  {showStartTaskAction && (
                     <Button
                       type="button"
-                      className="gap-2"
+                      className="col-span-1 gap-2 sm:w-auto"
                       disabled={isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                       onClick={() => void handleStartTask()}
                     >
@@ -694,7 +696,7 @@ export function HousekeepingView({
 
                   <Button
                     type="button"
-                    className="gap-2"
+                    className={`${showStartTaskAction ? "col-span-1" : "col-span-2"} gap-2 sm:w-auto`}
                     disabled={task.status === "done" || isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                     onClick={() => void handleMarkAsComplete()}
                   >
@@ -708,7 +710,7 @@ export function HousekeepingView({
                 </>
               )}
 
-              <Button variant="outline" className="gap-2" onClick={() => setIsReassignOpen(true)}>
+              <Button variant="outline" className="col-span-2 gap-2 sm:w-auto" onClick={() => setIsReassignOpen(true)}>
                 <SlidersHorizontal className="h-4 w-4" />
                 Reassign
               </Button>

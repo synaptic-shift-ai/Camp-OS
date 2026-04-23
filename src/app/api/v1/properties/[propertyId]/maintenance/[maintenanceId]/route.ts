@@ -76,8 +76,8 @@ export async function PATCH(
       ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
       ...(parsed.data.estimatedLaborCost !== undefined ? { estimatedLaborCost: parsed.data.estimatedLaborCost } : {}),
       ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
-      ...(parsed.data.vendorName !== undefined ? { vendorName: parsed.data.vendorName } : {}),
-      ...(parsed.data.vendorEmail !== undefined ? { vendorEmail: parsed.data.vendorEmail } : {}),
+      ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
+      ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
     })
 
     if (access.companyId) {
@@ -107,6 +107,9 @@ export async function PATCH(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[Maintenance API v1] PATCH error:', err)
+    if (message === 'Vendor not found for this property') {
+      return error(ErrorCodes.VALIDATION_ERROR, request, { message })
+    }
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })
   }
 }

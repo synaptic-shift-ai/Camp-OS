@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import type { MaintenanceTaskRow } from "../maintenance-table"
+import type { MaintenanceTaskRow } from "../wo-list/maintenance-table"
 
 type TaskDetailsDialogProps = {
   open: boolean

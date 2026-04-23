@@ -29,7 +29,7 @@ import {
   parseMaintenanceTaskCategory,
   type AddMaintenanceTaskInput,
 } from "./add-task-dialog"
-import type { MaintenanceTaskRow } from "../maintenance-table"
+import type { MaintenanceTaskRow } from "../wo-list/maintenance-table"
 
 type EditTaskDialogProps = {
   open: boolean
@@ -40,6 +40,7 @@ type EditTaskDialogProps = {
   /** When false, assignee cannot be changed (read-only, not a dropdown). */
   canAssignWorkOrder?: boolean
   isSubmitting?: boolean
+  vendorOptions?: Array<{ id: string; label: string }>
   onSubmit: (input: AddMaintenanceTaskInput & { id: string }) => Promise<void>
 }
 
@@ -63,8 +64,8 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   source: "Staff",
   estimatedLaborCost: null,
   estimatedPartsCost: null,
-  vendorName: "",
-  vendorEmail: "",
+  vendorId: null,
+  sla: null,
 }
 
 export function EditTaskDialog({
@@ -75,9 +76,11 @@ export function EditTaskDialog({
   assigneeOptions,
   canAssignWorkOrder = true,
   isSubmitting = false,
+  vendorOptions = [],
   onSubmit,
 }: EditTaskDialogProps) {
   const [form, setForm] = useState<AddMaintenanceTaskInput>(EMPTY_FORM)
+  const [customCategory, setCustomCategory] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
@@ -92,9 +95,11 @@ export function EditTaskDialog({
     if (!open) return
     if (!task) {
       setForm(EMPTY_FORM)
+      setCustomCategory("")
       return
     }
 
+    const parsedCategory = parseMaintenanceTaskCategory(task.category)
     setForm({
       siteId: task.siteId ?? "",
       siteName: task.siteName,
@@ -104,13 +109,14 @@ export function EditTaskDialog({
       assignee: task.assignee,
       status: task.status,
       priority: task.priority,
-      category: parseMaintenanceTaskCategory(task.category),
+      category: parsedCategory,
       source: parseMaintenanceSource(task.source),
       estimatedLaborCost: task.estimatedLaborCost ?? null,
       estimatedPartsCost: task.estimatedPartsCost ?? null,
-      vendorName: task.vendorName ?? "",
-      vendorEmail: task.vendorEmail ?? "",
+      vendorId: task.vendorId ?? null,
+      sla: task.sla ?? null,
     })
+    setCustomCategory(parsedCategory === "other" ? task.category ?? "" : "")
     setError(null)
     clearLocalImages()
   }, [open, task])
@@ -145,11 +151,17 @@ export function EditTaskDialog({
     const siteId = (form.siteId ?? "").trim()
     const siteName = form.siteName.trim()
     const taskName = form.task.trim()
+    const resolvedCategory =
+      form.category === "other" ? customCategory.trim() : form.category.trim()
     const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
 
     if (!siteId || !siteName || !taskName) {
       setError("Site and task title are required.")
+      return
+    }
+    if (!resolvedCategory) {
+      setError("Please enter a category name.")
       return
     }
 
@@ -164,12 +176,12 @@ export function EditTaskDialog({
         assignee,
         status: form.status,
         priority: form.priority,
-        category: form.category,
+        category: resolvedCategory,
         source: form.source,
         estimatedLaborCost: form.estimatedLaborCost ?? null,
         estimatedPartsCost: form.estimatedPartsCost ?? null,
-        vendorName: form.vendorName?.trim() ?? "",
-        vendorEmail: form.vendorEmail?.trim() ?? "",
+        vendorId: form.vendorId ?? null,
+        sla: form.sla ?? null,
       })
       onOpenChange(false)
     } catch (submitError) {
@@ -331,9 +343,21 @@ export function EditTaskDialog({
             <Label className="text-muted-foreground">Category</Label>
             <MaintenanceCategoryPicker
               value={form.category}
-              onChange={(category) => setForm((prev) => ({ ...prev, category }))}
+              onChange={(category) => {
+                setForm((prev) => ({ ...prev, category }))
+                if (category !== "other") setCustomCategory("")
+              }}
               disabled={isSubmitting}
             />
+            {form.category === "other" ? (
+              <Input
+                value={customCategory}
+                onChange={(event) => setCustomCategory(event.target.value)}
+                placeholder="Enter new category"
+                disabled={isSubmitting}
+                required
+              />
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -388,32 +412,53 @@ export function EditTaskDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Vendor Details</Label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs">Vendor Name</Label>
-                <Input
-                  type="text"
-                  placeholder="Enter vendor name"
-                  value={form.vendorName ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, vendorName: event.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs">Vendor Email</Label>
-                <Input
-                  type="email"
-                  placeholder="Enter vendor email"
-                  value={form.vendorEmail ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, vendorEmail: event.target.value }))
-                  }
-                />
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Linked vendor</Label>
+              <Select
+                value={form.vendorId ?? "none"}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vendorId: value === "none" ? null : value,
+                  }))
+                }
+                disabled={isSubmitting}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue
+                    placeholder={
+                      vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {vendorOptions.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs">SLA (hours)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="Optional"
+                disabled={isSubmitting}
+                value={form.sla ?? ""}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  setForm((prev) => ({
+                    ...prev,
+                    sla: raw === "" ? null : Number(raw),
+                  }))
+                }}
+              />
             </div>
           </div>
 

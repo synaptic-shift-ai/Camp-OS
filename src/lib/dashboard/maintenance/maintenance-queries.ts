@@ -14,12 +14,12 @@ export type CreateMaintenanceTaskInput = {
     staffId?: string | null
     status?: 'open' | 'in_progress' | 'completed'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
-    category?: 'electrical' | 'plumbing' | 'facility' | 'cleaning_issue'
+    category?: string
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
     estimatedLaborCost?: number | null
     estimatedPartsCost?: number | null
-    vendorName?: string | null
-    vendorEmail?: string | null
+    vendorId?: string | null
+    sla?: number | null
 }
 
 export type UpdateMaintenanceTaskInput = {
@@ -31,12 +31,12 @@ export type UpdateMaintenanceTaskInput = {
     title?: string
     status?: 'open' | 'in_progress' | 'completed'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
-    category?: 'electrical' | 'plumbing' | 'facility' | 'cleaning_issue'
+    category?: string
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
     estimatedLaborCost?: number | null
     estimatedPartsCost?: number | null
-    vendorName?: string | null
-    vendorEmail?: string | null
+    vendorId?: string | null
+    sla?: number | null
 }
 
 export type ListMaintenanceTasksFilters = {
@@ -56,6 +56,28 @@ export type ListMaintenanceTasksResult = {
 export type ListMaintenanceTasksPagination = {
     page: number
     perPage: number
+}
+
+export type PropertyVendorListRow = {
+    id: string
+    name: string
+    service_type: string
+    email: string | null
+}
+
+export type CreatePropertyVendorInput = {
+    propertyId: string
+    name: string
+    serviceType: string
+    email?: string | null
+}
+
+export type UpdatePropertyVendorInput = {
+    id: string
+    propertyId: string
+    name?: string
+    serviceType?: string
+    email?: string | null
 }
 
 function escapeIlikePattern(raw: string): string {
@@ -107,6 +129,24 @@ export class MaintenanceQueries {
             }
         }
 
+        if (input.vendorId) {
+            const { data: vendorRow, error: vendorError } = await this.supabase
+                .from('property_vendor')
+                .select('id')
+                .eq('id', input.vendorId)
+                .eq('property_id', input.propertyId)
+                .maybeSingle()
+
+            if (vendorError || !vendorRow) {
+                console.error('[MaintenanceQueries] Vendor not found for property', {
+                    vendorError,
+                    propertyId: input.propertyId,
+                    vendorId: input.vendorId,
+                })
+                throw new Error('Vendor not found for this property')
+            }
+        }
+
         const insertRow: Database['public']['Tables']['maintenance_tasks']['Insert'] = {
             property_id: input.propertyId,
             site_id: input.siteId,
@@ -120,8 +160,8 @@ export class MaintenanceQueries {
             ...(input.source !== undefined ? { source: input.source } : {}),
             ...(input.estimatedLaborCost !== undefined ? { estimated_labor_cost: input.estimatedLaborCost } : {}),
             ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
-            ...(input.vendorName !== undefined ? { vendor_name: input.vendorName } : {}),
-            ...(input.vendorEmail !== undefined ? { vendor_email: input.vendorEmail } : {}),
+            ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }
 
         const { data, error } = await this.supabase
@@ -249,7 +289,120 @@ export class MaintenanceQueries {
         return count ?? 0
     }
 
+    async listPropertyVendors(propertyId: string): Promise<PropertyVendorListRow[]> {
+        const { data, error } = await this.supabase
+            .from('property_vendor')
+            .select('id, name, service_type, email')
+            .eq('property_id', propertyId)
+            .order('name', { ascending: true })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to list property vendors', {
+                error,
+                propertyId,
+            })
+            throw new Error(`Failed to list vendors: ${error.message}`)
+        }
+
+        return (data ?? []) as PropertyVendorListRow[]
+    }
+
+    async createPropertyVendor(input: CreatePropertyVendorInput): Promise<PropertyVendorListRow> {
+        const insertRow: Database['public']['Tables']['property_vendor']['Insert'] = {
+            property_id: input.propertyId,
+            name: input.name,
+            service_type: input.serviceType,
+            email: input.email ?? null,
+        }
+
+        const { data, error } = await this.supabase
+            .from('property_vendor')
+            .insert(insertRow)
+            .select('id, name, service_type, email')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to create property vendor', {
+                error,
+                propertyId: input.propertyId,
+            })
+            throw new Error(`Failed to create vendor: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to create vendor: no row returned')
+        }
+
+        return data as PropertyVendorListRow
+    }
+
+    async updatePropertyVendor(input: UpdatePropertyVendorInput): Promise<PropertyVendorListRow> {
+        const updateRow: Database['public']['Tables']['property_vendor']['Update'] = {
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.serviceType !== undefined ? { service_type: input.serviceType } : {}),
+            ...(input.email !== undefined ? { email: input.email } : {}),
+        }
+
+        const { data, error } = await this.supabase
+            .from('property_vendor')
+            .update(updateRow)
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select('id, name, service_type, email')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to update property vendor', {
+                error,
+                propertyId: input.propertyId,
+                id: input.id,
+            })
+            throw new Error(`Failed to update vendor: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to update vendor: no row returned')
+        }
+
+        return data as PropertyVendorListRow
+    }
+
+    async deletePropertyVendor(input: { id: string; propertyId: string }): Promise<void> {
+        const { error } = await this.supabase
+            .from('property_vendor')
+            .delete()
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to delete property vendor', {
+                error,
+                propertyId: input.propertyId,
+                id: input.id,
+            })
+            throw new Error(`Failed to delete vendor: ${error.message}`)
+        }
+    }
+
     async updateMaintenanceTask(input: UpdateMaintenanceTaskInput): Promise<MaintenanceTaskRow> {
+        if (input.vendorId !== undefined && input.vendorId !== null) {
+            const { data: vendorRow, error: vendorError } = await this.supabase
+                .from('property_vendor')
+                .select('id')
+                .eq('id', input.vendorId)
+                .eq('property_id', input.propertyId)
+                .maybeSingle()
+
+            if (vendorError || !vendorRow) {
+                console.error('[MaintenanceQueries] Vendor not found for property', {
+                    vendorError,
+                    propertyId: input.propertyId,
+                    vendorId: input.vendorId,
+                })
+                throw new Error('Vendor not found for this property')
+            }
+        }
+
         const updateRow: Database['public']['Tables']['maintenance_tasks']['Update'] = {
             ...(input.siteId !== undefined ? { site_id: input.siteId } : {}),
             ...(input.title !== undefined ? { title: input.title } : {}),
@@ -261,8 +414,8 @@ export class MaintenanceQueries {
             ...(input.source !== undefined ? { source: input.source } : {}),
             ...(input.estimatedLaborCost !== undefined ? { estimated_labor_cost: input.estimatedLaborCost } : {}),
             ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
-            ...(input.vendorName !== undefined ? { vendor_name: input.vendorName } : {}),
-            ...(input.vendorEmail !== undefined ? { vendor_email: input.vendorEmail } : {}),
+            ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }
 
         const { data, error } = await this.supabase

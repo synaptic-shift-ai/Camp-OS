@@ -35,9 +35,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  AddTaskDialog,
+  AddTaskDialog as AddHousekeepingTaskDialog,
   type AddHousekeepingTaskInput,
 } from '@/components/dashboard/housekeeping/housekeeping-dialog.tsx/add-task-dialog'
+import {
+  AddTaskDialog as AddMaintenanceTaskDialog,
+  type AddMaintenanceTaskInput,
+} from '@/components/dashboard/maintenance/maintenance-dialog/add-task-dialog'
+import { PostCheckoutTasksDialog } from '@/components/dashboard/reservations/post-checkout-tasks-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { AlertCircle, Loader2, LogOut, DollarSign, Calendar, Users, Home, AlertTriangle } from 'lucide-react'
@@ -97,9 +102,15 @@ export function CheckOutDialog({
   const [showLateCheckOutWarning, setShowLateCheckOutWarning] = useState(false)
   const [showFollowUpTaskDialog, setShowFollowUpTaskDialog] = useState(false)
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false)
+  const [isCreateMaintenanceTaskDialogOpen, setIsCreateMaintenanceTaskDialogOpen] = useState(false)
   const [isCreatingTask, setIsCreatingTask] = useState(false)
+  const [isCreatingMaintenanceTask, setIsCreatingMaintenanceTask] = useState(false)
   const [checklistOptions, setChecklistOptions] = useState<Array<{ id: string; label: string }>>([])
   const [assigneeOptions, setAssigneeOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [maintenanceAssigneeOptions, setMaintenanceAssigneeOptions] = useState<
+    Array<{ id: string; label: string }>
+  >([])
+  const [vendorOptions, setVendorOptions] = useState<Array<{ id: string; label: string }>>([])
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationEndStr = normalizeDateString(reservation.check_out_date)
@@ -216,6 +227,11 @@ export function CheckOutDialog({
     setIsCreateTaskDialogOpen(true)
   }
 
+  const handleCreateMaintenanceTask = () => {
+    setShowFollowUpTaskDialog(false)
+    setIsCreateMaintenanceTaskDialogOpen(true)
+  }
+
   const handleSkipFollowUpTask = () => {
     setShowFollowUpTaskDialog(false)
     onOpenChange(false)
@@ -291,6 +307,9 @@ export function CheckOutDialog({
   const followUpSiteOptions = reservation.site_id
     ? [{ id: reservation.site_id, label: followUpSiteLabel }]
     : []
+  const followUpMaintenanceSiteOptions = reservation.site_id
+    ? [{ id: reservation.site_id, label: followUpSiteLabel }]
+    : []
 
   const followUpInitialValues: Partial<
     Pick<AddHousekeepingTaskInput, 'siteId' | 'siteName' | 'reservationConfirmationId'>
@@ -326,6 +345,41 @@ export function CheckOutDialog({
     void (async () => {
       try {
         const response = await fetch(
+          `/api/v1/properties/${reservation.property_id}/maintenance/assignees`,
+        )
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload?.success) {
+          throw new Error('Failed to load maintenance assignees')
+        }
+
+        setMaintenanceAssigneeOptions(
+          Array.isArray(payload.data?.assigneeOptions) ? payload.data.assigneeOptions : [],
+        )
+      } catch {
+        setMaintenanceAssigneeOptions([])
+      }
+    })()
+  }, [reservation.property_id])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch(`/api/v1/properties/${reservation.property_id}/vendors`)
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload?.success) {
+          throw new Error('Failed to load vendors')
+        }
+        setVendorOptions(Array.isArray(payload.data?.vendorOptions) ? payload.data.vendorOptions : [])
+      } catch {
+        setVendorOptions([])
+      }
+    })()
+  }, [reservation.property_id])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch(
           `/api/v1/properties/${reservation.property_id}/housekeeping/assignees`,
         )
         const payload = await response.json().catch(() => ({}))
@@ -349,6 +403,84 @@ export function CheckOutDialog({
     (new Date(reservation.check_out_date).getTime() - new Date(reservation.check_in_date).getTime()) /
     (1000 * 60 * 60 * 24)
   )
+
+  const handleCreateMaintenanceTaskFromReservation = async (input: AddMaintenanceTaskInput) => {
+    const siteId = input.siteId || reservation.site_id
+    if (!siteId) {
+      throw new Error('Site is required.')
+    }
+
+    const toApiStatus = (
+      status: AddMaintenanceTaskInput['status'],
+    ): 'open' | 'in_progress' | 'completed' => {
+      if (status === 'In Progress') return 'in_progress'
+      if (status === 'Completed') return 'completed'
+      return 'open'
+    }
+
+    const toApiPriority = (
+      priority: AddMaintenanceTaskInput['priority'],
+    ): 'low' | 'medium' | 'high' | 'emergency' => {
+      if (priority === 'Low') return 'low'
+      if (priority === 'High') return 'high'
+      if (priority === 'Emergency') return 'emergency'
+      return 'medium'
+    }
+
+    const toApiSource = (
+      source: AddMaintenanceTaskInput['source'],
+    ): 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout' => {
+      if (source === 'Guest') return 'guest'
+      if (source === 'Housekeeping') return 'housekeeping'
+      if (source === 'PM') return 'pm'
+      if (source === 'Checkout') return 'checkout'
+      return 'staff'
+    }
+
+    setIsCreatingMaintenanceTask(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${reservation.property_id}/maintenance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          siteId,
+          staffId: input.assigneeId ?? null,
+          title: input.task,
+          description: input.description?.trim() ? input.description.trim() : null,
+          status: toApiStatus(input.status),
+          priority: toApiPriority(input.priority),
+          category: input.category,
+          source: toApiSource(input.source),
+          estimatedLaborCost: input.estimatedLaborCost ?? null,
+          estimatedPartsCost: input.estimatedPartsCost ?? null,
+          vendorId: input.vendorId ?? null,
+          sla: input.sla ?? null,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          'Failed to create maintenance work order.'
+        throw new Error(message)
+      }
+
+      setIsCreateMaintenanceTaskDialogOpen(false)
+      onOpenChange(false)
+      toast({
+        title: 'Maintenance work order created',
+        description: 'A follow-up maintenance task was created successfully.',
+        className: SEASON_ALERT_TOAST_CLASS,
+      })
+      router.refresh()
+    } finally {
+      setIsCreatingMaintenanceTask(false)
+    }
+  }
 
   return (
     <>
@@ -557,32 +689,21 @@ export function CheckOutDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Dialog
+      <PostCheckoutTasksDialog
         open={showFollowUpTaskDialog}
         onOpenChange={(next) => {
           if (!next) {
             handleSkipFollowUpTask()
           }
         }}
-      >
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Create follow-up task</DialogTitle>
-            <DialogDescription>
-              {reservation.guest?.first_name} {reservation.guest?.last_name} just checked out of{" "}
-              {reservation.site?.site_name || `Unit ${reservation.site?.site_number}`}. Would you like to
-              create a housekeeping task to prepare the unit?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:justify-end gap-2">
-            <Button variant="ghost" onClick={handleSkipFollowUpTask}>
-              Skip
-            </Button>
-            <Button onClick={handleCreateHousekeepingTask}>Create Housekeeping Task</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <AddTaskDialog
+        reservationLabel={`Reservation ${reservation.confirmation_number}`}
+        isCreatingHousekeepingTask={isCreatingTask}
+        isCreatingMaintenanceTask={isCreatingMaintenanceTask}
+        onCreateHousekeepingTask={handleCreateHousekeepingTask}
+        onCreateMaintenanceTask={handleCreateMaintenanceTask}
+        onDone={handleSkipFollowUpTask}
+      />
+      <AddHousekeepingTaskDialog
         open={isCreateTaskDialogOpen}
         onOpenChange={setIsCreateTaskDialogOpen}
         siteOptions={followUpSiteOptions}
@@ -591,6 +712,15 @@ export function CheckOutDialog({
         initialValues={followUpInitialValues}
         isSubmitting={isCreatingTask}
         onSubmit={handleCreateTaskFromReservation}
+      />
+      <AddMaintenanceTaskDialog
+        open={isCreateMaintenanceTaskDialogOpen}
+        onOpenChange={setIsCreateMaintenanceTaskDialogOpen}
+        siteOptions={followUpMaintenanceSiteOptions}
+        assigneeOptions={maintenanceAssigneeOptions}
+        vendorOptions={vendorOptions}
+        isSubmitting={isCreatingMaintenanceTask}
+        onSubmit={handleCreateMaintenanceTaskFromReservation}
       />
     </>
   )

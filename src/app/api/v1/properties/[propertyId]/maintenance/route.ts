@@ -178,8 +178,8 @@ export async function POST(
             ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
             ...(parsed.data.estimatedLaborCost !== undefined ? { estimatedLaborCost: parsed.data.estimatedLaborCost } : {}),
             ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
-            ...(parsed.data.vendorName !== undefined ? { vendorName: parsed.data.vendorName } : {}),
-            ...(parsed.data.vendorEmail !== undefined ? { vendorEmail: parsed.data.vendorEmail } : {}),
+            ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
+            ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
             createdBy: user.id,
             ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         })
@@ -214,7 +214,11 @@ export async function POST(
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Maintenance API v1] POST error:', err)
 
-        if (message === 'Site not found for this property' || message === 'Assignee not found for this property') {
+        if (
+            message === 'Site not found for this property' ||
+            message === 'Assignee not found for this property' ||
+            message === 'Vendor not found for this property'
+        ) {
             return error(ErrorCodes.VALIDATION_ERROR, request, { message })
         }
 

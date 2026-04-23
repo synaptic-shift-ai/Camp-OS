@@ -28,13 +28,20 @@ export const MAINTENANCE_CATEGORY_OPTIONS = [
   { id: "plumbing", label: "Plumbing", Icon: Droplets },
   { id: "facility", label: "Facility", Icon: Wrench },
   { id: "cleaning_issue", label: "Cleaning Issue", Icon: Sparkles },
+  { id: "other", label: "Others", Icon: Wrench },
 ] as const
 
 export type MaintenanceTaskCategory = (typeof MAINTENANCE_CATEGORY_OPTIONS)[number]["id"]
 
-export function maintenanceCategoryLabel(id: MaintenanceTaskCategory): string {
-  const found = MAINTENANCE_CATEGORY_OPTIONS.find((option) => option.id === id)
-  return found?.label ?? "Electrical"
+export function maintenanceCategoryLabel(id: string): string {
+  const normalized = id.trim().toLowerCase()
+  const found = MAINTENANCE_CATEGORY_OPTIONS.find((option) => option.id === normalized)
+  if (found) return found.label
+  return id
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase())
 }
 
 /** Maps a stored display label (or id) back to a category id for forms. */
@@ -48,7 +55,7 @@ export function parseMaintenanceTaskCategory(
   const byLabel = MAINTENANCE_CATEGORY_OPTIONS.find(
     (option) => option.label.toLowerCase() === trimmed,
   )
-  return byLabel?.id ?? "electrical"
+  return byLabel?.id ?? "other"
 }
 
 export function MaintenanceCategoryPicker({
@@ -56,39 +63,31 @@ export function MaintenanceCategoryPicker({
   onChange,
   disabled,
 }: {
-  value: MaintenanceTaskCategory
-  onChange: (value: MaintenanceTaskCategory) => void
+  value: string
+  onChange: (value: string) => void
   disabled?: boolean
 }) {
+  const selectedValue = MAINTENANCE_CATEGORY_OPTIONS.some((option) => option.id === value)
+    ? value
+    : "other"
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Category"
-      className="flex flex-wrap gap-2 sm:flex-nowrap"
+    <Select
+      value={selectedValue}
+      onValueChange={onChange}
+      disabled={disabled ?? false}
     >
-      {MAINTENANCE_CATEGORY_OPTIONS.map(({ id, label, Icon }) => {
-        const selected = value === id
-        return (
-          <button
-            key={id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            disabled={disabled}
-            onClick={() => onChange(id)}
-            className={cn(
-              "flex min-w-[calc(50%-0.25rem)] flex-1 flex-col items-center justify-center gap-2 rounded-lg border px-2 py-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:min-w-0",
-              selected
-                ? "border-emerald-700 bg-emerald-50 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-950/50 dark:text-emerald-100"
-                : "border-border bg-background text-foreground hover:bg-muted/40",
-            )}
-          >
-            <Icon className="size-5 shrink-0" aria-hidden />
-            <span className="text-balance text-center leading-tight">{label}</span>
-          </button>
-        )
-      })}
-    </div>
+      <SelectTrigger className="h-9 w-full" aria-label="Category">
+        <SelectValue placeholder="Select category" />
+      </SelectTrigger>
+      <SelectContent>
+        {MAINTENANCE_CATEGORY_OPTIONS.map(({ id, label }) => (
+          <SelectItem key={id} value={id}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -101,12 +100,12 @@ export type AddMaintenanceTaskInput = {
   assignee: string | null
   status: "Open" | "In Progress" | "Completed"
   priority: "Low" | "Medium" | "High" | "Emergency"
-  category: MaintenanceTaskCategory
+  category: string
   source: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
   estimatedLaborCost?: number | null
   estimatedPartsCost?: number | null
-  vendorName?: string
-  vendorEmail?: string
+  vendorId?: string | null
+  sla?: number | null
   images?: File[]
 }
 
@@ -128,6 +127,8 @@ type AddTaskDialogProps = {
   /** Display name shown when assignee selection is locked. */
   selfAssigneeLabel?: string
   isSubmitting?: boolean
+  /** Property vendors for optional task link (empty until loaded from API). */
+  vendorOptions?: Array<{ id: string; label: string }>
   onSubmit: (input: AddMaintenanceTaskInput) => Promise<void>
 }
 
@@ -157,8 +158,8 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   source: "Staff",
   estimatedLaborCost: null,
   estimatedPartsCost: null,
-  vendorName: "",
-  vendorEmail: "",
+  vendorId: null,
+  sla: null,
 }
 
 export function AddTaskDialog({
@@ -171,8 +172,10 @@ export function AddTaskDialog({
   selfAssigneeStaffId = null,
   selfAssigneeLabel = "You",
   isSubmitting = false,
+  vendorOptions = [],
 }: AddTaskDialogProps) {
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
+  const [customCategory, setCustomCategory] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
@@ -187,6 +190,7 @@ export function AddTaskDialog({
     if (!open) return
     setError(null)
     clearLocalImages()
+    setCustomCategory("")
     if (!canAssignWorkOrder) {
       setForm({
         ...INITIAL_FORM,
@@ -229,13 +233,17 @@ export function AddTaskDialog({
     const siteId = (form.siteId ?? "").trim()
     const siteName = form.siteName.trim()
     const task = form.task.trim()
+    const resolvedCategory =
+      form.category === "other" ? customCategory.trim() : form.category.trim()
     const description = form.description?.trim() ?? ""
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
-    const vendorName = form.vendorName?.trim() ?? ""
-    const vendorEmail = form.vendorEmail?.trim() ?? ""
 
     if (!siteId || !siteName || !task) {
       setError("Site and task title are required.")
+      return
+    }
+    if (!resolvedCategory) {
+      setError("Please enter a category name.")
       return
     }
 
@@ -245,10 +253,9 @@ export function AddTaskDialog({
         siteId,
         siteName,
         task,
+        category: resolvedCategory,
         description,
         assignee,
-        vendorName,
-        vendorEmail,
         images: localImages.map((item) => item.file),
       })
       onOpenChange(false)
@@ -438,9 +445,21 @@ export function AddTaskDialog({
             <Label>Category</Label>
             <MaintenanceCategoryPicker
               value={form.category}
-              onChange={(category) => setForm((prev) => ({ ...prev, category }))}
+              onChange={(category) => {
+                setForm((prev) => ({ ...prev, category }))
+                if (category !== "other") setCustomCategory("")
+              }}
               disabled={isSubmitting}
             />
+            {form.category === "other" ? (
+              <Input
+                value={customCategory}
+                onChange={(event) => setCustomCategory(event.target.value)}
+                placeholder="Enter new category"
+                disabled={isSubmitting}
+                required
+              />
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -493,32 +512,53 @@ export function AddTaskDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Vendor Details</Label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs">Vendor Name</Label>
-                <Input
-                  type="text"
-                  placeholder="Enter vendor name"
-                  value={form.vendorName ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, vendorName: event.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs">Vendor Email</Label>
-                <Input
-                  type="email"
-                  placeholder="Enter vendor email"
-                  value={form.vendorEmail ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, vendorEmail: event.target.value }))
-                  }
-                />
-              </div> 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Linked vendor</Label>
+              <Select
+                value={form.vendorId ?? "none"}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vendorId: value === "none" ? null : value,
+                  }))
+                }
+                disabled={isSubmitting}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue
+                    placeholder={
+                      vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {vendorOptions.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs">SLA (hours)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="Optional"
+                disabled={isSubmitting}
+                value={form.sla ?? ""}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  setForm((prev) => ({
+                    ...prev,
+                    sla: raw === "" ? null : Number(raw),
+                  }))
+                }}
+              />
             </div>
           </div>
 

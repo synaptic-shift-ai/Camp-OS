@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
 import { useToast } from "@/hooks/use-toast"
-import { MaintenanceFilter, type MaintenanceFilterValue } from "./maintenance-filter"
-import { MaintenancePageHeader } from "./maintenance-page-header"
-import { MaintenanceTable, type MaintenanceTaskRow } from "./maintenance-table"
+import { MaintenanceFilter, type MaintenanceFilterValue } from "./wo-list/maintenance-filter"
+import { MaintenancePageHeader } from "./wo-list/maintenance-page-header"
+import { MaintenanceTable, type MaintenanceTaskRow } from "./wo-list/maintenance-table"
 import {
   MaintenanceViewSwitcher,
   type MaintenanceViewMode,
 } from "./maintenance-view-switcher"
+import { CostReport } from "./cost-report/cost-report"
+import { SchedulesList } from "./schedules/schedules-list"
+import { VendorsTable } from "./vendors-list/vendors-table"
 import {
   AddTaskDialog,
   maintenanceCategoryLabel,
@@ -148,10 +151,19 @@ type ApiMaintenanceTask = {
   source: string | null
   estimated_labor_cost: number | null
   estimated_parts_cost: number | null
-  vendor_name: string | null
-  vendor_email: string | null
+  vendor_id: string | null
+  sla: number | null
   staff_id: string | null
   site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
+}
+
+type VendorTableRow = {
+  id: string
+  displayId: string
+  name: string
+  service: string
+  contact: string
+  linkedWorkOrders: number | null
 }
 
 function toSiteTypeLabel(siteType: string | null | undefined): string | undefined {
@@ -194,6 +206,7 @@ export function MaintenancePageContent({
     [assigneeOptions],
   )
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
+  const [isAddVendorDialogOpen, setIsAddVendorDialogOpen] = useState(false)
   const [isCreatingTask, setIsCreatingTask] = useState(false)
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
@@ -201,6 +214,30 @@ export function MaintenancePageContent({
   const [taskPendingDelete, setTaskPendingDelete] = useState<MaintenanceTaskRow | null>(null)
   const [viewingTask, setViewingTask] = useState<MaintenanceTaskRow | null>(null)
   const [viewMode, setViewMode] = useState<MaintenanceViewMode>("wo_list")
+  const [vendorOptions, setVendorOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [vendorRows, setVendorRows] = useState<VendorTableRow[]>([])
+
+  const loadVendorOptions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/vendors`)
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) return
+      const next = payload.data?.vendorOptions as Array<{ id: string; label: string }> | undefined
+      if (Array.isArray(next)) setVendorOptions(next)
+      const vendorList = payload.data?.vendors as VendorTableRow[] | undefined
+      if (Array.isArray(vendorList)) setVendorRows(vendorList)
+    } catch {
+      /* ignore — vendor link is optional */
+    }
+  }, [propertyId])
+
+  useEffect(() => {
+    void loadVendorOptions()
+  }, [loadVendorOptions])
+
+  useEffect(() => {
+    if (isAddTaskDialogOpen || isEditTaskDialogOpen) void loadVendorOptions()
+  }, [isAddTaskDialogOpen, isEditTaskDialogOpen, loadVendorOptions])
 
   useEffect(() => {
     if (viewMode === "analytics" && !canViewMaintenanceCostReports) {
@@ -309,12 +346,12 @@ export function MaintenancePageContent({
         assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
         status: fromApiStatus(task.status),
         priority: fromApiPriority(task.priority),
-        category: task.category ? maintenanceCategoryLabel(task.category as AddMaintenanceTaskInput["category"]) : undefined,
+        category: task.category ? maintenanceCategoryLabel(task.category) : undefined,
         source: fromApiSource(task.source),
         estimatedLaborCost: task.estimated_labor_cost,
         estimatedPartsCost: task.estimated_parts_cost,
-        vendorName: task.vendor_name,
-        vendorEmail: task.vendor_email,
+        vendorId: task.vendor_id,
+        sla: task.sla,
       }))
 
       setRows(mappedRows)
@@ -384,6 +421,13 @@ export function MaintenancePageContent({
     })
   }
 
+  const handleCreateSchedule = () => {
+    toast({
+      title: "Schedule flow coming next",
+      description: "New Schedule action is now in the header for this view.",
+    })
+  }
+
   const handleAddTask = async (input: AddMaintenanceTaskInput) => {
     if (!input.siteId) {
       throw new Error("Site is required.")
@@ -406,8 +450,8 @@ export function MaintenancePageContent({
           source: toApiSource(input.source),
           estimatedLaborCost: input.estimatedLaborCost ?? null,
           estimatedPartsCost: input.estimatedPartsCost ?? null,
-          vendorName: input.vendorName?.trim() ? input.vendorName.trim() : null,
-          vendorEmail: input.vendorEmail?.trim() ? input.vendorEmail.trim() : null,
+          vendorId: input.vendorId ?? null,
+          sla: input.sla ?? null,
         }),
       })
 
@@ -502,8 +546,8 @@ export function MaintenancePageContent({
         source: toApiSource(input.source),
         estimatedLaborCost: input.estimatedLaborCost ?? null,
         estimatedPartsCost: input.estimatedPartsCost ?? null,
-        vendorName: input.vendorName?.trim() ? input.vendorName.trim() : null,
-        vendorEmail: input.vendorEmail?.trim() ? input.vendorEmail.trim() : null,
+        vendorId: input.vendorId ?? null,
+        sla: input.sla ?? null,
       }
       if (canAssignWorkOrder) {
         patchBody.staffId = input.assigneeId ?? null
@@ -554,6 +598,26 @@ export function MaintenancePageContent({
     [totalPages],
   )
 
+  const headerPrimaryActionLabel =
+    viewMode === "wo_list" ? "Add Task" : viewMode === "vendors" ? "New Vendor" : "New Schedule"
+  const headerPrimaryActionVisible =
+    (viewMode === "wo_list" && canCreateTask) ||
+    (viewMode === "vendors" && canManageMaintenanceVendors) ||
+    (viewMode === "schedules" && canManageMaintenancePmSchedules)
+  const handleHeaderPrimaryAction = () => {
+    if (viewMode === "wo_list") {
+      setIsAddTaskDialogOpen(true)
+      return
+    }
+    if (viewMode === "vendors") {
+      setIsAddVendorDialogOpen(true)
+      return
+    }
+    if (viewMode === "schedules") {
+      handleCreateSchedule()
+    }
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <MaintenancePageHeader
@@ -561,8 +625,9 @@ export function MaintenancePageContent({
         openTasksCount={openTasksCount}
         onRefreshClick={handleRefresh}
         onExportClick={handleExport}
-        onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
-        canCreateTask={canCreateTask}
+        onPrimaryActionClick={handleHeaderPrimaryAction}
+        primaryActionLabel={headerPrimaryActionLabel}
+        showPrimaryAction={headerPrimaryActionVisible}
       />
       <MaintenanceViewSwitcher
         mode={viewMode}
@@ -612,15 +677,23 @@ export function MaintenancePageContent({
             </div>
           </div>
         </>
-      ) : (
-        <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
-          {viewMode === "analytics"
-            ? "Maintenance cost reports view coming soon."
-            : viewMode === "schedules"
-              ? "Maintenance schedules view coming soon."
-              : "Maintenance vendors list view coming soon."}
-        </div>
-      )}
+      ) : viewMode === "analytics" ? (
+        <CostReport
+          propertyName={propertyName}
+          userDisplayName={selfAssigneeLabel}
+          onViewAllWorkOrders={() => setViewMode("wo_list")}
+        />
+      ) : viewMode === "schedules" ? (
+        <SchedulesList />
+      ) : viewMode === "vendors" ? (
+        <VendorsTable
+          propertyId={propertyId}
+          vendors={vendorRows}
+          isAddVendorDialogOpen={isAddVendorDialogOpen}
+          onAddVendorDialogOpenChange={setIsAddVendorDialogOpen}
+          onVendorCreated={loadVendorOptions}
+        />
+      ) : null}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}
@@ -630,6 +703,7 @@ export function MaintenancePageContent({
         selfAssigneeStaffId={selfAssigneeStaffId}
         selfAssigneeLabel={selfAssigneeLabel}
         isSubmitting={isCreatingTask}
+        vendorOptions={vendorOptions}
         onSubmit={handleAddTask}
       />
       <EditTaskDialog
@@ -640,6 +714,7 @@ export function MaintenancePageContent({
         assigneeOptions={assigneeOptions}
         canAssignWorkOrder={canAssignWorkOrder}
         isSubmitting={isUpdatingTask}
+        vendorOptions={vendorOptions}
         onSubmit={handleEditTask}
       />
       <DeleteTaskConfirmationDialog

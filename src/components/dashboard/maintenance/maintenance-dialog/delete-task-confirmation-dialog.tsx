@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import type { MaintenanceTaskRow } from "../maintenance-table"
+import type { MaintenanceTaskRow } from "../wo-list/maintenance-table"
 
 type DeleteTaskConfirmationDialogProps = {
   open: boolean

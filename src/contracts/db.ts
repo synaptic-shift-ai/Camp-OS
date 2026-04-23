@@ -1258,8 +1258,8 @@ export type Database = {
           status: string
           title: string
           updated_at: string
-          vendor_email: string | null
-          vendor_name: string | null
+          sla: number | null
+          vendor_id: string | null
         }
         Insert: {
           category?: string
@@ -1277,8 +1277,8 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
-          vendor_email?: string | null
-          vendor_name?: string | null
+          sla?: number | null
+          vendor_id?: string | null
         }
         Update: {
           category?: string
@@ -1296,8 +1296,8 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
-          vendor_email?: string | null
-          vendor_name?: string | null
+          sla?: number | null
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -1319,6 +1319,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "property_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_tasks_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "property_vendor"
             referencedColumns: ["id"]
           },
         ]
@@ -1903,6 +1910,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "property_staff_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_vendor: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          property_id: string
+          service_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          property_id: string
+          service_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          property_id?: string
+          service_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_vendor_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

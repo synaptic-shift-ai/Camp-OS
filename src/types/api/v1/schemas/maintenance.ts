@@ -24,12 +24,12 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     description: z.string().trim().max(5000).nullable().optional(),
     status: z.enum(['open', 'in_progress', 'completed']).optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
-    category: z.enum(['electrical', 'plumbing', 'facility', 'cleaning_issue']).optional(),
+    category: z.string().trim().min(1).max(120).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
     estimatedLaborCost: z.number().nonnegative().nullable().optional(),
     estimatedPartsCost: z.number().nonnegative().nullable().optional(),
-    vendorName: z.string().trim().max(500).nullable().optional(),
-    vendorEmail: z.string().trim().email().max(500).nullable().optional(),
+    vendorId: z.string().uuid().nullable().optional(),
+    sla: z.number().int().nonnegative().max(87600).nullable().optional(),
 })
 
 export const UpdateMaintenanceTaskRequestSchema = z.object({
@@ -39,12 +39,12 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     description: z.string().trim().max(5000).nullable().optional(),
     status: z.enum(['open', 'in_progress', 'completed']).optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
-    category: z.enum(['electrical', 'plumbing', 'facility', 'cleaning_issue']).optional(),
+    category: z.string().trim().min(1).max(120).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
     estimatedLaborCost: z.number().nonnegative().nullable().optional(),
     estimatedPartsCost: z.number().nonnegative().nullable().optional(),
-    vendorName: z.string().trim().max(500).nullable().optional(),
-    vendorEmail: z.string().trim().email().max(500).nullable().optional(),
+    vendorId: z.string().uuid().nullable().optional(),
+    sla: z.number().int().nonnegative().max(87600).nullable().optional(),
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: 'At least one field is required',
 })

@@ -7,6 +7,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
+import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
 import {
     CreateMaintenanceTaskRequestSchema,
     ListMaintenanceTasksQuerySchema,
@@ -15,21 +16,6 @@ import {
     MaintenanceQueries,
     type ListMaintenanceTasksFilters,
 } from '@/lib/dashboard/maintenance/maintenance-queries'
-
-function maintenanceFallbackForCategory(
-    role: 'owner' | 'admin' | 'manager' | 'staff',
-    categoryName: string,
-): Record<string, boolean> {
-    if (role === 'owner' || role === 'admin') return { view: true, create: true, update: true, delete: true }
-    const category = categoryName.trim().toLowerCase()
-    if (role === 'manager' && category === 'maintenance') {
-        return { view: true, create: true, update: true, delete: true }
-    }
-    if (role === 'staff' && category === 'maintenance') {
-        return { view: true, create: false, update: false, delete: false }
-    }
-    return { view: false, create: false, update: false, delete: false }
-}
 
 export async function GET(
     request: NextRequest,
@@ -159,11 +145,32 @@ export async function POST(
             })
         }
 
+        const assignAccess = await resolveModuleActionAccess({
+            supabase: supabase as any,
+            propertyId,
+            userId: user.id,
+            moduleKey: 'maintenance',
+            actions: ['assign-wo'],
+            fallbackForCategory: maintenanceFallbackForCategory,
+        })
+
+        let staffId = parsed.data.staffId ?? null
+        if (!assignAccess['assign-wo']) {
+            const { data: selfStaff } = await supabase
+                .from('property_staff')
+                .select('id')
+                .eq('property_id', propertyId)
+                .eq('user_id', user.id)
+                .in('status', ['active', 'pending'])
+                .maybeSingle()
+            staffId = (selfStaff?.id as string | undefined) ?? null
+        }
+
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const maintenanceTask = await queries.createMaintenanceTask({
             propertyId,
             siteId: parsed.data.siteId,
-            staffId: parsed.data.staffId ?? null,
+            staffId,
             title: parsed.data.title,
             description: parsed.data.description ?? null,
             ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),

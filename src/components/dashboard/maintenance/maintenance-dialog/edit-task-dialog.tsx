@@ -37,6 +37,8 @@ type EditTaskDialogProps = {
   task: MaintenanceTaskRow | null
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
+  /** When false, assignee cannot be changed (read-only, not a dropdown). */
+  canAssignWorkOrder?: boolean
   isSubmitting?: boolean
   onSubmit: (input: AddMaintenanceTaskInput & { id: string }) => Promise<void>
 }
@@ -71,6 +73,7 @@ export function EditTaskDialog({
   task,
   siteOptions,
   assigneeOptions,
+  canAssignWorkOrder = true,
   isSubmitting = false,
   onSubmit,
 }: EditTaskDialogProps) {
@@ -262,33 +265,44 @@ export function EditTaskDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit-maintenance-assignee">Assignee</Label>
-              <Select
-                value={form.assigneeId ?? "unassigned"}
-                onValueChange={(value) => {
-                  if (value === "unassigned") {
-                    setForm((prev) => ({ ...prev, assigneeId: null, assignee: null }))
-                    return
-                  }
-                  const selectedAssignee = assigneeOptions.find((option) => option.id === value)
-                  setForm((prev) => ({
-                    ...prev,
-                    assigneeId: value,
-                    assignee: selectedAssignee?.label ?? null,
-                  }))
-                }}
-              >
-                <SelectTrigger id="edit-maintenance-assignee">
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {assigneeOptions.map((assignee) => (
-                    <SelectItem key={assignee.id} value={assignee.id}>
-                      {assignee.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {canAssignWorkOrder ? (
+                <Select
+                  value={form.assigneeId ?? "unassigned"}
+                  onValueChange={(value) => {
+                    if (value === "unassigned") {
+                      setForm((prev) => ({ ...prev, assigneeId: null, assignee: null }))
+                      return
+                    }
+                    const selectedAssignee = assigneeOptions.find((option) => option.id === value)
+                    setForm((prev) => ({
+                      ...prev,
+                      assigneeId: value,
+                      assignee: selectedAssignee?.label ?? null,
+                    }))
+                  }}
+                >
+                  <SelectTrigger id="edit-maintenance-assignee">
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {assigneeOptions.map((assignee) => (
+                      <SelectItem key={assignee.id} value={assignee.id}>
+                        {assignee.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="edit-maintenance-assignee"
+                  readOnly
+                  disabled
+                  value={form.assignee?.trim() ? form.assignee : "Unassigned"}
+                  className="bg-muted"
+                  aria-readonly="true"
+                />
+              )}
             </div>
 
             <div className="space-y-2">

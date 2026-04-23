@@ -8,22 +8,8 @@ import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { MaintenanceQueries } from '@/lib/dashboard/maintenance/maintenance-queries'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
+import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
 import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maintenance'
-
-function maintenanceFallbackForCategory(
-  role: 'owner' | 'admin' | 'manager' | 'staff',
-  categoryName: string,
-): Record<string, boolean> {
-  if (role === 'owner' || role === 'admin') return { view: true, create: true, update: true, delete: true }
-  const category = categoryName.trim().toLowerCase()
-  if (role === 'manager' && category === 'maintenance') {
-    return { view: true, create: true, update: true, delete: true }
-  }
-  if (role === 'staff' && category === 'maintenance') {
-    return { view: true, create: false, update: false, delete: false }
-  }
-  return { view: false, create: false, update: false, delete: false }
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -53,7 +39,7 @@ export async function PATCH(
       propertyId,
       userId: user.id,
       moduleKey: 'maintenance',
-      actions: ['update'],
+      actions: ['update', 'assign-wo'],
       fallbackForCategory: maintenanceFallbackForCategory,
     })
     if (!actionAccess.update) {
@@ -74,12 +60,14 @@ export async function PATCH(
       })
     }
 
+    const canAssignWorkOrder = actionAccess['assign-wo'] === true
+
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
     const maintenanceTask = await queries.updateMaintenanceTask({
       id: maintenanceId,
       propertyId,
       ...(parsed.data.siteId !== undefined ? { siteId: parsed.data.siteId } : {}),
-      ...(parsed.data.staffId !== undefined ? { staffId: parsed.data.staffId } : {}),
+      ...(parsed.data.staffId !== undefined && canAssignWorkOrder ? { staffId: parsed.data.staffId } : {}),
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
       ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),

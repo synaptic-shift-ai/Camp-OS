@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { resolveDashboardNavVisibility } from "@/lib/dashboard/dashboard-layout-context"
+import type { User } from "@supabase/supabase-js"
 import { MaintenancePageContent } from "@/components/dashboard/maintenance/maintenance-page-content"
 import { resolveModuleActionAccess } from "@/lib/dashboard/module-action-access"
+import { maintenanceFallbackForCategory } from "@/lib/dashboard/maintenance-module-access"
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
@@ -15,19 +17,28 @@ type SelectOption = {
   label: string
 }
 
-function maintenanceFallbackForCategory(
-  role: "owner" | "admin" | "manager" | "staff",
-  categoryName: string,
-): Record<string, boolean> {
-  if (role === "owner" || role === "admin") return { view: true, create: true, update: true, delete: true }
-  const category = categoryName.trim().toLowerCase()
-  if (role === "manager" && category === "maintenance") {
-    return { view: true, create: true, update: true, delete: true }
-  }
-  if (role === "staff" && category === "maintenance") {
-    return { view: true, create: false, update: false, delete: false }
-  }
-  return { view: false, create: false, update: false, delete: false }
+function displayNameFromUser(user: User): string {
+  const metadata = (user.user_metadata ?? {}) as Record<string, unknown>
+  const fullName = typeof metadata.full_name === "string" ? metadata.full_name.trim() : ""
+  const firstName = typeof metadata.first_name === "string" ? metadata.first_name.trim() : ""
+  const lastName = typeof metadata.last_name === "string" ? metadata.last_name.trim() : ""
+  const fallbackName = [firstName, lastName].filter(Boolean).join(" ").trim()
+  return fullName || fallbackName || user.email || "You"
+}
+
+async function getCurrentUserPropertyStaffId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("property_staff")
+    .select("id")
+    .eq("property_id", propertyId)
+    .eq("user_id", userId)
+    .in("status", ["active", "pending"])
+    .maybeSingle()
+  return (data?.id as string | undefined) ?? null
 }
 
 async function getMaintenancePageOptions(
@@ -118,17 +129,32 @@ export default async function MaintenancePage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  const [{ siteOptions, assigneeOptions }, taskActionAccess] = await Promise.all([
+  const [{ siteOptions, assigneeOptions }, taskActionAccess, selfStaffId] = await Promise.all([
     getMaintenancePageOptions(supabase, propertyId),
     resolveModuleActionAccess({
       supabase,
       propertyId,
       userId: user.id,
       moduleKey: "maintenance",
-      actions: ["create", "update", "delete"],
+      actions: [
+        "create",
+        "update",
+        "delete",
+        "assign-wo",
+        "manage-vendors",
+        "manage-pm-schedules",
+        "view-cost-reports",
+      ],
       fallbackForCategory: maintenanceFallbackForCategory,
     }),
+    getCurrentUserPropertyStaffId(supabase, propertyId, user.id),
   ])
+
+  const canAssignWorkOrder = taskActionAccess["assign-wo"] === true
+  const canManageMaintenanceVendors = taskActionAccess["manage-vendors"] === true
+  const canManageMaintenancePmSchedules = taskActionAccess["manage-pm-schedules"] === true
+  const canViewMaintenanceCostReports = taskActionAccess["view-cost-reports"] === true
+  const selfAssigneeLabel = displayNameFromUser(user)
 
   return (
     <MaintenancePageContent
@@ -139,6 +165,12 @@ export default async function MaintenancePage({ params }: PageProps) {
       canCreateTask={taskActionAccess.create === true}
       canEditTask={taskActionAccess.update === true}
       canDeleteTask={taskActionAccess.delete === true}
+      canAssignWorkOrder={canAssignWorkOrder}
+      canManageMaintenanceVendors={canManageMaintenanceVendors}
+      canManageMaintenancePmSchedules={canManageMaintenancePmSchedules}
+      canViewMaintenanceCostReports={canViewMaintenanceCostReports}
+      selfAssigneeStaffId={selfStaffId}
+      selfAssigneeLabel={selfAssigneeLabel}
     />
   )
 }

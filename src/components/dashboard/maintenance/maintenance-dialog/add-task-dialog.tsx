@@ -121,6 +121,12 @@ type AddTaskDialogProps = {
   onOpenChange: (open: boolean) => void
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
+  /** When false, assignee is fixed to the signed-in user (read-only, not a dropdown). */
+  canAssignWorkOrder?: boolean
+  /** `property_staff.id` for the current user on this property (when assign is locked). */
+  selfAssigneeStaffId?: string | null
+  /** Display name shown when assignee selection is locked. */
+  selfAssigneeLabel?: string
   isSubmitting?: boolean
   onSubmit: (input: AddMaintenanceTaskInput) => Promise<void>
 }
@@ -161,6 +167,9 @@ export function AddTaskDialog({
   onSubmit,
   siteOptions,
   assigneeOptions,
+  canAssignWorkOrder = true,
+  selfAssigneeStaffId = null,
+  selfAssigneeLabel = "You",
   isSubmitting = false,
 }: AddTaskDialogProps) {
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
@@ -176,10 +185,18 @@ export function AddTaskDialog({
 
   useEffect(() => {
     if (!open) return
-    setForm(INITIAL_FORM)
     setError(null)
     clearLocalImages()
-  }, [open])
+    if (!canAssignWorkOrder) {
+      setForm({
+        ...INITIAL_FORM,
+        assigneeId: selfAssigneeStaffId,
+        assignee: selfAssigneeLabel,
+      })
+    } else {
+      setForm(INITIAL_FORM)
+    }
+  }, [open, canAssignWorkOrder, selfAssigneeStaffId, selfAssigneeLabel])
 
   const handleImageSelection = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -272,7 +289,9 @@ export function AddTaskDialog({
         <DialogHeader>
           <DialogTitle>Add maintenance task</DialogTitle>
           <DialogDescription>
-            Create a work order for a site and optionally assign it to maintenance staff.
+            {canAssignWorkOrder
+              ? "Create a work order for a site and optionally assign it to maintenance staff."
+              : "Create a work order for a site. This task will be assigned to you."}
           </DialogDescription>
         </DialogHeader>
 
@@ -350,33 +369,44 @@ export function AddTaskDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="maintenance-assignee">Assignee</Label>
-              <Select
-                value={form.assigneeId ?? "unassigned"}
-                onValueChange={(value) => {
-                  if (value === "unassigned") {
-                    setForm((prev) => ({ ...prev, assigneeId: null, assignee: null }))
-                    return
-                  }
-                  const selectedAssignee = assigneeOptions.find((option) => option.id === value)
-                  setForm((prev) => ({
-                    ...prev,
-                    assigneeId: value,
-                    assignee: selectedAssignee?.label ?? null,
-                  }))
-                }}
-              >
-                <SelectTrigger id="maintenance-assignee">
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {assigneeOptions.map((assignee) => (
-                    <SelectItem key={assignee.id} value={assignee.id}>
-                      {assignee.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {canAssignWorkOrder ? (
+                <Select
+                  value={form.assigneeId ?? "unassigned"}
+                  onValueChange={(value) => {
+                    if (value === "unassigned") {
+                      setForm((prev) => ({ ...prev, assigneeId: null, assignee: null }))
+                      return
+                    }
+                    const selectedAssignee = assigneeOptions.find((option) => option.id === value)
+                    setForm((prev) => ({
+                      ...prev,
+                      assigneeId: value,
+                      assignee: selectedAssignee?.label ?? null,
+                    }))
+                  }}
+                >
+                  <SelectTrigger id="maintenance-assignee">
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {assigneeOptions.map((assignee) => (
+                      <SelectItem key={assignee.id} value={assignee.id}>
+                        {assignee.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="maintenance-assignee"
+                  readOnly
+                  disabled
+                  value={selfAssigneeLabel}
+                  className="bg-muted"
+                  aria-readonly="true"
+                />
+              )}
             </div>
 
             <div className="space-y-2">

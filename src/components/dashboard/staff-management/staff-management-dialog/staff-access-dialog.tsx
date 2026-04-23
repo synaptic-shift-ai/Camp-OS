@@ -84,10 +84,17 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'delete', name: 'Delete task' },
   ],
   maintenance: [
-    { id: 'view', name: 'View tasks' },
-    { id: 'create', name: 'Create tasks' },
-    { id: 'update', name: 'Edit tasks' },
-    { id: 'delete', name: 'Delete task' },
+    { id: 'view', name: 'View WO' },
+    { id: 'create', name: 'Create WO' },
+    { id: 'update', name: 'Edit WO' },
+    { id: 'delete', name: 'Delete WO' },
+    { id: 'assign-wo', name: 'Assign WO' },
+    { id: 'request-onhold', name: 'Request on hold' },
+    { id: 'approve-onhold', name: 'Approve on hold' },
+    { id: 'cancel-wo', name: 'Cancel WO' },
+    { id: 'manage-vendors', name: 'Manage vendors' },
+    { id: 'manage-pm-schedules', name: 'Manage PM schedules' },
+    { id: 'view-cost-reports', name: 'View cost reports' },
   ],
   'staff-management': [
     { id: 'view', name: 'View staff' },
@@ -167,6 +174,8 @@ function buildStaffMaintenanceFallbackPermissionState(): Record<string, boolean>
   // Required defaults when staff + maintenance has no stored access
   next['overview:view'] = true
   next['maintenance:view'] = true
+  next['maintenance:create'] = true
+  next['maintenance:update'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {
@@ -271,6 +280,13 @@ function buildManagerMaintenanceFallbackPermissionState(): Record<string, boolea
   next['maintenance:create'] = true
   next['maintenance:update'] = true
   next['maintenance:delete'] = true
+  next['maintenance:assign-wo'] = true
+  next['maintenance:request-onhold'] = true
+  next['maintenance:approve-onhold'] = true
+  next['maintenance:cancel-wo'] = true
+  next['maintenance:manage-vendors'] = true
+  next['maintenance:manage-pm-schedules'] = true
+  next['maintenance:view-cost-reports'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {

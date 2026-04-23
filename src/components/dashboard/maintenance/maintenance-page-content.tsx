@@ -32,6 +32,12 @@ type MaintenancePageContentProps = {
   canCreateTask: boolean
   canEditTask: boolean
   canDeleteTask: boolean
+  canAssignWorkOrder: boolean
+  canManageMaintenanceVendors: boolean
+  canManageMaintenancePmSchedules: boolean
+  canViewMaintenanceCostReports: boolean
+  selfAssigneeStaffId: string | null
+  selfAssigneeLabel: string
 }
 
 function toApiStatus(
@@ -165,6 +171,12 @@ export function MaintenancePageContent({
   canCreateTask,
   canEditTask,
   canDeleteTask,
+  canAssignWorkOrder,
+  canManageMaintenanceVendors,
+  canManageMaintenancePmSchedules,
+  canViewMaintenanceCostReports,
+  selfAssigneeStaffId,
+  selfAssigneeLabel,
 }: MaintenancePageContentProps) {
   const { toast } = useToast()
   const [filters, setFilters] = useState<MaintenanceFilterValue>(INITIAL_FILTERS)
@@ -189,6 +201,26 @@ export function MaintenancePageContent({
   const [taskPendingDelete, setTaskPendingDelete] = useState<MaintenanceTaskRow | null>(null)
   const [viewingTask, setViewingTask] = useState<MaintenanceTaskRow | null>(null)
   const [viewMode, setViewMode] = useState<MaintenanceViewMode>("wo_list")
+
+  useEffect(() => {
+    if (viewMode === "analytics" && !canViewMaintenanceCostReports) {
+      setViewMode("wo_list")
+      return
+    }
+    if (viewMode === "schedules" && !canManageMaintenancePmSchedules) {
+      setViewMode("wo_list")
+      return
+    }
+    if (viewMode === "vendors" && !canManageMaintenanceVendors) {
+      setViewMode("wo_list")
+    }
+  }, [
+    viewMode,
+    canViewMaintenanceCostReports,
+    canManageMaintenancePmSchedules,
+    canManageMaintenanceVendors,
+  ])
+
   const filtersApiKey = useMemo(
     () =>
       `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}`,
@@ -460,25 +492,29 @@ export function MaintenancePageContent({
     }
     setIsUpdatingTask(true)
     try {
+      const patchBody: Record<string, unknown> = {
+        siteId: input.siteId,
+        title: input.task,
+        description: input.description?.trim() ? input.description.trim() : null,
+        status: toApiStatus(input.status),
+        priority: toApiPriority(input.priority),
+        category: input.category,
+        source: toApiSource(input.source),
+        estimatedLaborCost: input.estimatedLaborCost ?? null,
+        estimatedPartsCost: input.estimatedPartsCost ?? null,
+        vendorName: input.vendorName?.trim() ? input.vendorName.trim() : null,
+        vendorEmail: input.vendorEmail?.trim() ? input.vendorEmail.trim() : null,
+      }
+      if (canAssignWorkOrder) {
+        patchBody.staffId = input.assigneeId ?? null
+      }
+
       const response = await fetch(`/api/v1/properties/${propertyId}/maintenance/${input.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          siteId: input.siteId,
-          staffId: input.assigneeId ?? null,
-          title: input.task,
-          description: input.description?.trim() ? input.description.trim() : null,
-          status: toApiStatus(input.status),
-          priority: toApiPriority(input.priority),
-          category: input.category,
-          source: toApiSource(input.source),
-          estimatedLaborCost: input.estimatedLaborCost ?? null,
-          estimatedPartsCost: input.estimatedPartsCost ?? null,
-          vendorName: input.vendorName?.trim() ? input.vendorName.trim() : null,
-          vendorEmail: input.vendorEmail?.trim() ? input.vendorEmail.trim() : null,
-        }),
+        body: JSON.stringify(patchBody),
       })
 
       const payload = await response.json()
@@ -528,7 +564,13 @@ export function MaintenancePageContent({
         onAddTaskClick={() => setIsAddTaskDialogOpen(true)}
         canCreateTask={canCreateTask}
       />
-      <MaintenanceViewSwitcher mode={viewMode} onModeChange={setViewMode} />
+      <MaintenanceViewSwitcher
+        mode={viewMode}
+        onModeChange={setViewMode}
+        showCostReport={canViewMaintenanceCostReports}
+        showSchedules={canManageMaintenancePmSchedules}
+        showVendorsList={canManageMaintenanceVendors}
+      />
 
       {viewMode === "wo_list" ? (
         <>
@@ -573,8 +615,10 @@ export function MaintenancePageContent({
       ) : (
         <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
           {viewMode === "analytics"
-            ? "Maintenance analytics view coming soon."
-            : "Maintenance schedules view coming soon."}
+            ? "Maintenance cost reports view coming soon."
+            : viewMode === "schedules"
+              ? "Maintenance schedules view coming soon."
+              : "Maintenance vendors list view coming soon."}
         </div>
       )}
       <AddTaskDialog
@@ -582,6 +626,9 @@ export function MaintenancePageContent({
         onOpenChange={setIsAddTaskDialogOpen}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
+        canAssignWorkOrder={canAssignWorkOrder}
+        selfAssigneeStaffId={selfAssigneeStaffId}
+        selfAssigneeLabel={selfAssigneeLabel}
         isSubmitting={isCreatingTask}
         onSubmit={handleAddTask}
       />
@@ -591,6 +638,7 @@ export function MaintenancePageContent({
         task={editingTask}
         siteOptions={siteOptions}
         assigneeOptions={assigneeOptions}
+        canAssignWorkOrder={canAssignWorkOrder}
         isSubmitting={isUpdatingTask}
         onSubmit={handleEditTask}
       />

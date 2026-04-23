@@ -71,6 +71,13 @@ export const ROLE_CATEGORY_MODULE_PERMISSION_TO_RBAC: Partial<
     create: 'maintenance.create_wo',
     update: 'maintenance.update_assigned',
     delete: 'maintenance.update_assigned',
+    'assign-wo': 'maintenance.assign_wo',
+    'request-onhold': 'maintenance.request_onhold',
+    'approve-onhold': 'maintenance.approve_onhold',
+    'cancel-wo': 'maintenance.cancel_wo',
+    'manage-vendors': 'maintenance.manage_vendors',
+    'manage-pm-schedules': 'maintenance.manage_pm_schedules',
+    'view-cost-reports': 'maintenance.view_cost_reports',
   },
   analytics: {
     view: 'marketing_seo.view_analytics',
@@ -117,7 +124,19 @@ export function buildDefaultAccessForRoleCategory(
       },
       payments: { view: true },
       housekeeping: { view: true, create: true, update: true, delete: true },
-      maintenance: { view: true, create: true, update: true, delete: true },
+      maintenance: {
+        view: true,
+        create: true,
+        update: true,
+        delete: true,
+        'assign-wo': true,
+        'request-onhold': true,
+        'approve-onhold': true,
+        'cancel-wo': true,
+        'manage-vendors': true,
+        'manage-pm-schedules': true,
+        'view-cost-reports': true,
+      },
       analytics: { view: true },
       auditing: { view: true },
       settings: { view: true, edit: true },
@@ -159,7 +178,19 @@ export function buildDefaultAccessForRoleCategory(
         'change-password': true,
       },
       'staff-management': { view: true },
-      maintenance: { view: true, create: true, update: true, delete: true },
+      maintenance: {
+        view: true,
+        create: true,
+        update: true,
+        delete: true,
+        'assign-wo': true,
+        'request-onhold': true,
+        'approve-onhold': true,
+        'cancel-wo': true,
+        'manage-vendors': true,
+        'manage-pm-schedules': true,
+        'view-cost-reports': true,
+      },
     }
   }
 
@@ -197,7 +228,7 @@ export function buildDefaultAccessForRoleCategory(
         'change-password': true,
       },
       overview: { view: true },
-      maintenance: { view: true },
+      maintenance: { view: true, create: true, update: true },
     }
   }
 

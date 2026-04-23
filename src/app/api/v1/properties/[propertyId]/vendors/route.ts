@@ -30,7 +30,10 @@ export async function GET(
     if (isDenied(access)) return access
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
-    const rows = await queries.listPropertyVendors(propertyId)
+    const [rows, linkedWorkOrderCounts] = await Promise.all([
+      queries.listPropertyVendors(propertyId),
+      queries.countLinkedWorkOrdersByVendor(propertyId),
+    ])
 
     const vendorOptions = rows.map((row) => ({
       id: row.id,
@@ -43,7 +46,7 @@ export async function GET(
       name: row.name,
       service: row.service_type,
       contact: row.email ?? '—',
-      linkedWorkOrders: null,
+      linkedWorkOrders: linkedWorkOrderCounts[row.id] ?? 0,
     }))
 
     return success({ vendorOptions, vendors }, request)

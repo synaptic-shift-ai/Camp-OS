@@ -307,6 +307,31 @@ export class MaintenanceQueries {
         return (data ?? []) as PropertyVendorListRow[]
     }
 
+    async countLinkedWorkOrdersByVendor(propertyId: string): Promise<Record<string, number>> {
+        const { data, error } = await this.supabase
+            .from('maintenance_tasks')
+            .select('vendor_id')
+            .eq('property_id', propertyId)
+            .not('vendor_id', 'is', null)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to count linked work orders by vendor', {
+                error,
+                propertyId,
+            })
+            throw new Error(`Failed to count linked work orders: ${error.message}`)
+        }
+
+        const counts: Record<string, number> = {}
+        for (const row of data ?? []) {
+            const vendorId = row.vendor_id
+            if (!vendorId) continue
+            counts[vendorId] = (counts[vendorId] ?? 0) + 1
+        }
+
+        return counts
+    }
+
     async createPropertyVendor(input: CreatePropertyVendorInput): Promise<PropertyVendorListRow> {
         const insertRow: Database['public']['Tables']['property_vendor']['Insert'] = {
             property_id: input.propertyId,

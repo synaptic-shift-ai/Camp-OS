@@ -55,7 +55,7 @@ export function MaintenanceFilter({
     setMobileFiltersOpen(false)
   }
 
-  const statusOptions = ["Open", "In Progress", "Completed"] as const
+  const statusOptions = ["Open", "In Progress", "On Hold", "Completed", "Cancelled"] as const
   const priorityOptions = ["Low", "Medium", "High", "Emergency"] as const
   const sourceOptions = ["Guest", "Housekeeping", "Staff", "PM", "Checkout"] as const
 
@@ -147,7 +147,9 @@ export function MaintenanceFilter({
                       <SelectItem value="all">All statuses</SelectItem>
                       <SelectItem value="Open">Open</SelectItem>
                       <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="On Hold">On Hold</SelectItem>
                       <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="Cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -22,7 +22,7 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     staffId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(1).max(500),
     description: z.string().trim().max(5000).nullable().optional(),
-    status: z.enum(['open', 'in_progress', 'completed']).optional(),
+    status: z.enum(['open', 'in_progress', 'on_hold', 'completed', 'cancelled']).optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
     category: z.string().trim().min(1).max(120).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
@@ -37,7 +37,7 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     staffId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(1).max(500).optional(),
     description: z.string().trim().max(5000).nullable().optional(),
-    status: z.enum(['open', 'in_progress', 'completed']).optional(),
+    status: z.enum(['open', 'in_progress', 'on_hold', 'completed', 'cancelled']).optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
     category: z.string().trim().min(1).max(120).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
@@ -45,6 +45,8 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     estimatedPartsCost: z.number().nonnegative().nullable().optional(),
     vendorId: z.string().uuid().nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
+    on_hold_reason: z.string().optional().nullable(),
+    cancelled_reason: z.string().optional().nullable(),
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: 'At least one field is required',
 })
@@ -56,7 +58,7 @@ export const ListMaintenanceTasksQuerySchema = z.object({
         emptyStringToUndefined,
         z.union([z.string().uuid(), z.literal('unassigned')]).optional(),
     ),
-    status: z.enum(['open', 'in_progress', 'completed']).optional(),
+    status: z.enum(['open', 'in_progress', 'on_hold', 'completed', 'cancelled']).optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
     page: z

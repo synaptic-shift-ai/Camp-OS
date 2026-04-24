@@ -41,6 +41,16 @@ function StatusDisplay({ status }: { status: MaintenanceTaskRow["status"] }) {
       <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`}>In Progress</span>
     )
   }
+  if (status === "On Hold") {
+    return (
+      <span className={`${base} border-amber-300 bg-amber-50 text-amber-700`}>On Hold</span>
+    )
+  }
+  if (status === "Cancelled") {
+    return (
+      <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`}>Cancelled</span>
+    )
+  }
   return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Open</span>
 }
 

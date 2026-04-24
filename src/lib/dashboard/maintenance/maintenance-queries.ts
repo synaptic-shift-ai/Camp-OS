@@ -13,7 +13,7 @@ export type CreateMaintenanceTaskInput = {
     title: string
     description?: string | null
     staffId?: string | null
-    status?: 'open' | 'in_progress' | 'completed'
+    status?: 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
     category?: string
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
@@ -30,7 +30,7 @@ export type UpdateMaintenanceTaskInput = {
     description?: string | null
     staffId?: string | null
     title?: string
-    status?: 'open' | 'in_progress' | 'completed'
+    status?: 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
     category?: string
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
@@ -38,13 +38,19 @@ export type UpdateMaintenanceTaskInput = {
     estimatedPartsCost?: number | null
     vendorId?: string | null
     sla?: number | null
+    started_at?: string | null
+    completed_at?: string | null
+    on_hold_at?: string | null
+    on_hold_reason?: string | null
+    cancelled_at?: string | null
+    cancelled_reason?: string | null
 }
 
 export type ListMaintenanceTasksFilters = {
     search?: string
     siteId?: string
     assigneeId?: 'unassigned' | string
-    status?: 'open' | 'in_progress' | 'completed'
+    status?: 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
 }
@@ -479,9 +485,19 @@ export class MaintenanceQueries {
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }
 
+        // Lifecycle timestamp/reason fields (added via migration — gen:db will include these in the DB type)
+        const lifecycleUpdates: Record<string, unknown> = {
+            ...(input.started_at !== undefined ? { started_at: input.started_at } : {}),
+            ...(input.completed_at !== undefined ? { completed_at: input.completed_at } : {}),
+            ...(input.on_hold_at !== undefined ? { on_hold_at: input.on_hold_at } : {}),
+            ...(input.on_hold_reason !== undefined ? { on_hold_reason: input.on_hold_reason } : {}),
+            ...(input.cancelled_at !== undefined ? { cancelled_at: input.cancelled_at } : {}),
+            ...(input.cancelled_reason !== undefined ? { cancelled_reason: input.cancelled_reason } : {}),
+        }
+
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
-            .update(updateRow)
+            .update({ ...updateRow, ...lifecycleUpdates })
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()

@@ -11,6 +11,59 @@ import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
 import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maintenance'
 
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  open: ['in_progress', 'cancelled'],
+  in_progress: ['on_hold', 'completed', 'cancelled'],
+  on_hold: ['in_progress', 'cancelled'],
+  completed: ['open'],
+  cancelled: ['open'],
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ propertyId: string; maintenanceId: string }> },
+) {
+  try {
+    const { propertyId, maintenanceId } = await params
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return error(ErrorCodes.AUTH_001, request)
+    }
+
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      permission: 'maintenance.view_assigned',
+    })
+    if (isDenied(access)) return access
+
+    const { data: task, error: fetchError } = await supabase
+      .from('maintenance_tasks')
+      .select(
+        `*,
+         site:sites(site_name, site_number, site_type)`,
+      )
+      .eq('id', maintenanceId)
+      .eq('property_id', propertyId)
+      .maybeSingle()
+
+    if (fetchError || !task) {
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, request, { message: 'Maintenance task not found.' })
+    }
+
+    return success({ maintenanceTask: task }, request)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[Maintenance API v1] GET error:', err)
+    return error(ErrorCodes.INTERNAL_ERROR, request, { message })
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ propertyId: string; maintenanceId: string }> },
@@ -39,7 +92,7 @@ export async function PATCH(
       propertyId,
       userId: user.id,
       moduleKey: 'maintenance',
-      actions: ['update', 'assign-wo', 'enter-labor-cost'],
+      actions: ['update', 'assign-wo', 'enter-labor-cost', 'request-onhold', 'approve-onhold', 'cancel-wo'],
       fallbackForCategory: maintenanceFallbackForCategory,
     })
     if (!actionAccess.update) {
@@ -63,14 +116,14 @@ export async function PATCH(
     const canAssignWorkOrder = actionAccess['assign-wo'] === true
 
     // Completion lock: prevent cost changes on completed work orders
-    const { data: existingStatusRow } = await supabase
+    const { data: currentTask } = await supabase
       .from('maintenance_tasks')
-      .select('status')
+      .select('status, started_at')
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)
       .maybeSingle()
 
-    const isCompleted = existingStatusRow?.status === 'completed'
+    const isCompleted = currentTask?.status === 'completed'
     const hasCostFields =
       (parsed.data.estimatedLaborCost != null && parsed.data.estimatedLaborCost !== undefined) ||
       (parsed.data.estimatedPartsCost != null && parsed.data.estimatedPartsCost !== undefined)
@@ -89,6 +142,107 @@ export async function PATCH(
       delete parsed.data.estimatedPartsCost
     }
 
+    // ── State machine validation ──
+    const currentStatus = currentTask?.status ?? 'open'
+    const requestedStatus = parsed.data.status
+
+    if (requestedStatus && currentStatus !== requestedStatus) {
+      const allowed = VALID_TRANSITIONS[currentStatus]
+      if (!allowed?.includes(requestedStatus)) {
+        return error(
+          ErrorCodes.VALIDATION_ERROR,
+          request,
+          { message: `Invalid status transition: ${currentStatus} → ${requestedStatus}` },
+        )
+      }
+
+      // Permission gating for protected transitions
+      if (requestedStatus === 'on_hold') {
+        if (!actionAccess['request-onhold']) {
+          return error(
+            ErrorCodes.AUTH_002.code,
+            'You do not have permission to put work orders on hold',
+            ErrorCodes.AUTH_002.status,
+            request,
+          )
+        }
+      }
+      if (requestedStatus === 'in_progress' && currentStatus === 'on_hold') {
+        if (!actionAccess['approve-onhold']) {
+          return error(
+            ErrorCodes.AUTH_002.code,
+            'You do not have permission to resume work orders on hold',
+            ErrorCodes.AUTH_002.status,
+            request,
+          )
+        }
+      }
+      if (requestedStatus === 'cancelled') {
+        if (!actionAccess['cancel-wo']) {
+          return error(
+            ErrorCodes.AUTH_002.code,
+            'You do not have permission to cancel work orders',
+            ErrorCodes.AUTH_002.status,
+            request,
+          )
+        }
+      }
+    }
+
+    // ── Timestamp management ──
+    const timestampUpdates: Record<string, any> = {}
+
+    if (requestedStatus && currentStatus !== requestedStatus) {
+      switch (requestedStatus) {
+        case 'in_progress':
+          if (currentStatus === 'open') {
+            timestampUpdates.started_at = new Date().toISOString()
+          }
+          // Resume from hold: clear hold fields
+          if (currentStatus === 'on_hold') {
+            timestampUpdates.started_at = currentTask?.started_at || new Date().toISOString()
+            timestampUpdates.on_hold_at = null
+            timestampUpdates.on_hold_reason = null
+          }
+          break
+        case 'completed':
+          timestampUpdates.completed_at = new Date().toISOString()
+          break
+        case 'on_hold':
+          if (!parsed.data.on_hold_reason) {
+            return error(
+              ErrorCodes.VALIDATION_ERROR,
+              request,
+              { message: 'on_hold_reason is required when putting a work order on hold' },
+            )
+          }
+          timestampUpdates.on_hold_at = new Date().toISOString()
+          timestampUpdates.on_hold_reason = parsed.data.on_hold_reason
+          break
+        case 'cancelled':
+          if (!parsed.data.cancelled_reason) {
+            return error(
+              ErrorCodes.VALIDATION_ERROR,
+              request,
+              { message: 'cancelled_reason is required when cancelling a work order' },
+            )
+          }
+          timestampUpdates.cancelled_at = new Date().toISOString()
+          timestampUpdates.cancelled_reason = parsed.data.cancelled_reason
+          break
+        case 'open':
+          // Reopen: clear previous lifecycle timestamps
+          if (currentStatus === 'completed') {
+            timestampUpdates.completed_at = null
+          }
+          if (currentStatus === 'cancelled') {
+            timestampUpdates.cancelled_at = null
+            timestampUpdates.cancelled_reason = null
+          }
+          break
+      }
+    }
+
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
     const maintenanceTask = await queries.updateMaintenanceTask({
       id: maintenanceId,
@@ -105,6 +259,7 @@ export async function PATCH(
       ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
       ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
       ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
+      ...timestampUpdates,
     })
 
     // Completion-triggered PM auto-generation
@@ -117,6 +272,32 @@ export async function PATCH(
           // Silently fail — don't block completion
         }
       }
+    }
+
+    // Status-change activity log
+    if (access.companyId && requestedStatus && currentStatus !== requestedStatus) {
+      const fromLabel = currentStatus.replace(/_/g, ' ')
+      const toLabel = requestedStatus.replace(/_/g, ' ')
+      let logDetail = `Status changed from ${fromLabel} to ${toLabel} by ${user.email || 'Unknown'}`
+      if (parsed.data.on_hold_reason) {
+        logDetail += `. Reason: ${parsed.data.on_hold_reason}`
+      }
+      if (parsed.data.cancelled_reason) {
+        logDetail += `. Reason: ${parsed.data.cancelled_reason}`
+      }
+      const statusLogService = createServiceRoleClient()
+      await recordActivityLog(
+        statusLogService,
+        {
+          companyId: access.companyId,
+          propertyId,
+          action: 'status_change',
+          resource: 'maintenance',
+          userId: user.id,
+          details: logDetail,
+        },
+        { failOpen: false },
+      )
     }
 
     if (access.companyId) {

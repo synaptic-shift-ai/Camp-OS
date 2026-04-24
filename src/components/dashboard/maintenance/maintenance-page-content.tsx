@@ -51,15 +51,19 @@ type MaintenancePageContentProps = {
 
 function toApiStatus(
   status: AddMaintenanceTaskInput["status"],
-): "open" | "in_progress" | "completed" {
+): "open" | "in_progress" | "on_hold" | "completed" | "cancelled" {
   if (status === "In Progress") return "in_progress"
   if (status === "Completed") return "completed"
+  if (status === "On Hold") return "on_hold"
+  if (status === "Cancelled") return "cancelled"
   return "open"
 }
 
 function fromApiStatus(status: string): MaintenanceTaskRow["status"] {
   if (status === "in_progress") return "In Progress"
   if (status === "completed") return "Completed"
+  if (status === "on_hold") return "On Hold"
+  if (status === "cancelled") return "Cancelled"
   return "Open"
 }
 

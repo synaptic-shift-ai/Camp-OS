@@ -27,7 +27,7 @@ export type MaintenanceTaskRow = {
   description?: string | null
   assigneeId?: string | null
   assignee: string | null
-  status: "Open" | "In Progress" | "Completed"
+  status: "Open" | "In Progress" | "On Hold" | "Completed" | "Cancelled"
   priority: "Low" | "Medium" | "High" | "Emergency"
   category?: string
   source?: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
@@ -63,6 +63,18 @@ function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
   if (status === "In Progress") {
     return (
       <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`}>In Progress</span>
+    )
+  }
+
+  if (status === "On Hold") {
+    return (
+      <span className={`${base} border-amber-300 bg-amber-50 text-amber-700`}>On Hold</span>
+    )
+  }
+
+  if (status === "Cancelled") {
+    return (
+      <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`}>Cancelled</span>
     )
   }
 

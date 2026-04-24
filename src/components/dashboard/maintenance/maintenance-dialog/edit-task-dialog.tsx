@@ -464,6 +464,11 @@ export function EditTaskDialog({
                   }))
                 }}
               />
+              {!form.sla && task?.status === "Open" && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  SLA is required before starting work on this order.
+                </p>
+              )}
             </div>
           </div>
 

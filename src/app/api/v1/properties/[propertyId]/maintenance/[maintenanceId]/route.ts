@@ -118,7 +118,7 @@ export async function PATCH(
     // Completion lock: prevent cost changes on completed work orders
     const { data: currentTask } = await supabase
       .from('maintenance_tasks')
-      .select('status, started_at')
+      .select('status, started_at, sla')
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)
       .maybeSingle()
@@ -187,6 +187,15 @@ export async function PATCH(
           )
         }
       }
+    }
+
+    // SLA guard: prevent open → in_progress without SLA
+    if (requestedStatus === 'in_progress' && currentStatus === 'open' && !currentTask?.sla) {
+      return error(
+        ErrorCodes.VALIDATION_ERROR,
+        request,
+        { message: 'Cannot start work — SLA must be set before beginning work on this order.' },
+      )
     }
 
     // ── Timestamp management ──

@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
@@ -154,6 +155,8 @@ export function MaintenanceView({
   const [isHoldDialogOpen, setIsHoldDialogOpen] = useState(false)
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [isStatusChanging, setIsStatusChanging] = useState(false)
+  const [resumeDisplayLockSeconds, setResumeDisplayLockSeconds] = useState<number | null>(null)
+  const [pausedElapsedSeconds, setPausedElapsedSeconds] = useState<number | null>(null)
   const [isReassignOpen, setIsReassignOpen] = useState(false)
   const [isReassigning, setIsReassigning] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -239,10 +242,13 @@ export function MaintenanceView({
 
   const workElapsedSeconds = useMemo(() => {
     if (!task?.started_at) return null
+    if (resumeDisplayLockSeconds !== null) return resumeDisplayLockSeconds
+    if (task.status === "on_hold" && pausedElapsedSeconds !== null) return pausedElapsedSeconds
     const startMs = new Date(task.started_at).getTime()
-    const endMs = task.completed_at ? new Date(task.completed_at).getTime() : now
+    const holdMs = task.status === "on_hold" && task.on_hold_at ? new Date(task.on_hold_at).getTime() : null
+    const endMs = task.completed_at ? new Date(task.completed_at).getTime() : holdMs ?? now
     return Math.max(0, Math.floor((endMs - startMs) / 1000))
-  }, [task?.started_at, task?.completed_at, now])
+  }, [task?.started_at, task?.completed_at, task?.status, task?.on_hold_at, pausedElapsedSeconds, resumeDisplayLockSeconds, now])
 
   const workTimerDisplay = useMemo(() => {
     if (workElapsedSeconds === null) return "Not started"
@@ -326,6 +332,7 @@ export function MaintenanceView({
 
   // ── Visibility flags ──
 
+  const hasSla = !!task?.sla
   const showStart = task?.status === "open" && canEditTask
   const showComplete = task?.status === "in_progress" && canEditTask
   const showReopen = (task?.status === "completed" || task?.status === "cancelled") && canEditTask
@@ -425,6 +432,12 @@ export function MaintenanceView({
   }
 
   const handlePutOnHold = async (reason: string) => {
+    if (!task) return
+    const holdConfirmedAtMs = Date.now()
+    const elapsedAtPause = task.started_at
+      ? Math.max(0, Math.floor((holdConfirmedAtMs - new Date(task.started_at).getTime()) / 1000))
+      : workElapsedSeconds
+    setPausedElapsedSeconds(elapsedAtPause)
     setIsStatusChanging(true)
     try {
       const res = await fetch(
@@ -435,14 +448,32 @@ export function MaintenanceView({
           body: JSON.stringify({ status: "on_hold", on_hold_reason: reason }),
         },
       )
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error?.details?.message ?? data.error?.message ?? "Failed to put on hold")
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to put on hold",
+        )
       }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "on_hold",
+              on_hold_reason: reason,
+              on_hold_at:
+                typeof updated?.on_hold_at === "string"
+                  ? updated.on_hold_at
+                  : new Date(holdConfirmedAtMs).toISOString(),
+              updated_at:
+                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+            }
+          : previous,
+      )
       toast({ title: "Work order put on hold" })
       setIsHoldDialogOpen(false)
-      mutate()
     } catch (err: unknown) {
+      setPausedElapsedSeconds(null)
       const message = err instanceof Error ? err.message : "Failed to put on hold."
       toast({ title: "Unable to hold", description: message, variant: "destructive" })
     } finally {
@@ -478,6 +509,17 @@ export function MaintenanceView({
 
   const handleResume = async () => {
     if (!task || task.status !== "on_hold") return
+    const frozenElapsed =
+      pausedElapsedSeconds ??
+      (task.started_at && task.on_hold_at
+        ? Math.max(
+            0,
+            Math.floor(
+              (new Date(task.on_hold_at).getTime() - new Date(task.started_at).getTime()) / 1000,
+            ),
+          )
+        : workElapsedSeconds)
+    setResumeDisplayLockSeconds(frozenElapsed)
     setIsStatusChanging(true)
     try {
       const res = await fetch(
@@ -488,16 +530,43 @@ export function MaintenanceView({
           body: JSON.stringify({ status: "in_progress" }),
         },
       )
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error?.details?.message ?? data.error?.message ?? "Failed to resume")
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to resume")
       }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      const resumeAtMs = Date.now()
+      setTask((previous) => {
+        if (!previous) return previous
+        const lockedElapsedMs =
+          frozenElapsed !== null
+            ? frozenElapsed * 1000
+            : previous.started_at && previous.on_hold_at
+              ? Math.max(
+                  0,
+                  new Date(previous.on_hold_at).getTime() - new Date(previous.started_at).getTime(),
+                )
+              : 0
+        const nextStartedAt = new Date(resumeAtMs - lockedElapsedMs).toISOString()
+        return {
+          ...previous,
+          status: "in_progress",
+          started_at:
+            typeof updated?.started_at === "string" ? updated.started_at : nextStartedAt,
+          on_hold_at: null,
+          on_hold_reason: null,
+          updated_at:
+            typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+        }
+      })
+      setNow(resumeAtMs)
       toast({ title: "Work order resumed" })
-      mutate()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to resume."
       toast({ title: "Unable to resume", description: message, variant: "destructive" })
     } finally {
+      setPausedElapsedSeconds(null)
+      setTimeout(() => setResumeDisplayLockSeconds(null), 1100)
       setIsStatusChanging(false)
     }
   }
@@ -586,15 +655,24 @@ export function MaintenanceView({
         {canEditTask || showHold || showResume || showCancel || showReassign ? (
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
             {showStart ? (
-              <Button
-                type="button"
-                className="col-span-1 gap-2 sm:w-auto"
-                disabled={isStarting}
-                onClick={() => void handleStart()}
-              >
-                {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                Start
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0}>
+                    <Button
+                      type="button"
+                      className="col-span-1 gap-2 sm:w-auto"
+                      disabled={isStarting || !hasSla}
+                      onClick={() => void handleStart()}
+                    >
+                      {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                      Start
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!hasSla && (
+                  <TooltipContent>Set an SLA before starting work</TooltipContent>
+                )}
+              </Tooltip>
             ) : null}
             {showComplete ? (
               <Button

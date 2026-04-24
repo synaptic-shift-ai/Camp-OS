@@ -21,6 +21,7 @@ import {
   getDefaultClassNames,
   type DateRange,
 } from 'react-day-picker'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 /* ── Brand palette ───────────────────────────────────────── */
@@ -465,6 +466,198 @@ export function BookingDateRangePicker({
         </div>
       </div>
     </div>
+  )
+}
+
+function singleDateTriggerText(value: Date | undefined) {
+  if (!value) return 'Select date'
+  return format(value, 'MMM d, yyyy')
+}
+
+export interface BookingSingleDatePickerProps {
+  label?: string
+  value: Date | undefined
+  onChange: (date: Date | undefined) => void
+  variant?: BookingDateRangePickerVariant
+  sameDayBookingEnabled?: boolean
+  blackoutDates?: string[]
+  bookingWindowDays?: number
+  advanceNoticeDays?: number
+  openPeriodFrom?: string | null
+  openPeriodUntil?: string | null
+  allowPastDates?: boolean
+  dropdownAlign?: 'start' | 'end'
+  disabled?: boolean
+  className?: string
+  numberOfMonths?: number
+}
+
+/**
+ * Single-day picker using the same {@link StyledCalendar} chrome as {@link BookingDateRangePicker}
+ * (dashboard / guest variants, Clear / Confirm, week starts Monday).
+ */
+export function BookingSingleDatePicker({
+  label = 'Date',
+  value,
+  onChange,
+  variant = 'dashboard',
+  sameDayBookingEnabled = true,
+  blackoutDates = [],
+  bookingWindowDays,
+  advanceNoticeDays,
+  openPeriodFrom,
+  openPeriodUntil,
+  allowPastDates = true,
+  dropdownAlign = 'start',
+  disabled = false,
+  className,
+  numberOfMonths = 1,
+}: BookingSingleDatePickerProps) {
+  const [open, setOpen] = React.useState(false)
+
+  const disabledFn = React.useCallback(
+    (d: Date) =>
+      isDateDisabled(
+        d,
+        sameDayBookingEnabled,
+        blackoutDates,
+        bookingWindowDays,
+        advanceNoticeDays,
+        openPeriodFrom,
+        openPeriodUntil,
+        allowPastDates,
+      ),
+    [
+      sameDayBookingEnabled,
+      blackoutDates,
+      bookingWindowDays,
+      advanceNoticeDays,
+      openPeriodFrom,
+      openPeriodUntil,
+      allowPastDates,
+    ],
+  )
+
+  const hasValue = Boolean(value)
+  const isDashboard = variant === 'dashboard'
+  const alignEnd = dropdownAlign === 'end'
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <div className={cn('w-full space-y-2', className)}>
+        {label && (
+          <p
+            className={cn(
+              'm-0 text-sm font-medium',
+              isDashboard ? '' : 'text-[#2D5A27] dark:text-emerald-400',
+            )}
+          >
+            {label}
+          </p>
+        )}
+
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+              'flex h-10 w-full items-center justify-between rounded-md border-2 bg-background px-3 py-2 text-sm',
+              'ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50',
+              isDashboard
+                ? 'border-input hover:border-primary data-[state=open]:border-primary'
+                : 'border-input hover:border-[#2D5A27] data-[state=open]:border-[#2D5A27] dark:hover:border-emerald-500 dark:data-[state=open]:border-emerald-500',
+              disabled && 'pointer-events-none opacity-50',
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <CalendarIcon
+                className={cn(
+                  'h-4 w-4 shrink-0',
+                  hasValue
+                    ? isDashboard
+                      ? ''
+                      : 'text-[#2D5A27] dark:text-emerald-400'
+                    : 'text-muted-foreground',
+                )}
+              />
+              <span className={cn('truncate', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
+                {singleDateTriggerText(value)}
+              </span>
+            </span>
+            {hasValue && (
+              <span
+                className={cn(
+                  'text-[0.65rem] font-extrabold uppercase tracking-widest',
+                  isDashboard ? '' : 'text-[#2D5A27] dark:text-emerald-400',
+                )}
+              >
+                SET
+              </span>
+            )}
+          </button>
+        </PopoverTrigger>
+      </div>
+
+      <PopoverContent
+        side="top"
+        align={alignEnd ? 'end' : 'start'}
+        sideOffset={6}
+        avoidCollisions={false}
+        collisionPadding={12}
+        className={cn(
+          'z-[100] w-auto min-w-[20rem] max-w-[min(calc(100vw-2rem),24rem)] rounded-2xl border p-0 shadow-lg',
+          isDashboard
+            ? 'border-border bg-popover text-popover-foreground'
+            : 'border-[#e2e8f0] bg-white text-popover-foreground shadow-2xl shadow-black/10 dark:border-border dark:bg-popover',
+        )}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="px-4 pt-3 pb-2">
+          <StyledCalendar
+            variant={variant}
+            mode="single"
+            selected={value}
+            onSelect={(d) => onChange(d)}
+            disabled={disabledFn}
+            defaultMonth={value ?? new Date()}
+            numberOfMonths={numberOfMonths}
+            weekStartsOn={1}
+          />
+        </div>
+
+        <div
+          className={cn(
+            'flex items-center justify-between border-t px-4 py-3',
+            isDashboard ? 'border-border' : 'border-[#e2e8f0] dark:border-border',
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            className="text-xs font-semibold text-muted-foreground transition-colors hover:text-destructive"
+          >
+            Clear dates
+          </button>
+          <button
+            type="button"
+            disabled={!hasValue}
+            onClick={() => setOpen(false)}
+            className={cn(
+              'rounded-xl px-5 py-1.5 text-xs font-bold transition-all',
+              isDashboard
+                ? hasValue
+                  ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95'
+                  : 'cursor-not-allowed bg-primary/30 text-primary-foreground'
+                : hasValue
+                  ? 'bg-[#2D5A27] text-white shadow-sm hover:bg-[#1e3d1a] active:scale-95 dark:bg-emerald-800 dark:hover:bg-emerald-900'
+                  : 'cursor-not-allowed bg-[#2D5A27]/30 text-white dark:bg-emerald-800/40',
+            )}
+          >
+            Confirm
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

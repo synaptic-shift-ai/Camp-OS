@@ -65,7 +65,6 @@ const CATEGORY_PERMISSIONS: Readonly<Record<StaffCategory, ReadonlySet<Permissio
     'maintenance.create_wo',
     'maintenance.update_assigned',
     'maintenance.request_onhold',
-    'maintenance.enter_labor_cost',
   ]),
   front_desk: new Set<PermissionKey>([
     'reservations.read',
@@ -99,7 +98,7 @@ const CATEGORY_PERMISSIONS: Readonly<Record<StaffCategory, ReadonlySet<Permissio
     'housekeeping.view_assigned', 'housekeeping.start_complete',
     // Maintenance
     'maintenance.view_assigned', 'maintenance.create_wo', 'maintenance.update_assigned',
-    'maintenance.request_onhold', 'maintenance.enter_labor_cost',
+    'maintenance.request_onhold',
     // Front desk
     'reservations.read', 'reservations.check_in', 'reservations.check_out',
     'financial.view_balance', 'financial.view_transactions', 'financial.record_payment',

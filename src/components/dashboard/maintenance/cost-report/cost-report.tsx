@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { DateRange } from 'react-day-picker'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -24,8 +23,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
-import { BookingDateRangePicker } from '@/components/guest/booking-date-range-picker'
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -72,23 +69,16 @@ export function CostReport({
   onViewAllWorkOrders,
 }: CostReportProps) {
   // ---- state ---------------------------------------------------------------
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    to: new Date(),
-  })
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // ---- data fetching -------------------------------------------------------
   const fetchReport = useCallback(async () => {
-    if (!dateRange?.from || !dateRange?.to) {
-      setIsLoading(false)
-      return
-    }
-
-    const fromStr = dateRange.from.toISOString().split('T')[0]
-    const toStr = dateRange.to.toISOString().split('T')[0]
+    const to = new Date()
+    const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const fromStr = from.toISOString().split('T')[0]
+    const toStr = to.toISOString().split('T')[0]
 
     setIsLoading(true)
     setError(null)
@@ -116,7 +106,7 @@ export function CostReport({
     } finally {
       setIsLoading(false)
     }
-  }, [propertyId, dateRange])
+  }, [propertyId])
 
   useEffect(() => {
     void fetchReport()
@@ -251,33 +241,15 @@ export function CostReport({
         /* ---- Empty state ---- */
         <>
           {renderStatCards()}
-          <div className="mt-4">
-            <BookingDateRangePicker
-              value={dateRange}
-              onChange={(range) => setDateRange(range)}
-              variant="dashboard"
-              allowPastDates={true}
-            />
-          </div>
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <FileX2 className="h-12 w-12 mb-4" />
-            <p className="text-sm">No work orders found for this date range</p>
+            <p className="text-sm">No work orders in the last 30 days</p>
           </div>
         </>
       ) : (
         /* ---- Data state ---- */
         <>
           {renderStatCards()}
-
-          {/* Date range picker */}
-          <div className="mt-4">
-            <BookingDateRangePicker
-              value={dateRange}
-              onChange={(range) => setDateRange(range)}
-              variant="dashboard"
-              allowPastDates={true}
-            />
-          </div>
 
           {/* Charts */}
           {hasData && (

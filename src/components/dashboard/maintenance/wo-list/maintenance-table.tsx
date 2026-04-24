@@ -103,6 +103,11 @@ function formatWorkOrderDisplayId(position: number): string {
   return `WO-${String(position).padStart(4, "0")}`
 }
 
+function formatSlaHours(sla: number | null | undefined): string {
+  if (sla == null || !Number.isFinite(sla) || sla <= 0) return "—"
+  return `${sla}h`
+}
+
 type TaskActionsMenuProps = {
   row: MaintenanceTaskRow
   onView?: MaintenanceTableProps["onView"]
@@ -196,9 +201,15 @@ export function MaintenanceTable({
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {formatWorkOrderDisplayId(index + 1)}
                 </p>
-                <p className="truncate text-[11px] text-muted-foreground" title={row.category ?? "Manual"}>
-                  {row.category ?? "Manual"}
-                </p>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className="truncate" title={row.category ?? "Manual"}>
+                    {row.category ?? "Manual"}
+                  </span>
+                  <span aria-hidden>•</span>
+                  <span className="whitespace-nowrap" title={formatSlaHours(row.sla)}>
+                    SLA {formatSlaHours(row.sla)}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-4 border-t border-border/70 pt-2 text-xs">
@@ -304,8 +315,8 @@ export function MaintenanceTable({
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm text-muted-foreground">
-                  <span className="block truncate" title="—">
-                    —
+                  <span className="block truncate" title={formatSlaHours(row.sla)}>
+                    {formatSlaHours(row.sla)}
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">

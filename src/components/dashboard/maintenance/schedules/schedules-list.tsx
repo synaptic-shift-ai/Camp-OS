@@ -19,8 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
-
 type ScheduleRow = {
   id: string
   name: string
@@ -49,6 +47,30 @@ const frequencyStyles: Record<string, string> = {
   annual: "bg-rose-50 text-rose-700 border-rose-200",
 }
 
+/** Weekly uses `days` (weekday name); monthly/annual use `schedule_date`. */
+function formatScheduleWhen(schedule: ScheduleRow): string {
+  const freq = schedule.frequency.trim().toLowerCase()
+
+  if (freq === "weekly") {
+    const day = schedule.days?.trim()
+    return day && day.length > 0 ? day : "Not set"
+  }
+
+  if (freq === "monthly" || freq === "annual") {
+    if (!schedule.schedule_date?.trim()) return "Not set"
+    const parsed = new Date(schedule.schedule_date)
+    if (Number.isNaN(parsed.getTime())) return "Not set"
+    return format(parsed, "MMM d, yyyy")
+  }
+
+  if (schedule.schedule_date?.trim()) {
+    const parsed = new Date(schedule.schedule_date)
+    if (!Number.isNaN(parsed.getTime())) return format(parsed, "MMM d, yyyy")
+  }
+  const day = schedule.days?.trim()
+  return day && day.length > 0 ? day : "Not set"
+}
+
 function FrequencyBadge({ frequency }: { frequency: string }) {
   return (
     <span
@@ -64,13 +86,11 @@ function FrequencyBadge({ frequency }: { frequency: string }) {
 
 function ScheduleActionsMenu({
   schedule,
-  showGenerateNow,
   onEdit,
   onDelete,
   onGenerateNow,
 }: {
   schedule: ScheduleRow
-  showGenerateNow: boolean
   onEdit?: ((schedule: ScheduleRow) => void) | undefined
   onDelete?: ((schedule: ScheduleRow) => void) | undefined
   onGenerateNow?: ((scheduleId: string) => void) | undefined
@@ -105,66 +125,6 @@ function ScheduleActionsMenu({
   )
 }
 
-function SkeletonRows() {
-  return (
-    <>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <TableRow key={i} className="border-border/80 hover:bg-transparent">
-          <TableCell className="px-3 py-2">
-            <Skeleton className="h-4 w-36" />
-          </TableCell>
-          <TableCell className="hidden px-3 py-2 lg:table-cell">
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell className="hidden px-3 py-2 md:table-cell">
-            <Skeleton className="h-5 w-16 rounded-full" />
-          </TableCell>
-          <TableCell className="px-3 py-2">
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell className="px-1 py-2">
-            <Skeleton className="ml-auto h-8 w-8 rounded" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
-  )
-}
-
-function MobileSkeletonCards() {
-  return (
-    <div className="space-y-2 md:hidden">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-md border border-border/80 bg-card/50 p-3"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-1">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-            <Skeleton className="h-8 w-8 rounded" />
-          </div>
-          <div className="mt-3 flex items-center gap-3 border-t border-border/70 pt-2">
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
-      <CalendarCheck2 className="h-10 w-10" aria-hidden />
-      <p className="text-sm font-medium">No schedules yet</p>
-    </div>
-  )
-}
-
 function MobileCard({
   schedule,
   siteLabel,
@@ -190,22 +150,12 @@ function MobileCard({
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">{siteLabel}</p>
         </div>
-        <ScheduleActionsMenu
-          schedule={schedule}
-          showGenerateNow={schedule.schedule_date != null}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onGenerateNow={onGenerateNow}
-        />
+        <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-2">
         <FrequencyBadge frequency={schedule.frequency} />
-        <p className="text-xs text-muted-foreground">
-          {schedule.schedule_date
-            ? format(new Date(schedule.schedule_date), "MMM d, yyyy")
-            : "Not set"}
-        </p>
+        <p className="text-xs text-muted-foreground">{formatScheduleWhen(schedule)}</p>
       </div>
     </div>
   )
@@ -271,7 +221,7 @@ export function SchedulesList({
 
   if (error) {
     return (
-      <section className="space-y-4 rounded-2xl">
+      <section className="space-y-4">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
           {error}
         </div>
@@ -280,13 +230,18 @@ export function SchedulesList({
   }
 
   return (
-    <section className="space-y-4 rounded-2xl">
+    <section className="space-y-4">
       {/* Mobile cards */}
       <div className="space-y-2 md:hidden">
         {loading ? (
-          <MobileSkeletonCards />
+          <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
+            Loading schedules…
+          </div>
         ) : schedules.length === 0 ? (
-          <EmptyState />
+          <div className="rounded-md border border-border/80 bg-card/50 p-6 text-center text-sm text-muted-foreground">
+            <CalendarCheck2 className="mx-auto mb-2 h-8 w-8 opacity-60" aria-hidden />
+            No schedules yet
+          </div>
         ) : (
           schedules.map((schedule) => (
             <MobileCard
@@ -301,38 +256,40 @@ export function SchedulesList({
         )}
       </div>
 
-      {/* Desktop table */}
+      {/* Desktop table — matches maintenance / vendors table shell */}
       <div className="hidden overflow-x-auto border border-border/80 bg-card/50 md:block">
-        <Table className="w-full min-w-[680px] table-fixed text-xs lg:min-w-0">
+        <Table className="w-full min-w-[720px] table-fixed text-xs lg:min-w-0">
           <colgroup>
-            <col className="w-[30%]" />
-            <col className="w-[20%]" />
+            <col className="w-[28%]" />
+            <col className="w-[22%]" />
             <col className="w-[18%]" />
             <col className="w-[20%]" />
-            <col className="w-[6%]" />
+            <col className="w-[12%]" />
           </colgroup>
-          <TableHeader className="sticky top-0 z-10 bg-[#1F6B45] uppercase dark:bg-[#1F6B45]/80">
+          <TableHeader className="sticky top-0 z-10 bg-red-50 uppercase dark:bg-red-950/30">
             <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-              <TableHead className="px-3 py-2 font-medium text-white/95">Name</TableHead>
-              <TableHead className="hidden px-3 py-2 font-medium text-white/95 lg:table-cell">
+              <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">Name</TableHead>
+              <TableHead className="hidden px-3 py-2 font-medium text-black/90 dark:text-white/90 lg:table-cell">
                 Site
               </TableHead>
-              <TableHead className="hidden px-3 py-2 font-medium text-white/95 md:table-cell">
+              <TableHead className="hidden px-3 py-2 font-medium text-black/90 dark:text-white/90 md:table-cell">
                 Frequency
               </TableHead>
-              <TableHead className="px-3 py-2 font-medium text-white/95">Schedule Date</TableHead>
-              <TableHead className="px-1 py-2 text-right font-medium text-white/95">
-                <span className="sr-only">Actions</span>
-              </TableHead>
+              <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">Schedule date</TableHead>
+              <TableHead className="px-1 py-2 text-right font-medium text-black/90 dark:text-white/90">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <SkeletonRows />
+              <TableRow>
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  Loading schedules…
+                </TableCell>
+              </TableRow>
             ) : schedules.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  <EmptyState />
+                  No schedules yet.
                 </TableCell>
               </TableRow>
             ) : (
@@ -342,38 +299,34 @@ export function SchedulesList({
                   className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
                 >
                   <TableCell className="px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground" title={schedule.name}>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="truncate text-sm text-foreground" title={schedule.name}>
                         {schedule.name}
-                      </p>
-                      {schedule.assigned_to && (
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      </div>
+                      {schedule.assigned_to ? (
+                        <div className="truncate text-xs text-muted-foreground" title={assigneeLabelById.get(schedule.assigned_to) ?? "Assigned"}>
                           {assigneeLabelById.get(schedule.assigned_to) ?? "Assigned"}
-                        </p>
-                      )}
+                        </div>
+                      ) : null}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap px-3 py-2 text-sm text-muted-foreground lg:table-cell">
-                    {schedule.site_id
-                      ? (siteLabelById.get(schedule.site_id) ?? "Unknown site")
-                      : "All sites"}
+                  <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground lg:table-cell">
+                    <span className="block truncate" title={schedule.site_id ? (siteLabelById.get(schedule.site_id) ?? "Unknown site") : "All sites"}>
+                      {schedule.site_id
+                        ? (siteLabelById.get(schedule.site_id) ?? "Unknown site")
+                        : "All sites"}
+                    </span>
                   </TableCell>
-                  <TableCell className="hidden px-3 py-2 md:table-cell">
+                  <TableCell className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
                     <FrequencyBadge frequency={schedule.frequency} />
                   </TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-2 text-sm text-muted-foreground">
-                    {schedule.schedule_date
-                      ? format(new Date(schedule.schedule_date), "MMM d, yyyy")
-                      : "Not set"}
+                  <TableCell className="px-3 py-2 text-sm text-muted-foreground">
+                    <span className="block truncate" title={formatScheduleWhen(schedule)}>
+                      {formatScheduleWhen(schedule)}
+                    </span>
                   </TableCell>
                   <TableCell className="px-1 py-2">
-                    <ScheduleActionsMenu
-                      schedule={schedule}
-                      showGenerateNow={schedule.schedule_date != null}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      onGenerateNow={onGenerateNow}
-                    />
+                    <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />
                   </TableCell>
                 </TableRow>
               ))

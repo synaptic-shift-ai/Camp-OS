@@ -155,8 +155,6 @@ export function MaintenanceView({
   const [isHoldDialogOpen, setIsHoldDialogOpen] = useState(false)
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [isStatusChanging, setIsStatusChanging] = useState(false)
-  const [resumeDisplayLockSeconds, setResumeDisplayLockSeconds] = useState<number | null>(null)
-  const [pausedElapsedSeconds, setPausedElapsedSeconds] = useState<number | null>(null)
   const [isReassignOpen, setIsReassignOpen] = useState(false)
   const [isReassigning, setIsReassigning] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -242,13 +240,10 @@ export function MaintenanceView({
 
   const workElapsedSeconds = useMemo(() => {
     if (!task?.started_at) return null
-    if (resumeDisplayLockSeconds !== null) return resumeDisplayLockSeconds
-    if (task.status === "on_hold" && pausedElapsedSeconds !== null) return pausedElapsedSeconds
     const startMs = new Date(task.started_at).getTime()
-    const holdMs = task.status === "on_hold" && task.on_hold_at ? new Date(task.on_hold_at).getTime() : null
-    const endMs = task.completed_at ? new Date(task.completed_at).getTime() : holdMs ?? now
+    const endMs = task.completed_at ? new Date(task.completed_at).getTime() : now
     return Math.max(0, Math.floor((endMs - startMs) / 1000))
-  }, [task?.started_at, task?.completed_at, task?.status, task?.on_hold_at, pausedElapsedSeconds, resumeDisplayLockSeconds, now])
+  }, [task?.started_at, task?.completed_at, now])
 
   const workTimerDisplay = useMemo(() => {
     if (workElapsedSeconds === null) return "Not started"
@@ -432,12 +427,6 @@ export function MaintenanceView({
   }
 
   const handlePutOnHold = async (reason: string) => {
-    if (!task) return
-    const holdConfirmedAtMs = Date.now()
-    const elapsedAtPause = task.started_at
-      ? Math.max(0, Math.floor((holdConfirmedAtMs - new Date(task.started_at).getTime()) / 1000))
-      : workElapsedSeconds
-    setPausedElapsedSeconds(elapsedAtPause)
     setIsStatusChanging(true)
     try {
       const res = await fetch(
@@ -454,26 +443,10 @@ export function MaintenanceView({
           payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to put on hold",
         )
       }
-      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
-      setTask((previous) =>
-        previous
-          ? {
-              ...previous,
-              status: "on_hold",
-              on_hold_reason: reason,
-              on_hold_at:
-                typeof updated?.on_hold_at === "string"
-                  ? updated.on_hold_at
-                  : new Date(holdConfirmedAtMs).toISOString(),
-              updated_at:
-                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
-            }
-          : previous,
-      )
       toast({ title: "Work order put on hold" })
       setIsHoldDialogOpen(false)
+      mutate()
     } catch (err: unknown) {
-      setPausedElapsedSeconds(null)
       const message = err instanceof Error ? err.message : "Failed to put on hold."
       toast({ title: "Unable to hold", description: message, variant: "destructive" })
     } finally {
@@ -509,17 +482,6 @@ export function MaintenanceView({
 
   const handleResume = async () => {
     if (!task || task.status !== "on_hold") return
-    const frozenElapsed =
-      pausedElapsedSeconds ??
-      (task.started_at && task.on_hold_at
-        ? Math.max(
-            0,
-            Math.floor(
-              (new Date(task.on_hold_at).getTime() - new Date(task.started_at).getTime()) / 1000,
-            ),
-          )
-        : workElapsedSeconds)
-    setResumeDisplayLockSeconds(frozenElapsed)
     setIsStatusChanging(true)
     try {
       const res = await fetch(
@@ -530,43 +492,15 @@ export function MaintenanceView({
           body: JSON.stringify({ status: "in_progress" }),
         },
       )
-      const payload = await res.json()
-      if (!res.ok || !payload?.success) {
-        throw new Error(payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to resume")
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error?.details?.message ?? data.error?.message ?? "Failed to resume")
       }
-      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
-      const resumeAtMs = Date.now()
-      setTask((previous) => {
-        if (!previous) return previous
-        const lockedElapsedMs =
-          frozenElapsed !== null
-            ? frozenElapsed * 1000
-            : previous.started_at && previous.on_hold_at
-              ? Math.max(
-                  0,
-                  new Date(previous.on_hold_at).getTime() - new Date(previous.started_at).getTime(),
-                )
-              : 0
-        const nextStartedAt = new Date(resumeAtMs - lockedElapsedMs).toISOString()
-        return {
-          ...previous,
-          status: "in_progress",
-          started_at:
-            typeof updated?.started_at === "string" ? updated.started_at : nextStartedAt,
-          on_hold_at: null,
-          on_hold_reason: null,
-          updated_at:
-            typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
-        }
-      })
-      setNow(resumeAtMs)
       toast({ title: "Work order resumed" })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to resume."
       toast({ title: "Unable to resume", description: message, variant: "destructive" })
     } finally {
-      setPausedElapsedSeconds(null)
-      setTimeout(() => setResumeDisplayLockSeconds(null), 1100)
       setIsStatusChanging(false)
     }
   }
@@ -619,60 +553,117 @@ export function MaintenanceView({
   const siteLabel = task.site?.site_name?.trim() || task.site?.site_number || "Unknown site"
   const assigneeLabel = task.staff_id ? assigneeLabelById.get(task.staff_id) ?? "Assigned" : "Unassigned"
   const isCancelled = task.status === "cancelled"
+  const workOrderLabel = `WO-${task.id.slice(0, 4).toUpperCase()}`
+  const totalEstimated = (task.estimated_labor_cost ?? 0) + (task.estimated_parts_cost ?? 0)
+  const slaTargetHours = task.sla ?? null
+  const slaProgressPercent =
+    slaTargetHours && slaSecondsRemaining !== null
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            ((slaTargetHours * 3600 - slaSecondsRemaining) / (slaTargetHours * 3600)) * 100,
+          ),
+        )
+      : null
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-3">
-          <Link
-            href={`/dashboard/${propertyId}/maintenance`}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              {task.id.slice(0, 8)} · {propertyName}
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight">{task.title}</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={statusBadgeClass(task.status)}>
-                {statusLabel(task.status)}
-              </Badge>
-              <Badge variant="outline" className={priorityBadgeClass(task.priority)}>
-                {priorityLabel(task.priority)}
-              </Badge>
-              {task.category ? (
-                <span className="text-sm text-muted-foreground">{task.category}</span>
-              ) : null}
+      <Link
+        href={`/dashboard/${propertyId}/maintenance`}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Link>
+
+      <section className="overflow-hidden rounded-xl border border-border">
+        <div className="bg-emerald-950 px-4 py-4 text-white sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/80">
+                {workOrderLabel} · {siteLabel}
+              </p>
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight">{task.title}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={statusBadgeClass(task.status)}>
+                  {statusLabel(task.status)}
+                </Badge>
+                <Badge variant="outline" className={priorityBadgeClass(task.priority)}>
+                  {priorityLabel(task.priority)}
+                </Badge>
+                <Badge variant="outline" className="border-emerald-400/30 bg-emerald-900/40 text-emerald-100">
+                  {assigneeLabel}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-emerald-200/70">SLA</p>
+              <p className="text-3xl font-semibold">{slaDisplay ?? "—"}</p>
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-100/80">
+                <Clock className="h-3.5 w-3.5" />
+                Work timer: {workTimerDisplay}
+              </p>
             </div>
           </div>
         </div>
+
+        {!isCancelled ? (
+          <div className="border-t bg-card px-3 py-4 sm:px-6">
+            <div className="flex items-center justify-center gap-1">
+              {STEPS.map((step, index) => {
+                const isActive = index === activeStepIndex
+                const isPast = index < activeStepIndex
+                return (
+                  <div key={step.label} className="flex items-center gap-1">
+                    <div className="flex flex-col items-center gap-1">
+                      <div
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium border transition-colors ${
+                          isActive
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                            : isPast
+                              ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                              : "border-border bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        {isPast ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+                      </div>
+                      <span
+                        className={`text-[11px] whitespace-nowrap ${
+                          isActive ? "font-semibold text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                    {index < STEPS.length - 1 ? (
+                      <div
+                        className={`mx-2 h-0.5 w-8 sm:w-16 ${
+                          index < activeStepIndex ? "bg-emerald-400" : "bg-border"
+                        }`}
+                      />
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+      </section>
 
         {/* ── Action buttons ── */}
         {canEditTask || showHold || showResume || showCancel || showReassign ? (
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
             {showStart ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span tabIndex={0}>
-                    <Button
-                      type="button"
-                      className="col-span-1 gap-2 sm:w-auto"
-                      disabled={isStarting || !hasSla}
-                      onClick={() => void handleStart()}
-                    >
-                      {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                      Start
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {!hasSla && (
-                  <TooltipContent>Set an SLA before starting work</TooltipContent>
-                )}
-              </Tooltip>
+              <Button
+                type="button"
+                className="col-span-1 gap-2 sm:w-auto"
+                disabled={isStarting}
+                onClick={() => void handleStart()}
+              >
+                {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                Start
+              </Button>
             ) : null}
             {showComplete ? (
               <Button
@@ -758,177 +749,153 @@ export function MaintenanceView({
             ) : null}
           </div>
         ) : null}
-      </div>
-
-      {/* ── Stepper ── */}
-      {isCancelled ? null : (
-        <div className="flex items-center justify-center gap-1 rounded-lg border bg-card p-4">
-          {STEPS.map((step, index) => {
-            const isActive = index === activeStepIndex
-            const isPast = index < activeStepIndex
-            return (
-              <div key={step.label} className="flex items-center gap-1">
-                <div className="flex flex-col items-center gap-1">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium border transition-colors ${
-                      isActive
-                        ? "border-blue-300 bg-blue-50 text-blue-700"
-                        : isPast
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                          : "border-border bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
-                    {isPast ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
-                  </div>
-                  <span
-                    className={`text-[11px] whitespace-nowrap ${
-                      isActive ? "font-medium text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-                {index < STEPS.length - 1 ? (
-                  <div
-                    className={`mx-2 h-0.5 w-8 sm:w-12 ${
-                      index < activeStepIndex ? "bg-emerald-300" : "bg-border"
-                    }`}
-                  />
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      
 
       {/* ── Main content grid ── */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
-          {/* ── Details card ── */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Details</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Work Order Info</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 pt-0 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Site</span>
-                <span className="font-medium">{siteLabel}</span>
-              </div>
-              {task.description?.trim() ? (
-                <div className="space-y-1 border-t pt-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Description</p>
-                  <p className="text-sm whitespace-pre-wrap">{task.description.trim()}</p>
+            <CardContent className="space-y-5 pt-0 text-sm">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Property</p>
+                  <p className="font-semibold">{propertyName}</p>
                 </div>
-              ) : null}
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Assignee</span>
-                <span>{assigneeLabel}</span>
+                <div>
+                  <p className="text-xs text-muted-foreground">Site / Cabin</p>
+                  <p className="font-semibold">
+                    {siteLabel}
+                    {task.site?.site_type ? ` (${task.site.site_type})` : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Category</p>
+                  <p className="font-semibold">{task.category ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Source</p>
+                  <p className="font-semibold">
+                    {task.source ? task.source.charAt(0).toUpperCase() + task.source.slice(1) : "—"}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Source</span>
-                <span>{task.source ? task.source.charAt(0).toUpperCase() + task.source.slice(1) : "—"}</span>
+              <div className="border-t pt-3">
+                <p className="mb-1 text-xs text-muted-foreground">Description</p>
+                <p className="text-sm whitespace-pre-wrap">{task.description?.trim() || "No description provided."}</p>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Created</span>
-                <span>{formatDateTime(task.created_at)}</span>
-              </div>
+            </CardContent>
+          </Card>
 
-              <PermissionGate permission="maintenance.enter_labor_cost" fallback={null}>
-                <div className="space-y-2 border-t pt-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Cost Estimate</p>
-                  <div className="text-sm text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span>Labor</span>
-                      <span>{formatCurrency(task.estimated_labor_cost)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Parts</span>
-                      <span>{formatCurrency(task.estimated_parts_cost)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-foreground">
-                      <span>Total</span>
-                      <span>
-                        {formatCurrency(
-                          (task.estimated_labor_cost ?? 0) + (task.estimated_parts_cost ?? 0),
-                        )}
-                      </span>
-                    </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Photos</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex aspect-[4/3] items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground"
+                  >
+                    {index === 3 ? "+ Add" : "No photo"}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <PermissionGate permission="maintenance.enter_labor_cost" fallback={null}>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Cost Tracking</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0 text-sm">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Estimated Labor</span>
+                    <span className="font-semibold">{formatCurrency(task.estimated_labor_cost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Estimated Parts</span>
+                    <span className="font-semibold">{formatCurrency(task.estimated_parts_cost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Actual Labor</span>
+                    <span className="font-semibold">—</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Actual Parts</span>
+                    <span className="font-semibold">—</span>
                   </div>
                 </div>
-              </PermissionGate>
+                <div className="grid gap-4 border-t pt-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Estimated Total</p>
+                    <p className="text-3xl font-bold">{formatCurrency(totalEstimated)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Actual Total</p>
+                    <p className="text-3xl font-bold">—</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Variance</p>
+                    <p className="text-3xl font-bold text-emerald-700">—</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </PermissionGate>
+        </div>
 
-              {/* Hold/Cancel reason display */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-4">
+                {activityEntries.map((entry) => (
+                  <div key={entry.id} className="relative pl-5">
+                    <span className="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                    <p className="text-xs text-muted-foreground">{formatDateTime(entry.timestamp)}</p>
+                    <p className="font-semibold">{entry.label}</p>
+                    {entry.detail ? <p className="text-xs text-muted-foreground">{entry.detail}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">SLA Timer</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-0 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Response SLA</span>
+                <span>{slaTargetHours ? `${slaTargetHours}h target` : "No SLA"}</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${slaProgressPercent ?? 0}%` }} />
+              </div>
+              <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {slaSecondsRemaining !== null ? "On track" : "No active SLA"}
+              </div>
               {task.on_hold_reason ? (
-                <div className="space-y-1 border-t pt-3">
+                <div className="space-y-1 border-t pt-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Hold Reason</p>
                   <p className="text-sm text-amber-700">{task.on_hold_reason}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(task.on_hold_at)}</p>
                 </div>
               ) : null}
               {task.cancelled_reason ? (
-                <div className="space-y-1 border-t pt-3">
+                <div className="space-y-1 border-t pt-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Cancellation Reason</p>
                   <p className="text-sm text-red-700">{task.cancelled_reason}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(task.cancelled_at)}</p>
                 </div>
               ) : null}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── Sidebar ── */}
-        <div className="space-y-4">
-          {/* ── Timers card ── */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                Time Tracking
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-0 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Work Time</span>
-                <span className="font-mono font-medium">{workTimerDisplay}</span>
-              </div>
-              {slaDisplay !== null ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">SLA Remaining</span>
-                  <span
-                    className={`font-mono font-medium ${
-                      slaSecondsRemaining !== null && slaSecondsRemaining < 3600
-                        ? "text-red-600"
-                        : "text-foreground"
-                    }`}
-                  >
-                    {slaDisplay}
-                  </span>
-                </div>
-              ) : null}
-              {task.sla ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">SLA (hrs)</span>
-                  <span>{task.sla}h</span>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          {/* ── Activity card ── */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-0 text-sm">
-              {activityEntries.map((entry) => (
-                <div key={entry.id} className="flex flex-col gap-0.5">
-                  <p className="font-medium text-foreground">{entry.label}</p>
-                  {entry.detail ? (
-                    <p className="text-muted-foreground">{entry.detail}</p>
-                  ) : null}
-                  <p className="text-xs text-muted-foreground">{formatDateTime(entry.timestamp)}</p>
-                </div>
-              ))}
             </CardContent>
           </Card>
         </div>

@@ -1241,6 +1241,73 @@ export type Database = {
           },
         ]
       }
+      maintenance_schedule: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string
+          days: string | null
+          description: string | null
+          frequency: string
+          id: string
+          name: string
+          property_id: string
+          schedule_date: string | null
+          site_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by: string
+          days?: string | null
+          description?: string | null
+          frequency: string
+          id?: string
+          name: string
+          property_id: string
+          schedule_date?: string | null
+          site_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string
+          days?: string | null
+          description?: string | null
+          frequency?: string
+          id?: string
+          name?: string
+          property_id?: string
+          schedule_date?: string | null
+          site_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_schedule_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "property_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_schedule_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_schedule_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_tasks: {
         Row: {
           category: string
@@ -1253,12 +1320,12 @@ export type Database = {
           priority: string
           property_id: string
           site_id: string
+          sla: number | null
           source: string
           staff_id: string | null
           status: string
           title: string
           updated_at: string
-          sla: number | null
           vendor_id: string | null
         }
         Insert: {
@@ -1272,12 +1339,12 @@ export type Database = {
           priority?: string
           property_id: string
           site_id: string
+          sla?: number | null
           source?: string
           staff_id?: string | null
           status?: string
           title: string
           updated_at?: string
-          sla?: number | null
           vendor_id?: string | null
         }
         Update: {
@@ -1291,12 +1358,12 @@ export type Database = {
           priority?: string
           property_id?: string
           site_id?: string
+          sla?: number | null
           source?: string
           staff_id?: string | null
           status?: string
           title?: string
           updated_at?: string
-          sla?: number | null
           vendor_id?: string | null
         }
         Relationships: [

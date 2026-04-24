@@ -118,7 +118,7 @@ export async function PATCH(
     // Completion lock: prevent cost changes on completed work orders
     const { data: currentTask } = await supabase
       .from('maintenance_tasks')
-      .select('status, started_at, sla')
+      .select('status, started_at, on_hold_at, sla')
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)
       .maybeSingle()
@@ -209,7 +209,15 @@ export async function PATCH(
           }
           // Resume from hold: clear hold fields
           if (currentStatus === 'on_hold') {
-            timestampUpdates.started_at = currentTask?.started_at || new Date().toISOString()
+            // Shift started_at forward by hold duration so work timer excludes paused time.
+            const startedAtMs = currentTask?.started_at ? new Date(currentTask.started_at).getTime() : null
+            const holdAtMs = currentTask?.on_hold_at ? new Date(currentTask.on_hold_at).getTime() : null
+            if (startedAtMs && holdAtMs && holdAtMs > startedAtMs) {
+              const holdDurationMs = Date.now() - holdAtMs
+              timestampUpdates.started_at = new Date(startedAtMs + holdDurationMs).toISOString()
+            } else {
+              timestampUpdates.started_at = currentTask?.started_at || new Date().toISOString()
+            }
             timestampUpdates.on_hold_at = null
             timestampUpdates.on_hold_reason = null
           }

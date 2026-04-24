@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
 import { useToast } from "@/hooks/use-toast"
 import { MaintenanceFilter, type MaintenanceFilterValue } from "./wo-list/maintenance-filter"
@@ -18,14 +19,17 @@ import {
   maintenanceCategoryLabel,
   type AddMaintenanceTaskInput,
 } from "./maintenance-dialog/add-task-dialog"
+import {
+  AddPreventiveDialog,
+  type AddPreventiveScheduleInput,
+} from "./maintenance-dialog/add-preventive-dialog"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { EditTaskDialog } from "./maintenance-dialog/edit-task-dialog"
 import { DeleteTaskConfirmationDialog } from "./maintenance-dialog/delete-task-confirmation-dialog"
-import { TaskDetailsDialog } from "./maintenance-dialog/task-details-dialog"
 import {
   EditScheduleDialog,
-  type AddPreventiveScheduleInput,
+  type AddPreventiveScheduleInput as EditScheduleTaskInput,
 } from "./maintenance-dialog/edit-schedule-dialog"
 import { DeleteScheduleConfirmationDialog } from "./schedules/delete-schedule-confirmation-dialog"
 import { createClient } from "@/lib/supabase/client"
@@ -201,6 +205,7 @@ export function MaintenancePageContent({
   selfAssigneeStaffId,
   selfAssigneeLabel,
 }: MaintenancePageContentProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [filters, setFilters] = useState<MaintenanceFilterValue>(INITIAL_FILTERS)
   const debouncedFilters = useDebouncedValue(filters, FILTER_DEBOUNCE_MS)
@@ -218,12 +223,13 @@ export function MaintenancePageContent({
   )
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
   const [isAddVendorDialogOpen, setIsAddVendorDialogOpen] = useState(false)
+  const [isAddPreventiveDialogOpen, setIsAddPreventiveDialogOpen] = useState(false)
   const [isCreatingTask, setIsCreatingTask] = useState(false)
+  const [isCreatingPreventiveSchedule, setIsCreatingPreventiveSchedule] = useState(false)
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
   const [editingTask, setEditingTask] = useState<MaintenanceTaskRow | null>(null)
   const [taskPendingDelete, setTaskPendingDelete] = useState<MaintenanceTaskRow | null>(null)
-  const [viewingTask, setViewingTask] = useState<MaintenanceTaskRow | null>(null)
   const [viewMode, setViewMode] = useState<MaintenanceViewMode>("wo_list")
   const [vendorOptions, setVendorOptions] = useState<Array<{ id: string; label: string }>>([])
   const [vendorRows, setVendorRows] = useState<VendorTableRow[]>([])
@@ -281,11 +287,6 @@ export function MaintenancePageContent({
     () =>
       `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}`,
     [debouncedFilters],
-  )
-
-  const statusOptions = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.status))).sort(),
-    [rows],
   )
 
   const filteredRows = useMemo(() => {
@@ -440,11 +441,41 @@ export function MaintenancePageContent({
     })
   }
 
-  const handleCreateSchedule = () => {
-    toast({
-      title: "Schedule flow coming next",
-      description: "New Schedule action is now in the header for this view.",
-    })
+  const handleAddPreventiveSchedule = async (input: AddPreventiveScheduleInput) => {
+    setIsCreatingPreventiveSchedule(true)
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
+      if (authError || !user) {
+        throw new Error("You must be signed in to create a schedule.")
+      }
+
+      const { error: insertError } = await supabase.from("maintenance_schedule").insert({
+        property_id: propertyId,
+        site_id: input.siteId,
+        assigned_to: input.assigneeId,
+        name: input.name,
+        description: input.description,
+        frequency: input.frequency,
+        days: input.days,
+        schedule_date: input.scheduleDate,
+        created_by: user.id,
+      })
+
+      if (insertError) {
+        throw new Error(insertError.message)
+      }
+
+      toast({
+        title: "Schedule added",
+        description: "The preventive schedule has been saved.",
+      })
+    } finally {
+      setIsCreatingPreventiveSchedule(false)
+    }
   }
 
   const handleEditSchedule = (schedule: any) => {
@@ -452,7 +483,7 @@ export function MaintenancePageContent({
     setIsEditScheduleDialogOpen(true)
   }
 
-  const handleEditScheduleSubmit = async (input: AddPreventiveScheduleInput) => {
+  const handleEditScheduleSubmit = async (input: EditScheduleTaskInput) => {
     setIsUpdatingSchedule(true)
     try {
       const res = await fetch(
@@ -624,7 +655,7 @@ export function MaintenancePageContent({
   }
 
   const handleViewTask = (row: MaintenanceTaskRow) => {
-    setViewingTask(row)
+    router.push(`/dashboard/${propertyId}/maintenance/${row.id}`)
   }
 
   const handleEditTask = async (input: AddMaintenanceTaskInput & { id: string }) => {
@@ -711,7 +742,7 @@ export function MaintenancePageContent({
       return
     }
     if (viewMode === "schedules") {
-      handleCreateSchedule()
+      setIsAddPreventiveDialogOpen(true)
     }
   }
 
@@ -800,6 +831,14 @@ export function MaintenancePageContent({
           onVendorCreated={loadVendorOptions}
         />
       ) : null}
+      <AddPreventiveDialog
+        open={canManageMaintenancePmSchedules && isAddPreventiveDialogOpen}
+        onOpenChange={setIsAddPreventiveDialogOpen}
+        siteOptions={siteOptions}
+        assigneeOptions={assigneeOptions}
+        isSubmitting={isCreatingPreventiveSchedule}
+        onSubmit={handleAddPreventiveSchedule}
+      />
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}
@@ -843,15 +882,6 @@ export function MaintenancePageContent({
         onDeleted={() => {
           void loadTasks()
         }}
-      />
-      <TaskDetailsDialog
-        open={viewingTask !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setViewingTask(null)
-          }
-        }}
-        task={viewingTask}
       />
       <EditScheduleDialog
         open={isEditScheduleDialogOpen}

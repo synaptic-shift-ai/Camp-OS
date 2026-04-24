@@ -78,6 +78,57 @@ export const MaintenanceReportQuerySchema = z.object({
     to: z.string().optional(),
 })
 
+// ---------------------------------------------------------------------------
+// Maintenance Schedule schemas
+// ---------------------------------------------------------------------------
+
+export const ScheduleFrequencyEnum = z.enum(['weekly', 'monthly', 'annual'])
+
+export const CreateScheduleSchema = z.object({
+    name: z.string().trim().min(1).max(500),
+    description: z.string().trim().max(5000).nullable().optional(),
+    site_id: z.string().uuid().nullable().optional(),
+    assigned_to: z.string().uuid().nullable().optional(),
+    frequency: ScheduleFrequencyEnum,
+    days: z.string().trim().max(500).nullable().optional(),
+    schedule_date: z.string().trim().nullable().optional(),
+})
+
+export const UpdateScheduleSchema = z.object({
+    name: z.string().trim().min(1).max(500).optional(),
+    description: z.string().trim().max(5000).nullable().optional(),
+    site_id: z.string().uuid().nullable().optional(),
+    assigned_to: z.string().uuid().nullable().optional(),
+    frequency: ScheduleFrequencyEnum.optional(),
+    days: z.string().trim().max(500).nullable().optional(),
+    schedule_date: z.string().trim().nullable().optional(),
+}).refine((payload) => Object.keys(payload).length > 0, {
+    message: 'At least one field is required',
+})
+
+export const ScheduleResponseSchema = z.object({
+    id: z.string().uuid(),
+    property_id: z.string().uuid(),
+    site_id: z.string().uuid().nullable(),
+    assigned_to: z.string().uuid().nullable(),
+    name: z.string(),
+    description: z.string().nullable(),
+    frequency: z.string(),
+    days: z.string().nullable(),
+    schedule_date: z.string().nullable(),
+    created_by: z.string().uuid(),
+    created_at: z.string(),
+    updated_at: z.string(),
+})
+
+export type CreateScheduleInput = z.infer<typeof CreateScheduleSchema>
+export type UpdateScheduleInput = z.infer<typeof UpdateScheduleSchema>
+export type ScheduleResponse = z.infer<typeof ScheduleResponseSchema>
+
+// ---------------------------------------------------------------------------
+// Report
+// ---------------------------------------------------------------------------
+
 export type MaintenanceReportResponse = {
     totalWorkOrders: number
     activeWorkOrders: number

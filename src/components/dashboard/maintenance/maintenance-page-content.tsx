@@ -23,6 +23,11 @@ import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { EditTaskDialog } from "./maintenance-dialog/edit-task-dialog"
 import { DeleteTaskConfirmationDialog } from "./maintenance-dialog/delete-task-confirmation-dialog"
 import { TaskDetailsDialog } from "./maintenance-dialog/task-details-dialog"
+import {
+  EditScheduleDialog,
+  type AddPreventiveScheduleInput,
+} from "./maintenance-dialog/edit-schedule-dialog"
+import { DeleteScheduleConfirmationDialog } from "./schedules/delete-schedule-confirmation-dialog"
 import { createClient } from "@/lib/supabase/client"
 
 const TASK_IMAGES_BUCKET = "maintenance-and-housekeeping-images"
@@ -218,6 +223,14 @@ export function MaintenancePageContent({
   const [viewMode, setViewMode] = useState<MaintenanceViewMode>("wo_list")
   const [vendorOptions, setVendorOptions] = useState<Array<{ id: string; label: string }>>([])
   const [vendorRows, setVendorRows] = useState<VendorTableRow[]>([])
+  const [schedulesRefreshKey, setSchedulesRefreshKey] = useState(0)
+  const [editingSchedule, setEditingSchedule] = useState<any | null>(null)
+  const [isEditScheduleDialogOpen, setIsEditScheduleDialogOpen] = useState(false)
+  const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false)
+  const [deletingSchedule, setDeletingSchedule] = useState<any | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeletingSchedule, setIsDeletingSchedule] = useState(false)
+  const [isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false)
 
   const loadVendorOptions = useCallback(async () => {
     try {
@@ -428,6 +441,84 @@ export function MaintenancePageContent({
       title: "Schedule flow coming next",
       description: "New Schedule action is now in the header for this view.",
     })
+  }
+
+  const handleEditSchedule = (schedule: any) => {
+    setEditingSchedule(schedule)
+    setIsEditScheduleDialogOpen(true)
+  }
+
+  const handleEditScheduleSubmit = async (input: AddPreventiveScheduleInput) => {
+    setIsUpdatingSchedule(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/schedules/${editingSchedule.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+      )
+      if (!res.ok) throw new Error("Failed to update schedule")
+      toast({ title: "Schedule updated" })
+      setIsEditScheduleDialogOpen(false)
+      setSchedulesRefreshKey((prev) => prev + 1)
+    } catch {
+      toast({ title: "Failed to update schedule", variant: "destructive" })
+    } finally {
+      setIsUpdatingSchedule(false)
+    }
+  }
+
+  const handleDeleteSchedule = (schedule: any) => {
+    setDeletingSchedule(schedule)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    setIsDeletingSchedule(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/schedules/${deletingSchedule.id}`,
+        { method: "DELETE" },
+      )
+      if (!res.ok) throw new Error("Failed to delete schedule")
+      toast({ title: "Schedule deleted" })
+      setIsDeleteDialogOpen(false)
+      setSchedulesRefreshKey((prev) => prev + 1)
+    } catch {
+      toast({ title: "Failed to delete schedule", variant: "destructive" })
+    } finally {
+      setIsDeletingSchedule(false)
+    }
+  }
+
+  const handleGenerateNow = async (scheduleId: string) => {
+    setIsGeneratingWorkOrder(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/schedules/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scheduleId }),
+        },
+      )
+      const data = await res.json()
+      if (!res.ok) {
+        toast({
+          title: data.error ?? "Failed to generate work order",
+          variant: "destructive",
+        })
+      } else {
+        toast({ title: "Work order created" })
+        setSchedulesRefreshKey((prev) => prev + 1)
+      }
+    } catch {
+      toast({ title: "Failed to generate work order", variant: "destructive" })
+    } finally {
+      setIsGeneratingWorkOrder(false)
+    }
   }
 
   const handleAddTask = async (input: AddMaintenanceTaskInput) => {
@@ -687,7 +778,15 @@ export function MaintenancePageContent({
           onViewAllWorkOrders={() => setViewMode("wo_list")}
         />
       ) : viewMode === "schedules" ? (
-        <SchedulesList />
+        <SchedulesList
+          propertyId={propertyId}
+          siteOptions={siteOptions}
+          assigneeOptions={assigneeOptions}
+          refreshKey={schedulesRefreshKey}
+          onEdit={handleEditSchedule}
+          onDelete={handleDeleteSchedule}
+          onGenerateNow={handleGenerateNow}
+        />
       ) : viewMode === "vendors" ? (
         <VendorsTable
           propertyId={propertyId}
@@ -749,6 +848,22 @@ export function MaintenancePageContent({
           }
         }}
         task={viewingTask}
+      />
+      <EditScheduleDialog
+        open={isEditScheduleDialogOpen}
+        onOpenChange={setIsEditScheduleDialogOpen}
+        schedule={editingSchedule}
+        siteOptions={siteOptions}
+        assigneeOptions={assigneeOptions}
+        isSubmitting={isUpdatingSchedule}
+        onSubmit={handleEditScheduleSubmit}
+      />
+      <DeleteScheduleConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        scheduleName={deletingSchedule?.name ?? ""}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeletingSchedule}
       />
     </div>
   )

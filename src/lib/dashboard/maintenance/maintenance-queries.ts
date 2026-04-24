@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/contracts/db'
+import { addDays, addMonths, addYears, format } from 'date-fns'
 
 type MaintenanceTaskRow = Database['public']['Tables']['maintenance_tasks']['Row']
 type SiteRow = Database['public']['Tables']['sites']['Row']
@@ -78,6 +79,41 @@ export type UpdatePropertyVendorInput = {
     name?: string
     serviceType?: string
     email?: string | null
+}
+
+type MaintenanceScheduleRow = {
+    id: string
+    property_id: string
+    site_id: string | null
+    assigned_to: string | null
+    name: string
+    description: string | null
+    frequency: string
+    days: string | null
+    schedule_date: string | null
+    created_by: string
+    created_at: string
+    updated_at: string
+}
+
+// NOTE: After running `npm run gen:db`, replace the manual MaintenanceScheduleRow above
+// with: type MaintenanceScheduleRow = Database['public']['Tables']['maintenance_schedule']['Row']
+
+export type CreateScheduleInput = {
+    name: string
+    description?: string | null
+    siteId?: string | null
+    assignedTo?: string | null
+    frequency: 'weekly' | 'monthly' | 'annual'
+    days?: string | null
+    scheduleDate?: string | null
+}
+
+export type UpdateScheduleInput = Partial<CreateScheduleInput>
+
+export type ListSchedulesFilters = {
+    search?: string
+    siteId?: string
 }
 
 function escapeIlikePattern(raw: string): string {
@@ -538,6 +574,333 @@ export class MaintenanceQueries {
             byStatus: Object.entries(byStatusMap).map(([status, count]) => ({ status, count })),
             byCategory: Object.entries(byCategoryMap).map(([category, count]) => ({ category, count })),
             byPriority: Object.entries(byPriorityMap).map(([priority, count]) => ({ priority, count })),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Schedule CRUD
+    // -----------------------------------------------------------------------
+
+    async createSchedule(
+        propertyId: string,
+        data: CreateScheduleInput & { createdBy: string },
+    ): Promise<MaintenanceScheduleRow> {
+        const insertRow = {
+            property_id: propertyId,
+            name: data.name,
+            description: data.description ?? null,
+            site_id: data.siteId ?? null,
+            assigned_to: data.assignedTo ?? null,
+            frequency: data.frequency,
+            days: data.days ?? null,
+            schedule_date: data.scheduleDate ?? null,
+            created_by: data.createdBy,
+        }
+
+        const { data: row, error } = await this.supabase
+            .from('maintenance_schedule')
+            .insert(insertRow)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to create schedule', { error, propertyId })
+            throw new Error(`Failed to create schedule: ${error.message}`)
+        }
+
+        if (!row) {
+            throw new Error('Failed to create schedule: no row returned')
+        }
+
+        return row as unknown as MaintenanceScheduleRow
+    }
+
+    async listSchedules(
+        propertyId: string,
+        filters?: ListSchedulesFilters,
+    ): Promise<MaintenanceScheduleRow[]> {
+        let query = this.supabase
+            .from('maintenance_schedule')
+            .select('*')
+            .eq('property_id', propertyId)
+            .order('created_at', { ascending: false })
+
+        if (filters?.siteId) {
+            query = query.eq('site_id', filters.siteId)
+        }
+
+        const search = filters?.search?.trim()
+        if (search && search.length > 0) {
+            const pattern = `%${escapeIlikePattern(search)}%`
+            query = query.ilike('name', pattern)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to list schedules', { error, propertyId, filters })
+            throw new Error(`Failed to list schedules: ${error.message}`)
+        }
+
+        return (data ?? []) as unknown as MaintenanceScheduleRow[]
+    }
+
+    async updateSchedule(
+        scheduleId: string,
+        propertyId: string,
+        data: UpdateScheduleInput,
+    ): Promise<MaintenanceScheduleRow> {
+        const updateRow: Record<string, unknown> = {}
+        if (data.name !== undefined) updateRow.name = data.name
+        if (data.description !== undefined) updateRow.description = data.description
+        if (data.siteId !== undefined) updateRow.site_id = data.siteId
+        if (data.assignedTo !== undefined) updateRow.assigned_to = data.assignedTo
+        if (data.frequency !== undefined) updateRow.frequency = data.frequency
+        if (data.days !== undefined) updateRow.days = data.days
+        if (data.scheduleDate !== undefined) updateRow.schedule_date = data.scheduleDate
+
+        const { data: row, error } = await this.supabase
+            .from('maintenance_schedule')
+            .update(updateRow)
+            .eq('id', scheduleId)
+            .eq('property_id', propertyId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to update schedule', {
+                error,
+                scheduleId,
+                propertyId,
+            })
+            throw new Error(`Failed to update schedule: ${error.message}`)
+        }
+
+        if (!row) {
+            throw new Error('Failed to update schedule: no row returned')
+        }
+
+        return row as unknown as MaintenanceScheduleRow
+    }
+
+    async deleteSchedule(scheduleId: string, propertyId: string): Promise<void> {
+        const { error } = await this.supabase
+            .from('maintenance_schedule')
+            .delete()
+            .eq('id', scheduleId)
+            .eq('property_id', propertyId)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to delete schedule', {
+                error,
+                scheduleId,
+                propertyId,
+            })
+            throw new Error(`Failed to delete schedule: ${error.message}`)
+        }
+    }
+
+    async generateWorkOrderForSchedule(
+        scheduleId: string,
+        propertyId: string,
+    ): Promise<MaintenanceTaskRow> {
+        // Duplicate prevention: check for open/in_progress PM WO linked to this schedule
+        const { data: existing, error: dupError } = await this.supabase
+            .from('maintenance_tasks')
+            .select('id')
+            .eq('property_id', propertyId)
+            .eq('schedule_id', scheduleId)
+            .in('status', ['open', 'in_progress'])
+            .maybeSingle()
+
+        if (dupError) {
+            console.error('[MaintenanceQueries] Failed to check for duplicate PM work order', {
+                error: dupError,
+                scheduleId,
+                propertyId,
+            })
+            throw new Error(`Failed to check for duplicate work order: ${dupError.message}`)
+        }
+
+        if (existing) {
+            throw new Error('An open or in-progress work order already exists for this schedule')
+        }
+
+        // Fetch the schedule to seed the work order fields
+        const { data: schedule, error: schedError } = await this.supabase
+            .from('maintenance_schedule')
+            .select('*')
+            .eq('id', scheduleId)
+            .eq('property_id', propertyId)
+            .single()
+
+        if (schedError || !schedule) {
+            console.error('[MaintenanceQueries] Schedule not found', {
+                error: schedError,
+                scheduleId,
+                propertyId,
+            })
+            throw new Error('Schedule not found')
+        }
+
+        // NOTE: schedule_id is typed via Record<string, unknown> because the generated
+        // maintenance_tasks Insert type won't include it until `npm run gen:db` is run
+        // after applying the migration 20260424030000.
+        const sched = schedule as unknown as MaintenanceScheduleRow
+        const insertRow = {
+            property_id: propertyId,
+            site_id: sched.site_id ?? null,
+            created_by: sched.created_by,
+            title: `PM: ${sched.name}`,
+            description: sched.description ?? null,
+            staff_id: sched.assigned_to ?? null,
+            status: 'open' as const,
+            priority: 'medium' as const,
+            source: 'pm' as const,
+            category: 'preventive',
+            schedule_id: scheduleId,
+        }
+
+        const { data: task, error } = await this.supabase
+            .from('maintenance_tasks')
+            .insert(insertRow)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to generate PM work order', {
+                error,
+                scheduleId,
+                propertyId,
+            })
+            throw new Error(`Failed to generate work order: ${error.message}`)
+        }
+
+        if (!task) {
+            throw new Error('Failed to generate work order: no row returned')
+        }
+
+        return task
+    }
+
+    async generateNextWorkOrder(scheduleId: string, completedDate: Date): Promise<any | null> {
+        try {
+            // 1. Look up the schedule row
+            const { data: schedule, error: schedError } = await this.supabase
+                .from('maintenance_schedule')
+                .select('*')
+                .eq('id', scheduleId)
+                .maybeSingle()
+
+            if (schedError || !schedule) {
+                console.warn('[MaintenanceQueries] Schedule not found for auto-generation, skipping', {
+                    error: schedError,
+                    scheduleId,
+                })
+                return null
+            }
+
+            // 2. Calculate next due date based on frequency
+            const freq = schedule.frequency
+            let nextDate: Date
+
+            switch (freq) {
+                case 'weekly':
+                    nextDate = addDays(completedDate, 7)
+                    break
+                case 'monthly':
+                    nextDate = addMonths(completedDate, 1)
+                    break
+                case 'annual':
+                    nextDate = addYears(completedDate, 1)
+                    break
+                default:
+                    console.warn('[MaintenanceQueries] Unsupported schedule frequency for auto-generation, skipping', {
+                        frequency: freq,
+                        scheduleId,
+                    })
+                    return null
+            }
+
+            const nextDateStr = format(nextDate, 'yyyy-MM-dd')
+            const sched = schedule as unknown as MaintenanceScheduleRow
+
+            // Duplicate prevention: don't create if an open/in_progress WO already exists
+            const { data: existing, error: dupError } = await this.supabase
+                .from('maintenance_tasks')
+                .select('id')
+                .eq('schedule_id', scheduleId)
+                .in('status', ['open', 'in_progress'])
+                .maybeSingle()
+
+            if (dupError) {
+                console.warn('[MaintenanceQueries] Failed to check for duplicate in auto-generation', {
+                    error: dupError,
+                    scheduleId,
+                })
+                return null
+            }
+
+            if (existing) {
+                console.warn('[MaintenanceQueries] Skipping auto-generation: open WO already exists', {
+                    scheduleId,
+                })
+                return null
+            }
+
+            // 3. Create the next maintenance task
+            // NOTE: schedule_id is typed via plain object because the generated
+            // maintenance_tasks Insert type won't include it until `npm run gen:db`
+            // is run after applying the migration 20260424030000.
+            const insertRow = {
+                property_id: sched.property_id,
+                site_id: sched.site_id ?? null,
+                created_by: sched.created_by,
+                title: `PM: ${sched.name}`,
+                description: sched.description ?? null,
+                staff_id: sched.assigned_to ?? null,
+                status: 'open' as const,
+                priority: 'medium' as const,
+                source: 'pm' as const,
+                category: 'preventive',
+                schedule_id: scheduleId,
+            }
+
+            const { data: task, error: taskError } = await this.supabase
+                .from('maintenance_tasks')
+                .insert(insertRow)
+                .select()
+                .single()
+
+            if (taskError || !task) {
+                console.warn('[MaintenanceQueries] Failed to auto-generate next work order', {
+                    error: taskError,
+                    scheduleId,
+                })
+                return null
+            }
+
+            // 4. Advance the schedule's schedule_date
+            const { error: updateError } = await this.supabase
+                .from('maintenance_schedule')
+                .update({ schedule_date: nextDateStr })
+                .eq('id', scheduleId)
+
+            if (updateError) {
+                console.warn('[MaintenanceQueries] Failed to advance schedule date, but task was created', {
+                    error: updateError,
+                    scheduleId,
+                })
+                // Task was already created — don't fail, just warn
+            }
+
+            return task
+        } catch (err) {
+            console.warn('[MaintenanceQueries] Auto-generation failed, not blocking completion', {
+                error: err,
+                scheduleId,
+            })
+            return null
         }
     }
 

@@ -107,6 +107,18 @@ export async function PATCH(
       ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
     })
 
+    // Completion-triggered PM auto-generation
+    if (maintenanceTask.status === 'completed') {
+      const scheduleId = (maintenanceTask as any).schedule_id
+      if (scheduleId) {
+        try {
+          await queries.generateNextWorkOrder(scheduleId, new Date())
+        } catch {
+          // Silently fail — don't block completion
+        }
+      }
+    }
+
     if (access.companyId) {
       const { data: siteRow } = await supabase
         .from('sites')

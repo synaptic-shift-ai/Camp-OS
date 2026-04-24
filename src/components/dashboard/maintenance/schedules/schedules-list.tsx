@@ -111,7 +111,7 @@ function ScheduleActionsMenu({
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onClick={() => onEdit?.(schedule)}>Edit</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onGenerateNow?.(schedule.id)}>
-            Generate Now
+            Generate Work Order
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => onDelete?.(schedule)}

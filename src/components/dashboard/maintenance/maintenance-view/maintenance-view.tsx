@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
@@ -120,9 +122,14 @@ const formatCurrency = (val: number | null) =>
 
 type StepDef = { label: string; apiStatuses: string[] }
 
-const STEPS: StepDef[] = [
+const DEFAULT_STEPS: StepDef[] = [
   { label: "Open", apiStatuses: ["open"] },
   { label: "In Progress", apiStatuses: ["in_progress"] },
+  { label: "Complete", apiStatuses: ["completed"] },
+]
+
+const ON_HOLD_STEPS: StepDef[] = [
+  { label: "Open", apiStatuses: ["open"] },
   { label: "On Hold", apiStatuses: ["on_hold"] },
   { label: "Complete", apiStatuses: ["completed"] },
 ]
@@ -133,6 +140,13 @@ type ActivityEntry = {
   detail: string | null
   timestamp: string
 }
+
+type TaskImageItem = {
+  id: string
+  storagePath: string
+}
+
+const TASK_IMAGES_BUCKET = "maintenance-and-housekeeping-images"
 
 export function MaintenanceView({
   propertyId,
@@ -157,6 +171,7 @@ export function MaintenanceView({
   const [isStatusChanging, setIsStatusChanging] = useState(false)
   const [isReassignOpen, setIsReassignOpen] = useState(false)
   const [isReassigning, setIsReassigning] = useState(false)
+  const [taskImages, setTaskImages] = useState<TaskImageItem[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [now, setNow] = useState(Date.now())
 
@@ -223,6 +238,38 @@ export function MaintenanceView({
     void loadTask()
   }, [loadTask])
 
+  const loadTaskImages = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}/images`,
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message = payload?.error?.message ?? "Failed to load task images."
+        throw new Error(message)
+      }
+
+      const images = Array.isArray(payload?.data?.images)
+        ? payload.data.images.map((row: { id: string; storage_path: string }) => ({
+            id: row.id,
+            storagePath: row.storage_path,
+          }))
+        : []
+      setTaskImages(images)
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : "Failed to load task images."
+      toast({
+        title: "Unable to load photos",
+        description: message,
+        variant: "destructive",
+      })
+    }
+  }, [maintenanceId, propertyId, toast])
+
+  useEffect(() => {
+    void loadTaskImages()
+  }, [loadTaskImages])
+
   // ── Live timer for in-progress tasks ──
 
   useEffect(() => {
@@ -254,12 +301,18 @@ export function MaintenanceView({
 
   const slaSecondsRemaining = useMemo(() => {
     if (!task?.sla || !task?.created_at) return null
-    const createdMs = new Date(task.created_at).getTime()
-    const deadlineMs = createdMs + task.sla * 3600 * 1000
-    const remaining = Math.max(0, Math.floor((deadlineMs - now) / 1000))
     if (task.status === "completed" || task.status === "cancelled") return null
+
+    // Show full SLA before work starts, then count down once task is active.
+    if (!task.started_at || task.status === "open") {
+      return task.sla * 3600
+    }
+
+    const startedMs = new Date(task.started_at).getTime()
+    const deadlineMs = startedMs + task.sla * 3600 * 1000
+    const remaining = Math.max(0, Math.floor((deadlineMs - now) / 1000))
     return remaining
-  }, [task?.sla, task?.created_at, task?.status, now])
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, now])
 
   const slaDisplay = useMemo(() => {
     if (slaSecondsRemaining === null) return null
@@ -270,8 +323,15 @@ export function MaintenanceView({
 
   const activeStepIndex = useMemo(() => {
     if (!task) return 0
-    return STEPS.findIndex((step) => step.apiStatuses.includes(task.status))
+    const steps = task.status === "on_hold" ? ON_HOLD_STEPS : DEFAULT_STEPS
+    const index = steps.findIndex((step) => step.apiStatuses.includes(task.status))
+    return index >= 0 ? index : 0
   }, [task])
+
+  const stepperSteps = useMemo(
+    () => (task?.status === "on_hold" ? ON_HOLD_STEPS : DEFAULT_STEPS),
+    [task?.status],
+  )
 
   // ── Activity timeline ──
 
@@ -360,8 +420,22 @@ export function MaintenanceView({
           payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to start work order."
         throw new Error(message)
       }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      const startedAt =
+        typeof updated?.started_at === "string" ? updated.started_at : new Date().toISOString()
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "in_progress",
+              started_at: startedAt,
+              updated_at:
+                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+            }
+          : previous,
+      )
+      setNow(Date.now())
       toast({ title: "Work order started" })
-      mutate()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to start work order."
       toast({ title: "Unable to start", description: message, variant: "destructive" })
@@ -443,9 +517,22 @@ export function MaintenanceView({
           payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to put on hold",
         )
       }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "on_hold",
+              on_hold_reason: reason,
+              on_hold_at:
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              updated_at:
+                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+            }
+          : previous,
+      )
       toast({ title: "Work order put on hold" })
       setIsHoldDialogOpen(false)
-      mutate()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to put on hold."
       toast({ title: "Unable to hold", description: message, variant: "destructive" })
@@ -492,10 +579,26 @@ export function MaintenanceView({
           body: JSON.stringify({ status: "in_progress" }),
         },
       )
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error?.details?.message ?? data.error?.message ?? "Failed to resume")
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to resume")
       }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "in_progress",
+              started_at:
+                typeof updated?.started_at === "string" ? updated.started_at : previous.started_at,
+              on_hold_at: null,
+              on_hold_reason: null,
+              updated_at:
+                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+            }
+          : previous,
+      )
+      setNow(Date.now())
       toast({ title: "Work order resumed" })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to resume."
@@ -611,7 +714,7 @@ export function MaintenanceView({
         {!isCancelled ? (
           <div className="border-t bg-card px-3 py-4 sm:px-6">
             <div className="flex items-center justify-center gap-1">
-              {STEPS.map((step, index) => {
+              {stepperSteps.map((step, index) => {
                 const isActive = index === activeStepIndex
                 const isPast = index < activeStepIndex
                 return (
@@ -636,7 +739,7 @@ export function MaintenanceView({
                         {step.label}
                       </span>
                     </div>
-                    {index < STEPS.length - 1 ? (
+                    {index < stepperSteps.length - 1 ? (
                       <div
                         className={`mx-2 h-0.5 w-8 sm:w-16 ${
                           index < activeStepIndex ? "bg-emerald-400" : "bg-border"
@@ -794,16 +897,24 @@ export function MaintenanceView({
               <CardTitle className="text-sm">Photos</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="flex aspect-[4/3] items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground"
-                  >
-                    {index === 3 ? "+ Add" : "No photo"}
-                  </div>
-                ))}
-              </div>
+              {taskImages.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {taskImages.map((image) => (
+                    <div key={image.id} className="relative aspect-[4/3] overflow-hidden rounded-md border bg-muted/20">
+                      <Image
+                        src={createClient().storage.from(TASK_IMAGES_BUCKET).getPublicUrl(image.storagePath).data.publicUrl}
+                        alt="Maintenance task photo"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex aspect-[8/2] items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground">
+                  No photos uploaded yet
+                </div>
+              )}
             </CardContent>
           </Card>
 

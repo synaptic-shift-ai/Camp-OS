@@ -39,7 +39,7 @@ export async function PATCH(
       propertyId,
       userId: user.id,
       moduleKey: 'maintenance',
-      actions: ['update', 'assign-wo'],
+      actions: ['update', 'assign-wo', 'enter-labor-cost'],
       fallbackForCategory: maintenanceFallbackForCategory,
     })
     if (!actionAccess.update) {

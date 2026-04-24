@@ -143,7 +143,7 @@ export async function POST(
             propertyId,
             userId: user.id,
             moduleKey: 'maintenance',
-            actions: ['create'],
+            actions: ['create', 'enter-labor-cost'],
             fallbackForCategory: maintenanceFallbackForCategory,
         })
         if (!actionAccess.create) {

@@ -679,8 +679,8 @@ export function MaintenancePageContent({
         </>
       ) : viewMode === "analytics" ? (
         <CostReport
+          propertyId={propertyId}
           propertyName={propertyName}
-          userDisplayName={selfAssigneeLabel}
           onViewAllWorkOrders={() => setViewMode("wo_list")}
         />
       ) : viewMode === "schedules" ? (

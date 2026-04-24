@@ -467,6 +467,80 @@ export class MaintenanceQueries {
         return data
     }
 
+    async getMaintenanceReportSummary(
+        propertyId: string,
+        dateRange?: { from?: string; to?: string },
+    ): Promise<{
+        totalWorkOrders: number
+        activeWorkOrders: number
+        completedWorkOrders: number
+        totalEstimatedCost: number
+        byStatus: Array<{ status: string; count: number }>
+        byCategory: Array<{ category: string; count: number }>
+        byPriority: Array<{ priority: string; count: number }>
+    }> {
+        let query = this.supabase
+            .from('maintenance_tasks')
+            .select('status, category, priority, estimated_labor_cost, estimated_parts_cost')
+            .eq('property_id', propertyId)
+
+        if (dateRange?.from) {
+            query = query.gte('created_at', dateRange.from)
+        }
+        if (dateRange?.to) {
+            query = query.lte('created_at', dateRange.to)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to fetch maintenance report summary', {
+                error,
+                propertyId,
+                dateRange,
+            })
+            throw new Error(`Failed to fetch maintenance report summary: ${error.message}`)
+        }
+
+        const rows = data ?? []
+
+        const byStatusMap: Record<string, number> = {}
+        const byCategoryMap: Record<string, number> = {}
+        const byPriorityMap: Record<string, number> = {}
+        let totalEstimatedCost = 0
+        let activeWorkOrders = 0
+        let completedWorkOrders = 0
+
+        for (const row of rows) {
+            const status = row.status ?? 'unknown'
+            const category = row.category ?? 'uncategorized'
+            const priority = row.priority ?? 'unknown'
+
+            byStatusMap[status] = (byStatusMap[status] ?? 0) + 1
+            byCategoryMap[category] = (byCategoryMap[category] ?? 0) + 1
+            byPriorityMap[priority] = (byPriorityMap[priority] ?? 0) + 1
+
+            totalEstimatedCost += (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+
+            if (status === 'open' || status === 'in_progress') {
+                activeWorkOrders++
+            }
+            if (status === 'completed') {
+                completedWorkOrders++
+            }
+        }
+
+        return {
+            totalWorkOrders: rows.length,
+            activeWorkOrders,
+            completedWorkOrders,
+            totalEstimatedCost,
+            byStatus: Object.entries(byStatusMap).map(([status, count]) => ({ status, count })),
+            byCategory: Object.entries(byCategoryMap).map(([category, count]) => ({ category, count })),
+            byPriority: Object.entries(byPriorityMap).map(([priority, count]) => ({ priority, count })),
+        }
+    }
+
     async deleteMaintenanceTask(input: { id: string; propertyId: string }): Promise<void> {
         const { error } = await this.supabase
             .from('maintenance_tasks')

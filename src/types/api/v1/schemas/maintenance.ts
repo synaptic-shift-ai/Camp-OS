@@ -72,3 +72,18 @@ export const ListMaintenanceTasksQuerySchema = z.object({
 export type CreateMaintenanceTaskRequest = z.infer<typeof CreateMaintenanceTaskRequestSchema>
 export type UpdateMaintenanceTaskRequest = z.infer<typeof UpdateMaintenanceTaskRequestSchema>
 export type ListMaintenanceTasksQuery = z.infer<typeof ListMaintenanceTasksQuerySchema>
+
+export const MaintenanceReportQuerySchema = z.object({
+    from: z.string().optional(),
+    to: z.string().optional(),
+})
+
+export type MaintenanceReportResponse = {
+    totalWorkOrders: number
+    activeWorkOrders: number
+    completedWorkOrders: number
+    totalEstimatedCost: number
+    byStatus: Array<{ status: string; count: number }>
+    byCategory: Array<{ category: string; count: number }>
+    byPriority: Array<{ priority: string; count: number }>
+}

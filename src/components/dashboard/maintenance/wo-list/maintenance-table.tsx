@@ -46,6 +46,7 @@ type MaintenanceTableProps = {
   onDelete?: (row: MaintenanceTaskRow) => void
   canEditTask?: boolean
   canDeleteTask?: boolean
+  canViewCosts?: boolean
 }
 
 function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
@@ -144,6 +145,7 @@ export function MaintenanceTable({
   onDelete,
   canEditTask = true,
   canDeleteTask = true,
+  canViewCosts = false,
 }: MaintenanceTableProps) {
   return (
     <>
@@ -295,9 +297,15 @@ export function MaintenanceTable({
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
-                  <span className="block truncate" title="—">
-                    —
-                  </span>
+                  {canViewCosts && ((row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0)) > 0 ? (
+                    <span className="block truncate" title={`$${((row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0)).toFixed(2)}`}>
+                      ${((row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0)).toFixed(2)}
+                    </span>
+                  ) : (
+                    <span className="block truncate" title="—">
+                      —
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm text-muted-foreground">
                   <span className="block truncate" title={row.assignee ?? "Unassigned"}>

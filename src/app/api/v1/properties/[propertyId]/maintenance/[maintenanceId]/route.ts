@@ -39,7 +39,7 @@ export async function PATCH(
       propertyId,
       userId: user.id,
       moduleKey: 'maintenance',
-      actions: ['update', 'assign-wo'],
+      actions: ['update', 'assign-wo', 'enter-labor-cost'],
       fallbackForCategory: maintenanceFallbackForCategory,
     })
     if (!actionAccess.update) {
@@ -61,6 +61,33 @@ export async function PATCH(
     }
 
     const canAssignWorkOrder = actionAccess['assign-wo'] === true
+
+    // Completion lock: prevent cost changes on completed work orders
+    const { data: existingStatusRow } = await supabase
+      .from('maintenance_tasks')
+      .select('status')
+      .eq('id', maintenanceId)
+      .eq('property_id', propertyId)
+      .maybeSingle()
+
+    const isCompleted = existingStatusRow?.status === 'completed'
+    const hasCostFields =
+      (parsed.data.estimatedLaborCost != null && parsed.data.estimatedLaborCost !== undefined) ||
+      (parsed.data.estimatedPartsCost != null && parsed.data.estimatedPartsCost !== undefined)
+
+    if (isCompleted && hasCostFields) {
+      return error(
+        ErrorCodes.VALIDATION_ERROR,
+        request,
+        { message: 'Cost fields cannot be modified on completed work orders' },
+      )
+    }
+
+    // Permission strip: silently remove cost fields if user lacks enter-labor-cost
+    if (!actionAccess['enter-labor-cost']) {
+      delete parsed.data.estimatedLaborCost
+      delete parsed.data.estimatedPartsCost
+    }
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
     const maintenanceTask = await queries.updateMaintenanceTask({

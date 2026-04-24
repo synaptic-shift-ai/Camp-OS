@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { PermissionGate } from "@/components/ui/permission-gate"
 
 export const MAINTENANCE_CATEGORY_OPTIONS = [
   { id: "electrical", label: "Electrical", Icon: Zap },
@@ -462,6 +463,7 @@ export function AddTaskDialog({
             ) : null}
           </div>
 
+          <PermissionGate permission="maintenance.enter_labor_cost" fallback={null}>
           <div className="space-y-2">
             <Label>Cost Estimate</Label>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -511,6 +513,7 @@ export function AddTaskDialog({
               </div>
             </div>
           </div>
+          </PermissionGate>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

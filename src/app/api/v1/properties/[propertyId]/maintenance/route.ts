@@ -40,6 +40,16 @@ export async function GET(
         })
         if (isDenied(access)) return access
 
+        const costAccess = await resolveModuleActionAccess({
+            supabase: supabase as any,
+            propertyId,
+            userId: user.id,
+            moduleKey: 'maintenance',
+            actions: ['enter-labor-cost'],
+            fallbackForCategory: maintenanceFallbackForCategory,
+        })
+        const canViewCosts = costAccess['enter-labor-cost'] === true
+
         const { searchParams } = new URL(request.url)
         const queryRaw = {
             search: searchParams.get('search') ?? undefined,
@@ -78,9 +88,18 @@ export async function GET(
             queries.countOpenMaintenanceTasks(propertyId),
         ])
 
+        const tasks = canViewCosts
+            ? listResult.tasks
+            : listResult.tasks.map((task: Record<string, unknown>) => {
+                const stripped = { ...task }
+                delete stripped.estimated_labor_cost
+                delete stripped.estimated_parts_cost
+                return stripped
+            })
+
         return success(
             {
-                tasks: listResult.tasks,
+                tasks,
                 total: listResult.total,
                 page: data.page,
                 per_page: data.per_page,
@@ -124,7 +143,7 @@ export async function POST(
             propertyId,
             userId: user.id,
             moduleKey: 'maintenance',
-            actions: ['create'],
+            actions: ['create', 'enter-labor-cost'],
             fallbackForCategory: maintenanceFallbackForCategory,
         })
         if (!actionAccess.create) {
@@ -138,6 +157,13 @@ export async function POST(
 
         const body = await request.json()
         const parsed = CreateMaintenanceTaskRequestSchema.safeParse(body)
+
+        if (parsed.success) {
+            if (!actionAccess['enter-labor-cost']) {
+                delete parsed.data.estimatedLaborCost
+                delete parsed.data.estimatedPartsCost
+            }
+        }
 
         if (!parsed.success) {
             return error(ErrorCodes.VALIDATION_ERROR, request, {

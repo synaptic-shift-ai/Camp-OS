@@ -144,6 +144,7 @@ export default async function MaintenancePage({ params }: PageProps) {
         "manage-vendors",
         "manage-pm-schedules",
         "view-cost-reports",
+        "enter-labor-cost",
       ],
       fallbackForCategory: maintenanceFallbackForCategory,
     }),
@@ -154,6 +155,7 @@ export default async function MaintenancePage({ params }: PageProps) {
   const canManageMaintenanceVendors = taskActionAccess["manage-vendors"] === true
   const canManageMaintenancePmSchedules = taskActionAccess["manage-pm-schedules"] === true
   const canViewMaintenanceCostReports = taskActionAccess["view-cost-reports"] === true
+  const canEnterLaborCost = taskActionAccess["enter-labor-cost"] === true
   const selfAssigneeLabel = displayNameFromUser(user)
 
   return (
@@ -169,6 +171,7 @@ export default async function MaintenancePage({ params }: PageProps) {
       canManageMaintenanceVendors={canManageMaintenanceVendors}
       canManageMaintenancePmSchedules={canManageMaintenancePmSchedules}
       canViewMaintenanceCostReports={canViewMaintenanceCostReports}
+      canEnterLaborCost={canEnterLaborCost}
       selfAssigneeStaffId={selfStaffId}
       selfAssigneeLabel={selfAssigneeLabel}
     />

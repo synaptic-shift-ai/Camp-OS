@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { PermissionGate } from "@/components/ui/permission-gate"
 import {
   MaintenanceCategoryPicker,
   SOURCE_OPTIONS,
@@ -360,6 +361,7 @@ export function EditTaskDialog({
             ) : null}
           </div>
 
+          <PermissionGate permission="maintenance.enter_labor_cost" fallback={null}>
           <div className="space-y-2">
             <Label>Cost Estimate</Label>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -383,6 +385,7 @@ export function EditTaskDialog({
                     }}
                     min={0}
                     step={1}
+                    disabled={task?.status === "Completed"}
                   />
                 </div>
               </div>
@@ -406,11 +409,13 @@ export function EditTaskDialog({
                     }}
                     min={0}
                     step={1}
+                    disabled={task?.status === "Completed"}
                   />
                 </div>
               </div>
             </div>
           </div>
+          </PermissionGate>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

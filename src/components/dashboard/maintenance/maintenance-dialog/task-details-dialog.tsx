@@ -8,6 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { PermissionGate } from "@/components/ui/permission-gate"
 import type { MaintenanceTaskRow } from "../wo-list/maintenance-table"
 
 type TaskDetailsDialogProps = {
@@ -24,6 +26,8 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
+
+const formatCurrency = (val: number | null) => (val != null && val > 0 ? `$${val.toFixed(2)}` : '—')
 
 function StatusDisplay({ status }: { status: MaintenanceTaskRow["status"] }) {
   const base = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border w-fit"
@@ -64,6 +68,21 @@ export function TaskDetailsDialog({ open, onOpenChange, task }: TaskDetailsDialo
               <span className="font-medium text-muted-foreground">Status</span>
               <StatusDisplay status={task.status} />
             </div>
+            <PermissionGate permission="maintenance.view_labor_rates" fallback={null}>
+              {(() => {
+                const total = (task.estimatedLaborCost ?? 0) + (task.estimatedPartsCost ?? 0)
+                return (
+                  <div className="space-y-2 border-t border-border/60 pt-3">
+                    <Label className="text-sm font-medium">Cost Estimate</Label>
+                    <div className="text-sm text-muted-foreground">
+                      <div>Labor: {formatCurrency(task.estimatedLaborCost ?? null)}</div>
+                      <div>Parts: {formatCurrency(task.estimatedPartsCost ?? null)}</div>
+                      <div className="font-bold text-foreground">Total: {formatCurrency(total)}</div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </PermissionGate>
           </div>
         </div>
         <DialogFooter>

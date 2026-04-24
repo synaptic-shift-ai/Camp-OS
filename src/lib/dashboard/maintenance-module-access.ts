@@ -19,6 +19,7 @@ export function maintenanceFallbackForCategory(
       "manage-vendors": true,
       "manage-pm-schedules": true,
       "view-cost-reports": true,
+      "enter-labor-cost": true,
     }
   }
   const category = categoryName.trim().toLowerCase()
@@ -32,6 +33,7 @@ export function maintenanceFallbackForCategory(
       "manage-vendors": true,
       "manage-pm-schedules": true,
       "view-cost-reports": true,
+      "enter-labor-cost": true,
     }
   }
   if (role === "staff" && category === "maintenance") {
@@ -44,6 +46,7 @@ export function maintenanceFallbackForCategory(
       "manage-vendors": false,
       "manage-pm-schedules": false,
       "view-cost-reports": false,
+      "enter-labor-cost": false,
     }
   }
   return {
@@ -55,5 +58,6 @@ export function maintenanceFallbackForCategory(
     "manage-vendors": false,
     "manage-pm-schedules": false,
     "view-cost-reports": false,
+    "enter-labor-cost": false,
   }
 }

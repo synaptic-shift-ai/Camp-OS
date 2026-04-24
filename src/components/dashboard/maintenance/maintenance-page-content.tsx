@@ -39,6 +39,7 @@ type MaintenancePageContentProps = {
   canManageMaintenanceVendors: boolean
   canManageMaintenancePmSchedules: boolean
   canViewMaintenanceCostReports: boolean
+  canEnterLaborCost: boolean
   selfAssigneeStaffId: string | null
   selfAssigneeLabel: string
 }
@@ -187,6 +188,7 @@ export function MaintenancePageContent({
   canManageMaintenanceVendors,
   canManageMaintenancePmSchedules,
   canViewMaintenanceCostReports,
+  canEnterLaborCost,
   selfAssigneeStaffId,
   selfAssigneeLabel,
 }: MaintenancePageContentProps) {
@@ -654,6 +656,7 @@ export function MaintenancePageContent({
             onDelete={handleRequestDeleteTask}
             canEditTask={canEditTask}
             canDeleteTask={canDeleteTask}
+            canViewCosts={canEnterLaborCost}
           />
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">

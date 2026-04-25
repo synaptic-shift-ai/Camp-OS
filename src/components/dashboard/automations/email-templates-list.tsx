@@ -197,7 +197,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
       const res = await fetch(`/api/v1/automations/email-templates/${testDialogTemplate.id}/send-test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: testEmail }),
+        body: JSON.stringify({ to: testEmail, propertyId }),
       })
       if (!res.ok) throw new Error(`Send failed (${res.status})`)
       await res.json()

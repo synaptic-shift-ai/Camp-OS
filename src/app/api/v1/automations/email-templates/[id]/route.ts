@@ -12,7 +12,7 @@ const UpdateEmailTemplateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).nullable().optional(),
   subjectTemplate: z.string().max(500).optional(),
-  htmlTemplate: z.string().max(50000).optional(),
+  htmlTemplate: z.string().max(2000000).optional(),
   category: z.enum(['welcome', 'reservation', 'payment', 'review', 'notification', 'custom']).optional(),
   isActive: z.boolean().optional(),
 })

@@ -66,7 +66,6 @@ export function EmailTemplateFormDialog({
 
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
-  const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
   const [subject, setSubject] = useState("")
   const [htmlBody, setHtmlBody] = useState("")
@@ -83,14 +82,12 @@ export function EmailTemplateFormDialog({
     if (template) {
       setName((template.name as string) ?? "")
       setSlug((template.slug as string) ?? "")
-      setDescription((template.description as string) ?? "")
       setCategory((template.category as string) ?? "")
       setSubject((template.subject_template as string) ?? "")
       setHtmlBody((template.html_template as string) ?? "")
     } else {
       setName("")
       setSlug("")
-      setDescription("")
       setCategory("")
       setSubject("")
       setHtmlBody("")
@@ -132,7 +129,6 @@ export function EmailTemplateFormDialog({
       const body: Record<string, unknown> = {
         name,
         slug,
-        description,
         subjectTemplate: subject,
         htmlTemplate: htmlBody,
         category,
@@ -228,17 +224,6 @@ export function EmailTemplateFormDialog({
                   className="font-mono"
                 />
               </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <Label htmlFor="tmpl-desc">Description</Label>
-              <Input
-                id="tmpl-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of this template"
-              />
             </div>
 
             {/* Category */}

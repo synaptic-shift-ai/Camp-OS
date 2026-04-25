@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto"
 import nodemailer from "nodemailer"
 
 function getSmtpConfig() {
@@ -41,6 +42,48 @@ export function getFrom(): string {
     return `${SENDER_NAME} <${getFromEmail()}>`
 }
 
+function convertDataUrisToCid(
+    html: string
+): {
+    html: string
+    attachments: Array<{ filename: string; content: Buffer; cid: string }>
+} {
+    const attachments: Array<{
+        filename: string
+        content: Buffer
+        cid: string
+    }> = []
+
+    const dataUriRegex = /src="(data:image\/([a-zA-Z+]+);base64,([^"']+))"/g
+
+    let processedHtml = html
+    let match
+
+    while ((match = dataUriRegex.exec(html)) !== null) {
+        const fullUri = match[1]
+        const mimeType = match[2]
+        const base64Data = match[3]
+
+        const cid = `img-${randomUUID()}`
+        const ext =
+            mimeType === "svg+xml"
+                ? "svg"
+                : mimeType === "jpeg"
+                  ? "jpg"
+                  : mimeType
+
+        attachments.push({
+            filename: `image-${attachments.length + 1}.${ext}`,
+            content: Buffer.from(base64Data, "base64"),
+            cid,
+        })
+
+        processedHtml = processedHtml.replace(fullUri, `cid:${cid}`)
+    }
+
+    return { html: processedHtml, attachments }
+}
+
 export type EmailitSendResult =
     | { success: true; id: string }
     | { success: false; error: string }
@@ -56,13 +99,23 @@ export async function sendEmail(params: {
     const toList = Array.isArray(params.to) ? params.to : [params.to]
 
     try {
+        let html = params.html
+        let attachments: Array<{ filename: string; content: Buffer; cid: string }> = []
+
+        if (html.includes("data:image/")) {
+            const cidResult = convertDataUrisToCid(html)
+            html = cidResult.html
+            attachments = cidResult.attachments
+        }
+
         const transport = getTransporter()
         const info = await transport.sendMail({
             from,
             to: toList,
             subject: params.subject,
-            html: params.html,
+            html,
             ...(params.text && { text: params.text }),
+            ...(attachments.length > 0 && { attachments }),
         })
 
         return {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useCallback, useEffect, useState } from "react"
+import { useRef, useCallback, useEffect, useState, Fragment } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,6 +30,7 @@ import {
   AlignCenter,
   AlignRight,
   Link,
+  ImageIcon,
   List,
   ListOrdered,
   Heading1,
@@ -79,6 +80,82 @@ const WIDTH_OPTIONS = [
   { value: "700", label: "700px" },
   { value: "full", label: "Full width" },
 ]
+
+type FontOption = { name: string; family: string; isGoogle?: boolean }
+type FontGroup = { label: string; fonts: FontOption[] }
+
+const FONT_GROUPS: FontGroup[] = [
+  {
+    label: "System Fonts",
+    fonts: [
+      { name: "Default", family: "sans-serif" },
+      { name: "Arial", family: "Arial, sans-serif" },
+      { name: "Helvetica", family: "Helvetica, sans-serif" },
+      { name: "Georgia", family: "Georgia, serif" },
+      { name: "Times New Roman", family: "'Times New Roman', serif" },
+      { name: "Courier New", family: "'Courier New', monospace" },
+      { name: "Verdana", family: "Verdana, sans-serif" },
+      { name: "Tahoma", family: "Tahoma, sans-serif" },
+    ],
+  },
+  {
+    label: "Sans-serif",
+    fonts: [
+      { name: "Inter", family: "'Inter', sans-serif", isGoogle: true },
+      { name: "Roboto", family: "'Roboto', sans-serif", isGoogle: true },
+      { name: "Open Sans", family: "'Open Sans', sans-serif", isGoogle: true },
+      { name: "Lato", family: "'Lato', sans-serif", isGoogle: true },
+      { name: "Montserrat", family: "'Montserrat', sans-serif", isGoogle: true },
+      { name: "Poppins", family: "'Poppins', sans-serif", isGoogle: true },
+      { name: "Raleway", family: "'Raleway', sans-serif", isGoogle: true },
+      { name: "Nunito", family: "'Nunito', sans-serif", isGoogle: true },
+      { name: "Ubuntu", family: "'Ubuntu', sans-serif", isGoogle: true },
+    ],
+  },
+  {
+    label: "Serif",
+    fonts: [
+      { name: "Playfair Display", family: "'Playfair Display', serif", isGoogle: true },
+      { name: "Merriweather", family: "'Merriweather', serif", isGoogle: true },
+      { name: "Lora", family: "'Lora', serif", isGoogle: true },
+      { name: "Crimson Text", family: "'Crimson Text', serif", isGoogle: true },
+      { name: "Libre Baskerville", family: "'Libre Baskerville', serif", isGoogle: true },
+      { name: "DM Serif Display", family: "'DM Serif Display', serif", isGoogle: true },
+    ],
+  },
+  {
+    label: "Display & Other",
+    fonts: [
+      { name: "Dancing Script", family: "'Dancing Script', cursive", isGoogle: true },
+      { name: "Pacifico", family: "'Pacifico', cursive", isGoogle: true },
+      { name: "Oswald", family: "'Oswald', sans-serif", isGoogle: true },
+      { name: "Bebas Neue", family: "'Bebas Neue', sans-serif", isGoogle: true },
+      { name: "Josefin Sans", family: "'Josefin Sans', sans-serif", isGoogle: true },
+      { name: "Work Sans", family: "'Work Sans', sans-serif", isGoogle: true },
+    ],
+  },
+]
+
+/** All Google fonts flattened (for pre-loading) */
+const GOOGLE_FONTS = FONT_GROUPS.flatMap((g) => g.fonts).filter((f) => f.isGoogle)
+
+/** Insert a Google Fonts <link> tag into <head> if not already present */
+const loadedFontNames = new Set<string>()
+function loadGoogleFont(fontName: string) {
+  if (loadedFontNames.has(fontName)) return
+  const encoded = fontName.replace(/ /g, '+')
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = `https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,400;0,700;1,400&display=swap`
+  link.setAttribute('data-google-font', fontName)
+  document.head.appendChild(link)
+  loadedFontNames.add(fontName)
+}
+
+/** Find a font option by its family string */
+function findFontByFamily(family: string): FontOption | undefined {
+  return FONT_GROUPS.flatMap((g) => g.fonts).find((f) => f.family === family)
+}
 
 const DEFAULT_SETTINGS: EmailSettings = {
   width: "600",
@@ -154,6 +231,12 @@ export function RichEditor({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("")
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
+  // Font selector
+  const [selectedFontFamily, setSelectedFontFamily] = useState("sans-serif")
+  const [fontDropdownOpen, setFontDropdownOpen] = useState(false)
+  const fontDropdownRef = useRef<HTMLDivElement>(null)
 
   // Pure content (without settings comment)
   const contentOnly = stripSettings(value)
@@ -282,6 +365,35 @@ export function RichEditor({
     handleBlur()
   }, [execCommand, handleBlur])
 
+  // -- Font selector --
+  const selectFont = useCallback((font: FontOption) => {
+    if (font.isGoogle) {
+      loadGoogleFont(font.name)
+    }
+    setSelectedFontFamily(font.family)
+    setFontDropdownOpen(false)
+    execCommand("fontName", font.family)
+    handleBlur()
+  }, [execCommand, handleBlur])
+
+  // Close font dropdown on outside click
+  useEffect(() => {
+    if (!fontDropdownOpen) return
+    function handleClick(e: MouseEvent) {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
+        setFontDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [fontDropdownOpen])
+
+  // Pre-load first 10 Google fonts on mount
+  useEffect(() => {
+    GOOGLE_FONTS.slice(0, 10).forEach((f) => loadGoogleFont(f.name))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // -- Toolbar button --
   function ToolbarBtn({
     icon: Icon,
@@ -382,6 +494,49 @@ export function RichEditor({
               </SelectContent>
             </Select>
 
+            {/* Font family selector */}
+            <div ref={fontDropdownRef} className="relative">
+              <button
+                type="button"
+                className="h-7 text-xs bg-background border rounded px-1.5 flex items-center gap-1 hover:bg-muted/50"
+                onClick={() => setFontDropdownOpen((o) => !o)}
+                title="Font Family"
+              >
+                <span
+                  className="truncate max-w-[70px]"
+                  style={{ fontFamily: selectedFontFamily }}
+                >
+                  {findFontByFamily(selectedFontFamily)?.name ?? "Default"}
+                </span>
+              </button>
+              {fontDropdownOpen && (
+                <div className="absolute top-full left-0 z-50 mt-0.5 w-[180px] max-h-[280px] overflow-y-auto rounded-md border bg-popover shadow-md py-1">
+                  {FONT_GROUPS.map((group, gi) => (
+                    <Fragment key={group.label}>
+                      {gi > 0 && <div className="my-1 border-t" />}
+                      <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        {group.label}
+                      </div>
+                      {group.fonts.map((font) => (
+                        <button
+                          key={font.family}
+                          type="button"
+                          className={cn(
+                            "w-full text-left px-2 py-1 text-xs hover:bg-muted/50 cursor-pointer",
+                            selectedFontFamily === font.family && "bg-muted"
+                          )}
+                          style={{ fontFamily: font.family }}
+                          onClick={() => selectFont(font)}
+                        >
+                          {font.name}
+                        </button>
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Text color */}
             <input
               type="color"
@@ -409,6 +564,34 @@ export function RichEditor({
             <ToolbarBtn icon={ListOrdered} label="Numbered List" onClick={() => { execCommand("insertOrderedList"); handleBlur() }} />
             <ToolbarBtn icon={Minus} label="Horizontal Rule" onClick={() => { execCommand("insertHorizontalRule"); handleBlur() }} />
             <ToolbarBtn icon={Link} label="Insert Link" onClick={openLinkDialog} />
+            <ToolbarBtn
+              icon={ImageIcon}
+              label="Insert Image"
+              onClick={() => imageInputRef.current?.click()}
+            />
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                if (file.size > 500 * 1024) {
+                  console.warn('Image is too large (max 500KB). Skipping insertion.')
+                  e.target.value = ''
+                  return
+                }
+                const reader = new FileReader()
+                reader.onload = () => {
+                  editorRef.current?.focus()
+                  document.execCommand('insertImage', false, reader.result as string)
+                  handleBlur()
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
           </>
         )}
 
@@ -434,7 +617,7 @@ export function RichEditor({
       {sourceMode ? (
         <textarea
           className="w-full font-mono text-xs p-3 focus:outline-none resize-y bg-gray-50"
-          style={{ minHeight }}
+          style={{ minHeight, color: '#000000' }}
           value={sourceValue}
           onChange={(e) => {
             setSourceValue(e.target.value)
@@ -442,10 +625,11 @@ export function RichEditor({
           }}
         />
       ) : (
-        <div className="bg-gray-100 p-4 overflow-y-auto">
+        <div className="bg-muted p-4 overflow-y-auto">
           <div
             style={{
               ...wrapperStyle(settings),
+              color: '#000000',
               minHeight: `calc(${minHeight} - 2rem)`,
               padding: "24px",
               fontFamily: "sans-serif",

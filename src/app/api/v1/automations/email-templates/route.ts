@@ -17,7 +17,7 @@ const CreateEmailTemplateSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   subjectTemplate: z.string().max(500),
-  htmlTemplate: z.string().max(50000),
+  htmlTemplate: z.string().max(2000000),
   category: z.enum(['welcome', 'reservation', 'payment', 'review', 'notification', 'custom']).optional(),
 })
 

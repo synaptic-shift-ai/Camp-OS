@@ -16,7 +16,7 @@ import {
   Download,
   CalendarIcon,
 } from 'lucide-react'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { BudgetManagement } from './budget-management'
 import { exportToCsv, buildExportFilename } from '@/lib/csv/export'
@@ -108,22 +108,24 @@ export function CostReport({
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [dateFrom, setDateFrom] = useState<Date>(() => subDays(new Date(), 30))
-  const [dateTo, setDateTo] = useState<Date>(new Date())
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
   const [fromPickerOpen, setFromPickerOpen] = useState(false)
   const [toPickerOpen, setToPickerOpen] = useState(false)
 
   // ---- data fetching -------------------------------------------------------
   const fetchReport = useCallback(async () => {
-    const fromStr = format(dateFrom, 'yyyy-MM-dd')
-    const toStr = format(dateTo, 'yyyy-MM-dd')
+    const params = new URLSearchParams()
+    if (dateFrom) params.set('from', format(dateFrom, 'yyyy-MM-dd'))
+    if (dateTo) params.set('to', format(dateTo, 'yyyy-MM-dd'))
+    const query = params.toString()
 
     setIsLoading(true)
     setError(null)
 
     try {
       const response = await fetch(
-        `/api/v1/properties/${propertyId}/maintenance/reports?from=${fromStr}&to=${toStr}`,
+        `/api/v1/properties/${propertyId}/maintenance/reports${query ? `?${query}` : ''}`,
       )
 
       if (!response.ok) {
@@ -355,7 +357,7 @@ export function CostReport({
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2 text-sm font-normal">
               <CalendarIcon className="h-3.5 w-3.5" />
-              {format(dateFrom, 'MMM d, yyyy')}
+              {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'Start date'}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -371,7 +373,7 @@ export function CostReport({
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2 text-sm font-normal">
               <CalendarIcon className="h-3.5 w-3.5" />
-              {format(dateTo, 'MMM d, yyyy')}
+              {dateTo ? format(dateTo, 'MMM d, yyyy') : 'End date'}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">

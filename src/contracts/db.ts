@@ -1241,6 +1241,47 @@ export type Database = {
           },
         ]
       }
+      maintenance_budgets: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          period: string
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period: string
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period?: string
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_budgets_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_schedule: {
         Row: {
           assigned_to: string | null
@@ -1308,63 +1349,143 @@ export type Database = {
           },
         ]
       }
+      maintenance_spend_limits: {
+        Row: {
+          alert_enabled: boolean
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          property_id: string
+          threshold_amount: number
+        }
+        Insert: {
+          alert_enabled?: boolean
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          property_id: string
+          threshold_amount?: number
+        }
+        Update: {
+          alert_enabled?: boolean
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          property_id?: string
+          threshold_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_spend_limits_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_tasks: {
         Row: {
+          actual_labor_cost: number | null
+          actual_parts_cost: number | null
+          cancelled_at: string | null
+          cancelled_reason: string | null
           category: string
+          closeout_notes: string | null
+          completed_at: string | null
           created_at: string
           created_by: string
           description: string | null
           estimated_labor_cost: number | null
           estimated_parts_cost: number | null
           id: string
+          is_suspected_damage: boolean
+          on_hold_at: string | null
+          on_hold_reason: string | null
           priority: string
           property_id: string
+          schedule_id: string | null
           site_id: string
           sla: number | null
           source: string
           staff_id: string | null
+          started_at: string | null
           status: string
           title: string
           updated_at: string
           vendor_id: string | null
+          vendor_invoice_cost: number | null
+          vendor_invoice_number: string | null
+          wo_number: string | null
         }
         Insert: {
+          actual_labor_cost?: number | null
+          actual_parts_cost?: number | null
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
           category?: string
+          closeout_notes?: string | null
+          completed_at?: string | null
           created_at?: string
           created_by: string
           description?: string | null
           estimated_labor_cost?: number | null
           estimated_parts_cost?: number | null
           id?: string
+          is_suspected_damage?: boolean
+          on_hold_at?: string | null
+          on_hold_reason?: string | null
           priority?: string
           property_id: string
+          schedule_id?: string | null
           site_id: string
           sla?: number | null
           source?: string
           staff_id?: string | null
+          started_at?: string | null
           status?: string
           title: string
           updated_at?: string
           vendor_id?: string | null
+          vendor_invoice_cost?: number | null
+          vendor_invoice_number?: string | null
+          wo_number?: string | null
         }
         Update: {
+          actual_labor_cost?: number | null
+          actual_parts_cost?: number | null
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
           category?: string
+          closeout_notes?: string | null
+          completed_at?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
           estimated_labor_cost?: number | null
           estimated_parts_cost?: number | null
           id?: string
+          is_suspected_damage?: boolean
+          on_hold_at?: string | null
+          on_hold_reason?: string | null
           priority?: string
           property_id?: string
+          schedule_id?: string | null
           site_id?: string
           sla?: number | null
           source?: string
           staff_id?: string | null
+          started_at?: string | null
           status?: string
           title?: string
           updated_at?: string
           vendor_id?: string | null
+          vendor_invoice_cost?: number | null
+          vendor_invoice_number?: string | null
+          wo_number?: string | null
         }
         Relationships: [
           {
@@ -1372,6 +1493,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_tasks_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_schedule"
             referencedColumns: ["id"]
           },
           {
@@ -1393,6 +1521,29 @@ export type Database = {
             columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "property_vendor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_wo_counter: {
+        Row: {
+          last_number: number
+          property_id: string
+        }
+        Insert: {
+          last_number?: number
+          property_id: string
+        }
+        Update: {
+          last_number?: number
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_wo_counter_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -1990,6 +2141,7 @@ export type Database = {
           email: string | null
           id: string
           name: string
+          phone: string | null
           property_id: string
           service_type: string
           updated_at: string
@@ -1999,6 +2151,7 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
+          phone?: string | null
           property_id: string
           service_type?: string
           updated_at?: string
@@ -2008,6 +2161,7 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
+          phone?: string | null
           property_id?: string
           service_type?: string
           updated_at?: string

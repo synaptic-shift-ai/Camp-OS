@@ -106,7 +106,6 @@ export async function PATCH(
         request,
       )
     }
-
     const body = await request.json()
     const parsed = UpdateMaintenanceTaskRequestSchema.safeParse(body)
 
@@ -117,11 +116,13 @@ export async function PATCH(
     }
 
     const canAssignWorkOrder = actionAccess['assign-wo'] === true
+    const canRequestOnHold = actionAccess['request-onhold'] === true || actionAccess.update === true
+    const canApproveOnHold = actionAccess['approve-onhold'] === true
 
     // Completion lock: prevent cost changes on completed work orders
     const { data: currentTask } = await supabase
       .from('maintenance_tasks')
-      .select('status, started_at, on_hold_at, sla')
+      .select('status, started_at, on_hold_at, on_hold_reason, sla')
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)
       .maybeSingle()
@@ -148,6 +149,36 @@ export async function PATCH(
     // ── State machine validation ──
     const currentStatus = currentTask?.status ?? 'open'
     const requestedStatus = parsed.data.status
+    const isStatusTransition = Boolean(requestedStatus && currentStatus !== requestedStatus)
+
+    // On-hold request flow: staff can request hold by submitting reason only.
+    if (!isStatusTransition && parsed.data.on_hold_reason !== undefined) {
+      if (!canRequestOnHold) {
+        return error(
+          ErrorCodes.AUTH_002.code,
+          'You do not have permission to request on-hold for work orders',
+          ErrorCodes.AUTH_002.status,
+          request,
+        )
+      }
+
+      if (!['in_progress', 'in_progress_vendor'].includes(currentStatus)) {
+        return error(
+          ErrorCodes.VALIDATION_ERROR,
+          request,
+          { message: 'On-hold requests can only be submitted for in-progress work orders' },
+        )
+      }
+
+      const trimmedReason = parsed.data.on_hold_reason?.trim()
+      if (!trimmedReason) {
+        return error(
+          ErrorCodes.VALIDATION_ERROR,
+          request,
+          { message: 'on_hold_reason is required when requesting an on-hold' },
+        )
+      }
+    }
 
     if (requestedStatus && currentStatus !== requestedStatus) {
       const allowed = VALID_TRANSITIONS[currentStatus]
@@ -161,10 +192,10 @@ export async function PATCH(
 
       // Permission gating for protected transitions
       if (requestedStatus === 'on_hold') {
-        if (!actionAccess['request-onhold']) {
+        if (!canApproveOnHold) {
           return error(
             ErrorCodes.AUTH_002.code,
-            'You do not have permission to put work orders on hold',
+            'You do not have permission to approve on-hold requests',
             ErrorCodes.AUTH_002.status,
             request,
           )
@@ -229,15 +260,15 @@ export async function PATCH(
           timestampUpdates.completed_at = new Date().toISOString()
           break
         case 'on_hold':
-          if (!parsed.data.on_hold_reason) {
+          if (!parsed.data.on_hold_reason && !currentTask?.on_hold_reason) {
             return error(
               ErrorCodes.VALIDATION_ERROR,
               request,
-              { message: 'on_hold_reason is required when putting a work order on hold' },
+              { message: 'on_hold_reason is required before approving on-hold' },
             )
           }
+          timestampUpdates.on_hold_reason = parsed.data.on_hold_reason ?? currentTask?.on_hold_reason ?? null
           timestampUpdates.on_hold_at = new Date().toISOString()
-          timestampUpdates.on_hold_reason = parsed.data.on_hold_reason
           break
         case 'cancelled':
           if (!parsed.data.cancelled_reason) {
@@ -261,6 +292,12 @@ export async function PATCH(
           }
           break
       }
+    }
+
+    // Request-only update (no status transition): capture pending on-hold reason.
+    if (!isStatusTransition && parsed.data.on_hold_reason !== undefined) {
+      timestampUpdates.on_hold_reason = parsed.data.on_hold_reason?.trim() ?? null
+      timestampUpdates.on_hold_at = null
     }
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)

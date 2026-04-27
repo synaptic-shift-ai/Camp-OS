@@ -103,6 +103,8 @@ export default async function MaintenanceDetailsPage({ params }: PageProps) {
     }),
   ])
 
+  const canRequestOnHold = actionAccess["request-onhold"] === true || actionAccess.update === true
+
   return (
     <MaintenanceView
       propertyId={propertyId}
@@ -111,7 +113,7 @@ export default async function MaintenanceDetailsPage({ params }: PageProps) {
       assigneeOptions={assigneeOptions}
       canEditTask={actionAccess.update === true}
       canAssignWo={actionAccess["assign-wo"] === true}
-      canHold={actionAccess["request-onhold"] === true}
+      canHold={canRequestOnHold}
       canResume={actionAccess["approve-onhold"] === true}
       canCancel={actionAccess["cancel-wo"] === true}
       canEnterLaborCost={actionAccess["enter-labor-cost"] === true}

@@ -476,29 +476,28 @@ export function MaintenancePageContent({
   const handleAddPreventiveSchedule = async (input: AddPreventiveScheduleInput) => {
     setIsCreatingPreventiveSchedule(true)
     try {
-      const supabase = createClient()
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
-      if (authError || !user) {
-        throw new Error("You must be signed in to create a schedule.")
-      }
-
-      const { error: insertError } = await supabase.from("maintenance_schedule").insert({
-        property_id: propertyId,
-        site_id: input.siteId,
-        assigned_to: input.assigneeId,
-        name: input.name,
-        description: input.description,
-        frequency: input.frequency,
-        days: input.days,
-        schedule_date: input.scheduleDate,
-        created_by: user.id,
+      const response = await fetch(`/api/v1/properties/${propertyId}/maintenance/schedules`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: input.name,
+          description: input.description?.trim() ? input.description.trim() : null,
+          site_id: input.siteId ?? null,
+          assigned_to: input.assigneeId ?? null,
+          frequency: input.frequency,
+          days: input.days ?? null,
+          schedule_date: input.scheduleDate ?? null,
+        }),
       })
-
-      if (insertError) {
-        throw new Error(insertError.message)
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to create schedule."
+        throw new Error(message)
       }
 
       toast({
@@ -506,6 +505,8 @@ export function MaintenancePageContent({
         description: "The preventive schedule has been saved.",
         variant: "success",
       })
+      setIsAddPreventiveDialogOpen(false)
+      setSchedulesRefreshKey((prev) => prev + 1)
     } finally {
       setIsCreatingPreventiveSchedule(false)
     }
@@ -590,6 +591,7 @@ export function MaintenancePageContent({
           variant: "success",
         })
         setSchedulesRefreshKey((prev) => prev + 1)
+        await loadTasks()
       }
     } catch {
       toast({ title: "Failed to generate work order", variant: "destructive" })

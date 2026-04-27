@@ -335,9 +335,14 @@ export function MaintenanceView({
   const workElapsedSeconds = useMemo(() => {
     if (!task?.started_at) return null
     const startMs = new Date(task.started_at).getTime()
-    const endMs = task.completed_at ? new Date(task.completed_at).getTime() : now
+    const endMs =
+      task.completed_at
+        ? new Date(task.completed_at).getTime()
+        : task.status === "on_hold" && task.on_hold_at
+          ? new Date(task.on_hold_at).getTime()
+          : now
     return Math.max(0, Math.floor((endMs - startMs) / 1000))
-  }, [task?.started_at, task?.completed_at, now])
+  }, [task?.started_at, task?.completed_at, task?.status, task?.on_hold_at, now])
 
   const workTimerDisplay = useMemo(() => {
     if (workElapsedSeconds === null) return "Not started"
@@ -357,9 +362,13 @@ export function MaintenanceView({
 
     const startedMs = new Date(task.started_at).getTime()
     const deadlineMs = startedMs + task.sla * 3600 * 1000
-    const remaining = Math.max(0, Math.floor((deadlineMs - now) / 1000))
+    const slaNowMs =
+      task.status === "on_hold" && task.on_hold_at
+        ? new Date(task.on_hold_at).getTime()
+        : now
+    const remaining = Math.max(0, Math.floor((deadlineMs - slaNowMs) / 1000))
     return remaining
-  }, [task?.sla, task?.created_at, task?.started_at, task?.status, now])
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, now])
 
   const slaDisplay = useMemo(() => {
     if (slaSecondsRemaining === null) return null
@@ -404,6 +413,15 @@ export function MaintenanceView({
       })
     }
 
+    if (task.on_hold_reason && !task.on_hold_at && ["in_progress", "in_progress_vendor"].includes(task.status)) {
+      entries.push({
+        id: "on_hold_requested",
+        label: "On-hold requested",
+        detail: task.on_hold_reason,
+        timestamp: task.updated_at,
+      })
+    }
+
     if (task.on_hold_at) {
       entries.push({
         id: "on_hold",
@@ -437,7 +455,12 @@ export function MaintenanceView({
   const showStart = task?.status === "open" && canEditTask
   const showComplete = (task?.status === "in_progress" || task?.status === "in_progress_vendor") && canEditTask
   const showReopen = (task?.status === "completed" || task?.status === "cancelled") && canEditTask
-  const showHold = canHold && task?.status === "in_progress"
+  const hasPendingOnHoldRequest =
+    ["in_progress", "in_progress_vendor"].includes(task?.status ?? "") &&
+    Boolean(task?.on_hold_reason) &&
+    !task?.on_hold_at
+  const showHold = canHold && !canResume && task?.status === "in_progress" && !hasPendingOnHoldRequest
+  const showApproveHold = canResume && hasPendingOnHoldRequest
   const showResume = canResume && task?.status === "on_hold"
   const showCancel = canCancel && ["open", "in_progress", "on_hold"].includes(task?.status ?? "")
   const showReassign = canAssignWo && !["completed", "cancelled"].includes(task?.status ?? "")
@@ -554,7 +577,7 @@ export function MaintenanceView({
     }
   }
 
-  const handlePutOnHold = async (reason: string) => {
+  const handleRequestOnHold = async (reason: string) => {
     setIsStatusChanging(true)
     try {
       const res = await fetch(
@@ -562,7 +585,7 @@ export function MaintenanceView({
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "on_hold", on_hold_reason: reason }),
+          body: JSON.stringify({ on_hold_reason: reason }),
         },
       )
       const payload = await res.json()
@@ -576,20 +599,61 @@ export function MaintenanceView({
         previous
           ? {
               ...previous,
-              status: "on_hold",
               on_hold_reason: reason,
-              on_hold_at:
-                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
               updated_at:
                 typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
             }
           : previous,
       )
-      toast({ title: "Work order put on hold" })
+      toast({ title: "On-hold request submitted", variant: "success" })
       setIsHoldDialogOpen(false)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to put on hold."
+      const message = err instanceof Error ? err.message : "Failed to request on-hold."
       toast({ title: "Unable to hold", description: message, variant: "destructive" })
+    } finally {
+      setIsStatusChanging(false)
+    }
+  }
+
+  const handleApproveOnHold = async () => {
+    if (!task || task.status === "on_hold" || isStatusChanging) return
+    setIsStatusChanging(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "on_hold" }),
+        },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to approve on-hold request",
+        )
+      }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "on_hold",
+              on_hold_at:
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              on_hold_reason:
+                typeof updated?.on_hold_reason === "string"
+                  ? updated.on_hold_reason
+                  : previous.on_hold_reason,
+              updated_at:
+                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+            }
+          : previous,
+      )
+      toast({ title: "On-hold request approved", variant: "success" })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to approve on-hold request."
+      toast({ title: "Unable to approve request", description: message, variant: "destructive" })
     } finally {
       setIsStatusChanging(false)
     }
@@ -933,7 +997,7 @@ export function MaintenanceView({
       </section>
 
         {/* ── Action buttons ── */}
-        {canEditTask || showHold || showResume || showCancel || showReassign || showAssignVendor || showCloseout ? (
+        {canEditTask || showHold || showApproveHold || showResume || showCancel || showReassign || showAssignVendor || showCloseout ? (
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
             {showStart ? (
               <Button
@@ -970,7 +1034,23 @@ export function MaintenanceView({
                 onClick={() => setIsHoldDialogOpen(true)}
               >
                 <Pause className="h-4 w-4" />
-                Put On Hold
+                Request On Hold
+              </Button>
+            ) : null}
+            {showApproveHold ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="col-span-1 gap-2 sm:w-auto"
+                disabled={isStatusChanging}
+                onClick={() => void handleApproveOnHold()}
+              >
+                {isStatusChanging ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Approve On Hold
               </Button>
             ) : null}
             {showResume ? (
@@ -1337,9 +1417,9 @@ export function MaintenanceView({
       <StatusChangeReasonDialog
         open={isHoldDialogOpen}
         onOpenChange={setIsHoldDialogOpen}
-        title="Put on Hold"
-        description="Please provide a reason for putting this work order on hold."
-        onSubmit={handlePutOnHold}
+        title="Request On Hold"
+        description="Please provide a reason for requesting this work order to be put on hold."
+        onSubmit={handleRequestOnHold}
         isSubmitting={isStatusChanging}
       />
       <StatusChangeReasonDialog

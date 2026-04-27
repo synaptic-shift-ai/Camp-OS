@@ -1147,6 +1147,22 @@ export class MaintenanceQueries {
         return data as Record<string, unknown>
     }
 
+    async getBudgetById(budgetId: string, propertyId: string): Promise<Record<string, unknown> | null> {
+        const { data, error } = await this.supabase
+            .from('maintenance_budgets')
+            .select('*')
+            .eq('id', budgetId)
+            .eq('property_id', propertyId)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to get budget by ID', { error, budgetId, propertyId })
+            throw new Error(`Failed to get budget: ${error.message}`)
+        }
+
+        return (data ?? null) as Record<string, unknown> | null
+    }
+
     async deleteBudget(budgetId: string, propertyId: string): Promise<void> {
         const { error } = await this.supabase
             .from('maintenance_budgets')
@@ -1274,7 +1290,7 @@ export class MaintenanceQueries {
 
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
-            .select('estimated_labor_cost, estimated_parts_cost, created_at')
+            .select('estimated_labor_cost, estimated_parts_cost, actual_labor_cost, actual_parts_cost, created_at')
             .eq('property_id', propertyId)
             .eq('category', category)
             .gte('created_at', fromDate.toISOString())
@@ -1287,7 +1303,7 @@ export class MaintenanceQueries {
         if (!data || data.length === 0) return 0
 
         return data.reduce((sum, row) => {
-            return sum + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+            return sum + (row.actual_labor_cost ?? row.estimated_labor_cost ?? 0) + (row.actual_parts_cost ?? row.estimated_parts_cost ?? 0)
         }, 0)
     }
 }

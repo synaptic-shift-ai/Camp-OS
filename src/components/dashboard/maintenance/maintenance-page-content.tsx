@@ -252,7 +252,8 @@ export function MaintenancePageContent({
   const [deletingSchedule, setDeletingSchedule] = useState<any | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeletingSchedule, setIsDeletingSchedule] = useState(false)
-  const [isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false)
+
+  const [_isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false)
 
   const loadVendorOptions = useCallback(async () => {
     try {

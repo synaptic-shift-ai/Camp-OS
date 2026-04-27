@@ -31,9 +31,8 @@ export async function GET(
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
 
-    // Get the budget to know category and period
-    const budgets = await queries.listBudgets(propertyId)
-    const budget = budgets.find((b) => b.id === budgetId)
+    // Fetch the specific budget by ID
+    const budget = await queries.getBudgetById(budgetId, propertyId)
     if (!budget) {
       return error(ErrorCodes.RESOURCE_NOT_FOUND, request, { message: 'Budget not found' })
     }

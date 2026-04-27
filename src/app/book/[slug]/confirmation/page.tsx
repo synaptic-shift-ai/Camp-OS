@@ -259,6 +259,7 @@ export default function ConfirmationPage() {
       toast({
         title: "PDF downloaded",
         description: `Saved as ${filename}`,
+        variant: "success",
       })
     } catch (err) {
       console.error("[Confirmation] PDF download failed:", err)

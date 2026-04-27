@@ -244,7 +244,10 @@ export function EditStaffDialog({
       if (!res.ok || json.success !== true) {
         throw new Error(json.error?.message ?? 'Failed to update staff')
       }
-      toast({ title: 'Changes saved' })
+      toast({
+        title: 'Changes saved',
+        variant: "success",
+      })
       onOpenChange(false)
       onSaved?.()
       router.refresh()

@@ -188,6 +188,7 @@ export function CheckOutDialog({
         title: 'Check-out Successful',
         description: `${reservation.guest?.first_name} ${reservation.guest?.last_name} has been checked out from Site ${reservation.site?.site_number}`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       onOpenChange(false)
@@ -296,6 +297,7 @@ export function CheckOutDialog({
         title: 'Housekeeping task created',
         description: 'A follow-up housekeeping task was created successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       router.refresh()
     } finally {
@@ -475,6 +477,7 @@ export function CheckOutDialog({
         title: 'Maintenance work order created',
         description: 'A follow-up maintenance task was created successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       router.refresh()
     } finally {

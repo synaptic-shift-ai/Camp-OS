@@ -187,6 +187,7 @@ export function BookingRulesSettings({
         title: 'Booking rules saved',
         description: 'Booking rules saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       router.refresh()

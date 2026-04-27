@@ -435,7 +435,10 @@ export function MaintenanceView({
           : previous,
       )
       setNow(Date.now())
-      toast({ title: "Work order started" })
+      toast({
+        title: "Work order started",
+        variant: "success",
+      })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to start work order."
       toast({ title: "Unable to start", description: message, variant: "destructive" })
@@ -462,7 +465,10 @@ export function MaintenanceView({
           payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to complete work order."
         throw new Error(message)
       }
-      toast({ title: "Work order completed" })
+      toast({
+        title: "Work order completed",
+        variant: "success",
+      })
       mutate()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to complete work order."
@@ -556,7 +562,10 @@ export function MaintenanceView({
         const data = await res.json()
         throw new Error(data.error?.details?.message ?? data.error?.message ?? "Failed to cancel")
       }
-      toast({ title: "Work order cancelled" })
+      toast({
+        title: "Work order cancelled",
+        variant: "success",
+      })
       setIsCancelDialogOpen(false)
       mutate()
     } catch (err: unknown) {
@@ -625,7 +634,10 @@ export function MaintenanceView({
           payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to reassign."
         throw new Error(message)
       }
-      toast({ title: "Work order reassigned" })
+      toast({
+        title: "Work order reassigned",
+        variant: "success",
+      })
       mutate()
     } finally {
       setIsReassigning(false)

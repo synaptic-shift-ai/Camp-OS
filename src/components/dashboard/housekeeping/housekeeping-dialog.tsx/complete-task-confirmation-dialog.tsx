@@ -58,6 +58,7 @@ export function CompleteTaskConfirmationDialog({
       toast({
         title: "Task completed",
         description: "The housekeeping task is now marked as done.",
+        variant: "success",
       })
     } catch (completeError) {
       const message =

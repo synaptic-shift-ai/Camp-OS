@@ -99,6 +99,7 @@ export function AddGuestDialog({
         title: 'Guest added',
         description: `${trimmed.firstName} ${trimmed.lastName} has been added to your guest list.`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       onOpenChange(false)
       router.refresh()

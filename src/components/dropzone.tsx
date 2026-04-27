@@ -213,7 +213,10 @@ const DropzoneCoverContent = ({
     onDeleted?.()
     setTimeout(() => {
       refreshProperties()
-      toast({ title: 'Cover photo removed' })
+      toast({
+        title: 'Cover photo removed',
+        variant: "success",
+      })
     }, 50)
   }
 
@@ -248,7 +251,10 @@ const DropzoneCoverContent = ({
       const result = await res.json()
       if (res.ok && result.success) {
         onUploaded?.(heroUrl, file.name)
-        toast({ title: 'Cover photo updated', description: `${file.name} is now the cover photo.` })
+        toast({
+          title: 'Cover photo updated', description: `${file.name} is now the cover photo.`,
+          variant: "success",
+        })
         setTimeout(() => refreshProperties(), 500)
         // Clear after animation so same filename can be uploaded again
         setTimeout(() => {
@@ -588,7 +594,10 @@ const DropzoneUploadedContent = ({
       })
       return updated
     })
-    toast({ title: 'Image deleted', description: `${img.name} has been removed.` })
+    toast({
+      title: 'Image deleted', description: `${img.name} has been removed.`,
+      variant: "success",
+    })
   }, [resolvedPath, bucketName, supabase, toast, propertyId])
 
   if (persistedImages.length === 0) return null

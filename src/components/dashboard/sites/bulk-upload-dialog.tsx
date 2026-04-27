@@ -163,6 +163,7 @@ export function BulkUploadDialog({
         title: 'Import Successful',
         description: `Successfully imported ${count} site${count !== 1 ? 's' : ''}`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
     } catch (error) {
       console.error('Import error:', error)

@@ -731,6 +731,7 @@ export function useSitesPanelState(args: {
       toast({
         title: isNewSite ? "Site created" : "Site updated",
         description: `Site ${savedSite.site_number} has been saved.`,
+        variant: "success",
       })
       setNoSiteError(null)
       onSiteConfirmed?.(property.id)
@@ -771,7 +772,10 @@ export function useSitesPanelState(args: {
         if (!res.ok || !result.success)
           throw new Error(result.error?.message || "Failed to delete site")
         const wasSelected = selectedSiteId === siteId
-        toast({ title: "Site deleted", description: "The site has been removed." })
+        toast({
+          title: "Site deleted", description: "The site has been removed.",
+          variant: "success",
+        })
         await fetchSites()
         if (wasSelected) {
           const next = sitesRef.current

@@ -214,6 +214,7 @@ export function CancelReservationDialog({
         title: "Reservation cancelled",
         description: "The reservation has been cancelled successfully.",
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       handleOpenChange(false)
       router.refresh()

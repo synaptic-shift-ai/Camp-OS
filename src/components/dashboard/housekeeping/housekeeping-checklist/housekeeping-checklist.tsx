@@ -202,6 +202,7 @@ export function HousekeepingChecklistPanel({
       toast({
         title: "Checklist updated",
         description: "Your changes have been saved.",
+        variant: "success",
       })
       setEditingChecklist(null)
       await load()

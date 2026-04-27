@@ -155,6 +155,7 @@ export function TemplateDetailDialog({
       toast({
         title: 'Automation Created',
         description: `"${template.name}" has been created from template. Review and activate it when ready.`,
+        variant: "success",
       })
 
       onOpenChange(false)

@@ -113,6 +113,7 @@ export function CancellationPolicySettings({
               title: 'Terms & policy saved',
               description: 'Terms & Policy saved.',
               className: SEASON_ALERT_TOAST_CLASS,
+              variant: "success",
             })
             router.refresh()
         } catch (err) {

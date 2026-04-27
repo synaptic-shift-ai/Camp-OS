@@ -76,6 +76,7 @@ export function PaymentsPageHeader({ propertyId, total, canExportPayments }: Pay
         toast({
           title: "Export ready",
           description: "Payments CSV has been downloaded.",
+          variant: "success",
         })
       } catch (err) {
         toast({

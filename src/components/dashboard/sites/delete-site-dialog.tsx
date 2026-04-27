@@ -61,6 +61,7 @@ export function DeleteSiteDialog({ open, onOpenChange, site }: DeleteSiteDialogP
         title: 'Site Deleted',
         description: `Site ${site.site_number} has been deleted successfully`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       onOpenChange(false)

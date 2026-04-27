@@ -57,7 +57,10 @@ export function DeactivateStaffDialog({
       if (!res.ok || json.success !== true) {
         throw new Error(json.error?.message ?? 'Failed to deactivate staff member')
       }
-      toast({ title: 'Staff member deactivated' })
+      toast({
+        title: 'Staff member deactivated',
+        variant: "success",
+      })
       onOpenChange(false)
       onDeactivated?.()
       router.refresh()

@@ -272,6 +272,7 @@ export function SitesGrid({
         title: 'Status Updated',
         description: `Site ${site.site_number} is now ${newStatus}`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       setStatusPopoverOpen(null)

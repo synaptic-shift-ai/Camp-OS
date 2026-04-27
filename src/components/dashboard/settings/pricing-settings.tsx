@@ -131,6 +131,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
         title: 'Pricing settings saved',
         description: 'Pricing settings saved successfully!',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       // Refresh the page data to show updated values

@@ -105,6 +105,7 @@ export function VendorsTable({
       toast({
         title: "Vendor added",
         description: "Vendor has been saved and is now available for work orders.",
+        variant: "success",
       })
     } finally {
       setIsSubmittingVendor(false)
@@ -143,6 +144,7 @@ export function VendorsTable({
       toast({
         title: "Vendor updated",
         description: "Vendor details were updated successfully.",
+        variant: "success",
       })
     } finally {
       setIsSubmittingVendor(false)
@@ -175,6 +177,7 @@ export function VendorsTable({
       toast({
         title: "Vendor deleted",
         description: "Vendor has been removed.",
+        variant: "success",
       })
     } finally {
       setIsSubmittingVendor(false)

@@ -224,6 +224,7 @@ export function PropertySettings({
         title: 'Stripe disconnected',
         description: 'Stripe account has been disconnected successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
     } catch (error) {
       console.error('Error disconnecting Stripe:', error)
@@ -297,6 +298,7 @@ export function PropertySettings({
         title: 'Property details saved',
         description: 'Your property settings were updated successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
     } catch (err) {
       toast({

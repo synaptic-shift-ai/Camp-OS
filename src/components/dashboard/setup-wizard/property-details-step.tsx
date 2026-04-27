@@ -144,6 +144,7 @@ const PropertyDetailsStepComponent = (
       toast({
         title: "Saved",
         description: `${property.name} details saved.`,
+        variant: "success",
       })
     } catch (err) {
       console.error("[PropertyDetailsStep] Error saving property details:", err)

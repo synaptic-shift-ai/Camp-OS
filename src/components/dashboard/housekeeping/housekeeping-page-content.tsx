@@ -369,6 +369,7 @@ export function HousekeepingPageContent({
     toast({
       title: "Export ready",
       description: "Housekeeping CSV has been downloaded (current page only).",
+      variant: "success",
     })
   }
 
@@ -414,6 +415,7 @@ export function HousekeepingPageContent({
       toast({
         title: "Checklist saved",
         description: "The template has been added to this property.",
+        variant: "success",
       })
     } finally {
       setIsSavingChecklist(false)
@@ -462,6 +464,7 @@ export function HousekeepingPageContent({
       toast({
         title: "Task added",
         description: "A new housekeeping task has been added to the table.",
+        variant: "success",
       })
     } finally {
       setIsCreatingTask(false)
@@ -563,6 +566,7 @@ export function HousekeepingPageContent({
       toast({
         title: "Task reassigned",
         description: "Housekeeping task assignee updated successfully.",
+        variant: "success",
       })
     } finally {
       setIsReassigningTask(false)
@@ -613,6 +617,7 @@ export function HousekeepingPageContent({
       toast({
         title: "Task updated",
         description: "Housekeeping task details were updated successfully.",
+        variant: "success",
       })
     } finally {
       setIsUpdatingTask(false)

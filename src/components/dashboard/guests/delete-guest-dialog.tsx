@@ -55,6 +55,7 @@ export function DeleteGuestDialog({ open, onOpenChange, guest }: DeleteGuestDial
         title: 'Guest deleted',
         description: `${guest.name} has been removed from your guest list.`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       onOpenChange(false)
       router.refresh()

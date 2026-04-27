@@ -99,6 +99,7 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
         title: 'Guest updated',
         description: `${trimmed.firstName} ${trimmed.lastName} has been updated.`,
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       onOpenChange(false)
       router.refresh()

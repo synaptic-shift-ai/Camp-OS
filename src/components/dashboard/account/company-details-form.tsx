@@ -229,6 +229,7 @@ export function CompanyDetailsForm({ companyId }: CompanyDetailsFormProps) {
       toast({
         title: "Company details updated",
         description: "Your company details have been saved.",
+        variant: "success",
       })
       window.dispatchEvent(
         new CustomEvent(COMPANY_DETAILS_UPDATED_EVENT, {

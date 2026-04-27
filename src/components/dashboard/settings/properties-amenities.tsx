@@ -232,6 +232,7 @@ export function PropertiesAmenities({ propertyId, canEdit = true }: PropertiesAm
                 title: "Amenities saved",
                 description: "Your amenity changes were saved successfully.",
                 className: SEASON_ALERT_TOAST_CLASS,
+                variant: "success",
             })
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to save amenities"

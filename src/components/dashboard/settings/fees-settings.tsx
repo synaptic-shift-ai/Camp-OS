@@ -292,6 +292,7 @@ export function FeesSettings({
         title: 'Additional charges saved',
         description: 'Additional charges saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       router.refresh()
     } catch (error) {

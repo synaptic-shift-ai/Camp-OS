@@ -96,6 +96,7 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
         title: 'Rate discounts saved',
         description: 'Rate discount settings saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       // Refresh the page data to show updated values

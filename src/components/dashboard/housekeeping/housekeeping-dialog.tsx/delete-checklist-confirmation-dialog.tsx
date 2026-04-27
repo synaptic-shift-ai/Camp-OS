@@ -64,6 +64,7 @@ export function DeleteChecklistConfirmationDialog({
       toast({
         title: "Checklist deleted",
         description: `"${checklist.name}" has been removed.`,
+        variant: "success",
       })
     } catch (deleteError) {
       const message =

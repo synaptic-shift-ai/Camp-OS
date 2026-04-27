@@ -281,6 +281,7 @@ export function DiscountsSettings({
         title: 'Discounts saved',
         description: 'Discounts saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       router.refresh()
     } catch (error) {

@@ -577,6 +577,7 @@ export function ExtendDialog({
         title: 'Reservation extended',
         description: 'Reservation dates were updated successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       setOpen(false)
       router.refresh()

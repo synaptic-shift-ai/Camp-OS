@@ -103,7 +103,10 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         body: JSON.stringify({ isActive: !row.is_active }),
       })
       if (!res.ok) throw new Error()
-      toast({ title: row.is_active ? "Automation deactivated" : "Automation activated" })
+      toast({
+        title: row.is_active ? "Automation deactivated" : "Automation activated",
+        variant: "success",
+      })
       refresh()
     } catch {
       toast({ title: "Failed to update", variant: "destructive" })
@@ -119,7 +122,10 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
       })
       if (!res.ok) throw new Error()
       setDeleteTarget(null)
-      toast({ title: "Automation deleted" })
+      toast({
+        title: "Automation deleted",
+        variant: "success",
+      })
       refresh()
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" })
@@ -178,7 +184,10 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
       })
 
       if (!res2.ok) throw new Error()
-      toast({ title: "Automation duplicated" })
+      toast({
+        title: "Automation duplicated",
+        variant: "success",
+      })
       refresh()
     } catch {
       toast({ title: "Failed to duplicate", variant: "destructive" })

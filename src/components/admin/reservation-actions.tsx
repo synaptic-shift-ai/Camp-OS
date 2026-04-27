@@ -123,6 +123,7 @@ export function ReservationActions({
         title: "Marked as no-show",
         description: "Reservation status updated.",
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       router.refresh()
     } catch (err) {

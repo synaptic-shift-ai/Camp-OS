@@ -206,6 +206,7 @@ export function ReservationTypeSettings({
         title: 'Reservation types saved',
         description: 'Reservation type settings saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       setIsDirty(false)
       router.refresh()

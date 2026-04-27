@@ -64,6 +64,7 @@ export function ChangePasswordForm() {
       toast({
         title: "Password updated",
         description: "Your account password has been changed.",
+        variant: "success",
       })
     } catch (error) {
       toast({

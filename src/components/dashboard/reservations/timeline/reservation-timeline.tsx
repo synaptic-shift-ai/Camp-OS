@@ -706,6 +706,7 @@ export function ReservationsTimeline({
         toast({
             title: "Reservation moved",
             description: `Moved to ${targetGroup.siteName}${targetGroup.siteNumber ? ` (#${targetGroup.siteNumber})` : ""}.`,
+            variant: "success",
         })
         router.refresh()
     }
@@ -1244,6 +1245,7 @@ export function ReservationsTimeline({
                                     title: "Reservation moved",
                                     description: `Moved to ${pendingMove.toGroup.siteName}${pendingMove.toGroup.siteNumber ? ` (#${pendingMove.toGroup.siteNumber})` : ""
                                         }.`,
+                                    variant: "success",
                                 })
                                 router.refresh()
                             }}

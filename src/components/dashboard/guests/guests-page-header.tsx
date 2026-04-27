@@ -105,6 +105,7 @@ export function GuestsPageHeader({
           title: 'Export ready',
           description: 'Guests CSV has been downloaded.',
           className: SEASON_ALERT_TOAST_CLASS,
+          variant: "success",
         })
       } catch (err) {
         toast({

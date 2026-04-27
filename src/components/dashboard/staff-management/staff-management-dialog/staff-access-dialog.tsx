@@ -571,7 +571,10 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
         throw new Error(json?.error?.message ?? 'Failed to save access settings')
       }
 
-      toast({ title: 'Access saved' })
+      toast({
+        title: 'Access saved',
+        variant: "success",
+      })
       onOpenChange(false)
     } catch (err: unknown) {
       if (isAccessDeniedError(err)) {

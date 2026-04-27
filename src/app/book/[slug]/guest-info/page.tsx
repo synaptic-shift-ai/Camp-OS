@@ -453,6 +453,7 @@ export default function GuestInfoPage() {
       toast({
         title: "Reservation created!",
         description: "Proceeding to payment...",
+        variant: "success",
       })
 
       try {

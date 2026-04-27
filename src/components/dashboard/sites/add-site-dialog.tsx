@@ -88,6 +88,7 @@ export function AddSiteDialog({
       title: 'Site Created',
       description: `Site ${site.site_number} has been created successfully.`,
       className: SEASON_ALERT_TOAST_CLASS,
+      variant: "success",
     })
     onOpenChange(false)
     router.refresh() // Refresh to show new site

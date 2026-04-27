@@ -350,6 +350,7 @@ export function SiteTypeRateSettings({
         title: 'Site type rates saved',
         description: 'Site type rates saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
       setIsDirty(false)
       router.refresh()

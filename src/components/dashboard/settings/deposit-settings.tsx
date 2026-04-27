@@ -139,6 +139,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
         title: 'Deposit settings saved',
         description: 'Deposit settings saved successfully.',
         className: SEASON_ALERT_TOAST_CLASS,
+        variant: "success",
       })
 
       // Refresh the page data to show updated values

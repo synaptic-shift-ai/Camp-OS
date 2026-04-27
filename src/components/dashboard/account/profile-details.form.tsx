@@ -132,6 +132,7 @@ export function ProfileDetailsForm() {
       toast({
         title: "Profile updated",
         description: "Your name has been saved.",
+        variant: "success",
       })
     } catch (err) {
       toast({

@@ -438,6 +438,7 @@ export function MaintenancePageContent({
     toast({
       title: "Export ready",
       description: "Maintenance CSV has been downloaded.",
+      variant: "success",
     })
   }
 
@@ -472,6 +473,7 @@ export function MaintenancePageContent({
       toast({
         title: "Schedule added",
         description: "The preventive schedule has been saved.",
+        variant: "success",
       })
     } finally {
       setIsCreatingPreventiveSchedule(false)
@@ -495,7 +497,10 @@ export function MaintenancePageContent({
         },
       )
       if (!res.ok) throw new Error("Failed to update schedule")
-      toast({ title: "Schedule updated" })
+      toast({
+        title: "Schedule updated",
+        variant: "success",
+      })
       setIsEditScheduleDialogOpen(false)
       setSchedulesRefreshKey((prev) => prev + 1)
     } catch {
@@ -518,7 +523,10 @@ export function MaintenancePageContent({
         { method: "DELETE" },
       )
       if (!res.ok) throw new Error("Failed to delete schedule")
-      toast({ title: "Schedule deleted" })
+      toast({
+        title: "Schedule deleted",
+        variant: "success",
+      })
       setIsDeleteDialogOpen(false)
       setSchedulesRefreshKey((prev) => prev + 1)
     } catch {
@@ -546,7 +554,10 @@ export function MaintenancePageContent({
           variant: "destructive",
         })
       } else {
-        toast({ title: "Work order created" })
+        toast({
+          title: "Work order created",
+          variant: "success",
+        })
         setSchedulesRefreshKey((prev) => prev + 1)
       }
     } catch {
@@ -639,6 +650,7 @@ export function MaintenancePageContent({
       toast({
         title: "Task added",
         description: "A new maintenance task has been added to the table.",
+        variant: "success",
       })
     } finally {
       setIsCreatingTask(false)
@@ -703,6 +715,7 @@ export function MaintenancePageContent({
       toast({
         title: "Task updated",
         description: "Maintenance task details were updated successfully.",
+        variant: "success",
       })
     } finally {
       setIsUpdatingTask(false)

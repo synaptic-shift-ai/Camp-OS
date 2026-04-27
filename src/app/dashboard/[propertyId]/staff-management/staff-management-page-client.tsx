@@ -92,7 +92,10 @@ export default function StaffManagementStaffPageClient({
         if (!res.ok || json.success !== true) {
           throw new Error(json.error?.message ?? 'Failed to reactivate staff member')
         }
-        toast({ title: 'Staff member reactivated', description: `${target.name} can access this property again.` })
+        toast({
+          title: 'Staff member reactivated', description: `${target.name} can access this property again.`,
+          variant: "success",
+        })
         router.refresh()
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error'
@@ -137,7 +140,10 @@ export default function StaffManagementStaffPageClient({
         throw new Error(json?.error?.message ?? 'Failed to save categories')
       }
 
-      toast({ title: 'Categories saved' })
+      toast({
+        title: 'Categories saved',
+        variant: "success",
+      })
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'

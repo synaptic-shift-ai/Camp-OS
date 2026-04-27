@@ -349,6 +349,7 @@ export function HousekeepingView({
       toast({
         title: "Task reassigned",
         description: "The assignee has been updated.",
+        variant: "success",
       })
       await loadTask()
     } finally {
@@ -408,6 +409,7 @@ export function HousekeepingView({
       toast({
         title: "Task completed",
         description: "The housekeeping task is now marked as done.",
+        variant: "success",
       })
     } catch (completeError) {
       const message =
@@ -451,6 +453,7 @@ export function HousekeepingView({
       toast({
         title: "Task started",
         description: "The housekeeping task is now in progress.",
+        variant: "success",
       })
     } catch (startError) {
       const message = startError instanceof Error ? startError.message : "Failed to start housekeeping task."

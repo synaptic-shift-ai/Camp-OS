@@ -164,6 +164,7 @@ const SitesSetupStepComponent = (
       toast({
         title: "Site deleted",
         description: "The site has been removed successfully.",
+        variant: "success",
       })
 
       await fetchSites()
@@ -183,6 +184,7 @@ const SitesSetupStepComponent = (
     toast({
       title: mode === "edit" ? "Site updated" : "Site created",
       description: `Site ${savedSite.siteNumber} has been saved successfully.`,
+      variant: "success",
     })
 
     await fetchSites()

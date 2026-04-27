@@ -170,7 +170,10 @@ export default function InviteStaffDialog({
           throw new Error(errText)
         }
 
-        toast({ title: 'Invite sent' })
+        toast({
+          title: 'Invite sent',
+          variant: "success",
+        })
         onOpenChange(false)
         onInviteSent?.()
         router.refresh()

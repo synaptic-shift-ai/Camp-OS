@@ -10,7 +10,7 @@ type ToasterToast = {
   title?: string
   description?: string
   action?: ToastActionElement
-  variant?: "default" | "destructive"
+  variant?: "default" | "destructive" | "success"
   className?: string
 }
 

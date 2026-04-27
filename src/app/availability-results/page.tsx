@@ -311,6 +311,7 @@ function AvailabilityResultsContent() {
     toast({
       title: "Site selected!",
       description: `${site.name} has been added to your booking.`,
+      variant: "success",
     })
 
     const guestInfoPath = shouldRestoreGuestDraft

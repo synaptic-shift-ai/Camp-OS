@@ -95,6 +95,7 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
       title: 'Site Updated',
       description: `Site ${updatedSite.site_number} has been updated successfully`,
       className: SEASON_ALERT_TOAST_CLASS,
+      variant: "success",
     })
     onOpenChange(false)
     router.refresh()

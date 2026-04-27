@@ -60,6 +60,7 @@ export function DeleteTaskConfirmationDialog({
       toast({
         title: "Task deleted",
         description: "The maintenance task was removed.",
+        variant: "success",
       })
     } catch (deleteError) {
       const message =

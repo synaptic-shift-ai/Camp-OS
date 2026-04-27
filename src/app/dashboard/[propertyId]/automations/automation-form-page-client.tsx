@@ -282,7 +282,10 @@ export function AutomationFormPageClient({
         throw new Error(data.error?.message ?? data.message ?? "Failed to save")
       }
 
-      toast({ title: isEdit ? "Automation updated" : "Automation created" })
+      toast({
+        title: isEdit ? "Automation updated" : "Automation created",
+        variant: "success",
+      })
       handleBack()
     } catch (err: any) {
       toast({ title: "Failed to save", description: err.message ?? "Unknown error", variant: "destructive" })

@@ -146,6 +146,10 @@ type MaintenanceScheduleRow = {
     created_by: string
     created_at: string
     updated_at: string
+    // Enriched fields from listSchedules
+    last_completed_at: string | null
+    next_due_date: string | null
+    total_generated: number
 }
 
 // NOTE: After running `npm run gen:db`, replace the manual MaintenanceScheduleRow above
@@ -699,7 +703,9 @@ export class MaintenanceQueries {
     ): Promise<MaintenanceScheduleRow[]> {
         let query = this.supabase
             .from('maintenance_schedule')
-            .select('*')
+            .select(`*,
+                maintenance_tasks!schedule_id(count)
+            `)
             .eq('property_id', propertyId)
             .order('created_at', { ascending: false })
 
@@ -720,7 +726,67 @@ export class MaintenanceQueries {
             throw new Error(`Failed to list schedules: ${error.message}`)
         }
 
-        return (data ?? []) as unknown as MaintenanceScheduleRow[]
+        const rawRows = (data ?? []) as any[]
+
+        // Fetch last_completed_at for each schedule via a single batch query
+        const scheduleIds = rawRows.map((r) => r.id)
+        const lastCompletedMap: Record<string, string | null> = {}
+        if (scheduleIds.length > 0) {
+            const { data: completedRows } = await this.supabase
+                .from('maintenance_tasks')
+                .select('schedule_id, completed_at')
+                .eq('property_id', propertyId)
+                .eq('status', 'completed')
+                .not('schedule_id', 'is', null)
+                .in('schedule_id', scheduleIds)
+                .order('completed_at', { ascending: false })
+
+            if (completedRows) {
+                const seen = new Set<string>()
+                for (const row of completedRows) {
+                    const sid = row.schedule_id as string
+                    if (!seen.has(sid)) {
+                        seen.add(sid)
+                        lastCompletedMap[sid] = row.completed_at as string
+                    }
+                }
+            }
+        }
+
+        return rawRows.map((row) => {
+            const lastCompletedAt = lastCompletedMap[row.id] ?? null
+            const lastCompletedDate = lastCompletedAt ? new Date(lastCompletedAt) : null
+
+            // Calculate next_due_date from last_completed_at + frequency interval
+            let nextDueDate: string | null = null
+            if (lastCompletedDate) {
+                let next: Date
+                switch (row.frequency) {
+                    case 'weekly':
+                        next = addDays(lastCompletedDate, 7)
+                        break
+                    case 'monthly':
+                        next = addMonths(lastCompletedDate, 1)
+                        break
+                    case 'annual':
+                        next = addYears(lastCompletedDate, 1)
+                        break
+                    default:
+                        next = addMonths(lastCompletedDate, 1)
+                }
+                nextDueDate = format(next, 'yyyy-MM-dd')
+            } else if (row.schedule_date) {
+                // No completed WO yet — use the schedule's own schedule_date as next due
+                nextDueDate = row.schedule_date
+            }
+
+            return {
+                ...row,
+                last_completed_at: lastCompletedAt,
+                next_due_date: nextDueDate,
+                total_generated: (row.maintenance_tasks as any[] | null)?.[0]?.count ?? 0,
+            } as MaintenanceScheduleRow
+        })
     }
 
     async updateSchedule(

@@ -10,6 +10,8 @@ import { MaintenanceQueries } from '@/lib/dashboard/maintenance/maintenance-quer
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
 import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maintenance'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { MaintenanceTaskCompletedEvent } from '@/modules/Maintenance/domain/events'
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ['in_progress', 'cancelled'],
@@ -292,6 +294,22 @@ export async function PATCH(
         } catch {
           // Silently fail — don't block completion
         }
+      }
+
+      // Publish domain event (fire-and-forget)
+      try {
+        const eventBus = getEventBus()
+        const task = maintenanceTask as any
+        await eventBus.publish(new MaintenanceTaskCompletedEvent(
+          propertyId,
+          maintenanceId,
+          task.wo_number ?? '',
+          task.category ?? '',
+          Number(task.actual_labor_cost ?? 0),
+          Number(task.actual_parts_cost ?? 0),
+        ))
+      } catch {
+        // Non-blocking: event publishing failures should not prevent completion
       }
     }
 

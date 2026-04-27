@@ -16,6 +16,8 @@ import {
     MaintenanceQueries,
     type ListMaintenanceTasksFilters,
 } from '@/lib/dashboard/maintenance/maintenance-queries'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
 
 export async function GET(
     request: NextRequest,
@@ -236,6 +238,21 @@ export async function POST(
             }
         } catch {
             // Non-blocking: spend limit check failures should not prevent WO creation
+        }
+
+        // Publish domain event (fire-and-forget)
+        try {
+            const eventBus = getEventBus()
+            const task = maintenanceTask as any
+            await eventBus.publish(new MaintenanceTaskCreatedEvent(
+                propertyId,
+                task.id,
+                task.wo_number ?? '',
+                task.category ?? '',
+                task.priority ?? '',
+            ))
+        } catch {
+            // Non-blocking: event publishing failures should not prevent WO creation
         }
 
         if (access.companyId) {

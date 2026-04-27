@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarCheck2, MoreHorizontal } from "lucide-react"
-import { format } from "date-fns"
+import { CalendarCheck2, Loader2, MoreHorizontal, Zap } from "lucide-react"
+import { format, isBefore, startOfDay } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { toast } from "sonner"
+
 type ScheduleRow = {
   id: string
   name: string
@@ -29,6 +31,10 @@ type ScheduleRow = {
   days: string | null
   schedule_date: string | null
   created_at: string
+  // Enriched fields from enhanced listSchedules query
+  last_completed_at: string | null
+  next_due_date: string | null
+  total_generated: number
 }
 
 type SchedulesListProps = {
@@ -69,6 +75,36 @@ function formatScheduleWhen(schedule: ScheduleRow): string {
   }
   const day = schedule.days?.trim()
   return day && day.length > 0 ? day : "Not set"
+}
+
+/** Format next due date with overdue styling */
+function NextDueCell({ nextDueDate }: { nextDueDate: string | null }) {
+  if (!nextDueDate) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
+  const dueDate = startOfDay(new Date(nextDueDate))
+  const today = startOfDay(new Date())
+  const isOverdue = isBefore(dueDate, today)
+  const isDueToday = dueDate.getTime() === today.getTime()
+
+  if (isOverdue) {
+    return (
+      <span className="font-medium text-red-600 dark:text-red-400">
+        Overdue!
+      </span>
+    )
+  }
+
+  if (isDueToday) {
+    return (
+      <span className="font-medium text-amber-600 dark:text-amber-400">
+        Due today
+      </span>
+    )
+  }
+
+  return <span>{format(new Date(nextDueDate), "MMM d, yyyy")}</span>
 }
 
 function FrequencyBadge({ frequency }: { frequency: string }) {
@@ -153,9 +189,35 @@ function MobileCard({
         <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-2">
-        <FrequencyBadge frequency={schedule.frequency} />
-        <p className="text-xs text-muted-foreground">{formatScheduleWhen(schedule)}</p>
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-border/70 pt-2 text-xs">
+        <div>
+          <span className="text-muted-foreground">Frequency</span>
+          <div className="mt-0.5">
+            <FrequencyBadge frequency={schedule.frequency} />
+          </div>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Schedule</span>
+          <p className="mt-0.5 text-foreground">{formatScheduleWhen(schedule)}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Last Completed</span>
+          <p className="mt-0.5 text-foreground">
+            {schedule.last_completed_at
+              ? format(new Date(schedule.last_completed_at), "MMM d, yyyy")
+              : "—"}
+          </p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Next Due</span>
+          <p className="mt-0.5 text-foreground">
+            <NextDueCell nextDueDate={schedule.next_due_date} />
+          </p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Generated</span>
+          <p className="mt-0.5 text-foreground">{schedule.total_generated}</p>
+        </div>
       </div>
     </div>
   )
@@ -173,6 +235,7 @@ export function SchedulesList({
   const [schedules, setSchedules] = useState<ScheduleRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -216,6 +279,77 @@ export function SchedulesList({
     }
   }, [propertyId, refreshKey])
 
+  /** Determine if a schedule is overdue (next_due_date is in the past) */
+  const isOverdue = (schedule: ScheduleRow): boolean => {
+    if (!schedule.next_due_date) return false
+    const dueDate = startOfDay(new Date(schedule.next_due_date))
+    return isBefore(dueDate, startOfDay(new Date()))
+  }
+
+  /** Generate work orders for all overdue schedules */
+  const handleGenerateAllDue = async () => {
+    const overdueSchedules = schedules.filter(isOverdue)
+    if (overdueSchedules.length === 0) {
+      toast.info("No overdue schedules to generate")
+      return
+    }
+
+    setIsGeneratingAll(true)
+    let successCount = 0
+    let failCount = 0
+
+    for (const schedule of overdueSchedules) {
+      try {
+        const response = await fetch(
+          `/api/v1/properties/${propertyId}/maintenance/schedules/generate`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scheduleId: schedule.id }),
+          },
+        )
+        const payload = await response.json()
+
+        if (response.ok && payload?.success) {
+          successCount++
+        } else {
+          failCount++
+          console.warn("[SchedulesList] Generate failed for schedule", {
+            id: schedule.id,
+            error: payload?.error?.message,
+          })
+        }
+      } catch {
+        failCount++
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Generated ${successCount} work order${successCount > 1 ? "s" : ""}`)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to generate ${failCount} work order${failCount > 1 ? "s" : ""}`)
+    }
+
+    setIsGeneratingAll(false)
+
+    // Trigger a refresh if any were generated
+    if (successCount > 0 && onGenerateNow) {
+      // Reload the list
+      const response = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/schedules`,
+      )
+      const payload = await response.json()
+      if (payload?.success) {
+        const list = payload.data?.schedules as ScheduleRow[] | undefined
+        if (Array.isArray(list)) {
+          setSchedules(list)
+        }
+      }
+    }
+  }
+
+  const overdueCount = schedules.filter(isOverdue).length
   const siteLabelById = new Map(siteOptions.map((o) => [o.id, o.label]))
   const assigneeLabelById = new Map(assigneeOptions.map((o) => [o.id, o.label]))
 
@@ -231,6 +365,31 @@ export function SchedulesList({
 
   return (
     <section className="space-y-4">
+      {/* Generate All Due button */}
+      {schedules.length > 0 && overdueCount > 0 && (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleGenerateAllDue()}
+            disabled={isGeneratingAll}
+          >
+            {isGeneratingAll ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Zap className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Generate All Due ({overdueCount})
+          </Button>
+          {isGeneratingAll && (
+            <span className="text-xs text-muted-foreground">
+              Generating work orders…
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Mobile cards */}
       <div className="space-y-2 md:hidden">
         {loading ? (
@@ -258,12 +417,14 @@ export function SchedulesList({
 
       {/* Desktop table — matches maintenance / vendors table shell */}
       <div className="hidden overflow-x-auto border border-border/80 bg-card/50 md:block">
-        <Table className="w-full min-w-[720px] table-fixed text-xs lg:min-w-0">
+        <Table className="w-full min-w-[960px] table-fixed text-xs lg:min-w-0">
           <colgroup>
-            <col className="w-[28%]" />
             <col className="w-[22%]" />
-            <col className="w-[18%]" />
-            <col className="w-[20%]" />
+            <col className="w-[16%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[14%]" />
+            <col className="w-[12%]" />
             <col className="w-[12%]" />
           </colgroup>
           <TableHeader className="sticky top-0 z-10 bg-red-50 uppercase dark:bg-red-950/30">
@@ -275,20 +436,22 @@ export function SchedulesList({
               <TableHead className="hidden px-3 py-2 font-medium text-black/90 dark:text-white/90 md:table-cell">
                 Frequency
               </TableHead>
-              <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">Schedule date</TableHead>
+              <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">Last Completed</TableHead>
+              <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">Next Due</TableHead>
+              <TableHead className="px-3 py-2 text-right font-medium text-black/90 dark:text-white/90">Generated</TableHead>
               <TableHead className="px-1 py-2 text-right font-medium text-black/90 dark:text-white/90">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   Loading schedules…
                 </TableCell>
               </TableRow>
             ) : schedules.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   No schedules yet.
                 </TableCell>
               </TableRow>
@@ -321,9 +484,15 @@ export function SchedulesList({
                     <FrequencyBadge frequency={schedule.frequency} />
                   </TableCell>
                   <TableCell className="px-3 py-2 text-sm text-muted-foreground">
-                    <span className="block truncate" title={formatScheduleWhen(schedule)}>
-                      {formatScheduleWhen(schedule)}
-                    </span>
+                    {schedule.last_completed_at
+                      ? format(new Date(schedule.last_completed_at), "MMM d, yyyy")
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-sm">
+                    <NextDueCell nextDueDate={schedule.next_due_date} />
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-right text-sm text-muted-foreground">
+                    {schedule.total_generated}
                   </TableCell>
                   <TableCell className="px-1 py-2">
                     <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />

@@ -54,6 +54,7 @@ export type CreateMaintenanceTaskInput = {
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
     estimatedLaborCost?: number | null
     estimatedPartsCost?: number | null
+    isSuspectedDamage?: boolean
     vendorId?: string | null
     sla?: number | null
 }
@@ -248,6 +249,7 @@ export class MaintenanceQueries {
             ...(input.source !== undefined ? { source: input.source } : {}),
             ...(input.estimatedLaborCost !== undefined ? { estimated_labor_cost: input.estimatedLaborCost } : {}),
             ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
+            ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }

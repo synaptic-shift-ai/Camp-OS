@@ -34,6 +34,7 @@ export type MaintenanceTaskRow = {
   source?: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
   estimatedLaborCost?: number | null
   estimatedPartsCost?: number | null
+  isSuspectedDamage?: boolean
   vendorId?: string | null
   sla?: number | null
 }

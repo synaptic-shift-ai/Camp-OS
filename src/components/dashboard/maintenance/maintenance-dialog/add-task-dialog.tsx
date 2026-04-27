@@ -105,6 +105,7 @@ export type AddMaintenanceTaskInput = {
   source: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
   estimatedLaborCost?: number | null
   estimatedPartsCost?: number | null
+  isSuspectedDamage?: boolean
   vendorId?: string | null
   sla?: number | null
   images?: File[]
@@ -159,6 +160,7 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   source: "Staff",
   estimatedLaborCost: null,
   estimatedPartsCost: null,
+  isSuspectedDamage: false,
   vendorId: null,
   sla: null,
 }
@@ -245,6 +247,11 @@ export function AddTaskDialog({
     }
     if (!resolvedCategory) {
       setError("Please enter a category name.")
+      return
+    }
+
+    if (form.isSuspectedDamage && localImages.length === 0) {
+      setError("Photos are required when suspected guest damage is flagged.")
       return
     }
 
@@ -440,6 +447,18 @@ export function AddTaskDialog({
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-3 pt-6">
+              <input
+                type="checkbox"
+                id="maintenance-suspected-damage"
+                checked={form.isSuspectedDamage}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isSuspectedDamage: event.target.checked }))
+                }
+                className="h-4 w-4 rounded border-border"
+              />
+              <Label htmlFor="maintenance-suspected-damage" className="cursor-pointer">Suspected Guest Damage</Label>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -607,7 +626,12 @@ export function AddTaskDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="maintenance-images">Task Images</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="maintenance-images">Task Images</Label>
+              {form.isSuspectedDamage && (
+                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Photos required</span>
+              )}
+            </div>
             <label
               htmlFor="maintenance-images"
               className={cn(

@@ -12,11 +12,16 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Save,
   SlidersHorizontal,
+  Truck,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -39,6 +44,7 @@ type MaintenanceViewProps = {
   canHold?: boolean
   canResume?: boolean
   canCancel?: boolean
+  canEnterLaborCost?: boolean
 }
 
 type TaskDetails = {
@@ -52,6 +58,12 @@ type TaskDetails = {
   source: string | null
   estimated_labor_cost: number | null
   estimated_parts_cost: number | null
+  actual_labor_cost: number | null
+  actual_parts_cost: number | null
+  is_suspected_damage: boolean | null
+  vendor_invoice_number: string | null
+  vendor_invoice_cost: number | null
+  closeout_notes: string | null
   sla: number | null
   vendor_id: string | null
   staff_id: string | null
@@ -81,6 +93,7 @@ function formatDateTime(date: string | null): string {
 
 function statusLabel(status: string): string {
   if (status === "in_progress") return "In Progress"
+  if (status === "in_progress_vendor") return "In Progress (Vendor)"
   if (status === "on_hold") return "On Hold"
   if (status === "completed") return "Completed"
   if (status === "cancelled") return "Cancelled"
@@ -90,6 +103,7 @@ function statusLabel(status: string): string {
 function statusBadgeClass(status: string): string {
   if (status === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-700"
   if (status === "in_progress") return "border-blue-200 bg-blue-50 text-blue-700"
+  if (status === "in_progress_vendor") return "border-violet-200 bg-violet-50 text-violet-700"
   if (status === "on_hold") return "border-amber-300 bg-amber-50 text-amber-700"
   if (status === "cancelled") return "border-gray-200 bg-gray-50 text-gray-500"
   return "border-amber-200 bg-amber-50 text-amber-700"
@@ -125,7 +139,13 @@ type StepDef = { label: string; apiStatuses: string[] }
 
 const DEFAULT_STEPS: StepDef[] = [
   { label: "Open", apiStatuses: ["open"] },
-  { label: "In Progress", apiStatuses: ["in_progress"] },
+  { label: "In Progress", apiStatuses: ["in_progress", "in_progress_vendor"] },
+  { label: "Complete", apiStatuses: ["completed"] },
+]
+
+const VENDOR_STEPS: StepDef[] = [
+  { label: "Open", apiStatuses: ["open"] },
+  { label: "Vendor Work", apiStatuses: ["in_progress_vendor"] },
   { label: "Complete", apiStatuses: ["completed"] },
 ]
 
@@ -159,6 +179,7 @@ export function MaintenanceView({
   canHold = false,
   canResume = false,
   canCancel = false,
+  canEnterLaborCost = false,
 }: MaintenanceViewProps) {
   const { toast } = useToast()
   const [task, setTask] = useState<TaskDetails | null>(null)
@@ -173,6 +194,16 @@ export function MaintenanceView({
   const [isReassignOpen, setIsReassignOpen] = useState(false)
   const [isReassigning, setIsReassigning] = useState(false)
   const [taskImages, setTaskImages] = useState<TaskImageItem[]>([])
+  // Actual cost editing state
+  const [editLaborCost, setEditLaborCost] = useState<string>("")
+  const [editPartsCost, setEditPartsCost] = useState<string>("")
+  const [isSavingCosts, setIsSavingCosts] = useState(false)
+  // Vendor closeout state
+  const [vendorInvoiceNumber, setVendorInvoiceNumber] = useState("")
+  const [vendorInvoiceCost, setVendorInvoiceCost] = useState("")
+  const [closeoutNotes, setCloseoutNotes] = useState("")
+  const [isAssigningVendor, setIsAssigningVendor] = useState(false)
+  const [isCompletingVendor, setIsCompletingVendor] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [now, setNow] = useState(Date.now())
 
@@ -213,6 +244,12 @@ export function MaintenanceView({
         source: raw.source,
         estimated_labor_cost: raw.estimatedLaborCost ?? raw.estimated_labor_cost ?? null,
         estimated_parts_cost: raw.estimatedPartsCost ?? raw.estimated_parts_cost ?? null,
+        actual_labor_cost: raw.actualLaborCost ?? raw.actual_labor_cost ?? null,
+        actual_parts_cost: raw.actualPartsCost ?? raw.actual_parts_cost ?? null,
+        is_suspected_damage: raw.isSuspectedDamage ?? raw.is_suspected_damage ?? false,
+        vendor_invoice_number: raw.vendorInvoiceNumber ?? raw.vendor_invoice_number ?? null,
+        vendor_invoice_cost: raw.vendorInvoiceCost ?? raw.vendor_invoice_cost ?? null,
+        closeout_notes: raw.closeoutNotes ?? raw.closeout_notes ?? null,
         sla: raw.sla,
         vendor_id: raw.vendorId ?? raw.vendor_id,
         staff_id: raw.staffId ?? raw.staff_id,
@@ -275,7 +312,16 @@ export function MaintenanceView({
   // ── Live timer for in-progress tasks ──
 
   useEffect(() => {
-    if (task?.status === "in_progress") {
+    if (task?.actual_labor_cost != null) {
+      setEditLaborCost(String(task.actual_labor_cost))
+    }
+    if (task?.actual_parts_cost != null) {
+      setEditPartsCost(String(task.actual_parts_cost))
+    }
+  }, [task?.actual_labor_cost, task?.actual_parts_cost])
+
+  useEffect(() => {
+    if (task?.status === "in_progress" || task?.status === "in_progress_vendor") {
       timerRef.current = setInterval(() => setNow(Date.now()), 1000)
       return () => {
         if (timerRef.current) clearInterval(timerRef.current)
@@ -331,7 +377,7 @@ export function MaintenanceView({
   }, [task])
 
   const stepperSteps = useMemo(
-    () => (task?.status === "on_hold" ? ON_HOLD_STEPS : DEFAULT_STEPS),
+    () => (task?.status === "on_hold" ? ON_HOLD_STEPS : task?.status === "in_progress_vendor" ? VENDOR_STEPS : DEFAULT_STEPS),
     [task?.status],
   )
 
@@ -391,12 +437,14 @@ export function MaintenanceView({
 
   const hasSla = !!task?.sla
   const showStart = task?.status === "open" && canEditTask
-  const showComplete = task?.status === "in_progress" && canEditTask
+  const showComplete = (task?.status === "in_progress" || task?.status === "in_progress_vendor") && canEditTask
   const showReopen = (task?.status === "completed" || task?.status === "cancelled") && canEditTask
   const showHold = canHold && task?.status === "in_progress"
   const showResume = canResume && task?.status === "on_hold"
   const showCancel = canCancel && ["open", "in_progress", "on_hold"].includes(task?.status ?? "")
   const showReassign = canAssignWo && !["completed", "cancelled"].includes(task?.status ?? "")
+  const showAssignVendor = (task?.status === "open" || task?.status === "in_progress") && canEditTask
+  const showCloseout = task?.status === "in_progress_vendor" && canEditTask
 
   // ── Handlers ──
 
@@ -646,6 +694,112 @@ export function MaintenanceView({
     }
   }
 
+  const handleAssignVendor = async () => {
+    if (!task || isAssigningVendor) return
+    setIsAssigningVendor(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "in_progress_vendor" }),
+        },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to assign to vendor."
+        throw new Error(message)
+      }
+      toast({ title: "Assigned to vendor", variant: "success" })
+      mutate()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to assign to vendor."
+      toast({ title: "Unable to assign", description: message, variant: "destructive" })
+    } finally {
+      setIsAssigningVendor(false)
+    }
+  }
+
+  const handleCompleteFromVendor = async () => {
+    if (!task || isCompletingVendor) return
+    if (!vendorInvoiceNumber.trim() || !vendorInvoiceCost || !closeoutNotes.trim()) {
+      toast({
+        title: "Missing closeout fields",
+        description: "Please fill in all vendor closeout fields before completing.",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsCompletingVendor(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "completed",
+            vendorInvoiceNumber: vendorInvoiceNumber.trim(),
+            vendorInvoiceCost: Number(vendorInvoiceCost),
+            closeoutNotes: closeoutNotes.trim(),
+          }),
+        },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to complete work order."
+        throw new Error(message)
+      }
+      toast({ title: "Work order completed", variant: "success" })
+      mutate()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to complete work order."
+      toast({ title: "Unable to complete", description: message, variant: "destructive" })
+    } finally {
+      setIsCompletingVendor(false)
+    }
+  }
+
+  const handleSaveCosts = async () => {
+    if (!task || isSavingCosts) return
+    setIsSavingCosts(true)
+    try {
+      const patchBody: Record<string, unknown> = {}
+      if (editLaborCost !== "") {
+        patchBody.actualLaborCost = Number(editLaborCost)
+      }
+      if (editPartsCost !== "") {
+        patchBody.actualPartsCost = Number(editPartsCost)
+      }
+      if (Object.keys(patchBody).length === 0) return
+
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchBody),
+        },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to save costs."
+        throw new Error(message)
+      }
+      toast({ title: "Costs saved", variant: "success" })
+      mutate()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save costs."
+      toast({ title: "Unable to save costs", description: message, variant: "destructive" })
+    } finally {
+      setIsSavingCosts(false)
+    }
+  }
+
   // ── Render ──
 
   if (loading) {
@@ -672,6 +826,13 @@ export function MaintenanceView({
   const isCancelled = task.status === "cancelled"
   const workOrderLabel = task.wo_number ?? `WO-${task.id.slice(0, 4).toUpperCase()}`
   const totalEstimated = (task.estimated_labor_cost ?? 0) + (task.estimated_parts_cost ?? 0)
+  const totalActual = (task.actual_labor_cost ?? 0) + (task.actual_parts_cost ?? 0)
+  const hasActualCosts = task.actual_labor_cost != null || task.actual_parts_cost != null
+  const costVariance = totalActual - totalEstimated
+  const canEditCosts = canEnterLaborCost && ["in_progress", "in_progress_vendor", "completed"].includes(task.status)
+  const costHasChanges =
+    editLaborCost !== String(task.actual_labor_cost ?? "") ||
+    editPartsCost !== String(task.actual_parts_cost ?? "")
   const slaTargetHours = task.sla ?? null
   const slaProgressPercent =
     slaTargetHours && slaSecondsRemaining !== null
@@ -712,6 +873,11 @@ export function MaintenanceView({
                 <Badge variant="outline" className="border-emerald-400/30 bg-emerald-900/40 text-emerald-100">
                   {assigneeLabel}
                 </Badge>
+                {task.is_suspected_damage && (
+                  <Badge variant="outline" className="border-amber-400 bg-amber-100 text-amber-800">
+                    ⚠ Suspected Damage
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -769,7 +935,7 @@ export function MaintenanceView({
       </section>
 
         {/* ── Action buttons ── */}
-        {canEditTask || showHold || showResume || showCancel || showReassign ? (
+        {canEditTask || showHold || showResume || showCancel || showReassign || showAssignVendor || showCloseout ? (
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
             {showStart ? (
               <Button
@@ -864,6 +1030,29 @@ export function MaintenanceView({
                 Reassign
               </Button>
             ) : null}
+            {showAssignVendor ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="col-span-1 gap-2 sm:w-auto"
+                disabled={isAssigningVendor}
+                onClick={() => void handleAssignVendor()}
+              >
+                {isAssigningVendor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+                Assign to Vendor
+              </Button>
+            ) : null}
+            {showCloseout ? (
+              <Button
+                type="button"
+                className="col-span-2 gap-2 sm:w-auto"
+                disabled={isCompletingVendor || !vendorInvoiceNumber.trim() || !vendorInvoiceCost || !closeoutNotes.trim()}
+                onClick={() => void handleCompleteFromVendor()}
+              >
+                {isCompletingVendor ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Complete (Vendor Closeout)
+              </Button>
+            ) : null}
           </div>
         ) : null}
       
@@ -932,6 +1121,78 @@ export function MaintenanceView({
             </CardContent>
           </Card>
 
+          {showCloseout && (
+            <Card className="border-violet-200 bg-violet-50/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Vendor Closeout</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0 text-sm">
+                <p className="text-muted-foreground">Complete all fields below before marking this work order as completed.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor-invoice-number">Vendor Invoice Number *</Label>
+                    <Input
+                      id="vendor-invoice-number"
+                      value={vendorInvoiceNumber}
+                      onChange={(e) => setVendorInvoiceNumber(e.target.value)}
+                      placeholder="e.g. INV-2026-0042"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor-invoice-cost">Vendor Invoice Cost *</Label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="vendor-invoice-cost"
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={vendorInvoiceCost}
+                        onChange={(e) => setVendorInvoiceCost(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="closeout-notes">Resolution Notes *</Label>
+                  <Textarea
+                    id="closeout-notes"
+                    value={closeoutNotes}
+                    onChange={(e) => setCloseoutNotes(e.target.value)}
+                    placeholder="Describe the work performed and resolution details"
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {task.vendor_invoice_number && task.status === "completed" && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Vendor Closeout Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice Number</span>
+                  <span className="font-semibold">{task.vendor_invoice_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice Cost</span>
+                  <span className="font-semibold">{formatCurrency(task.vendor_invoice_cost)}</span>
+                </div>
+                {task.closeout_notes && (
+                  <div className="border-t pt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Resolution Notes</p>
+                    <p className="text-sm whitespace-pre-wrap">{task.closeout_notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <PermissionGate permission="maintenance.enter_labor_cost" fallback={null}>
             <Card>
               <CardHeader className="pb-2">
@@ -949,13 +1210,57 @@ export function MaintenanceView({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Actual Labor</span>
-                    <span className="font-semibold">—</span>
+                    {canEditCosts ? (
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          placeholder="—"
+                          className="h-7 w-28 pl-5 text-right text-sm"
+                          min={0}
+                          step={1}
+                          value={editLaborCost}
+                          onChange={(e) => setEditLaborCost(e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-semibold">{formatCurrency(task.actual_labor_cost)}</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Actual Parts</span>
-                    <span className="font-semibold">—</span>
+                    {canEditCosts ? (
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          placeholder="—"
+                          className="h-7 w-28 pl-5 text-right text-sm"
+                          min={0}
+                          step={1}
+                          value={editPartsCost}
+                          onChange={(e) => setEditPartsCost(e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-semibold">{formatCurrency(task.actual_parts_cost)}</span>
+                    )}
                   </div>
                 </div>
+                {canEditCosts && costHasChanges && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={isSavingCosts}
+                      onClick={() => void handleSaveCosts()}
+                    >
+                      {isSavingCosts ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Save Costs
+                    </Button>
+                  </div>
+                )}
                 <div className="grid gap-4 border-t pt-3 sm:grid-cols-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Estimated Total</p>
@@ -963,11 +1268,15 @@ export function MaintenanceView({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Actual Total</p>
-                    <p className="text-3xl font-bold">—</p>
+                    <p className="text-3xl font-bold">{hasActualCosts ? formatCurrency(totalActual) : "—"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Variance</p>
-                    <p className="text-3xl font-bold text-emerald-700">—</p>
+                    <p className={`text-3xl font-bold ${hasActualCosts ? (costVariance <= 0 ? "text-emerald-700" : "text-red-600") : "text-muted-foreground"}`}>
+                      {hasActualCosts
+                        ? `${costVariance < 0 ? "" : "+"}$${costVariance.toFixed(2)}`
+                        : "—"}
+                    </p>
                   </div>
                 </div>
               </CardContent>

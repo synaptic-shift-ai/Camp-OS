@@ -55,8 +55,9 @@ type MaintenancePageContentProps = {
 
 function toApiStatus(
   status: AddMaintenanceTaskInput["status"],
-): "open" | "in_progress" | "on_hold" | "completed" | "cancelled" {
+): "open" | "in_progress" | "in_progress_vendor" | "on_hold" | "completed" | "cancelled" {
   if (status === "In Progress") return "in_progress"
+  if (status === "In Progress (Vendor)") return "in_progress_vendor"
   if (status === "Completed") return "completed"
   if (status === "On Hold") return "on_hold"
   if (status === "Cancelled") return "cancelled"
@@ -174,6 +175,7 @@ type ApiMaintenanceTask = {
   source: string | null
   estimated_labor_cost: number | null
   estimated_parts_cost: number | null
+  is_suspected_damage: boolean | null
   vendor_id: string | null
   sla: number | null
   staff_id: string | null
@@ -395,6 +397,7 @@ export function MaintenancePageContent({
         source: fromApiSource(task.source),
         estimatedLaborCost: task.estimated_labor_cost,
         estimatedPartsCost: task.estimated_parts_cost,
+        isSuspectedDamage: task.is_suspected_damage ?? false,
         vendorId: task.vendor_id,
         sla: task.sla,
       }))
@@ -615,6 +618,7 @@ export function MaintenancePageContent({
           source: toApiSource(input.source),
           estimatedLaborCost: input.estimatedLaborCost ?? null,
           estimatedPartsCost: input.estimatedPartsCost ?? null,
+          isSuspectedDamage: input.isSuspectedDamage ?? false,
           vendorId: input.vendorId ?? null,
           sla: input.sla ?? null,
         }),
@@ -712,6 +716,7 @@ export function MaintenancePageContent({
         source: toApiSource(input.source),
         estimatedLaborCost: input.estimatedLaborCost ?? null,
         estimatedPartsCost: input.estimatedPartsCost ?? null,
+        isSuspectedDamage: input.isSuspectedDamage,
         vendorId: input.vendorId ?? null,
         sla: input.sla ?? null,
       }

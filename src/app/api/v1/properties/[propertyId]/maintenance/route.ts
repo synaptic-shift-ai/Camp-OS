@@ -206,6 +206,7 @@ export async function POST(
             ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
             ...(parsed.data.estimatedLaborCost !== undefined ? { estimatedLaborCost: parsed.data.estimatedLaborCost } : {}),
             ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
+            ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
             ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
             ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
             createdBy: user.id,

@@ -114,6 +114,7 @@ export default async function MaintenanceDetailsPage({ params }: PageProps) {
       canHold={actionAccess["request-onhold"] === true}
       canResume={actionAccess["approve-onhold"] === true}
       canCancel={actionAccess["cancel-wo"] === true}
+      canEnterLaborCost={actionAccess["enter-labor-cost"] === true}
     />
   )
 }

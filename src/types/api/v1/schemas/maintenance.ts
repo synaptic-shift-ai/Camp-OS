@@ -31,6 +31,7 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
     estimatedLaborCost: z.number().nonnegative().nullable().optional(),
     estimatedPartsCost: z.number().nonnegative().nullable().optional(),
+    isSuspectedDamage: z.boolean().optional(),
     vendorId: z.string().uuid().nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
 })

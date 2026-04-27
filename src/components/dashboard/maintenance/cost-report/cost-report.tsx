@@ -131,8 +131,8 @@ export function CostReport({
   }, [reportData])
 
   const formattedCost = useMemo(() => {
-    const cents = reportData?.totalEstimatedCost ?? 0
-    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+    const dollars = reportData?.totalEstimatedCost ?? 0
+    return `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
   }, [reportData])
 
   const hasData = reportData && reportData.totalWorkOrders > 0

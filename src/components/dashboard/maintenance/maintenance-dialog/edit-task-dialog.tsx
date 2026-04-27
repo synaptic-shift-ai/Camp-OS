@@ -65,6 +65,7 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   source: "Staff",
   estimatedLaborCost: null,
   estimatedPartsCost: null,
+  isSuspectedDamage: false,
   vendorId: null,
   sla: null,
 }
@@ -114,6 +115,7 @@ export function EditTaskDialog({
       source: parseMaintenanceSource(task.source),
       estimatedLaborCost: task.estimatedLaborCost ?? null,
       estimatedPartsCost: task.estimatedPartsCost ?? null,
+      isSuspectedDamage: task.isSuspectedDamage ?? false,
       vendorId: task.vendorId ?? null,
       sla: task.sla ?? null,
     })
@@ -339,6 +341,19 @@ export function EditTaskDialog({
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-3 pt-6">
+              <input
+                type="checkbox"
+                id="edit-maintenance-suspected-damage"
+                checked={form.isSuspectedDamage}
+                disabled={task?.status === "Completed" || task?.status === "Cancelled"}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isSuspectedDamage: event.target.checked }))
+                }
+                className="h-4 w-4 rounded border-border disabled:opacity-50"
+              />
+              <Label htmlFor="edit-maintenance-suspected-damage" className="cursor-pointer">Suspected Guest Damage</Label>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -488,6 +503,7 @@ export function EditTaskDialog({
                 <SelectContent>
                   <SelectItem value="Open">Open</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="In Progress (Vendor)">In Progress (Vendor)</SelectItem>
                   <SelectItem value="Completed">Completed</SelectItem>
                 </SelectContent>
               </Select>

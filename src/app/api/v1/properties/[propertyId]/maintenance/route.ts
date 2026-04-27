@@ -58,6 +58,7 @@ export async function GET(
             status: searchParams.get('status') ?? undefined,
             priority: searchParams.get('priority') ?? undefined,
             source: searchParams.get('source') ?? undefined,
+            category: searchParams.get('category') ?? undefined,
             page: searchParams.get('page') ?? undefined,
             per_page: searchParams.get('per_page') ?? undefined,
         }
@@ -77,6 +78,7 @@ export async function GET(
         if (data.status !== undefined) listFilters.status = data.status
         if (data.priority !== undefined) listFilters.priority = data.priority
         if (data.source !== undefined) listFilters.source = data.source
+        if (data.category !== undefined) listFilters.category = data.category
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const [listResult, openTaskCount] = await Promise.all([

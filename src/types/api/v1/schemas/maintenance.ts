@@ -17,12 +17,15 @@ function parsePerPageParam(value: string | undefined): number {
     return Math.min(parsed, 100)
 }
 
+const MAINTENANCE_STATUS_ENUM = ['open', 'in_progress', 'in_progress_vendor', 'on_hold', 'completed', 'cancelled'] as const
+const MAINTENANCE_STATUS_ZOD = z.enum(MAINTENANCE_STATUS_ENUM)
+
 export const CreateMaintenanceTaskRequestSchema = z.object({
     siteId: z.string().uuid(),
     staffId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(1).max(500),
     description: z.string().trim().max(5000).nullable().optional(),
-    status: z.enum(['open', 'in_progress', 'on_hold', 'completed', 'cancelled']).optional(),
+    status: MAINTENANCE_STATUS_ZOD.optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
     category: z.string().trim().min(1).max(120).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
@@ -37,13 +40,19 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     staffId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(1).max(500).optional(),
     description: z.string().trim().max(5000).nullable().optional(),
-    status: z.enum(['open', 'in_progress', 'on_hold', 'completed', 'cancelled']).optional(),
+    status: MAINTENANCE_STATUS_ZOD.optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
     category: z.string().trim().min(1).max(120).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
     estimatedLaborCost: z.number().nonnegative().nullable().optional(),
     estimatedPartsCost: z.number().nonnegative().nullable().optional(),
+    actualLaborCost: z.number().nonnegative().nullable().optional(),
+    actualPartsCost: z.number().nonnegative().nullable().optional(),
+    isSuspectedDamage: z.boolean().optional(),
     vendorId: z.string().uuid().nullable().optional(),
+    vendorInvoiceNumber: z.string().trim().max(100).nullable().optional(),
+    vendorInvoiceCost: z.number().nonnegative().nullable().optional(),
+    closeoutNotes: z.string().trim().max(5000).nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
     on_hold_reason: z.string().optional().nullable(),
     cancelled_reason: z.string().optional().nullable(),
@@ -58,9 +67,10 @@ export const ListMaintenanceTasksQuerySchema = z.object({
         emptyStringToUndefined,
         z.union([z.string().uuid(), z.literal('unassigned')]).optional(),
     ),
-    status: z.enum(['open', 'in_progress', 'on_hold', 'completed', 'cancelled']).optional(),
+    status: MAINTENANCE_STATUS_ZOD.optional(),
     priority: z.enum(['low', 'medium', 'high', 'emergency']).optional(),
     source: z.enum(['guest', 'housekeeping', 'staff', 'pm', 'checkout']).optional(),
+    category: z.preprocess(emptyStringToUndefined, z.string().trim().max(120).optional()),
     page: z
         .string()
         .optional()

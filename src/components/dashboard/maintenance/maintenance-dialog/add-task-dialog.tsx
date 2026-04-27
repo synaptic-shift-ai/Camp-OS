@@ -99,7 +99,7 @@ export type AddMaintenanceTaskInput = {
   description?: string
   assigneeId?: string | null
   assignee: string | null
-  status: "Open" | "In Progress" | "On Hold" | "Completed" | "Cancelled"
+  status: "Open" | "In Progress" | "In Progress (Vendor)" | "On Hold" | "Completed" | "Cancelled"
   priority: "Low" | "Medium" | "High" | "Emergency"
   category: string
   source: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"

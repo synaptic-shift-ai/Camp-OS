@@ -65,6 +65,7 @@ function toApiStatus(
 
 function fromApiStatus(status: string): MaintenanceTaskRow["status"] {
   if (status === "in_progress") return "In Progress"
+  if (status === "in_progress_vendor") return "In Progress (Vendor)"
   if (status === "completed") return "Completed"
   if (status === "on_hold") return "On Hold"
   if (status === "cancelled") return "Cancelled"
@@ -78,6 +79,7 @@ const INITIAL_FILTERS: MaintenanceFilterValue = {
   status: "all",
   priority: "all",
   source: "all",
+  category: "all",
 }
 
 const FILTER_DEBOUNCE_MS = 400
@@ -136,6 +138,13 @@ function filterSourceToApi(
   if (source === "PM") return "pm"
   if (source === "Checkout") return "checkout"
   return "staff"
+}
+
+function filterCategoryToApi(
+  category: MaintenanceFilterValue["category"],
+): string | null {
+  if (category === "all") return null
+  return category
 }
 
 function fromApiSource(source: string | null): AddMaintenanceTaskInput["source"] {
@@ -285,7 +294,7 @@ export function MaintenancePageContent({
 
   const filtersApiKey = useMemo(
     () =>
-      `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}`,
+      `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}|${debouncedFilters.category}`,
     [debouncedFilters],
   )
 
@@ -302,9 +311,20 @@ export function MaintenancePageContent({
       const matchesStatus = filters.status === "all" || row.status === filters.status
       const matchesPriority = filters.priority === "all" || row.priority === filters.priority
       const matchesSource = filters.source === "all" || row.source === filters.source
-      return matchesSearch && matchesStatus && matchesPriority && matchesSource
+      const matchesCategory = filters.category === "all" || row.category === filters.category
+      return matchesSearch && matchesStatus && matchesPriority && matchesSource && matchesCategory
     })
   }, [filters, rows])
+
+  const categoryOptions = useMemo(() => {
+    const categoryMap = new Map<string, string>()
+    for (const row of rows) {
+      if (row.category) {
+        categoryMap.set(row.category.toLowerCase(), row.category)
+      }
+    }
+    return Array.from(categoryMap.entries()).map(([id, label]) => ({ id, label }))
+  }, [rows])
 
   const openTasksCount = useMemo(
     () => rows.filter((row) => row.status !== "Completed").length,
@@ -329,6 +349,10 @@ export function MaintenancePageContent({
       const sourceParam = filterSourceToApi(debouncedFilters.source)
       if (sourceParam) {
         params.set("source", sourceParam)
+      }
+      const categoryParam = filterCategoryToApi(debouncedFilters.category)
+      if (categoryParam) {
+        params.set("category", categoryParam)
       }
       if (debouncedFilters.siteId !== "all") {
         params.set("siteId", debouncedFilters.siteId)
@@ -357,6 +381,7 @@ export function MaintenancePageContent({
       const assigneeLabelById = new Map(opts.map((option) => [option.id, option.label]))
       const mappedRows: MaintenanceTaskRow[] = (payload.data?.tasks ?? []).map((task: ApiMaintenanceTask) => ({
         id: task.id,
+        woNumber: (task as any).wo_number ?? null,
         siteId: task.site_id,
         siteName: task.site?.site_name?.trim() || task.site?.site_number || "Unknown site",
         siteTypeLabel: toSiteTypeLabel(task.site?.site_type),
@@ -400,6 +425,7 @@ export function MaintenancePageContent({
     debouncedFilters.status,
     debouncedFilters.priority,
     debouncedFilters.source,
+    debouncedFilters.category,
     perPage,
     propertyId,
     toast,
@@ -717,6 +743,44 @@ export function MaintenancePageContent({
         description: "Maintenance task details were updated successfully.",
         variant: "success",
       })
+
+      // Upload new images after successful update
+      const imageFiles = input.images ?? []
+      if (imageFiles.length > 0) {
+        const supabase = createClient()
+        for (const file of imageFiles) {
+          const safeName = sanitizeFileName(file.name) || "image"
+          const storagePath = `property/${propertyId}/maintenance/${input.id}/${crypto.randomUUID()}-${safeName}`
+
+          const { error: uploadError } = await supabase.storage
+            .from(TASK_IMAGES_BUCKET)
+            .upload(storagePath, file, {
+              upsert: false,
+              contentType: file.type,
+            })
+
+          if (uploadError) {
+            throw new Error(uploadError.message)
+          }
+
+          const registerResponse = await fetch(
+            `/api/v1/properties/${propertyId}/maintenance/${input.id}/images`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ storagePath }),
+            },
+          )
+          const registerPayload = await registerResponse.json()
+
+          if (!registerResponse.ok || !registerPayload?.success) {
+            const message = registerPayload?.error?.message ?? "Failed to save uploaded image."
+            throw new Error(message)
+          }
+        }
+      }
     } finally {
       setIsUpdatingTask(false)
     }
@@ -785,6 +849,7 @@ export function MaintenancePageContent({
             onChange={setFilters}
             siteOptions={siteOptions}
             assigneeOptions={assigneeOptions}
+            categoryOptions={categoryOptions}
           />
           <MaintenanceTable
             rows={filteredRows}

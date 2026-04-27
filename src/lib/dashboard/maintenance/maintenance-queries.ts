@@ -6,6 +6,41 @@ import { addDays, addMonths, addYears, format } from 'date-fns'
 type MaintenanceTaskRow = Database['public']['Tables']['maintenance_tasks']['Row']
 type SiteRow = Database['public']['Tables']['sites']['Row']
 
+export async function generateWoNumber(
+    propertyId: string,
+    supabase: SupabaseClient,
+): Promise<string> {
+    const { data: counter, error: counterError } = await supabase
+        .from('maintenance_wo_counter')
+        .select('last_number')
+        .eq('property_id', propertyId)
+        .single()
+
+    if (counterError && counterError.code !== 'PGRST116') {
+        throw counterError
+    }
+
+    const nextNumber = (counter?.last_number ?? 0) + 1
+
+    const { error: upsertError } = await supabase
+        .from('maintenance_wo_counter')
+        .upsert({ property_id: propertyId, last_number: nextNumber }, { onConflict: 'property_id' })
+
+    if (upsertError) throw upsertError
+
+    const { data: property } = await supabase
+        .from('properties')
+        .select('name')
+        .eq('id', propertyId)
+        .single()
+
+    const rawPrefix = (property?.name ?? 'WO').substring(0, 4)
+    const prefix = rawPrefix.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+    const year = new Date().getFullYear().toString().slice(-2)
+
+    return `${prefix}-${year}-${nextNumber.toString().padStart(5, '0')}`
+}
+
 export type CreateMaintenanceTaskInput = {
     propertyId: string
     siteId: string
@@ -13,7 +48,7 @@ export type CreateMaintenanceTaskInput = {
     title: string
     description?: string | null
     staffId?: string | null
-    status?: 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
+    status?: 'open' | 'in_progress' | 'in_progress_vendor' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
     category?: string
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
@@ -30,13 +65,19 @@ export type UpdateMaintenanceTaskInput = {
     description?: string | null
     staffId?: string | null
     title?: string
-    status?: 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
+    status?: 'open' | 'in_progress' | 'in_progress_vendor' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
     category?: string
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
     estimatedLaborCost?: number | null
     estimatedPartsCost?: number | null
+    actualLaborCost?: number | null
+    actualPartsCost?: number | null
+    isSuspectedDamage?: boolean
     vendorId?: string | null
+    vendorInvoiceNumber?: string | null
+    vendorInvoiceCost?: number | null
+    closeoutNotes?: string | null
     sla?: number | null
     started_at?: string | null
     completed_at?: string | null
@@ -50,9 +91,10 @@ export type ListMaintenanceTasksFilters = {
     search?: string
     siteId?: string
     assigneeId?: 'unassigned' | string
-    status?: 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
+    status?: 'open' | 'in_progress' | 'in_progress_vendor' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
     source?: 'guest' | 'housekeeping' | 'staff' | 'pm' | 'checkout'
+    category?: string
 }
 
 export type ListMaintenanceTasksResult = {
@@ -189,11 +231,15 @@ export class MaintenanceQueries {
             }
         }
 
-        const insertRow: Database['public']['Tables']['maintenance_tasks']['Insert'] = {
+        // Generate WO number before insert
+        const woNumber = await generateWoNumber(input.propertyId, this.supabase)
+
+        const insertRow: Record<string, unknown> = {
             property_id: input.propertyId,
             site_id: input.siteId,
             created_by: input.createdBy,
             title: input.title,
+            wo_number: woNumber,
             description: input.description ?? null,
             staff_id: input.staffId ?? null,
             ...(input.status !== undefined ? { status: input.status } : {}),
@@ -261,6 +307,9 @@ export class MaintenanceQueries {
         }
         if (filters?.source) {
             query = query.eq('source', filters.source)
+        }
+        if (filters?.category) {
+            query = query.eq('category', filters.category)
         }
 
         const search = filters?.search?.trim()
@@ -470,7 +519,7 @@ export class MaintenanceQueries {
             }
         }
 
-        const updateRow: Database['public']['Tables']['maintenance_tasks']['Update'] = {
+        const updateRow: Record<string, unknown> = {
             ...(input.siteId !== undefined ? { site_id: input.siteId } : {}),
             ...(input.title !== undefined ? { title: input.title } : {}),
             ...(input.description !== undefined ? { description: input.description } : {}),
@@ -481,7 +530,13 @@ export class MaintenanceQueries {
             ...(input.source !== undefined ? { source: input.source } : {}),
             ...(input.estimatedLaborCost !== undefined ? { estimated_labor_cost: input.estimatedLaborCost } : {}),
             ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
+            ...(input.actualLaborCost !== undefined ? { actual_labor_cost: input.actualLaborCost } : {}),
+            ...(input.actualPartsCost !== undefined ? { actual_parts_cost: input.actualPartsCost } : {}),
+            ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.vendorInvoiceNumber !== undefined ? { vendor_invoice_number: input.vendorInvoiceNumber } : {}),
+            ...(input.vendorInvoiceCost !== undefined ? { vendor_invoice_cost: input.vendorInvoiceCost } : {}),
+            ...(input.closeoutNotes !== undefined ? { closeout_notes: input.closeoutNotes } : {}),
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }
 

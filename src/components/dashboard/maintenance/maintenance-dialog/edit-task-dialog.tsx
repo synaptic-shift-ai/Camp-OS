@@ -183,6 +183,7 @@ export function EditTaskDialog({
         estimatedPartsCost: form.estimatedPartsCost ?? null,
         vendorId: form.vendorId ?? null,
         sla: form.sla ?? null,
+        images: localImages.map((item) => item.file),
       })
       onOpenChange(false)
     } catch (submitError) {

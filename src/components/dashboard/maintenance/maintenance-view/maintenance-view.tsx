@@ -43,6 +43,7 @@ type MaintenanceViewProps = {
 
 type TaskDetails = {
   id: string
+  wo_number?: string | null
   title: string
   description: string | null
   status: string
@@ -203,6 +204,7 @@ export function MaintenanceView({
 
       setTask({
         id: raw.id,
+        wo_number: raw.woNumber ?? raw.wo_number ?? null,
         title: raw.title,
         description: raw.description,
         status: raw.status,
@@ -668,7 +670,7 @@ export function MaintenanceView({
   const siteLabel = task.site?.site_name?.trim() || task.site?.site_number || "Unknown site"
   const assigneeLabel = task.staff_id ? assigneeLabelById.get(task.staff_id) ?? "Assigned" : "Unassigned"
   const isCancelled = task.status === "cancelled"
-  const workOrderLabel = `WO-${task.id.slice(0, 4).toUpperCase()}`
+  const workOrderLabel = task.wo_number ?? `WO-${task.id.slice(0, 4).toUpperCase()}`
   const totalEstimated = (task.estimated_labor_cost ?? 0) + (task.estimated_parts_cost ?? 0)
   const slaTargetHours = task.sla ?? null
   const slaProgressPercent =

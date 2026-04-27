@@ -14,6 +14,7 @@ import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maint
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ['in_progress', 'cancelled'],
   in_progress: ['on_hold', 'completed', 'cancelled'],
+  in_progress_vendor: ['on_hold', 'completed', 'cancelled'],
   on_hold: ['in_progress', 'cancelled'],
   completed: ['open'],
   cancelled: ['open'],
@@ -274,6 +275,9 @@ export async function PATCH(
       ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
       ...(parsed.data.estimatedLaborCost !== undefined ? { estimatedLaborCost: parsed.data.estimatedLaborCost } : {}),
       ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
+      ...(parsed.data.actualLaborCost !== undefined ? { actualLaborCost: parsed.data.actualLaborCost } : {}),
+      ...(parsed.data.actualPartsCost !== undefined ? { actualPartsCost: parsed.data.actualPartsCost } : {}),
+      ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
       ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
       ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
       ...timestampUpdates,

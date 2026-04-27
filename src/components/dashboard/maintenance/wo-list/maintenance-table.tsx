@@ -20,6 +20,7 @@ import { MoreHorizontal } from "lucide-react"
 
 export type MaintenanceTaskRow = {
   id: string
+  woNumber?: string | null
   siteId?: string
   siteName: string
   siteTypeLabel?: string
@@ -27,7 +28,7 @@ export type MaintenanceTaskRow = {
   description?: string | null
   assigneeId?: string | null
   assignee: string | null
-  status: "Open" | "In Progress" | "On Hold" | "Completed" | "Cancelled"
+  status: "Open" | "In Progress" | "In Progress (Vendor)" | "On Hold" | "Completed" | "Cancelled"
   priority: "Low" | "Medium" | "High" | "Emergency"
   category?: string
   source?: "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout"
@@ -66,6 +67,12 @@ function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
     )
   }
 
+  if (status === "In Progress (Vendor)") {
+    return (
+      <span className={`${base} border-purple-200 bg-purple-50 text-purple-700`}>In Progress (Vendor)</span>
+    )
+  }
+
   if (status === "On Hold") {
     return (
       <span className={`${base} border-amber-300 bg-amber-50 text-amber-700`}>On Hold</span>
@@ -99,8 +106,9 @@ function PriorityPill({ priority }: { priority: MaintenanceTaskRow["priority"] }
   return <span className={`${base} border-zinc-200 bg-zinc-50 text-zinc-700`}>Low</span>
 }
 
-function formatWorkOrderDisplayId(position: number): string {
-  return `WO-${String(position).padStart(4, "0")}`
+function formatWorkOrderDisplayId(row: MaintenanceTaskRow, _fallbackIndex: number): string {
+  if (row.woNumber) return row.woNumber
+  return `WO-${row.id.slice(0, 4).toUpperCase()}`
 }
 
 function formatSlaHours(sla: number | null | undefined): string {
@@ -199,7 +207,7 @@ export function MaintenanceTable({
 
               <div className="mt-2 flex items-center justify-between gap-2">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {formatWorkOrderDisplayId(index + 1)}
+                  {formatWorkOrderDisplayId(row, index + 1)}
                 </p>
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                   <span className="truncate" title={row.category ?? "Manual"}>
@@ -295,8 +303,8 @@ export function MaintenanceTable({
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
               >
                 <TableCell className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
-                  <span title={formatWorkOrderDisplayId(index + 1)}>
-                    {formatWorkOrderDisplayId(index + 1)}
+                  <span title={formatWorkOrderDisplayId(row, index + 1)}>
+                    {formatWorkOrderDisplayId(row, index + 1)}
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-2">

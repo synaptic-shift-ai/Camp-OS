@@ -563,7 +563,7 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
   return (
     <Card className="mt-4">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <DollarSign className="h-5 w-5" />
             Budgets &amp; Spend Limits
@@ -603,8 +603,8 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
           {budgets.length === 0 ? (
             <p className="text-sm text-muted-foreground">No budgets configured.</p>
           ) : (
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 rounded-md border">
+              <table className="w-full text-sm min-w-[540px]">
                 <thead className="border-b bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Category</th>
@@ -668,8 +668,8 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
           {spendLimits.length === 0 ? (
             <p className="text-sm text-muted-foreground">No spend limits configured.</p>
           ) : (
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 rounded-md border">
+              <table className="w-full text-sm min-w-[400px]">
                 <thead className="border-b bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Category</th>

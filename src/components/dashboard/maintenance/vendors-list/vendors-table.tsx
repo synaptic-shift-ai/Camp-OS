@@ -239,6 +239,10 @@ export function VendorsTable({
 
               <div className="mt-2 flex items-center justify-between gap-4 border-t border-border/70 pt-2 text-xs">
                 <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Phone</p>
+                  <p className="mt-1 text-sm text-foreground">{vendor.phone ?? "—"}</p>
+                </div>
+                <div>
                   <p className="uppercase tracking-wide text-muted-foreground">Linked WOs</p>
                   <p className="mt-1 text-sm text-foreground">{vendor.linkedWorkOrders ?? "—"}</p>
                 </div>

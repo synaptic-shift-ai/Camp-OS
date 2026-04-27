@@ -22,7 +22,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { PermissionGate } from "@/components/ui/permission-gate"
@@ -435,7 +434,6 @@ export function MaintenanceView({
 
   // ── Visibility flags ──
 
-  const hasSla = !!task?.sla
   const showStart = task?.status === "open" && canEditTask
   const showComplete = (task?.status === "in_progress" || task?.status === "in_progress_vendor") && canEditTask
   const showReopen = (task?.status === "completed" || task?.status === "cancelled") && canEditTask
@@ -1058,7 +1056,7 @@ export function MaintenanceView({
       
 
       {/* ── Main content grid ── */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
@@ -1101,7 +1099,7 @@ export function MaintenanceView({
             </CardHeader>
             <CardContent className="pt-0">
               {taskImages.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {taskImages.map((image) => (
                     <div key={image.id} className="relative aspect-[4/3] overflow-hidden rounded-md border bg-muted/20">
                       <Image

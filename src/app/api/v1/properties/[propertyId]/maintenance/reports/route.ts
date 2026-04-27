@@ -49,7 +49,91 @@ export async function GET(
             ...(parsed.data.to !== undefined ? { to: parsed.data.to } : {}),
         })
 
-        return success(report, request)
+        // Vendor breakdown: SUM of costs grouped by vendor name
+        const { data: vendorRows } = await supabase
+            .from('maintenance_tasks')
+            .select('vendor_id, estimated_labor_cost, estimated_parts_cost')
+            .eq('property_id', propertyId)
+            .gte('created_at', parsed.data.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+            .lte('created_at', parsed.data.to ?? new Date().toISOString().split('T')[0])
+
+        const vendorIds = [...new Set((vendorRows ?? []).map((r) => r.vendor_id).filter(Boolean))] as string[]
+        const vendorMap: Record<string, string> = {}
+        if (vendorIds.length > 0) {
+            const { data: vendorNames } = await supabase
+                .from('property_vendor')
+                .select('id, name')
+                .in('id', vendorIds)
+            if (vendorNames) {
+                for (const v of vendorNames) {
+                    vendorMap[v.id] = v.name
+                }
+            }
+        }
+
+        const vendorCostMap: Record<string, number> = {}
+        for (const row of vendorRows ?? []) {
+            const vid = row.vendor_id ?? 'unassigned'
+            vendorCostMap[vid] = (vendorCostMap[vid] ?? 0) + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+        }
+        const vendorBreakdown = Object.entries(vendorCostMap).map(([vendorId, totalCost]) => ({
+            vendorName: vendorId === 'unassigned' ? 'Unassigned' : (vendorMap[vendorId] ?? 'Unknown'),
+            totalCost,
+        }))
+
+        // Monthly trend: SUM of costs grouped by YYYY-MM
+        const { data: monthlyRows } = await supabase
+            .from('maintenance_tasks')
+            .select('created_at, estimated_labor_cost, estimated_parts_cost')
+            .eq('property_id', propertyId)
+            .gte('created_at', parsed.data.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+            .lte('created_at', parsed.data.to ?? new Date().toISOString().split('T')[0])
+
+        const monthlyMap: Record<string, number> = {}
+        for (const row of monthlyRows ?? []) {
+            const month = row.created_at?.slice(0, 7) ?? 'unknown'
+            monthlyMap[month] = (monthlyMap[month] ?? 0) + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+        }
+        const monthlyTrend = Object.entries(monthlyMap)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([month, totalCost]) => ({ month, totalCost }))
+
+        // Budget comparison
+        const { data: budgets } = await supabase
+            .from('maintenance_budgets')
+            .select('category, period, amount')
+            .eq('property_id', propertyId)
+
+        const budgetComparison: Array<{ category: string; period: string; budgetAmount: number; actualSpend: number; remaining: number }> = []
+        if (budgets && budgets.length > 0) {
+            const dateFrom = parsed.data.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            const dateTo = parsed.data.to ?? new Date().toISOString().split('T')[0]
+            const { data: spendRows } = await supabase
+                .from('maintenance_tasks')
+                .select('category, estimated_labor_cost, estimated_parts_cost')
+                .eq('property_id', propertyId)
+                .gte('created_at', dateFrom)
+                .lte('created_at', dateTo)
+
+            const spendByCategory: Record<string, number> = {}
+            for (const row of spendRows ?? []) {
+                const cat = row.category ?? 'other'
+                spendByCategory[cat] = (spendByCategory[cat] ?? 0) + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+            }
+
+            for (const budget of budgets) {
+                const actualSpend = spendByCategory[budget.category] ?? 0
+                budgetComparison.push({
+                    category: budget.category,
+                    period: budget.period,
+                    budgetAmount: Number(budget.amount),
+                    actualSpend,
+                    remaining: Number(budget.amount) - actualSpend,
+                })
+            }
+        }
+
+        return success({ ...report, vendorBreakdown, monthlyTrend, budgetComparison }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Maintenance Reports API v1] GET error:', err)

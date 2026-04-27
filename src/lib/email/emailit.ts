@@ -63,6 +63,9 @@ function convertDataUrisToCid(
         const fullUri = match[1]
         const mimeType = match[2]
         const base64Data = match[3]
+        if (!fullUri || !mimeType || !base64Data) {
+            continue
+        }
 
         const cid = `img-${randomUUID()}`
         const ext =

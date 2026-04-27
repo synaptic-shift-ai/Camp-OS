@@ -86,6 +86,7 @@ function formatTaskDate(date: string | null): string {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "UTC",
   })
 }
 
@@ -93,8 +94,20 @@ function toDatetimeLocalValue(date: string | null): string {
   if (!date) return ""
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return ""
-  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 16)
+  const y = parsed.getUTCFullYear()
+  const m = String(parsed.getUTCMonth() + 1).padStart(2, "0")
+  const d = String(parsed.getUTCDate()).padStart(2, "0")
+  const hh = String(parsed.getUTCHours()).padStart(2, "0")
+  const mm = String(parsed.getUTCMinutes()).padStart(2, "0")
+  return `${y}-${m}-${d}T${hh}:${mm}`
+}
+
+function toIsoFromLocalDateTime(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed) return undefined
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return undefined
+  return parsed.toISOString()
 }
 
 function filterStatusToApi(
@@ -428,8 +441,8 @@ export function HousekeepingPageContent({
             ? input.reservationConfirmationId.trim()
             : undefined,
           priority: toApiPriority(input.priority),
-          startDate: input.startDate?.trim() ? input.startDate : undefined,
-          dueDate: input.dueDate?.trim() ? input.dueDate : undefined,
+          startDate: toIsoFromLocalDateTime(input.startDate),
+          dueDate: toIsoFromLocalDateTime(input.dueDate),
           checklistTemplateId: input.checklistTemplateId ?? undefined,
           checklistItemDone: input.checklistItemDone ?? [],
         }),
@@ -579,8 +592,8 @@ export function HousekeepingPageContent({
             ? input.reservationConfirmationId.trim()
             : undefined,
           priority: toApiPriority(input.priority),
-          startDate: input.startDate?.trim() ? input.startDate : undefined,
-          dueDate: input.dueDate?.trim() ? input.dueDate : undefined,
+          startDate: toIsoFromLocalDateTime(input.startDate),
+          dueDate: toIsoFromLocalDateTime(input.dueDate),
           checklistTemplateId: input.checklistTemplateId ?? undefined,
           checklistItemDone: input.checklistItemDone ?? [],
         }),

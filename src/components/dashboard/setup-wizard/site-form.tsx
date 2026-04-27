@@ -73,9 +73,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const isEditMode = !!site
   const [propertyAmenities, setPropertyAmenities] = useState<unknown[] | null>(null)
   const [amenitiesLoading, setAmenitiesLoading] = useState(false)
-  const [isSingleDay, setIsSingleDay] = useState(true)
-  const [houseKeepingFrom, setHouseKeepingFrom] = useState<string>('')
-  const [houseKeepingTo, setHouseKeepingTo] = useState('')
   const [deletingImageUrl, setDeletingImageUrl] = useState<string | null>(null)
   const { getDraft } = useWizardFormStore()
   const [blackoutDates, setBlackoutDates] = useState<string[]>(() => {
@@ -263,19 +260,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   }, [propertyAmenities])
 
   useEffect(() => {
-    const blocked = (site?.availability_rules as any)?.blocked_dates
-    if (blocked?.length > 0) {
-      const firstBlock = blocked[0]
-      setHouseKeepingFrom(firstBlock.from ?? '')
-      setHouseKeepingTo(firstBlock.to ?? '')
-      setIsSingleDay(firstBlock.from === firstBlock.to)
-    } else {
-      setHouseKeepingFrom('')
-      setHouseKeepingTo('')
-    }
-  }, [site])
-
-  useEffect(() => {
     if (isEditMode && site) {
       const values = fromApiFormat(site)
       reset(values as SiteFormData)
@@ -364,9 +348,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
         ...data,
         amenities: amenitiesForSubmit,
       })
-      const isBlockingDates =
-        (data.status === "housekeeping" || data.status === "maintenance") && houseKeepingFrom
-
       const priorRules =
         typeof site?.availability_rules === "object" && site?.availability_rules !== null
           ? { ...(site.availability_rules as Record<string, unknown>) }
@@ -375,15 +356,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       const availability_rules: Record<string, unknown> = {
         ...priorRules,
         blackout_dates: blackoutDates,
-        blocked_dates: isBlockingDates
-          ? [
-              {
-                from: houseKeepingFrom,
-                to: isSingleDay ? houseKeepingFrom : (houseKeepingTo || houseKeepingFrom),
-                reason: data.status,
-              },
-            ]
-          : [],
+        blocked_dates: [],
       }
 
       const finalApiData = {
@@ -519,45 +492,6 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
               </Select>
             </div>
           </div>
-
-          {(watch("status") === "housekeeping" || watch("status") === "maintenance") && (
-            <div className="space-y-3">
-              <div>
-                <Label>Select Date</Label>
-                <CardDescription>Set the date for the site {watch("status")} schedule.</CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="singleDay" checked={isSingleDay} onCheckedChange={(checked) => setIsSingleDay(!!checked)} />
-                <Label htmlFor="singleDay" className="cursor-pointer font-normal">Single Day</Label>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <Label htmlFor="houseKeepingFrom" className="text-xs text-muted-foreground mb-1 block">
-                    {isSingleDay ? "Date" : "Start Date"}
-                  </Label>
-                  <Input
-                    id="houseKeepingFrom"
-                    type="date"
-                    value={houseKeepingFrom}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setHouseKeepingFrom(e.target.value)}
-                  />
-                </div>
-                {!isSingleDay && (
-                  <div className="flex-1">
-                    <Label htmlFor="houseKeepingTo" className="text-xs text-muted-foreground mb-1 block">End Date</Label>
-                    <Input
-                      id="houseKeepingTo"
-                      type="date"
-                      value={houseKeepingTo}
-                      min={houseKeepingFrom || new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setHouseKeepingTo(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           <div>
             <Label htmlFor="description">Description</Label>

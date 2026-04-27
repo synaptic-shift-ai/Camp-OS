@@ -32,7 +32,6 @@ import { DeleteSiteDialog } from './delete-site-dialog'
 import { SiteDetailsDialog } from './site-details-dialog'
 import { SiteCalendarDialog } from './site-calendar-dialog'
 import { SiteCheckInButton } from './site-check-in-button'
-import { HousekeepingScheduleDialog } from './housekeeping-schedule-dialog'
 import type { SiteType } from '@/lib/booking/types'
 import type { Database } from '@/contracts/db'
 import type { PropertyPricingConfig } from '@/app/dashboard/[propertyId]/sites/page'
@@ -228,7 +227,6 @@ export function SitesGrid({
   const [viewingSite, setViewingSite] = useState<Site | null>(null)
   const [calendarSite, setCalendarSite] = useState<Site | null>(null)
   const [statusPopoverOpen, setStatusPopoverOpen] = useState<string | null>(null)
-  const [schedulingSite, setSchedulingSite] = useState<{ site: Site; status: 'housekeeping' | 'maintenance' } | null>(null)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -252,12 +250,6 @@ export function SitesGrid({
   const handleStatusChange = async (site: Site, newStatus: SiteStatus, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!canUpdateSiteStatus) return
-
-    if (newStatus === 'housekeeping' || newStatus === 'maintenance') {
-      setStatusPopoverOpen(null)
-      setSchedulingSite({ site, status: newStatus })
-      return
-    }
 
     try {
       // Migrated to v1 API
@@ -532,19 +524,6 @@ export function SitesGrid({
           open={!!calendarSite}
           onOpenChange={(open) => !open && setCalendarSite(null)}
           site={calendarSite}
-        />
-      )}
-
-      {/* Housekeeping / Maintenance Schedule Dialog */}
-      {schedulingSite && (
-        <HousekeepingScheduleDialog
-          open={!!schedulingSite}
-          onOpenChange={(open) => !open && setSchedulingSite(null)}
-          site={{
-            ...schedulingSite.site,
-            availability_rules: schedulingSite.site.availability_rules as { blocked_dates?: Array<{ from: string; to: string; reason: string }> } | null,
-          }}
-          status={schedulingSite.status}
         />
       )}
     </>

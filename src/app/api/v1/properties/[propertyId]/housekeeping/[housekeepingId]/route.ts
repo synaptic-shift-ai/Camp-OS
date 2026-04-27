@@ -212,7 +212,13 @@ export async function PATCH(
             rawStatus: siteRow.status,
             normalizedStatus,
           })
-          if (normalizedStatus === 'housekeeping' || normalizedStatus === 'maintenance') {
+          if (normalizedStatus === 'available') {
+            console.info(`${siteAvailabilityLogPrefix}: skip — site already available`, {
+              propertyId,
+              siteId: siteRow.id,
+              housekeepingTaskId: housekeepingTask.id,
+            })
+          } else {
             const timestamp = new Date().toISOString()
             const { data: updatedSites, error: siteUpdateError } = await service
               .from('sites')
@@ -265,15 +271,6 @@ export async function PATCH(
                 })
               }
             }
-          } else {
-            console.info(`${siteAvailabilityLogPrefix}: skip — site status is not housekeeping or maintenance`, {
-              propertyId,
-              siteId: siteRow.id,
-              housekeepingTaskId: housekeepingTask.id,
-              rawStatus: siteRow.status,
-              normalizedStatus,
-              expectedOneOf: ['housekeeping', 'maintenance'],
-            })
           }
         }
       }

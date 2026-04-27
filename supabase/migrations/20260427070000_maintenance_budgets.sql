@@ -42,14 +42,14 @@ ALTER TABLE maintenance_spend_limits ENABLE ROW LEVEL SECURITY;
 
 -- Budgets RLS policies
 CREATE POLICY "service_role_full_access_maintenance_budgets" ON maintenance_budgets FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "authenticated_select_maintenance_budgets" ON maintenance_budgets FOR SELECT TO authenticated USING (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
-CREATE POLICY "authenticated_insert_maintenance_budgets" ON maintenance_budgets FOR INSERT TO authenticated WITH CHECK (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
-CREATE POLICY "authenticated_update_maintenance_budgets" ON maintenance_budgets FOR UPDATE TO authenticated USING (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
-CREATE POLICY "authenticated_delete_maintenance_budgets" ON maintenance_budgets FOR DELETE TO authenticated USING (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
+CREATE POLICY "authenticated_select_maintenance_budgets" ON maintenance_budgets FOR SELECT TO authenticated USING (property_id IN (SELECT public.get_accessible_property_ids()));
+CREATE POLICY "authenticated_insert_maintenance_budgets" ON maintenance_budgets FOR INSERT TO authenticated WITH CHECK (property_id IN (SELECT public.get_accessible_property_ids()));
+CREATE POLICY "authenticated_update_maintenance_budgets" ON maintenance_budgets FOR UPDATE TO authenticated USING (property_id IN (SELECT public.get_accessible_property_ids()));
+CREATE POLICY "authenticated_delete_maintenance_budgets" ON maintenance_budgets FOR DELETE TO authenticated USING (property_id IN (SELECT public.get_accessible_property_ids()));
 
 -- Spend limits RLS policies
 CREATE POLICY "service_role_full_access_maintenance_spend_limits" ON maintenance_spend_limits FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "authenticated_select_maintenance_spend_limits" ON maintenance_spend_limits FOR SELECT TO authenticated USING (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
-CREATE POLICY "authenticated_insert_maintenance_spend_limits" ON maintenance_spend_limits FOR INSERT TO authenticated WITH CHECK (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
-CREATE POLICY "authenticated_update_maintenance_spend_limits" ON maintenance_spend_limits FOR UPDATE TO authenticated USING (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
-CREATE POLICY "authenticated_delete_maintenance_spend_limits" ON maintenance_spend_limits FOR DELETE TO authenticated USING (property_id IN (SELECT get_accessible_property_ids(auth.uid())));
+CREATE POLICY "authenticated_select_maintenance_spend_limits" ON maintenance_spend_limits FOR SELECT TO authenticated USING (property_id IN (SELECT public.get_accessible_property_ids()));
+CREATE POLICY "authenticated_insert_maintenance_spend_limits" ON maintenance_spend_limits FOR INSERT TO authenticated WITH CHECK (property_id IN (SELECT public.get_accessible_property_ids()));
+CREATE POLICY "authenticated_update_maintenance_spend_limits" ON maintenance_spend_limits FOR UPDATE TO authenticated USING (property_id IN (SELECT public.get_accessible_property_ids()));
+CREATE POLICY "authenticated_delete_maintenance_spend_limits" ON maintenance_spend_limits FOR DELETE TO authenticated USING (property_id IN (SELECT public.get_accessible_property_ids()));

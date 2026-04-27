@@ -26,6 +26,7 @@ import type {
   RateDiscountsConfig,
 } from "@/lib/config/types"
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
+import { MaintenanceSiteTypeConfig } from "@/components/dashboard/settings/maintenance-site-type-config"
 
 export const dynamic = "force-dynamic"
 
@@ -39,6 +40,7 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "booking-rules", label: "Booking Rules" },
   { value: "cancellation-policy", label: "Terms & Policies" },
   { value: "discounts", label: "Discounts" },
+  { value: "maintenance", label: "Maintenance Config" },
 ]
 
 async function getPropertyWithSeasonal(propertyId: string) {
@@ -266,6 +268,15 @@ export default async function SettingsPage({ params }: PageProps) {
             {...(property.rate_discounts_config != null && {
               initialConfig: property.rate_discounts_config as RateDiscountsConfig,
             })}
+          />
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="space-y-4">
+          <MaintenanceSiteTypeConfig
+            propertyId={property.id}
+            siteTypeConfig={rawSiteTypeConfig ?? {}}
+            allowedSiteTypes={allowedSiteTypesFromConfig}
+            canEdit={canEditSettings}
           />
         </TabsContent>
       </OverflowTabs>

@@ -69,7 +69,7 @@ export function canAccessHousekeepingModule(access: ResolvedAccess): boolean {
 export function canAccessAutomationsModule(access: ResolvedAccess): boolean {
   if (!access.role) return false
   if (isManagerOrAbove(access.role)) return true
-  return hasPermission(access.role, 'automations.view')
+  return hasPermission(access.role, 'automations.view_dashboard')
 }
 
 /**

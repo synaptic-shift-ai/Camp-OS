@@ -12,8 +12,14 @@ import type { TriggerType, ActionType, EventContext } from './types'
 import type { ConditionsEvaluationDetail } from './condition-evaluator'
 import { evaluateConditionsDetailed } from './condition-evaluator'
 import { buildEventContext } from './event-context'
-import { getAutomationWithDetails } from './queries'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import type {
+  AutomationRow,
+  AutomationConditionGroupRow,
+  AutomationConditionRow,
+  AutomationActionRow,
+  AutomationBranchRow,
+} from './types'
 
 // ============================================================================
 // Types
@@ -131,13 +137,33 @@ export async function dryRunAutomation(
   const startMs = Date.now()
   const maxResults = Math.min(limit ?? 100, 500)
 
-  // 1. Load automation with full details
-  const details = await getAutomationWithDetails(automationId)
-  if (!details) {
+  // 1. Load automation with full details using service-role client to bypass RLS.
+  //    The permission check has already been performed in the API route, so it is safe
+  //    to use the service role here. This is required for system automations
+  //    (property_id = null) which are not accessible via the user's RLS policies.
+  const svc = createServiceRoleClient()
+
+  const { data: automationRow, error: autError } = await svc
+    .from('automations' as any)
+    .select('*')
+    .eq('id', automationId)
+    .single()
+
+  if (autError || !automationRow) {
     throw new Error(`Automation ${automationId} not found`)
   }
 
-  const { automation, conditionGroups, conditions, actions } = details
+  const automation = automationRow as unknown as AutomationRow
+
+  const [groupsRes, conditionsRes, actionsRes] = await Promise.all([
+    svc.from('automation_condition_groups' as any).select('*').eq('automation_id', automationId).order('sort_order'),
+    svc.from('automation_conditions' as any).select('*').eq('automation_id', automationId).order('sort_order'),
+    svc.from('automation_actions' as any).select('*').eq('automation_id', automationId).order('sort_order'),
+  ])
+
+  const conditionGroups = (groupsRes.data ?? []) as unknown as AutomationConditionGroupRow[]
+  const conditions = (conditionsRes.data ?? []) as unknown as AutomationConditionRow[]
+  const actions = (actionsRes.data ?? []) as unknown as AutomationActionRow[]
   const triggerType = automation.trigger_type as TriggerType
 
   // 2. Compute date range

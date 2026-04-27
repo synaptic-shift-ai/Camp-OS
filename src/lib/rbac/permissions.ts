@@ -109,10 +109,21 @@ export type PermissionKey =
   | 'dynamic_pricing.view_revenue'
   | 'dynamic_pricing.view_audit_log'
   // Automations
-  | 'automations.view'
-  | 'automations.manage'
+  | 'automations.view_dashboard'
+  | 'automations.view_automations'
   | 'automations.view_execution_log'
-  | 'automations.system_admin'
+  | 'automations.view_validation'
+  | 'automations.view_email_templates'
+  | 'automations.add_email_templates'
+  | 'automations.edit_email_templates'
+  | 'automations.delete_email_templates'
+  | 'automations.view_system_automations'
+  | 'automations.add_system_automations'
+  | 'automations.edit_system_automations'
+  | 'automations.delete_system_automations'
+  | 'automations.add_automations'
+  | 'automations.edit_automations'
+  | 'automations.delete_automations'
 
 // ─── Role → permission sets ────────────────────────────────────────────────────
 
@@ -165,7 +176,10 @@ const OWNER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   'dynamic_pricing.view_config', 'dynamic_pricing.update_config', 'dynamic_pricing.enable_disable',
   'dynamic_pricing.view_revenue', 'dynamic_pricing.view_audit_log',
   // Automations
-  'automations.view', 'automations.manage', 'automations.view_execution_log', 'automations.system_admin',
+  'automations.view_dashboard', 'automations.view_automations', 'automations.view_execution_log', 'automations.view_validation',
+  'automations.view_email_templates', 'automations.add_email_templates', 'automations.edit_email_templates', 'automations.delete_email_templates',
+  'automations.view_system_automations', 'automations.add_system_automations', 'automations.edit_system_automations', 'automations.delete_system_automations',
+  'automations.add_automations', 'automations.edit_automations', 'automations.delete_automations',
 ])
 
 /** Admin permissions: full operational access minus billing/plan/account management. */
@@ -217,7 +231,10 @@ const ADMIN_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   'dynamic_pricing.view_config', 'dynamic_pricing.update_config', 'dynamic_pricing.enable_disable',
   'dynamic_pricing.view_revenue', 'dynamic_pricing.view_audit_log',
   // Automations
-  'automations.view', 'automations.manage', 'automations.view_execution_log',
+  'automations.view_dashboard', 'automations.view_automations', 'automations.view_execution_log', 'automations.view_validation',
+  'automations.view_email_templates', 'automations.add_email_templates', 'automations.edit_email_templates', 'automations.delete_email_templates',
+  'automations.view_system_automations',
+  'automations.add_automations', 'automations.edit_automations', 'automations.delete_automations',
 ])
 
 /** Manager permissions: elevated operational access, no pricing/financial config. */
@@ -257,7 +274,8 @@ const MANAGER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   // Dynamic pricing
   'dynamic_pricing.view_config', 'dynamic_pricing.view_revenue',
   // Automations
-  'automations.view', 'automations.view_execution_log',
+  'automations.view_dashboard', 'automations.view_automations', 'automations.view_execution_log', 'automations.view_validation',
+  'automations.view_email_templates', 'automations.view_system_automations',
 ])
 
 /**

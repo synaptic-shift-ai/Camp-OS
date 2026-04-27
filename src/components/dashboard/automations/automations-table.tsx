@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Eye, Pencil, Trash2, Copy, Zap } from "lucide-react"
+import { PermissionGate } from "@/components/ui/permission-gate"
 import type { AutomationRow } from "@/lib/automations/types"
 import { PHASE_COLORS } from "@/lib/automations/templates"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,8 @@ type AutomationsTableProps = {
   onToggleActive?: (row: AutomationRow) => void
   onDryRun?: (row: AutomationRow) => void
   canManage?: boolean
+  canDelete?: boolean
+  canDuplicate?: boolean
   readOnlyIds?: Set<string>
 }
 
@@ -74,6 +77,8 @@ export function AutomationsTable({
   onToggleActive: _onToggleActive,
   onDryRun,
   canManage = true,
+  canDelete = true,
+  canDuplicate = true,
   readOnlyIds,
 }: AutomationsTableProps) {
   return (
@@ -173,45 +178,49 @@ export function AutomationsTable({
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="Dry run simulation"
-                      className="h-8 w-8 p-0"
-                      onClick={() => onDryRun?.(row)}
-                    >
-                      <Zap className="h-4 w-4" />
-                    </Button>
+                    <PermissionGate permission="automations.view_validation">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Dry run simulation"
+                        className="h-8 w-8 p-0"
+                        onClick={() => onDryRun?.(row)}
+                      >
+                        <Zap className="h-4 w-4" />
+                      </Button>
+                    </PermissionGate>
                     {canManage && !readOnlyIds?.has(row.id) && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-label="Edit automation"
-                          className="h-8 w-8 p-0"
-                          onClick={() => onEdit?.(row)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-label="Duplicate automation"
-                          className="h-8 w-8 p-0"
-                          onClick={() => onDuplicate?.(row)}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-label="Delete automation"
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                          onClick={() => onDelete?.(row)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Edit automation"
+                        className="h-8 w-8 p-0"
+                        onClick={() => onEdit?.(row)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDuplicate && !readOnlyIds?.has(row.id) && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Duplicate automation"
+                        className="h-8 w-8 p-0"
+                        onClick={() => onDuplicate?.(row)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDelete && !readOnlyIds?.has(row.id) && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Delete automation"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => onDelete?.(row)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
                 </TableCell>

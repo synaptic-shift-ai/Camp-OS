@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
 
     const access = await requirePropertyAccess(supabase as any, user.id, {
       propertyId,
-      permission: 'automations.view',
+      permission: 'automations.view_email_templates',
     })
     if (isDenied(access)) return access
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     if (propertyId) {
       const access = await requirePropertyAccess(supabase as any, user.id, {
         propertyId,
-        permission: 'automations.manage',
+        permission: 'automations.add_email_templates',
       })
       if (isDenied(access)) return access
     }

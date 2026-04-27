@@ -8,6 +8,7 @@ import {
   updateAutomationWithDetails,
   deleteAutomation,
 } from '@/lib/automations/queries'
+import { requireCompanyAccessForSystemAutomation } from '@/lib/automations/company-guard'
 import { UpdateAutomationSchema } from '@/lib/automations/schemas'
 import type { UpdateAutomationInput as QueryUpdateInput } from '@/lib/automations/queries'
 
@@ -34,14 +35,18 @@ export async function GET(
     }
 
     const propertyId = details.automation.property_id
-    // System-scope automation — allow any authenticated user
+    // System-scope automation — verify company isolation
     if (!propertyId) {
+      const denied = await requireCompanyAccessForSystemAutomation(
+        user.id, details.automation.company_id, request,
+      )
+      if (denied) return denied
       return success(details, request)
     }
 
     const access = await requirePropertyAccess(supabase as any, user.id, {
       propertyId,
-      permission: 'automations.view',
+      permission: 'automations.view_dashboard',
     })
     if (isDenied(access)) return access
 
@@ -76,13 +81,16 @@ export async function PUT(
     const propertyId = existing.automation.property_id
     const isSystem = existing.automation.scope === 'system'
 
-    // System-scope: allow any authenticated user
+    // System-scope: verify company isolation
     if (isSystem) {
-      // No additional permission check for system automations
+      const denied = await requireCompanyAccessForSystemAutomation(
+        user.id, existing.automation.company_id, request,
+      )
+      if (denied) return denied
     } else if (propertyId) {
       const access = await requirePropertyAccess(supabase as any, user.id, {
         propertyId,
-        permission: 'automations.manage',
+        permission: 'automations.edit_automations',
       })
       if (isDenied(access)) return access
     }
@@ -172,13 +180,16 @@ export async function DELETE(
     const isSystem = existing.automation.scope === 'system'
     const propertyId = existing.automation.property_id
 
-    // System-scope: allow any authenticated user
+    // System-scope: verify company isolation
     if (isSystem) {
-      // No additional permission check
+      const denied = await requireCompanyAccessForSystemAutomation(
+        user.id, existing.automation.company_id, request,
+      )
+      if (denied) return denied
     } else if (propertyId) {
       const access = await requirePropertyAccess(supabase as any, user.id, {
         propertyId,
-        permission: 'automations.manage',
+        permission: 'automations.delete_automations',
       })
       if (isDenied(access)) return access
     }

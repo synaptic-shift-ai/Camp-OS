@@ -5,7 +5,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { resolveUserPropertyAccessOrThrow, AccessDeniedError } from '@/lib/rbac'
 import { getPermissionsForRole } from '@/lib/rbac/permissions'
 import { resolveStaffPermissions } from '@/lib/rbac/staff-categories'
-import { fetchCategoryDerivedPermissionKeys } from '@/lib/rbac/role-category-module-access'
+import { fetchNormalizedStaffCategories, computeCategoryDeniedPermissions, resolvePermissionsFromCategoryAccess } from '@/lib/rbac/role-category-module-access'
 
 /**
  * GET /api/v1/me/permissions?propertyId=...
@@ -45,13 +45,28 @@ export async function GET(request: NextRequest) {
       : new Set<string>()
     let allPerms = new Set([...rolePerms, ...categoryPerms])
 
-    const categoryDerivedPerms = await fetchCategoryDerivedPermissionKeys(
+    const normalizedCategories = await fetchNormalizedStaffCategories(
       supabase as never,
       propertyId,
       user.id,
       access.rawRole,
     )
+
+    const categoryDerivedPerms = normalizedCategories
+      ? resolvePermissionsFromCategoryAccess(normalizedCategories.role, normalizedCategories.categories)
+      : new Set<import('@/lib/rbac/permissions').PermissionKey>()
     allPerms = new Set([...allPerms, ...categoryDerivedPerms])
+
+    // Subtract explicitly denied permissions from category access control overrides
+    if (normalizedCategories) {
+      const categoryDeniedPerms = computeCategoryDeniedPermissions(
+        normalizedCategories.role,
+        normalizedCategories.categories,
+      )
+      for (const denied of categoryDeniedPerms) {
+        allPerms.delete(denied)
+      }
+    }
 
     const payload = {
         role: access.role,

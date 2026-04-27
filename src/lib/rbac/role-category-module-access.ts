@@ -5,6 +5,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PermissionKey } from '@/lib/rbac/permissions'
+import { getPermissionsForRole } from '@/lib/rbac/permissions'
+import type { EffectiveRole } from '@/lib/rbac/roles'
 import type { UiRole } from '@/lib/dashboard/staff-management-queries'
 import type { RoleAccessControlModuleKey } from '@/lib/dashboard/dashboard-nav-modules'
 
@@ -23,8 +25,8 @@ export function normalizeAccessPayload(raw: unknown): RoleCategoryAccessPayload 
     typeof maybe.selectedModuleKey === 'string' ? maybe.selectedModuleKey : undefined
   const moduleAccessControl =
     maybe.moduleAccessControl &&
-    typeof maybe.moduleAccessControl === 'object' &&
-    !Array.isArray(maybe.moduleAccessControl)
+      typeof maybe.moduleAccessControl === 'object' &&
+      !Array.isArray(maybe.moduleAccessControl)
       ? (maybe.moduleAccessControl as Record<string, Record<string, boolean>>)
       : undefined
   const normalized: NonNullable<RoleCategoryAccessPayload> = {}
@@ -85,6 +87,23 @@ export const ROLE_CATEGORY_MODULE_PERMISSION_TO_RBAC: Partial<
   auditing: {
     view: 'docs.view_acknowledgment_log',
   },
+  automations: {
+    'view-dashboard': 'automations.view_dashboard',
+    'view-automations': 'automations.view_automations',
+    'view-execution-log': 'automations.view_execution_log',
+    'view-validation': 'automations.view_validation',
+    'view-email-templates': 'automations.view_email_templates',
+    'add-email-templates': 'automations.add_email_templates',
+    'edit-email-templates': 'automations.edit_email_templates',
+    'delete-email-templates': 'automations.delete_email_templates',
+    'view-system-automations': 'automations.view_system_automations',
+    'add-system-automations': 'automations.add_system_automations',
+    'edit-system-automations': 'automations.edit_system_automations',
+    'delete-system-automations': 'automations.delete_system_automations',
+    'add-automations': 'automations.add_automations',
+    'edit-automations': 'automations.edit_automations',
+    'delete-automations': 'automations.delete_automations',
+  },
   settings: {
     view: 'global.manage_property_settings',
     edit: 'global.manage_property_settings',
@@ -105,7 +124,7 @@ export function buildDefaultAccessForRoleCategory(
 ): Record<string, Record<string, boolean>> {
   const category = categoryName.trim().toLowerCase()
 
-  if (role === 'owner' || role === 'admin') {
+  if (role === 'owner') {
     return {
       'account-profile': {
         view: true,
@@ -140,6 +159,56 @@ export function buildDefaultAccessForRoleCategory(
       analytics: { view: true },
       auditing: { view: true },
       settings: { view: true, edit: true },
+      automations: {
+        'view-dashboard': true, 'view-execution-log': true, 'view-validation': true,
+        'view-email-templates': true, 'add-email-templates': true, 'edit-email-templates': true, 'delete-email-templates': true,
+        'view-system-automations': true, 'add-system-automations': true, 'edit-system-automations': true, 'delete-system-automations': true,
+        'view-automations': true, 'add-automations': true, 'edit-automations': true, 'delete-automations': true,
+      },
+    }
+  }
+
+  if (role === 'admin') {
+    return {
+      'account-profile': {
+        view: true,
+        edit: true,
+        'view-company': true,
+        'change-password': true,
+      },
+      'staff-management': { view: true, invite: true, edit: true, deactivate: true },
+      reservations: {
+        view: true,
+        create: true,
+        modify: true,
+        'check-in': true,
+        'check-out': true,
+        cancel: true,
+      },
+      payments: { view: true },
+      housekeeping: { view: true, create: true, update: true, delete: true },
+      maintenance: {
+        view: true,
+        create: true,
+        update: true,
+        delete: true,
+        'assign-wo': true,
+        'request-onhold': true,
+        'approve-onhold': true,
+        'cancel-wo': true,
+        'manage-vendors': true,
+        'manage-pm-schedules': true,
+        'view-cost-reports': true,
+      },
+      analytics: { view: true },
+      auditing: { view: true },
+      settings: { view: true, edit: true },
+      automations: {
+        'view-dashboard': true, 'view-execution-log': true, 'view-validation': true,
+        'view-email-templates': true, 'add-email-templates': true, 'edit-email-templates': true, 'delete-email-templates': true,
+        'view-system-automations': true,
+        'view-automations': true, 'add-automations': true, 'edit-automations': true, 'delete-automations': true,
+      },
     }
   }
 
@@ -153,6 +222,7 @@ export function buildDefaultAccessForRoleCategory(
       },
       'staff-management': { view: true },
       reservations: { view: true, 'check-in': true, 'check-out': true },
+      automations: { 'view-dashboard': true, 'view-execution-log': true, 'view-validation': true, 'view-email-templates': true, 'view-system-automations': true, 'view-automations': true },
     }
   }
 
@@ -166,6 +236,7 @@ export function buildDefaultAccessForRoleCategory(
       },
       'staff-management': { view: true },
       housekeeping: { view: true, create: true, update: true, delete: true },
+      automations: { 'view-dashboard': true, 'view-execution-log': true, 'view-validation': true, 'view-email-templates': true, 'view-system-automations': true, 'view-automations': true },
     }
   }
 
@@ -191,6 +262,7 @@ export function buildDefaultAccessForRoleCategory(
         'manage-pm-schedules': true,
         'view-cost-reports': true,
       },
+      automations: { 'view-dashboard': true, 'view-execution-log': true, 'view-validation': true, 'view-email-templates': true, 'view-system-automations': true, 'view-automations': true },
     }
   }
 
@@ -235,6 +307,52 @@ export function buildDefaultAccessForRoleCategory(
   return {}
 }
 
+/**
+ * Fetch the staff assignment and normalize the role categories from the database.
+ * Shared by `fetchCategoryDerivedPermissionKeys` and the permissions API route.
+ */
+export async function fetchNormalizedStaffCategories(
+  supabase: SupabaseClient,
+  propertyId: string,
+  userId: string,
+  rawRoleFallback: string | null,
+): Promise<{ role: UiRole; categories: Array<{ name: string; access: RoleCategoryAccessPayload }> } | null> {
+  const { data: staffAssignment } = await supabase
+    .from('property_staff')
+    .select('role, role_category_id')
+    .eq('property_id', propertyId)
+    .eq('user_id', userId)
+    .in('status', ['active', 'pending'])
+    .maybeSingle()
+
+  const assignedCategoryIds = staffAssignment?.role_category_id ?? []
+  if (!Array.isArray(assignedCategoryIds) || assignedCategoryIds.length === 0) {
+    return null
+  }
+
+  const role = toUiRoleFromStaffAssignment(
+    typeof staffAssignment?.role === 'string' ? staffAssignment.role : rawRoleFallback,
+  )
+
+  const { data: categoryRows } = await supabase
+    .from('property_role_categories')
+    .select('id, name, access')
+    .eq('property_id', propertyId)
+    .eq('role', role)
+    .in('id', assignedCategoryIds)
+
+  if (!Array.isArray(categoryRows) || categoryRows.length === 0) {
+    return null
+  }
+
+  const categories = categoryRows.map((row) => ({
+    name: row.name,
+    access: normalizeAccessPayload(row.access),
+  }))
+
+  return { role, categories }
+}
+
 export function resolvePermissionsFromCategoryAccess(
   role: UiRole,
   categories: Array<{ name: string; access: RoleCategoryAccessPayload }>,
@@ -276,37 +394,83 @@ export async function fetchCategoryDerivedPermissionKeys(
   userId: string,
   rawRoleFallback: string | null,
 ): Promise<ReadonlySet<PermissionKey>> {
-  const { data: staffAssignment } = await supabase
-    .from('property_staff')
-    .select('role, role_category_id')
-    .eq('property_id', propertyId)
-    .eq('user_id', userId)
-    .in('status', ['active', 'pending'])
-    .maybeSingle()
+  const result = await fetchNormalizedStaffCategories(supabase, propertyId, userId, rawRoleFallback)
+  if (!result) return new Set()
+  return resolvePermissionsFromCategoryAccess(result.role, result.categories)
+}
 
-  const assignedCategoryIds = staffAssignment?.role_category_id ?? []
-  if (!Array.isArray(assignedCategoryIds) || assignedCategoryIds.length === 0) {
-    return new Set()
+/**
+ * Compute permissions that are EXPLICITLY DENIED by category access control overrides.
+ * These are permissions that exist in the role defaults or bridge mapping for a module
+ * but are set to `false` in the explicit moduleAccessControl.
+ */
+export function computeCategoryDeniedPermissions(
+  role: UiRole,
+  categories: Array<{ name: string; access: RoleCategoryAccessPayload }>,
+): ReadonlySet<PermissionKey> {
+  const denied = new Set<PermissionKey>()
+
+  for (const category of categories) {
+    const defaultAccessMap = buildDefaultAccessForRoleCategory(role, category.name)
+    const explicitAccessMap = category.access?.moduleAccessControl ?? {}
+
+    // Only consider modules that have explicit overrides
+    const moduleKeys = Object.keys(explicitAccessMap)
+    if (moduleKeys.length === 0) continue
+
+    for (const moduleKey of moduleKeys) {
+      const perms = {
+        ...(defaultAccessMap[moduleKey] ?? {}),
+        ...(explicitAccessMap[moduleKey] ?? {}),
+      }
+      const modulePermissions = ROLE_CATEGORY_MODULE_PERMISSION_TO_RBAC[moduleKey as RoleAccessControlModuleKey]
+      if (!modulePermissions) continue
+
+      for (const [permissionId, enabled] of Object.entries(perms)) {
+        if (enabled) continue // Only care about explicitly disabled
+        const mapped = modulePermissions[permissionId]
+        if (mapped) denied.add(mapped)
+      }
+    }
   }
 
-  const role = toUiRoleFromStaffAssignment(
-    typeof staffAssignment?.role === 'string' ? staffAssignment.role : rawRoleFallback,
-  )
+  return denied
+}
 
-  const { data: categoryRows } = await supabase
-    .from('property_role_categories')
-    .select('id, name, access')
-    .eq('property_id', propertyId)
-    .eq('role', role)
-    .in('id', assignedCategoryIds)
+/**
+ * Resolve the complete effective permission set for a user on a property.
+ *
+ * Combines static role permissions with category-derived additions and subtracts
+ * permissions that are explicitly disabled by category access control overrides.
+ * This is the authoritative server-side permission check that respects the
+ * owner's Access Control toggles.
+ */
+export async function resolveEffectivePermissionSet(
+  supabase: SupabaseClient,
+  propertyId: string,
+  userId: string,
+  role: EffectiveRole | null,
+  rawRole: string | null,
+): Promise<Set<PermissionKey>> {
+  const rolePerms = role ? getPermissionsForRole(role) : new Set<PermissionKey>()
+  let allPerms = new Set<PermissionKey>([...rolePerms])
 
-  if (!Array.isArray(categoryRows) || categoryRows.length === 0) {
-    return new Set()
+  const normalizedCategories = await fetchNormalizedStaffCategories(supabase, propertyId, userId, rawRole)
+  if (normalizedCategories) {
+    const categoryDerivedPerms = resolvePermissionsFromCategoryAccess(
+      normalizedCategories.role,
+      normalizedCategories.categories,
+    )
+    allPerms = new Set([...allPerms, ...categoryDerivedPerms])
+
+    const categoryDeniedPerms = computeCategoryDeniedPermissions(
+      normalizedCategories.role,
+      normalizedCategories.categories,
+    )
+    for (const denied of categoryDeniedPerms) {
+      allPerms.delete(denied)
+    }
   }
 
-  const normalized = categoryRows.map((row) => ({
-    name: row.name,
-    access: normalizeAccessPayload(row.access),
-  }))
-  return resolvePermissionsFromCategoryAccess(role, normalized)
+  return allPerms
 }

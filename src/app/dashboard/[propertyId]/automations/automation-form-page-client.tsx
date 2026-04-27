@@ -189,7 +189,8 @@ export function AutomationFormPageClient({
 
     try {
       CreateAutomationSchema.parse({
-        ...(systemMode ? {} : { companyId, propertyId }),
+        companyId,
+        ...(systemMode ? {} : { propertyId }),
         name: name.trim(),
         description: description.trim() || undefined,
         phase,
@@ -258,7 +259,8 @@ export function AutomationFormPageClient({
           actions: actionPayload,
         }
         : {
-          ...(systemMode ? {} : { companyId, propertyId }),
+          companyId,
+          ...(systemMode ? {} : { propertyId }),
           name: name.trim(),
           description: description.trim() || undefined,
           phase,

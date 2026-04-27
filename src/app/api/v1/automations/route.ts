@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const access = await requirePropertyAccess(supabase as any, user.id, {
       propertyId,
-      permission: 'automations.view',
+      permission: 'automations.view_dashboard',
     })
     if (isDenied(access)) return access
 
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (isActiveParam === 'true') filters.isActive = true
     if (isActiveParam === 'false') filters.isActive = false
 
-    const automations = await listAutomations(propertyId, filters)
+    const automations = await listAutomations(propertyId, filters, access.companyId)
 
     return success({ automations }, request)
   } catch (err: unknown) {
@@ -73,20 +74,18 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data
 
-    // System-scope automations — allow any authenticated user
+    // System-scope automations — verify user belongs to the specified company.
+    // Use service-role client to bypass RLS; the user is already authenticated above.
+    // Owners may not be in property_staff, so checking via RLS-bound client is unreliable.
     if (data.scope === 'system') {
-      // Resolve a company_id for the system automation (DB requires NOT NULL)
       if (!data.companyId) {
-        const { data: firstCompany } = await supabase
-          .from('companies' as any)
-          .select('id')
-          .limit(1)
-          .single()
-        const firstCompanyId = (firstCompany as { id?: string } | null)?.id
-        if (!firstCompanyId) {
-          return error(ErrorCodes.VAL_002, request, { message: 'No company found for system automation' })
-        }
-        data.companyId = firstCompanyId
+        return error(ErrorCodes.VAL_002, request, { message: 'companyId is required for system automations' })
+      }
+      const { userHasStaffAssignmentToCompany } = await import('@/lib/dashboard/company-access')
+      const svc = createServiceRoleClient()
+      const hasAccess = await userHasStaffAssignmentToCompany(svc as any, user.id, data.companyId)
+      if (!hasAccess) {
+        return error(ErrorCodes.AUTH_001, request, { message: 'User does not have access to the specified company' })
       }
     } else {
       const propertyId = data.propertyId
@@ -95,7 +94,7 @@ export async function POST(request: NextRequest) {
       }
       const access = await requirePropertyAccess(supabase as any, user.id, {
         propertyId,
-        permission: 'automations.manage',
+        permission: 'automations.add_automations',
       })
       if (isDenied(access)) return access
     }

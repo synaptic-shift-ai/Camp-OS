@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react'
+import { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ChevronDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePermissions } from '@/hooks/use-permissions'
 import { DashboardSummaryCards } from '@/components/dashboard/automations/dashboard-summary-cards'
 import { PhaseDistribution } from '@/components/dashboard/automations/phase-distribution'
 import { RecentExecutionActivity } from '@/components/dashboard/automations/recent-execution-activity'
@@ -54,12 +55,12 @@ type AutomationsPageClientProps = AutomationsDashboardData & {
 }
 
 const TAB_ITEMS = [
-  { value: 'dashboard', label: 'Dashboard' },
-  { value: 'automations', label: 'Automations' },
-  { value: 'execution-log', label: 'Execution Logs' },
-  { value: 'validation', label: 'Validation' },
-  { value: 'email-templates', label: 'Email Templates' },
-  { value: 'system-automations', label: 'System Automations' },
+  { value: 'dashboard', label: 'Dashboard', permission: 'automations.view_dashboard' },
+  { value: 'automations', label: 'Automations', permission: 'automations.view_automations' },
+  { value: 'execution-log', label: 'Execution Logs', permission: 'automations.view_execution_log' },
+  { value: 'validation', label: 'Validation', permission: 'automations.view_validation' },
+  { value: 'email-templates', label: 'Email Templates', permission: 'automations.view_email_templates' },
+  { value: 'system-automations', label: 'System Automations', permission: 'automations.view_system_automations' },
 ] as const
 
 const TAB_BUTTON_CLASS =
@@ -70,6 +71,28 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [navigating, setNavigating] = useState(false)
+  const { can, isLoading: permsLoading } = usePermissions()
+
+  const visibleTabs = useMemo(() => {
+    if (permsLoading) return TAB_ITEMS
+    return TAB_ITEMS.filter(tab => can(tab.permission))
+  }, [can, permsLoading])
+
+  // Redirect to first visible tab if current tab is no longer accessible
+  useEffect(() => {
+    if (permsLoading || visibleTabs.length === 0) return
+    if (!visibleTabs.some(t => t.value === data.activeTab)) {
+      const params = new URLSearchParams(searchParams.toString())
+      const first = visibleTabs[0].value
+      if (first === 'dashboard') {
+        params.delete('tab')
+      } else {
+        params.set('tab', first)
+      }
+      const q = params.toString()
+      router.push(q ? `${pathname}?${q}` : pathname)
+    }
+  }, [permsLoading, visibleTabs, data.activeTab, searchParams, pathname, router])
 
   // Reset loading when server delivers new tab data
   useEffect(() => {
@@ -77,7 +100,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
   }, [data.activeTab])
 
   // Responsive tab bar state
-  const [visibleCount, setVisibleCount] = useState<number>(TAB_ITEMS.length)
+  const [visibleCount, setVisibleCount] = useState<number>(visibleTabs.length)
   const rowRef = useRef<HTMLDivElement>(null)
   const measureRefs = useRef<(HTMLButtonElement | null)[]>([])
   const moreRef = useRef<HTMLButtonElement>(null)
@@ -95,7 +118,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
   }
 
   const measure = useCallback(() => {
-    const widths = TAB_ITEMS.map((_, i) => {
+    const widths = visibleTabs.map((_, i) => {
       const el = measureRefs.current[i]
       return el ? Math.ceil(el.getBoundingClientRect().width) : 0
     })
@@ -110,18 +133,18 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
 
     const allFit = widths.reduce((a, b) => a + b, 0) + (widths.length - 1) * 4
     if (allFit <= inner) {
-      setVisibleCount(TAB_ITEMS.length)
+      setVisibleCount(visibleTabs.length)
       return
     }
 
     let best = 0
-    for (let k = 0; k < TAB_ITEMS.length; k++) {
+    for (let k = 0; k < visibleTabs.length; k++) {
       const sumVisible = widths.slice(0, k).reduce((a, b) => a + b, 0) + (k > 0 ? (k - 1) * 4 : 0)
       const used = sumVisible + (k > 0 ? 4 : 0) + moreW
       if (used <= inner) best = k
     }
     setVisibleCount(best)
-  }, [])
+  }, [visibleTabs])
 
   useLayoutEffect(() => { measure() }, [measure])
 
@@ -133,9 +156,9 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
     return () => ro.disconnect()
   }, [measure])
 
-  const safeVisible = Math.min(visibleCount, TAB_ITEMS.length)
-  const visibleItems = TAB_ITEMS.slice(0, safeVisible)
-  const overflowItems = TAB_ITEMS.slice(safeVisible)
+  const safeVisible = Math.min(visibleCount, visibleTabs.length)
+  const visibleItems = visibleTabs.slice(0, safeVisible)
+  const overflowItems = visibleTabs.slice(safeVisible)
   const hasOverflow = overflowItems.length > 0
   const overflowSelected = overflowItems.some(item => item.value === data.activeTab)
 
@@ -152,7 +175,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
         <div ref={rowRef} className="relative w-full min-w-0">
           {/* Hidden measurement buttons */}
           <div className="pointer-events-none fixed -left-[10000px] top-0 z-[-1] flex flex-row gap-1 opacity-0" aria-hidden>
-            {TAB_ITEMS.map((item, i) => (
+            {visibleTabs.map((item, i) => (
               <button
                 key={item.value}
                 ref={el => { measureRefs.current[i] = el }}
@@ -226,6 +249,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           </div>
         )}
 
+        {visibleTabs.some(t => t.value === 'dashboard') && (
         <TabsContent value="dashboard" className={navigating ? 'hidden' : 'space-y-6'}>
           <DashboardSummaryCards
             totalAutomations={data.totalAutomations}
@@ -238,7 +262,9 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             recentLogs={data.recentLogs}
           />
         </TabsContent>
+        )}
 
+        {visibleTabs.some(t => t.value === 'automations') && (
         <TabsContent value="automations" className={navigating ? 'hidden' : undefined}>
           {data.automationsList && data.propertyId ? (
             <AutomationBuilder
@@ -252,7 +278,9 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             </div>
           )}
         </TabsContent>
+        )}
 
+        {visibleTabs.some(t => t.value === 'system-automations') && (
         <TabsContent value="system-automations" className={navigating ? 'hidden' : undefined}>
           {data.systemAutomationsList ? (
             <AutomationBuilder
@@ -267,7 +295,9 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             </div>
           )}
         </TabsContent>
+        )}
 
+        {visibleTabs.some(t => t.value === 'execution-log') && (
         <TabsContent value="execution-log" className={navigating ? 'hidden' : undefined}>
           {data.executionLogData ? (
             <ExecutionLogViewer
@@ -286,7 +316,9 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             </div>
           )}
         </TabsContent>
+        )}
 
+        {visibleTabs.some(t => t.value === 'validation') && (
         <TabsContent value="validation" className={navigating ? 'hidden' : undefined}>
           {data.propertyId ? (
             <ValidationTab propertyId={data.propertyId} />
@@ -296,7 +328,9 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             </div>
           )}
         </TabsContent>
+        )}
 
+        {visibleTabs.some(t => t.value === 'email-templates') && (
         <TabsContent value="email-templates" className={navigating ? 'hidden' : undefined}>
           {data.propertyId && data.companyId ? (
             <EmailTemplatesList
@@ -310,6 +344,7 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
             </div>
           )}
         </TabsContent>
+        )}
       </Tabs>
     </div>
   )

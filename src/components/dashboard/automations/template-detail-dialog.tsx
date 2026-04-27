@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { PermissionGate } from '@/components/ui/permission-gate'
 import type { AutomationTemplate, TemplateCategory } from '@/lib/automations/templates'
 import { PHASE_COLORS } from '@/lib/automations/templates'
 import type { LucideIcon } from 'lucide-react'
@@ -112,9 +113,12 @@ export function TemplateDetailDialog({
     setIsCreating(true)
 
     try {
-      // Build the request body
+      // Build the request body.
+      // Always include companyId so the API doesn't need to query the DB for it
+      // (the user's Supabase client may not have RLS access to the companies table).
       const requestBody = {
-        ...(systemMode ? {} : { companyId, propertyId }),
+        ...(companyId ? { companyId } : {}),
+        ...(!systemMode ? { propertyId } : {}),
         name: template.name,
         phase: template.phase,
         triggerType: template.triggerType,
@@ -149,7 +153,12 @@ export function TemplateDetailDialog({
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || 'Failed to create automation')
+        // Prefer specific details message over the generic error code message
+        const msg =
+          (result.error?.details as { message?: string } | undefined)?.message ||
+          result.error?.message ||
+          'Failed to create automation'
+        throw new Error(msg)
       }
 
       toast({
@@ -289,9 +298,11 @@ export function TemplateDetailDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleUseTemplate} disabled={isCreating}>
-            {isCreating ? 'Creating...' : 'Use Template'}
-          </Button>
+          <PermissionGate permission={systemMode ? 'automations.add_system_automations' : 'automations.add_automations'}>
+            <Button onClick={handleUseTemplate} disabled={isCreating}>
+              {isCreating ? 'Creating...' : 'Use Template'}
+            </Button>
+          </PermissionGate>
         </DialogFooter>
       </DialogContent>
     </Dialog>

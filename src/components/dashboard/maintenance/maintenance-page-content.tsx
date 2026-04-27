@@ -188,6 +188,7 @@ type VendorTableRow = {
   name: string
   service: string
   contact: string
+  phone: string | null
   linkedWorkOrders: number | null
 }
 

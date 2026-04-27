@@ -18,6 +18,7 @@ export type AddVendorInput = {
   name: string
   serviceType: string
   email?: string | null
+  phone?: string | null
 }
 
 type AddVendorDialogProps = {
@@ -36,6 +37,7 @@ const INITIAL_FORM: AddVendorInput = {
   name: "",
   serviceType: "",
   email: "",
+  phone: "",
 }
 
 export function AddVendorDialog({
@@ -65,6 +67,7 @@ export function AddVendorDialog({
     const name = form.name.trim()
     const serviceType = form.serviceType.trim()
     const email = form.email?.trim() ? form.email.trim() : null
+    const phone = form.phone?.trim() ? form.phone.trim() : null
 
     if (!name || !serviceType) {
       setError("Vendor name and service type are required.")
@@ -76,6 +79,7 @@ export function AddVendorDialog({
         name,
         serviceType,
         email,
+        phone,
       })
       onOpenChange(false)
     } catch (submitError) {
@@ -125,6 +129,18 @@ export function AddVendorDialog({
                         disabled={isSubmitting}
                         />
                     </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="vendor-phone">Phone</Label>
+                    <Input
+                        id="vendor-phone"
+                        type="tel"
+                        value={form.phone ?? ""}
+                        onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                        placeholder="(555) 123-4567"
+                        disabled={isSubmitting}
+                    />
                 </div>
 
                 <div className="space-y-2">

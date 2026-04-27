@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-
-import { BookingDateRangePicker } from "@/components/guest/booking-date-range-picker"
+import { CalendarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Calendar } from "@/components/ui/calendar"
 
 export const PREVENTIVE_FREQUENCY_OPTIONS = [
   { value: "weekly", label: "Weekly" },
@@ -340,21 +341,35 @@ export function AddPreventiveDialog({
                 </>
               ) : (
                 <>
-                  <BookingDateRangePicker
-                    label="Anchor date"
-                    variant="dashboard"
-                    value={anchorDate ? { from: anchorDate, to: anchorDate } : undefined}
-                    onChange={(range) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        scheduleDate: range?.from ? format(range.from, "yyyy-MM-dd") : null,
-                      }))
-                    }
-                    allowPastDates
-                    numberOfMonths={1}
-                    disabled={isSubmitting}
-                    dropdownAlign="end"
-                  />
+                  <Label>Anchor date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSubmitting}
+                        className="h-9 w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.scheduleDate
+                          ? format(new Date(form.scheduleDate), "MMM dd, yyyy")
+                          : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={anchorDate}
+                        onSelect={(date) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            scheduleDate: date ? format(date, "yyyy-MM-dd") : null,
+                          }))
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">Optional start or next-due calendar date.</p>
                 </>
               )}

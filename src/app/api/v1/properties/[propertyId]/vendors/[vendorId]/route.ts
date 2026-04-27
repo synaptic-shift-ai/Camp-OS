@@ -33,11 +33,13 @@ export async function PATCH(
       name?: string
       serviceType?: string
       email?: string | null
+      phone?: string | null
     }
 
     const name = body.name?.trim() ?? ''
     const serviceType = body.serviceType?.trim() ?? ''
     const email = body.email?.trim() ? body.email.trim() : null
+    const phone = body.phone?.trim() ? body.phone.trim() : null
 
     if (!name || !serviceType) {
       return error(ErrorCodes.VALIDATION_ERROR, request, {
@@ -52,6 +54,7 @@ export async function PATCH(
       name,
       serviceType,
       email,
+      phone,
     })
 
     return success({ vendor }, request)

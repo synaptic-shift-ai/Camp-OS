@@ -113,6 +113,7 @@ export type PropertyVendorListRow = {
     name: string
     service_type: string
     email: string | null
+    phone: string | null
 }
 
 export type CreatePropertyVendorInput = {
@@ -120,6 +121,7 @@ export type CreatePropertyVendorInput = {
     name: string
     serviceType: string
     email?: string | null
+    phone?: string | null
 }
 
 export type UpdatePropertyVendorInput = {
@@ -128,6 +130,7 @@ export type UpdatePropertyVendorInput = {
     name?: string
     serviceType?: string
     email?: string | null
+    phone?: string | null
 }
 
 type MaintenanceScheduleRow = {
@@ -385,7 +388,7 @@ export class MaintenanceQueries {
     async listPropertyVendors(propertyId: string): Promise<PropertyVendorListRow[]> {
         const { data, error } = await this.supabase
             .from('property_vendor')
-            .select('id, name, service_type, email')
+            .select('id, name, service_type, email, phone')
             .eq('property_id', propertyId)
             .order('name', { ascending: true })
 
@@ -426,17 +429,18 @@ export class MaintenanceQueries {
     }
 
     async createPropertyVendor(input: CreatePropertyVendorInput): Promise<PropertyVendorListRow> {
-        const insertRow: Database['public']['Tables']['property_vendor']['Insert'] = {
+        const insertRow = {
             property_id: input.propertyId,
             name: input.name,
             service_type: input.serviceType,
             email: input.email ?? null,
-        }
+            phone: input.phone ?? null,
+        } as Record<string, unknown>
 
         const { data, error } = await this.supabase
             .from('property_vendor')
             .insert(insertRow)
-            .select('id, name, service_type, email')
+            .select('id, name, service_type, email, phone')
             .single()
 
         if (error) {
@@ -459,6 +463,7 @@ export class MaintenanceQueries {
             ...(input.name !== undefined ? { name: input.name } : {}),
             ...(input.serviceType !== undefined ? { service_type: input.serviceType } : {}),
             ...(input.email !== undefined ? { email: input.email } : {}),
+            ...(input.phone !== undefined ? { phone: input.phone } : {}),
         }
 
         const { data, error } = await this.supabase
@@ -466,7 +471,7 @@ export class MaintenanceQueries {
             .update(updateRow)
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
-            .select('id, name, service_type, email')
+            .select('id, name, service_type, email, phone')
             .single()
 
         if (error) {

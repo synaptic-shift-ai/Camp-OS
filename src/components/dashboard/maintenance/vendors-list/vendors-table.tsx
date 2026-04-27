@@ -1,13 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { MoreHorizontal } from "lucide-react"
+import { Loader2, MoreHorizontal, Trash2 } from "lucide-react"
 
 import {
   AddVendorDialog,
   type AddVendorInput,
 } from "@/components/dashboard/maintenance/maintenance-dialog/add-vendor-dialog"
 import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -30,6 +40,7 @@ type VendorRow = {
   name: string
   service: string
   contact: string
+  phone: string | null
   linkedWorkOrders: number | null
 }
 
@@ -77,6 +88,8 @@ export function VendorsTable({
   const { toast } = useToast()
   const [editingVendor, setEditingVendor] = useState<VendorRow | null>(null)
   const [isSubmittingVendor, setIsSubmittingVendor] = useState(false)
+  const [vendorToDelete, setVendorToDelete] = useState<VendorRow | null>(null)
+  const [isDeletingVendor, setIsDeletingVendor] = useState(false)
 
   const handleAddVendor = async (input: AddVendorInput) => {
     setIsSubmittingVendor(true)
@@ -151,13 +164,12 @@ export function VendorsTable({
     }
   }
 
-  const handleDeleteVendor = async (vendor: VendorRow) => {
-    const shouldDelete = window.confirm(`Delete vendor "${vendor.name}"?`)
-    if (!shouldDelete) return
+  const handleDeleteVendor = async () => {
+    if (!vendorToDelete) return
 
-    setIsSubmittingVendor(true)
+    setIsDeletingVendor(true)
     try {
-      const response = await fetch(`/api/v1/properties/${propertyId}/vendors/${vendor.id}`, {
+      const response = await fetch(`/api/v1/properties/${propertyId}/vendors/${vendorToDelete.id}`, {
         method: "DELETE",
       })
       const payload = await response.json()
@@ -179,8 +191,16 @@ export function VendorsTable({
         description: "Vendor has been removed.",
         variant: "success",
       })
+      setVendorToDelete(null)
+    } catch (deleteError) {
+      const message = deleteError instanceof Error ? deleteError.message : "Failed to delete vendor."
+      toast({
+        title: "Unable to delete vendor",
+        description: message,
+        variant: "destructive",
+      })
     } finally {
-      setIsSubmittingVendor(false)
+      setIsDeletingVendor(false)
     }
   }
 
@@ -206,7 +226,7 @@ export function VendorsTable({
                 <VendorActionsMenu
                   vendorName={vendor.name}
                   onEdit={() => setEditingVendor(vendor)}
-                  onDelete={() => void handleDeleteVendor(vendor)}
+                  onDelete={() => setVendorToDelete(vendor)}
                 />
               </div>
 
@@ -296,7 +316,7 @@ export function VendorsTable({
                     <VendorActionsMenu
                       vendorName={vendor.name}
                       onEdit={() => setEditingVendor(vendor)}
-                      onDelete={() => void handleDeleteVendor(vendor)}
+                      onDelete={() => setVendorToDelete(vendor)}
                     />
                   </TableCell>
                 </TableRow>
@@ -327,11 +347,49 @@ export function VendorsTable({
                 name: editingVendor.name,
                 serviceType: editingVendor.service,
                 email: editingVendor.contact === "—" ? "" : editingVendor.contact,
+                phone: editingVendor.phone ?? "",
               }
             : null
         }
         onSubmit={handleEditVendor}
       />
+      <AlertDialog open={vendorToDelete !== null} onOpenChange={(open) => {
+        if (!open) setVendorToDelete(null)
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete vendor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove{" "}
+              <span className="font-medium text-foreground">{vendorToDelete?.name}</span>.{" "}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingVendor}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteVendor()
+              }}
+              disabled={isDeletingVendor}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingVendor ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete vendor
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }

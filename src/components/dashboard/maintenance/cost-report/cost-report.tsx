@@ -13,6 +13,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { BudgetManagement } from './budget-management'
 import {
   BarChart,
   Bar,
@@ -290,6 +291,9 @@ export function CostReport({
               </Card>
             </div>
           )}
+
+          {/* Budget Management */}
+          <BudgetManagement propertyId={propertyId} />
         </>
       )}
     </div>

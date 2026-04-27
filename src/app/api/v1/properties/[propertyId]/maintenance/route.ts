@@ -213,6 +213,31 @@ export async function POST(
             ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         })
 
+        // Spend limit informational check (no blocking)
+        const spendLimitWarnings: Array<{ category: string; threshold: number; spent: number }> = []
+        try {
+            const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
+            if (parsed.data.category) {
+                const spendLimits = await queries.listSpendLimits(propertyId)
+                const matchedLimit = spendLimits.find(
+                    (sl) => sl.category === parsed.data.category && sl.alert_enabled,
+                )
+                if (matchedLimit) {
+                    const thresholdAmount = Number(matchedLimit.threshold_amount ?? 0)
+                    const spent = await queries.getCategorySpend(propertyId, parsed.data.category, 'monthly')
+                    if (spent >= thresholdAmount) {
+                        spendLimitWarnings.push({
+                            category: parsed.data.category,
+                            threshold: thresholdAmount,
+                            spent,
+                        })
+                    }
+                }
+            }
+        } catch {
+            // Non-blocking: spend limit check failures should not prevent WO creation
+        }
+
         if (access.companyId) {
             const service = createServiceRoleClient()
             const { data: siteRow } = await supabase
@@ -238,7 +263,7 @@ export async function POST(
             )
         }
 
-        return success({ maintenanceTask }, request)
+        return success({ maintenanceTask, spendLimitWarnings }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Maintenance API v1] POST error:', err)

@@ -998,4 +998,230 @@ export class MaintenanceQueries {
             throw new Error(`Failed to delete maintenance task: ${error.message}`)
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Budget CRUD
+    // -----------------------------------------------------------------------
+
+    async listBudgets(propertyId: string): Promise<Record<string, unknown>[]> {
+        const { data, error } = await this.supabase
+            .from('maintenance_budgets')
+            .select('*')
+            .eq('property_id', propertyId)
+            .order('category', { ascending: true })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to list budgets', { error, propertyId })
+            throw new Error(`Failed to list budgets: ${error.message}`)
+        }
+
+        return (data ?? []) as Record<string, unknown>[]
+    }
+
+    async createBudget(input: {
+        propertyId: string
+        category: string
+        period: 'monthly' | 'quarterly' | 'annual'
+        amount: number
+        createdBy?: string
+    }): Promise<Record<string, unknown>> {
+        const insertRow = {
+            property_id: input.propertyId,
+            category: input.category,
+            period: input.period,
+            amount: input.amount,
+            created_by: input.createdBy ?? null,
+        } as Record<string, unknown>
+
+        const { data, error } = await this.supabase
+            .from('maintenance_budgets')
+            .insert(insertRow)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to create budget', { error, propertyId: input.propertyId })
+            throw new Error(`Failed to create budget: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to create budget: no row returned')
+        }
+
+        return data as Record<string, unknown>
+    }
+
+    async updateBudget(budgetId: string, propertyId: string, input: {
+        category?: string
+        period?: 'monthly' | 'quarterly' | 'annual'
+        amount?: number
+    }): Promise<Record<string, unknown>> {
+        const updateRow: Record<string, unknown> = {}
+        if (input.category !== undefined) updateRow.category = input.category
+        if (input.period !== undefined) updateRow.period = input.period
+        if (input.amount !== undefined) updateRow.amount = input.amount
+
+        const { data, error } = await this.supabase
+            .from('maintenance_budgets')
+            .update(updateRow)
+            .eq('id', budgetId)
+            .eq('property_id', propertyId)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to update budget', { error, budgetId })
+            throw new Error(`Failed to update budget: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to update budget: no row returned')
+        }
+
+        return data as Record<string, unknown>
+    }
+
+    async deleteBudget(budgetId: string, propertyId: string): Promise<void> {
+        const { error } = await this.supabase
+            .from('maintenance_budgets')
+            .delete()
+            .eq('id', budgetId)
+            .eq('property_id', propertyId)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to delete budget', { error, budgetId })
+            throw new Error(`Failed to delete budget: ${error.message}`)
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Spend Limit CRUD
+    // -----------------------------------------------------------------------
+
+    async listSpendLimits(propertyId: string): Promise<Record<string, unknown>[]> {
+        const { data, error } = await this.supabase
+            .from('maintenance_spend_limits')
+            .select('*')
+            .eq('property_id', propertyId)
+            .order('category', { ascending: true })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to list spend limits', { error, propertyId })
+            throw new Error(`Failed to list spend limits: ${error.message}`)
+        }
+
+        return (data ?? []) as Record<string, unknown>[]
+    }
+
+    async createSpendLimit(input: {
+        propertyId: string
+        category: string
+        thresholdAmount: number
+        alertEnabled?: boolean
+        createdBy?: string
+    }): Promise<Record<string, unknown>> {
+        const insertRow = {
+            property_id: input.propertyId,
+            category: input.category,
+            threshold_amount: input.thresholdAmount,
+            alert_enabled: input.alertEnabled ?? true,
+            created_by: input.createdBy ?? null,
+        } as Record<string, unknown>
+
+        const { data, error } = await this.supabase
+            .from('maintenance_spend_limits')
+            .insert(insertRow)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to create spend limit', { error, propertyId: input.propertyId })
+            throw new Error(`Failed to create spend limit: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to create spend limit: no row returned')
+        }
+
+        return data as Record<string, unknown>
+    }
+
+    async updateSpendLimit(limitId: string, propertyId: string, input: {
+        category?: string
+        thresholdAmount?: number
+        alertEnabled?: boolean
+    }): Promise<Record<string, unknown>> {
+        const updateRow: Record<string, unknown> = {}
+        if (input.category !== undefined) updateRow.category = input.category
+        if (input.thresholdAmount !== undefined) updateRow.threshold_amount = input.thresholdAmount
+        if (input.alertEnabled !== undefined) updateRow.alert_enabled = input.alertEnabled
+
+        const { data, error } = await this.supabase
+            .from('maintenance_spend_limits')
+            .update(updateRow)
+            .eq('id', limitId)
+            .eq('property_id', propertyId)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to update spend limit', { error, limitId })
+            throw new Error(`Failed to update spend limit: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to update spend limit: no row returned')
+        }
+
+        return data as Record<string, unknown>
+    }
+
+    async deleteSpendLimit(limitId: string, propertyId: string): Promise<void> {
+        const { error } = await this.supabase
+            .from('maintenance_spend_limits')
+            .delete()
+            .eq('id', limitId)
+            .eq('property_id', propertyId)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to delete spend limit', { error, limitId })
+            throw new Error(`Failed to delete spend limit: ${error.message}`)
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Spend check for enforcement
+    // -----------------------------------------------------------------------
+
+    async getCategorySpend(propertyId: string, category: string, period: 'monthly' | 'quarterly' | 'annual'): Promise<number> {
+        const now = new Date()
+        let fromDate: Date
+
+        if (period === 'monthly') {
+            fromDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        } else if (period === 'quarterly') {
+            const quarterMonth = Math.floor(now.getMonth() / 3) * 3
+            fromDate = new Date(now.getFullYear(), quarterMonth, 1)
+        } else {
+            fromDate = new Date(now.getFullYear(), 0, 1)
+        }
+
+        const { data, error } = await this.supabase
+            .from('maintenance_tasks')
+            .select('estimated_labor_cost, estimated_parts_cost, created_at')
+            .eq('property_id', propertyId)
+            .eq('category', category)
+            .gte('created_at', fromDate.toISOString())
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to calculate category spend', { error, propertyId, category, period })
+            return 0
+        }
+
+        if (!data || data.length === 0) return 0
+
+        return data.reduce((sum, row) => {
+            return sum + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+        }, 0)
+    }
 }

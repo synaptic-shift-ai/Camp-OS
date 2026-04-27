@@ -151,3 +151,40 @@ export type MaintenanceReportResponse = {
     byCategory: Array<{ category: string; count: number }>
     byPriority: Array<{ priority: string; count: number }>
 }
+
+// ---------------------------------------------------------------------------
+// Budget & Spend Limit schemas
+// ---------------------------------------------------------------------------
+
+export const CreateBudgetRequestSchema = z.object({
+    category: z.string().trim().min(1).max(120),
+    period: z.enum(['monthly', 'quarterly', 'annual']),
+    amount: z.number().min(0),
+})
+
+export const UpdateBudgetRequestSchema = z.object({
+    category: z.string().trim().min(1).max(120).optional(),
+    period: z.enum(['monthly', 'quarterly', 'annual']).optional(),
+    amount: z.number().min(0).optional(),
+}).refine((payload) => Object.keys(payload).length > 0, {
+    message: 'At least one field is required',
+})
+
+export const CreateSpendLimitRequestSchema = z.object({
+    category: z.string().trim().min(1).max(120),
+    thresholdAmount: z.number().min(0),
+    alertEnabled: z.boolean().optional().default(true),
+})
+
+export const UpdateSpendLimitRequestSchema = z.object({
+    category: z.string().trim().min(1).max(120).optional(),
+    thresholdAmount: z.number().min(0).optional(),
+    alertEnabled: z.boolean().optional(),
+}).refine((payload) => Object.keys(payload).length > 0, {
+    message: 'At least one field is required',
+})
+
+export type CreateBudgetRequest = z.infer<typeof CreateBudgetRequestSchema>
+export type UpdateBudgetRequest = z.infer<typeof UpdateBudgetRequestSchema>
+export type CreateSpendLimitRequest = z.infer<typeof CreateSpendLimitRequestSchema>
+export type UpdateSpendLimitRequest = z.infer<typeof UpdateSpendLimitRequestSchema>

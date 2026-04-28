@@ -101,7 +101,13 @@ export default async function SettingsPage({ params }: PageProps) {
   }
 
   const rawSiteTypeConfig = (property.site_type_config ?? null) as
-    | { allowed_site_types?: string[]; site_type_rates?: Record<string, any> }
+    | {
+      allowed_site_types?: string[]
+      site_type_rates?: Record<string, any>
+      maintenance?: Record<string, boolean>
+      housekeeping?: Record<string, boolean>
+      [key: string]: unknown
+    }
     | null
 
   const siteypeRatesFromConfig = rawSiteTypeConfig?.site_type_rates ?? {}
@@ -214,6 +220,7 @@ export default async function SettingsPage({ params }: PageProps) {
             initialSiteTypes={siteTypes}
             initialAllowedSiteTypes={allowedSiteTypesFromConfig}
             initialSiteTypeRates={siteypeRatesFromConfig}
+            initialSiteTypeConfig={rawSiteTypeConfig}
           />
         </TabsContent>
 

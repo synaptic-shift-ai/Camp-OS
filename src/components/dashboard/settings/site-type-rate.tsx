@@ -46,6 +46,7 @@ import {
 import { Loader2, Info, Plus, Pencil, Trash2 } from 'lucide-react'
 import type { PropertyReservationTypesConfig, SeasonalPeriod, BookingType } from '@/lib/config/types'
 import { DEFAULT_RESERVATION_TYPES_CONFIG } from '@/lib/config/types'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Accordion,
   AccordionContent,
@@ -71,6 +72,7 @@ interface ReservationTypeSettingsProps {
     weekly?: Partial<SiteTypeRateConfig>
     monthly?: Partial<SiteTypeRateConfig>
   }>
+  initialSiteTypeConfig?: Record<string, unknown> | null
   canEdit?: boolean
 }
 
@@ -152,6 +154,7 @@ export function SiteTypeRateSettings({
   initialSiteTypes = [],
   initialAllowedSiteTypes,
   initialSiteTypeRates,
+  initialSiteTypeConfig = null,
   canEdit = true,
 }: ReservationTypeSettingsProps) {
   const readOnly = !canEdit
@@ -221,6 +224,7 @@ export function SiteTypeRateSettings({
   })
   const [focusedSiteTypeRateField, setFocusedSiteTypeRateField] = useState<string | null>(null)
   const [siteRateInputValue, setSiteRateInputValue] = useState<string>('')
+  const toSiteTypeKey = (siteType: string) => siteType.trim().toLowerCase()
 
   // Site types currently selected for this property. This should correspond
   // to the `allowed_site_types` entry in the `site_type_config` JSON column.
@@ -229,6 +233,34 @@ export function SiteTypeRateSettings({
       ? initialAllowedSiteTypes
       : (initialSiteTypes ?? []).map(({ siteType }) => siteType)
   )
+
+  const [maintenanceBySiteType, setMaintenanceBySiteType] = useState<Record<string, boolean>>(() => {
+    const existing =
+      (initialSiteTypeConfig as { maintenance?: Record<string, boolean> } | null)?.maintenance ?? {}
+    const next: Record<string, boolean> = {}
+    ;(initialAllowedSiteTypes && initialAllowedSiteTypes.length > 0
+      ? initialAllowedSiteTypes
+      : (initialSiteTypes ?? []).map(({ siteType }) => siteType)
+    ).forEach((siteType) => {
+      const key = toSiteTypeKey(siteType)
+      next[key] = existing[key] ?? true
+    })
+    return next
+  })
+
+  const [housekeepingBySiteType, setHousekeepingBySiteType] = useState<Record<string, boolean>>(() => {
+    const existing =
+      (initialSiteTypeConfig as { housekeeping?: Record<string, boolean> } | null)?.housekeeping ?? {}
+    const next: Record<string, boolean> = {}
+    ;(initialAllowedSiteTypes && initialAllowedSiteTypes.length > 0
+      ? initialAllowedSiteTypes
+      : (initialSiteTypes ?? []).map(({ siteType }) => siteType)
+    ).forEach((siteType) => {
+      const key = toSiteTypeKey(siteType)
+      next[key] = existing[key] ?? true
+    })
+    return next
+  })
 
   // Options for the "Add Site Type" dropdown – only show site types that
   // have not already been added/selected for this property.
@@ -335,8 +367,21 @@ export function SiteTypeRateSettings({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           site_type_config: {
+            ...(initialSiteTypeConfig ?? {}),
             allowed_site_types: allowedSiteTypes,
             site_type_rates: siteTypeRates,
+            maintenance: Object.fromEntries(
+              allowedSiteTypes.map((siteType) => {
+                const key = toSiteTypeKey(siteType)
+                return [key, maintenanceBySiteType[key] ?? false]
+              })
+            ),
+            housekeeping: Object.fromEntries(
+              allowedSiteTypes.map((siteType) => {
+                const key = toSiteTypeKey(siteType)
+                return [key, housekeepingBySiteType[key] ?? false]
+              })
+            ),
           },
         }),
       })
@@ -506,6 +551,16 @@ export function SiteTypeRateSettings({
                               key={siteTypeName}
                               onClick={() => {
                                 setAllowedSiteTypes((prev) => [...prev, siteTypeName])
+                                setMaintenanceBySiteType((prev) => ({
+                                  ...prev,
+                                  [toSiteTypeKey(siteTypeName)]:
+                                    prev[toSiteTypeKey(siteTypeName)] ?? true,
+                                }))
+                                setHousekeepingBySiteType((prev) => ({
+                                  ...prev,
+                                  [toSiteTypeKey(siteTypeName)]:
+                                    prev[toSiteTypeKey(siteTypeName)] ?? true,
+                                }))
                                 setSiteTypeRates((prev) =>
                                   prev[siteTypeName]
                                     ? prev
@@ -565,6 +620,16 @@ export function SiteTypeRateSettings({
                           setAllowedSiteTypes((prev) =>
                             prev.filter((t) => t !== siteType)
                           )
+                          setMaintenanceBySiteType((prev) => {
+                            const next = { ...prev }
+                            delete next[toSiteTypeKey(siteType)]
+                            return next
+                          })
+                          setHousekeepingBySiteType((prev) => {
+                            const next = { ...prev }
+                            delete next[toSiteTypeKey(siteType)]
+                            return next
+                          })
                           setIsDirty(true)
                         }}
                       >
@@ -729,6 +794,67 @@ export function SiteTypeRateSettings({
             })}
           </div>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Maintenance & Housekeeping Configuration</CardTitle>
+            <CardDescription>
+              Check a site type to exclude it from maintenance or housekeeping assignment.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Maintenance</Label>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {orderedSiteTypes.map(({ siteType }) => (
+                    <label
+                      key={`maintenance-${siteType}`}
+                      className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                    >
+                      <Checkbox
+                        disabled={readOnly}
+                        checked={maintenanceBySiteType[toSiteTypeKey(siteType)] ?? false}
+                        onCheckedChange={(checked) => {
+                          setMaintenanceBySiteType((prev) => ({
+                            ...prev,
+                            [toSiteTypeKey(siteType)]: checked === true,
+                          }))
+                          setIsDirty(true)
+                        }}
+                      />
+                      <span className="text-muted-foreground">{siteType} Site</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Housekeeping</Label>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {orderedSiteTypes.map(({ siteType }) => (
+                    <label
+                      key={`housekeeping-${siteType}`}
+                      className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                    >
+                      <Checkbox
+                        disabled={readOnly}
+                        checked={housekeepingBySiteType[toSiteTypeKey(siteType)] ?? false}
+                        onCheckedChange={(checked) => {
+                          setHousekeepingBySiteType((prev) => ({
+                            ...prev,
+                            [toSiteTypeKey(siteType)]: checked === true,
+                          }))
+                          setIsDirty(true)
+                        }}
+                      />
+                      <span className="text-muted-foreground">{siteType} Site</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Save Button and Messages */}
       {canEdit && (

@@ -45,18 +45,55 @@ async function getMaintenancePageOptions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   propertyId: string,
 ): Promise<{ siteOptions: SelectOption[]; assigneeOptions: SelectOption[] }> {
+  const { data: property } = await supabase
+    .from("properties")
+    .select("site_type_config")
+    .eq("id", propertyId)
+    .maybeSingle()
+
+  const maintenanceSiteTypeConfig =
+    (
+      property?.site_type_config as
+        | { maintenance?: Record<string, boolean>; allowed_site_types?: string[] }
+        | null
+        | undefined
+    )?.maintenance ?? {}
+  const allowedSiteTypesConfig =
+    (
+      property?.site_type_config as
+        | { maintenance?: Record<string, boolean>; allowed_site_types?: string[] }
+        | null
+        | undefined
+    )?.allowed_site_types ?? []
+  const allowedSiteTypeSet = new Set(
+    Array.isArray(allowedSiteTypesConfig)
+      ? allowedSiteTypesConfig.map((siteType) => siteType.trim().toLowerCase())
+      : [],
+  )
+
+  const normalizeSiteType = (siteType: string | null | undefined) =>
+    (siteType ?? "").trim().toLowerCase()
+
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, site_number, site_name")
+    .select("id, site_number, site_name, site_type")
     .eq("property_id", propertyId)
     // .eq("status", "maintenance")
     .is("deleted_at", null)
     .order("site_number", { ascending: true })
 
-  const siteOptions = (sites ?? []).map((site) => ({
-    id: site.id as string,
-    label: (site.site_name as string | null)?.trim() || (site.site_number as string),
-  }))
+  const siteOptions = (sites ?? [])
+    .filter((site) => {
+      const siteTypeKey = normalizeSiteType(site.site_type as string | null | undefined)
+      if (!siteTypeKey) return true
+      if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) return false
+      const isAllowed = maintenanceSiteTypeConfig[siteTypeKey]
+      return isAllowed !== false
+    })
+    .map((site) => ({
+      id: site.id as string,
+      label: (site.site_name as string | null)?.trim() || (site.site_number as string),
+    }))
 
   const { data: staffCategories } = await supabase
     .from("property_role_categories")

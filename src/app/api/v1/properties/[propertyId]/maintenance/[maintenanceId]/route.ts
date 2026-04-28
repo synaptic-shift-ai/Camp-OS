@@ -13,6 +13,16 @@ import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maint
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCompletedEvent } from '@/modules/Maintenance/domain/events'
 
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+  return (siteType ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\bsite\b/g, '')
+    .trim()
+}
+
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ['in_progress', 'cancelled'],
   in_progress: ['on_hold', 'completed', 'cancelled'],
@@ -298,6 +308,64 @@ export async function PATCH(
     if (!isStatusTransition && parsed.data.on_hold_reason !== undefined) {
       timestampUpdates.on_hold_reason = parsed.data.on_hold_reason?.trim() ?? null
       timestampUpdates.on_hold_at = null
+    }
+
+    if (parsed.data.siteId) {
+      const { data: siteRow } = await supabase
+        .from('sites')
+        .select('id, site_type')
+        .eq('id', parsed.data.siteId)
+        .eq('property_id', propertyId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (!siteRow) {
+        return error(ErrorCodes.VALIDATION_ERROR, request, {
+          message: 'Site not found for this property',
+        })
+      }
+
+      const { data: propertyRow } = await supabase
+        .from('properties')
+        .select('site_type_config')
+        .eq('id', propertyId)
+        .maybeSingle()
+
+      const siteTypeConfig =
+        (propertyRow?.site_type_config as {
+          maintenance?: Record<string, boolean>
+          allowed_site_types?: string[]
+        } | null | undefined) ?? null
+
+      const maintenanceMap = Object.fromEntries(
+        Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
+          toCanonicalSiteTypeKey(key),
+          value,
+        ]),
+      )
+
+      const allowedSiteTypeSet = new Set(
+        Array.isArray(siteTypeConfig?.allowed_site_types)
+          ? siteTypeConfig!.allowed_site_types.map((siteType) =>
+            toCanonicalSiteTypeKey(siteType),
+          )
+          : [],
+      )
+
+      const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+      if (siteTypeKey) {
+        if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'The selected site is not available for maintenance',
+          })
+        }
+
+        if (maintenanceMap[siteTypeKey] === false) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'The selected site is not available for maintenance',
+          })
+        }
+      }
     }
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)

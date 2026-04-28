@@ -13,6 +13,16 @@ import {
   ListHousekeepingTasksQuerySchema,
 } from '@/types/api/v1/schemas/housekeeping'
 
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+  return (siteType ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\bsite\b/g, '')
+    .trim()
+}
+
 function housekeepingFallbackForCategory(
   role: 'owner' | 'admin' | 'manager' | 'staff',
   categoryName: string,
@@ -265,6 +275,62 @@ export async function POST(
           return error(ErrorCodes.VALIDATION_ERROR, request, {
             message: 'Due date must be today or in the future.',
           })
+        }
+
+        const { data: siteRow } = await supabase
+          .from('sites')
+          .select('id, site_type')
+          .eq('id', parsed.data.siteId)
+          .eq('property_id', propertyId)
+          .is('deleted_at', null)
+          .maybeSingle()
+
+        if (!siteRow) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'Site not found for this property',
+          })
+        }
+
+        const { data: propertyRow } = await supabase
+          .from('properties')
+          .select('site_type_config')
+          .eq('id', propertyId)
+          .maybeSingle()
+
+        const siteTypeConfig =
+          (propertyRow?.site_type_config as {
+            housekeeping?: Record<string, boolean>
+            allowed_site_types?: string[]
+          } | null | undefined) ?? null
+
+        const housekeepingMap = Object.fromEntries(
+          Object.entries(siteTypeConfig?.housekeeping ?? {}).map(([key, value]) => [
+            toCanonicalSiteTypeKey(key),
+            value,
+          ]),
+        )
+
+        const allowedSiteTypeSet = new Set(
+          Array.isArray(siteTypeConfig?.allowed_site_types)
+            ? siteTypeConfig!.allowed_site_types.map((siteType) =>
+              toCanonicalSiteTypeKey(siteType),
+            )
+            : [],
+        )
+
+        const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+        if (siteTypeKey) {
+          if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+            return error(ErrorCodes.VALIDATION_ERROR, request, {
+              message: 'The selected site is not available for housekeeping',
+            })
+          }
+
+          if (housekeepingMap[siteTypeKey] === false) {
+            return error(ErrorCodes.VALIDATION_ERROR, request, {
+              message: 'The selected site is not available for housekeeping',
+            })
+          }
         }
 
         const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)

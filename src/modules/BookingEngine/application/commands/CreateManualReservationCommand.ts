@@ -245,7 +245,7 @@ export class CreateManualReservationCommandHandler {
         .eq('id', reservation.id)
         .eq('property_id', dto.propertyId)
 
-      // Create payment record
+      // Create payment record (legacy)
       await supabase
         .from('payments')
         .insert({
@@ -257,6 +257,27 @@ export class CreateManualReservationCommandHandler {
           processed_at: new Date().toISOString(),
           notes: `Manual payment - ${dto.paymentMethod}`,
         })
+
+      // Dual-write to unified financial ledger (best-effort)
+      try {
+        await supabase
+          .from('financial_transactions')
+          .insert({
+            property_id: dto.propertyId,
+            reservation_id: reservation.id,
+            type: 'payment',
+            amount_cents: paidAmountCents,
+            currency: 'usd',
+            payment_method: dto.paymentMethod,
+            status: 'completed',
+            processed_at: new Date().toISOString(),
+            notes: `Manual payment - ${dto.paymentMethod}`,
+            source: 'manual',
+            is_voided: false,
+          })
+      } catch (dualWriteErr) {
+        console.error('[CreateManualReservation] financial_transactions dual-write failed (non-blocking):', dualWriteErr)
+      }
     } else {
       // Unpaid: keep status pending
       await supabase

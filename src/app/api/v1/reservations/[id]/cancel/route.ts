@@ -214,37 +214,56 @@ export async function POST(
     // If refund is requested to card and amount > 0, attempt Stripe refund
     if (refundAmountCents > 0 && validatedRequest.refundPaymentMethod === 'card') {
       // Look up the latest Stripe PaymentIntent ID for this reservation
-      const { data: paymentRow, error: paymentError } = await supabase
-        .from('payments')
-        .select('stripe_payment_id')
+      // Try unified ledger first, fall back to legacy payments table
+      const { data: ledgerRow } = await supabase
+        .from('financial_transactions')
+        .select('stripe_payment_intent_id')
         .eq('reservation_id', reservationId)
-        .not('stripe_payment_id', 'is', null)
+        .eq('type', 'payment')
+        .eq('status', 'completed')
+        .neq('is_voided', true)
+        .not('stripe_payment_intent_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
       let paymentIntentId: string | null = null
-      let paymentIntentSource: 'payments_table' | 'reservation_notes' | null = null
+      let paymentIntentSource: 'financial_transactions' | 'payments_table' | 'reservation_notes' | null = null
 
-      if (!paymentError && paymentRow?.stripe_payment_id) {
-        paymentIntentId = paymentRow.stripe_payment_id as string
-        paymentIntentSource = 'payments_table'
+      if (ledgerRow?.stripe_payment_intent_id) {
+        paymentIntentId = ledgerRow.stripe_payment_intent_id as string
+        paymentIntentSource = 'financial_transactions'
       } else {
-        // Fallback: parse PaymentIntent ID from reservation notes (e.g. "Stripe PaymentIntent: pi_xxx")
-        const { data: reservationRow, error: reservationRowError } = await supabase
-          .from('reservations')
-          .select('notes')
-          .eq('id', reservationId)
-          .single()
+        // Fallback: legacy payments table
+        const { data: paymentRow, error: paymentError } = await supabase
+          .from('payments')
+          .select('stripe_payment_id')
+          .eq('reservation_id', reservationId)
+          .not('stripe_payment_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-        if (!reservationRowError && typeof reservationRow?.notes === 'string') {
-          const notes = reservationRow.notes as string
-          const match =
-            notes.match(/Stripe PaymentIntent:\s*(pi_[A-Za-z0-9_]+)/i) ??
-            notes.match(/PaymentIntent:\s*(pi_[A-Za-z0-9_]+)/i)
-          if (match) {
-            paymentIntentId = match[1]!
-            paymentIntentSource = 'reservation_notes'
+        if (!paymentError && paymentRow?.stripe_payment_id) {
+          paymentIntentId = paymentRow.stripe_payment_id as string
+          paymentIntentSource = 'payments_table'
+        } else {
+          // Fallback: parse PaymentIntent ID from reservation notes
+          const { data: reservationRow, error: reservationRowError } = await supabase
+            .from('reservations')
+            .select('notes')
+            .eq('id', reservationId)
+            .single()
+
+          if (!reservationRowError && typeof reservationRow?.notes === 'string') {
+            const notes = reservationRow.notes as string
+            const match =
+              notes.match(/Stripe PaymentIntent:\s*(pi_[A-Za-z0-9_]+)/i) ??
+              notes.match(/PaymentIntent:\s*(pi_[A-Za-z0-9_]+)/i)
+            if (match) {
+              paymentIntentId = match[1]!
+              paymentIntentSource = 'reservation_notes'
+            }
           }
         }
       }

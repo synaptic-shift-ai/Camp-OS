@@ -792,7 +792,8 @@ export async function getReservation(
 // ============================================================================
 
 /**
- * Fetch payments for a property with optional filters
+ * Fetch payments for a property with optional filters.
+ * Primary: financial_transactions. Fallback: legacy payments table.
  */
 export async function getPayments(
   propertyId: string,
@@ -803,17 +804,17 @@ export async function getPayments(
   const supabase = await createClient()
   const offset = (page - 1) * limit
 
-  // Build query with tenant isolation
+  // Try unified ledger first
   let query = supabase
-    .from('payments')
+    .from('financial_transactions')
     .select(
       `
       id,
       reservation_id,
-      amount,
+      amount_cents,
       payment_method,
-      payment_status,
-      stripe_payment_id,
+      status,
+      stripe_payment_intent_id,
       processed_at,
       created_at,
       reservations (
@@ -827,12 +828,13 @@ export async function getPayments(
       { count: 'exact' }
     )
     .eq('property_id', propertyId)
+    .in('type', ['payment', 'refund'])
+    .neq('is_voided', true)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  // Apply filters
   if (filters.status) {
-    query = query.eq('payment_status', filters.status)
+    query = query.eq('status', filters.status)
   }
   if (filters.startDate) {
     query = query.gte('created_at', filters.startDate)
@@ -841,28 +843,87 @@ export async function getPayments(
     query = query.lte('created_at', filters.endDate)
   }
 
-  const { data, error, count } = await query
+  const { data, error: txnsError, count } = await query
 
-  if (error) {
-    throw new Error(`Failed to fetch payments: ${error.message}`)
+  // If no results from ledger, fall back to legacy payments table
+  if (!txnsError && (!data || data.length === 0)) {
+    let fallbackQuery = supabase
+      .from('payments')
+      .select(
+        `
+        id,
+        reservation_id,
+        amount,
+        payment_method,
+        payment_status,
+        stripe_payment_id,
+        processed_at,
+        created_at,
+        reservations (
+          confirmation_number,
+          guests (
+            first_name,
+            last_name
+          )
+        )
+      `,
+        { count: 'exact' }
+      )
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (filters.status) {
+      fallbackQuery = fallbackQuery.eq('payment_status', filters.status)
+    }
+    if (filters.startDate) {
+      fallbackQuery = fallbackQuery.gte('created_at', filters.startDate)
+    }
+    if (filters.endDate) {
+      fallbackQuery = fallbackQuery.lte('created_at', filters.endDate)
+    }
+
+    const fallbackResult = await fallbackQuery
+
+    // Use fallback format
+    if (!fallbackResult.error && fallbackResult.data && fallbackResult.data.length > 0) {
+      const payments: DashboardPayment[] = fallbackResult.data.map((payment) => {
+        const reservation = payment.reservations as unknown as DbReservation & { guests: DbGuest }
+        const guest = reservation.guests
+        return {
+          id: payment.id,
+          reservationId: payment.reservation_id!,
+          confirmationNumber: reservation.confirmation_number,
+          guestName: `${guest.first_name} ${guest.last_name}`,
+          amount: payment.amount as MoneyCents,
+          paymentMethod: payment.payment_method as PaymentMethod,
+          paymentStatus: payment.payment_status as PaymentStatus,
+          stripePaymentId: payment.stripe_payment_id,
+          processedAt: payment.processed_at,
+          createdAt: payment.created_at!,
+        }
+      })
+      return { data: payments, total: fallbackResult.count || 0 }
+    }
   }
 
-  // Transform database results to dashboard format
-  const payments: DashboardPayment[] = (data || []).map((payment) => {
-    const reservation = payment.reservations as unknown as DbReservation & {
-      guests: DbGuest
-    }
-    const guest = reservation.guests
+  if (txnsError) {
+    throw new Error(`Failed to fetch payments: ${txnsError.message}`)
+  }
 
+  // Transform ledger results to dashboard format
+  const payments: DashboardPayment[] = (data || []).map((payment) => {
+    const reservation = payment.reservations as unknown as DbReservation & { guests: DbGuest }
+    const guest = reservation.guests
     return {
       id: payment.id,
       reservationId: payment.reservation_id!,
       confirmationNumber: reservation.confirmation_number,
       guestName: `${guest.first_name} ${guest.last_name}`,
-      amount: payment.amount as MoneyCents,
+      amount: payment.amount_cents as MoneyCents,
       paymentMethod: payment.payment_method as PaymentMethod,
-      paymentStatus: payment.payment_status as PaymentStatus,
-      stripePaymentId: payment.stripe_payment_id,
+      paymentStatus: payment.status as PaymentStatus,
+      stripePaymentId: payment.stripe_payment_intent_id,
       processedAt: payment.processed_at,
       createdAt: payment.created_at!,
     }
@@ -941,14 +1002,41 @@ export async function getDashboardStats(
     throw new Error(`Failed to fetch reservation stats: ${reservationsError.message}`)
   }
 
-  // Fetch all payments for stats calculation
-  const { data: payments, error: paymentsError } = await supabase
-    .from('payments')
-    .select('amount, payment_status')
+  // Fetch all transactions for payment stats calculation
+  // Try unified ledger first, fall back to legacy payments table
+  const { data: transactions, error: transactionsError } = await supabase
+    .from('financial_transactions')
+    .select('type, amount_cents, status')
     .eq('property_id', propertyId)
+    .neq('is_voided', true)
+    .in('type', ['payment', 'refund'])
 
-  if (paymentsError) {
-    throw new Error(`Failed to fetch payment stats: ${paymentsError.message}`)
+  let completedPaymentsAmount = 0
+  let cancelledPaymentsAmount = 0
+
+  if (!transactionsError && transactions && transactions.length > 0) {
+    for (const txn of transactions) {
+      if (txn.status === 'completed' && txn.type === 'payment') {
+        completedPaymentsAmount += txn.amount_cents
+      } else if (txn.status === 'failed') {
+        cancelledPaymentsAmount += txn.amount_cents
+      }
+    }
+  } else {
+    // Fallback: legacy payments table
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select('amount, payment_status')
+      .eq('property_id', propertyId)
+
+    if (!paymentsError && payments) {
+      completedPaymentsAmount = payments
+        .filter((p) => p.payment_status === 'completed')
+        .reduce((sum, p) => sum + p.amount, 0)
+      cancelledPaymentsAmount = payments
+        .filter((p) => p.payment_status === 'failed')
+        .reduce((sum, p) => sum + p.amount, 0)
+    }
   }
 
   // Calculate total revenue (sum of paid amounts)
@@ -1022,13 +1110,9 @@ export async function getDashboardStats(
       return sum + (unpaidAmount > 0 ? unpaidAmount : 0)
     }, 0) as MoneyCents
 
-  const completedPayments = (payments || [])
-    .filter((p) => p.payment_status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0) as MoneyCents
+  const completedPayments = completedPaymentsAmount as MoneyCents
 
-  const cancelledPayments = (payments || [])
-    .filter((p) => p.payment_status === 'failed')
-    .reduce((sum, p) => sum + p.amount, 0) as MoneyCents
+  const cancelledPayments = cancelledPaymentsAmount as MoneyCents
 
   return {
     totalRevenue,
@@ -1578,7 +1662,8 @@ export async function getBookingSourcesBreakdown(
 }
 
 /**
- * Get revenue breakdown by payment method
+ * Get revenue breakdown by payment method.
+ * Primary: financial_transactions. Fallback: legacy payments table.
  */
 export async function getRevenueByPaymentMethod(
   propertyId: string,
@@ -1586,42 +1671,72 @@ export async function getRevenueByPaymentMethod(
 ): Promise<Array<{ method: string; revenue: MoneyCents; count: number }>> {
   const supabase = await createClient()
 
-  // Build query
+  // Try unified ledger first
   let query = supabase
+    .from('financial_transactions')
+    .select('payment_method, amount_cents')
+    .eq('property_id', propertyId)
+    .eq('status', 'completed')
+    .eq('type', 'payment')
+    .neq('is_voided', true)
+
+  if (startDate) {
+    query = query.gte('created_at', startDate.toISOString())
+  }
+
+  const { data: txns, error: txnsError } = await query
+
+  if (!txnsError && txns && txns.length > 0) {
+    // Use ledger data
+    const methodData = new Map<string, { revenue: number; count: number }>()
+    txns.forEach((txn) => {
+      const method = txn.payment_method || 'Unknown'
+      const existing = methodData.get(method)
+      if (existing) {
+        existing.revenue += txn.amount_cents
+        existing.count += 1
+      } else {
+        methodData.set(method, { revenue: txn.amount_cents, count: 1 })
+      }
+    })
+    return Array.from(methodData.entries())
+      .map(([method, data]) => ({
+        method: method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' '),
+        revenue: data.revenue as MoneyCents,
+        count: data.count,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+  }
+
+  // Fallback: legacy payments table
+  let fallbackQuery = supabase
     .from('payments')
     .select('payment_method, amount')
     .eq('property_id', propertyId)
     .eq('payment_status', 'completed')
 
   if (startDate) {
-    query = query.gte('created_at', startDate.toISOString())
+    fallbackQuery = fallbackQuery.gte('created_at', startDate.toISOString())
   }
 
-  const { data: payments, error } = await query
+  const { data: payments, error } = await fallbackQuery
 
   if (error) {
     throw new Error(`Failed to fetch payment methods: ${error.message}`)
   }
 
-  // Group by payment method
   const methodData = new Map<string, { revenue: number; count: number }>()
-
   payments?.forEach((payment) => {
     const method = payment.payment_method || 'Unknown'
     const existing = methodData.get(method)
-
     if (existing) {
       existing.revenue += payment.amount
       existing.count += 1
     } else {
-      methodData.set(method, {
-        revenue: payment.amount,
-        count: 1,
-      })
+      methodData.set(method, { revenue: payment.amount, count: 1 })
     }
   })
 
-  // Convert to array and sort by revenue
   return Array.from(methodData.entries())
     .map(([method, data]) => ({
       method: method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' '),
@@ -1632,7 +1747,8 @@ export async function getRevenueByPaymentMethod(
 }
 
 /**
- * Get revenue breakdown by payment status
+ * Get revenue breakdown by payment status.
+ * Primary: financial_transactions. Fallback: legacy payments table.
  */
 export async function getRevenueByPaymentStatus(
   propertyId: string,
@@ -1640,41 +1756,69 @@ export async function getRevenueByPaymentStatus(
 ): Promise<Array<{ status: string; revenue: MoneyCents; count: number }>> {
   const supabase = await createClient()
 
-  // Build query
+  // Try unified ledger first
   let query = supabase
-    .from('payments')
-    .select('payment_status, amount')
+    .from('financial_transactions')
+    .select('status, amount_cents')
     .eq('property_id', propertyId)
+    .neq('is_voided', true)
+    .in('type', ['payment', 'refund'])
 
   if (startDate) {
     query = query.gte('created_at', startDate.toISOString())
   }
 
-  const { data: payments, error } = await query
+  const { data: txns, error: txnsError } = await query
+
+  if (!txnsError && txns && txns.length > 0) {
+    const statusData = new Map<string, { revenue: number; count: number }>()
+    txns.forEach((txn) => {
+      const status = txn.status || 'Unknown'
+      const existing = statusData.get(status)
+      if (existing) {
+        existing.revenue += txn.amount_cents
+        existing.count += 1
+      } else {
+        statusData.set(status, { revenue: txn.amount_cents, count: 1 })
+      }
+    })
+    return Array.from(statusData.entries())
+      .map(([status, data]) => ({
+        status: status.charAt(0).toUpperCase() + status.slice(1),
+        revenue: data.revenue as MoneyCents,
+        count: data.count,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+  }
+
+  // Fallback: legacy payments table
+  let fallbackQuery = supabase
+    .from('payments')
+    .select('payment_status, amount')
+    .eq('property_id', propertyId)
+
+  if (startDate) {
+    fallbackQuery = fallbackQuery.gte('created_at', startDate.toISOString())
+  }
+
+  const { data: payments, error } = await fallbackQuery
 
   if (error) {
     throw new Error(`Failed to fetch payment status: ${error.message}`)
   }
 
-  // Group by status
   const statusData = new Map<string, { revenue: number; count: number }>()
-
   payments?.forEach((payment) => {
     const status = payment.payment_status || 'Unknown'
     const existing = statusData.get(status)
-
     if (existing) {
       existing.revenue += payment.amount
       existing.count += 1
     } else {
-      statusData.set(status, {
-        revenue: payment.amount,
-        count: 1,
-      })
+      statusData.set(status, { revenue: payment.amount, count: 1 })
     }
   })
 
-  // Convert to array
   return Array.from(statusData.entries())
     .map(([status, data]) => ({
       status: status.charAt(0).toUpperCase() + status.slice(1),

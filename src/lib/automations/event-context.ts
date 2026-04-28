@@ -118,12 +118,23 @@ async function enrichPaymentContext(
   const propertyId = extractId(payload.propertyId)
 
   if (paymentId) {
-    const { data } = await supabase
-      .from('payments')
+    // Try unified ledger first
+    const { data: ledgerData } = await supabase
+      .from('financial_transactions')
       .select('*')
       .eq('id', paymentId)
       .single()
-    if (data) context.payment = data as Record<string, unknown>
+    if (ledgerData) {
+      context.payment = ledgerData as Record<string, unknown>
+    } else {
+      // Fallback: legacy payments table
+      const { data } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('id', paymentId)
+        .single()
+      if (data) context.payment = data as Record<string, unknown>
+    }
   }
 
   // Derive reservation from payment if not directly available

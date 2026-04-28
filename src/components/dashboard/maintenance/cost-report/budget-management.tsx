@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { DollarSign, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { DollarSign, Loader2, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 
 // ---------------------------------------------------------------------------
@@ -629,28 +635,39 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
                           {overBudget ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
                         </td>
                         <td className="px-3 py-2 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="xs"
-                              onClick={() => {
-                                setEditingBudget(b)
-                                setIsBudgetDialogOpen(true)
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="xs"
-                              onClick={() =>
-                                setDeletingItem({ type: "budget", id: b.id, name: formatCategoryLabel(b.category) })
-                              }
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                            </Button>
+                          <div className="flex items-center justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  aria-label={`Actions for ${formatCategoryLabel(b.category)} budget`}
+                                >
+                                  <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setEditingBudget(b)
+                                    setIsBudgetDialogOpen(true)
+                                  }}
+                                >
+                                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() =>
+                                    setDeletingItem({ type: "budget", id: b.id, name: formatCategoryLabel(b.category) })
+                                  }
+                                >
+                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       </tr>
@@ -689,28 +706,39 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="xs"
-                            onClick={() => {
-                              setEditingLimit(sl)
-                              setIsLimitDialogOpen(true)
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="xs"
-                            onClick={() =>
-                              setDeletingItem({ type: "limit", id: sl.id, name: formatCategoryLabel(sl.category) })
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                          </Button>
+                        <div className="flex items-center justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                aria-label={`Actions for ${formatCategoryLabel(sl.category)} spend limit`}
+                              >
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingLimit(sl)
+                                  setIsLimitDialogOpen(true)
+                                }}
+                              >
+                                <Pencil className="mr-2 h-3.5 w-3.5" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onClick={() =>
+                                  setDeletingItem({ type: "limit", id: sl.id, name: formatCategoryLabel(sl.category) })
+                                }
+                              >
+                                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>

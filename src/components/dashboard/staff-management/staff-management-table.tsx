@@ -2,7 +2,7 @@
 
 import { useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Eye, Pencil, UserCheck, UserMinus } from "lucide-react"
+import { Eye, MoreVertical, Pencil, UserCheck, UserMinus } from "lucide-react"
 import type { EditStaffDialogStaff } from "@/components/dashboard/staff-management/staff-management-dialog/edit-staff-dialog"
 import type { DeactivateStaffDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/deactivate-staff-dialog"
 import type { StaffDetailsDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/staff-details-dialog"
@@ -20,6 +20,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { PermissionGate } from "@/components/ui/permission-gate"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { StaffManagementTableRow } from "@/lib/dashboard/staff-management-queries"
 
 type StaffManagementTableProps = {
@@ -210,87 +216,80 @@ export function StaffManagementTable({
                     {row.lastLogin}
                   </TableCell>
                   <TableCell className="py-0.5">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        aria-label="View staff"
-                        className="h-8 w-8 p-0"
-                        onClick={() =>
-                          onViewStaff?.({
-                            id: row.id,
-                            name: row.name,
-                            email: row.email,
-                            role: row.role,
-                            categories: row.categories,
-                            status: row.status,
-                            lastLogin: row.lastLogin,
-                          })
-                        }
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <PermissionGate permission="global.change_staff_role">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-label="Edit staff"
-                          className="h-8 w-8 p-0"
-                          disabled={row.role === "Owner"}
-                          title={row.role === "Owner" ? "Owner role cannot be edited here" : "Edit role and access"}
-                          onClick={() =>
-                            onEditStaff?.({
-                              id: row.id,
-                              name: row.name,
-                              role: row.role,
-                              categories: row.categories,
-                            })
-                          }
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </PermissionGate>
-                      <PermissionGate permission="global.deactivate_staff">
-                        {row.status === "Inactive" ? (
+                    <div className="flex items-center justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="xs"
-                            aria-label="Reactivate staff"
-                            className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-                            disabled={row.role === "Owner"}
-                            title={
-                              row.role === "Owner"
-                                ? "Owner status cannot be changed here"
-                                : "Restore access for this staff member"
-                            }
-                            onClick={() => onReactivateStaff?.({ id: row.id, name: row.name })}
+                            aria-label={`Actions for ${row.name}`}
+                            className="h-8 w-8 p-0"
                           >
-                            <UserCheck className="h-4 w-4" />
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            aria-label="Deactivate staff"
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                            disabled={row.role === "Owner"}
-                            title={
-                              row.role === "Owner"
-                                ? "Owner cannot be deactivated"
-                                : "Deactivate staff member"
-                            }
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem
                             onClick={() =>
-                              onDeactivateStaff?.({
+                              onViewStaff?.({
                                 id: row.id,
                                 name: row.name,
+                                email: row.email,
+                                role: row.role,
+                                categories: row.categories,
                                 status: row.status,
+                                lastLogin: row.lastLogin,
                               })
                             }
                           >
-                            <UserMinus className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </PermissionGate>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </DropdownMenuItem>
+                          <PermissionGate permission="global.change_staff_role">
+                            <DropdownMenuItem
+                              disabled={row.role === "Owner"}
+                              onClick={() =>
+                                onEditStaff?.({
+                                  id: row.id,
+                                  name: row.name,
+                                  role: row.role,
+                                  categories: row.categories,
+                                })
+                              }
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          </PermissionGate>
+                          <PermissionGate permission="global.deactivate_staff">
+                            {row.status === "Inactive" ? (
+                              <DropdownMenuItem
+                                disabled={row.role === "Owner"}
+                                className="text-emerald-600 focus:text-emerald-600"
+                                onClick={() => onReactivateStaff?.({ id: row.id, name: row.name })}
+                              >
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Reactivate
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                disabled={row.role === "Owner"}
+                                className="text-red-600 focus:text-red-600"
+                                onClick={() =>
+                                  onDeactivateStaff?.({
+                                    id: row.id,
+                                    name: row.name,
+                                    status: row.status,
+                                  })
+                                }
+                              >
+                                <UserMinus className="mr-2 h-4 w-4" />
+                                Deactivate
+                              </DropdownMenuItem>
+                            )}
+                          </PermissionGate>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -13,7 +13,7 @@ export const DASHBOARD_NAV_MODULES = [
   { key: 'maintenance', name: 'Maintenance', path: '/maintenance' },
   { key: 'automations', name: 'Automations', path: '/automations' },
   { key: 'staff-management', name: 'Staff Management', path: '/staff-management' },
-  { key: 'auditing', name: 'Auditing', path: '/auditing' },
+  { key: 'auditing', name: 'Activity Logs', path: '/activity-logs' },
   { key: 'settings', name: 'Settings', path: '/settings' },
 ] as const
 
@@ -50,5 +50,5 @@ export const DASHBOARD_OPERATIONS_MODULE_PATHS = new Set<DashboardNavModule['pat
   '/guests',
   '/payments',
   '/analytics',
-  '/auditing',
+  '/activity-logs',
 ])

@@ -392,7 +392,11 @@ export function MaintenancePageContent({
         task: task.title,
         assigneeId: task.staff_id,
         description: task.description,
-        assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
+        assignee: task.staff_id
+          ? (assigneeLabelById.get(task.staff_id) ?? "Assigned")
+          : task.vendor_id
+            ? "Vendor Assigned"
+            : null,
         status: fromApiStatus(task.status),
         priority: fromApiPriority(task.priority),
         category: task.category ? maintenanceCategoryLabel(task.category) : undefined,

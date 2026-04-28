@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { PermissionGate } from "@/components/ui/permission-gate"
+import { useToast } from "@/hooks/use-toast"
 
 export const MAINTENANCE_CATEGORY_OPTIONS = [
   { id: "electrical", label: "Electrical", Icon: Zap },
@@ -177,9 +178,9 @@ export function AddTaskDialog({
   isSubmitting = false,
   vendorOptions = [],
 }: AddTaskDialogProps) {
+  const { toast } = useToast()
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
   const [customCategory, setCustomCategory] = useState("")
-  const [error, setError] = useState<string | null>(null)
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
   const clearLocalImages = () => {
@@ -191,7 +192,6 @@ export function AddTaskDialog({
 
   useEffect(() => {
     if (!open) return
-    setError(null)
     clearLocalImages()
     setCustomCategory("")
     if (!canAssignWorkOrder) {
@@ -231,7 +231,6 @@ export function AddTaskDialog({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError(null)
 
     const siteId = (form.siteId ?? "").trim()
     const siteName = form.siteName.trim()
@@ -242,16 +241,28 @@ export function AddTaskDialog({
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
 
     if (!siteId || !siteName || !task) {
-      setError("Site and task title are required.")
+      toast({
+        title: "Missing required fields",
+        description: "Site and task title are required.",
+        variant: "destructive",
+      })
       return
     }
     if (!resolvedCategory) {
-      setError("Please enter a category name.")
+      toast({
+        title: "Missing category",
+        description: "Please enter a category name.",
+        variant: "destructive",
+      })
       return
     }
 
     if (form.isSuspectedDamage && localImages.length === 0) {
-      setError("Photos are required when suspected guest damage is flagged.")
+      toast({
+        title: "Photos required",
+        description: "Photos are required when suspected guest damage is flagged.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -269,7 +280,11 @@ export function AddTaskDialog({
       onOpenChange(false)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : "Failed to create task."
-      setError(message)
+      toast({
+        title: "Unable to create task",
+        description: message,
+        variant: "destructive",
+      })
     }
   }
 
@@ -311,12 +326,6 @@ export function AddTaskDialog({
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="maintenance-site">Site *</Label>

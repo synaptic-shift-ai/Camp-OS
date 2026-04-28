@@ -455,18 +455,24 @@ export function MaintenanceView({
   // ── Visibility flags ──
 
   const showStart = task?.status === "open" && canEditTask
-  const showComplete = (task?.status === "in_progress" || task?.status === "in_progress_vendor") && canEditTask
+  const showComplete = task?.status === "in_progress" && canEditTask
   const showReopen = (task?.status === "completed" || task?.status === "cancelled") && canEditTask
   const hasPendingOnHoldRequest =
     ["in_progress", "in_progress_vendor"].includes(task?.status ?? "") &&
     Boolean(task?.on_hold_reason) &&
     !task?.on_hold_at
-  const showHold = canHold && task?.status === "in_progress" && !hasPendingOnHoldRequest
+  const showHold =
+    canHold &&
+    (task?.status === "in_progress" || task?.status === "in_progress_vendor") &&
+    !hasPendingOnHoldRequest
   const showApproveHold = canResume && hasPendingOnHoldRequest
   const showResume = canResume && task?.status === "on_hold"
   const showCancel = canCancel && ["open", "in_progress", "on_hold"].includes(task?.status ?? "")
   const showReassign = canAssignWo && !["completed", "cancelled"].includes(task?.status ?? "")
-  const showAssignVendor = (task?.status === "open" || task?.status === "in_progress") && canEditTask
+  const showAssignVendor =
+    (task?.status === "open" || task?.status === "in_progress") &&
+    canEditTask &&
+    !task?.vendor_id
   const showCloseout = task?.status === "in_progress_vendor" && canEditTask
 
   // ── Handlers ──
@@ -479,12 +485,13 @@ export function MaintenanceView({
     if (!task || task.status !== "open" || isStarting) return
     setIsStarting(true)
     try {
+      const targetStatus = task.vendor_id ? "in_progress_vendor" : "in_progress"
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress" }),
+          body: JSON.stringify({ status: targetStatus }),
         },
       )
       const payload = await res.json()
@@ -500,7 +507,7 @@ export function MaintenanceView({
         previous
           ? {
               ...previous,
-              status: "in_progress",
+              status: targetStatus,
               started_at: startedAt,
               updated_at:
                 typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
@@ -521,7 +528,7 @@ export function MaintenanceView({
   }
 
   const handleComplete = async () => {
-    if (!task || task.status !== "in_progress" || isCompleting) return
+    if (!task || !["in_progress", "in_progress_vendor"].includes(task.status) || isCompleting) return
     setIsCompleting(true)
     try {
       const res = await fetch(
@@ -754,7 +761,10 @@ export function MaintenanceView({
         previous
           ? {
               ...previous,
-              status: "in_progress",
+              status:
+                updated?.status === "in_progress_vendor" || updated?.status === "in_progress"
+                  ? updated.status
+                  : "in_progress",
               started_at:
                 typeof updated?.started_at === "string" ? updated.started_at : previous.started_at,
               on_hold_at: null,
@@ -930,7 +940,11 @@ export function MaintenanceView({
   }
 
   const siteLabel = task.site?.site_name?.trim() || task.site?.site_number || "Unknown site"
-  const assigneeLabel = task.staff_id ? assigneeLabelById.get(task.staff_id) ?? "Assigned" : "Unassigned"
+  const assigneeLabel = task.staff_id
+    ? assigneeLabelById.get(task.staff_id) ?? "Assigned"
+    : task.vendor_id
+      ? "Vendor Assigned"
+      : "Unassigned"
   const isCancelled = task.status === "cancelled"
   const workOrderLabel = task.wo_number ?? `WO-${task.id.slice(0, 4).toUpperCase()}`
   const totalEstimated = (task.estimated_labor_cost ?? 0) + (task.estimated_parts_cost ?? 0)

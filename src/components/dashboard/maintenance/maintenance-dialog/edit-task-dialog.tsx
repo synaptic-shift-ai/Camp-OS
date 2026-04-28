@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { PermissionGate } from "@/components/ui/permission-gate"
+import { useToast } from "@/hooks/use-toast"
 import {
   MaintenanceCategoryPicker,
   SOURCE_OPTIONS,
@@ -81,9 +82,9 @@ export function EditTaskDialog({
   vendorOptions = [],
   onSubmit,
 }: EditTaskDialogProps) {
+  const { toast } = useToast()
   const [form, setForm] = useState<AddMaintenanceTaskInput>(EMPTY_FORM)
   const [customCategory, setCustomCategory] = useState("")
-  const [error, setError] = useState<string | null>(null)
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
   const clearLocalImages = () => {
@@ -120,7 +121,6 @@ export function EditTaskDialog({
       sla: task.sla ?? null,
     })
     setCustomCategory(parsedCategory === "other" ? task.category ?? "" : "")
-    setError(null)
     clearLocalImages()
   }, [open, task])
 
@@ -160,11 +160,19 @@ export function EditTaskDialog({
     const assignee = form.assignee?.trim() ? form.assignee.trim() : null
 
     if (!siteId || !siteName || !taskName) {
-      setError("Site and task title are required.")
+      toast({
+        title: "Missing required fields",
+        description: "Site and task title are required.",
+        variant: "destructive",
+      })
       return
     }
     if (!resolvedCategory) {
-      setError("Please enter a category name.")
+      toast({
+        title: "Missing category",
+        description: "Please enter a category name.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -190,7 +198,11 @@ export function EditTaskDialog({
       onOpenChange(false)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : "Failed to update task."
-      setError(message)
+      toast({
+        title: "Unable to update task",
+        description: message,
+        variant: "destructive",
+      })
     }
   }
 
@@ -208,12 +220,6 @@ export function EditTaskDialog({
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit-maintenance-site">Site *</Label>

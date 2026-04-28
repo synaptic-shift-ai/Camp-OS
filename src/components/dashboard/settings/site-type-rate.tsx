@@ -143,7 +143,7 @@ interface SeasonalPeriodFormData {
   recurring: boolean
 }
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function SiteTypeRateSettings({
@@ -394,7 +394,6 @@ export function SiteTypeRateSettings({
       toast({
         title: 'Site type rates saved',
         description: 'Site type rates saved successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
       setIsDirty(false)
@@ -405,7 +404,7 @@ export function SiteTypeRateSettings({
         title: 'Save failed',
         description: error instanceof Error ? error.message : 'Failed to save site type rates',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)
@@ -493,7 +492,7 @@ export function SiteTypeRateSettings({
         title: 'Delete failed',
         description: error instanceof Error ? error.message : 'Failed to delete',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     }
   }

@@ -91,6 +91,7 @@ export type UpdateMaintenanceTaskInput = {
 export type ListMaintenanceTasksFilters = {
     search?: string
     siteId?: string
+    siteIds?: string[]
     assigneeId?: 'unassigned' | string
     status?: 'open' | 'in_progress' | 'in_progress_vendor' | 'on_hold' | 'completed' | 'cancelled'
     priority?: 'low' | 'medium' | 'high' | 'emergency'
@@ -298,6 +299,12 @@ export class MaintenanceQueries {
 
         if (filters?.siteId) {
             query = query.eq('site_id', filters.siteId)
+        }
+        if (filters?.siteIds) {
+            if (filters.siteIds.length === 0) {
+                return { tasks: [], total: 0 }
+            }
+            query = query.in('site_id', filters.siteIds)
         }
 
         if (filters?.assigneeId) {

@@ -75,7 +75,7 @@ const defaultFormValues: BookingRulesSettingsFormInput = {
   checkout_hold_minutes: 1,
 }
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function BookingRulesSettings({
@@ -186,7 +186,6 @@ export function BookingRulesSettings({
       toast({
         title: 'Booking rules saved',
         description: 'Booking rules saved successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
 
@@ -197,7 +196,7 @@ export function BookingRulesSettings({
         title: 'Save failed',
         description: error instanceof Error ? error.message : 'Failed to save booking rules',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)

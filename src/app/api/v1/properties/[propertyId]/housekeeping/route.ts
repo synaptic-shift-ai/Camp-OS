@@ -304,7 +304,7 @@ export async function POST(
                         .eq('id', propertyId)
                         .maybeSingle()
 
-                    const checkInTime = propertyRow?.check_in_time ?? '15:00'
+                    const checkInTime = (propertyRow?.check_in_time?.trim()) || '15:00'
                     const [hours, minutes] = checkInTime.split(':').map(Number)
 
                     const checkInDate = new Date(nextReservation.check_in_date + 'T00:00:00')

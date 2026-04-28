@@ -49,7 +49,10 @@ export const UpdateHousekeepingTaskRequestSchema = z.object({
   linkedMaintenanceTaskId: z.string().uuid().optional().nullable(),
 }).refine((payload) => Object.keys(payload).length > 0, {
   message: 'At least one field is required',
-})
+}).refine((data) => {
+  if (data.issueType) return !!data.issueDescription && data.issueDescription.length >= 10
+  return true
+}, { message: 'issueDescription (min 10 chars) is required when issueType is set', path: ['issueDescription'] })
 
 export type UpdateHousekeepingTaskRequest = z.infer<typeof UpdateHousekeepingTaskRequestSchema>
 

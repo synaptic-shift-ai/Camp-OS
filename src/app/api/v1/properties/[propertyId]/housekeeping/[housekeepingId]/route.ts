@@ -239,7 +239,7 @@ export async function PATCH(
                 propertyId,
                 action: 'update',
                 resource: 'housekeeping',
-                userId: null,
+                userId: user.id,
                 details: `Site auto-available skipped — operator approval required for site ${auditLabel}.`,
               },
               { failOpen: false },

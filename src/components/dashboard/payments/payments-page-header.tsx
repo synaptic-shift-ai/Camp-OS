@@ -1,10 +1,25 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import type { DashboardPayment } from "@/lib/dashboard/queries"
 import { ExportMenu } from "@/components/ui/export-menu"
 import { buildExportFilename, exportToCsv } from "@/lib/csv/export"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+
+const TYPE_FILTER_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "payment", label: "Payments" },
+  { value: "refund", label: "Refunds" },
+  { value: "charge", label: "Charges" },
+] as const
 
 type PaymentsPageHeaderProps = {
   propertyId: string
@@ -12,6 +27,7 @@ type PaymentsPageHeaderProps = {
   currentPage: number
   total: number
   canExportPayments: boolean
+  typeFilter?: string
 }
 
 function formatMoney(cents: number): string {
@@ -29,9 +45,26 @@ function formatDate(dateString: string): string {
   })
 }
 
-export function PaymentsPageHeader({ propertyId, total, canExportPayments }: PaymentsPageHeaderProps) {
+export function PaymentsPageHeader({
+  propertyId,
+  total,
+  canExportPayments,
+  typeFilter,
+}: PaymentsPageHeaderProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
+
+  const handleTypeFilterChange = (value: string) => {
+    const params = new URLSearchParams(window.location.search)
+    if (value === "all") {
+      params.delete("type")
+    } else {
+      params.set("type", value)
+    }
+    params.set("page", "1")
+    router.push(`/dashboard/${propertyId}/payments?${params.toString()}`)
+  }
 
   const handleExport = (format: string) => {
     if (format !== "csv") return
@@ -65,12 +98,22 @@ export function PaymentsPageHeader({ propertyId, total, canExportPayments }: Pay
           { key: "guestName", header: "Primary Guest" },
           { key: "confirmationNumber", header: "Reservation" },
           {
+            key: "transactionType",
+            header: "Type",
+            accessor: (payment) => payment.transactionType ?? "Payment",
+          },
+          {
             key: "amount",
             header: "Amount",
             accessor: (payment) => formatMoney(payment.amount),
           },
           { key: "paymentMethod", header: "Method" },
           { key: "paymentStatus", header: "Status" },
+          {
+            key: "recognitionStatus",
+            header: "Revenue Status",
+            accessor: (payment) => payment.recognitionStatus ?? "",
+          },
         ])
 
         toast({
@@ -100,7 +143,22 @@ export function PaymentsPageHeader({ propertyId, total, canExportPayments }: Pay
           Track and manage all transactions
         </p>
       </div>
-      <div className="self-end sm:self-auto">
+      <div className="flex items-center gap-2 self-end sm:self-auto">
+        <Select
+          value={typeFilter ?? "all"}
+          onValueChange={handleTypeFilterChange}
+        >
+          <SelectTrigger className="h-9 w-[150px] text-xs">
+            <SelectValue placeholder="Filter by type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_FILTER_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <ExportMenu
           onExport={handleExport}
           disabled={isExporting || total <= 0 || !canExportPayments}
@@ -110,4 +168,3 @@ export function PaymentsPageHeader({ propertyId, total, canExportPayments }: Pay
     </div>
   )
 }
-

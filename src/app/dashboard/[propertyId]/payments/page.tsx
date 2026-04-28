@@ -58,7 +58,7 @@ async function PaymentStats({ propertyId }: { propertyId: string }) {
 
 type PageProps = {
   params: Promise<{ propertyId: string }>
-  searchParams: Promise<{ page?: string; pageSize?: string }>
+  searchParams: Promise<{ page?: string; pageSize?: string; type?: string }>
 }
 
 export default async function PaymentsPage({ params, searchParams }: PageProps) {
@@ -90,7 +90,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  const { page: pageParam, pageSize: pageSizeParam } = await searchParams
+  const { page: pageParam, pageSize: pageSizeParam, type: typeParam } = await searchParams
   const currentPage =
     Number.isNaN(Number(pageParam)) || !pageParam ? 1 : Math.max(1, Number(pageParam))
   const parsedPageSize =
@@ -99,7 +99,10 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
       : Number(pageSizeParam)
   const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
 
-  const { data: payments, total } = await getPayments(propertyId, {}, currentPage, pageSize)
+  const typeFilter = typeParam && typeParam !== 'all' ? (typeParam as 'payment' | 'refund' | 'charge') : undefined
+
+  const filters = typeFilter ? { type: typeFilter } : {}
+  const { data: payments, total } = await getPayments(propertyId, filters, currentPage, pageSize)
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -109,6 +112,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
         currentPage={currentPage}
         total={total}
         canExportPayments={paymentActions.export ?? false}
+        {...(typeFilter ? { typeFilter } : {})}
       />
 
       <Suspense
@@ -136,6 +140,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
         currentPage={currentPage}
         pageSize={pageSize}
         total={total}
+        {...(typeFilter ? { typeFilter } : {})}
       />
     </div>
   )

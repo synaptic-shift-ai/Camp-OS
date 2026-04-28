@@ -24,7 +24,10 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { sendBookingConfirmation } from '@/lib/email/send'
+import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
+import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -218,6 +221,28 @@ export async function POST(request: NextRequest) {
     if (paymentRecordError) {
       console.error('[Payment Confirm] Payment record creation error:', paymentRecordError)
       // Don't fail - reservation is already confirmed
+    }
+
+    // ========================================================================
+    // Step 4.5: Dual-write to financial_transactions (best-effort)
+    // ========================================================================
+
+    try {
+      const serviceRoleSupabase = createServiceRoleClient()
+      await recordPaymentDualWrite({
+        supabase: serviceRoleSupabase,
+        propertyId: reservation.property_id,
+        reservationId: reservation.id,
+        guestId: reservation.guest_id,
+        amountCents: paidAmountCents,
+        paymentMethod: PaymentMethod.CREDIT_CARD,
+        stripePaymentIntentId: validatedInput.payment_intent_id,
+        description: 'Guest self-service reservation payment',
+        logPrefix: '[Payment Confirm DualWrite]',
+      })
+    } catch (dualWriteError) {
+      console.error('[Payment Confirm] financial_transactions dual-write failed (non-blocking)', dualWriteError)
+      // Don't fail - reservation is already confirmed and payment recorded
     }
 
     // ========================================================================

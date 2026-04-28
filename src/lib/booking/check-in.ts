@@ -10,6 +10,8 @@
 
 import Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
+import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import type { Reservation, BookingResult } from './types'
 
 // Initialize Stripe
@@ -173,6 +175,19 @@ export async function performCheckIn(
           payment_status: newPaidAmount >= typedReservation.total_amount ? 'paid' : 'partial',
         })
         .eq('id', input.reservation_id)
+
+      // Dual-write to financial_transactions (best-effort)
+      await recordPaymentDualWrite({
+        supabase,
+        propertyId: typedReservation.property_id,
+        reservationId: input.reservation_id,
+        guestId: typedReservation.guest_id,
+        amountCents: input.balance_amount,
+        paymentMethod: PaymentMethod.CREDIT_CARD,
+        stripePaymentIntentId: paymentIntentId,
+        description: 'Check-in balance payment',
+        logPrefix: '[CheckIn DualWrite]',
+      })
     } catch (error) {
       console.error('Payment processing error:', error)
       return {

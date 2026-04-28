@@ -13,6 +13,8 @@ import { validateDateRange, generateConfirmationNumber } from './api'
 import { checkSiteAvailability } from './availability'
 import { calculateReservationPrice } from './pricing'
 import { createOrGetGuest } from './guest'
+import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
+import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import type { CreateReservationInput, Reservation, BookingResult } from './types'
 
 /**
@@ -254,6 +256,19 @@ export async function confirmReservationPayment(
     payment_status: 'completed',
     stripe_payment_id: paymentDetails.stripe_payment_id,
     processed_at: new Date().toISOString(),
+  })
+
+  // Dual-write to financial_transactions (best-effort)
+  await recordPaymentDualWrite({
+    supabase,
+    propertyId: reservation.property_id,
+    reservationId,
+    guestId: reservation.guest_id,
+    amountCents: paymentDetails.amount,
+    paymentMethod: PaymentMethod.CREDIT_CARD,
+    stripePaymentIntentId: paymentDetails.stripe_payment_id,
+    description: 'Reservation confirmation payment',
+    logPrefix: '[ConfirmPayment DualWrite]',
   })
 
   return {

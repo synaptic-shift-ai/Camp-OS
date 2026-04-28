@@ -23,6 +23,7 @@ import {
   Eye,
   MoreHorizontal,
   Pencil,
+  Play,
   Trash2,
   UserRound,
 } from "lucide-react"
@@ -243,7 +244,10 @@ export function HousekeepingTable({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold leading-tight text-foreground">{row.task}</p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">{row.siteName}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{row.siteName}</span>
+                    <PriorityPill priority={row.priority} />
+                  </div>
                 </div>
                 <TaskActionsMenu
                   row={row}
@@ -260,11 +264,7 @@ export function HousekeepingTable({
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {toDisplayTaskId(row.id)}
                 </p>
-                {row.reservationConfirmationId ? (
-                  <p className="shrink-0 truncate text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {row.reservationConfirmationId}
-                  </p>
-                ) : null}
+                <StatusPill status={row.status} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span className="inline-flex min-w-0 items-center gap-1">
@@ -277,22 +277,36 @@ export function HousekeepingTable({
                 </span>
               </div>
               {row.description?.trim() ? (
-                <p className="mt-2 line-clamp-2 text-xs leading-snug text-muted-foreground">{row.description.trim()}</p>
+                <p className="mt-2 line-clamp-2 text-sm leading-snug text-muted-foreground">{row.description.trim()}</p>
               ) : null}
-              <div className="mt-2 flex flex-wrap items-start gap-4 border-t border-border/70 pt-2 text-xs">
-                <div>
-                  <p className="uppercase tracking-wide text-muted-foreground">Status</p>
-                  <div className="mt-1">
-                    <StatusPill status={row.status} />
-                  </div>
+              {/* Quick action buttons for mobile — 44px min touch target */}
+              {row.status !== "Done" && canEditTask && (onComplete || onReassign) ? (
+                <div
+                  className="mt-3 flex gap-2 border-t border-border/70 pt-3"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {row.status === "Pending" && onReassign ? (
+                    <button
+                      type="button"
+                      onClick={() => onReassign(row)}
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    >
+                      <Play className="h-4 w-4" />
+                      Start
+                    </button>
+                  ) : null}
+                  {onComplete ? (
+                    <button
+                      type="button"
+                      onClick={() => onComplete(row)}
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Complete
+                    </button>
+                  ) : null}
                 </div>
-                <div>
-                  <p className="uppercase tracking-wide text-muted-foreground">Priority</p>
-                  <div className="mt-1">
-                    <PriorityPill priority={row.priority} />
-                  </div>
-                </div>
-              </div>
+              ) : null}
             </div>
           ))
         )}

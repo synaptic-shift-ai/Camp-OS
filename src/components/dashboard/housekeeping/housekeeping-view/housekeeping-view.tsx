@@ -695,7 +695,7 @@ export function HousekeepingView({
                   {showStartTaskAction && (
                     <Button
                       type="button"
-                      className="col-span-1 gap-2 sm:w-auto"
+                      className="col-span-1 min-h-[44px] gap-2 sm:w-auto"
                       disabled={isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                       onClick={() => void handleStartTask()}
                     >
@@ -710,7 +710,7 @@ export function HousekeepingView({
 
                   <Button
                     type="button"
-                    className={`${showStartTaskAction ? "col-span-1" : "col-span-2"} gap-2 sm:w-auto`}
+                    className={`${showStartTaskAction ? "col-span-1" : "col-span-2"} min-h-[44px] gap-2 sm:w-auto`}
                     disabled={task.status === "done" || isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                     onClick={() => void handleMarkAsComplete()}
                   >
@@ -724,7 +724,7 @@ export function HousekeepingView({
                 </>
               )}
 
-              <Button variant="outline" className="col-span-2 gap-2 sm:w-auto" onClick={() => setIsReassignOpen(true)}>
+              <Button variant="outline" className="col-span-2 min-h-[44px] gap-2 sm:w-auto" onClick={() => setIsReassignOpen(true)}>
                 <SlidersHorizontal className="h-4 w-4" />
                 Reassign
               </Button>
@@ -732,7 +732,7 @@ export function HousekeepingView({
               {showMarkCompleteAction && (
                 <Button
                   variant="outline"
-                  className="col-span-2 gap-2 sm:w-auto"
+                  className="col-span-2 min-h-[44px] gap-2 sm:w-auto"
                   disabled={isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                   onClick={() => setIsFlagIssueOpen(true)}
                 >
@@ -772,7 +772,7 @@ export function HousekeepingView({
                 return (
                   <label
                     key={itemId}
-                    className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-muted/20"
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors hover:bg-muted/20"
                   >
                     <Checkbox
                       checked={checked}
@@ -781,7 +781,7 @@ export function HousekeepingView({
                         void handleToggleChecklist(item.id, nextChecked === true)
                       }}
                       disabled={!canEditTask || !item.id || isUpdatingChecklist}
-                      className="mt-0.5"
+                      className="mt-0.5 shrink-0"
                     />
                     <span
                       className={`text-sm leading-relaxed ${

@@ -26,6 +26,8 @@ import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
 import { ReassignTaskDialog } from "./housekeeping-dialog.tsx/reassign-task-dialog"
 import { CompleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/complete-task-confirmation-dialog"
 import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
+import { DamageReviewPanel } from "./damage-review/damage-review-panel"
+import { InstallPrompt } from "@/components/pwa/install-prompt"
 
 type HousekeepingPageContentProps = {
   propertyId: string
@@ -505,7 +507,7 @@ export function HousekeepingPageContent({
         if (!imagesResponse.ok || !imagesPayload?.success) {
           const message = imagesPayload?.error?.message ?? "Failed to load task images."
           throw new Error(message)
-        }filterPriorityToApi
+        }
 
         const hasImage = Array.isArray(imagesPayload?.data?.images) && imagesPayload.data.images.length > 0
         if (!checklistComplete || !hasImage) {
@@ -700,7 +702,7 @@ export function HousekeepingPageContent({
             </div>
           </div>
         </>
-      ) : (
+      ) : viewMode === "checklist" ? (
         <HousekeepingChecklistPanel
           propertyId={propertyId}
           refreshKey={checklistRefreshKey}
@@ -712,6 +714,8 @@ export function HousekeepingPageContent({
             )
           }}
         />
+      ) : (
+        <DamageReviewPanel propertyId={propertyId} />
       )}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
@@ -796,6 +800,7 @@ export function HousekeepingPageContent({
           void loadTasks()
         }}
       />
+      <InstallPrompt />
     </div>
   )
 }

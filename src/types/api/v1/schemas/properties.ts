@@ -53,6 +53,7 @@ export const PropertySettingsSchema = z.object({
   customRules: z.string().nullable(),
   openPeriodFrom: isoDateOnlyNullable,
   openPeriodUntil: isoDateOnlyNullable,
+  housekeepingRequireApproval: z.boolean().nullable(),
 })
 
 export const PropertyAmenitySchema = z.object({

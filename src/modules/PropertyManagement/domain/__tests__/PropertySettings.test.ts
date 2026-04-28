@@ -169,6 +169,7 @@ describe('PropertySettings', () => {
         customRules: 'Test rules',
         openPeriodFrom: null,
         openPeriodUntil: null,
+        housekeepingRequireApproval: null,
       })
     })
   })

@@ -167,6 +167,7 @@ export async function PATCH(
           customRules: validatedRequest.settings.customRules,
           openPeriodFrom: validatedRequest.settings.openPeriodFrom,
           openPeriodUntil: validatedRequest.settings.openPeriodUntil,
+          housekeepingRequireApproval: validatedRequest.settings.housekeepingRequireApproval,
         })
       : undefined
 

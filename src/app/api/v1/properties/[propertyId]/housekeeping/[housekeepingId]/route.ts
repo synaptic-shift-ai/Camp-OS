@@ -180,6 +180,55 @@ export async function PATCH(
         })
       }
       if (openForSite === 0) {
+        // Check housekeepingRequireApproval property setting (best-effort — fall back to auto-available on failure)
+        let requireApproval = false
+        try {
+          const serviceRoleForSettings = createServiceRoleClient()
+          const { data: propertyRow } = await serviceRoleForSettings
+            .from('properties')
+            .select('settings')
+            .eq('id', propertyId)
+            .maybeSingle()
+          const settingsJson = propertyRow?.settings as Record<string, unknown> | null | undefined
+          if (settingsJson && typeof settingsJson.housekeepingRequireApproval === 'boolean') {
+            requireApproval = settingsJson.housekeepingRequireApproval
+          }
+        } catch (settingsErr) {
+          console.warn(`${siteAvailabilityLogPrefix}: failed to load property settings, falling back to auto-available`, {
+            propertyId,
+            error: settingsErr,
+          })
+        }
+
+        if (requireApproval) {
+          console.info(`${siteAvailabilityLogPrefix}: skip — operator approval required (housekeepingRequireApproval is ON)`, {
+            propertyId,
+            siteId: housekeepingTask.site_id,
+            housekeepingTaskId: housekeepingTask.id,
+          })
+          if (access.companyId) {
+            const auditService = createServiceRoleClient()
+            const { data: auditSite } = await supabase
+              .from('sites')
+              .select('site_name, site_number')
+              .eq('id', housekeepingTask.site_id)
+              .eq('property_id', propertyId)
+              .maybeSingle()
+            const auditLabel = auditSite?.site_name?.trim() || auditSite?.site_number || housekeepingTask.site_id
+            await recordActivityLog(
+              auditService,
+              {
+                companyId: access.companyId,
+                propertyId,
+                action: 'update',
+                resource: 'housekeeping',
+                userId: null,
+                details: `Site auto-available skipped — operator approval required for site ${auditLabel}.`,
+              },
+              { failOpen: false },
+            )
+          }
+        } else {
         // Service role: completing staff may lack sites UPDATE under RLS; property is already authorized above.
         const service = createServiceRoleClient()
         const { data: siteRow, error: siteLoadError } = await service
@@ -273,7 +322,8 @@ export async function PATCH(
             }
           }
         }
-      }
+        } // end else (auto-available path)
+      } // end openForSite === 0
     }
 
     if (access.companyId) {

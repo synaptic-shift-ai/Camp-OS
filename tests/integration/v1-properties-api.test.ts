@@ -75,6 +75,7 @@ describe('Properties API v1 Contract Tests', () => {
           customRules: 'No pets',
           openPeriodFrom: null,
           openPeriodUntil: null,
+          housekeepingRequireApproval: null,
         },
 
         // Amenities
@@ -200,6 +201,7 @@ describe('Properties API v1 Contract Tests', () => {
           customRules: null,
           openPeriodFrom: null,
           openPeriodUntil: null,
+          housekeepingRequireApproval: null,
         },
 
         // Amenities - nullable
@@ -269,6 +271,7 @@ describe('Properties API v1 Contract Tests', () => {
           customRules: 'No pets',
           openPeriodFrom: null,
           openPeriodUntil: null,
+          housekeepingRequireApproval: null,
         },
         amenities: [
           { id: 'wifi', name: 'wifi', description: null },
@@ -397,6 +400,7 @@ describe('Properties API v1 Contract Tests', () => {
             customRules: null,
             openPeriodFrom: null,
             openPeriodUntil: null,
+          housekeepingRequireApproval: null,
           },
           amenities: null,
           site_amenities: null,
@@ -462,6 +466,7 @@ describe('Properties API v1 Contract Tests', () => {
                 customRules: null,
                 openPeriodFrom: null,
                 openPeriodUntil: null,
+          housekeepingRequireApproval: null,
               },
               amenities: null,
               site_amenities: null,
@@ -561,6 +566,7 @@ describe('Properties API v1 Contract Tests', () => {
           customRules: null,
           openPeriodFrom: null,
           openPeriodUntil: null,
+          housekeepingRequireApproval: null,
         },
         amenities: null,
         site_amenities: null,
@@ -617,6 +623,7 @@ describe('Properties API v1 Contract Tests', () => {
             customRules: null,
             openPeriodFrom: null,
             openPeriodUntil: null,
+          housekeepingRequireApproval: null,
           },
           amenities: null,
           site_amenities: null,
@@ -681,6 +688,7 @@ describe('Properties API v1 Contract Tests', () => {
             customRules: null,
             openPeriodFrom: null,
             openPeriodUntil: null,
+          housekeepingRequireApproval: null,
           },
           amenities: null,
           site_amenities: null,

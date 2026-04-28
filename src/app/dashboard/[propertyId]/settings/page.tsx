@@ -27,6 +27,7 @@ import type {
 } from "@/lib/config/types"
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
 import { MaintenanceSiteTypeConfig } from "@/components/dashboard/settings/maintenance-site-type-config"
+import { HousekeepingSettings } from "@/components/dashboard/settings/housekeeping-settings"
 
 export const dynamic = "force-dynamic"
 
@@ -41,6 +42,7 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "cancellation-policy", label: "Terms & Policies" },
   { value: "discounts", label: "Discounts" },
   { value: "maintenance", label: "Maintenance Config" },
+  { value: "housekeeping", label: "Housekeeping" },
 ]
 
 async function getPropertyWithSeasonal(propertyId: string) {
@@ -276,6 +278,19 @@ export default async function SettingsPage({ params }: PageProps) {
             propertyId={property.id}
             siteTypeConfig={rawSiteTypeConfig ?? {}}
             allowedSiteTypes={allowedSiteTypesFromConfig}
+            canEdit={canEditSettings}
+          />
+        </TabsContent>
+
+        <TabsContent value="housekeeping" className="space-y-4">
+          <HousekeepingSettings
+            propertyId={property.id}
+            initialRequireApproval={
+              Boolean(
+                (property.settings as Record<string, unknown> | null | undefined)
+                  ?.housekeepingRequireApproval,
+              )
+            }
             canEdit={canEditSettings}
           />
         </TabsContent>

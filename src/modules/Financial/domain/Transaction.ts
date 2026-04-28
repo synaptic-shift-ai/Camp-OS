@@ -463,6 +463,24 @@ export class Transaction extends AggregateRoot<string> {
   }
 
   /**
+   * Set refund handling method.
+   * Can only be set on REFUND type transactions.
+   * Value must be a valid RefundHandling enum value or null (to clear).
+   */
+  setHandling(handling: RefundHandling | null): void {
+    if (this.props.type !== TransactionType.REFUND) {
+      throw new Error('Handling can only be set on refund-type transactions')
+    }
+
+    if (handling !== null && !(Object.values(RefundHandling).includes(handling))) {
+      throw new Error(`Invalid refund handling value: ${handling}`)
+    }
+
+    this.props.handling = handling
+    this.props.updatedAt = new Date()
+  }
+
+  /**
    * Check if transaction is completed
    */
   isCompleted(): boolean {

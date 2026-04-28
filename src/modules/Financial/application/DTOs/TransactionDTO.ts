@@ -27,6 +27,12 @@ export interface TransactionDTO {
   createdAt: string
   createdBy: string
   updatedAt: string
+  source: string
+  guestId: string | null
+  isVoided: boolean
+  processorEventId: string | null
+  handling: string | null
+  recognitionStatus: string
 }
 
 export function toTransactionDTO(transaction: Transaction): TransactionDTO {
@@ -50,5 +56,11 @@ export function toTransactionDTO(transaction: Transaction): TransactionDTO {
     createdAt: transaction.createdAt.toISOString(),
     createdBy: transaction.createdBy,
     updatedAt: transaction.updatedAt.toISOString(),
+    source: transaction.source,
+    guestId: transaction.guestId,
+    isVoided: transaction.isVoided,
+    processorEventId: transaction.processorEventId,
+    handling: transaction.handling,
+    recognitionStatus: transaction.recognitionStatus,
   }
 }

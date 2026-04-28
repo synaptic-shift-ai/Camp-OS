@@ -713,9 +713,7 @@ export function HousekeepingPageContent({
             )
           }}
         />
-      ) : (
-        <DamageReviewPanel propertyId={propertyId} />
-      )}
+      ) : null}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}

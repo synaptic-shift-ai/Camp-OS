@@ -16,7 +16,6 @@ import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseC
 import type { Database } from '@/contracts/db'
 
 type TransactionInsert = Database['public']['Tables']['financial_transactions']['Insert']
-type TransactionRow = Database['public']['Tables']['financial_transactions']['Row']
 
 export class SupabaseTransactionRepository implements ITransactionRepository {
   private readonly supabase: SupabaseClient<Database>

@@ -469,10 +469,7 @@ export function MaintenanceView({
   const showResume = canResume && task?.status === "on_hold"
   const showCancel = canCancel && ["open", "in_progress", "on_hold"].includes(task?.status ?? "")
   const showReassign = canAssignWo && !["completed", "cancelled"].includes(task?.status ?? "")
-  const showAssignVendor =
-    (task?.status === "open" || task?.status === "in_progress") &&
-    canEditTask &&
-    !task?.vendor_id
+  const showAssignVendor = task?.status === "open" && canEditTask && !task?.vendor_id
   const showCloseout = task?.status === "in_progress_vendor" && canEditTask
 
   // ── Handlers ──

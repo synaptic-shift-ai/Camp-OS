@@ -799,7 +799,7 @@ export function SiteTypeRateSettings({
           <CardHeader>
             <CardTitle>Maintenance & Housekeeping Configuration</CardTitle>
             <CardDescription>
-              Check a site type to exclude it from maintenance or housekeeping assignment.
+              Check a site type to make it available for maintenance or housekeeping assignment.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -34,7 +34,7 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "amenities_configuration", label: "Amenities Configuration" },
   { value: "fees", label: "Additional Charges" },
   { value: "reservation-types", label: "Rate Types" },
-  { value: "site-types-rates", label: "Site Types Rates" },
+  { value: "site-types-configuration", label: "Site Types Configuration" },
   { value: "deposits", label: "Deposits" },
   { value: "booking-rules", label: "Booking Rules" },
   { value: "cancellation-policy", label: "Terms & Policies" },
@@ -211,7 +211,7 @@ export default async function SettingsPage({ params }: PageProps) {
           />
         </TabsContent>
 
-        <TabsContent value="site-types-rates" className="space-y-4">
+        <TabsContent value="site-types-configuration" className="space-y-4">
           <SiteTypeRateSettings
             propertyId={property.id}
             canEdit={canEditSettings}

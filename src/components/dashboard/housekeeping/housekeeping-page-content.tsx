@@ -26,7 +26,6 @@ import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
 import { ReassignTaskDialog } from "./housekeeping-dialog.tsx/reassign-task-dialog"
 import { CompleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/complete-task-confirmation-dialog"
 import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
-import { DamageReviewPanel } from "./damage-review/damage-review-panel"
 import { InstallPrompt } from "@/components/pwa/install-prompt"
 
 type HousekeepingPageContentProps = {
@@ -714,9 +713,7 @@ export function HousekeepingPageContent({
             )
           }}
         />
-      ) : (
-        <DamageReviewPanel propertyId={propertyId} />
-      )}
+      ) : null}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}

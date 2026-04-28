@@ -72,7 +72,7 @@ CREATE INDEX idx_financial_transactions_guest_id
 -- ----------------------------------------------------------------------------
 ALTER TABLE financial_transactions
   ADD COLUMN handling VARCHAR(50) CHECK (
-    type != 'refund' OR handling IS NULL OR handling IN ('original_method', 'guest_credit')
+    handling IS NULL OR (type = 'refund' AND handling IN ('original_method', 'guest_credit'))
   );
 
 -- ----------------------------------------------------------------------------

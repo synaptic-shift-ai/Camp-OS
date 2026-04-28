@@ -22,6 +22,7 @@ import { Transaction } from '@/modules/Financial/domain/Transaction'
 import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
 import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
+import type { RefundHandling } from '@/modules/Financial/domain/value-objects/RefundHandling'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
@@ -196,11 +197,9 @@ async function handleV2Refund(
     payment.guest_id,
   )
 
+  refund.setHandling(data.handling as RefundHandling)
   refund.complete()
   await repo.save(refund)
-
-  // TODO: If handling === 'guest_credit', also update the refund's handling field
-  // once the aggregate supports setting handling after creation
 
   return NextResponse.json(success(toTransactionDTO(refund)), { status: 201 })
 }

@@ -76,6 +76,7 @@ describe('Properties API v1 Contract Tests', () => {
           openPeriodFrom: null,
           openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
         },
 
         // Amenities
@@ -202,6 +203,7 @@ describe('Properties API v1 Contract Tests', () => {
           openPeriodFrom: null,
           openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
         },
 
         // Amenities - nullable
@@ -272,6 +274,7 @@ describe('Properties API v1 Contract Tests', () => {
           openPeriodFrom: null,
           openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
         },
         amenities: [
           { id: 'wifi', name: 'wifi', description: null },
@@ -401,6 +404,7 @@ describe('Properties API v1 Contract Tests', () => {
             openPeriodFrom: null,
             openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
           },
           amenities: null,
           site_amenities: null,
@@ -467,6 +471,7 @@ describe('Properties API v1 Contract Tests', () => {
                 openPeriodFrom: null,
                 openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
               },
               amenities: null,
               site_amenities: null,
@@ -567,6 +572,7 @@ describe('Properties API v1 Contract Tests', () => {
           openPeriodFrom: null,
           openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
         },
         amenities: null,
         site_amenities: null,
@@ -624,6 +630,7 @@ describe('Properties API v1 Contract Tests', () => {
             openPeriodFrom: null,
             openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
           },
           amenities: null,
           site_amenities: null,
@@ -689,6 +696,7 @@ describe('Properties API v1 Contract Tests', () => {
             openPeriodFrom: null,
             openPeriodUntil: null,
           housekeepingRequireApproval: null,
+          defaultRefundHandling: null,
           },
           amenities: null,
           site_amenities: null,

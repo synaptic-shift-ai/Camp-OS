@@ -45,4 +45,9 @@ export enum TransactionType {
    * Payout to property owner
    */
   PAYOUT = 'payout',
+
+  /**
+   * Direct charge to guest (e.g., damage fee, late fee, additional service)
+   */
+  CHARGE = 'charge',
 }

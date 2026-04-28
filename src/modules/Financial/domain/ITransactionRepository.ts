@@ -51,4 +51,14 @@ export interface ITransactionRepository {
    * Get next transaction number (for sequential numbering if needed)
    */
   nextTransactionNumber(): Promise<number>
+
+  /**
+   * Find transaction by processor event ID and type (Stripe webhook idempotency)
+   */
+  findByProcessorEventId(eventId: string, type: TransactionType): Promise<Transaction | null>
+
+  /**
+   * Find all transactions for a guest within a property
+   */
+  findByGuestId(guestId: string, propertyId: string): Promise<Transaction[]>
 }

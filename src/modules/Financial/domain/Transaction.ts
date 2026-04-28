@@ -5,11 +5,13 @@
  * Single source of truth for all financial activity.
  *
  * Business Rules:
- * - Amount must be greater than zero
+ * - Amount must be greater than zero (except zero-amount payments with guest credit source)
  * - Cannot modify completed transactions (create reversal instead)
  * - Stripe transactions must have payment intent ID when completed
  * - Only completed transactions can be reconciled
  * - Refunds must reference original transaction
+ * - Voided transactions cannot be voided again
+ * - Recognition status transitions are validated
  */
 
 import { AggregateRoot } from '@/shared/domain/AggregateRoot'
@@ -17,6 +19,9 @@ import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyA
 import { TransactionType } from './value-objects/TransactionType'
 import { type PaymentMethod } from './value-objects/PaymentMethod'
 import { TransactionStatus } from './value-objects/TransactionStatus'
+import { TransactionSource } from './value-objects/TransactionSource'
+import { RefundHandling } from './value-objects/RefundHandling'
+import { RecognitionStatus } from './value-objects/RecognitionStatus'
 import { TransactionRecorded } from './events/TransactionRecorded'
 import { TransactionCompleted } from './events/TransactionCompleted'
 import { TransactionFailed } from './events/TransactionFailed'
@@ -51,6 +56,24 @@ export interface TransactionProps {
   createdBy: string
   updatedAt: Date
 
+  // Stripe webhook idempotency
+  processorEventId: string | null
+
+  // Void support
+  isVoided: boolean
+
+  // Charge source tracking
+  source: TransactionSource
+
+  // Guest linking
+  guestId: string | null
+
+  // Refund handling
+  handling: RefundHandling | null
+
+  // Charge recognition status
+  recognitionStatus: RecognitionStatus
+
   // Internal: original transaction ID for refunds
   _originalTransactionId?: string | null
 }
@@ -84,10 +107,11 @@ export class Transaction extends AggregateRoot<string> {
     paymentMethod: PaymentMethod,
     createdBy: string,
     invoiceId: string | null = null,
-    notes: string | null = null
+    notes: string | null = null,
+    source: TransactionSource = TransactionSource.RESERVATION
   ): Transaction {
-    // Validate amount is non-zero
-    if (amount.isZero()) {
+    // Validate amount is non-zero, unless it's a guest credit payment
+    if (amount.isZero() && !(type === TransactionType.PAYMENT && source === TransactionSource.GUEST_CREDIT)) {
       throw new Error('Transaction amount must be greater than zero')
     }
 
@@ -109,6 +133,12 @@ export class Transaction extends AggregateRoot<string> {
       reconciledBy: null,
       createdBy,
       updatedAt: new Date(),
+      processorEventId: null,
+      isVoided: false,
+      source,
+      guestId: null,
+      handling: null,
+      recognitionStatus: RecognitionStatus.RECOGNIZED,
     })
 
     // Publish domain event
@@ -181,6 +211,12 @@ export class Transaction extends AggregateRoot<string> {
       reconciledBy: data.reconciled_by,
       createdBy: data.created_by,
       updatedAt: new Date(data.updated_at),
+      processorEventId: data.processor_event_id ?? null,
+      isVoided: data.is_voided ?? false,
+      source: (data.source as TransactionSource) ?? TransactionSource.RESERVATION,
+      guestId: data.guest_id ?? null,
+      handling: data.handling ? (data.handling as RefundHandling) : null,
+      recognitionStatus: (data.recognition_status as RecognitionStatus) ?? RecognitionStatus.RECOGNIZED,
     }
 
     return new Transaction(
@@ -261,6 +297,30 @@ export class Transaction extends AggregateRoot<string> {
 
   get domainEvents() {
     return this.getDomainEvents()
+  }
+
+  get processorEventId(): string | null {
+    return this.props.processorEventId
+  }
+
+  get isVoided(): boolean {
+    return this.props.isVoided
+  }
+
+  get source(): TransactionSource {
+    return this.props.source
+  }
+
+  get guestId(): string | null {
+    return this.props.guestId
+  }
+
+  get handling(): RefundHandling | null {
+    return this.props.handling
+  }
+
+  get recognitionStatus(): RecognitionStatus {
+    return this.props.recognitionStatus
   }
 
   // ============================================================================
@@ -344,6 +404,63 @@ export class Transaction extends AggregateRoot<string> {
   }
 
   /**
+   * Void the transaction
+   * Marks a completed transaction as voided (e.g., reversed charge, cancelled refund).
+   * Cannot void an already-voided transaction.
+   */
+  void(): void {
+    if (this.props.isVoided) {
+      throw new Error('Cannot void an already voided transaction')
+    }
+
+    this.props.isVoided = true
+    this.props.updatedAt = new Date()
+  }
+
+  /**
+   * Apply a new recognition status with state transition validation.
+   *
+   * Allowed transitions:
+   * - pending → recognized, deferred, written_off
+   * - recognized → deferred, written_off
+   * - deferred → recognized, written_off
+   * - written_off → (terminal, no transitions allowed)
+   */
+  applyRecognitionStatus(status: RecognitionStatus): void {
+    const current = this.props.recognitionStatus
+
+    if (current === status) {
+      return // No-op for same status
+    }
+
+    const allowedTransitions: Record<RecognitionStatus, RecognitionStatus[]> = {
+      [RecognitionStatus.PENDING]: [
+        RecognitionStatus.RECOGNIZED,
+        RecognitionStatus.DEFERRED,
+        RecognitionStatus.WRITTEN_OFF,
+      ],
+      [RecognitionStatus.RECOGNIZED]: [
+        RecognitionStatus.DEFERRED,
+        RecognitionStatus.WRITTEN_OFF,
+      ],
+      [RecognitionStatus.DEFERRED]: [
+        RecognitionStatus.RECOGNIZED,
+        RecognitionStatus.WRITTEN_OFF,
+      ],
+      [RecognitionStatus.WRITTEN_OFF]: [],
+    }
+
+    if (!allowedTransitions[current].includes(status)) {
+      throw new Error(
+        `Cannot transition recognition status from ${current} to ${status}`
+      )
+    }
+
+    this.props.recognitionStatus = status
+    this.props.updatedAt = new Date()
+  }
+
+  /**
    * Check if transaction is completed
    */
   isCompleted(): boolean {
@@ -385,6 +502,12 @@ export class Transaction extends AggregateRoot<string> {
       created_at: this.createdAt,
       created_by: this.props.createdBy,
       updated_at: this.props.updatedAt,
+      processor_event_id: this.props.processorEventId,
+      is_voided: this.props.isVoided,
+      source: this.props.source,
+      guest_id: this.props.guestId,
+      handling: this.props.handling,
+      recognition_status: this.props.recognitionStatus,
     }
   }
 }

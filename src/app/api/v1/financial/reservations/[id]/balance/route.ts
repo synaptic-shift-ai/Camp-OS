@@ -6,12 +6,10 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
-import { GetReservationBalanceQueryHandler } from '@/modules/Financial/application/queries/GetReservationBalanceQuery'
-import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
-import { SupabaseInvoiceRepository } from '@/modules/Financial/infrastructure/SupabaseInvoiceRepository'
 
 /**
  * GET /api/v1/financial/reservations/[id]/balance
@@ -62,17 +60,57 @@ export async function GET(
     if (isDenied(access)) return access
 
 
-    // Execute query
-    const transactionRepository = new SupabaseTransactionRepository(supabase)
-    const invoiceRepository = new SupabaseInvoiceRepository(supabase)
-    const queryHandler = new GetReservationBalanceQueryHandler(
-      transactionRepository,
-      invoiceRepository
-    )
+    // Execute query — unified ledger from financial_transactions
+    const serviceRole = createServiceRoleClient()
+    const { data: transactions, error: txnError } = await serviceRole
+      .from('financial_transactions')
+      .select('type, amount_cents, is_voided, source, handling')
+      .eq('reservation_id', reservationId)
+      .neq('is_voided', true)
+      .eq('status', 'completed')
 
-    const balance = await queryHandler.execute(reservationId)
+    if (txnError) {
+      console.error('[Financial API v1] Balance query error:', txnError)
+      return NextResponse.json(
+        error(ErrorCodes.INTERNAL_ERROR, 'Failed to query transactions', { message: txnError.message }),
+        { status: 500 },
+      )
+    }
 
-    return success(balance)
+    let chargesTotal = 0
+    let paymentsTotal = 0
+    let refundsTotal = 0
+    let guestCreditBalance = 0
+
+    for (const txn of transactions ?? []) {
+      const amt = txn.amount_cents
+      if (txn.type === 'charge') {
+        chargesTotal += amt
+      } else if (txn.type === 'payment') {
+        paymentsTotal += amt
+        // Track guest credit payments for balance calculation
+        if (txn.source === 'guest_credit') {
+          guestCreditBalance -= amt
+        }
+      } else if (txn.type === 'refund') {
+        refundsTotal += amt
+        // Track guest credit refunds for balance calculation
+        if (txn.source === 'guest_credit' || txn.handling === 'guest_credit') {
+          guestCreditBalance += amt
+        }
+      }
+    }
+
+    const balance = chargesTotal - paymentsTotal - refundsTotal
+
+    return success({
+      reservation_id: reservationId,
+      charges_total: chargesTotal,
+      payments_total: paymentsTotal,
+      refunds_total: refundsTotal,
+      balance,
+      guest_credit_balance: Math.max(0, guestCreditBalance),
+    })
   } catch (err: any) {
     console.error('[Financial API v1] Get reservation balance error:', err)
 

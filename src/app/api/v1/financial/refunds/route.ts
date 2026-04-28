@@ -11,11 +11,18 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
-import { ProcessRefundRequestSchema } from '@/types/api/v1/schemas/financial'
+import { ProcessRefundRequestSchema,
+  ProcessRefundV2RequestSchema,
+} from '@/types/api/v1/schemas/financial'
 import { ProcessRefundCommandHandler } from '@/modules/Financial/application/commands/ProcessRefundCommand'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { toTransactionDTO } from '@/modules/Financial/application/DTOs/TransactionDTO'
 import { PaymentMethod } from '@/modules/Financial'
+import { Transaction } from '@/modules/Financial/domain/Transaction'
+import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
+import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
+import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/v1/financial/refunds
@@ -41,6 +48,14 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse and validate request body
     const body = await request.json()
+
+    // Try v2 schema first (has payment_id + handling)
+    const v2Validated = ProcessRefundV2RequestSchema.safeParse(body)
+    if (v2Validated.success) {
+      return handleV2Refund(v2Validated.data, user.id, supabase, request)
+    }
+
+    // Fall back to v1 schema
     const validated = ProcessRefundRequestSchema.safeParse(body)
 
     if (!validated.success) {
@@ -118,4 +133,74 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * V2 refund handler using DDD Transaction.create() with handling support.
+ */
+async function handleV2Refund(
+  data: { payment_id: string; amount_cents: number; handling: 'original_method' | 'guest_credit'; reason?: string | null | undefined },
+  userId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  _request: NextRequest,
+) {
+  // Look up the original payment to get property_id and reservation_id
+  const serviceRole = createServiceRoleClient()
+  const { data: payment, error: paymentError } = await serviceRole
+    .from('financial_transactions')
+    .select('id, property_id, reservation_id, guest_id, payment_method, amount_cents')
+    .eq('id', data.payment_id)
+    .eq('type', 'payment')
+    .eq('status', 'completed')
+    .neq('is_voided', true)
+    .single()
+
+  if (paymentError || !payment) {
+    return NextResponse.json(
+      error(ErrorCodes.RESOURCE_NOT_FOUND, 'Payment not found or invalid'),
+      { status: 404 },
+    )
+  }
+
+  // RBAC
+  const access = await requirePropertyAccess(supabase, userId, {
+    propertyId: payment.property_id,
+    minimumRole: 'admin',
+    permission: 'financial.refund',
+  })
+  if (isDenied(access)) return access
+
+  // Validate refund amount doesn't exceed original payment
+  if (data.amount_cents > payment.amount_cents) {
+    return NextResponse.json(
+      error(ErrorCodes.VALIDATION_ERROR, 'Refund amount cannot exceed original payment amount'),
+      { status: 400 },
+    )
+  }
+
+  const repo = new SupabaseTransactionRepository(serviceRole)
+  const amount = MoneyAmount.create(data.amount_cents)
+
+  const refund = Transaction.create(
+    crypto.randomUUID(),
+    payment.property_id,
+    payment.reservation_id,
+    TransactionType.REFUND,
+    amount,
+    payment.payment_method as PaymentMethod,
+    userId,
+    null, // invoiceId
+    data.reason ?? `Refund for payment ${data.payment_id}`,
+    TransactionSource.RESERVATION,
+    null, // processorEventId
+    payment.guest_id,
+  )
+
+  refund.complete()
+  await repo.save(refund)
+
+  // TODO: If handling === 'guest_credit', also update the refund's handling field
+  // once the aggregate supports setting handling after creation
+
+  return NextResponse.json(success(toTransactionDTO(refund)), { status: 201 })
 }

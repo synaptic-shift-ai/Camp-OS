@@ -131,6 +131,7 @@ export const TransactionFiltersSchema = z.object({
     'expense',
     'platform_fee',
     'payout',
+    'charge',
   ]).optional(),
   status: z.enum(['pending', 'completed', 'failed', 'cancelled']).optional(),
   startDate: z.string().optional(),
@@ -162,6 +163,7 @@ export const TransactionResponseSchema = z.object({
     'expense',
     'platform_fee',
     'payout',
+    'charge',
   ]),
   amountCents: z.number().int(),
   currency: z.string(),
@@ -261,3 +263,52 @@ export const ReservationBalanceResponseSchema = z.object({
 })
 
 export type ReservationBalanceResponse = z.infer<typeof ReservationBalanceResponseSchema>
+
+// ============================================================================
+// CC05-01-05: New Financial API Schemas
+// ============================================================================
+
+export const CreateChargeRequestSchema = z.object({
+  reservation_id: z.string().uuid().optional().nullable(),
+  guest_id: z.string().uuid().optional().nullable(),
+  description: z.string().min(1).max(500),
+  amount_cents: z.number().int().positive('Amount must be greater than zero'),
+  source: z.enum(['reservation', 'manual', 'pos', 'system', 'guest_credit']).default('reservation'),
+  recognition_status: z.enum(['pending', 'recognized', 'deferred', 'written_off']).optional(),
+}).refine((data) => data.reservation_id || data.guest_id, {
+  message: 'At least one of reservation_id or guest_id is required',
+})
+
+export type CreateChargeRequest = z.infer<typeof CreateChargeRequestSchema>
+
+export const RecordPaymentV2RequestSchema = z.object({
+  charge_id: z.string().uuid().optional().nullable(),
+  reservation_id: z.string().uuid().optional().nullable(),
+  guest_id: z.string().uuid().optional().nullable(),
+  amount_cents: z.number().int().positive('Amount must be greater than zero'),
+  payment_method: z.enum([
+    'credit_card',
+    'debit_card',
+    'cash',
+    'check',
+    'bank_transfer',
+    'stripe',
+    'store_credit',
+  ]),
+  processor: z.string().max(255).optional().nullable(),
+  reference: z.string().max(255).optional().nullable(),
+  source: z.enum(['reservation', 'manual', 'pos', 'system', 'guest_credit']).default('reservation'),
+}).refine((data) => data.reservation_id || data.guest_id, {
+  message: 'At least one of reservation_id or guest_id is required',
+})
+
+export type RecordPaymentV2Request = z.infer<typeof RecordPaymentV2RequestSchema>
+
+export const ProcessRefundV2RequestSchema = z.object({
+  payment_id: z.string().uuid('Invalid payment ID'),
+  amount_cents: z.number().int().positive('Refund amount must be positive'),
+  handling: z.enum(['original_method', 'guest_credit']),
+  reason: z.string().max(500).optional().nullable(),
+})
+
+export type ProcessRefundV2Request = z.infer<typeof ProcessRefundV2RequestSchema>

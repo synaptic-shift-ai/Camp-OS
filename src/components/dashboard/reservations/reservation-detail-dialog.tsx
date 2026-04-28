@@ -20,6 +20,8 @@ import {
 } from 'react-svg-credit-card-payment-icons'
 import { cn } from '@/lib/utils'
 import { ReservationActions } from '@/components/admin/reservation-actions'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TransactionHistoryTab } from '@/components/dashboard/reservations/transaction-history-tab'
 
 const statusTextColors: Record<ReservationStatus, string> = {
   pending: 'text-yellow-600',
@@ -220,7 +222,14 @@ export function ReservationDetailDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-3 space-y-6 text-sm">
+            <Tabs defaultValue="details" className="mt-3">
+              <TabsList className="w-full justify-start">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="transactions">Transaction History</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details">
+            <div className="space-y-6 text-sm">
               <div className="grid gap-4 sm:grid-cols-2">
                 {onPrimaryGuestClick ? (
                   <button
@@ -334,6 +343,12 @@ export function ReservationDetailDialog({
                 </div>
               </div>
             </div>
+              </TabsContent>
+
+              <TabsContent value="transactions">
+                <TransactionHistoryTab reservationId={reservation.id} />
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </DialogContent>

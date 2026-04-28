@@ -128,7 +128,6 @@ export function ReservationsPageHeader({
         toast({
           title: "Export ready",
           description: "Reservations CSV has been downloaded.",
-          className: SEASON_ALERT_TOAST_CLASS,
           variant: "success",
         })
       } catch (err) {

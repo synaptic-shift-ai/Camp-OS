@@ -92,7 +92,6 @@ export function RefundPolicySettings({
       toast({
         title: 'Refund policy saved',
         description: 'Default refund handling has been updated.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: 'success',
       })
       setHasChanges(false)

@@ -240,7 +240,6 @@ export function ManualPaymentDialog({
       toast({
         title: "Payment recorded",
         description: "Manual payment has been recorded successfully.",
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
       setOpen(false)

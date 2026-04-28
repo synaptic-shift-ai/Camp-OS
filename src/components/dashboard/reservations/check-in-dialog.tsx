@@ -233,7 +233,6 @@ export function CheckInDialog({
       toast({
         title: 'Check-in Successful',
         description: `${reservation.guest?.first_name} ${reservation.guest?.last_name} has been checked in to Site ${reservation.site?.site_number}`,
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
 

@@ -1,8 +1,8 @@
 "use client"
 
-import { ClipboardList, List } from "lucide-react"
+import { ClipboardList, List, ShieldAlert } from "lucide-react"
 
-export type HousekeepingViewMode = "tasks" | "checklist"
+export type HousekeepingViewMode = "tasks" | "checklist" | "damage-review"
 
 type HousekeepingViewSwitcherProps = {
   mode: HousekeepingViewMode
@@ -45,6 +45,22 @@ export function HousekeepingViewSwitcher({ mode, onModeChange }: HousekeepingVie
         >
           <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
           Checklist
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "damage-review"}
+          onClick={() => onModeChange("damage-review")}
+          className={[
+            "inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+            mode === "damage-review"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted/60",
+          ].join(" ")}
+        >
+          <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden />
+          Damage Review
         </button>
       </div>
     </div>

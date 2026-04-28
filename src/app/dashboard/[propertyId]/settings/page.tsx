@@ -26,6 +26,7 @@ import type {
   RateDiscountsConfig,
 } from "@/lib/config/types"
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
+import { HousekeepingSettings} from "@/components/dashboard/housekeeping/housekeeping-settings"
 
 export const dynamic = "force-dynamic"
 
@@ -39,6 +40,7 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "booking-rules", label: "Booking Rules" },
   { value: "cancellation-policy", label: "Terms & Policies" },
   { value: "discounts", label: "Discounts" },
+  { value: "housekeeping", label: "Housekeeping" },
 ]
 
 async function getPropertyWithSeasonal(propertyId: string) {
@@ -276,6 +278,15 @@ export default async function SettingsPage({ params }: PageProps) {
           />
         </TabsContent>
 
+        <TabsContent value="housekeeping" className="space-y-4">
+          <HousekeepingSettings
+            propertyId={property.id}
+            canEdit={canEditSettings}
+            initialSettings={
+              (property.settings as Record<string, unknown> | null) ?? {}
+            }
+          />
+        </TabsContent>
       </OverflowTabs>
 
       {/* Coming Soon: Additional Settings */}

@@ -755,4 +755,104 @@ export class HousekeepingQueries {
 
         return count ?? 0
     }
+
+    async getNextReservationForSite(siteId: string, propertyId: string): Promise<{ check_in_date: string; status: string } | null> {
+        const { data, error } = await this.supabase
+            .from('reservations')
+            .select('check_in_date, status')
+            .eq('site_id', siteId)
+            .eq('property_id', propertyId)
+            .gte('check_in_date', new Date().toISOString().split('T')[0])
+            .in('status', ['confirmed', 'upcoming'])
+            .order('check_in_date', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[HousekeepingQueries] getNextReservationForSite failed', { siteId, propertyId, error })
+        }
+        return data ?? null
+    }
+
+    async flagIssue(input: {
+        id: string
+        propertyId: string
+        issueType: 'DAMAGE' | 'MAINTENANCE'
+        issueDescription: string
+        linkedMaintenanceTaskId?: string | null
+    }): Promise<HousekeepingTaskRow> {
+        const updateRow: Database['public']['Tables']['housekeeping_tasks']['Update'] = {
+            issue_type: input.issueType,
+            issue_description: input.issueDescription,
+            linked_maintenance_task_id: input.linkedMaintenanceTaskId ?? null,
+        }
+
+        const { data, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .update(updateRow)
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] flagIssue failed', { error, id: input.id })
+            throw new Error(`Failed to flag issue: ${error.message}`)
+        }
+        if (!data) {
+            throw new Error('Failed to flag issue: no row returned')
+        }
+        return data
+    }
+
+    async clearIssue(input: { id: string; propertyId: string }): Promise<HousekeepingTaskRow> {
+        const updateRow: Database['public']['Tables']['housekeeping_tasks']['Update'] = {
+            issue_type: null,
+            issue_description: null,
+            linked_maintenance_task_id: null,
+        }
+
+        const { data, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .update(updateRow)
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] clearIssue failed', { error, id: input.id })
+            throw new Error(`Failed to clear issue: ${error.message}`)
+        }
+        if (!data) {
+            throw new Error('Failed to clear issue: no row returned')
+        }
+        return data
+    }
+
+    async listFlaggedTasks(propertyId: string): Promise<Array<
+        HousekeepingTaskRow & {
+            site: Pick<SiteRow, 'site_name' | 'site_number'> | null
+        }
+    >> {
+        const { data, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .select(
+                `*, site:sites(site_name, site_number)`,
+            )
+            .eq('property_id', propertyId)
+            .not('issue_type', 'is', null)
+            .order('created_at', { ascending: false })
+
+        if (error) {
+            console.error('[HousekeepingQueries] listFlaggedTasks failed', { propertyId, error })
+            throw new Error(`Failed to list flagged tasks: ${error.message}`)
+        }
+
+        return (data ?? []) as Array<
+            HousekeepingTaskRow & {
+                site: Pick<SiteRow, 'site_name' | 'site_number'> | null
+            }
+        >
+    }
 }

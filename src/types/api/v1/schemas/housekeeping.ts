@@ -44,8 +44,19 @@ export const UpdateHousekeepingTaskRequestSchema = z.object({
   dueDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
   checklistTemplateId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
   checklistItemDone: z.array(ChecklistItemDoneRequestSchema).optional(),
+ issueType: z.enum(['DAMAGE', 'MAINTENANCE']).optional().nullable(),
+  issueDescription: z.string().min(10).optional().nullable(),
+  linkedMaintenanceTaskId: z.string().uuid().optional().nullable(),
 }).refine((payload) => Object.keys(payload).length > 0, {
   message: 'At least one field is required',
+}).refine((payload) => {
+  if (payload.issueType !== undefined && payload.issueType !== null && !payload.issueDescription) {
+    return false
+  }
+  return true
+}, {
+  message: 'issueDescription is required when issueType is provided',
+  path: ['issueDescription'],
 })
 
 export type UpdateHousekeepingTaskRequest = z.infer<typeof UpdateHousekeepingTaskRequestSchema>

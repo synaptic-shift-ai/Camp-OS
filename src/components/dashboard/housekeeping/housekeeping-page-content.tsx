@@ -26,6 +26,7 @@ import { EditTaskDialog } from "./housekeeping-dialog.tsx/edit-task-dialog"
 import { ReassignTaskDialog } from "./housekeeping-dialog.tsx/reassign-task-dialog"
 import { CompleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/complete-task-confirmation-dialog"
 import { DeleteTaskConfirmationDialog } from "./housekeeping-dialog.tsx/delete-task-confirmation-dialog"
+import { DamageReviewPanel } from "./damage-review/damage-review-panel"
 
 type HousekeepingPageContentProps = {
   propertyId: string
@@ -700,7 +701,7 @@ export function HousekeepingPageContent({
             </div>
           </div>
         </>
-      ) : (
+      ) : viewMode === "checklist" ? (
         <HousekeepingChecklistPanel
           propertyId={propertyId}
           refreshKey={checklistRefreshKey}
@@ -712,6 +713,8 @@ export function HousekeepingPageContent({
             )
           }}
         />
+      ) : (
+        <DamageReviewPanel propertyId={propertyId} />
       )}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}

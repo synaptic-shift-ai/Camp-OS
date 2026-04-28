@@ -3,7 +3,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, CheckCircle2, ListChecks, Loader2, Play, SlidersHorizontal, Upload, X } from "lucide-react"
+import { ArrowLeft, AlertTriangle, CheckCircle2, ListChecks, Loader2, Play, SlidersHorizontal, Upload, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Json } from "@/contracts/db"
 import { parseChecklistTemplateLines } from "@/lib/dashboard/housekeeping/housekeeping-queries"
@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { ReassignTaskDialog } from "../housekeeping-dialog.tsx/reassign-task-dialog"
+import { FlagIssueDialog } from "../housekeeping-dialog.tsx/flag-issue-dialog"
 
 type AssigneeOption = {
   id: string
@@ -151,6 +152,7 @@ export function HousekeepingView({
   const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [isStartingTask, setIsStartingTask] = useState(false)
   const [isCompletingTask, setIsCompletingTask] = useState(false)
+  const [isFlagIssueOpen, setIsFlagIssueOpen] = useState(false)
 
   const loadTask = useCallback(async () => {
     setLoading(true)
@@ -717,6 +719,11 @@ export function HousekeepingView({
                 <SlidersHorizontal className="h-4 w-4" />
                 Reassign
               </Button>
+
+              <Button variant="outline" className="col-span-2 gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 sm:w-auto" onClick={() => setIsFlagIssueOpen(true)}>
+                <AlertTriangle className="h-4 w-4" />
+                Report Issue
+              </Button>
             </div>
           </>
         ) : null}
@@ -944,6 +951,14 @@ export function HousekeepingView({
         currentUserId={task.staff_id}
         isSubmitting={isReassigning}
         onSubmit={handleReassignTask}
+      />
+      <FlagIssueDialog
+        open={canEditTask && isFlagIssueOpen}
+        onOpenChange={setIsFlagIssueOpen}
+        propertyId={propertyId}
+        taskId={housekeepingId}
+        taskTitle={task.title}
+        onFlagged={() => void loadTask()}
       />
     </div>
   )

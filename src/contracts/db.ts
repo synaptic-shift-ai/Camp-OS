@@ -1154,6 +1154,9 @@ export type Database = {
           description: string | null
           end_date: string | null
           id: string
+          issue_description: string | null
+          issue_type: string | null
+          linked_maintenance_task_id: string | null
           priority: string
           property_id: string
           reservation_id: string | null
@@ -1173,6 +1176,9 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          issue_description?: string | null
+          issue_type?: string | null
+          linked_maintenance_task_id?: string | null
           priority?: string
           property_id: string
           reservation_id?: string | null
@@ -1192,6 +1198,9 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          issue_description?: string | null
+          issue_type?: string | null
+          linked_maintenance_task_id?: string | null
           priority?: string
           property_id?: string
           reservation_id?: string | null

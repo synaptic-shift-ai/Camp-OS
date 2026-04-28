@@ -29,6 +29,8 @@ export type PropertySettingsProps = {
   openPeriodFrom: string | null
   /** ISO date-only string YYYY-MM-DD — last day property is open for the season */
   openPeriodUntil: string | null
+  /** When true, site auto-available on task completion is skipped; requires operator approval. */
+  housekeepingRequireApproval: boolean | null
 }
 
 /** Partial update: `undefined` means leave existing value (for API merge). */
@@ -102,6 +104,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       customRules: props.customRules || null,
       openPeriodFrom,
       openPeriodUntil,
+      housekeepingRequireApproval: props.housekeepingRequireApproval ?? null,
     })
   }
 
@@ -120,6 +123,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       customRules: null,
       openPeriodFrom: null,
       openPeriodUntil: null,
+      housekeepingRequireApproval: false,
     })
   }
 
@@ -142,6 +146,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       customRules: json.customRules || json.custom_rules || null,
       openPeriodFrom: json.openPeriodFrom ?? json.open_period_from ?? null,
       openPeriodUntil: json.openPeriodUntil ?? json.open_period_until ?? null,
+      housekeepingRequireApproval: json.housekeepingRequireApproval ?? null,
     })
   }
 
@@ -185,6 +190,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
     return this.props.openPeriodUntil
   }
 
+  get housekeepingRequireApproval(): boolean | null {
+    return this.props.housekeepingRequireApproval
+  }
+
   /**
    * Merge a partial settings patch onto existing settings (undefined = keep current).
    */
@@ -206,6 +215,8 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
         partial.openPeriodFrom !== undefined ? partial.openPeriodFrom : current.openPeriodFrom,
       openPeriodUntil:
         partial.openPeriodUntil !== undefined ? partial.openPeriodUntil : current.openPeriodUntil,
+      housekeepingRequireApproval:
+        partial.housekeepingRequireApproval !== undefined ? partial.housekeepingRequireApproval : current.housekeepingRequireApproval,
     })
   }
 
@@ -246,6 +257,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       customRules: this.props.customRules,
       openPeriodFrom: this.props.openPeriodFrom,
       openPeriodUntil: this.props.openPeriodUntil,
+      housekeepingRequireApproval: this.props.housekeepingRequireApproval,
     }
   }
 }

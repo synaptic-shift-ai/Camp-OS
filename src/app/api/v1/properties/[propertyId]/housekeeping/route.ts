@@ -8,6 +8,8 @@ import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { HousekeepingQueries, type ListHousekeepingTasksFilters } from '@/lib/dashboard/housekeeping/housekeeping-queries'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { HousekeepingTaskCreatedEvent } from '@/modules/Housekeeping/domain/events'
 import {
   CreateHousekeepingTaskRequestSchema,
   ListHousekeepingTasksQuerySchema,
@@ -352,6 +354,31 @@ export async function POST(
             : {}),
         })
 
+        // Priority escalation: HIGH if next reservation within 4 hours
+        try {
+          if (housekeepingTask.site_id) {
+            const nextRes = await queries.getNextReservationForSite(housekeepingTask.site_id, propertyId)
+            if (nextRes) {
+              const serviceRole = createServiceRoleClient()
+              const propRow = await serviceRole.from('properties').select('check_in_time, timezone').eq('id', propertyId).single()
+              const checkInTime = (propRow.data?.check_in_time?.trim()) || '15:00'
+              const [hours, mins] = checkInTime.split(':').map(Number)
+              const checkInDate = new Date(nextRes.check_in_date + 'T00:00:00')
+              checkInDate.setHours(hours, mins, 0, 0)
+              const now = new Date()
+              const diffMs = checkInDate.getTime() - now.getTime()
+              const fourHours = 4 * 60 * 60 * 1000
+              if (diffMs > 0 && diffMs < fourHours && housekeepingTask.priority !== 'urgent') {
+                const escalated = await queries.updateHousekeepingTask({ id: housekeepingTask.id, propertyId, priority: 'high' })
+                Object.assign(housekeepingTask, escalated)
+                console.log('[HK] Priority escalated to HIGH — next reservation within 4 hours')
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[HK] Priority escalation failed (non-blocking)', err)
+        }
+
         if (access.companyId) {
           const { data: siteRow } = await supabase
             .from('sites')
@@ -373,6 +400,20 @@ export async function POST(
             },
             { failOpen: false },
           )
+        }
+
+        // Publish housekeeping task created event
+        try {
+          const eventBus = getEventBus()
+          await eventBus.publish(new HousekeepingTaskCreatedEvent(
+            propertyId,
+            housekeepingTask.id,
+            housekeepingTask.title,
+            housekeepingTask.priority,
+            housekeepingTask.site_id,
+          ))
+        } catch (evtErr) {
+          console.warn('[HK] Failed to publish TaskCreated event (non-blocking)', evtErr)
         }
 
         return success({ housekeepingTask }, request)

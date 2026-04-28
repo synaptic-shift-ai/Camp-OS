@@ -998,4 +998,58 @@ export const DEFAULT_AUTOMATION_TEMPLATES: AutomationTemplate[] = [
       },
     ],
   },
+
+  // ==========================================================================
+  // HOUSEKEEPING (2 templates, OPERATE phase)
+  // ==========================================================================
+
+  // 32. Housekeeping Task Created Alert
+  {
+    id: 'housekeeping-task-created-alert',
+    name: 'Housekeeping Task Created Alert',
+    description:
+      'Notify staff when a new housekeeping task is created, especially high-priority or urgent tasks.',
+    phase: 'OPERATE',
+    triggerType: 'housekeeping.task_created',
+    category: 'Operations',
+    actions: [
+      {
+        actionType: 'send_notification',
+        actionConfig: {
+          channel: 'staff',
+          priority: 'medium',
+          message: 'A new housekeeping task has been created. Please review and assign staff.',
+        },
+      },
+    ],
+  },
+
+  // 33. Housekeeping Task Completed Notification
+  {
+    id: 'housekeeping-task-completed-notification',
+    name: 'Housekeeping Task Completed Notification',
+    description:
+      'Notify property managers when a housekeeping task is completed so they can review the site status.',
+    phase: 'OPERATE',
+    triggerType: 'housekeeping.task_completed',
+    category: 'Operations',
+    actions: [
+      {
+        actionType: 'send_notification',
+        actionConfig: {
+          channel: 'staff',
+          priority: 'low',
+          message: 'A housekeeping task has been completed. The site may be ready for the next guest.',
+        },
+      },
+      {
+        actionType: 'log_activity',
+        actionConfig: {
+          resource: 'housekeeping',
+          action: 'completed',
+          details: 'Housekeeping task completed — site availability review recommended.',
+        },
+      },
+    ],
+  },
 ]

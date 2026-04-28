@@ -325,7 +325,7 @@ export async function PATCH(
                     propertyId,
                     action: 'update',
                     resource: 'site',
-                    userId: null,
+                    userId: user.id,
                     details: `Site ${siteLabel} marked available after last housekeeping task was completed.`,
                   },
                   { failOpen: false },

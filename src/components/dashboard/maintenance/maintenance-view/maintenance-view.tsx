@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
 import { ReassignTaskDialog } from "../../housekeeping/housekeeping-dialog.tsx/reassign-task-dialog"
+import { AssignVendorDialog } from "../maintenance-dialog/assign-vendor-dialog"
 
 type AssigneeOption = {
   id: string
@@ -202,6 +203,7 @@ export function MaintenanceView({
   const [vendorInvoiceCost, setVendorInvoiceCost] = useState("")
   const [closeoutNotes, setCloseoutNotes] = useState("")
   const [isAssigningVendor, setIsAssigningVendor] = useState(false)
+  const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false)
   const [isCompletingVendor, setIsCompletingVendor] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [now, setNow] = useState(Date.now())
@@ -756,7 +758,7 @@ export function MaintenanceView({
     }
   }
 
-  const handleAssignVendor = async () => {
+  const handleAssignVendor = async (vendorId: string) => {
     if (!task || isAssigningVendor) return
     setIsAssigningVendor(true)
     try {
@@ -765,7 +767,7 @@ export function MaintenanceView({
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress_vendor" }),
+          body: JSON.stringify({ status: "in_progress_vendor", vendorId }),
         },
       )
       const payload = await res.json()
@@ -775,6 +777,7 @@ export function MaintenanceView({
         throw new Error(message)
       }
       toast({ title: "Assigned to vendor", variant: "success" })
+      setIsVendorDialogOpen(false)
       mutate()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to assign to vendor."
@@ -1114,7 +1117,7 @@ export function MaintenanceView({
                 variant="outline"
                 className="col-span-1 gap-2 sm:w-auto"
                 disabled={isAssigningVendor}
-                onClick={() => void handleAssignVendor()}
+                onClick={() => setIsVendorDialogOpen(true)}
               >
                 {isAssigningVendor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
                 Assign to Vendor
@@ -1437,6 +1440,13 @@ export function MaintenanceView({
         currentUserId={task.staff_id}
         isSubmitting={isReassigning}
         onSubmit={handleReassignTask}
+      />
+      <AssignVendorDialog
+        open={isVendorDialogOpen}
+        onOpenChange={setIsVendorDialogOpen}
+        propertyId={propertyId}
+        isSubmitting={isAssigningVendor}
+        onSubmit={handleAssignVendor}
       />
     </div>
   )

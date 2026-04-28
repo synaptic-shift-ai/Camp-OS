@@ -24,8 +24,8 @@ function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  open: ['in_progress', 'cancelled'],
-  in_progress: ['on_hold', 'completed', 'cancelled'],
+  open: ['in_progress', 'in_progress_vendor', 'cancelled'],
+  in_progress: ['in_progress_vendor', 'on_hold', 'completed', 'cancelled'],
   in_progress_vendor: ['on_hold', 'completed', 'cancelled'],
   on_hold: ['in_progress', 'cancelled'],
   completed: ['open'],
@@ -233,8 +233,12 @@ export async function PATCH(
       }
     }
 
-    // SLA guard: prevent open → in_progress without SLA
-    if (requestedStatus === 'in_progress' && currentStatus === 'open' && !currentTask?.sla) {
+    // SLA guard: prevent open → in_progress / in_progress_vendor without SLA
+    if (
+      (requestedStatus === 'in_progress' || requestedStatus === 'in_progress_vendor') &&
+      currentStatus === 'open' &&
+      !currentTask?.sla
+    ) {
       return error(
         ErrorCodes.VALIDATION_ERROR,
         request,
@@ -248,6 +252,7 @@ export async function PATCH(
     if (requestedStatus && currentStatus !== requestedStatus) {
       switch (requestedStatus) {
         case 'in_progress':
+        case 'in_progress_vendor':
           if (currentStatus === 'open') {
             timestampUpdates.started_at = new Date().toISOString()
           }

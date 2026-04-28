@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import {
   Sheet,
@@ -21,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { AlertCircle, DollarSign, Loader2 } from "lucide-react"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, DollarSign, Info, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { IssueRefundRequest } from "@/types/api/v1/schemas/reservations"
 
@@ -35,11 +35,15 @@ const REFUND_REASONS: { value: IssueRefundRequest["reason"]; label: string }[] =
   { value: "other", label: "Other" },
 ]
 
+type RefundHandling = "original_method" | "guest_credit"
+
 interface RefundReservationDialogProps {
   reservationId: string
   confirmationNumber: string
   guestName: string
   maxRefundableCents: number
+  guestId?: string
+  propertyId?: string
   trigger?: React.ReactNode
 }
 
@@ -48,29 +52,53 @@ export function RefundReservationDialog({
   confirmationNumber,
   guestName,
   maxRefundableCents,
+  guestId,
+  propertyId,
   trigger,
 }: RefundReservationDialogProps) {
   const [open, setOpen] = useState(false)
   const [amountDollars, setAmountDollars] = useState("")
   const [reason, setReason] = useState<IssueRefundRequest["reason"] | "">("")
   const [refundPaymentMethod, setRefundPaymentMethod] = useState("")
-  const [notes, setNotes] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null)
   const [eligibilityLoading, setEligibilityLoading] = useState(false)
+
+  // New state for refund handling
+  const [handling, setHandling] = useState<RefundHandling>("original_method")
+  const [creditBalanceLoading, setCreditBalanceLoading] = useState(false)
+  const [creditBalanceCents, setCreditBalanceCents] = useState<number | null>(null)
+  // First completed payment ID (needed for guest_credit v2 API)
+  const [paymentId, setPaymentId] = useState<string | null>(null)
+
   const router = useRouter()
 
   const maxRefundDollars = maxRefundableCents > 0 ? (maxRefundableCents / 100).toFixed(2) : "0.00"
 
+  // Format cents to dollars string
+  const formatCentsToDollars = useCallback((cents: number) => {
+    return (cents / 100).toFixed(2)
+  }, [])
+
   const handleOpenChange = async (nextOpen: boolean) => {
     setOpen(nextOpen)
     if (!nextOpen) {
+      // Reset state on close
       setEligibilityMessage(null)
       setEligibilityLoading(false)
+      setCreditBalanceCents(null)
+      setCreditBalanceLoading(false)
+      setPaymentId(null)
+      setAmountDollars("")
+      setReason("")
+      setRefundPaymentMethod("")
+      setHandling("original_method")
+      setError(null)
       return
     }
 
+    // On open: fetch eligibility + payment ID for guest credit
     setEligibilityLoading(true)
     try {
       const response = await fetch(`/api/v1/reservations/${reservationId}`)
@@ -82,7 +110,58 @@ export function RefundReservationDialog({
     } finally {
       setEligibilityLoading(false)
     }
+
+    // Pre-fill amount with max refundable
+    if (maxRefundableCents > 0) {
+      setAmountDollars(formatCentsToDollars(maxRefundableCents))
+    }
   }
+
+  // Fetch guest credit balance when handling changes to guest_credit
+  useEffect(() => {
+    if (!open || handling !== "guest_credit") return
+
+    setCreditBalanceLoading(true)
+    setCreditBalanceCents(null)
+
+    const fetchCreditBalance = async () => {
+      try {
+        const params = new URLSearchParams()
+        if (propertyId) params.set("propertyId", propertyId)
+
+        const res = await fetch(
+          `/api/v1/financial/guests/${guestId}/credit-balance?${params}`,
+        )
+        const json = await res.json()
+        if (json.success && json.data) {
+          setCreditBalanceCents(json.data.credit_balance_cents)
+        }
+      } catch {
+        // Silently fail — credit balance is informational
+      } finally {
+        setCreditBalanceLoading(false)
+      }
+    }
+
+    const fetchPaymentId = async () => {
+      try {
+        const res = await fetch(
+          `/api/v1/financial/reservations/${reservationId}/transactions?pageSize=1&type=payment`,
+        )
+        const json = await res.json()
+        if (json.success && json.data?.transactions?.length > 0) {
+          setPaymentId(json.data.transactions[0].id)
+        }
+      } catch {
+        // Silently fail
+      }
+    }
+
+    if (guestId && propertyId) {
+      fetchCreditBalance()
+    }
+    fetchPaymentId()
+  }, [open, handling, guestId, propertyId, reservationId])
 
   const handleRefund = async () => {
     try {
@@ -106,39 +185,76 @@ export function RefundReservationDialog({
         return
       }
 
-      const notesWithMethod = [
-        notes.trim(),
-        refundPaymentMethod ? `Refund method: ${refundPaymentMethod}` : "",
-      ]
-        .filter(Boolean)
-        .join(". ") || undefined
+      if (handling === "guest_credit") {
+        // V2 API: requires payment_id
+        if (!paymentId) {
+          setError("No completed payment found for this reservation. Cannot issue guest credit refund.")
+          setLoading(false)
+          return
+        }
 
-      const body: IssueRefundRequest = {
-        amountCents,
-        reason,
-        notes: notesWithMethod,
+        const response = await fetch(`/api/v1/financial/refunds`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payment_id: paymentId,
+            amount_cents: amountCents,
+            handling: "guest_credit" as const,
+            reason: reason || undefined,
+          }),
+        })
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null)
+          const message =
+            data?.error?.message ?? data?.error?.details?.message ?? "Failed to issue refund"
+          throw new Error(message)
+        }
+
+        setOpen(false)
+        router.refresh()
+      } else {
+        // Original method: use v1 schema via financial refunds endpoint
+        if (!refundPaymentMethod) {
+          setError("Please select a refund method")
+          setLoading(false)
+          return
+        }
+
+        // Map UI method values to API enum
+        const methodMap: Record<string, string> = {
+          check: "check",
+          cash: "cash",
+          card: "credit_card",
+        }
+        const apiMethod = methodMap[refundPaymentMethod] ?? "stripe"
+
+        const response = await fetch(`/api/v1/financial/refunds`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reservationId,
+            amountCents,
+            paymentMethod: apiMethod,
+            reason: reason || undefined,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          const errorPayload = data?.error ?? data
+          const details = errorPayload?.details as { errors?: Array<{ path?: string[]; message?: string }> } | undefined
+          const errorMessage =
+            details?.errors?.length
+              ? `Validation failed: ${details.errors.map((e) => e.message ?? String(e)).join(", ")}`
+              : errorPayload?.message ?? "Failed to issue refund"
+          throw new Error(errorMessage)
+        }
+
+        setOpen(false)
+        router.refresh()
       }
-
-      const response = await fetch(`/api/v1/reservations/${reservationId}/refund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        const errorPayload = data?.error ?? data
-        const details = errorPayload?.details as { errors?: Array<{ path?: string[]; message?: string }> } | undefined
-        const errorMessage =
-          details?.errors?.length
-            ? `Validation failed: ${details.errors.map((e) => e.message ?? String(e)).join(", ")}`
-            : errorPayload?.message ?? "Failed to issue refund"
-        throw new Error(errorMessage)
-      }
-
-      setOpen(false)
-      router.refresh()
     } catch (err) {
       console.error("Refund reservation error:", err)
       setError(err instanceof Error ? err.message : "An unexpected error occurred")
@@ -146,6 +262,14 @@ export function RefundReservationDialog({
       setLoading(false)
     }
   }
+
+  const isFormValid =
+    !loading &&
+    maxRefundableCents > 0 &&
+    reason !== "" &&
+    REFUND_REASONS.some((r) => r.value === reason) &&
+    (handling === "guest_credit" ? !!paymentId : !!refundPaymentMethod) &&
+    parseFloat(amountDollars || "0") > 0
 
   return (
     <Sheet open={open} onOpenChange={(nextOpen) => { void handleOpenChange(nextOpen) }}>
@@ -196,23 +320,76 @@ export function RefundReservationDialog({
             </Alert>
           </div>
 
-          <div className="space-y-2">
-            <Label>Refund method</Label>
-            <Select
-              value={refundPaymentMethod}
-              onValueChange={setRefundPaymentMethod}
+          {/* Refund handling radio group */}
+          <div className="space-y-3">
+            <Label>Refund Handling</Label>
+            <RadioGroup
+              value={handling}
+              onValueChange={(v) => setHandling(v as RefundHandling)}
               disabled={loading}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select refund method..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="check">Check</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="flex items-start space-x-3 space-y-0">
+                <RadioGroupItem value="original_method" id="handling-original" className="mt-0.5" />
+                <Label htmlFor="handling-original" className="font-normal cursor-pointer">
+                  <div className="text-sm font-medium">Original Method</div>
+                  <p className="text-xs text-muted-foreground">
+                    Refund to the original payment method (e.g., card, check, cash)
+                  </p>
+                </Label>
+              </div>
+              <div className="flex items-start space-x-3 space-y-0">
+                <RadioGroupItem value="guest_credit" id="handling-guest-credit" className="mt-0.5" />
+                <Label htmlFor="handling-guest-credit" className="font-normal cursor-pointer">
+                  <div className="text-sm font-medium">Guest Credit</div>
+                  <p className="text-xs text-muted-foreground">
+                    Issue as a credit the guest can apply to future reservations
+                  </p>
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
+
+          {/* Guest credit info alert */}
+          {handling === "guest_credit" && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                The refund will be issued as a guest credit that can be applied to future reservations at this property.
+                {creditBalanceLoading && (
+                  <span className="ml-1 inline-flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading credit balance…
+                  </span>
+                )}
+                {!creditBalanceLoading && creditBalanceCents !== null && (
+                  <span className="ml-1 font-medium">
+                    Current credit balance: ${formatCentsToDollars(creditBalanceCents)}
+                  </span>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Original method: refund method select */}
+          {handling === "original_method" && (
+            <div className="space-y-2">
+              <Label>Refund method</Label>
+              <Select
+                value={refundPaymentMethod}
+                onValueChange={setRefundPaymentMethod}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select refund method..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="check">Check</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="refund-amount">Refund amount</Label>
@@ -269,7 +446,7 @@ export function RefundReservationDialog({
           </Button>
           <Button
             onClick={handleRefund}
-            disabled={loading || !refundPaymentMethod || !amountDollars || !reason}
+            disabled={!isFormValid}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? "Processing..." : "Issue Refund"}

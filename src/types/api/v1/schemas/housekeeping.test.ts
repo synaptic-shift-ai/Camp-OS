@@ -58,6 +58,14 @@ describe('ListHousekeepingTasksQuerySchema', () => {
     }
   })
 
+  it('treats status=all as no status filter', () => {
+    const result = ListHousekeepingTasksQuerySchema.safeParse({ status: 'all', per_page: '100' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data).toEqual({ page: 1, per_page: 100 })
+    }
+  })
+
   it('drops blank search and accepts assigneeId unassigned with siteId, status, and priority', () => {
     const siteId = 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee'
     const result = ListHousekeepingTasksQuerySchema.safeParse({

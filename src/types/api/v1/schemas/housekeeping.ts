@@ -3,6 +3,9 @@ import { z } from 'zod'
 const emptyStringToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 
+const housekeepingStatusAllToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim().toLowerCase() === 'all' ? undefined : value
+
 const ChecklistItemDoneRequestSchema = z.object({
   item_id: z.string().trim().min(1).max(120),
   status: z.enum(['pending', 'completed']),
@@ -80,7 +83,10 @@ export const ListHousekeepingTasksQuerySchema = z.object({
   siteId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
   assigneeId: z
     .preprocess(emptyStringToUndefined, z.union([z.literal('unassigned'), z.string().uuid()]).optional()),
-  status: z.enum(['pending', 'in_progress', 'done']).optional(),
+  status: z.preprocess(
+    (value) => housekeepingStatusAllToUndefined(emptyStringToUndefined(value)),
+    z.enum(['pending', 'in_progress', 'done']).optional(),
+  ),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   page: z
     .string()

@@ -63,6 +63,30 @@ async function writeFinancialTransactions(params: {
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
 
+    const { data: reservationRow, error: reservationLookupError } = await supabase
+      .from('reservations')
+      .select('created_by')
+      .eq('id', reservationId)
+      .eq('property_id', propertyId)
+      .maybeSingle()
+
+    if (reservationLookupError) {
+      console.error('[Stripe Webhook] financial_transactions dual-write failed (non-blocking)', {
+        eventId,
+        error: `Failed to resolve reservations.created_by: ${reservationLookupError.message}`,
+      })
+      return
+    }
+
+    const createdByUserId = (reservationRow as any)?.created_by as string | null | undefined
+    if (!createdByUserId) {
+      console.error('[Stripe Webhook] financial_transactions dual-write failed (non-blocking)', {
+        eventId,
+        error: 'Missing reservations.created_by for transaction audit',
+      })
+      return
+    }
+
     // Idempotency check — skip if we already processed this event
     const existingCharge = await repo.findByProcessorEventId(eventId, TransactionType.CHARGE)
     const existingPayment = await repo.findByProcessorEventId(eventId, TransactionType.PAYMENT)
@@ -80,7 +104,7 @@ async function writeFinancialTransactions(params: {
       TransactionType.CHARGE,
       amount,
       PaymentMethod.STRIPE,
-      'system',
+      createdByUserId,
       null, // invoiceId
       'Stripe charge via webhook',
       TransactionSource.RESERVATION,
@@ -100,7 +124,7 @@ async function writeFinancialTransactions(params: {
       TransactionType.PAYMENT,
       amount,
       PaymentMethod.STRIPE,
-      'system',
+      createdByUserId,
       null, // invoiceId
       'Stripe payment via webhook',
       TransactionSource.RESERVATION,

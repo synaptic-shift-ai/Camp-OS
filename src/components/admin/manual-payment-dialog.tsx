@@ -137,6 +137,25 @@ export function ManualPaymentDialog({
       const json = await res.json()
       if (json.success && json.data) {
         const data: BalanceData = json.data
+        // Prefer ledger balance when it looks complete. However, we can have partial
+        // ledger data (e.g. PAYMENT rows written without matching CHARGE rows yet),
+        // which would make `balance` incorrect (often <= 0). In that case, derive
+        // outstanding balance from reservation total minus ledger payments/refunds.
+        const hasLedgerActivity =
+          data.charges_total !== 0 || data.payments_total !== 0 || data.refunds_total !== 0
+
+        if (!hasLedgerActivity) return
+
+        // If no charges recorded yet, treat reservation total as the charge basis.
+        if (data.charges_total === 0) {
+          const derivedOutstanding = Math.max(
+            0,
+            totalAmountCents - data.payments_total - data.refunds_total,
+          )
+          setApiBalance(derivedOutstanding)
+          return
+        }
+
         setApiBalance(data.balance)
       }
     } catch {

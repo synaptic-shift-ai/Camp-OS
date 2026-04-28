@@ -234,6 +234,7 @@ export async function POST(request: NextRequest) {
         propertyId: reservation.property_id,
         reservationId: reservation.id,
         guestId: reservation.guest_id,
+        createdByUserId: (reservation as any).created_by ?? null,
         amountCents: paidAmountCents,
         paymentMethod: PaymentMethod.CREDIT_CARD,
         stripePaymentIntentId: validatedInput.payment_intent_id,

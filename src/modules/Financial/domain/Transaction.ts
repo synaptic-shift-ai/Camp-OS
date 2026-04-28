@@ -108,7 +108,9 @@ export class Transaction extends AggregateRoot<string> {
     createdBy: string,
     invoiceId: string | null = null,
     notes: string | null = null,
-    source: TransactionSource = TransactionSource.RESERVATION
+    source: TransactionSource = TransactionSource.RESERVATION,
+    processorEventId: string | null = null,
+    guestId: string | null = null
   ): Transaction {
     // Validate amount is non-zero, unless it's a guest credit payment
     if (amount.isZero() && !(type === TransactionType.PAYMENT && source === TransactionSource.GUEST_CREDIT)) {
@@ -133,10 +135,10 @@ export class Transaction extends AggregateRoot<string> {
       reconciledBy: null,
       createdBy,
       updatedAt: new Date(),
-      processorEventId: null,
+      processorEventId,
       isVoided: false,
       source,
-      guestId: null,
+      guestId,
       handling: null,
       recognitionStatus: RecognitionStatus.RECOGNIZED,
     })

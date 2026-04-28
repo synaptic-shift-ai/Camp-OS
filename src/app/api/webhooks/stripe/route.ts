@@ -20,6 +20,13 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { StripePaymentIntentSucceededSchema } from '@/contracts/schemas'
 import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
 import type { Guest } from '@/lib/booking/types'
+import { Transaction } from '@/modules/Financial/domain/Transaction'
+import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
+import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
+import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
+import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
+import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
+import { randomUUID } from 'crypto'
 
 // Initialize platform Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -28,6 +35,100 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 // Webhook secret for signature verification
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+
+/**
+ * Dual-write to financial_transactions alongside legacy payments.
+ * Best-effort: failures are logged but never block the webhook response.
+ */
+async function writeFinancialTransactions(params: {
+  supabase: ReturnType<typeof createServiceRoleClient>
+  eventId: string
+  propertyId: string
+  reservationId: string
+  guestId: string
+  amountCents: number
+  stripePaymentIntentId: string
+}): Promise<void> {
+  const {
+    supabase,
+    eventId,
+    propertyId,
+    reservationId,
+    guestId,
+    amountCents,
+    stripePaymentIntentId,
+  } = params
+
+  try {
+    const repo = new SupabaseTransactionRepository(supabase as any)
+    const amount = MoneyAmount.create(amountCents)
+
+    // Idempotency check — skip if we already processed this event
+    const existingCharge = await repo.findByProcessorEventId(eventId, TransactionType.CHARGE)
+    const existingPayment = await repo.findByProcessorEventId(eventId, TransactionType.PAYMENT)
+    if (existingCharge || existingPayment) {
+      console.log('[Stripe Webhook] financial_transactions dual-write skipped (already exists)', { eventId })
+      return
+    }
+
+    // Create CHARGE record
+    const chargeId = randomUUID()
+    const charge = Transaction.create(
+      chargeId,
+      propertyId,
+      reservationId,
+      TransactionType.CHARGE,
+      amount,
+      PaymentMethod.STRIPE,
+      'system',
+      null, // invoiceId
+      'Stripe charge via webhook',
+      TransactionSource.RESERVATION,
+      eventId, // processorEventId
+      guestId,
+    )
+    charge.complete(stripePaymentIntentId)
+    await repo.save(charge)
+    console.log(`[Stripe Webhook] financial_transactions CHARGE created: ${chargeId}`)
+
+    // Create PAYMENT record
+    const paymentId = randomUUID()
+    const payment = Transaction.create(
+      paymentId,
+      propertyId,
+      reservationId,
+      TransactionType.PAYMENT,
+      amount,
+      PaymentMethod.STRIPE,
+      'system',
+      null, // invoiceId
+      'Stripe payment via webhook',
+      TransactionSource.RESERVATION,
+      eventId, // processorEventId
+      guestId,
+    )
+    payment.complete(stripePaymentIntentId)
+    await repo.save(payment)
+    console.log(`[Stripe Webhook] financial_transactions PAYMENT created: ${paymentId}`)
+  } catch (ftError: any) {
+    // Best-effort: log but don't fail the webhook
+    const isConstraintViolation =
+      ftError?.message?.includes('duplicate key') ||
+      ftError?.message?.includes('unique constraint') ||
+      ftError?.message?.includes('23505')
+    if (isConstraintViolation) {
+      console.warn('[Stripe Webhook] financial_transactions dual-write skipped (race condition, already exists)', {
+        eventId,
+        error: ftError.message,
+      })
+    } else {
+      console.error('[Stripe Webhook] financial_transactions dual-write failed (non-blocking)', {
+        eventId,
+        error: ftError,
+      })
+    }
+  }
+}
 
 /**
  * Handle successful payment intent
@@ -41,7 +142,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
  * 6. Saves stripe_customer_id to the guest record
  * 7. Updates reservation: status='confirmed', payment_status='paid', paid_amount=total_amount
  */
-async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent, stripeEventId: string): Promise<void> {
   // Phase 3: Validate event data with Zod
   const validationResult = StripePaymentIntentSucceededSchema.safeParse(paymentIntent)
 
@@ -177,6 +278,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     } else {
       console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100})`)
     }
+
+    // --- Dual-write to financial_transactions (unified ledger) ---
+    await writeFinancialTransactions({
+      supabase,
+      eventId: stripeEventId,
+      propertyId: property_id,
+      reservationId: reservation_id,
+      guestId: guest_id,
+      amountCents: validated.amount,
+      stripePaymentIntentId: validated.id,
+    })
   } catch (error: any) {
     console.error('Error in handlePaymentIntentSucceeded:', error)
     // Don't throw - webhook already received, just log the error
@@ -210,7 +322,7 @@ export async function POST(request: NextRequest) {
 
     // Handle payment_intent.succeeded event
     if (event.type === 'payment_intent.succeeded') {
-      await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+      await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, event.id)
     }
 
     // Acknowledge receipt of event

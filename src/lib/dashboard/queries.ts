@@ -125,6 +125,19 @@ export interface DashboardActivityLog {
   details: string | null
 }
 
+export type TransactionType =
+  | 'payment'
+  | 'refund'
+  | 'charge'
+  | 'deposit'
+  | 'deposit_release'
+  | 'deposit_deduction'
+  | 'expense'
+  | 'platform_fee'
+  | 'payout'
+
+export type RecognitionStatus = 'pending' | 'recognized' | 'deferred' | 'written_off'
+
 export interface DashboardPayment {
   id: string
   reservationId: string
@@ -136,6 +149,8 @@ export interface DashboardPayment {
   stripePaymentId: string | null
   processedAt: string | null
   createdAt: string
+  transactionType: TransactionType | null
+  recognitionStatus: RecognitionStatus | null
 }
 
 export interface DashboardStats {
@@ -176,6 +191,7 @@ export interface ReservationFilters {
 
 export interface PaymentFilters {
   status?: PaymentStatus
+  type?: TransactionType
   startDate?: string
   endDate?: string
 }
@@ -811,9 +827,11 @@ export async function getPayments(
       `
       id,
       reservation_id,
+      type,
       amount_cents,
       payment_method,
       status,
+      recognition_status,
       stripe_payment_intent_id,
       processed_at,
       created_at,
@@ -828,13 +846,16 @@ export async function getPayments(
       { count: 'exact' }
     )
     .eq('property_id', propertyId)
-    .in('type', ['payment', 'refund'])
+    .in('type', ['payment', 'refund', 'charge'])
     .neq('is_voided', true)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (filters.status) {
     query = query.eq('status', filters.status)
+  }
+  if (filters.type) {
+    query = query.eq('type', filters.type)
   }
   if (filters.startDate) {
     query = query.gte('created_at', filters.startDate)
@@ -901,6 +922,8 @@ export async function getPayments(
           stripePaymentId: payment.stripe_payment_id,
           processedAt: payment.processed_at,
           createdAt: payment.created_at!,
+          transactionType: null,
+          recognitionStatus: null,
         }
       })
       return { data: payments, total: fallbackResult.count || 0 }
@@ -926,6 +949,8 @@ export async function getPayments(
       stripePaymentId: payment.stripe_payment_intent_id,
       processedAt: payment.processed_at,
       createdAt: payment.created_at!,
+      transactionType: (payment.type as TransactionType) ?? null,
+      recognitionStatus: (payment.recognition_status as RecognitionStatus) ?? null,
     }
   })
 

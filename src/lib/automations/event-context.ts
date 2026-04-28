@@ -233,6 +233,27 @@ async function enrichTaskContext(
       .single()
     if (data) context.site = data as Record<string, unknown>
   }
+
+  // Store event payload fields for condition resolution (e.g. housekeeping.priority)
+  const eventType = payload.eventType as string | undefined ?? ''
+  if (eventType.startsWith('housekeeping')) {
+    context.housekeeping = {
+      taskId: payload.taskId,
+      title: payload.title,
+      priority: payload.priority,
+      siteId: payload.siteId,
+      propertyId: payload.propertyId,
+    }
+  } else if (eventType.startsWith('maintenance')) {
+    context.maintenance = {
+      taskId: payload.taskId,
+      woNumber: payload.woNumber,
+      title: payload.title,
+      category: payload.category,
+      priority: payload.priority,
+      propertyId: payload.propertyId,
+    }
+  }
 }
 
 async function enrichProperty(

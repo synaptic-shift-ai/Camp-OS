@@ -13,15 +13,47 @@ import {
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { PaymentStatus } from "@/contracts/booking"
-import type { DashboardPayment } from "@/lib/dashboard/queries"
+import type { DashboardPayment, TransactionType, RecognitionStatus } from "@/lib/dashboard/queries"
 
 const statusTextColors: Record<PaymentStatus, string> = {
   pending: "text-yellow-500",
   completed: "text-green-500",
   failed: "text-red-500",
   refunded: "text-gray-500",
+}
+
+const TYPE_BADGE_STYLES: Record<TransactionType, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+  charge: { variant: "outline", className: "border-orange-300 text-orange-700 bg-orange-50" },
+  payment: { variant: "default" },
+  refund: { variant: "destructive" },
+  deposit: { variant: "secondary" },
+  deposit_release: { variant: "secondary", className: "text-blue-700 bg-blue-50" },
+  deposit_deduction: { variant: "destructive", className: "bg-orange-100 text-orange-800 border-orange-200" },
+  expense: { variant: "outline", className: "border-gray-300 text-gray-600" },
+  platform_fee: { variant: "outline", className: "border-purple-300 text-purple-700 bg-purple-50" },
+  payout: { variant: "secondary", className: "text-emerald-700 bg-emerald-50" },
+}
+
+const TYPE_LABELS: Record<TransactionType, string> = {
+  charge: "Charge",
+  payment: "Payment",
+  refund: "Refund",
+  deposit: "Deposit",
+  deposit_release: "Deposit Release",
+  deposit_deduction: "Deposit Deduction",
+  expense: "Expense",
+  platform_fee: "Platform Fee",
+  payout: "Payout",
+}
+
+const RECOGNITION_BADGE: Record<RecognitionStatus, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+  pending: { variant: "secondary", className: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  recognized: { variant: "default" },
+  deferred: { variant: "outline", className: "border-blue-300 text-blue-700 bg-blue-50" },
+  written_off: { variant: "destructive" },
 }
 
 function formatMoney(cents: number): string {
@@ -46,12 +78,33 @@ function formatPaymentMethod(method: string): string {
     .join(" ")
 }
 
+function getTypeBadge(type: TransactionType | null) {
+  if (!type) return null
+  const style = TYPE_BADGE_STYLES[type] ?? { variant: "outline" as const }
+  return (
+    <Badge variant={style.variant} className={style.className}>
+      {TYPE_LABELS[type] ?? type}
+    </Badge>
+  )
+}
+
+function getRecognitionBadge(recognitionStatus: RecognitionStatus | null) {
+  if (!recognitionStatus) return null
+  const style = RECOGNITION_BADGE[recognitionStatus] ?? { variant: "outline" as const }
+  return (
+    <Badge variant={style.variant} className={`text-[10px] px-1.5 py-0 capitalize ${style.className ?? ""}`}>
+      {recognitionStatus.replace("_", " ")}
+    </Badge>
+  )
+}
+
 type PaymentsTableProps = {
   propertyId: string
   payments: DashboardPayment[]
   currentPage: number
   pageSize: number
   total: number
+  typeFilter?: string
 }
 
 export function PaymentsTable({
@@ -60,6 +113,7 @@ export function PaymentsTable({
   currentPage,
   pageSize,
   total,
+  typeFilter,
 }: PaymentsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -95,6 +149,7 @@ export function PaymentsTable({
     const params = new URLSearchParams()
     params.set("page", String(page))
     params.set("pageSize", String(pageSize))
+    if (typeFilter) params.set("type", typeFilter)
     return `/dashboard/${propertyId}/payments?${params.toString()}`
   }
 
@@ -109,6 +164,7 @@ export function PaymentsTable({
       const params = new URLSearchParams()
       params.set("page", "1")
       params.set("pageSize", String(nextPageSize))
+      if (typeFilter) params.set("type", typeFilter)
       router.push(`/dashboard/${propertyId}/payments?${params.toString()}`)
     })
   }
@@ -125,37 +181,55 @@ export function PaymentsTable({
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
+        {/* Mobile card layout */}
         <div className="space-y-2 md:hidden">
-          {payments.map((payment) => (
-            <div key={payment.id} className="rounded-md border border-border/80 bg-card/50 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {payment.confirmationNumber}
-                  </p>
-                  <p className="mt-1 truncate text-sm font-semibold capitalize">
-                    {payment.guestName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{formatDate(payment.createdAt)}</p>
+          {payments.map((payment) => {
+            const isCredit = payment.amount < 0
+            return (
+              <div key={payment.id} className="rounded-md border border-border/80 bg-card/50 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {payment.confirmationNumber}
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold capitalize">
+                      {payment.guestName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDate(payment.createdAt)}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-base font-semibold ${isCredit ? "text-green-600" : ""}`}>
+                      {formatMoney(payment.amount)}
+                    </p>
+                    <div className="mt-1 flex flex-col items-end gap-1">
+                      {getTypeBadge(payment.transactionType)}
+                      <span
+                        className={`${statusTextColors[payment.paymentStatus]} text-xs font-semibold uppercase`}
+                      >
+                        {payment.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-base font-semibold">{formatMoney(payment.amount)}</p>
-                  <p
-                    className={`${statusTextColors[payment.paymentStatus]} mt-1 text-xs font-semibold uppercase`}
-                  >
-                    {payment.paymentStatus}
-                  </p>
+                <div className="mt-3 border-t border-border/70 pt-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="uppercase tracking-wide text-muted-foreground">Method</p>
+                      <p className="mt-0.5 font-medium">{formatPaymentMethod(payment.paymentMethod)}</p>
+                    </div>
+                    {payment.transactionType === "charge" && payment.recognitionStatus && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Revenue:</span>
+                        {getRecognitionBadge(payment.recognitionStatus)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="mt-3 border-t border-border/70 pt-2 text-xs">
-                <div>
-                  <p className="uppercase tracking-wide text-muted-foreground">Method</p>
-                  <p className="mt-0.5 font-medium">{formatPaymentMethod(payment.paymentMethod)}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
+        {/* Desktop table layout */}
         <div className="hidden max-h-[calc(100vh-260px)] overflow-y-auto border border-border/80 bg-card/50 md:block">
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
@@ -163,38 +237,51 @@ export function PaymentsTable({
                 <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Date</TableHead>
                 <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Primary Guest</TableHead>
                 <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Reservation</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Type</TableHead>
                 <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Amount</TableHead>
                 <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Method</TableHead>
                 <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Status</TableHead>
+                <TableHead className="py-2 font-medium dark:text-white/90 text-black/90">Revenue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.map((payment) => (
-                <TableRow key={payment.id} className="h-10">
-                  <TableCell className="py-2">
-                    {formatDate(payment.createdAt)}
-                  </TableCell>
-                  <TableCell className="py-2 font-medium capitalize">
-                    {payment.guestName}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {payment.confirmationNumber}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {formatMoney(payment.amount)}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {formatPaymentMethod(payment.paymentMethod)}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span
-                      className={`${statusTextColors[payment.paymentStatus]} text-xs font-semibold uppercase`}
-                    >
-                      {payment.paymentStatus}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {payments.map((payment) => {
+                const isCredit = payment.amount < 0
+                return (
+                  <TableRow key={payment.id} className="h-10">
+                    <TableCell className="py-2">
+                      {formatDate(payment.createdAt)}
+                    </TableCell>
+                    <TableCell className="py-2 font-medium capitalize">
+                      {payment.guestName}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {payment.confirmationNumber}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {getTypeBadge(payment.transactionType)}
+                    </TableCell>
+                    <TableCell className={`py-2 font-medium ${isCredit ? "text-green-600" : ""}`}>
+                      {formatMoney(payment.amount)}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {formatPaymentMethod(payment.paymentMethod)}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span
+                        className={`${statusTextColors[payment.paymentStatus]} text-xs font-semibold uppercase`}
+                      >
+                        {payment.paymentStatus}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {payment.transactionType === "charge"
+                        ? getRecognitionBadge(payment.recognitionStatus)
+                        : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

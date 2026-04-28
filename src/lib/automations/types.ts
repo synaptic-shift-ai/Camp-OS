@@ -139,6 +139,8 @@ export interface EventContext {
   property?: Record<string, unknown>
   site?: Record<string, unknown>
   payment?: Record<string, unknown>
+  housekeeping?: Record<string, unknown>
+  maintenance?: Record<string, unknown>
 }
 
 // ============================================================================

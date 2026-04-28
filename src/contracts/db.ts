@@ -1164,6 +1164,9 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          issue_type: string | null
+          issue_description: string | null
+          linked_maintenance_task_id: string | null
         }
         Insert: {
           checklist_id?: string | null
@@ -1183,6 +1186,9 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          issue_type?: string | null
+          issue_description?: string | null
+          linked_maintenance_task_id?: string | null
         }
         Update: {
           checklist_id?: string | null
@@ -1202,6 +1208,9 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          issue_type?: string | null
+          issue_description?: string | null
+          linked_maintenance_task_id?: string | null
         }
         Relationships: [
           {

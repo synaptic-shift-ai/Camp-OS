@@ -786,4 +786,100 @@ export class HousekeepingQueries {
 
         return count ?? 0
     }
+
+    async flagIssue(input: {
+        id: string
+        propertyId: string
+        issueType: 'DAMAGE' | 'MAINTENANCE'
+        issueDescription: string
+        linkedMaintenanceTaskId?: string | null
+    }): Promise<HousekeepingTaskRow> {
+        const updateRow: Database['public']['Tables']['housekeeping_tasks']['Update'] = {
+            issue_type: input.issueType,
+            issue_description: input.issueDescription,
+            linked_maintenance_task_id: input.linkedMaintenanceTaskId ?? null,
+        }
+
+        const { data, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .update(updateRow)
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to flag issue on housekeeping task', {
+                error,
+                id: input.id,
+                propertyId: input.propertyId,
+            })
+            throw new Error(`Failed to flag issue: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to flag issue: no row returned')
+        }
+
+        return data
+    }
+
+    async clearIssue(input: {
+        id: string
+        propertyId: string
+    }): Promise<HousekeepingTaskRow> {
+        const updateRow: Database['public']['Tables']['housekeeping_tasks']['Update'] = {
+            issue_type: null,
+            issue_description: null,
+            linked_maintenance_task_id: null,
+        }
+
+        const { data, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .update(updateRow)
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to clear issue on housekeeping task', {
+                error,
+                id: input.id,
+                propertyId: input.propertyId,
+            })
+            throw new Error(`Failed to clear issue: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to clear issue: no row returned')
+        }
+
+        return data
+    }
+
+    async listFlaggedTasks(propertyId: string): Promise<(HousekeepingTaskRow & { site_name: string | null })[]> {
+        const { data, error } = await this.supabase
+            .from('housekeeping_tasks')
+            .select('*, site:sites(site_name)')
+            .eq('property_id', propertyId)
+            .not('issue_type', 'is', null)
+            .order('updated_at', { ascending: false })
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to list flagged tasks', {
+                propertyId,
+                error,
+            })
+            throw new Error(`Failed to list flagged tasks: ${error.message}`)
+        }
+
+        return (data ?? []).map((row) => {
+            const typed = row as unknown as HousekeepingTaskRow & { site: { site_name: string | null } | null }
+            return {
+                ...typed,
+                site_name: typed.site?.site_name ?? null,
+            }
+        })
+    }
 }

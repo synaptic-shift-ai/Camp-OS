@@ -326,14 +326,115 @@ export async function PATCH(
       } // end openForSite === 0
     }
 
+    // --- Issue flag handling ---
+    let updatedTask = housekeepingTask
+    if (parsed.data.issueType !== undefined) {
+      const issueLogPrefix = '[Housekeeping API v1] PATCH issue-flag'
+
+      if (parsed.data.issueType === null) {
+        // Clear the issue flag
+        updatedTask = await queries.clearIssue({ id: housekeepingId, propertyId })
+        console.info(`${issueLogPrefix}: issue flag cleared`, { propertyId, housekeepingId })
+        if (access.companyId) {
+          const auditService = createServiceRoleClient()
+          const { data: clearAuditSite } = await supabase
+            .from('sites')
+            .select('site_name, site_number')
+            .eq('id', housekeepingTask.site_id)
+            .eq('property_id', propertyId)
+            .maybeSingle()
+          const clearLabel = clearAuditSite?.site_name?.trim() || clearAuditSite?.site_number || housekeepingTask.site_id
+          await recordActivityLog(
+            auditService,
+            {
+              companyId: access.companyId,
+              propertyId,
+              action: 'update',
+              resource: 'housekeeping',
+              userId: user.id,
+              details: `Issue flag cleared for task "${housekeepingTask.title}" on site ${clearLabel}.`,
+            },
+            { failOpen: false },
+          )
+        }
+      } else if (parsed.data.issueDescription) {
+        // Create maintenance work order (best-effort)
+        let linkedMaintenanceTaskId: string | null = null
+        try {
+          const maintenanceService = createServiceRoleClient()
+          const { MaintenanceQueries } = await import('@/lib/dashboard/maintenance/maintenance-queries')
+          const maintenanceQueries = new MaintenanceQueries(maintenanceService as unknown as SupabaseClient)
+
+          const maintenanceTask = await maintenanceQueries.createMaintenanceTask({
+            propertyId,
+            siteId: housekeepingTask.site_id,
+            createdBy: user.id,
+            title: `Housekeeping Issue: ${housekeepingTask.title}`,
+            description: parsed.data.issueDescription,
+            status: 'open',
+            priority: 'medium',
+            source: 'housekeeping',
+            isSuspectedDamage: parsed.data.issueType === 'DAMAGE',
+          })
+          linkedMaintenanceTaskId = maintenanceTask.id
+          console.info(`${issueLogPrefix}: maintenance WO created`, {
+            maintenanceTaskId: maintenanceTask.id,
+            woNumber: maintenanceTask.wo_number,
+          })
+        } catch (woError) {
+          console.error(`${issueLogPrefix}: maintenance WO creation failed (non-blocking)`, {
+            error: woError,
+          })
+        }
+
+        // Flag the issue on the housekeeping task
+        updatedTask = await queries.flagIssue({
+          id: housekeepingId,
+          propertyId,
+          issueType: parsed.data.issueType,
+          issueDescription: parsed.data.issueDescription,
+          linkedMaintenanceTaskId,
+        })
+        console.info(`${issueLogPrefix}: issue flagged`, {
+          propertyId,
+          housekeepingId,
+          issueType: parsed.data.issueType,
+          linkedMaintenanceTaskId,
+        })
+
+        if (access.companyId) {
+          const auditService = createServiceRoleClient()
+          const { data: flagAuditSite } = await supabase
+            .from('sites')
+            .select('site_name, site_number')
+            .eq('id', housekeepingTask.site_id)
+            .eq('property_id', propertyId)
+            .maybeSingle()
+          const flagLabel = flagAuditSite?.site_name?.trim() || flagAuditSite?.site_number || housekeepingTask.site_id
+          await recordActivityLog(
+            auditService,
+            {
+              companyId: access.companyId,
+              propertyId,
+              action: 'update',
+              resource: 'housekeeping',
+              userId: user.id,
+              details: `Issue flagged: ${parsed.data.issueType} for task "${housekeepingTask.title}" on site ${flagLabel}.${linkedMaintenanceTaskId ? ` Work order created.` : ''}`,
+            },
+            { failOpen: false },
+          )
+        }
+      }
+    }
+
     if (access.companyId) {
       const { data: siteRow } = await supabase
         .from('sites')
         .select('site_name, site_number')
-        .eq('id', housekeepingTask.site_id)
+        .eq('id', updatedTask.site_id)
         .eq('property_id', propertyId)
         .maybeSingle()
-      const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || housekeepingTask.site_id
+      const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || updatedTask.site_id
       const service = createServiceRoleClient()
       await recordActivityLog(
         service,
@@ -343,13 +444,13 @@ export async function PATCH(
           action: 'update',
           resource: 'housekeeping',
           userId: user.id,
-          details: `Updated housekeeping task "${housekeepingTask.title}" for site ${auditSiteLabel}.`,
+          details: `Updated housekeeping task "${updatedTask.title}" for site ${auditSiteLabel}.`,
         },
         { failOpen: false },
       )
     }
 
-    return success({ housekeepingTask }, request)
+    return success({ housekeepingTask: updatedTask }, request)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[Housekeeping API v1] PATCH error:', err)

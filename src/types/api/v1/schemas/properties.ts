@@ -53,6 +53,8 @@ export const PropertySettingsSchema = z.object({
   customRules: z.string().nullable(),
   openPeriodFrom: isoDateOnlyNullable,
   openPeriodUntil: isoDateOnlyNullable,
+  housekeepingRequireApproval: z.boolean().nullable(),
+  defaultRefundHandling: z.enum(['original_method', 'guest_credit']).nullable(),
 })
 
 export const PropertyAmenitySchema = z.object({

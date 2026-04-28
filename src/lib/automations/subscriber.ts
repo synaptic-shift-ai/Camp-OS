@@ -36,6 +36,10 @@ import {
   MaintenanceTaskCreatedEvent,
   MaintenanceTaskCompletedEvent,
 } from '@/modules/Maintenance/domain/events'
+import {
+  HousekeepingTaskCreatedEvent,
+  HousekeepingTaskCompletedEvent,
+} from '@/modules/Housekeeping/domain/events'
 
 /** Map domain event class → trigger type string */
 const EVENT_TRIGGER_MAP = new Map<string, string>([
@@ -51,6 +55,8 @@ const EVENT_TRIGGER_MAP = new Map<string, string>([
   ['RefundProcessed', 'refund.processed'],
   [MaintenanceTaskCreatedEvent.name, 'maintenance.task_created'],
   [MaintenanceTaskCompletedEvent.name, 'maintenance.task_completed'],
+  [HousekeepingTaskCreatedEvent.name, 'housekeeping.task_created'],
+  [HousekeepingTaskCompletedEvent.name, 'housekeeping.task_completed'],
 ])
 
 /** Events to subscribe to */
@@ -67,6 +73,8 @@ const SUBSCRIBED_EVENTS: EventConstructor<DomainEvent>[] = [
   RefundProcessed,
   MaintenanceTaskCreatedEvent,
   MaintenanceTaskCompletedEvent,
+  HousekeepingTaskCreatedEvent,
+  HousekeepingTaskCompletedEvent,
 ]
 
 // Singleton registry (created once)

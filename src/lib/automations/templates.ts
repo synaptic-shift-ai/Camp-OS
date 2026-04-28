@@ -998,4 +998,75 @@ export const DEFAULT_AUTOMATION_TEMPLATES: AutomationTemplate[] = [
       },
     ],
   },
+
+  // 32. High Priority Housekeeping Alert
+  {
+    id: 'housekeeping-high-priority-alert',
+    name: 'High Priority Housekeeping Alert',
+    description:
+      'Notify staff when a high or urgent priority housekeeping task is created, ensuring immediate attention.',
+    phase: 'OPERATE',
+    triggerType: 'housekeeping.task_created',
+    category: 'Operations',
+    conditionGroups: [
+      {
+        logicOperator: 'OR',
+        conditions: [
+          {
+            variable: 'housekeeping.priority',
+            operator: 'IS',
+            value: 'high',
+          },
+          {
+            variable: 'housekeeping.priority',
+            operator: 'IS',
+            value: 'urgent',
+          },
+        ],
+      },
+    ],
+    actions: [
+      {
+        actionType: 'send_email',
+        actionConfig: {
+          template: 'housekeeping_high_priority',
+        },
+      },
+      {
+        actionType: 'send_notification',
+        actionConfig: {
+          channel: 'staff',
+          priority: 'high',
+          message: 'A high priority housekeeping task has been created. Immediate attention may be required.',
+        },
+      },
+    ],
+  },
+
+  // 33. Housekeeping Task Completed
+  {
+    id: 'housekeeping-task-completed',
+    name: 'Housekeeping Task Completed',
+    description:
+      'Notify staff and optionally the guest when a housekeeping task is completed, confirming site readiness.',
+    phase: 'OPERATE',
+    triggerType: 'housekeeping.task_completed',
+    category: 'Operations',
+    actions: [
+      {
+        actionType: 'send_email',
+        actionConfig: {
+          template: 'housekeeping_task_completed',
+        },
+      },
+      {
+        actionType: 'send_notification',
+        actionConfig: {
+          channel: 'staff',
+          priority: 'low',
+          message: 'A housekeeping task has been completed and the site is ready.',
+        },
+      },
+    ],
+  },
 ]

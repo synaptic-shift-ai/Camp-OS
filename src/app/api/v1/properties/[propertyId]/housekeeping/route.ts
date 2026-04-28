@@ -12,6 +12,8 @@ import {
   CreateHousekeepingTaskRequestSchema,
   ListHousekeepingTasksQuerySchema,
 } from '@/types/api/v1/schemas/housekeeping'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { HousekeepingTaskCreatedEvent } from '@/modules/Housekeeping/domain/events'
 
 function housekeepingFallbackForCategory(
   role: 'owner' | 'admin' | 'manager' | 'staff',
@@ -343,6 +345,20 @@ export async function POST(
                     error: escalationErr,
                 })
             }
+        }
+
+        // Publish domain event (fire-and-forget)
+        try {
+            const eventBus = getEventBus()
+            await eventBus.publish(new HousekeepingTaskCreatedEvent(
+                propertyId,
+                escalatedTask.id,
+                escalatedTask.title,
+                escalatedTask.priority,
+                escalatedTask.site_id,
+            ))
+        } catch {
+            // Non-blocking: event publishing failures should not prevent response
         }
 
         if (access.companyId) {

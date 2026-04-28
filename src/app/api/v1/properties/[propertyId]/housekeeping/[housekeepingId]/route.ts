@@ -9,6 +9,8 @@ import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { HousekeepingQueries } from '@/lib/dashboard/housekeeping/housekeeping-queries'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { UpdateHousekeepingTaskRequestSchema } from '@/types/api/v1/schemas/housekeeping'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { HousekeepingTaskCompletedEvent } from '@/modules/Housekeeping/domain/events'
 
 function housekeepingFallbackForCategory(
   role: 'owner' | 'admin' | 'manager' | 'staff',
@@ -162,6 +164,21 @@ export async function PATCH(
         ? { checklistItemDone: parsed.data.checklistItemDone }
         : {}),
     })
+
+    // Publish domain event when task is completed (fire-and-forget)
+    if (housekeepingTask.status === 'done') {
+      try {
+        const eventBus = getEventBus()
+        await eventBus.publish(new HousekeepingTaskCompletedEvent(
+          propertyId,
+          housekeepingTask.id,
+          housekeepingTask.title,
+          housekeepingTask.site_id,
+        ))
+      } catch {
+        // Non-blocking: event publishing failures should not prevent response
+      }
+    }
 
     const siteAvailabilityLogPrefix = '[Housekeeping API v1] PATCH site-availability'
     if (housekeepingTask.status === 'done') {

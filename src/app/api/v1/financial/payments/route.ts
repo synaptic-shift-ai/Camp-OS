@@ -18,6 +18,7 @@ import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentM
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { toTransactionDTO } from '@/modules/Financial/application/DTOs/TransactionDTO'
+import { getGuestCreditBalance } from '@/modules/Financial/application/guestCreditBalance'
 
 function mapPaymentMethod(method: string): PaymentMethod {
   const map: Record<string, PaymentMethod> = {
@@ -142,26 +143,7 @@ export async function POST(request: NextRequest) {
     // Guest credit balance validation
     if (sourceEnum === TransactionSource.GUEST_CREDIT && guest_id && propertyId) {
       const creditServiceRole = createServiceRoleClient()
-
-      // Calculate guest credit balance: sum of guest_credit refunds minus guest_credit payments
-      const { data: creditTxns } = await creditServiceRole
-        .from('financial_transactions')
-        .select('type, amount_cents, source')
-        .eq('guest_id', guest_id)
-        .eq('property_id', propertyId)
-        .eq('status', 'completed')
-        .neq('is_voided', true)
-
-      let creditBalance = 0
-      for (const txn of creditTxns ?? []) {
-        if (txn.source === 'guest_credit') {
-          if (txn.type === 'refund') {
-            creditBalance += txn.amount_cents
-          } else if (txn.type === 'payment') {
-            creditBalance -= txn.amount_cents
-          }
-        }
-      }
+      const { creditBalance } = await getGuestCreditBalance(creditServiceRole, guest_id, propertyId)
 
       if (creditBalance < amount_cents) {
         return NextResponse.json(

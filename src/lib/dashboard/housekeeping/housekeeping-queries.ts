@@ -736,6 +736,37 @@ export class HousekeepingQueries {
         return { storagePath: data.storage_path as string }
     }
 
+    async getNextReservationForSite(
+        siteId: string,
+        propertyId: string,
+    ): Promise<{ check_in_date: string; status: string } | null> {
+        const today = new Date().toISOString().slice(0, 10)
+
+        const { data, error } = await this.supabase
+            .from('reservations')
+            .select('check_in_date, status')
+            .eq('site_id', siteId)
+            .eq('property_id', propertyId)
+            .gte('check_in_date', today)
+            .in('status', ['confirmed', 'upcoming'])
+            .order('check_in_date', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[HousekeepingQueries] Failed to get next reservation for site', {
+                siteId,
+                propertyId,
+                error,
+            })
+            throw new Error(`Failed to get next reservation for site: ${error.message}`)
+        }
+
+        return data
+            ? { check_in_date: data.check_in_date as string, status: data.status as string }
+            : null
+    }
+
     async countOpenHousekeepingTasksForSite(propertyId: string, siteId: string): Promise<number> {
         const { count, error } = await this.supabase
             .from('housekeeping_tasks')

@@ -286,14 +286,73 @@ export async function POST(
             : {}),
         })
 
+        // --- Priority escalation: auto-escalate if next guest check-in is within 4 hours ---
+        let escalatedTask = housekeepingTask
+        if (housekeepingTask.site_id) {
+            try {
+                const nextReservation = await queries.getNextReservationForSite(
+                    housekeepingTask.site_id,
+                    propertyId,
+                )
+
+                if (nextReservation) {
+                    const { data: propertyRow } = await supabase
+                        .from('properties')
+                        .select('check_in_time, timezone')
+                        .eq('id', propertyId)
+                        .maybeSingle()
+
+                    const checkInTime = propertyRow?.check_in_time ?? '15:00'
+                    const [hours, minutes] = checkInTime.split(':').map(Number)
+
+                    const checkInDate = new Date(nextReservation.check_in_date + 'T00:00:00')
+                    checkInDate.setHours(hours, minutes, 0, 0)
+
+                    // Apply property timezone offset if available
+                    if (propertyRow?.timezone) {
+                        try {
+                            const utcNow = new Date()
+                            const tzDate = new Date(utcNow.toLocaleString('en-US', { timeZone: propertyRow.timezone }))
+                            const offsetMs = tzDate.getTime() - utcNow.getTime()
+                            checkInDate.setTime(checkInDate.getTime() - offsetMs)
+                        } catch {
+                            // Fall back to UTC if timezone parsing fails
+                        }
+                    }
+
+                    const msUntilCheckIn = checkInDate.getTime() - Date.now()
+                    const fourHoursMs = 4 * 60 * 60 * 1000
+
+                    if (msUntilCheckIn > 0 && msUntilCheckIn < fourHoursMs && housekeepingTask.priority !== 'urgent') {
+                        escalatedTask = await queries.updateHousekeepingTask({
+                            id: housekeepingTask.id,
+                            propertyId,
+                            priority: 'high',
+                        })
+                        console.info('[Housekeeping API v1] POST: task priority escalated to high', {
+                            taskId: housekeepingTask.id,
+                            siteId: housekeepingTask.site_id,
+                            msUntilCheckIn,
+                        })
+                    }
+                }
+            } catch (escalationErr) {
+                console.warn('[Housekeeping API v1] POST: priority escalation failed (non-blocking)', {
+                    taskId: housekeepingTask.id,
+                    siteId: housekeepingTask.site_id,
+                    error: escalationErr,
+                })
+            }
+        }
+
         if (access.companyId) {
           const { data: siteRow } = await supabase
             .from('sites')
             .select('site_name, site_number')
-            .eq('id', housekeepingTask.site_id)
+            .eq('id', escalatedTask.site_id)
             .eq('property_id', propertyId)
             .maybeSingle()
-          const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || housekeepingTask.site_id
+          const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || escalatedTask.site_id
           const service = createServiceRoleClient()
           await recordActivityLog(
             service,
@@ -303,13 +362,13 @@ export async function POST(
               action: 'create',
               resource: 'housekeeping',
               userId: user.id,
-              details: `Created housekeeping task "${housekeepingTask.title}" for site ${auditSiteLabel}.`,
+              details: `Created housekeeping task "${escalatedTask.title}" for site ${auditSiteLabel}.`,
             },
             { failOpen: false },
           )
         }
 
-        return success({ housekeepingTask }, request)
+        return success({ housekeepingTask: escalatedTask }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Housekeeping API v1] POST error:', err)

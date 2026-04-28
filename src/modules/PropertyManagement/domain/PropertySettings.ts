@@ -31,6 +31,8 @@ export type PropertySettingsProps = {
   openPeriodUntil: string | null
   /** When true, sites stay in 'housekeeping' status after last task is done — operator must manually mark ready */
   housekeepingRequireApproval: boolean | null
+  /** Default refund handling method: 'original_method' or 'guest_credit' */
+  defaultRefundHandling: string | null
 }
 
 /** Partial update: `undefined` means leave existing value (for API merge). */
@@ -101,6 +103,15 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       throw new Error('housekeepingRequireApproval must be a boolean')
     }
 
+    if (
+      props.defaultRefundHandling !== undefined &&
+      props.defaultRefundHandling !== null &&
+      props.defaultRefundHandling !== 'original_method' &&
+      props.defaultRefundHandling !== 'guest_credit'
+    ) {
+      throw new Error('defaultRefundHandling must be "original_method" or "guest_credit"')
+    }
+
     return new PropertySettings({
       checkInTime: props.checkInTime || null,
       checkOutTime: props.checkOutTime || null,
@@ -113,6 +124,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       openPeriodFrom,
       openPeriodUntil,
       housekeepingRequireApproval: props.housekeepingRequireApproval ?? null,
+      defaultRefundHandling: props.defaultRefundHandling ?? null,
     })
   }
 
@@ -132,6 +144,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       openPeriodFrom: null,
       openPeriodUntil: null,
       housekeepingRequireApproval: null,
+      defaultRefundHandling: 'original_method',
     })
   }
 
@@ -155,6 +168,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       openPeriodFrom: json.openPeriodFrom ?? json.open_period_from ?? null,
       openPeriodUntil: json.openPeriodUntil ?? json.open_period_until ?? null,
       housekeepingRequireApproval: json.housekeepingRequireApproval ?? null,
+      defaultRefundHandling: json.defaultRefundHandling ?? null,
     })
   }
 
@@ -202,6 +216,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
     return this.props.housekeepingRequireApproval
   }
 
+  get defaultRefundHandling(): string | null {
+    return this.props.defaultRefundHandling
+  }
+
   /**
    * Merge a partial settings patch onto existing settings (undefined = keep current).
    */
@@ -227,6 +245,10 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
         partial.housekeepingRequireApproval !== undefined
           ? partial.housekeepingRequireApproval
           : current.housekeepingRequireApproval,
+      defaultRefundHandling:
+        partial.defaultRefundHandling !== undefined
+          ? partial.defaultRefundHandling
+          : current.defaultRefundHandling,
     })
   }
 
@@ -268,6 +290,7 @@ export class PropertySettings extends ValueObject<PropertySettingsProps> {
       openPeriodFrom: this.props.openPeriodFrom,
       openPeriodUntil: this.props.openPeriodUntil,
       housekeepingRequireApproval: this.props.housekeepingRequireApproval,
+      defaultRefundHandling: this.props.defaultRefundHandling,
     }
   }
 }

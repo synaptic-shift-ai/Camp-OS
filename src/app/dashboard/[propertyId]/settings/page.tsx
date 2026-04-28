@@ -28,6 +28,7 @@ import type {
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
 import { MaintenanceSiteTypeConfig } from "@/components/dashboard/settings/maintenance-site-type-config"
 import { HousekeepingSettings } from "@/components/dashboard/settings/housekeeping-settings"
+import { RefundPolicySettings } from "@/components/dashboard/settings/refund-policy-settings"
 
 export const dynamic = "force-dynamic"
 
@@ -43,6 +44,7 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "discounts", label: "Discounts" },
   { value: "maintenance", label: "Maintenance Config" },
   { value: "housekeeping", label: "Housekeeping" },
+  { value: "refund-policy", label: "Refund Policy" },
 ]
 
 async function getPropertyWithSeasonal(propertyId: string) {
@@ -290,6 +292,17 @@ export default async function SettingsPage({ params }: PageProps) {
                 (property.settings as Record<string, unknown> | null | undefined)
                   ?.housekeepingRequireApproval,
               )
+            }
+            canEdit={canEditSettings}
+          />
+        </TabsContent>
+
+        <TabsContent value="refund-policy" className="space-y-4">
+          <RefundPolicySettings
+            propertyId={property.id}
+            initialDefaultRefundHandling={
+              (property.settings as Record<string, unknown> | null | undefined)
+                ?.defaultRefundHandling as string | null
             }
             canEdit={canEditSettings}
           />

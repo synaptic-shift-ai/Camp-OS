@@ -1,4 +1,3 @@
-// @ts-nocheck - Financial tables not yet in database schema
 /**
  * SupabaseTransactionRepository
  *
@@ -12,10 +11,12 @@ import type {
   TransactionFilters,
 } from '../domain/ITransactionRepository'
 import { Transaction } from '../domain/Transaction'
+import type { TransactionType } from '../domain/value-objects/TransactionType'
 import type { SupabaseContext } from '@/shared/infrastructure/database/SupabaseContext'
 import type { Database } from '@/contracts/db'
 
 type TransactionInsert = Database['public']['Tables']['financial_transactions']['Insert']
+type TransactionRow = Database['public']['Tables']['financial_transactions']['Row']
 
 export class SupabaseTransactionRepository implements ITransactionRepository {
   private readonly supabase: SupabaseClient<Database>
@@ -36,7 +37,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
       return null
     }
 
-    return Transaction.fromPersistence(data)
+    return Transaction.fromPersistence(data as unknown as Record<string, unknown>)
   }
 
   async findByReservation(reservationId: string): Promise<Transaction[]> {
@@ -50,7 +51,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
       return []
     }
 
-    return data.map((row) => Transaction.fromPersistence(row))
+    return data.map((row) => Transaction.fromPersistence(row as unknown as Record<string, unknown>))
   }
 
   async findByProperty(
@@ -96,7 +97,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
       return []
     }
 
-    return data.map((row) => Transaction.fromPersistence(row))
+    return data.map((row) => Transaction.fromPersistence(row as unknown as Record<string, unknown>))
   }
 
   async findByInvoice(invoiceId: string): Promise<Transaction[]> {
@@ -110,7 +111,43 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
       return []
     }
 
-    return data.map((row) => Transaction.fromPersistence(row))
+    return data.map((row) => Transaction.fromPersistence(row as unknown as Record<string, unknown>))
+  }
+
+  async findByProcessorEventId(
+    eventId: string,
+    type: TransactionType
+  ): Promise<Transaction | null> {
+    const { data, error } = await this.supabase
+      .from('financial_transactions')
+      .select('*')
+      .eq('processor_event_id', eventId)
+      .eq('type', type)
+      .single()
+
+    if (error || !data) {
+      return null
+    }
+
+    return Transaction.fromPersistence(data as unknown as Record<string, unknown>)
+  }
+
+  async findByGuestId(
+    guestId: string,
+    propertyId: string
+  ): Promise<Transaction[]> {
+    const { data, error } = await this.supabase
+      .from('financial_transactions')
+      .select('*')
+      .eq('guest_id', guestId)
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false })
+
+    if (error || !data) {
+      return []
+    }
+
+    return data.map((row) => Transaction.fromPersistence(row as unknown as Record<string, unknown>))
   }
 
   async save(transaction: Transaction): Promise<void> {

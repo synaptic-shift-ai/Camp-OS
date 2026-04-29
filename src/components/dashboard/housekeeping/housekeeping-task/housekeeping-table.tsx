@@ -61,7 +61,12 @@ type HousekeepingTableProps = {
   canDeleteTask?: boolean
 }
 
-function StatusPill({ status }: { status: HousekeepingTaskRow["status"] }) {
+function isOverdue(status: HousekeepingTaskRow["status"], dueDate: string | null | undefined): boolean {
+  if (status !== "Pending" || !dueDate) return false
+  return new Date(dueDate) < new Date()
+}
+
+function StatusPill({ status, overdue }: { status: HousekeepingTaskRow["status"]; overdue?: boolean }) {
   const base = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border"
 
   if (status === "Done") {
@@ -70,6 +75,10 @@ function StatusPill({ status }: { status: HousekeepingTaskRow["status"] }) {
 
   if (status === "In Progress") {
     return <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`}>In Progress</span>
+  }
+
+  if (overdue) {
+    return <span className={`${base} border-red-200 bg-red-50 text-red-700`}>Overdue</span>
   }
 
   return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Pending</span>
@@ -283,7 +292,7 @@ export function HousekeepingTable({
                 <div>
                   <p className="uppercase tracking-wide text-muted-foreground">Status</p>
                   <div className="mt-1">
-                    <StatusPill status={row.status} />
+                    <StatusPill status={row.status} overdue={isOverdue(row.status, row.dueDate)} />
                   </div>
                 </div>
                 <div>
@@ -401,7 +410,7 @@ export function HousekeepingTable({
                 </TableCell>
                 <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground xl:table-cell">
                   <span
-                    className="block w-full max-w-[110px] truncate 2xl:max-w-[160px]"
+                    className={`block w-full max-w-[110px] truncate 2xl:max-w-[160px] ${isOverdue(row.status, row.dueDate) ? "font-medium text-red-600" : ""}`}
                     title={row.dueDate ?? "—"}
                   >
                     {row.dueDate ?? "—"}
@@ -411,7 +420,7 @@ export function HousekeepingTable({
                   <PriorityPill priority={row.priority} />
                 </TableCell>
                 <TableCell className="px-2 py-2 whitespace-nowrap">
-                  <StatusPill status={row.status} />
+                  <StatusPill status={row.status} overdue={isOverdue(row.status, row.dueDate)} />
                 </TableCell>
                 <TableCell className="px-2 py-2">
                   <TaskActionsMenu

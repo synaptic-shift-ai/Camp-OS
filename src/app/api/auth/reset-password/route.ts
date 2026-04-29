@@ -12,7 +12,7 @@ function hashToken(token: string): string {
 function validateResetToken(
   appMetadata: Record<string, unknown>,
   token: string,
-  uid: string
+  _uid: string
 ): { valid: true } | { valid: false; error: 'expired' | 'invalid_link' } {
   const storedHash = appMetadata.reset_password_token_hash as string | undefined
   const expiresAt = appMetadata.reset_password_expires_at as string | undefined

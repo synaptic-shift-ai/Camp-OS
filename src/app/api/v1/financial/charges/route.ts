@@ -153,6 +153,55 @@ export async function POST(request: NextRequest) {
     await repo.save(charge)
     const dto = toTransactionDTO(charge)
 
+    // If this charge is tied to a reservation, update the reservation snapshot totals
+    // so dashboards/ledger stats reflect the new total immediately.
+    if (reservation_id) {
+      const { data: reservation, error: reservationError } = await serviceRole
+        .from('reservations')
+        .select('id, property_id, total_amount, paid_amount, status, payment_status')
+        .eq('id', reservation_id)
+        .eq('property_id', propertyId)
+        .single()
+
+      if (reservationError || !reservation) {
+        console.error('[Financial API v1] Create charge: reservation snapshot lookup failed (non-blocking)', {
+          reservationId: reservation_id,
+          propertyId,
+          error: reservationError,
+        })
+      } else {
+        const currentTotal = (reservation.total_amount ?? 0) as number
+        const nextTotal = currentTotal + amount_cents
+        const paidAmount = (reservation.paid_amount ?? 0) as number
+
+        const isFullyPaid = paidAmount >= nextTotal
+        const nextPaymentStatus = paidAmount > 0 ? (isFullyPaid ? 'paid' : 'partial') : 'pending'
+
+        // Preserve non-confirmation states; only adjust between pending/confirmed.
+        const nextReservationStatus =
+          isFullyPaid ? 'confirmed' : reservation.status === 'confirmed' ? 'pending' : reservation.status
+
+        const { error: updateError } = await serviceRole
+          .from('reservations')
+          .update({
+            total_amount: nextTotal,
+            payment_status: nextPaymentStatus,
+            status: nextReservationStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reservation_id)
+          .eq('property_id', propertyId)
+
+        if (updateError) {
+          console.error('[Financial API v1] Create charge: reservation snapshot update failed (non-blocking)', {
+            reservationId: reservation_id,
+            propertyId,
+            error: updateError,
+          })
+        }
+      }
+    }
+
     return NextResponse.json(success(dto), { status: 201 })
   } catch (err: unknown) {
     console.error('[Financial API v1] Create charge error:', err)

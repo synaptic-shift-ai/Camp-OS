@@ -33,7 +33,10 @@ interface ManualPaymentDialogProps {
   guestName: string
   totalAmountCents: number
   paidAmountCents: number
-  guestId?: string
+  guestId?: string | null
+  defaultPaymentMethod?: PaymentMethodValue
+  defaultProcessor?: (typeof PROCESSOR_OPTIONS)[number]["value"]
+  defaultUseCardOnFile?: boolean
   trigger: React.ReactNode
 }
 
@@ -99,6 +102,9 @@ export function ManualPaymentDialog({
   totalAmountCents,
   paidAmountCents,
   guestId,
+  defaultPaymentMethod,
+  defaultProcessor,
+  defaultUseCardOnFile,
   trigger,
 }: ManualPaymentDialogProps) {
   const router = useRouter()
@@ -170,10 +176,10 @@ export function ManualPaymentDialog({
 
     // Reset form state
     setError(null)
-    setPaymentMethod("")
+    setPaymentMethod(defaultPaymentMethod ?? "")
     setReference("")
-    setProcessor("none")
-    setUseCardOnFile(false)
+    setProcessor(defaultProcessor ?? "none")
+    setUseCardOnFile(defaultUseCardOnFile ?? false)
     setApiBalance(null)
     setAmountDollars("")
 
@@ -181,7 +187,7 @@ export function ManualPaymentDialog({
     fetchBalance().then(() => {
       // Will be set after fetchBalance completes and apiBalance is updated
     })
-  }, [open, fetchBalance])
+  }, [open, fetchBalance, defaultPaymentMethod, defaultProcessor, defaultUseCardOnFile])
 
   // Pre-fill amount once balance is available
   useEffect(() => {

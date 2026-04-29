@@ -27,7 +27,7 @@ function wallClockInTimeZone(now: Date, timeZone: string): string {
     return `${v('year')}-${v('month')}-${v('day')}T${v('hour')}:${v('minute')}`
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
     try {
         const supabase = createServiceRoleClient()
         const nowDate = new Date()

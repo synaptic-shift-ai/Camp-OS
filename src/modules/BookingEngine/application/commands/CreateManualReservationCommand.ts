@@ -33,6 +33,37 @@ export type CreateManualReservationDto = CreateManualReservationRequest & {
   propertyId: string
 }
 
+export type ManualPaymentLedgerInsertInput = {
+  propertyId: string
+  reservationId: string
+  amountCents: number
+  paymentMethod: string
+  createdBy: string
+}
+
+export function buildManualPaymentLedgerInsert({
+  propertyId,
+  reservationId,
+  amountCents,
+  paymentMethod,
+  createdBy,
+}: ManualPaymentLedgerInsertInput) {
+  return {
+    property_id: propertyId,
+    reservation_id: reservationId,
+    type: 'payment',
+    amount_cents: amountCents,
+    currency: 'usd',
+    payment_method: paymentMethod,
+    status: 'completed',
+    processed_at: new Date().toISOString(),
+    notes: `Manual payment - ${paymentMethod}`,
+    source: 'manual',
+    is_voided: false,
+    created_by: createdBy,
+  }
+}
+
 export type ManualReservationResult = {
   id: string
   confirmationNumber: string
@@ -50,7 +81,7 @@ export type ManualReservationResult = {
 }
 
 export class CreateManualReservationCommandHandler {
-  async execute(dto: CreateManualReservationDto): Promise<ManualReservationResult> {
+  async execute(dto: CreateManualReservationDto & { createdBy: string }): Promise<ManualReservationResult> {
     const supabase = createServiceRoleClient()
 
     // 1. Always create a new guest record (manual bookings never reuse existing by email)
@@ -225,6 +256,10 @@ export class CreateManualReservationCommandHandler {
     const paidAmountCents = dto.paidAmountCents || 0
     const totalAmountCents = dto.totalAmountCents ?? reservation.total_amount
 
+    const resolvedPaymentMethod =
+      dto.paymentMethod ??
+      (dto.paymentMode === 'card' ? 'credit_card' : dto.paymentMode === 'send_link' ? 'stripe' : dto.paymentMode)
+
     const isFullyPaid = paidAmountCents >= totalAmountCents
     const paymentStatus = paidAmountCents > 0
       ? (isFullyPaid ? 'paid' : 'partial')
@@ -240,7 +275,7 @@ export class CreateManualReservationCommandHandler {
           status: reservationStatus,
           payment_status: paymentStatus,
           paid_amount: paidAmountCents,
-          notes: dto.notes || `Manual booking. Payment method: ${dto.paymentMethod}`,
+          notes: dto.notes || `Manual booking. Payment method: ${resolvedPaymentMethod}`,
         })
         .eq('id', reservation.id)
         .eq('property_id', dto.propertyId)
@@ -252,29 +287,23 @@ export class CreateManualReservationCommandHandler {
           property_id: dto.propertyId,
           reservation_id: reservation.id,
           amount: paidAmountCents,
-          payment_method: dto.paymentMethod,
+          payment_method: resolvedPaymentMethod,
           payment_status: 'completed',
           processed_at: new Date().toISOString(),
-          notes: `Manual payment - ${dto.paymentMethod}`,
+          notes: `Manual payment - ${resolvedPaymentMethod}`,
         })
 
       // Dual-write to unified financial ledger (best-effort)
       try {
-        await supabase
-          .from('financial_transactions')
-          .insert({
-            property_id: dto.propertyId,
-            reservation_id: reservation.id,
-            type: 'payment',
-            amount_cents: paidAmountCents,
-            currency: 'usd',
-            payment_method: dto.paymentMethod,
-            status: 'completed',
-            processed_at: new Date().toISOString(),
-            notes: `Manual payment - ${dto.paymentMethod}`,
-            source: 'manual',
-            is_voided: false,
-          })
+        const insert = buildManualPaymentLedgerInsert({
+          propertyId: dto.propertyId,
+          reservationId: reservation.id,
+          amountCents: paidAmountCents,
+          paymentMethod: resolvedPaymentMethod,
+          createdBy: dto.createdBy,
+        })
+
+        await supabase.from('financial_transactions').insert(insert)
       } catch (dualWriteErr) {
         console.error('[CreateManualReservation] financial_transactions dual-write failed (non-blocking):', dualWriteErr)
       }

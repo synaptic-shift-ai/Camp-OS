@@ -161,6 +161,7 @@ export async function POST(
       result = await handler.execute({
         ...data,
         propertyId,
+        createdBy: user.id,
       })
       console.log('[Manual Reservation v1] Command handler succeeded:', { reservationId: result.id })
       if (property.company_id) {

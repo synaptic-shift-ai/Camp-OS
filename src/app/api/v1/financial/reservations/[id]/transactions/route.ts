@@ -95,6 +95,36 @@ export async function GET(
       )
     }
 
+    // Map created_by user ids to display names so the UI doesn't show raw ids.
+    const createdByIds = Array.from(
+      new Set((rows ?? []).map((r) => r.created_by).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    )
+
+    const createdByNameById = new Map<string, string>()
+    if (createdByIds.length > 0) {
+      await Promise.all(
+        createdByIds.map(async (userId) => {
+          try {
+            const { data, error: userError } = await serviceRole.auth.admin.getUserById(userId)
+            if (userError || !data.user) {
+              createdByNameById.set(userId, 'Staff member')
+              return
+            }
+
+            const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
+            const fullName = typeof metadata.full_name === 'string' ? metadata.full_name.trim() : ''
+            const firstName = typeof metadata.first_name === 'string' ? metadata.first_name.trim() : ''
+            const lastName = typeof metadata.last_name === 'string' ? metadata.last_name.trim() : ''
+            const fallbackName = [firstName, lastName].filter(Boolean).join(' ').trim()
+            const displayName = fullName || fallbackName || data.user.email || 'Staff member'
+            createdByNameById.set(userId, displayName)
+          } catch {
+            createdByNameById.set(userId, 'Staff member')
+          }
+        }),
+      )
+    }
+
     return success({
       reservation_id: reservationId,
       transactions: (rows ?? []).map((row) => ({
@@ -115,7 +145,7 @@ export async function GET(
         reconciled_at: row.reconciled_at,
         reconciled_by: row.reconciled_by,
         created_at: row.created_at,
-        created_by: row.created_by,
+        created_by: createdByNameById.get(row.created_by) ?? 'Staff member',
         updated_at: row.updated_at,
         is_voided: row.is_voided ?? false,
         source: row.source,

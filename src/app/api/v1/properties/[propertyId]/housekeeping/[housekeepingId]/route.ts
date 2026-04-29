@@ -359,6 +359,10 @@ export async function PATCH(
     if (parsed.data.issueType !== undefined) {
       try {
         if (parsed.data.issueType !== null) {
+          const issueDescription =
+            parsed.data.issueDescription?.trim() ||
+            `Flagged as ${parsed.data.issueType} from housekeeping task ${housekeepingTask.id}`
+
           // Auto-create maintenance WO when issue is flagged
           let linkedMaintenanceTaskId: string | null = null
           const serviceRole = createServiceRoleClient()
@@ -368,7 +372,7 @@ export async function PATCH(
               property_id: propertyId,
               site_id: housekeepingTask.site_id,
               title: `Housekeeping issue: ${parsed.data.issueType} — ${housekeepingTask.title}`,
-              description: parsed.data.issueDescription ?? `Flagged as ${parsed.data.issueType} from housekeeping task ${housekeepingTask.id}`,
+              description: issueDescription,
               category: parsed.data.issueType === 'MAINTENANCE' ? 'corrective' : 'damage',
               priority: 'high',
               status: 'open',
@@ -390,7 +394,7 @@ export async function PATCH(
             id: housekeepingTask.id,
             propertyId,
             issueType: parsed.data.issueType,
-            issueDescription: parsed.data.issueDescription ?? '',
+            issueDescription,
             linkedMaintenanceTaskId,
           })
           Object.assign(housekeepingTask, flagged)
@@ -448,8 +452,12 @@ export async function PATCH(
     if (
       message === 'Reservation confirmation id was not found for this property.' ||
       message === 'Checklist template was not found for this property.' ||
+      message === 'Housekeeping task was not found for this property.' ||
       message.startsWith('Invalid date/time value:')
     ) {
+      if (message === 'Housekeeping task was not found for this property.') {
+        return error(ErrorCodes.RESOURCE_NOT_FOUND, request, { message })
+      }
       return error(ErrorCodes.VALIDATION_ERROR, request, { message })
     }
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

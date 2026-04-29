@@ -33,9 +33,6 @@ interface DeleteSiteDialogProps {
   }
 }
 
-const SEASON_ALERT_TOAST_CLASS =
-  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
-
 export function DeleteSiteDialog({ open, onOpenChange, site }: DeleteSiteDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -60,7 +57,6 @@ export function DeleteSiteDialog({ open, onOpenChange, site }: DeleteSiteDialogP
       toast({
         title: 'Site Deleted',
         description: `Site ${site.site_number} has been deleted successfully`,
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
 
@@ -72,7 +68,6 @@ export function DeleteSiteDialog({ open, onOpenChange, site }: DeleteSiteDialogP
         title: 'Delete site failed',
         description: err instanceof Error ? err.message : 'Failed to delete site',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
       })
     } finally {
       setIsDeleting(false)

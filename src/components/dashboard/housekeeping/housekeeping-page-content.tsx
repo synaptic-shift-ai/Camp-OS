@@ -713,6 +713,8 @@ export function HousekeepingPageContent({
             )
           }}
         />
+      ) : viewMode === "damage-review" ? (
+        <DamageReviewPanel propertyId={propertyId} />
       ) : null}
       <AddTaskDialog
         open={canCreateTask && isAddTaskDialogOpen}

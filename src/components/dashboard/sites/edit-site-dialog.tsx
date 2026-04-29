@@ -18,9 +18,6 @@ interface EditSiteDialogProps {
   site: any
 }
 
-const SEASON_ALERT_TOAST_CLASS =
-  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
-
 export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -94,7 +91,6 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
     toast({
       title: 'Site Updated',
       description: `Site ${updatedSite.site_number} has been updated successfully`,
-      className: SEASON_ALERT_TOAST_CLASS,
       variant: "success",
     })
     onOpenChange(false)

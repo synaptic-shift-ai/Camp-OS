@@ -396,13 +396,36 @@ export class HousekeepingQueries {
                 : {}),
         }
 
+        if (Object.keys(updateRow).length === 0) {
+            const { data, error } = await this.supabase
+                .from('housekeeping_tasks')
+                .select()
+                .eq('id', input.id)
+                .eq('property_id', input.propertyId)
+                .maybeSingle()
+
+            if (error) {
+                console.error('[HousekeepingQueries] Failed to load housekeeping task', {
+                    error,
+                    id: input.id,
+                })
+                throw new Error(`Failed to load housekeeping task: ${error.message}`)
+            }
+
+            if (!data) {
+                throw new Error('Housekeeping task was not found for this property.')
+            }
+
+            return data
+        }
+
         const { data, error } = await this.supabase
             .from('housekeeping_tasks')
             .update(updateRow)
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
-            .single()
+            .maybeSingle()
         
         if (error) {
             console.error('[HousekeepingQueries] Failed to update housekeeping task', {
@@ -413,7 +436,7 @@ export class HousekeepingQueries {
         }
 
         if (!data) {
-            throw new Error('Failed to update housekeeping task: no row returned')
+            throw new Error('Housekeeping task was not found for this property.')
         }
 
         return data
@@ -793,14 +816,14 @@ export class HousekeepingQueries {
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
-            .single()
+            .maybeSingle()
 
         if (error) {
             console.error('[HousekeepingQueries] flagIssue failed', { error, id: input.id })
             throw new Error(`Failed to flag issue: ${error.message}`)
         }
         if (!data) {
-            throw new Error('Failed to flag issue: no row returned')
+            throw new Error('Failed to flag issue: housekeeping task was not found for this property.')
         }
         return data
     }
@@ -818,14 +841,14 @@ export class HousekeepingQueries {
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
-            .single()
+            .maybeSingle()
 
         if (error) {
             console.error('[HousekeepingQueries] clearIssue failed', { error, id: input.id })
             throw new Error(`Failed to clear issue: ${error.message}`)
         }
         if (!data) {
-            throw new Error('Failed to clear issue: no row returned')
+            throw new Error('Failed to clear issue: housekeeping task was not found for this property.')
         }
         return data
     }

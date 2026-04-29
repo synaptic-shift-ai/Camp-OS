@@ -174,7 +174,7 @@ export function DamageReviewPanel({ propertyId }: DamageReviewPanelProps) {
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p className="text-muted-foreground">
-                {task.issue_description?.trim() || 'No description provided.'}
+                {task.issue_description?.trim() || `Flagged as ${task.issue_type ?? 'ISSUE'}.`}
               </p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{task.site?.site_name?.trim() || task.site?.site_number || 'Unknown site'}</span>

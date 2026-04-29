@@ -726,10 +726,12 @@ export function HousekeepingView({
                 Reassign
               </Button>
 
-              <Button variant="outline" className="col-span-2 gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 sm:w-auto" onClick={() => setIsFlagIssueOpen(true)}>
-                <AlertTriangle className="h-4 w-4" />
-                Report Issue
-              </Button>
+              {task.status !== "done" && (
+                <Button variant="outline" className="col-span-2 gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 sm:w-auto" onClick={() => setIsFlagIssueOpen(true)}>
+                  <AlertTriangle className="h-4 w-4" />
+                  Report Issue
+                </Button>
+              )}
             </div>
           </>
         ) : null}

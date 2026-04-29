@@ -168,7 +168,6 @@ export async function PATCH(
           openPeriodFrom: validatedRequest.settings.openPeriodFrom,
           openPeriodUntil: validatedRequest.settings.openPeriodUntil,
           housekeepingRequireApproval: validatedRequest.settings.housekeepingRequireApproval,
-          defaultRefundHandling: validatedRequest.settings.defaultRefundHandling,
         })
       : undefined
 

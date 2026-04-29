@@ -36,7 +36,7 @@ export function HousekeepingSettings({
   const handleSave = useCallback(async () => {
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/v1/properties/${propertyId}/settings`, {
+      const response = await fetch(`/api/v1/properties/${propertyId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -48,7 +48,7 @@ export function HousekeepingSettings({
       })
 
       if (!response.ok) {
-        const payload = await response.json()
+        const payload = await response.json().catch(() => null)
         const message =
           payload?.error?.details?.message ?? payload?.error?.message ?? 'Failed to save settings.'
         throw new Error(message)

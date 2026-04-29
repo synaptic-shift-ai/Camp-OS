@@ -506,7 +506,7 @@ export function HousekeepingPageContent({
         if (!imagesResponse.ok || !imagesPayload?.success) {
           const message = imagesPayload?.error?.message ?? "Failed to load task images."
           throw new Error(message)
-        }filterPriorityToApi
+        }
 
         const hasImage = Array.isArray(imagesPayload?.data?.images) && imagesPayload.data.images.length > 0
         if (!checklistComplete || !hasImage) {

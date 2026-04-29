@@ -36,6 +36,7 @@ type MaintenanceFilterProps = {
   siteOptions: Array<{ id: string; label: string }>
   assigneeOptions: Array<{ id: string; label: string }>
   categoryOptions: Array<{ id: string; label: string }>
+  showAssigneeFilter?: boolean
 }
 
 export function MaintenanceFilter({
@@ -44,6 +45,7 @@ export function MaintenanceFilter({
   siteOptions,
   assigneeOptions,
   categoryOptions,
+  showAssigneeFilter = true,
 }: MaintenanceFilterProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [draftFilters, setDraftFilters] = useState<MaintenanceFilterValue>(value)
@@ -112,28 +114,30 @@ export function MaintenanceFilter({
                   </Select>
                 </div>
 
-                <div className="space-y-0.5">
-                  <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Assignee
-                  </label>
-                  <Select
-                    value={draftFilters.assigneeId}
-                    onValueChange={(assigneeId) => setDraftFilters((prev) => ({ ...prev, assigneeId }))}
-                  >
-                    <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-                      <SelectValue placeholder="Assignee" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      <SelectItem value="all">All assignees</SelectItem>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {assigneeOptions.map((person) => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {showAssigneeFilter ? (
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Assignee
+                    </label>
+                    <Select
+                      value={draftFilters.assigneeId}
+                      onValueChange={(assigneeId) => setDraftFilters((prev) => ({ ...prev, assigneeId }))}
+                    >
+                      <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+                        <SelectValue placeholder="Assignee" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">All assignees</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {assigneeOptions.map((person) => (
+                          <SelectItem key={person.id} value={person.id}>
+                            {person.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
 
                 <div className="space-y-0.5">
                   <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -237,7 +241,13 @@ export function MaintenanceFilter({
         </div>
       </div>
 
-      <div className="hidden gap-4 border border-border/80 bg-card/50 p-4 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+      <div
+        className={
+          showAssigneeFilter
+            ? "hidden gap-4 border border-border/80 bg-card/50 p-4 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end"
+            : "hidden gap-4 border border-border/80 bg-card/50 p-4 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end"
+        }
+      >
       <div className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-1">
         <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Search
@@ -273,28 +283,30 @@ export function MaintenanceFilter({
         </Select>
       </div>
 
-      <div className="min-w-0 space-y-1">
-        <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Assignee
-        </label>
-        <Select
-          value={value.assigneeId}
-          onValueChange={(assigneeId) => onChange({ ...value, assigneeId })}
-        >
-          <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
-            <SelectValue placeholder="Assignee" />
-          </SelectTrigger>
-          <SelectContent className="max-h-64">
-            <SelectItem value="all">All assignees</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {assigneeOptions.map((person) => (
-              <SelectItem key={person.id} value={person.id}>
-                {person.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {showAssigneeFilter ? (
+        <div className="min-w-0 space-y-1">
+          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Assignee
+          </label>
+          <Select
+            value={value.assigneeId}
+            onValueChange={(assigneeId) => onChange({ ...value, assigneeId })}
+          >
+            <SelectTrigger className="h-9 w-full rounded-none bg-card/50">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent className="max-h-64">
+              <SelectItem value="all">All assignees</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {assigneeOptions.map((person) => (
+                <SelectItem key={person.id} value={person.id}>
+                  {person.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       <div className="min-w-0 space-y-1">
         <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">

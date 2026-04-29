@@ -209,6 +209,7 @@ export default async function MaintenancePage({ params }: PageProps) {
       canManageMaintenancePmSchedules={canManageMaintenancePmSchedules}
       canViewMaintenanceCostReports={canViewMaintenanceCostReports}
       canEnterLaborCost={canEnterLaborCost}
+      showAssigneeFilter={canAssignWorkOrder}
       selfAssigneeStaffId={selfStaffId}
       selfAssigneeLabel={selfAssigneeLabel}
     />

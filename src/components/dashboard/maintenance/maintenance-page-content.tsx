@@ -49,6 +49,7 @@ type MaintenancePageContentProps = {
   canManageMaintenancePmSchedules: boolean
   canViewMaintenanceCostReports: boolean
   canEnterLaborCost: boolean
+  showAssigneeFilter?: boolean
   selfAssigneeStaffId: string | null
   selfAssigneeLabel: string
 }
@@ -214,6 +215,7 @@ export function MaintenancePageContent({
   canManageMaintenancePmSchedules,
   canViewMaintenanceCostReports,
   canEnterLaborCost,
+  showAssigneeFilter = true,
   selfAssigneeStaffId,
   selfAssigneeLabel,
 }: MaintenancePageContentProps) {
@@ -296,6 +298,11 @@ export function MaintenancePageContent({
     canManageMaintenanceVendors,
   ])
 
+  useEffect(() => {
+    if (showAssigneeFilter || filters.assigneeId === "all") return
+    setFilters((previous) => ({ ...previous, assigneeId: "all" }))
+  }, [filters.assigneeId, showAssigneeFilter])
+
   const filtersApiKey = useMemo(
     () =>
       `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}|${debouncedFilters.category}`,
@@ -356,7 +363,7 @@ export function MaintenancePageContent({
       if (debouncedFilters.siteId !== "all") {
         params.set("siteId", debouncedFilters.siteId)
       }
-      if (debouncedFilters.assigneeId !== "all") {
+      if (showAssigneeFilter && debouncedFilters.assigneeId !== "all") {
         params.set("assigneeId", debouncedFilters.assigneeId)
       }
       params.set("page", String(pageRef.current))
@@ -432,6 +439,7 @@ export function MaintenancePageContent({
     debouncedFilters.category,
     perPage,
     propertyId,
+    showAssigneeFilter,
     toast,
   ])
 
@@ -858,6 +866,7 @@ export function MaintenancePageContent({
             siteOptions={siteOptions}
             assigneeOptions={assigneeOptions}
             categoryOptions={categoryOptions}
+            showAssigneeFilter={showAssigneeFilter}
           />
           <MaintenanceTable
             rows={filteredRows}

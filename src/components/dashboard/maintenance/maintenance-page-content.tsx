@@ -304,21 +304,16 @@ export function MaintenancePageContent({
 
   const filteredRows = useMemo(() => {
     const normalizedSearch = filters.search.trim().toLowerCase()
+    if (normalizedSearch.length === 0) return rows
 
     return rows.filter((row) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
+      return (
         row.siteName.toLowerCase().includes(normalizedSearch) ||
         row.task.toLowerCase().includes(normalizedSearch) ||
         (row.assignee?.toLowerCase().includes(normalizedSearch) ?? false)
-
-      const matchesStatus = filters.status === "all" || row.status === filters.status
-      const matchesPriority = filters.priority === "all" || row.priority === filters.priority
-      const matchesSource = filters.source === "all" || row.source === filters.source
-      const matchesCategory = filters.category === "all" || row.category === filters.category
-      return matchesSearch && matchesStatus && matchesPriority && matchesSource && matchesCategory
+      )
     })
-  }, [filters, rows])
+  }, [filters.search, rows])
 
   const categoryOptions = useMemo(() => {
     const categoryMap = new Map<string, string>()

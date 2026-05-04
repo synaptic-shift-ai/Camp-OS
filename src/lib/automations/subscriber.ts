@@ -24,12 +24,10 @@ import {
   GuestCheckedIn,
   GuestCheckedOut,
   ReservationCancelled,
-  PaymentReceived,
   ReservationModified,
   NoShowMarked,
 } from '@/modules/BookingEngine/domain/events'
 import {
-  TransactionRecorded,
   RefundProcessed,
 } from '@/modules/Financial/domain/events'
 import {
@@ -55,8 +53,6 @@ const EVENT_TRIGGER_MAP = new Map<string, string>([
   ['ReservationCancelled', 'reservation.cancelled'],
   ['ReservationModified', 'reservation.modified'],
   ['NoShowMarked', 'reservation.no_show'],
-  ['PaymentReceived', 'payment.received'],
-  ['TransactionRecorded', 'payment.received'],
   ['RefundProcessed', 'refund.processed'],
   [MaintenanceTaskCreatedEvent.name, 'maintenance.task_created'],
   [MaintenanceTaskCompletedEvent.name, 'maintenance.task_completed'],
@@ -76,8 +72,6 @@ const SUBSCRIBED_EVENTS: EventConstructor<DomainEvent>[] = [
   ReservationCancelled,
   ReservationModified,
   NoShowMarked,
-  PaymentReceived,
-  TransactionRecorded,
   RefundProcessed,
   MaintenanceTaskCreatedEvent,
   MaintenanceTaskCompletedEvent,

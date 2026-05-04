@@ -39,7 +39,7 @@ const TRIGGER_GROUPS: Array<{ label: string; triggers: TriggerType[] }> = [
   },
   {
     label: "Payment",
-    triggers: ["payment.received", "payment.failed", "refund.processed"],
+    triggers: ["refund.processed"],
   },
   {
     label: "Site",

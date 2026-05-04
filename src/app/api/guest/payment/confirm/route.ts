@@ -31,7 +31,6 @@ import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPa
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
-import { PaymentReceived } from '@/modules/BookingEngine/domain/events/PaymentReceived'
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -301,13 +300,6 @@ export async function POST(request: NextRequest) {
       const eventBus = getEventBus()
       await eventBus.publishAll([
         new ReservationConfirmed(reservation.id, reservation.confirmation_number),
-        new PaymentReceived(
-          reservation.id,
-          reservation.confirmation_number,
-          paidAmountCents,
-          'credit_card',
-          validatedInput.payment_intent_id,
-        ),
       ])
     } catch (eventErr) {
       console.error('[Payment Confirm] Event publish failed (non-blocking):', eventErr)
@@ -327,12 +319,6 @@ export async function POST(request: NextRequest) {
       if (reservationCompanyId) {
         await triggerReservationAutomations(
           'reservation.confirmed',
-          validatedInput.reservation_id,
-          reservationPropertyId,
-          reservationCompanyId,
-        )
-        await triggerReservationAutomations(
-          'payment.received',
           validatedInput.reservation_id,
           reservationPropertyId,
           reservationCompanyId,

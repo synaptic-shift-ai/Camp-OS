@@ -50,7 +50,6 @@ const PUBLISHED_TRIGGERS: Set<string> = new Set([
   'reservation.cancelled',
   'reservation.modified',
   'reservation.no_show',
-  'payment.received',
   'refund.processed',
 ])
 

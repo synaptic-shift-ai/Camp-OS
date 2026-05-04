@@ -111,11 +111,6 @@ const TRIGGER_QUERIES: Record<string, QueryConfig> = {
     extraWhere: "status = 'no_show'",
     labelColumn: 'confirmation_number',
   },
-  'payment.received': {
-    table: 'payments',
-    dateColumn: 'created_at',
-    labelColumn: 'id',
-  },
   'refund.processed': {
     table: 'payments',
     dateColumn: 'created_at',

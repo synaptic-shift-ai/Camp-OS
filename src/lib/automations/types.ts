@@ -44,8 +44,6 @@ export type TriggerType =
   // Guest events
   | 'guest.updated'
   // Payment events
-  | 'payment.received'
-  | 'payment.failed'
   | 'refund.processed'
   // Site / property events
   | 'site.status_changed'

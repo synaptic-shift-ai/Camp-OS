@@ -26,8 +26,6 @@ export const TriggerTypeSchema = z.enum([
   'reservation.checked_out',
   'reservation.no_show',
   'guest.updated',
-  'payment.received',
-  'payment.failed',
   'refund.processed',
   'site.status_changed',
   'site.maintenance_started',

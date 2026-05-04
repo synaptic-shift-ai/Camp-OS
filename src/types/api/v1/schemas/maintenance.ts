@@ -20,6 +20,9 @@ function parsePerPageParam(value: string | undefined): number {
 const MAINTENANCE_STATUS_ENUM = ['open', 'in_progress', 'in_progress_vendor', 'on_hold', 'completed', 'cancelled'] as const
 const MAINTENANCE_STATUS_ZOD = z.enum(MAINTENANCE_STATUS_ENUM)
 
+/** JS `toISOString()` uses `Z`; Postgres/Supabase often returns `+00:00`. Zod's default `.datetime()` only allows `Z`. */
+const isoDateTimeString = z.union([z.string().datetime(), z.string().datetime({ offset: true })])
+
 export const CreateMaintenanceTaskRequestSchema = z.object({
     siteId: z.string().uuid(),
     staffId: z.string().uuid().nullable().optional(),
@@ -34,8 +37,8 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     isSuspectedDamage: z.boolean().optional(),
     vendorId: z.string().uuid().nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
-    scheduledStart: z.string().datetime().nullable().optional(),
-    dueDate: z.string().datetime().nullable().optional(),
+    scheduledStart: isoDateTimeString.nullable().optional(),
+    dueDate: isoDateTimeString.nullable().optional(),
 })
 
 export const UpdateMaintenanceTaskRequestSchema = z.object({
@@ -57,14 +60,14 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     vendorInvoiceCost: z.number().nonnegative().nullable().optional(),
     closeoutNotes: z.string().trim().max(5000).nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
-    scheduledStart: z.string().datetime().nullable().optional(),
-    dueDate: z.string().datetime().nullable().optional(),
+    scheduledStart: isoDateTimeString.nullable().optional(),
+    dueDate: isoDateTimeString.nullable().optional(),
     on_hold_reason: z.string().optional().nullable(),
     cancelled_reason: z.string().optional().nullable(),
     /** Client wall time when resuming from on_hold; aligns shifted started_at with the UI clock. */
-    resumeAt: z.string().datetime().optional(),
+    resumeAt: isoDateTimeString.optional(),
     /** Client wall time when entering on_hold; persisted so refresh matches the in-progress timer. */
-    holdAt: z.string().datetime().optional(),
+    holdAt: isoDateTimeString.optional(),
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: 'At least one field is required',
 })

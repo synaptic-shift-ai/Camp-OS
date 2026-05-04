@@ -24,6 +24,26 @@ function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
     .trim()
 }
 
+type MaintenancePatchLogContext = {
+  propertyId: string
+  maintenanceId: string
+  userId?: string
+}
+
+function logMaintenancePatchValidationFailure(
+  request: NextRequest,
+  ctx: MaintenancePatchLogContext,
+  reason: string,
+  details?: Record<string, unknown>,
+) {
+  console.warn('[Maintenance API v1] PATCH validation rejected', {
+    reason,
+    requestId: request.headers.get('x-request-id') ?? undefined,
+    ...ctx,
+    ...details,
+  })
+}
+
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ['in_progress', 'in_progress_vendor', 'cancelled'],
   in_progress: ['in_progress_vendor', 'on_hold', 'completed', 'cancelled'],
@@ -82,8 +102,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ propertyId: string; maintenanceId: string }> },
 ) {
+  const { propertyId, maintenanceId } = await params
   try {
-    const { propertyId, maintenanceId } = await params
     const supabase = await createClient()
 
     const {
@@ -117,10 +137,18 @@ export async function PATCH(
         request,
       )
     }
+    const patchLogCtx: MaintenancePatchLogContext = {
+      propertyId,
+      maintenanceId,
+      userId: user.id,
+    }
     const body = await request.json()
     const parsed = UpdateMaintenanceTaskRequestSchema.safeParse(body)
 
     if (!parsed.success) {
+      logMaintenancePatchValidationFailure(request, patchLogCtx, 'Request body failed schema validation', {
+        issues: parsed.error.issues,
+      })
       return error(ErrorCodes.VALIDATION_ERROR, request, {
         errors: parsed.error.format(),
       })
@@ -146,6 +174,12 @@ export async function PATCH(
       (parsed.data.estimatedPartsCost != null && parsed.data.estimatedPartsCost !== undefined)
 
     if (isCompleted && hasCostFields) {
+      logMaintenancePatchValidationFailure(
+        request,
+        patchLogCtx,
+        'Cost fields cannot be modified on completed work orders',
+        { currentStatus: currentTask?.status },
+      )
       return error(
         ErrorCodes.VALIDATION_ERROR,
         request,
@@ -182,6 +216,12 @@ export async function PATCH(
       }
 
       if (!['in_progress', 'in_progress_vendor'].includes(currentStatus)) {
+        logMaintenancePatchValidationFailure(
+          request,
+          patchLogCtx,
+          'On-hold requests can only be submitted for in-progress work orders',
+          { currentStatus },
+        )
         return error(
           ErrorCodes.VALIDATION_ERROR,
           request,
@@ -191,6 +231,12 @@ export async function PATCH(
 
       const trimmedReason = parsed.data.on_hold_reason?.trim()
       if (!trimmedReason) {
+        logMaintenancePatchValidationFailure(
+          request,
+          patchLogCtx,
+          'on_hold_reason is required when requesting an on-hold',
+          { currentStatus },
+        )
         return error(
           ErrorCodes.VALIDATION_ERROR,
           request,
@@ -202,6 +248,16 @@ export async function PATCH(
     if (effectiveRequestedStatus && currentStatus !== effectiveRequestedStatus) {
       const allowed = VALID_TRANSITIONS[currentStatus]
       if (!allowed?.includes(effectiveRequestedStatus)) {
+        logMaintenancePatchValidationFailure(
+          request,
+          patchLogCtx,
+          'Invalid status transition',
+          {
+            currentStatus,
+            effectiveRequestedStatus,
+            allowedTransitions: allowed ?? null,
+          },
+        )
         return error(
           ErrorCodes.VALIDATION_ERROR,
           request,
@@ -251,6 +307,17 @@ export async function PATCH(
       currentStatus === 'open' &&
       !currentTask?.sla && !currentTask?.due_date
     ) {
+      logMaintenancePatchValidationFailure(
+        request,
+        patchLogCtx,
+        'Cannot start work without due date or SLA on open work order',
+        {
+          effectiveRequestedStatus,
+          currentStatus,
+          hasSla: Boolean(currentTask?.sla),
+          hasDueDate: Boolean(currentTask?.due_date),
+        },
+      )
       return error(
         ErrorCodes.VALIDATION_ERROR,
         request,
@@ -297,6 +364,12 @@ export async function PATCH(
           break
         case 'on_hold': {
           if (!parsed.data.on_hold_reason && !currentTask?.on_hold_reason) {
+            logMaintenancePatchValidationFailure(
+              request,
+              patchLogCtx,
+              'on_hold_reason is required before approving on-hold',
+              { currentStatus },
+            )
             return error(
               ErrorCodes.VALIDATION_ERROR,
               request,
@@ -322,6 +395,12 @@ export async function PATCH(
         }
         case 'cancelled':
           if (!parsed.data.cancelled_reason) {
+            logMaintenancePatchValidationFailure(
+              request,
+              patchLogCtx,
+              'cancelled_reason is required when cancelling a work order',
+              { currentStatus },
+            )
             return error(
               ErrorCodes.VALIDATION_ERROR,
               request,
@@ -360,6 +439,9 @@ export async function PATCH(
         .maybeSingle()
 
       if (!siteRow) {
+        logMaintenancePatchValidationFailure(request, patchLogCtx, 'Site not found for this property', {
+          siteId: parsed.data.siteId,
+        })
         return error(ErrorCodes.VALIDATION_ERROR, request, {
           message: 'Site not found for this property',
         })
@@ -394,11 +476,23 @@ export async function PATCH(
         const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
         if (siteTypeKey) {
           if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+            logMaintenancePatchValidationFailure(
+              request,
+              patchLogCtx,
+              'Site type not in allowed_site_types for maintenance',
+              { siteId: parsed.data.siteId, siteTypeKey },
+            )
             return error(ErrorCodes.VALIDATION_ERROR, request, {
               message: 'The selected site is not available for maintenance tasks',
             })
           }
           if (maintenanceMap[siteTypeKey] === false) {
+            logMaintenancePatchValidationFailure(
+              request,
+              patchLogCtx,
+              'Site type disabled in maintenance map',
+              { siteId: parsed.data.siteId, siteTypeKey },
+            )
             return error(ErrorCodes.VALIDATION_ERROR, request, {
               message: 'The selected site is not available for maintenance tasks',
             })
@@ -430,6 +524,11 @@ export async function PATCH(
           const nextEstimatedTotal = nextEstimatedLaborCost + nextEstimatedPartsCost
 
           if (thresholdAmount > 0 && nextEstimatedTotal > thresholdAmount) {
+            logMaintenancePatchValidationFailure(request, patchLogCtx, 'Estimated cost exceeds spend limit', {
+              nextCategory,
+              nextEstimatedTotal,
+              thresholdAmount,
+            })
             return error(ErrorCodes.VALIDATION_ERROR, request, {
               message: `Estimated total cost (${nextEstimatedTotal}) exceeds spend limit (${thresholdAmount}) for category ${nextCategory}.`,
             })
@@ -552,6 +651,7 @@ export async function PATCH(
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[Maintenance API v1] PATCH error:', err)
     if (message === 'Vendor not found for this property') {
+      logMaintenancePatchValidationFailure(request, { propertyId, maintenanceId }, message)
       return error(ErrorCodes.VALIDATION_ERROR, request, { message })
     }
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

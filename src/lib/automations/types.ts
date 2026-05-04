@@ -42,19 +42,14 @@ export type TriggerType =
   | 'reservation.checked_out'
   | 'reservation.no_show'
   // Guest events
-  | 'guest.registered'
   | 'guest.updated'
-  | 'guest.checked_out'
   // Payment events
   | 'payment.received'
-  | 'payment.succeeded'
   | 'payment.failed'
-  | 'payment.refunded'
   | 'refund.processed'
   // Site / property events
   | 'site.status_changed'
   | 'site.maintenance_started'
-  | 'site.maintenance_completed'
   // Housekeeping / maintenance
   | 'housekeeping.task_created'
   | 'housekeeping.task_completed'
@@ -134,6 +129,8 @@ export interface EventContext {
     type: string
     timestamp: Date
   }
+  companyId?: string
+  propertyId?: string
   reservation?: Record<string, unknown>
   guest?: Record<string, unknown>
   property?: Record<string, unknown>

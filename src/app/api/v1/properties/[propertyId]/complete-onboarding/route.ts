@@ -71,6 +71,15 @@ export async function POST(
     // Save to database
     await repository.save(property)
 
+    // Seed default automations and email templates for the property
+    try {
+      const { seedDefaultEmailAutomations } = await import('@/lib/automations/seed-defaults')
+      await seedDefaultEmailAutomations(property.id, property.companyId)
+    } catch (seedError) {
+      console.error('[Properties] Failed to seed default automations on onboarding:', seedError)
+      // Non-blocking — onboarding completion still succeeds
+    }
+
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)
 

@@ -157,6 +157,12 @@ export function ExecutionLogDetailDialog({
                                     ? `${log.execution_duration_ms}ms`
                                     : "N/A"}
                             </dd>
+                            {log.skipped_reason && (
+                                <>
+                                    <dt className="text-muted-foreground">Reason</dt>
+                                    <dd className="font-mono text-xs whitespace-pre-wrap break-words">{log.skipped_reason}</dd>
+                                </>
+                            )}
                         </dl>
                     </div>
 

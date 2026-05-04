@@ -322,6 +322,15 @@ export async function POST(request: NextRequest) {
     // Convert to DTO
     const propertyDTO = toPropertyDTO(property)
 
+    // Seed default automations and email templates for the new property
+    try {
+      const { seedDefaultEmailAutomations } = await import('@/lib/automations/seed-defaults')
+      await seedDefaultEmailAutomations(property.id, company.id)
+    } catch (seedError) {
+      console.error('[Properties] Failed to seed default automations:', seedError)
+      // Non-blocking — property creation still succeeds
+    }
+
     // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
     const response = success(propertyDTO)
     return new NextResponse(response.body, {

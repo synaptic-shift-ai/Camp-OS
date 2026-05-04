@@ -217,11 +217,8 @@ export function ExecutionLogTable({
                             <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                                 Entity
                             </TableHead>
-                            <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
-                                Entity
-                            </TableHead>
                             <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium text-center">
-                                Conditions
+                                Condition
                             </TableHead>
                             <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium text-center">
                                 Executed
@@ -244,9 +241,6 @@ export function ExecutionLogTable({
                             </TableHead>
                             <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                                 Outcome
-                            </TableHead>
-                            <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
-                                Reason
                             </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -297,15 +291,12 @@ export function ExecutionLogTable({
                                     <TableCell className="py-1.5">
                                         <OutcomeBadge outcome={outcome} />
                                     </TableCell>
-                                    <TableCell className="py-1.5 max-w-[150px] truncate" title={log.skipped_reason ?? ""}>
-                                        {log.skipped_reason ?? "—"}
-                                    </TableCell>
                                 </TableRow>
                             )
                         })}
                         {logs.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+                                <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                                     No execution logs found.
                                 </TableCell>
                             </TableRow>

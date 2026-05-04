@@ -939,25 +939,6 @@ export const DEFAULT_AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     ],
   },
 
-  // 29. Site Status Update
-  {
-    id: 'site-status-update',
-    name: 'Site Status Update',
-    description:
-      'Update site status to available after maintenance is completed.',
-    phase: 'OPERATE',
-    triggerType: 'site.maintenance_completed',
-    category: 'Operations',
-    actions: [
-      {
-        actionType: 'update_site_status',
-        actionConfig: {
-          status: 'available',
-        },
-      },
-    ],
-  },
-
   // 30. Staff Assignment
   {
     id: 'staff-assignment',

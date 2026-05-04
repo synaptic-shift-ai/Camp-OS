@@ -44,6 +44,7 @@ import {
   Maximize2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { isFullEmailDocument } from "@/lib/email/template-renderer"
 
 // ============================================================================
 // Types
@@ -181,6 +182,62 @@ function extractSettings(html: string): EmailSettings | null {
   }
 }
 
+/** Infer settings from legacy templates that don't have embedded settings metadata. */
+function inferSettingsFromHtml(html: string): Partial<EmailSettings> | null {
+  const source = html || ""
+
+  // Prefer shell/canvas backgrounds used by full email templates.
+  const bgMatch =
+    source.match(/background-color\s*:\s*([^;"'>]+)/i) ??
+    source.match(/bgcolor\s*=\s*["']([^"']+)["']/i)
+  const bgColor = bgMatch?.[1]?.trim()
+
+  // Width can be declared as table width="600" or style max-width/width.
+  const widthMatch =
+    source.match(/<table[^>]+width\s*=\s*["'](\d{3,4}|100%)["']/i) ??
+    source.match(/max-width\s*:\s*(\d{3,4})px/i) ??
+    source.match(/width\s*:\s*(\d{3,4})px/i)
+  const widthRaw = widthMatch?.[1]?.trim()
+  const width =
+    widthRaw === "100%"
+      ? "full"
+      : widthRaw && /^\d{3,4}$/.test(widthRaw)
+      ? widthRaw
+      : undefined
+
+  const inferred: Partial<EmailSettings> = {}
+  if (bgColor) inferred.bgColor = bgColor
+  if (width) inferred.width = width
+
+  return Object.keys(inferred).length > 0 ? inferred : null
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/** Rewrite legacy shell background color in full-template HTML. */
+function applyLegacyShellBg(html: string, bgColor: string): string {
+  const inferredBg = inferSettingsFromHtml(html)?.bgColor
+  const candidates = Array.from(
+    new Set(
+      [inferredBg, "#f6f9fc"]
+        .filter((v): v is string => Boolean(v))
+        .map((v) => v.toLowerCase())
+    )
+  )
+
+  let next = html
+  for (const candidate of candidates) {
+    const esc = escapeRegExp(candidate)
+    next = next
+      .replace(new RegExp(`background-color\\s*:\\s*${esc}`, "gi"), `background-color:${bgColor}`)
+      .replace(new RegExp(`background\\s*:\\s*${esc}`, "gi"), `background:${bgColor}`)
+      .replace(new RegExp(`bgcolor\\s*=\\s*["']${esc}["']`, "gi"), `bgcolor="${bgColor}"`)
+  }
+  return next
+}
+
 /** Strip settings comment from HTML */
 function stripSettings(html: string): string {
   return html.replace(/<!--email-settings:.*?-->\s*/, "")
@@ -223,7 +280,10 @@ export function RichEditor({
 
   // Parse existing settings from value
   const savedSettings = extractSettings(value)
-  const [settings, setSettings] = useState<EmailSettings>(savedSettings ?? DEFAULT_SETTINGS)
+  const inferredSettings = inferSettingsFromHtml(stripSettings(value))
+  const [settings, setSettings] = useState<EmailSettings>(
+    savedSettings ?? (inferredSettings ? { ...DEFAULT_SETTINGS, ...inferredSettings } : DEFAULT_SETTINGS)
+  )
   const [sourceMode, setSourceMode] = useState(false)
   const [sourceValue, setSourceValue] = useState("")
 
@@ -240,6 +300,7 @@ export function RichEditor({
 
   // Pure content (without settings comment)
   const contentOnly = stripSettings(value)
+  const isFullTemplate = isFullEmailDocument(contentOnly)
 
   // Initialize editor on mount
   useEffect(() => {
@@ -265,7 +326,11 @@ export function RichEditor({
     if (editorRef.current && editorRef.current.innerHTML !== newContent) {
       editorRef.current.innerHTML = newContent
     }
-    const newSettings = extractSettings(value) ?? DEFAULT_SETTINGS
+    const metadataSettings = extractSettings(value)
+    const inferred = inferSettingsFromHtml(stripSettings(value))
+    const newSettings =
+      metadataSettings ??
+      (inferred ? { ...DEFAULT_SETTINGS, ...inferred } : DEFAULT_SETTINGS)
     setSettings(newSettings)
   }, [value, sourceMode])
 
@@ -276,7 +341,10 @@ export function RichEditor({
 
   /** Save content + settings to parent */
   const save = useCallback((html: string) => {
-    const clean = html.replace(/^\s+|\s+$/g, "")
+    let clean = html.replace(/^\s+|\s+$/g, "")
+    if (isFullEmailDocument(clean)) {
+      clean = applyLegacyShellBg(clean, settings.bgColor)
+    }
     onChange(wrapWithSettings(clean, settings))
   }, [onChange, settings])
 
@@ -625,16 +693,14 @@ export function RichEditor({
           }}
         />
       ) : (
-        <div className="bg-muted p-4 overflow-y-auto">
+        <div className={cn("overflow-y-auto", isFullTemplate ? "p-0" : "p-4")} style={{ backgroundColor: settings.bgColor }}>
           <div
             style={{
               ...wrapperStyle(settings),
               color: '#000000',
               minHeight: `calc(${minHeight} - 2rem)`,
-              padding: "24px",
+              padding: isFullTemplate ? "0" : "24px",
               fontFamily: "sans-serif",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-              borderRadius: "4px",
               transition: "max-width 0.2s, background-color 0.2s",
             }}
           >

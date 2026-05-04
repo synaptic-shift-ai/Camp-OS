@@ -79,7 +79,11 @@ async function enrichReservationContext(
 
   if (effectivePropertyId) {
     await enrichProperty(context, effectivePropertyId, supabase)
+    context.propertyId = effectivePropertyId
   }
+
+  // Resolve companyId from property
+  resolveCompanyFromProperty(context)
 
   // Guest from reservation
   const guestId = extractId(
@@ -105,6 +109,85 @@ async function enrichReservationContext(
       .eq('id', siteId)
       .single()
     if (data) context.site = data as Record<string, unknown>
+  }
+
+  // Always fetch the latest financial transaction for this reservation
+  // so that reservation events (including cancellation) have payment context.
+  if (reservationId) {
+    const { data: latestTransaction } = await supabase
+      .from('financial_transactions')
+      .select('*')
+      .eq('reservation_id', reservationId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (latestTransaction) {
+      context.payment = latestTransaction as Record<string, unknown>
+    } else {
+      // Fallback: legacy payments table
+      const { data: legacyPayment } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('reservation_id', reservationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (legacyPayment) context.payment = legacyPayment as Record<string, unknown>
+    }
+
+    // For cancellation, look for a refund transaction specifically
+    const evtType = (context.event?.type as string | undefined)?.toLowerCase() ?? ''
+    if (evtType === 'reservation.cancelled') {
+      const { data: refundTransaction } = await supabase
+        .from('financial_transactions')
+        .select('*')
+        .eq('reservation_id', reservationId)
+        .eq('type', 'refund')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (refundTransaction) {
+        context.payment = refundTransaction as Record<string, unknown>
+        ;(context.payment as Record<string, unknown>).refund_status = refundTransaction.status || 'processing'
+      } else {
+        context.payment = (context.payment || {}) as Record<string, unknown>
+        ;(context.payment as Record<string, unknown>).refund_status = 'none'
+      }
+    }
+  }
+
+  // Computed fields on reservation
+  const reservation = context.reservation as Record<string, unknown> | undefined
+  if (reservation) {
+    // Alias cancelled_at → cancellation_date for templates
+    if (reservation.cancelled_at && !reservation.cancellation_date) {
+      reservation.cancellation_date = new Date(String(reservation.cancelled_at)).toLocaleDateString()
+    }
+    // Compute balance_due
+    if (reservation.total_amount !== undefined && reservation.paid_amount !== undefined) {
+      const balanceCents = Number(reservation.total_amount) - Number(reservation.paid_amount)
+      reservation.balance_due = `$${(balanceCents / 100).toFixed(2)}`
+    }
+  }
+
+  // Normalize payment column aliases for templates
+  const payment = context.payment as Record<string, unknown> | undefined
+  if (payment) {
+    const paymentAmount = payment.amount_cents ?? payment.amount
+    if (paymentAmount !== undefined && paymentAmount !== null) {
+      payment.formatted_amount = `$${(Number(paymentAmount) / 100).toFixed(2)}`
+      if (!payment.amount && payment.amount_cents) {
+        payment.amount = payment.amount_cents
+      }
+    }
+    if (payment.status && !payment.payment_status) {
+      payment.payment_status = payment.status
+    }
+    if (payment.method && !payment.payment_method) {
+      payment.payment_method = payment.method
+    }
   }
 }
 
@@ -158,6 +241,40 @@ async function enrichPaymentContext(
 
   if (effectivePropertyId) {
     await enrichProperty(context, effectivePropertyId, supabase)
+    context.propertyId = effectivePropertyId
+  }
+
+  // Resolve companyId from property
+  resolveCompanyFromProperty(context)
+
+  // Also fetch reservation for payment events so reservation vars resolve
+  if (effectiveReservationId && context.reservation) {
+    const reservation = context.reservation as Record<string, unknown>
+    if (reservation.total_amount !== undefined && reservation.paid_amount !== undefined) {
+      const balanceCents = Number(reservation.total_amount) - Number(reservation.paid_amount)
+      reservation.balance_due = `$${(balanceCents / 100).toFixed(2)}`
+    }
+    if (reservation.cancelled_at && !reservation.cancellation_date) {
+      reservation.cancellation_date = new Date(String(reservation.cancelled_at)).toLocaleDateString()
+    }
+  }
+
+  // Normalize payment column aliases for templates
+  const payment = context.payment as Record<string, unknown> | undefined
+  if (payment) {
+    const paymentAmount = payment.amount_cents ?? payment.amount
+    if (paymentAmount !== undefined && paymentAmount !== null) {
+      payment.formatted_amount = `$${(Number(paymentAmount) / 100).toFixed(2)}`
+      if (!payment.amount && payment.amount_cents) {
+        payment.amount = payment.amount_cents
+      }
+    }
+    if (payment.status && !payment.payment_status) {
+      payment.payment_status = payment.status
+    }
+    if (payment.method && !payment.payment_method) {
+      payment.payment_method = payment.method
+    }
   }
 }
 
@@ -184,7 +301,11 @@ async function enrichGuestContext(
 
   if (effectivePropertyId) {
     await enrichProperty(context, effectivePropertyId, supabase)
+    context.propertyId = effectivePropertyId
   }
+
+  // Resolve companyId from property
+  resolveCompanyFromProperty(context)
 }
 
 async function enrichSiteContext(
@@ -210,7 +331,11 @@ async function enrichSiteContext(
 
   if (effectivePropertyId) {
     await enrichProperty(context, effectivePropertyId, supabase)
+    context.propertyId = effectivePropertyId
   }
+
+  // Resolve companyId from property
+  resolveCompanyFromProperty(context)
 }
 
 async function enrichTaskContext(
@@ -222,6 +347,7 @@ async function enrichTaskContext(
 
   if (propertyId) {
     await enrichProperty(context, propertyId, supabase)
+    context.propertyId = propertyId
   }
 
   const siteId = extractId(payload.siteId)
@@ -233,6 +359,9 @@ async function enrichTaskContext(
       .single()
     if (data) context.site = data as Record<string, unknown>
   }
+
+  // Resolve companyId from property (may be set via enrichProperty)
+  resolveCompanyFromProperty(context)
 
   // Store event payload fields for condition resolution (e.g. housekeeping.priority)
   const eventType = payload.eventType as string | undefined ?? ''
@@ -266,7 +395,23 @@ async function enrichProperty(
     .select('*')
     .eq('id', propertyId)
     .single()
-  if (data) context.property = data as Record<string, unknown>
+  if (data) {
+    context.property = data as Record<string, unknown>
+    // Populate companyId and propertyId on context from property record
+    context.propertyId = propertyId
+    const cid = (data as Record<string, unknown>).company_id
+    if (typeof cid === 'string') context.companyId = cid
+  }
+}
+
+/**
+ * Resolve companyId from context.property if not already set.
+ */
+function resolveCompanyFromProperty(context: EventContext): void {
+  if (!context.companyId && context.property) {
+    const cid = context.property.company_id
+    if (typeof cid === 'string') context.companyId = cid
+  }
 }
 
 // ============================================================================

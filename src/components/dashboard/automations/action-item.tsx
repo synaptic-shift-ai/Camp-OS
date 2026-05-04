@@ -24,27 +24,13 @@ import type { AutomationActionFormData } from "./actions-section"
 import { cn } from "@/lib/utils"
 
 // ============================================================================
-// Constants
-// ============================================================================
-
-const FALLBACK_EMAIL_TEMPLATES = [
-  { value: "welcome_email", label: "Welcome Email" },
-  { value: "check_in_reminder", label: "Check-in Reminder" },
-  { value: "thank_you_email", label: "Thank You Email" },
-  { value: "review_request", label: "Review Request" },
-  { value: "payment_receipt", label: "Payment Receipt" },
-  { value: "payment_failed", label: "Payment Failed" },
-  { value: "pre_arrival", label: "Pre-Arrival Email" },
-  { value: "lead_time_rejection", label: "Lead Time Rejection" },
-]
-
-
-// ============================================================================
 // Dynamic template hook
 // ============================================================================
 
+type TemplateOption = { value: string; label: string }
+
 function useEmailTemplates(propertyId: string | undefined) {
-  const [templates, setTemplates] = useState(FALLBACK_EMAIL_TEMPLATES)
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -56,14 +42,14 @@ function useEmailTemplates(propertyId: string | undefined) {
       .then(payload => {
         if (cancelled) return
         const list = payload?.data?.emailTemplates ?? []
-        if (Array.isArray(list) && list.length > 0) {
+        if (Array.isArray(list)) {
           setTemplates(list.map((t: Record<string, unknown>) => ({
             value: String(t.slug),
             label: String(t.name),
           })))
         }
       })
-      .catch(() => { /* keep fallback */ })
+      .catch(() => { /* empty list on error */ })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [propertyId])

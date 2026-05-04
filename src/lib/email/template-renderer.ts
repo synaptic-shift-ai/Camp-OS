@@ -24,6 +24,24 @@ export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
   centered: true,
 }
 
+/** True when template is already a complete HTML document (system / migration templates). */
+export function isFullEmailDocument(html: string): boolean {
+  const t = html.trimStart()
+  // Full document
+  if (/^<!DOCTYPE\s+html/i.test(t) || /^<html[\s>]/i.test(t)) return true
+
+  // Some legacy/default templates are stored as "email-safe fragments":
+  // they start with <meta>/<style> and include a full 100%-width presentation table.
+  // Treat these as already-complete so we do not double-wrap them.
+  const startsLikeEmailFragment = /^<(meta|style|table)\b/i.test(t)
+  const hasViewportMeta = /<meta[^>]+name=["']viewport["'][^>]*>/i.test(t)
+  const hasEmailRootTable =
+    /<table[^>]+role=["']presentation["'][^>]*>/i.test(t) &&
+    /<table[^>]+(width=["']100%["']|style=["'][^"']*width:\s*100%)/i.test(t)
+
+  return startsLikeEmailFragment && (hasViewportMeta || hasEmailRootTable)
+}
+
 /** Extract email settings from HTML comment stored by the rich editor */
 export function extractEmailSettings(html: string): EmailSettings | null {
   const match = html.match(/<!--email-settings:(.*?)-->/)
@@ -57,7 +75,20 @@ export function wrapWithEmailLayout(content: string, settings: EmailSettings): s
   <tr><td style="padding:24px;font-family:sans-serif;">${content}</td></tr>
 </table>`
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>body{margin:0;padding:0;background:#f3f4f6;}img{max-width:100%;height:auto;}</style></head><body>${centerHTML}</body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>html,body{margin:0;padding:0;min-height:100%;background:${settings.bgColor};}img{max-width:100%;height:auto;}</style></head><body>${centerHTML}</body></html>`
+}
+
+/**
+ * Legacy default templates may hardcode shell background colors (e.g. #f6f9fc).
+ * When users change background in the editor settings, override those shell values
+ * so preview/test-send stay consistent with the selected setting.
+ */
+function applyLegacyBackgroundOverride(html: string, settings: EmailSettings): string {
+  const bg = settings.bgColor
+  return html
+    .replace(/background-color\s*:\s*#f6f9fc/gi, `background-color:${bg}`)
+    .replace(/background\s*:\s*#f6f9fc/gi, `background:${bg}`)
+    .replace(/bgcolor\s*=\s*["']#f6f9fc["']/gi, `bgcolor="${bg}"`)
 }
 
 // ============================================================================
@@ -98,6 +129,17 @@ export function enrichContext(raw: Record<string, unknown>): Record<string, unkn
     reservation.formatted_total = `$${(Number(reservation.total_amount) / 100).toFixed(2)}`
   }
 
+  // reservation.cancellation_date (alias for cancelled_at)
+  if (reservation?.cancelled_at && !reservation.cancellation_date) {
+    reservation.cancellation_date = new Date(String(reservation.cancelled_at)).toLocaleDateString()
+  }
+
+  // reservation.balance_due = total_amount - paid_amount
+  if (reservation?.total_amount !== undefined && reservation?.paid_amount !== undefined) {
+    const balanceCents = Number(reservation.total_amount) - Number(reservation.paid_amount)
+    reservation.balance_due = `$${(balanceCents / 100).toFixed(2)}`
+  }
+
   // property.address = concatenate available address fields
   const property = data.property as Record<string, unknown> | undefined
   if (property) {
@@ -113,10 +155,24 @@ export function enrichContext(raw: Record<string, unknown>): Record<string, unkn
     }
   }
 
-  // payment.formatted_amount = amount / 100
+  // payment.formatted_amount — DB column is amount_cents, legacy may use amount
   const payment = data.payment as Record<string, unknown> | undefined
-  if (payment && payment.amount !== undefined && payment.amount !== null) {
-    payment.formatted_amount = `$${(Number(payment.amount) / 100).toFixed(2)}`
+  const paymentAmount = payment?.amount_cents ?? payment?.amount
+  if (payment !== undefined && payment !== null && paymentAmount !== undefined && paymentAmount !== null) {
+    payment.formatted_amount = `$${(Number(paymentAmount) / 100).toFixed(2)}`
+    // Also normalize the amount field for template access
+    if (!payment.amount && payment.amount_cents) {
+      payment.amount = payment.amount_cents
+    }
+  }
+
+  // Normalize payment_status from status column
+  if (payment?.status && !payment.payment_status) {
+    payment.payment_status = payment.status
+  }
+  // Normalize payment_method from method column
+  if (payment?.method && !payment.payment_method) {
+    payment.payment_method = payment.method
   }
 
   return data
@@ -168,9 +224,12 @@ export function renderWithSampleData(subject: string, html: string): {
   const settings = extractEmailSettings(html) ?? DEFAULT_EMAIL_SETTINGS
   const content = stripEmailSettings(html)
   const renderedContent = replaceVariables(content, sample)
+  const full = isFullEmailDocument(renderedContent)
   return {
     subject: replaceVariables(subject, sample),
-    html: wrapWithEmailLayout(renderedContent, settings),
+    html: full
+      ? applyLegacyBackgroundOverride(renderedContent, settings)
+      : wrapWithEmailLayout(renderedContent, settings),
   }
 }
 
@@ -192,7 +251,10 @@ export function renderWithContext(
   const settings = extractEmailSettings(html) ?? DEFAULT_EMAIL_SETTINGS
   const content = stripEmailSettings(html)
   const renderedContent = replaceVariables(content, enriched)
-  const renderedHtml = wrapWithEmailLayout(renderedContent, settings)
+  const full = isFullEmailDocument(renderedContent)
+  const renderedHtml = full
+    ? applyLegacyBackgroundOverride(renderedContent, settings)
+    : wrapWithEmailLayout(renderedContent, settings)
   const renderedText = renderedContent
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')

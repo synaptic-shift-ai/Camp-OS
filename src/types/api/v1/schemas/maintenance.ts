@@ -188,3 +188,19 @@ export type CreateBudgetRequest = z.infer<typeof CreateBudgetRequestSchema>
 export type UpdateBudgetRequest = z.infer<typeof UpdateBudgetRequestSchema>
 export type CreateSpendLimitRequest = z.infer<typeof CreateSpendLimitRequestSchema>
 export type UpdateSpendLimitRequest = z.infer<typeof UpdateSpendLimitRequestSchema>
+
+// ── Maintenance Guide schemas ──
+
+export const MaintenanceGuideStepSchema = z.object({
+    id: z.string(),
+    label: z.string().min(1, 'Step label is required'),
+    notes: z.string().optional(),
+})
+
+export const CreateMaintenanceGuideSchema = z.object({
+    name: z.string().min(1, 'Guide name is required').max(200),
+    description: z.string().nullable().optional(),
+    steps: z.array(MaintenanceGuideStepSchema).min(1, 'At least one step is required'),
+})
+
+export const UpdateMaintenanceGuideSchema = CreateMaintenanceGuideSchema

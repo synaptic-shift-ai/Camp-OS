@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ManualPaymentDialog } from '@/components/admin/manual-payment-dialog'
+import { DollarSign } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -137,9 +140,23 @@ function formatDateTime(dateString: string): string {
 
 export type TransactionHistoryTabProps = {
   reservationId: string
+  confirmationNumber: string
+  guestName: string
+  guestId: string | null
+  canRecordPayment: boolean
+  totalAmountCents: number
+  paidAmountCents: number
 }
 
-export function TransactionHistoryTab({ reservationId }: TransactionHistoryTabProps) {
+export function TransactionHistoryTab({
+  reservationId,
+  confirmationNumber,
+  guestName,
+  guestId,
+  canRecordPayment,
+  totalAmountCents,
+  paidAmountCents,
+}: TransactionHistoryTabProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -249,8 +266,36 @@ export function TransactionHistoryTab({ reservationId }: TransactionHistoryTabPr
 
   const statusStyle = (status: string) => STATUS_BADGE[status] ?? { variant: 'outline' as const }
 
+  const outstandingBalance = Math.max(0, totalAmountCents - paidAmountCents)
+
   return (
     <div className="space-y-3">
+      {/* Balance + Record Payment header */}
+      <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 p-3">
+        <div>
+          <div className="text-xs font-medium text-muted-foreground">Outstanding Balance</div>
+          <div className={`mt-0.5 text-lg font-semibold ${outstandingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+            {formatMoney(outstandingBalance)}
+          </div>
+        </div>
+        {canRecordPayment && outstandingBalance > 0 && (
+          <ManualPaymentDialog
+            reservationId={reservationId}
+            confirmationNumber={confirmationNumber}
+            guestName={guestName}
+            guestId={guestId}
+            totalAmountCents={totalAmountCents}
+            paidAmountCents={paidAmountCents}
+            trigger={
+              <Button className="gap-2" size="sm">
+                <DollarSign className="h-4 w-4" />
+                Record Payment
+              </Button>
+            }
+          />
+        )}
+      </div>
+
       {/* Header with type filter */}
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">

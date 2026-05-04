@@ -178,6 +178,38 @@ function escapeIlikePattern(raw: string): string {
     return noCommas.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
+// ── Maintenance Guide types ──
+
+export interface MaintenanceGuideStep {
+  id: string
+  label: string
+  notes: string | null
+}
+
+export interface MaintenanceGuideListItem {
+  id: string
+  name: string
+  description: string | null
+  steps: MaintenanceGuideStep[]
+  created_at: string
+}
+
+export interface CreateMaintenanceGuideInput {
+  propertyId: string
+  createdBy: string
+  name: string
+  description?: string | null
+  steps: MaintenanceGuideStep[]
+}
+
+export interface UpdateMaintenanceGuideInput {
+  id: string
+  propertyId: string
+  name: string
+  description?: string | null
+  steps: MaintenanceGuideStep[]
+}
+
 export class MaintenanceQueries {
     constructor(private supabase: SupabaseClient) {}
 
@@ -1312,5 +1344,192 @@ export class MaintenanceQueries {
         return data.reduce((sum, row) => {
             return sum + (row.actual_labor_cost ?? row.estimated_labor_cost ?? 0) + (row.actual_parts_cost ?? row.estimated_parts_cost ?? 0)
         }, 0)
+    }
+
+    // ── Maintenance Guide CRUD ──
+
+    async listMaintenanceGuides(propertyId: string): Promise<MaintenanceGuideListItem[]> {
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .select('id, name, description, steps, created_at')
+            .eq('property_id', propertyId)
+            .order('updated_at', { ascending: false })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to list maintenance guides', {
+                propertyId,
+                error,
+            })
+            throw new Error(`Failed to list maintenance guides: ${error.message}`)
+        }
+
+        return (data ?? []) as unknown as MaintenanceGuideListItem[]
+    }
+
+    async getMaintenanceGuideById(guideId: string): Promise<MaintenanceGuideListItem | null> {
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .select('id, name, description, steps, created_at')
+            .eq('id', guideId)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to load maintenance guide', {
+                guideId,
+                error,
+            })
+            throw new Error(`Failed to load maintenance guide: ${error.message}`)
+        }
+
+        return (data ?? null) as unknown as MaintenanceGuideListItem | null
+    }
+
+    async createMaintenanceGuide(input: CreateMaintenanceGuideInput): Promise<MaintenanceGuideListItem> {
+        const name = input.name.trim()
+        if (!name) {
+            throw new Error('Guide name is required.')
+        }
+
+        const { data: existingGuides, error: existingGuidesError } = await this.supabase
+            .from('maintenance_guides')
+            .select('id, name')
+            .eq('property_id', input.propertyId)
+
+        if (existingGuidesError) {
+            console.error('[MaintenanceQueries] Failed to validate guide name uniqueness', {
+                propertyId: input.propertyId,
+                error: existingGuidesError,
+            })
+            throw new Error(`Failed to validate guide name: ${existingGuidesError.message}`)
+        }
+
+        const normalizedName = name.toLowerCase()
+        const hasDuplicateName = (existingGuides ?? []).some((row) => {
+            const existingName = typeof row.name === 'string' ? row.name.trim().toLowerCase() : ''
+            return existingName.length > 0 && existingName === normalizedName
+        })
+
+        if (hasDuplicateName) {
+            throw new Error('A guide with this name already exists.')
+        }
+
+        const stepRows = input.steps
+            .map((step) => ({
+                id: step.id,
+                label: step.label.trim(),
+                notes: step.notes?.trim() ? step.notes.trim() : null,
+            }))
+            .filter((step) => step.label.length > 0)
+
+        if (stepRows.length === 0) {
+            throw new Error('Add at least one step with a name.')
+        }
+
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .insert({
+                property_id: input.propertyId,
+                created_by: input.createdBy,
+                name,
+                description: input.description?.trim() ? input.description.trim() : null,
+                steps: stepRows,
+            })
+            .select('id, name, description, steps, created_at')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to create maintenance guide', {
+                propertyId: input.propertyId,
+                error,
+            })
+            throw new Error(`Failed to save maintenance guide: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to save maintenance guide: no row returned')
+        }
+
+        return data as unknown as MaintenanceGuideListItem
+    }
+
+    async updateMaintenanceGuide(input: UpdateMaintenanceGuideInput): Promise<MaintenanceGuideListItem> {
+        const name = input.name.trim()
+        if (!name) {
+            throw new Error('Guide name is required.')
+        }
+
+        const { data: existingRow, error: fetchError } = await this.supabase
+            .from('maintenance_guides')
+            .select('id')
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .maybeSingle()
+
+        if (fetchError) {
+            console.error('[MaintenanceQueries] Failed to load guide for update', {
+                id: input.id,
+                fetchError,
+            })
+            throw new Error(`Failed to load maintenance guide: ${fetchError.message}`)
+        }
+        if (!existingRow) {
+            throw new Error('Maintenance guide not found for this property.')
+        }
+
+        const stepRows = input.steps
+            .map((step) => ({
+                id: step.id,
+                label: step.label.trim(),
+                notes: step.notes?.trim() ? step.notes.trim() : null,
+            }))
+            .filter((step) => step.label.length > 0)
+
+        if (stepRows.length === 0) {
+            throw new Error('Add at least one step with a name.')
+        }
+
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .update({
+                name,
+                description: input.description?.trim() ? input.description.trim() : null,
+                steps: stepRows,
+            })
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select('id, name, description, steps, created_at')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to update maintenance guide', {
+                id: input.id,
+                propertyId: input.propertyId,
+                error,
+            })
+            throw new Error(`Failed to update maintenance guide: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to update maintenance guide: no row returned')
+        }
+
+        return data as unknown as MaintenanceGuideListItem
+    }
+
+    async deleteMaintenanceGuide(input: { id: string; propertyId: string }): Promise<void> {
+        const { error } = await this.supabase
+            .from('maintenance_guides')
+            .delete()
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to delete maintenance guide', {
+                error,
+                id: input.id,
+                propertyId: input.propertyId,
+            })
+            throw new Error(`Failed to delete maintenance guide: ${error.message}`)
+        }
     }
 }

@@ -346,7 +346,15 @@ export function ReservationDetailDialog({
               </TabsContent>
 
               <TabsContent value="transactions">
-                <TransactionHistoryTab reservationId={reservation.id} />
+                <TransactionHistoryTab
+                  reservationId={reservation.id}
+                  confirmationNumber={reservation.confirmationNumber}
+                  guestName={reservation.guestName}
+                  guestId={reservation.guestId}
+                  canRecordPayment={true}
+                  totalAmountCents={reservation.totalAmount}
+                  paidAmountCents={reservation.paidAmount}
+                />
               </TabsContent>
             </Tabs>
           </>

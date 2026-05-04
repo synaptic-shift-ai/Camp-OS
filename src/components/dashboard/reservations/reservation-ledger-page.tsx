@@ -442,9 +442,9 @@ export function ReservationLedgerPage({
                         {prefixSignedAmount(txn.amount_cents)}
                       </div>
                       <div className="mt-0.5 text-xs text-muted-foreground">{formatDate(txn.created_at)}</div>
-                      <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                        {txn.created_by ?? txn.source ?? "—"}
-                      </div>
+                      {txn.created_by ? (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground truncate">{txn.created_by}</div>
+                      ) : null}
                       {isCredit && !txn.is_voided ? <div className="mt-0.5 text-[10px] text-green-500">Credit</div> : null}
                     </div>
                   </div>

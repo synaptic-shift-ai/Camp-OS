@@ -264,11 +264,13 @@ export async function confirmReservationPayment(
     propertyId: reservation.property_id,
     reservationId,
     guestId: reservation.guest_id,
-    createdByUserId: (reservation as any).created_by ?? null,
+    createdByUserId: null,
+    guestInitiatedLedger: true,
     amountCents: paymentDetails.amount,
-    paymentMethod: PaymentMethod.CREDIT_CARD,
+    paymentMethod: PaymentMethod.STRIPE,
     stripePaymentIntentId: paymentDetails.stripe_payment_id,
-    description: 'Reservation confirmation payment',
+    description: 'Guest self-service reservation payment',
+    processorEventId: paymentDetails.stripe_payment_id,
     logPrefix: '[ConfirmPayment DualWrite]',
   })
 

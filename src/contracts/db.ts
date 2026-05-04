@@ -990,7 +990,7 @@ export type Database = {
         Row: {
           amount_cents: number
           created_at: string
-          created_by: string
+          created_by: string | null
           currency: string
           failure_reason: string | null
           guest_id: string | null
@@ -1017,7 +1017,7 @@ export type Database = {
         Insert: {
           amount_cents: number
           created_at?: string
-          created_by: string
+          created_by?: string | null
           currency?: string
           failure_reason?: string | null
           guest_id?: string | null
@@ -1044,7 +1044,7 @@ export type Database = {
         Update: {
           amount_cents?: number
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           currency?: string
           failure_reason?: string | null
           guest_id?: string | null

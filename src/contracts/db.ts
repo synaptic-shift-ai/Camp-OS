@@ -1682,6 +1682,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "maintenance_tasks_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_guides"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "maintenance_tasks_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false

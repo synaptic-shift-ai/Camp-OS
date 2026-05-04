@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -200,6 +201,7 @@ export function MaintenanceView({
   const [isReassigning, setIsReassigning] = useState(false)
   const [taskImages, setTaskImages] = useState<TaskImageItem[]>([])
   const [guideData, setGuideData] = useState<{ name: string; description: string | null; steps: Array<{ id: string; label: string; notes?: string }> } | null>(null)
+  const [guideLoading, setGuideLoading] = useState(false)
   // Actual cost editing state
   const [editLaborCost, setEditLaborCost] = useState<string>("")
   const [editPartsCost, setEditPartsCost] = useState<string>("")
@@ -323,9 +325,12 @@ export function MaintenanceView({
   useEffect(() => {
     if (!task?.guide_id) {
       setGuideData(null)
+      setGuideLoading(false)
       return
     }
     let cancelled = false
+    setGuideLoading(true)
+    setGuideData(null)
     fetch(`/api/v1/properties/${propertyId}/maintenance/guides/${task.guide_id}`)
       .then((res) => res.json())
       .then((payload) => {
@@ -341,6 +346,9 @@ export function MaintenanceView({
       })
       .catch(() => {
         if (!cancelled) setGuideData(null)
+      })
+      .finally(() => {
+        if (!cancelled) setGuideLoading(false)
       })
     return () => { cancelled = true }
   }, [task?.guide_id, propertyId])
@@ -1317,27 +1325,51 @@ export function MaintenanceView({
             </CardContent>
           </Card>
 
-          {task.guide_id && guideData && (
+          {task.guide_id && (guideLoading || guideData) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Linked Guide</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <h4 className="font-medium">{guideData.name}</h4>
-                {guideData.description && (
-                  <p className="text-sm text-muted-foreground mt-1">{guideData.description}</p>
-                )}
-                <div className="mt-3 space-y-2">
-                  {guideData.steps.map((step, idx) => (
-                    <div key={step.id} className="flex gap-2 text-sm">
-                      <span className="font-medium text-muted-foreground min-w-[20px]">{idx + 1}.</span>
-                      <div>
-                        <span>{step.label}</span>
-                        {step.notes && <p className="text-muted-foreground text-xs mt-0.5">{step.notes}</p>}
+                {guideLoading && !guideData ? (
+                  <div className="space-y-3" aria-busy="true" aria-label="Loading linked guide">
+                    <Skeleton className="h-5 w-52" />
+                    <Skeleton className="h-4 w-full max-w-lg" />
+                    <Skeleton className="h-4 w-full max-w-md" />
+                    <div className="mt-4 space-y-2.5">
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-5 shrink-0" />
+                        <Skeleton className="h-4 flex-1 max-w-xl" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-5 shrink-0" />
+                        <Skeleton className="h-4 flex-1 max-w-lg" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-5 shrink-0" />
+                        <Skeleton className="h-4 flex-1 max-w-md" />
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : guideData ? (
+                  <>
+                    <h4 className="font-medium">{guideData.name}</h4>
+                    {guideData.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{guideData.description}</p>
+                    )}
+                    <div className="mt-3 space-y-2">
+                      {guideData.steps.map((step, idx) => (
+                        <div key={step.id} className="flex gap-2 text-sm">
+                          <span className="font-medium text-muted-foreground min-w-[20px]">{idx + 1}.</span>
+                          <div>
+                            <span>{step.label}</span>
+                            {step.notes && <p className="text-muted-foreground text-xs mt-0.5">{step.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
               </CardContent>
             </Card>
           )}

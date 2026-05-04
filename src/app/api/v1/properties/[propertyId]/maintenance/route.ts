@@ -173,51 +173,6 @@ export async function GET(
             listFilters.assigneeId = selfStaffId ?? '__no_staff_assignment__'
         }
 
-        // Restrict WO list to sites whose site type is enabled for maintenance.
-        const [{ data: propertyRow }, { data: sites }] = await Promise.all([
-            supabase
-                .from('properties')
-                .select('site_type_config')
-                .eq('id', propertyId)
-                .maybeSingle(),
-            supabase
-                .from('sites')
-                .select('id, site_type')
-                .eq('property_id', propertyId)
-                .is('deleted_at', null),
-        ])
-
-        const siteTypeConfig =
-            (propertyRow?.site_type_config as {
-                maintenance?: Record<string, boolean>
-                allowed_site_types?: string[]
-            } | null | undefined) ?? null
-
-        const maintenanceMap = Object.fromEntries(
-            Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
-                toCanonicalSiteTypeKey(key),
-                value,
-            ]),
-        )
-
-        const allowedSiteTypeSet = new Set(
-            Array.isArray(siteTypeConfig?.allowed_site_types)
-                ? siteTypeConfig!.allowed_site_types.map((siteType) =>
-                    toCanonicalSiteTypeKey(siteType),
-                )
-                : [],
-        )
-
-        const allowedMaintenanceSiteIds = (sites ?? [])
-            .filter((site) => {
-                const siteTypeKey = toCanonicalSiteTypeKey(site.site_type as string | null | undefined)
-                if (!siteTypeKey) return true
-                if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) return false
-                return maintenanceMap[siteTypeKey] !== false
-            })
-            .map((site) => site.id as string)
-
-        listFilters.siteIds = allowedMaintenanceSiteIds
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const [listResult, openTaskCount] = await Promise.all([

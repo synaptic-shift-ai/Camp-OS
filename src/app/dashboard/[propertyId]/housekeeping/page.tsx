@@ -44,38 +44,6 @@ async function getHousekeepingPageOptions(
       .replace(/\bsite\b/g, "")
       .trim()
 
-  const { data: property } = await supabase
-    .from("properties")
-    .select("site_type_config")
-    .eq("id", propertyId)
-    .maybeSingle()
-
-  const housekeepingSiteTypeConfig =
-    (
-      property?.site_type_config as
-        | { housekeeping?: Record<string, boolean>; allowed_site_types?: string[] }
-        | null
-        | undefined
-    )?.housekeeping ?? {}
-  const allowedSiteTypesConfig =
-    (
-      property?.site_type_config as
-        | { housekeeping?: Record<string, boolean>; allowed_site_types?: string[] }
-        | null
-        | undefined
-    )?.allowed_site_types ?? []
-  const canonicalHousekeepingConfig = Object.fromEntries(
-    Object.entries(housekeepingSiteTypeConfig).map(([key, value]) => [
-      toCanonicalSiteTypeKey(key),
-      value,
-    ]),
-  )
-  const allowedSiteTypeSet = new Set(
-    Array.isArray(allowedSiteTypesConfig)
-      ? allowedSiteTypesConfig.map((siteType) => toCanonicalSiteTypeKey(siteType))
-      : [],
-  )
-
   // All non-deleted sites: tasks can reference a site after turnover (e.g. status becomes available);
   // restricting to housekeeping-only would leave Edit Task with no matching SelectItem and an empty Site field.
   const { data: sites } = await supabase
@@ -85,18 +53,10 @@ async function getHousekeepingPageOptions(
     .is("deleted_at", null)
     .order("site_number", { ascending: true })
 
-  const siteOptions = (sites ?? [])
-    .filter((site) => {
-      const siteTypeKey = toCanonicalSiteTypeKey(site.site_type as string | null | undefined)
-      if (!siteTypeKey) return true
-      if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) return false
-      const isAllowed = canonicalHousekeepingConfig[siteTypeKey]
-      return isAllowed !== false
-    })
-    .map((site) => ({
-      id: site.id as string,
-      label: (site.site_name as string | null)?.trim() || (site.site_number as string),
-    }))
+  const siteOptions = (sites ?? []).map((site) => ({
+    id: site.id as string,
+    label: (site.site_name as string | null)?.trim() || (site.site_number as string),
+  }))
 
   const { data: staffCategories } = await supabase
     .from("property_role_categories")

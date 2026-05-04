@@ -52,8 +52,8 @@ export interface TransactionProps {
   reconciledAt: Date | null
   reconciledBy: string | null
 
-  // Audit
-  createdBy: string
+  // Audit (null when guest / booking-site initiated payment, not staff)
+  createdBy: string | null
   updatedAt: Date
 
   // Stripe webhook idempotency
@@ -105,7 +105,7 @@ export class Transaction extends AggregateRoot<string> {
     type: TransactionType,
     amount: MoneyAmount,
     paymentMethod: PaymentMethod,
-    createdBy: string,
+    createdBy: string | null,
     invoiceId: string | null = null,
     notes: string | null = null,
     source: TransactionSource = TransactionSource.RESERVATION,
@@ -211,7 +211,7 @@ export class Transaction extends AggregateRoot<string> {
       notes: data.notes,
       reconciledAt: data.reconciled_at ? new Date(data.reconciled_at) : null,
       reconciledBy: data.reconciled_by,
-      createdBy: data.created_by,
+      createdBy: (data.created_by as string | null | undefined) ?? null,
       updatedAt: new Date(data.updated_at),
       processorEventId: data.processor_event_id ?? null,
       isVoided: data.is_voided ?? false,
@@ -293,7 +293,7 @@ export class Transaction extends AggregateRoot<string> {
     return this.props.reconciledBy
   }
 
-  get createdBy(): string {
+  get createdBy(): string | null {
     return this.props.createdBy
   }
 

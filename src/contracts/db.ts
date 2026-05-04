@@ -409,9 +409,11 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          default_version: number | null
           description: string | null
           id: string
           is_active: boolean
+          is_modified: boolean | null
           is_terminal: boolean
           name: string
           phase: string
@@ -425,9 +427,11 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          default_version?: number | null
           description?: string | null
           id?: string
           is_active?: boolean
+          is_modified?: boolean | null
           is_terminal?: boolean
           name: string
           phase: string
@@ -441,9 +445,11 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          default_version?: number | null
           description?: string | null
           id?: string
           is_active?: boolean
+          is_modified?: boolean | null
           is_terminal?: boolean
           name?: string
           phase?: string
@@ -578,15 +584,107 @@ export type Database = {
         }
         Relationships: []
       }
+      default_automations: {
+        Row: {
+          actions: Json | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phase: string
+          scope: string | null
+          sort_order: number | null
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          actions?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phase?: string
+          scope?: string | null
+          sort_order?: number | null
+          trigger_config?: Json | null
+          trigger_type: string
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          actions?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phase?: string
+          scope?: string | null
+          sort_order?: number | null
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
+      default_email_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          html_template: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          slug: string
+          subject_template: string | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          html_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          slug: string
+          subject_template?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          html_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          subject_template?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           category: string
           company_id: string
           created_at: string
+          default_version: number | null
           description: string | null
           html_template: string
           id: string
           is_active: boolean
+          is_modified: boolean | null
           is_system_default: boolean
           name: string
           property_id: string | null
@@ -598,10 +696,12 @@ export type Database = {
           category?: string
           company_id: string
           created_at?: string
+          default_version?: number | null
           description?: string | null
           html_template?: string
           id?: string
           is_active?: boolean
+          is_modified?: boolean | null
           is_system_default?: boolean
           name: string
           property_id?: string | null
@@ -613,10 +713,12 @@ export type Database = {
           category?: string
           company_id?: string
           created_at?: string
+          default_version?: number | null
           description?: string | null
           html_template?: string
           id?: string
           is_active?: boolean
+          is_modified?: boolean | null
           is_system_default?: boolean
           name?: string
           property_id?: string | null
@@ -888,7 +990,7 @@ export type Database = {
         Row: {
           amount_cents: number
           created_at: string
-          created_by: string
+          created_by: string | null
           currency: string
           failure_reason: string | null
           guest_id: string | null
@@ -915,7 +1017,7 @@ export type Database = {
         Insert: {
           amount_cents: number
           created_at?: string
-          created_by: string
+          created_by?: string | null
           currency?: string
           failure_reason?: string | null
           guest_id?: string | null
@@ -942,7 +1044,7 @@ export type Database = {
         Update: {
           amount_cents?: number
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           currency?: string
           failure_reason?: string | null
           guest_id?: string | null
@@ -1246,6 +1348,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "housekeeping_tasks_linked_maintenance_task_id_fkey"
+            columns: ["linked_maintenance_task_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_tasks"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "housekeeping_tasks_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
@@ -1309,6 +1418,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "maintenance_budgets_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_guides: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          property_id: string
+          steps: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          property_id: string
+          steps?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          property_id?: string
+          steps?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_guides_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
@@ -1433,8 +1583,10 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          due_date: string | null
           estimated_labor_cost: number | null
           estimated_parts_cost: number | null
+          guide_id: string | null
           id: string
           is_suspected_damage: boolean
           on_hold_at: string | null
@@ -1442,6 +1594,7 @@ export type Database = {
           priority: string
           property_id: string
           schedule_id: string | null
+          scheduled_start: string | null
           site_id: string
           sla: number | null
           source: string
@@ -1466,8 +1619,10 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          due_date?: string | null
           estimated_labor_cost?: number | null
           estimated_parts_cost?: number | null
+          guide_id?: string | null
           id?: string
           is_suspected_damage?: boolean
           on_hold_at?: string | null
@@ -1475,6 +1630,7 @@ export type Database = {
           priority?: string
           property_id: string
           schedule_id?: string | null
+          scheduled_start?: string | null
           site_id: string
           sla?: number | null
           source?: string
@@ -1499,8 +1655,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          due_date?: string | null
           estimated_labor_cost?: number | null
           estimated_parts_cost?: number | null
+          guide_id?: string | null
           id?: string
           is_suspected_damage?: boolean
           on_hold_at?: string | null
@@ -1508,6 +1666,7 @@ export type Database = {
           priority?: string
           property_id?: string
           schedule_id?: string | null
+          scheduled_start?: string | null
           site_id?: string
           sla?: number | null
           source?: string
@@ -1522,6 +1681,13 @@ export type Database = {
           wo_number?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "maintenance_tasks_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_guides"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "maintenance_tasks_property_id_fkey"
             columns: ["property_id"]

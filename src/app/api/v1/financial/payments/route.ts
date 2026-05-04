@@ -222,7 +222,6 @@ export async function POST(request: NextRequest) {
         })
       }
     }
-
     const dto = toTransactionDTO(payment)
     return NextResponse.json(success(dto), { status: 201 })
   } catch (err: unknown) {

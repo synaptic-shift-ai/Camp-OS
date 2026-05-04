@@ -175,7 +175,6 @@ export function ManualPaymentDialog({
     if (!open) return
 
     // Reset form state
-    setError(null)
     setPaymentMethod(defaultPaymentMethod ?? "")
     setReference("")
     setProcessor(defaultProcessor ?? "none")

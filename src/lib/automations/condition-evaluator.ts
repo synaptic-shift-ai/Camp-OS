@@ -131,7 +131,10 @@ function resolveVariable(path: string, context: EventContext): unknown {
       current = context.payment
       break
     case 'housekeeping':
-      current = context.property
+      current = context.housekeeping
+      break
+    case 'maintenance':
+      current = context.maintenance
       break
     default:
       return undefined

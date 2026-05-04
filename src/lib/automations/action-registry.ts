@@ -12,7 +12,51 @@ export type ActionHandlerMap = Map<ActionType, ActionHandler>
 export function createActionRegistry(): ActionHandlerMap {
   const registry = new Map<ActionType, ActionHandler>()
 
-  const stubTypes: ActionType[] = [
+  // send_notification: in-app notification with activity log
+  registry.set('send_notification', {
+    async execute(config, context) {
+      const channel = config.channel as string | undefined
+      const priority = config.priority as string | undefined
+      const message = config.message as string | undefined
+
+      console.log(`[Automation Action] send_notification executed`, {
+        channel,
+        priority,
+        message,
+        propertyId: context.property?.id,
+      })
+
+      // Best-effort: create an activity log entry for the notification
+      try {
+        const { createServiceRoleClient } = await import('@/lib/supabase/service-role')
+        const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+
+        const supabase = createServiceRoleClient()
+        const companyId = context.property?.company_id as string | undefined
+        const propertyId = context.property?.id as string | undefined
+
+        if (companyId && propertyId) {
+          await recordActivityLog(
+            supabase,
+            {
+              companyId,
+              propertyId,
+              action: 'notification',
+              resource: 'automation',
+              userId: null,
+              details: `[${priority ?? 'normal'}] ${message ?? 'Automation notification'} (channel: ${channel ?? 'in-app'})`,
+            },
+            { failOpen: true },
+          )
+        }
+      } catch (logErr) {
+        // Non-blocking: activity log failure should not affect the automation
+        console.error('[send_notification] Failed to create activity log entry', logErr)
+      }
+    },
+  })
+
+  const remainingStubTypes: ActionType[] = [
     'block_reservation',
     'flag_for_review',
     'apply_price_modifier',
@@ -29,7 +73,7 @@ export function createActionRegistry(): ActionHandlerMap {
     'create_audit_entry',
   ]
 
-  for (const type of stubTypes) {
+  for (const type of remainingStubTypes) {
     registry.set(type, {
       async execute(config) {
         console.log(`[Automation Action] ${type} executed (stub)`, { config })

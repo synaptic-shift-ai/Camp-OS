@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Upload, X } from "lucide-react"
+import { format } from "date-fns"
+import { CalendarIcon, Upload, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Dialog,
   DialogContent,
@@ -43,6 +46,7 @@ type EditTaskDialogProps = {
   canAssignWorkOrder?: boolean
   isSubmitting?: boolean
   vendorOptions?: Array<{ id: string; label: string }>
+  guideOptions?: Array<{ id: string; label: string }>
   onSubmit: (input: AddMaintenanceTaskInput & { id: string }) => Promise<void>
 }
 
@@ -68,7 +72,9 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   estimatedPartsCost: null,
   isSuspectedDamage: false,
   vendorId: null,
-  sla: null,
+  guideId: null,
+  scheduledStart: null,
+  dueDate: null,
 }
 
 export function EditTaskDialog({
@@ -80,6 +86,7 @@ export function EditTaskDialog({
   canAssignWorkOrder = true,
   isSubmitting = false,
   vendorOptions = [],
+  guideOptions = [],
   onSubmit,
 }: EditTaskDialogProps) {
   const { toast } = useToast()
@@ -118,7 +125,9 @@ export function EditTaskDialog({
       estimatedPartsCost: task.estimatedPartsCost ?? null,
       isSuspectedDamage: task.isSuspectedDamage ?? false,
       vendorId: task.vendorId ?? null,
-      sla: task.sla ?? null,
+      guideId: (task as any).guideId ?? null,
+      scheduledStart: task.scheduledStart ?? null,
+      dueDate: task.dueDate ?? null,
     })
     setCustomCategory(parsedCategory === "other" ? task.category ?? "" : "")
     clearLocalImages()
@@ -192,7 +201,9 @@ export function EditTaskDialog({
         estimatedLaborCost: form.estimatedLaborCost ?? null,
         estimatedPartsCost: form.estimatedPartsCost ?? null,
         vendorId: form.vendorId ?? null,
-        sla: form.sla ?? null,
+        guideId: form.guideId ?? null,
+        scheduledStart: form.scheduledStart ?? null,
+        dueDate: form.dueDate ?? null,
         images: localImages.map((item) => item.file),
       })
       onOpenChange(false)
@@ -439,58 +450,152 @@ export function EditTaskDialog({
           </div>
           </PermissionGate>
 
+          <div className="space-y-2">
+            <Label>Linked vendor</Label>
+            <Select
+              value={form.vendorId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  vendorId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue
+                  placeholder={
+                    vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {vendorOptions.map((vendor) => (
+                  <SelectItem key={vendor.id} value={vendor.id}>
+                    {vendor.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Linked Guide</Label>
+            <Select
+              value={form.guideId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  guideId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder={guideOptions.length === 0 ? "No guides available" : "Select a guide"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {guideOptions.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Scheduled Start & Due Date */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Linked vendor</Label>
-              <Select
-                value={form.vendorId ?? "none"}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    vendorId: value === "none" ? null : value,
-                  }))
-                }
-                disabled={isSubmitting}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue
-                    placeholder={
-                      vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
-                    }
+              <Label>Scheduled Start</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.scheduledStart && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.scheduledStart ? format(new Date(form.scheduledStart), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
                   />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {vendorOptions.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
-                      {vendor.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"}
+                      onChange={(e) => {
+                        const date = form.scheduledStart ? new Date(form.scheduledStart) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs">SLA (hours)</Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Optional"
-                disabled={isSubmitting}
-                value={form.sla ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value
-                  setForm((prev) => ({
-                    ...prev,
-                    sla: raw === "" ? null : Number(raw),
-                  }))
-                }}
-              />
-              {!form.sla && task?.status === "Open" && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  SLA is required before starting work on this order.
-                </p>
-              )}
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.dueDate ? format(new Date(form.dueDate), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.dueDate ? new Date(form.dueDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
+                  />
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"}
+                      onChange={(e) => {
+                        const date = form.dueDate ? new Date(form.dueDate) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

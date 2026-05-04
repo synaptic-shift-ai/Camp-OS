@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
+import { format } from "date-fns"
+import { CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Dialog,
   DialogContent,
@@ -108,7 +111,9 @@ export type AddMaintenanceTaskInput = {
   estimatedPartsCost?: number | null
   isSuspectedDamage?: boolean
   vendorId?: string | null
-  sla?: number | null
+  guideId?: string | null
+  scheduledStart?: string | null
+  dueDate?: string | null
   images?: File[]
 }
 
@@ -132,11 +137,44 @@ type AddTaskDialogProps = {
   isSubmitting?: boolean
   /** Property vendors for optional task link (empty until loaded from API). */
   vendorOptions?: Array<{ id: string; label: string }>
+  /** Maintenance guides for optional task link. */
+  guideOptions?: Array<{ id: string; label: string }>
   onSubmit: (input: AddMaintenanceTaskInput) => Promise<void>
 }
 
 const SITE_PLACEHOLDER_VALUE = "__maintenance_site_unselected__"
 export const SOURCE_OPTIONS = ["Guest", "Housekeeping", "Staff", "PM", "Checkout"] as const
+
+function BookingConflictWarning({ siteId, startDate, endDate }: { siteId: string; startDate: string; endDate: string }) {
+  const [conflictCount, setConflictCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const params = new URLSearchParams({ siteId, startDate, endDate })
+    fetch(`/api/v1/properties/${siteId}/maintenance/booking-conflicts?${params}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        if (json?.success && Array.isArray(json.data?.conflicts)) {
+          setConflictCount(json.data.conflicts.length)
+        } else {
+          setConflictCount(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setConflictCount(null)
+      })
+    return () => { cancelled = true }
+  }, [siteId, startDate, endDate])
+
+  if (conflictCount === null || conflictCount === 0) return null
+
+  return (
+    <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-600 dark:bg-red-950/30 dark:text-red-400">
+      ⚠ This site has {conflictCount} active maintenance task{conflictCount === 1 ? "" : "s"} overlapping with the selected dates.
+    </div>
+  )
+}
 
 export function parseMaintenanceSource(
   value: string | null | undefined,
@@ -163,7 +201,9 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   estimatedPartsCost: null,
   isSuspectedDamage: false,
   vendorId: null,
-  sla: null,
+  guideId: null,
+  scheduledStart: null,
+  dueDate: null,
 }
 
 export function AddTaskDialog({
@@ -177,6 +217,7 @@ export function AddTaskDialog({
   selfAssigneeLabel = "You",
   isSubmitting = false,
   vendorOptions = [],
+  guideOptions = [],
 }: AddTaskDialogProps) {
   const { toast } = useToast()
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
@@ -543,55 +584,157 @@ export function AddTaskDialog({
           </div>
           </PermissionGate>
 
+          <div className="space-y-2">
+            <Label>Linked vendor</Label>
+            <Select
+              value={form.vendorId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  vendorId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue
+                  placeholder={
+                    vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {vendorOptions.map((vendor) => (
+                  <SelectItem key={vendor.id} value={vendor.id}>
+                    {vendor.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Linked Guide</Label>
+            <Select
+              value={form.guideId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  guideId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder={guideOptions.length === 0 ? "No guides available" : "Select a guide"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {guideOptions.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Scheduled Start & Due Date */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Linked vendor</Label>
-              <Select
-                value={form.vendorId ?? "none"}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    vendorId: value === "none" ? null : value,
-                  }))
-                }
-                disabled={isSubmitting}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue
-                    placeholder={
-                      vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
-                    }
+              <Label>Scheduled Start</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.scheduledStart && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.scheduledStart ? format(new Date(form.scheduledStart), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
                   />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {vendorOptions.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
-                      {vendor.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"}
+                      onChange={(e) => {
+                        const date = form.scheduledStart ? new Date(form.scheduledStart) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs">SLA (hours)</Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Optional"
-                disabled={isSubmitting}
-                value={form.sla ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value
-                  setForm((prev) => ({
-                    ...prev,
-                    sla: raw === "" ? null : Number(raw),
-                  }))
-                }}
-              />
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.dueDate ? format(new Date(form.dueDate), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.dueDate ? new Date(form.dueDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
+                  />
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"}
+                      onChange={(e) => {
+                        const date = form.dueDate ? new Date(form.dueDate) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
+
+          {/* Booking conflict warning */}
+          {form.siteId && form.scheduledStart && form.dueDate && <BookingConflictWarning siteId={form.siteId} startDate={form.scheduledStart} endDate={form.dueDate} />}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

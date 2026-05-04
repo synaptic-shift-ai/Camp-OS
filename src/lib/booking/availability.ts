@@ -239,10 +239,32 @@ export async function checkSiteAvailability(
   }
 
   const isAvailable = overlappingReservations.length === 0
+  if (!isAvailable) {
+    return { success: true, data: false }
+  }
+
+  // Check for overlapping active maintenance tasks.
+  // Overlap: COALESCE(scheduled_start, started_at, created_at) < checkOut
+  //       AND COALESCE(due_date, created_at) > checkIn
+  const { data: maintenanceTasks } = await supabase
+    .from('maintenance_tasks')
+    .select('id, scheduled_start, started_at, created_at, due_date')
+    .eq('site_id', siteId)
+    .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
+
+  const hasMaintenanceOverlap = (maintenanceTasks ?? []).some((task) => {
+    const maintenanceStart = task.scheduled_start ?? task.started_at ?? task.created_at
+    const maintenanceEnd = task.due_date ?? task.created_at
+    return maintenanceStart < checkOutDate && maintenanceEnd > checkInDate
+  })
+
+  if (hasMaintenanceOverlap) {
+    return { success: true, data: false }
+  }
 
   return {
     success: true,
-    data: isAvailable,
+    data: true,
   }
 }
 
@@ -432,9 +454,27 @@ export async function searchAvailableSites(
   // Get set of occupied site IDs
   const occupiedSiteIds = new Set(overlappingReservations?.map((r) => r.site_id) || [])
 
-  // Filter out occupied sites, housekeeping/maintenance blocks, and per-site blackout_dates (sites.availability_rules)
+  // Find sites blocked by active maintenance tasks
+  const { data: maintenanceTasks } = await supabase
+    .from('maintenance_tasks')
+    .select('site_id, scheduled_start, started_at, created_at, due_date')
+    .in('site_id', siteIds)
+    .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
+
+  const maintenanceBlockedIds = new Set(
+    (maintenanceTasks ?? [])
+      .filter((task) => {
+        const maintenanceStart = task.scheduled_start ?? task.started_at ?? task.created_at
+        const maintenanceEnd = task.due_date ?? task.created_at
+        return maintenanceStart < params.check_out_date && maintenanceEnd > params.check_in_date
+      })
+      .map((task) => task.site_id)
+  )
+
+  // Filter out occupied sites, maintenance-blocked sites, housekeeping/maintenance blocks, and per-site blackout_dates (sites.availability_rules)
   let filteredSites = sitesToSearch.filter((site) => {
     if (occupiedSiteIds.has(site.id)) return false
+    if (maintenanceBlockedIds.has(site.id)) return false
     if (hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)) return false
     if (siteStayOverlapsBlackoutDates(site.availability_rules, params.check_in_date)) return false
     return true

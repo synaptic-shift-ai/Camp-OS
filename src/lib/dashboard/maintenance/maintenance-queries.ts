@@ -1,5 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/contracts/db'
 import { addDays, addMonths, addYears, format } from 'date-fns'
 
@@ -56,7 +55,10 @@ export type CreateMaintenanceTaskInput = {
     estimatedPartsCost?: number | null
     isSuspectedDamage?: boolean
     vendorId?: string | null
+    guideId?: string | null
     sla?: number | null
+    scheduledStart?: string | null
+    dueDate?: string | null
 }
 
 export type UpdateMaintenanceTaskInput = {
@@ -76,6 +78,7 @@ export type UpdateMaintenanceTaskInput = {
     actualPartsCost?: number | null
     isSuspectedDamage?: boolean
     vendorId?: string | null
+    guideId?: string | null
     vendorInvoiceNumber?: string | null
     vendorInvoiceCost?: number | null
     closeoutNotes?: string | null
@@ -86,6 +89,8 @@ export type UpdateMaintenanceTaskInput = {
     on_hold_reason?: string | null
     cancelled_at?: string | null
     cancelled_reason?: string | null
+    scheduledStart?: string | null
+    dueDate?: string | null
 }
 
 export type ListMaintenanceTasksFilters = {
@@ -178,13 +183,36 @@ function escapeIlikePattern(raw: string): string {
     return noCommas.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
+// ── Maintenance Guide types ──
+
+export interface MaintenanceGuideStep {
+    id: string
+    label: string
+    notes?: string
+}
+
+export interface MaintenanceGuideListItem {
+    id: string
+    name: string
+    description: string | null
+    steps: MaintenanceGuideStep[]
+    created_at: string
+}
+
+export interface CreateMaintenanceGuideInput {
+    propertyId: string
+    createdBy: string
+    name: string
+    description?: string | null
+    steps: MaintenanceGuideStep[]
+}
+
+export interface UpdateMaintenanceGuideInput extends CreateMaintenanceGuideInput {
+    id: string
+}
+
 export class MaintenanceQueries {
     constructor(private supabase: SupabaseClient) {}
-
-    static async create(): Promise<MaintenanceQueries> {
-        const supabase = await createClient()
-        return new MaintenanceQueries(supabase as unknown as SupabaseClient)
-    }
 
     async createMaintenanceTask(input: CreateMaintenanceTaskInput): Promise<MaintenanceTaskRow> {
         const { data: siteRow, error: siteError } = await this.supabase
@@ -259,7 +287,10 @@ export class MaintenanceQueries {
             ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
             ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.guideId !== undefined ? { guide_id: input.guideId } : {}),
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
+            ...(input.scheduledStart !== undefined ? { scheduled_start: input.scheduledStart } : {}),
+            ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
         }
 
         const { data, error } = await this.supabase
@@ -552,13 +583,18 @@ export class MaintenanceQueries {
             ...(input.actualPartsCost !== undefined ? { actual_parts_cost: input.actualPartsCost } : {}),
             ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.guideId !== undefined ? { guide_id: input.guideId } : {}),
             ...(input.vendorInvoiceNumber !== undefined ? { vendor_invoice_number: input.vendorInvoiceNumber } : {}),
             ...(input.vendorInvoiceCost !== undefined ? { vendor_invoice_cost: input.vendorInvoiceCost } : {}),
             ...(input.closeoutNotes !== undefined ? { closeout_notes: input.closeoutNotes } : {}),
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }
 
-        // Lifecycle timestamp/reason fields (added via migration — gen:db will include these in the DB type)
+        // Date/time fields
+        const dateUpdates: Record<string, unknown> = {
+            ...(input.scheduledStart !== undefined ? { scheduled_start: input.scheduledStart } : {}),
+            ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
+        }
         const lifecycleUpdates: Record<string, unknown> = {
             ...(input.started_at !== undefined ? { started_at: input.started_at } : {}),
             ...(input.completed_at !== undefined ? { completed_at: input.completed_at } : {}),
@@ -570,7 +606,7 @@ export class MaintenanceQueries {
 
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
-            .update({ ...updateRow, ...lifecycleUpdates })
+            .update({ ...updateRow, ...lifecycleUpdates, ...dateUpdates })
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
@@ -1312,5 +1348,229 @@ export class MaintenanceQueries {
         return data.reduce((sum, row) => {
             return sum + (row.actual_labor_cost ?? row.estimated_labor_cost ?? 0) + (row.actual_parts_cost ?? row.estimated_parts_cost ?? 0)
         }, 0)
+    }
+
+    // ── Maintenance Guide CRUD ──
+
+    async listMaintenanceGuides(propertyId: string): Promise<MaintenanceGuideListItem[]> {
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .select('id, name, description, steps, created_at')
+            .eq('property_id', propertyId)
+            .order('updated_at', { ascending: false })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to list maintenance guides', {
+                propertyId,
+                error,
+            })
+            throw new Error(`Failed to list maintenance guides: ${error.message}`)
+        }
+
+        return (data ?? []) as unknown as MaintenanceGuideListItem[]
+    }
+
+    async getMaintenanceGuideById(guideId: string): Promise<MaintenanceGuideListItem | null> {
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .select('id, name, description, steps, created_at')
+            .eq('id', guideId)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to load maintenance guide', {
+                guideId,
+                error,
+            })
+            throw new Error(`Failed to load maintenance guide: ${error.message}`)
+        }
+
+        return (data ?? null) as unknown as MaintenanceGuideListItem | null
+    }
+
+    async createMaintenanceGuide(input: CreateMaintenanceGuideInput): Promise<MaintenanceGuideListItem> {
+        const name = input.name.trim()
+        if (!name) {
+            throw new Error('Guide name is required.')
+        }
+
+        const { data: existingGuides, error: existingGuidesError } = await this.supabase
+            .from('maintenance_guides')
+            .select('id, name')
+            .eq('property_id', input.propertyId)
+
+        if (existingGuidesError) {
+            console.error('[MaintenanceQueries] Failed to validate guide name uniqueness', {
+                propertyId: input.propertyId,
+                error: existingGuidesError,
+            })
+            throw new Error(`Failed to validate guide name: ${existingGuidesError.message}`)
+        }
+
+        const normalizedName = name.toLocaleLowerCase()
+        const hasDuplicateName = (existingGuides ?? []).some((row) => {
+            const existingName = typeof row.name === 'string' ? row.name.trim().toLocaleLowerCase() : ''
+            return existingName.length > 0 && existingName === normalizedName
+        })
+
+        if (hasDuplicateName) {
+            throw new Error('A guide with this name already exists.')
+        }
+
+        const stepRows = input.steps
+            .map((step) => ({
+                id: step.id,
+                label: step.label.trim(),
+                notes: step.notes?.trim() ? step.notes.trim() : null,
+            }))
+            .filter((step) => step.label.length > 0)
+
+        if (stepRows.length === 0) {
+            throw new Error('Add at least one step with a name.')
+        }
+
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .insert({
+                property_id: input.propertyId,
+                created_by: input.createdBy,
+                name,
+                description: input.description?.trim() ? input.description.trim() : null,
+                steps: stepRows,
+            })
+            .select('id, name, description, steps, created_at')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to create maintenance guide', {
+                propertyId: input.propertyId,
+                error,
+            })
+            throw new Error(`Failed to save maintenance guide: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to save maintenance guide: no row returned')
+        }
+
+        return data as unknown as MaintenanceGuideListItem
+    }
+
+    async updateMaintenanceGuide(input: UpdateMaintenanceGuideInput): Promise<MaintenanceGuideListItem> {
+        const name = input.name.trim()
+        if (!name) {
+            throw new Error('Guide name is required.')
+        }
+
+        const { data: existingRow, error: fetchError } = await this.supabase
+            .from('maintenance_guides')
+            .select('id')
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .maybeSingle()
+
+        if (fetchError) {
+            console.error('[MaintenanceQueries] Failed to load guide for update', {
+                id: input.id,
+                fetchError,
+            })
+            throw new Error(`Failed to load maintenance guide: ${fetchError.message}`)
+        }
+        if (!existingRow) {
+            throw new Error('Maintenance guide not found for this property.')
+        }
+
+        const stepRows = input.steps
+            .map((step) => ({
+                id: step.id,
+                label: step.label.trim(),
+                ...(step.notes?.trim() ? { notes: step.notes.trim() } : {}),
+            }))
+            .filter((step) => step.label.length > 0)
+
+        if (stepRows.length === 0) {
+            throw new Error('Add at least one step with a name.')
+        }
+
+        const { data, error } = await this.supabase
+            .from('maintenance_guides')
+            .update({
+                name,
+                description: input.description?.trim() ? input.description.trim() : null,
+                steps: stepRows,
+            })
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+            .select('id, name, description, steps, created_at')
+            .single()
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to update maintenance guide', {
+                id: input.id,
+                propertyId: input.propertyId,
+                error,
+            })
+            throw new Error(`Failed to update maintenance guide: ${error.message}`)
+        }
+
+        if (!data) {
+            throw new Error('Failed to update maintenance guide: no row returned')
+        }
+
+        return data as unknown as MaintenanceGuideListItem
+    }
+
+    async deleteMaintenanceGuide(input: { id: string; propertyId: string }): Promise<void> {
+        const { error } = await this.supabase
+            .from('maintenance_guides')
+            .delete()
+            .eq('id', input.id)
+            .eq('property_id', input.propertyId)
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to delete maintenance guide', {
+                error,
+                id: input.id,
+                propertyId: input.propertyId,
+            })
+            throw new Error(`Failed to delete maintenance guide: ${error.message}`)
+        }
+    }
+
+    async findOverlappingMaintenance(
+        siteId: string,
+        startDate: string,
+        endDate: string,
+    ): Promise<Array<{ id: string; title: string; due_date: string | null; scheduled_start: string | null; status: string }>> {
+        const windowStart = startDate
+        const windowEnd = endDate
+
+        const { data, error } = await this.supabase
+            .from('maintenance_tasks')
+            .select('id, title, due_date, scheduled_start, started_at, created_at, status')
+            .eq('site_id', siteId)
+            .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
+            .lt('COALESCE(due_date, created_at)', windowEnd)
+            .lt('COALESCE(scheduled_start, started_at, created_at)', windowEnd)
+            .gt('COALESCE(scheduled_start, started_at, created_at)', windowStart)
+            .order('due_date', { ascending: true })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to find overlapping maintenance', {
+                siteId,
+                startDate,
+                endDate,
+                error,
+            })
+            throw new Error(`Failed to find overlapping maintenance: ${error.message}`)
+        }
+
+        return (data ?? []).map((row) => ({
+            id: row.id,
+            title: row.title,
+            due_date: row.due_date,
+            scheduled_start: row.scheduled_start,
+            status: row.status,
+        }))
     }
 }

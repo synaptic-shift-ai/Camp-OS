@@ -42,7 +42,8 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
  */
 async function writeFinancialTransactions(params: {
   supabase: ReturnType<typeof createServiceRoleClient>
-  eventId: string
+  /** Stripe event id (evt_...) — logging only */
+  stripeEventId: string
   propertyId: string
   reservationId: string
   guestId: string
@@ -51,7 +52,7 @@ async function writeFinancialTransactions(params: {
 }): Promise<void> {
   const {
     supabase,
-    eventId,
+    stripeEventId,
     propertyId,
     reservationId,
     guestId,
@@ -63,35 +64,17 @@ async function writeFinancialTransactions(params: {
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
 
-    const { data: reservationRow, error: reservationLookupError } = await supabase
-      .from('reservations')
-      .select('created_by')
-      .eq('id', reservationId)
-      .eq('property_id', propertyId)
-      .maybeSingle()
-
-    if (reservationLookupError) {
-      console.error('[Stripe Webhook] financial_transactions dual-write failed (non-blocking)', {
-        eventId,
-        error: `Failed to resolve reservations.created_by: ${reservationLookupError.message}`,
-      })
-      return
-    }
-
-    const createdByUserId = (reservationRow as any)?.created_by as string | null | undefined
-    if (!createdByUserId) {
-      console.error('[Stripe Webhook] financial_transactions dual-write failed (non-blocking)', {
-        eventId,
-        error: 'Missing reservations.created_by for transaction audit',
-      })
-      return
-    }
-
-    // Idempotency check — skip if we already processed this event
-    const existingCharge = await repo.findByProcessorEventId(eventId, TransactionType.CHARGE)
-    const existingPayment = await repo.findByProcessorEventId(eventId, TransactionType.PAYMENT)
+    // Guest checkout: do not attribute ledger rows to property staff (reservations.created_by).
+    const createdByUserId: string | null = null
+    // Dedupe with guest `/api/guest/payment/confirm` dual-write (same PaymentIntent id).
+    const processorKey = stripePaymentIntentId
+    const existingCharge = await repo.findByProcessorEventId(processorKey, TransactionType.CHARGE)
+    const existingPayment = await repo.findByProcessorEventId(processorKey, TransactionType.PAYMENT)
     if (existingCharge || existingPayment) {
-      console.log('[Stripe Webhook] financial_transactions dual-write skipped (already exists)', { eventId })
+      console.log('[Stripe Webhook] financial_transactions dual-write skipped (already exists)', {
+        stripeEventId,
+        stripePaymentIntentId,
+      })
       return
     }
 
@@ -106,9 +89,9 @@ async function writeFinancialTransactions(params: {
       PaymentMethod.STRIPE,
       createdByUserId,
       null, // invoiceId
-      'Stripe charge via webhook',
+      'Guest self-service reservation payment',
       TransactionSource.RESERVATION,
-      eventId, // processorEventId
+      processorKey,
       guestId,
     )
     charge.complete(stripePaymentIntentId)
@@ -126,9 +109,9 @@ async function writeFinancialTransactions(params: {
       PaymentMethod.STRIPE,
       createdByUserId,
       null, // invoiceId
-      'Stripe payment via webhook',
+      'Guest self-service reservation payment',
       TransactionSource.RESERVATION,
-      eventId, // processorEventId
+      processorKey,
       guestId,
     )
     payment.complete(stripePaymentIntentId)
@@ -142,12 +125,14 @@ async function writeFinancialTransactions(params: {
       ftError?.message?.includes('23505')
     if (isConstraintViolation) {
       console.warn('[Stripe Webhook] financial_transactions dual-write skipped (race condition, already exists)', {
-        eventId,
+        stripeEventId,
+        stripePaymentIntentId,
         error: ftError.message,
       })
     } else {
       console.error('[Stripe Webhook] financial_transactions dual-write failed (non-blocking)', {
-        eventId,
+        stripeEventId,
+        stripePaymentIntentId,
         error: ftError,
       })
     }
@@ -306,7 +291,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
     // --- Dual-write to financial_transactions (unified ledger) ---
     await writeFinancialTransactions({
       supabase,
-      eventId: stripeEventId,
+      stripeEventId,
       propertyId: property_id,
       reservationId: reservation_id,
       guestId: guest_id,

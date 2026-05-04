@@ -16,9 +16,10 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 import {
-  fetchPaymentCardDisplay,
+  fetchPaymentCardResult,
   resolvePaymentIntentIdForReservation,
 } from '@/lib/stripe/payment-intent-card-display'
+import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
 
 const REFUND_ELIGIBILITY_SNAPSHOT_PREFIX = '[REFUND_ELIGIBILITY_SNAPSHOT]'
 
@@ -203,8 +204,11 @@ export async function GET(
       .is('deleted_at', null)
       .single()
 
-    // Fetch latest payment — try unified ledger first, fall back to legacy payments table
-    const { data: latestLedgerPayment } = await supabase
+    // Fetch latest payment — try unified ledger first, fall back to legacy payments table.
+    // Prefer ledger records that actually carry a stripe_payment_intent_id so the card
+    // display can resolve.  If the newest ledger PAYMENT has no intent ID (manual /
+    // cash payment), still fall back to the legacy payments table which may have one.
+    const { data: ledgerPayments } = await supabase
       .from('financial_transactions')
       .select('payment_method, stripe_payment_intent_id')
       .eq('reservation_id', id)
@@ -212,17 +216,28 @@ export async function GET(
       .eq('status', 'completed')
       .neq('is_voided', true)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .limit(5)
+
+    const ledgerWithIntent = (ledgerPayments ?? []).find(
+      (r) => r.stripe_payment_intent_id != null && /^pi_[A-Za-z0-9_]+$/.test(r.stripe_payment_intent_id),
+    )
+    const latestLedgerPayment = ledgerPayments?.[0] ?? null
 
     let latestPayment: { stripe_payment_id: string | null; payment_method: string | null } | null = null
-    if (latestLedgerPayment) {
+    if (ledgerWithIntent) {
+      latestPayment = {
+        stripe_payment_id: ledgerWithIntent.stripe_payment_intent_id,
+        payment_method: ledgerWithIntent.payment_method,
+      }
+    } else if (latestLedgerPayment) {
       latestPayment = {
         stripe_payment_id: latestLedgerPayment.stripe_payment_intent_id,
         payment_method: latestLedgerPayment.payment_method,
       }
-    } else {
-      // Fallback: legacy payments table
+    }
+
+    // Fallback: legacy payments table if ledger has no intent ID
+    if (!latestPayment?.stripe_payment_id) {
       const { data: legacyPayment } = await supabase
         .from('payments')
         .select('stripe_payment_id, payment_method')
@@ -230,7 +245,7 @@ export async function GET(
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      if (legacyPayment) {
+      if (legacyPayment?.stripe_payment_id) {
         latestPayment = legacyPayment
       }
     }
@@ -267,15 +282,51 @@ export async function GET(
       exp_month: number
       exp_year: number
     } | null = null
+    let booking_payment_method_id: string | null = null
 
     if (paymentIntentId != null) {
       try {
-        payment_card = await fetchPaymentCardDisplay(
+        const cardResult = await fetchPaymentCardResult(
           paymentIntentId,
           reservation.propertyId
         )
+        payment_card = cardResult.card
+        booking_payment_method_id = cardResult.paymentMethodId
       } catch (cardErr) {
         console.warn('[Reservations API v1] GET payment card metadata failed', cardErr)
+      }
+    }
+
+    // Resolve incidentals card display
+    let incidentals_card: {
+      brand: string
+      last4: string
+      exp_month: number
+      exp_year: number
+      funding?: string
+    } | null = null
+    if (reservation.incidentalsPaymentMethodId) {
+      try {
+        const tenantStripeResult = await getTenantStripeClient(reservation.propertyId)
+        if (tenantStripeResult.success) {
+          const { stripe, stripeAccountId } = tenantStripeResult
+          const pm = await stripe.paymentMethods.retrieve(
+            reservation.incidentalsPaymentMethodId,
+            {},
+            { stripeAccount: stripeAccountId }
+          )
+          if (pm.card) {
+            incidentals_card = {
+              brand: pm.card.brand,
+              last4: pm.card.last4,
+              exp_month: pm.card.exp_month,
+              exp_year: pm.card.exp_year,
+              funding: pm.card.funding,
+            }
+          }
+        }
+      } catch (incidentalsErr) {
+        console.warn('[Reservations API v1] GET incidentals card metadata failed', incidentalsErr)
       }
     }
 
@@ -308,6 +359,8 @@ export async function GET(
       guest: guest || undefined,
       site: site || undefined,
       payment_card,
+      incidentals_card,
+      booking_payment_method_id: booking_payment_method_id,
       payment_method: latestPayment?.payment_method ?? null,
       spouse_partner,
       children: reservationChildren ?? [],

@@ -97,7 +97,11 @@ export async function GET(
 
     // Map created_by user ids to display names so the UI doesn't show raw ids.
     const createdByIds = Array.from(
-      new Set((rows ?? []).map((r) => r.created_by).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+      new Set(
+        (rows ?? [])
+          .map((r) => r.created_by)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
     )
 
     const createdByNameById = new Map<string, string>()
@@ -124,7 +128,6 @@ export async function GET(
         }),
       )
     }
-
     return success({
       reservation_id: reservationId,
       transactions: (rows ?? []).map((row) => ({
@@ -145,7 +148,10 @@ export async function GET(
         reconciled_at: row.reconciled_at,
         reconciled_by: row.reconciled_by,
         created_at: row.created_at,
-        created_by: createdByNameById.get(row.created_by) ?? 'Staff member',
+        created_by:
+          row.created_by == null
+            ? null
+            : (createdByNameById.get(row.created_by as string) ?? 'Staff member'),
         updated_at: row.updated_at,
         is_voided: row.is_voided ?? false,
         source: row.source,

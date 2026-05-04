@@ -274,6 +274,5 @@ async function handleV2Refund(
       console.error('[Financial API v1] V2 refund: reservation update threw (non-blocking)', e)
     }
   }
-
   return NextResponse.json(success(toTransactionDTO(refund)), { status: 201 })
 }

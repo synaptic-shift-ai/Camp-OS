@@ -173,51 +173,7 @@ export async function GET(
             listFilters.assigneeId = selfStaffId ?? '__no_staff_assignment__'
         }
 
-        // Restrict WO list to sites whose site type is enabled for maintenance.
-        const [{ data: propertyRow }, { data: sites }] = await Promise.all([
-            supabase
-                .from('properties')
-                .select('site_type_config')
-                .eq('id', propertyId)
-                .maybeSingle(),
-            supabase
-                .from('sites')
-                .select('id, site_type')
-                .eq('property_id', propertyId)
-                .is('deleted_at', null),
-        ])
 
-        const siteTypeConfig =
-            (propertyRow?.site_type_config as {
-                maintenance?: Record<string, boolean>
-                allowed_site_types?: string[]
-            } | null | undefined) ?? null
-
-        const maintenanceMap = Object.fromEntries(
-            Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
-                toCanonicalSiteTypeKey(key),
-                value,
-            ]),
-        )
-
-        const allowedSiteTypeSet = new Set(
-            Array.isArray(siteTypeConfig?.allowed_site_types)
-                ? siteTypeConfig!.allowed_site_types.map((siteType) =>
-                    toCanonicalSiteTypeKey(siteType),
-                )
-                : [],
-        )
-
-        const allowedMaintenanceSiteIds = (sites ?? [])
-            .filter((site) => {
-                const siteTypeKey = toCanonicalSiteTypeKey(site.site_type as string | null | undefined)
-                if (!siteTypeKey) return true
-                if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) return false
-                return maintenanceMap[siteTypeKey] !== false
-            })
-            .map((site) => site.id as string)
-
-        listFilters.siteIds = allowedMaintenanceSiteIds
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const [listResult, openTaskCount] = await Promise.all([
@@ -347,30 +303,28 @@ export async function POST(
             })
         }
 
-        const { data: propertyRow } = await supabase
+        // Site type config validation
+        const { data: propRow } = await supabase
             .from('properties')
             .select('site_type_config')
             .eq('id', propertyId)
             .maybeSingle()
 
-        const siteTypeConfig =
-            (propertyRow?.site_type_config as {
-                maintenance?: Record<string, boolean>
-                allowed_site_types?: string[]
-            } | null | undefined) ?? null
+        const stConfig = (propRow?.site_type_config as {
+            maintenance?: Record<string, boolean>
+            allowed_site_types?: string[]
+        } | null | undefined) ?? null
 
         const maintenanceMap = Object.fromEntries(
-            Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
+            Object.entries(stConfig?.maintenance ?? {}).map(([key, value]) => [
                 toCanonicalSiteTypeKey(key),
                 value,
             ]),
         )
 
         const allowedSiteTypeSet = new Set(
-            Array.isArray(siteTypeConfig?.allowed_site_types)
-                ? siteTypeConfig!.allowed_site_types.map((siteType) =>
-                    toCanonicalSiteTypeKey(siteType),
-                )
+            Array.isArray(stConfig?.allowed_site_types)
+                ? stConfig!.allowed_site_types.map((st) => toCanonicalSiteTypeKey(st))
                 : [],
         )
 
@@ -378,16 +332,17 @@ export async function POST(
         if (siteTypeKey) {
             if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
                 return error(ErrorCodes.VALIDATION_ERROR, request, {
-                    message: 'The selected site is not available for maintenance',
+                    message: 'The selected site is not available for maintenance tasks',
                 })
             }
-
             if (maintenanceMap[siteTypeKey] === false) {
                 return error(ErrorCodes.VALIDATION_ERROR, request, {
-                    message: 'The selected site is not available for maintenance',
+                    message: 'The selected site is not available for maintenance tasks',
                 })
             }
         }
+
+
 
         // Enforce per-category spend limit against the requested estimate before creating a work order.
         if (parsed.data.category) {
@@ -416,6 +371,29 @@ export async function POST(
         }
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
+
+        // Server-side booking conflict warning (non-blocking)
+        let bookingConflictWarning: string | null = null
+        if (parsed.data.scheduledStart && parsed.data.dueDate) {
+            try {
+                const conflicts = await queries.findOverlappingMaintenance(
+                    parsed.data.siteId,
+                    parsed.data.scheduledStart,
+                    parsed.data.dueDate,
+                )
+                if (conflicts.length > 0) {
+                    bookingConflictWarning = `${conflicts.length} existing maintenance task${conflicts.length === 1 ? '' : 's'} overlap with the scheduled window.`
+                }
+            } catch {
+                // Non-blocking: conflict check failures should not prevent creation
+            }
+        }
+
+        // Compute SLA from scheduled_start + due_date
+        const computedSla = parsed.data.scheduledStart && parsed.data.dueDate
+            ? Math.max(0, Math.round((new Date(parsed.data.dueDate).getTime() - new Date(parsed.data.scheduledStart).getTime()) / 3600000))
+            : null
+
         const maintenanceTask = await queries.createMaintenanceTask({
             propertyId,
             siteId: parsed.data.siteId,
@@ -429,7 +407,10 @@ export async function POST(
             ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
             ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
             ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
-            ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
+            ...(parsed.data.guideId !== undefined ? { guideId: parsed.data.guideId } : {}),
+            sla: computedSla,
+            ...(parsed.data.scheduledStart !== undefined ? { scheduledStart: parsed.data.scheduledStart } : {}),
+            ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),
             createdBy: user.id,
             ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
         })
@@ -615,7 +596,7 @@ export async function POST(
             }
         }
 
-        return success({ maintenanceTask, spendLimitWarnings }, request)
+        return success({ maintenanceTask, spendLimitWarnings, bookingConflictWarning }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Maintenance API v1] POST error:', err)

@@ -93,6 +93,7 @@ export type CancelReservationRequest = z.infer<typeof CancelReservationRequestSc
 export const CheckInRequestSchema = z.object({
   balancePaidCents: z.number().int().min(0).optional().default(0),
   notes: z.string().max(1000).optional().nullable(),
+  incidentalsPaymentMethodId: z.string().optional().nullable(),
 })
 
 export type CheckInRequest = z.infer<typeof CheckInRequestSchema>

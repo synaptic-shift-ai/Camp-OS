@@ -16,9 +16,11 @@ import {
   SlidersHorizontal,
   Truck,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -28,6 +30,7 @@ import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
 import { ReassignTaskDialog } from "../../housekeeping/housekeeping-dialog.tsx/reassign-task-dialog"
 import { AssignVendorDialog } from "../maintenance-dialog/assign-vendor-dialog"
+import { clampMaintenanceHoldAtIso } from "./clamp-maintenance-hold-at"
 
 type AssigneeOption = {
   id: string
@@ -66,6 +69,7 @@ type TaskDetails = {
   closeout_notes: string | null
   sla: number | null
   vendor_id: string | null
+  guide_id: string | null
   staff_id: string | null
   created_at: string
   updated_at: string
@@ -75,6 +79,8 @@ type TaskDetails = {
   on_hold_reason: string | null
   cancelled_at: string | null
   cancelled_reason: string | null
+  scheduled_start: string | null
+  due_date: string | null
   site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
 }
 
@@ -194,6 +200,8 @@ export function MaintenanceView({
   const [isReassignOpen, setIsReassignOpen] = useState(false)
   const [isReassigning, setIsReassigning] = useState(false)
   const [taskImages, setTaskImages] = useState<TaskImageItem[]>([])
+  const [guideData, setGuideData] = useState<{ name: string; description: string | null; steps: Array<{ id: string; label: string; notes?: string }> } | null>(null)
+  const [guideLoading, setGuideLoading] = useState(false)
   // Actual cost editing state
   const [editLaborCost, setEditLaborCost] = useState<string>("")
   const [editPartsCost, setEditPartsCost] = useState<string>("")
@@ -206,6 +214,7 @@ export function MaintenanceView({
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false)
   const [isCompletingVendor, setIsCompletingVendor] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastProgressTimerEndMsRef = useRef(Date.now())
   const [now, setNow] = useState(Date.now())
 
   const assigneeLabelById = useMemo(
@@ -253,6 +262,7 @@ export function MaintenanceView({
         closeout_notes: raw.closeoutNotes ?? raw.closeout_notes ?? null,
         sla: raw.sla,
         vendor_id: raw.vendorId ?? raw.vendor_id,
+        guide_id: raw.guideId ?? raw.guide_id ?? null,
         staff_id: raw.staffId ?? raw.staff_id,
         created_at: raw.created_at,
         updated_at: raw.updated_at,
@@ -262,6 +272,8 @@ export function MaintenanceView({
         on_hold_reason: raw.on_hold_reason ?? null,
         cancelled_at: raw.cancelled_at ?? null,
         cancelled_reason: raw.cancelled_reason ?? null,
+        scheduled_start: raw.scheduled_start ?? null,
+        due_date: raw.due_date ?? null,
         site: raw.site ?? null,
       })
     } catch (loadError) {
@@ -310,6 +322,37 @@ export function MaintenanceView({
     void loadTaskImages()
   }, [loadTaskImages])
 
+  useEffect(() => {
+    if (!task?.guide_id) {
+      setGuideData(null)
+      setGuideLoading(false)
+      return
+    }
+    let cancelled = false
+    setGuideLoading(true)
+    setGuideData(null)
+    fetch(`/api/v1/properties/${propertyId}/maintenance/guides/${task.guide_id}`)
+      .then((res) => res.json())
+      .then((payload) => {
+        if (cancelled || !payload?.success) return
+        const guide = payload.data?.guide
+        if (guide) {
+          setGuideData({
+            name: guide.name,
+            description: guide.description ?? null,
+            steps: Array.isArray(guide.steps) ? guide.steps : [],
+          })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGuideData(null)
+      })
+      .finally(() => {
+        if (!cancelled) setGuideLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [task?.guide_id, propertyId])
+
   // ── Live timer for in-progress tasks ──
 
   useEffect(() => {
@@ -334,6 +377,12 @@ export function MaintenanceView({
     }
   }, [task?.status])
 
+  useEffect(() => {
+    if (task?.status === "in_progress" || task?.status === "in_progress_vendor") {
+      lastProgressTimerEndMsRef.current = now
+    }
+  }, [task?.status, now])
+
   const workElapsedSeconds = useMemo(() => {
     if (!task?.started_at) return null
     const startMs = new Date(task.started_at).getTime()
@@ -351,31 +400,39 @@ export function MaintenanceView({
     return formatDuration(workElapsedSeconds)
   }, [workElapsedSeconds])
 
-  // ── SLA timer ──
+  // ── SLA timer (counts UP from started_at only; scheduled_start does not start the clock) ──
 
-  const slaSecondsRemaining = useMemo(() => {
+  const slaSecondsElapsed = useMemo(() => {
     if (!task?.sla || !task?.created_at) return null
-    if (task.status === "completed" || task.status === "cancelled") return null
+    if (task.status === "cancelled") return null
 
-    // Show full SLA before work starts, then count down once task is active.
-    if (!task.started_at || task.status === "open") {
-      return task.sla * 3600
+    const startedMs = task.started_at ? new Date(task.started_at).getTime() : null
+    if (!startedMs) return 0
+
+    if (task.status === "completed" && task.completed_at) {
+      return Math.max(0, Math.floor((new Date(task.completed_at).getTime() - startedMs) / 1000))
     }
 
-    const startedMs = new Date(task.started_at).getTime()
-    const deadlineMs = startedMs + task.sla * 3600 * 1000
-    const slaNowMs =
+    const effectiveNow =
       task.status === "on_hold" && task.on_hold_at
         ? new Date(task.on_hold_at).getTime()
         : now
-    const remaining = Math.max(0, Math.floor((deadlineMs - slaNowMs) / 1000))
-    return remaining
-  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, now])
+
+    return Math.max(0, Math.floor((effectiveNow - startedMs) / 1000))
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.completed_at, now])
 
   const slaDisplay = useMemo(() => {
-    if (slaSecondsRemaining === null) return null
-    return formatDuration(slaSecondsRemaining)
-  }, [slaSecondsRemaining])
+    if (slaSecondsElapsed === null) return null
+    if (slaSecondsElapsed === 0) return "00:00:00"
+    return formatDuration(slaSecondsElapsed)
+  }, [slaSecondsElapsed])
+
+  const isSlaBreached =
+    slaSecondsElapsed !== null &&
+    (task?.sla ?? 0) > 0 &&
+    slaSecondsElapsed > (task?.sla ?? 0) * 3600 &&
+    task?.status !== "completed" &&
+    task?.status !== "cancelled"
 
   // ── Stepper ──
 
@@ -624,13 +681,19 @@ export function MaintenanceView({
   const handlePutOnHold = async (reason: string) => {
     if (!task || task.status === "on_hold" || isStatusChanging) return
     setIsStatusChanging(true)
+    lastProgressTimerEndMsRef.current = Math.max(lastProgressTimerEndMsRef.current, Date.now())
+    const holdAtForRequest = clampMaintenanceHoldAtIso(undefined, task, lastProgressTimerEndMsRef.current)
     try {
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "on_hold", on_hold_reason: reason }),
+          body: JSON.stringify({
+            status: "on_hold",
+            on_hold_reason: reason,
+            holdAt: holdAtForRequest,
+          }),
         },
       )
       const payload = await res.json()
@@ -645,8 +708,11 @@ export function MaintenanceView({
           ? {
               ...previous,
               status: "on_hold",
-              on_hold_at:
-                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              on_hold_at: clampMaintenanceHoldAtIso(
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : undefined,
+                previous,
+                lastProgressTimerEndMsRef.current,
+              ),
               on_hold_reason:
                 typeof updated?.on_hold_reason === "string" ? updated.on_hold_reason : reason,
               updated_at:
@@ -667,13 +733,15 @@ export function MaintenanceView({
   const handleApproveOnHold = async () => {
     if (!task || task.status === "on_hold" || isStatusChanging) return
     setIsStatusChanging(true)
+    lastProgressTimerEndMsRef.current = Math.max(lastProgressTimerEndMsRef.current, Date.now())
+    const holdAtForRequest = clampMaintenanceHoldAtIso(undefined, task, lastProgressTimerEndMsRef.current)
     try {
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "on_hold" }),
+          body: JSON.stringify({ status: "on_hold", holdAt: holdAtForRequest }),
         },
       )
       const payload = await res.json()
@@ -688,8 +756,11 @@ export function MaintenanceView({
           ? {
               ...previous,
               status: "on_hold",
-              on_hold_at:
-                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              on_hold_at: clampMaintenanceHoldAtIso(
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : undefined,
+                previous,
+                lastProgressTimerEndMsRef.current,
+              ),
               on_hold_reason:
                 typeof updated?.on_hold_reason === "string"
                   ? updated.on_hold_reason
@@ -740,13 +811,17 @@ export function MaintenanceView({
   const handleResume = async () => {
     if (!task || task.status !== "on_hold") return
     setIsStatusChanging(true)
+    const resumeAtForServerMs = Date.now()
     try {
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress" }),
+          body: JSON.stringify({
+            status: "in_progress",
+            resumeAt: new Date(resumeAtForServerMs).toISOString(),
+          }),
         },
       )
       const payload = await res.json()
@@ -754,6 +829,19 @@ export function MaintenanceView({
         throw new Error(payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to resume")
       }
       const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      // Use the same clock *after* the round trip for `now` and shifted `started_at`. If `now` were set
+      // to a pre-fetch timestamp, the next interval tick would add the whole network delay to elapsed time.
+      const resumeSyncedMs = Date.now()
+      const holdAtMs = task.on_hold_at ? new Date(task.on_hold_at).getTime() : null
+      const startedAtMs = task.started_at ? new Date(task.started_at).getTime() : null
+      const frozenActiveMs =
+        startedAtMs != null && holdAtMs != null && Number.isFinite(startedAtMs) && Number.isFinite(holdAtMs)
+          ? Math.max(0, holdAtMs - startedAtMs)
+          : null
+      const clientAlignedStartedAt =
+        frozenActiveMs != null
+          ? new Date(resumeSyncedMs - frozenActiveMs).toISOString()
+          : null
       setTask((previous) =>
         previous
           ? {
@@ -763,7 +851,8 @@ export function MaintenanceView({
                   ? updated.status
                   : "in_progress",
               started_at:
-                typeof updated?.started_at === "string" ? updated.started_at : previous.started_at,
+                clientAlignedStartedAt ??
+                (typeof updated?.started_at === "string" ? updated.started_at : previous.started_at),
               on_hold_at: null,
               on_hold_reason: null,
               updated_at:
@@ -771,7 +860,7 @@ export function MaintenanceView({
             }
           : previous,
       )
-      setNow(Date.now())
+      setNow(resumeSyncedMs)
       toast({ title: "Work order resumed" })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to resume."
@@ -954,14 +1043,8 @@ export function MaintenanceView({
     editPartsCost !== String(task.actual_parts_cost ?? "")
   const slaTargetHours = task.sla ?? null
   const slaProgressPercent =
-    slaTargetHours && slaSecondsRemaining !== null
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((slaTargetHours * 3600 - slaSecondsRemaining) / (slaTargetHours * 3600)) * 100,
-          ),
-        )
+    slaTargetHours && slaSecondsElapsed !== null
+      ? Math.max(0, (slaSecondsElapsed / (slaTargetHours * 3600)) * 100)
       : null
 
   return (
@@ -975,7 +1058,7 @@ export function MaintenanceView({
       </Link>
 
       <section className="overflow-hidden rounded-xl border border-border">
-        <div className="bg-emerald-950 px-4 py-4 text-white sm:px-6">
+        <div className={`px-4 py-4 text-white sm:px-6 transition-colors duration-300 ${isSlaBreached ? "bg-red-900" : "bg-emerald-950"}`}>
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/80">
@@ -1000,8 +1083,8 @@ export function MaintenanceView({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase tracking-wide text-emerald-200/70">SLA</p>
-              <p className="text-3xl font-semibold">{slaDisplay ?? "—"}</p>
+              <p className="text-xs uppercase tracking-wide text-emerald-200/70">SLA Elapsed</p>
+              <p className={`text-3xl font-semibold ${isSlaBreached ? "text-red-300" : ""}`}>{slaDisplay ?? "—"}</p>
               <p className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-100/80">
                 <Clock className="h-3.5 w-3.5" />
                 Work timer: {workTimerDisplay}
@@ -1222,6 +1305,18 @@ export function MaintenanceView({
                     {task.source ? task.source.charAt(0).toUpperCase() + task.source.slice(1) : "—"}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Scheduled Start</p>
+                  <p className="font-semibold">{task.scheduled_start ? formatDateTime(task.scheduled_start) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Due Date</p>
+                  <p className="font-semibold">{task.due_date ? formatDateTime(task.due_date) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Started At</p>
+                  <p className="font-semibold">{task.started_at ? formatDateTime(task.started_at) : "—"}</p>
+                </div>
               </div>
               <div className="border-t pt-3">
                 <p className="mb-1 text-xs text-muted-foreground">Description</p>
@@ -1229,6 +1324,55 @@ export function MaintenanceView({
               </div>
             </CardContent>
           </Card>
+
+          {task.guide_id && (guideLoading || guideData) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Linked Guide</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {guideLoading && !guideData ? (
+                  <div className="space-y-3" aria-busy="true" aria-label="Loading linked guide">
+                    <Skeleton className="h-5 w-52" />
+                    <Skeleton className="h-4 w-full max-w-lg" />
+                    <Skeleton className="h-4 w-full max-w-md" />
+                    <div className="mt-4 space-y-2.5">
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-5 shrink-0" />
+                        <Skeleton className="h-4 flex-1 max-w-xl" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-5 shrink-0" />
+                        <Skeleton className="h-4 flex-1 max-w-lg" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-5 shrink-0" />
+                        <Skeleton className="h-4 flex-1 max-w-md" />
+                      </div>
+                    </div>
+                  </div>
+                ) : guideData ? (
+                  <>
+                    <h4 className="font-medium">{guideData.name}</h4>
+                    {guideData.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{guideData.description}</p>
+                    )}
+                    <div className="mt-3 space-y-2">
+                      {guideData.steps.map((step, idx) => (
+                        <div key={step.id} className="flex gap-2 text-sm">
+                          <span className="font-medium text-muted-foreground min-w-[20px]">{idx + 1}.</span>
+                          <div>
+                            <span>{step.label}</span>
+                            {step.notes && <p className="text-muted-foreground text-xs mt-0.5">{step.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-2">
@@ -1444,14 +1588,20 @@ export function MaintenanceView({
             </CardHeader>
             <CardContent className="space-y-3 pt-0 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Response SLA</span>
-                <span>{slaTargetHours ? `${slaTargetHours}h target` : "No SLA"}</span>
+                <span className="text-muted-foreground">SLA Target</span>
+                <span>{slaTargetHours ? `${slaTargetHours}h` : "No SLA"}</span>
               </div>
+              {task.due_date ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Due Date</span>
+                  <span>{formatDateTime(task.due_date)}</span>
+                </div>
+              ) : null}
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${slaProgressPercent ?? 0}%` }} />
+                <div className={`h-full transition-all ${isSlaBreached ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${slaProgressPercent ?? 0}%` }} />
               </div>
-              <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {slaSecondsRemaining !== null ? "On track" : "No active SLA"}
+              <div className={`rounded-md px-3 py-2 text-sm ${isSlaBreached ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                {slaSecondsElapsed === null ? "No active SLA" : isSlaBreached ? "SLA Breached" : "On track"}
               </div>
               {task.on_hold_reason ? (
                 <div className="space-y-1 border-t pt-2">

@@ -558,6 +558,7 @@ describe('Reservation', () => {
         checkedInBy: null,
         balancePaidAtCheckIn: null,
         checkInNotes: null,
+        incidentalsPaymentMethodId: null,
         checkedOutAt: null,
         checkedOutBy: null,
         hasDamages: false,
@@ -609,6 +610,7 @@ describe('Reservation', () => {
         // CRITICAL: Database uses balance_paid_at_checkin, NOT balance_paid_at_check_in_cents
         balance_paid_at_checkin: null,
         check_in_notes: null,
+        incidentals_payment_method_id: null,
         checked_out_at: null,
         checked_out_by: null,
         has_damages: false,
@@ -656,6 +658,7 @@ describe('Reservation', () => {
         checked_in_by: randomUUID(),
         balance_paid_at_checkin: 15000, // $150.00 paid at check-in
         check_in_notes: 'Arrived on time',
+        incidentals_payment_method_id: 'pm_1234567890',
         checked_out_at: null,
         checked_out_by: null,
         has_damages: false,
@@ -697,6 +700,7 @@ describe('Reservation', () => {
         checked_in_by: null,
         balance_paid_at_checkin: null,
         check_in_notes: null,
+        incidentals_payment_method_id: null,
         checked_out_at: null,
         checked_out_by: null,
         has_damages: false,
@@ -744,6 +748,7 @@ describe('Reservation', () => {
       'checked_in_by',
       'balance_paid_at_checkin', // NOT balance_paid_at_check_in_cents
       'check_in_notes',
+      'incidentals_payment_method_id',
       'checked_out_at',
       'checked_out_by',
       'check_out_notes',

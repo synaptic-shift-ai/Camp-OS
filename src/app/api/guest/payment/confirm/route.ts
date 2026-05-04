@@ -223,28 +223,22 @@ export async function POST(request: NextRequest) {
       // Don't fail - reservation is already confirmed
     }
 
-    // ========================================================================
-    // Step 4.5: Dual-write to financial_transactions (best-effort)
-    // ========================================================================
-
-    try {
-      const serviceRoleSupabase = createServiceRoleClient()
-      await recordPaymentDualWrite({
-        supabase: serviceRoleSupabase,
-        propertyId: reservation.property_id,
-        reservationId: reservation.id,
-        guestId: reservation.guest_id,
-        createdByUserId: (reservation as any).created_by ?? null,
-        amountCents: paidAmountCents,
-        paymentMethod: PaymentMethod.CREDIT_CARD,
-        stripePaymentIntentId: validatedInput.payment_intent_id,
-        description: 'Guest self-service reservation payment',
-        logPrefix: '[Payment Confirm DualWrite]',
-      })
-    } catch (dualWriteError) {
-      console.error('[Payment Confirm] financial_transactions dual-write failed (non-blocking)', dualWriteError)
-      // Don't fail - reservation is already confirmed and payment recorded
-    }
+    // Unified ledger (same idempotency key as Stripe webhook — PaymentIntent id)
+    const ledgerSupabase = createServiceRoleClient()
+    await recordPaymentDualWrite({
+      supabase: ledgerSupabase,
+      propertyId: reservation.property_id as string,
+      reservationId: reservation.id as string,
+      guestId: (reservation as { guest_id?: string | null }).guest_id ?? null,
+      createdByUserId: null,
+      guestInitiatedLedger: true,
+      amountCents: paidAmountCents,
+      paymentMethod: PaymentMethod.STRIPE,
+      stripePaymentIntentId: validatedInput.payment_intent_id,
+      description: 'Guest self-service reservation payment',
+      processorEventId: validatedInput.payment_intent_id,
+      logPrefix: '[GuestPaymentConfirm DualWrite]',
+    })
 
     // ========================================================================
     // Step 5: Send confirmation email

@@ -1,8 +1,8 @@
 "use client"
 
-import { BarChart3, CalendarDays, List, Users2 } from "lucide-react"
+import { BarChart3, BookOpen, CalendarDays, List, Users2 } from "lucide-react"
 
-export type MaintenanceViewMode = "wo_list" | "analytics" | "schedules" | "vendors"
+export type MaintenanceViewMode = "wo_list" | "analytics" | "schedules" | "vendors" | "guides"
 
 type MaintenanceViewSwitcherProps = {
   mode: MaintenanceViewMode
@@ -13,6 +13,8 @@ type MaintenanceViewSwitcherProps = {
   showSchedules?: boolean
   /** Maps to maintenance module toggle `manage-vendors`. */
   showVendorsList?: boolean
+  /** Shows the Guides tab. */
+  showGuides?: boolean
 }
 
 const tabButtonClass = (selected: boolean) =>
@@ -27,6 +29,7 @@ export function MaintenanceViewSwitcher({
   showCostReport = true,
   showSchedules = true,
   showVendorsList = true,
+  showGuides = true,
 }: MaintenanceViewSwitcherProps) {
   return (
     <div className="flex items-center justify-end">
@@ -84,6 +87,17 @@ export function MaintenanceViewSwitcher({
             Vendors List
           </button>
         ) : null}
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "guides"}
+          onClick={() => onModeChange("guides")}
+          className={tabButtonClass(mode === "guides")}
+        >
+          <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
+          Guides
+        </button>
       </div>
     </div>
   )

@@ -73,6 +73,7 @@ export interface ReservationProps {
   checkedInBy: string | null // Staff user ID
   balancePaidAtCheckIn: MoneyAmount | null
   checkInNotes: string | null
+  incidentalsPaymentMethodId: string | null
 
   // Check-out workflow
   checkedOutAt: Date | null
@@ -146,6 +147,7 @@ export class Reservation extends AggregateRoot<string> {
         checkedInBy: null,
         balancePaidAtCheckIn: null,
         checkInNotes: null,
+        incidentalsPaymentMethodId: null,
         checkedOutAt: null,
         checkedOutBy: null,
         hasDamages: false,
@@ -255,6 +257,10 @@ export class Reservation extends AggregateRoot<string> {
 
   get checkedInAt(): Date | null {
     return this.props.checkedInAt
+  }
+
+  get incidentalsPaymentMethodId(): string | null {
+    return this.props.incidentalsPaymentMethodId
   }
 
   get checkedOutAt(): Date | null {
@@ -436,7 +442,8 @@ export class Reservation extends AggregateRoot<string> {
   checkIn(
     staffUserId: string,
     balancePaid: MoneyAmount = MoneyAmount.zero(),
-    notes: string | null = null
+    notes: string | null = null,
+    incidentalsPaymentMethodId: string | null = null
   ): void {
     if (this.status !== ReservationStatus.CONFIRMED) {
       throw new Error('Can only check in confirmed reservations')
@@ -457,6 +464,7 @@ export class Reservation extends AggregateRoot<string> {
     this.props.checkedInBy = staffUserId
     this.props.balancePaidAtCheckIn = balancePaid
     this.props.checkInNotes = notes
+    this.props.incidentalsPaymentMethodId = incidentalsPaymentMethodId
     this.props.updatedAt = new Date()
 
     // Publish domain event
@@ -770,6 +778,7 @@ export class Reservation extends AggregateRoot<string> {
       checked_in_by: this.props.checkedInBy,
       balance_paid_at_checkin: this.props.balancePaidAtCheckIn?.amountInCents || null,
       check_in_notes: this.props.checkInNotes,
+      incidentals_payment_method_id: this.props.incidentalsPaymentMethodId,
       checked_out_at: this.props.checkedOutAt,
       checked_out_by: this.props.checkedOutBy,
       check_out_notes: this.props.checkOutNotes,
@@ -827,6 +836,7 @@ export class Reservation extends AggregateRoot<string> {
       checkedInBy: data.checked_in_by,
       balancePaidAtCheckIn,
       checkInNotes: data.check_in_notes,
+      incidentalsPaymentMethodId: data.incidentals_payment_method_id ?? null,
       checkedOutAt: data.checked_out_at ? new Date(data.checked_out_at) : null,
       checkedOutBy: data.checked_out_by,
       hasDamages: data.has_damages || false,

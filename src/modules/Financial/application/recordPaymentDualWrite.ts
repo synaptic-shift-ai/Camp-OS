@@ -7,7 +7,8 @@
  * This is a shared helper used by:
  * - Check-in balance payment (check-in.ts)
  * - Reservation confirmation payment (reservation.ts)
- * - Guest self-service payment confirm (guest/payment/confirm/route.ts)
+ * - Guest self-service payment confirm (`guestInitiatedLedger` in callers such as
+ *   `confirmReservationPayment` and the Stripe webhook handler)
  * - Stripe webhook (webhooks/stripe/route.ts)
  */
 
@@ -26,11 +27,16 @@ export interface RecordPaymentDualWriteParams {
   reservationId: string | null
   guestId: string | null
   /**
-   * `financial_transactions.created_by` is a NOT NULL UUID (auth.users.id).
-   * Provide a real user id whenever possible. If omitted and `reservationId`
-   * is provided, this helper will attempt to look up `reservations.created_by`.
+   * Staff auth user id when a property user recorded the payment.
+   * If omitted and `reservationId` is set, defaults to looking up `reservations.created_by`
+   * unless `guestInitiatedLedger` is true (guest / booking-site checkout).
    */
   createdByUserId?: string | null
+  /**
+   * When true, never use `reservations.created_by` as a fallback and allow
+   * `created_by` to be stored as null on `financial_transactions`.
+   */
+  guestInitiatedLedger?: boolean
   amountCents: number
   paymentMethod: PaymentMethod
   stripePaymentIntentId?: string | null
@@ -55,6 +61,7 @@ export async function recordPaymentDualWrite(
     reservationId,
     guestId,
     createdByUserId = null,
+    guestInitiatedLedger = false,
     amountCents,
     paymentMethod,
     stripePaymentIntentId = null,
@@ -67,8 +74,8 @@ export async function recordPaymentDualWrite(
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
 
-    let resolvedCreatedByUserId = createdByUserId
-    if (!resolvedCreatedByUserId && reservationId) {
+    let resolvedCreatedByUserId = createdByUserId ?? null
+    if (!guestInitiatedLedger && !resolvedCreatedByUserId && reservationId) {
       const { data: reservationRow, error: reservationLookupError } = await (supabase as any)
         .from('reservations')
         .select('created_by')
@@ -86,11 +93,10 @@ export async function recordPaymentDualWrite(
       }
     }
 
-    if (!resolvedCreatedByUserId) {
+    if (!resolvedCreatedByUserId && !guestInitiatedLedger) {
       console.warn(`${logPrefix} skipped (missing createdByUserId)`, { propertyId, reservationId })
       return
     }
-
     // Idempotency check — skip if we already processed this event
     if (processorEventId) {
       const existingCharge = await repo.findByProcessorEventId(processorEventId, TransactionType.CHARGE)

@@ -25,7 +25,7 @@ export interface TransactionDTO {
   reconciledAt: string | null
   reconciledBy: string | null
   createdAt: string
-  createdBy: string
+  createdBy: string | null
   updatedAt: string
   source: string
   guestId: string | null

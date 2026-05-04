@@ -23,8 +23,8 @@ describe('FinancialReportingService', () => {
       findByInvoice: vi.fn(),
       save: vi.fn(),
       nextTransactionNumber: vi.fn(),
-      findByProcessorEventId: vi.fn(),
-      findByGuestId: vi.fn(),
+      findByProcessorEventId: vi.fn().mockResolvedValue(null),
+      findByGuestId: vi.fn().mockResolvedValue([]),
     }
 
     mockInvoiceRepo = {

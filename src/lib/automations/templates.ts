@@ -999,55 +999,72 @@ export const DEFAULT_AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     ],
   },
 
-  // ==========================================================================
-  // HOUSEKEEPING (2 templates, OPERATE phase)
-  // ==========================================================================
-
-  // 32. Housekeeping Task Created Alert
+  // 32. High Priority Housekeeping Alert
   {
-    id: 'housekeeping-task-created-alert',
-    name: 'Housekeeping Task Created Alert',
+    id: 'housekeeping-high-priority-alert',
+    name: 'High Priority Housekeeping Alert',
     description:
-      'Notify staff when a new housekeeping task is created, especially high-priority or urgent tasks.',
+      'Notify staff when a high or urgent priority housekeeping task is created, ensuring immediate attention.',
     phase: 'OPERATE',
     triggerType: 'housekeeping.task_created',
     category: 'Operations',
+    conditionGroups: [
+      {
+        logicOperator: 'OR',
+        conditions: [
+          {
+            variable: 'housekeeping.priority',
+            operator: 'IS',
+            value: 'high',
+          },
+          {
+            variable: 'housekeeping.priority',
+            operator: 'IS',
+            value: 'urgent',
+          },
+        ],
+      },
+    ],
     actions: [
+      {
+        actionType: 'send_email',
+        actionConfig: {
+          template: 'housekeeping_high_priority',
+        },
+      },
       {
         actionType: 'send_notification',
         actionConfig: {
           channel: 'staff',
-          priority: 'medium',
-          message: 'A new housekeeping task has been created. Please review and assign staff.',
+          priority: 'high',
+          message: 'A high priority housekeeping task has been created. Immediate attention may be required.',
         },
       },
     ],
   },
 
-  // 33. Housekeeping Task Completed Notification
+  // 33. Housekeeping Task Completed
   {
-    id: 'housekeeping-task-completed-notification',
-    name: 'Housekeeping Task Completed Notification',
+    id: 'housekeeping-task-completed',
+    name: 'Housekeeping Task Completed',
     description:
-      'Notify property managers when a housekeeping task is completed so they can review the site status.',
+      'Notify staff and optionally the guest when a housekeeping task is completed, confirming site readiness.',
     phase: 'OPERATE',
     triggerType: 'housekeeping.task_completed',
     category: 'Operations',
     actions: [
       {
+        actionType: 'send_email',
+        actionConfig: {
+          template: 'housekeeping_task_completed',
+        },
+      },
+      {
         actionType: 'send_notification',
         actionConfig: {
           channel: 'staff',
           priority: 'low',
-          message: 'A housekeeping task has been completed. The site may be ready for the next guest.',
-        },
-      },
-      {
-        actionType: 'log_activity',
-        actionConfig: {
-          resource: 'housekeeping',
-          action: 'completed',
-          details: 'Housekeeping task completed — site availability review recommended.',
+          message: 'A housekeeping task has been completed and the site is ready.',
         },
       },
     ],

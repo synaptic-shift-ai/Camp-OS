@@ -22,6 +22,16 @@ import {
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
 
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+    return (siteType ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\bsite\b/g, '')
+        .trim()
+}
+
 type ResolvedVendorEmailTemplate = {
     subject: string
     html: string
@@ -291,6 +301,45 @@ export async function POST(
             return error(ErrorCodes.VALIDATION_ERROR, request, {
                 message: 'Site not found for this property',
             })
+        }
+
+        // Site type config validation
+        const { data: propRow } = await supabase
+            .from('properties')
+            .select('site_type_config')
+            .eq('id', propertyId)
+            .maybeSingle()
+
+        const stConfig = (propRow?.site_type_config as {
+            maintenance?: Record<string, boolean>
+            allowed_site_types?: string[]
+        } | null | undefined) ?? null
+
+        const maintenanceMap = Object.fromEntries(
+            Object.entries(stConfig?.maintenance ?? {}).map(([key, value]) => [
+                toCanonicalSiteTypeKey(key),
+                value,
+            ]),
+        )
+
+        const allowedSiteTypeSet = new Set(
+            Array.isArray(stConfig?.allowed_site_types)
+                ? stConfig!.allowed_site_types.map((st) => toCanonicalSiteTypeKey(st))
+                : [],
+        )
+
+        const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+        if (siteTypeKey) {
+            if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message: 'The selected site is not available for maintenance tasks',
+                })
+            }
+            if (maintenanceMap[siteTypeKey] === false) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message: 'The selected site is not available for maintenance tasks',
+                })
+            }
         }
 
 

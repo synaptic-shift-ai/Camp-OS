@@ -52,10 +52,48 @@ async function getMaintenancePageOptions(
     .is("deleted_at", null)
     .order("site_number", { ascending: true })
 
-  const siteOptions = (sites ?? []).map((site) => ({
-    id: site.id as string,
-    label: (site.site_name as string | null)?.trim() || (site.site_number as string),
-  }))
+  const { data: propertyRow } = await supabase
+    .from("properties")
+    .select("site_type_config")
+    .eq("id", propertyId)
+    .maybeSingle()
+
+  const siteTypeConfig = (propertyRow?.site_type_config as {
+    maintenance?: Record<string, boolean>
+    allowed_site_types?: string[]
+  } | null) ?? null
+
+  const maintenanceMap = siteTypeConfig?.maintenance ?? {}
+  const enabledSiteTypes = new Set(
+    Object.entries(maintenanceMap)
+      .filter(([_key, enabled]) => enabled)
+      .map(([key]) =>
+        key
+          .trim()
+          .toLowerCase()
+          .replace(/[_-]+/g, " ")
+          .replace(/\s+/g, " ")
+          .replace(/\bsite\b/g, "")
+          .trim(),
+      ),
+  )
+
+  const siteOptions = (sites ?? [])
+    .filter((site) => {
+      if (enabledSiteTypes.size === 0) return true
+      const canonicalType = (site.site_type ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\bsite\b/g, "")
+        .trim()
+      return enabledSiteTypes.has(canonicalType)
+    })
+    .map((site) => ({
+      id: site.id as string,
+      label: (site.site_name as string | null)?.trim() || (site.site_number as string),
+    }))
 
   const { data: staffCategories } = await supabase
     .from("property_role_categories")

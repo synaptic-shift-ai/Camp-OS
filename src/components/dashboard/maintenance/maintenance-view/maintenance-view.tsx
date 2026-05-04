@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Truck,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -376,6 +377,9 @@ export function MaintenanceView({
     if (slaSecondsRemaining === null) return null
     return formatDuration(slaSecondsRemaining)
   }, [slaSecondsRemaining])
+
+  const isSlaBreached = slaSecondsRemaining !== null && slaSecondsRemaining === 0
+    && task?.status !== "completed" && task?.status !== "cancelled"
 
   // ── Stepper ──
 
@@ -975,7 +979,7 @@ export function MaintenanceView({
       </Link>
 
       <section className="overflow-hidden rounded-xl border border-border">
-        <div className="bg-emerald-950 px-4 py-4 text-white sm:px-6">
+        <div className={cn("px-4 py-4 text-white sm:px-6 transition-colors duration-300", isSlaBreached ? "bg-red-900" : "bg-emerald-950")}>
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/80">
@@ -1001,7 +1005,7 @@ export function MaintenanceView({
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-wide text-emerald-200/70">SLA</p>
-              <p className="text-3xl font-semibold">{slaDisplay ?? "—"}</p>
+              <p className={cn("text-3xl font-semibold", isSlaBreached && "text-red-300")}>{slaDisplay ?? "—"}</p>
               <p className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-100/80">
                 <Clock className="h-3.5 w-3.5" />
                 Work timer: {workTimerDisplay}
@@ -1448,10 +1452,10 @@ export function MaintenanceView({
                 <span>{slaTargetHours ? `${slaTargetHours}h target` : "No SLA"}</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${slaProgressPercent ?? 0}%` }} />
+                <div className={cn("h-full transition-all", isSlaBreached ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${slaProgressPercent ?? 0}%` }} />
               </div>
-              <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {slaSecondsRemaining !== null ? "On track" : "No active SLA"}
+              <div className={cn("rounded-md px-3 py-2 text-sm", isSlaBreached ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>
+                {slaSecondsRemaining === null ? "No active SLA" : isSlaBreached ? "SLA Breached" : "On track"}
               </div>
               {task.on_hold_reason ? (
                 <div className="space-y-1 border-t pt-2">

@@ -2,7 +2,10 @@
  * Automation Queries
  *
  * Supabase query layer for the automations engine.
- * Reads use user-context client; writes use service-role client to bypass RLS.
+ * Single-record reads (getAutomationWithDetails) use the service-role client so that
+ * system automations (property_id = null) are accessible regardless of RLS.
+ * Permission checks are always done at the route/page level before these functions are called.
+ * List reads use the user-context client; writes use service-role client.
  */
 
 import { createClient } from '@/lib/supabase/server'
@@ -36,7 +39,8 @@ export async function listAutomations(
     phase?: AutomationPhase
     scope?: AutomationScope
     isActive?: boolean
-  }
+  },
+  companyId?: string | null,
 ): Promise<AutomationRow[]> {
   const supabase = await createClient()
 
@@ -60,12 +64,13 @@ export async function listAutomations(
 
   let results = ((data ?? []) as unknown as AutomationRow[])
 
-  // Also fetch system automations and append
+  // Also fetch system automations for the user's company and append
   let sysQuery = createServiceRoleClient()
     .from('automations' as any)
     .select('*')
     .is('property_id', null)
     .eq('scope', 'system')
+    .eq('company_id', companyId!)
     .order('sort_order', { ascending: true })
 
   if (filters?.phase) sysQuery = sysQuery.eq('phase', filters.phase)
@@ -85,7 +90,7 @@ export async function listAutomations(
  * List system-scope automations (property_id IS NULL).
  * Uses service-role client since system automations have no property context.
  */
-export async function listSystemAutomations(): Promise<AutomationRow[]> {
+export async function listSystemAutomations(companyId: string): Promise<AutomationRow[]> {
   const supabase = createServiceRoleClient()
 
   const { data, error } = await supabase
@@ -93,6 +98,7 @@ export async function listSystemAutomations(): Promise<AutomationRow[]> {
     .select('*')
     .is('property_id', null)
     .eq('scope', 'system')
+    .eq('company_id', companyId)
     .order('sort_order', { ascending: true })
 
   if (error) {
@@ -112,7 +118,9 @@ export async function getAutomationWithDetails(automationId: string): Promise<{
   actions: AutomationActionRow[]
   branches: AutomationBranchRow[]
 } | null> {
-  const supabase = await createClient()
+  // Use service-role client so system automations (property_id = null) are accessible
+  // regardless of user RLS policies. Permission checks happen at the route/page level.
+  const supabase = createServiceRoleClient()
 
   const { data: automation, error: autError } = await supabase
     .from('automations' as any)

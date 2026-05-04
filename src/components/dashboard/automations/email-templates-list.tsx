@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pencil, Copy, Trash2, Plus, Search, Loader2, Send } from "lucide-react"
+import { PermissionGate } from "@/components/ui/permission-gate"
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { EmailTemplateFormDialog } from "./email-template-form-dialog"
+import { usePermissions } from "@/hooks/use-permissions"
 
 type EmailTemplatesListProps = {
   templates: Array<Record<string, unknown>>
@@ -62,6 +64,8 @@ function formatDate(dateStr: string): string {
 }
 
 export function EmailTemplatesList({ templates: initialTemplates, propertyId, companyId }: EmailTemplatesListProps) {
+  const { can } = usePermissions()
+  const canEdit = can("automations.edit_email_templates")
   const [templates, setTemplates] = useState(initialTemplates)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
@@ -236,10 +240,12 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Create Template
-        </Button>
+        <PermissionGate permission="automations.add_email_templates">
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Create Template
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Table */}
@@ -325,10 +331,11 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                     <TableCell className="py-1.5">
                       <button
                         type="button"
-                        onClick={() => handleToggleActive(t)}
-                        disabled={isLoading}
+                        onClick={() => canEdit && handleToggleActive(t)}
+                        disabled={isLoading || !canEdit}
                         className={cn(
-                          "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors cursor-pointer",
+                          "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors",
+                          canEdit ? "cursor-pointer" : "cursor-default opacity-60",
                           isActive
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
                             : "border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500",
@@ -355,43 +362,51 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                         ) : (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              aria-label="Edit template"
-                              className="h-8 w-8 p-0"
-                              onClick={() => openEdit(t)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              aria-label="Clone template"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleClone(t)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              aria-label="Send test email"
-                              className="h-8 w-8 p-0"
-                              onClick={() => openTestSend(t)}
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              aria-label="Delete template"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                              onClick={() => setDeleteTemplate(t)}
-                              disabled={isSystem}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <PermissionGate permission="automations.edit_email_templates">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                aria-label="Edit template"
+                                className="h-8 w-8 p-0"
+                                onClick={() => openEdit(t)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate permission="automations.add_email_templates">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                aria-label="Clone template"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleClone(t)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate permission="automations.edit_email_templates">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                aria-label="Send test email"
+                                className="h-8 w-8 p-0"
+                                onClick={() => openTestSend(t)}
+                              >
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate permission="automations.delete_email_templates">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                aria-label="Delete template"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                                onClick={() => setDeleteTemplate(t)}
+                                disabled={isSystem}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
                           </>
                         )}
                       </div>

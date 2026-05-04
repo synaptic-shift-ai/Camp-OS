@@ -19,7 +19,7 @@ describe('permissions', () => {
       expect(perms.has('financial.refund')).toBe(true)
       expect(perms.has('reservations.refund')).toBe(true)
       expect(perms.has('global.manage_property_settings')).toBe(true)
-      expect(perms.has('automations.system_admin')).toBe(true)
+      expect(perms.has('automations.add_system_automations')).toBe(true)
       expect(perms.has('financial.switch_processor')).toBe(true)
     })
 

@@ -37,9 +37,6 @@ import type { Database } from '@/contracts/db'
 import type { PropertyPricingConfig } from '@/app/dashboard/[propertyId]/sites/page'
 import { getPricingSourceType, getManualOverrideTypes } from '@/lib/site-pricing-source'
 
-const SEASON_ALERT_TOAST_CLASS =
-  'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
-
 const siteTypeIcons: Record<SiteType, LucideIcon> = {
   rv: Home,
   tent: Tent,
@@ -271,7 +268,6 @@ export function SitesGrid({
       toast({
         title: 'Status Updated',
         description: `Site ${site.site_number} is now ${newStatus}`,
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
 
@@ -283,7 +279,6 @@ export function SitesGrid({
         title: 'Error',
         description: err instanceof Error ? err.message : 'Failed to update status',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
       })
     }
   }

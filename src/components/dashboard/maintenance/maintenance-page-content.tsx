@@ -49,6 +49,7 @@ type MaintenancePageContentProps = {
   canManageMaintenancePmSchedules: boolean
   canViewMaintenanceCostReports: boolean
   canEnterLaborCost: boolean
+  showAssigneeFilter?: boolean
   selfAssigneeStaffId: string | null
   selfAssigneeLabel: string
 }
@@ -214,6 +215,7 @@ export function MaintenancePageContent({
   canManageMaintenancePmSchedules,
   canViewMaintenanceCostReports,
   canEnterLaborCost,
+  showAssigneeFilter = true,
   selfAssigneeStaffId,
   selfAssigneeLabel,
 }: MaintenancePageContentProps) {
@@ -296,6 +298,11 @@ export function MaintenancePageContent({
     canManageMaintenanceVendors,
   ])
 
+  useEffect(() => {
+    if (showAssigneeFilter || filters.assigneeId === "all") return
+    setFilters((previous) => ({ ...previous, assigneeId: "all" }))
+  }, [filters.assigneeId, showAssigneeFilter])
+
   const filtersApiKey = useMemo(
     () =>
       `${debouncedFilters.search}|${debouncedFilters.siteId}|${debouncedFilters.assigneeId}|${debouncedFilters.status}|${debouncedFilters.priority}|${debouncedFilters.source}|${debouncedFilters.category}`,
@@ -304,21 +311,16 @@ export function MaintenancePageContent({
 
   const filteredRows = useMemo(() => {
     const normalizedSearch = filters.search.trim().toLowerCase()
+    if (normalizedSearch.length === 0) return rows
 
     return rows.filter((row) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
+      return (
         row.siteName.toLowerCase().includes(normalizedSearch) ||
         row.task.toLowerCase().includes(normalizedSearch) ||
         (row.assignee?.toLowerCase().includes(normalizedSearch) ?? false)
-
-      const matchesStatus = filters.status === "all" || row.status === filters.status
-      const matchesPriority = filters.priority === "all" || row.priority === filters.priority
-      const matchesSource = filters.source === "all" || row.source === filters.source
-      const matchesCategory = filters.category === "all" || row.category === filters.category
-      return matchesSearch && matchesStatus && matchesPriority && matchesSource && matchesCategory
+      )
     })
-  }, [filters, rows])
+  }, [filters.search, rows])
 
   const categoryOptions = useMemo(() => {
     const categoryMap = new Map<string, string>()
@@ -361,7 +363,7 @@ export function MaintenancePageContent({
       if (debouncedFilters.siteId !== "all") {
         params.set("siteId", debouncedFilters.siteId)
       }
-      if (debouncedFilters.assigneeId !== "all") {
+      if (showAssigneeFilter && debouncedFilters.assigneeId !== "all") {
         params.set("assigneeId", debouncedFilters.assigneeId)
       }
       params.set("page", String(pageRef.current))
@@ -392,7 +394,11 @@ export function MaintenancePageContent({
         task: task.title,
         assigneeId: task.staff_id,
         description: task.description,
-        assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
+        assignee: task.staff_id
+          ? (assigneeLabelById.get(task.staff_id) ?? "Assigned")
+          : task.vendor_id
+            ? "Vendor Assigned"
+            : null,
         status: fromApiStatus(task.status),
         priority: fromApiPriority(task.priority),
         category: task.category ? maintenanceCategoryLabel(task.category) : undefined,
@@ -433,6 +439,7 @@ export function MaintenancePageContent({
     debouncedFilters.category,
     perPage,
     propertyId,
+    showAssigneeFilter,
     toast,
   ])
 
@@ -859,6 +866,7 @@ export function MaintenancePageContent({
             siteOptions={siteOptions}
             assigneeOptions={assigneeOptions}
             categoryOptions={categoryOptions}
+            showAssigneeFilter={showAssigneeFilter}
           />
           <MaintenanceTable
             rows={filteredRows}

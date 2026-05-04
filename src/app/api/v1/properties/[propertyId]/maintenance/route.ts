@@ -8,6 +8,9 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
+import { sendEmail, getFrom } from '@/lib/email/emailit'
+import { renderWithContext } from '@/lib/email/template-renderer'
+import { buildVendorWorkOrderAssignedEmailHtml } from '@/lib/email/templates/vendor-work-order-assigned'
 import {
     CreateMaintenanceTaskRequestSchema,
     ListMaintenanceTasksQuerySchema,
@@ -18,6 +21,80 @@ import {
 } from '@/lib/dashboard/maintenance/maintenance-queries'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
+
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+    return (siteType ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\bsite\b/g, '')
+        .trim()
+}
+
+type ResolvedVendorEmailTemplate = {
+    subject: string
+    html: string
+}
+
+async function resolveConfiguredVendorEmailTemplate(
+    supabase: SupabaseClient,
+    propertyId: string,
+    companyId: string | null,
+): Promise<ResolvedVendorEmailTemplate | null> {
+    const { data: automations } = await (supabase as any)
+        .from('automations')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('is_active', true)
+        .eq('trigger_type', 'maintenance.task_created')
+
+    const automationIds = (automations ?? []).map((row: { id?: string }) => row.id).filter(Boolean)
+    if (automationIds.length === 0) return null
+
+    const { data: actions } = await (supabase as any)
+        .from('automation_actions')
+        .select('action_config, sort_order')
+        .in('automation_id', automationIds)
+        .eq('action_type', 'send_email')
+        .order('sort_order', { ascending: true })
+
+    const templateSlug = (actions ?? [])
+        .map((action: { action_config?: Record<string, unknown> }) => action.action_config?.template)
+        .find((slug: unknown): slug is string => typeof slug === 'string' && slug.trim().length > 0)
+
+    if (!templateSlug) return null
+
+    let template: { subject_template: string; html_template: string } | null = null
+    if (companyId) {
+        const { data } = await (supabase as any)
+            .from('email_templates')
+            .select('subject_template, html_template')
+            .eq('company_id', companyId)
+            .eq('property_id', propertyId)
+            .eq('slug', templateSlug)
+            .eq('is_active', true)
+            .maybeSingle()
+        if (data) template = data
+    }
+
+    if (!template) {
+        const { data } = await (supabase as any)
+            .from('email_templates')
+            .select('subject_template, html_template')
+            .eq('slug', templateSlug)
+            .eq('is_system', true)
+            .eq('is_active', true)
+            .maybeSingle()
+        if (data) template = data
+    }
+
+    if (!template) return null
+    return {
+        subject: template.subject_template,
+        html: template.html_template,
+    }
+}
 
 export async function GET(
     request: NextRequest,
@@ -81,6 +158,22 @@ export async function GET(
         if (data.priority !== undefined) listFilters.priority = data.priority
         if (data.source !== undefined) listFilters.source = data.source
         if (data.category !== undefined) listFilters.category = data.category
+
+        // Staff users should only see work orders assigned to themselves.
+        if (access.role === 'staff') {
+            const { data: selfStaff } = await supabase
+                .from('property_staff')
+                .select('id')
+                .eq('property_id', propertyId)
+                .eq('user_id', user.id)
+                .in('status', ['active', 'pending'])
+                .maybeSingle()
+
+            const selfStaffId = (selfStaff?.id as string | undefined) ?? null
+            listFilters.assigneeId = selfStaffId ?? '__no_staff_assignment__'
+        }
+
+
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const [listResult, openTaskCount] = await Promise.all([
@@ -196,6 +289,88 @@ export async function POST(
             staffId = (selfStaff?.id as string | undefined) ?? null
         }
 
+        const { data: siteRow } = await supabase
+            .from('sites')
+            .select('id, site_type')
+            .eq('id', parsed.data.siteId)
+            .eq('property_id', propertyId)
+            .is('deleted_at', null)
+            .maybeSingle()
+
+        if (!siteRow) {
+            return error(ErrorCodes.VALIDATION_ERROR, request, {
+                message: 'Site not found for this property',
+            })
+        }
+
+        const { data: propertyRow } = await supabase
+            .from('properties')
+            .select('site_type_config')
+            .eq('id', propertyId)
+            .maybeSingle()
+
+        const siteTypeConfig =
+            (propertyRow?.site_type_config as {
+                maintenance?: Record<string, boolean>
+                allowed_site_types?: string[]
+            } | null | undefined) ?? null
+
+        const maintenanceMap = Object.fromEntries(
+            Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
+                toCanonicalSiteTypeKey(key),
+                value,
+            ]),
+        )
+
+        const allowedSiteTypeSet = new Set(
+            Array.isArray(siteTypeConfig?.allowed_site_types)
+                ? siteTypeConfig!.allowed_site_types.map((siteType) =>
+                    toCanonicalSiteTypeKey(siteType),
+                )
+                : [],
+        )
+
+        const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+        if (siteTypeKey) {
+            if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message: 'The selected site is not available for maintenance',
+                })
+            }
+
+            if (maintenanceMap[siteTypeKey] === false) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message: 'The selected site is not available for maintenance',
+                })
+            }
+        }
+
+        // Enforce per-category spend limit against the requested estimate before creating a work order.
+        if (parsed.data.category) {
+            try {
+                const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
+                const spendLimits = await queries.listSpendLimits(propertyId)
+                const matchedLimit = spendLimits.find(
+                    (sl) => sl.category === parsed.data.category && sl.alert_enabled,
+                )
+
+                if (matchedLimit) {
+                    const thresholdAmount = Number(matchedLimit.threshold_amount ?? 0)
+                    const estimatedLaborCost = Number(parsed.data.estimatedLaborCost ?? 0)
+                    const estimatedPartsCost = Number(parsed.data.estimatedPartsCost ?? 0)
+                    const estimatedTotal = estimatedLaborCost + estimatedPartsCost
+
+                    if (thresholdAmount > 0 && estimatedTotal > thresholdAmount) {
+                        return error(ErrorCodes.VALIDATION_ERROR, request, {
+                            message: `Estimated total cost (${estimatedTotal}) exceeds spend limit (${thresholdAmount}) for category ${parsed.data.category}.`,
+                        })
+                    }
+                }
+            } catch {
+                // Non-blocking: if spend-limit lookup fails, continue with existing create flow.
+            }
+        }
+
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
         const maintenanceTask = await queries.createMaintenanceTask({
             propertyId,
@@ -278,6 +453,122 @@ export async function POST(
                 },
                 { failOpen: false },
             )
+        }
+
+        if (maintenanceTask.vendor_id) {
+            try {
+                const [{ data: vendorRow }, { data: propertyRow }, { data: siteRow }] = await Promise.all([
+                    supabase
+                        .from('property_vendor')
+                        .select('name, email')
+                        .eq('id', maintenanceTask.vendor_id)
+                        .eq('property_id', propertyId)
+                        .maybeSingle(),
+                    supabase
+                        .from('properties')
+                        .select('name, address, city, state, zip_code, email')
+                        .eq('id', propertyId)
+                        .maybeSingle(),
+                    supabase
+                        .from('sites')
+                        .select('site_name, site_number')
+                        .eq('id', maintenanceTask.site_id)
+                        .eq('property_id', propertyId)
+                        .maybeSingle(),
+                ])
+
+                const vendorEmail = vendorRow?.email?.trim()
+                if (vendorEmail) {
+                    let emailResult: Awaited<ReturnType<typeof sendEmail>> | null = null
+                    const template = await resolveConfiguredVendorEmailTemplate(
+                        supabase as unknown as SupabaseClient,
+                        propertyId,
+                        access.companyId ?? null,
+                    )
+                    const propertyName = propertyRow?.name ?? 'Campground'
+                    const propertyAddress = [
+                        propertyRow?.address ?? null,
+                        [propertyRow?.city ?? null, propertyRow?.state ?? null].filter(Boolean).join(', ') || null,
+                        propertyRow?.zip_code ?? null,
+                    ]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim() || 'Address not provided'
+                    const propertyEmail = propertyRow?.email?.trim() || 'support@campos.com'
+                    const siteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || 'Unassigned site'
+
+                    if (template) {
+                        const rendered = renderWithContext(template.subject, template.html, {
+                            property: {
+                                name: propertyName,
+                                address: propertyAddress,
+                                email: propertyEmail,
+                            },
+                            vendor: { name: vendorRow?.name ?? 'Vendor' },
+                            maintenance: {
+                                wo_number: maintenanceTask.wo_number ?? maintenanceTask.id,
+                                title: maintenanceTask.title,
+                                category: maintenanceTask.category ?? 'Uncategorized',
+                                priority: maintenanceTask.priority ?? 'medium',
+                                description: maintenanceTask.description ?? '',
+                                site_label: siteLabel,
+                                estimated_labor_cost: maintenanceTask.estimated_labor_cost ?? null,
+                            },
+                        })
+
+                        emailResult = await sendEmail({
+                            from: getFrom(),
+                            to: vendorEmail,
+                            subject: rendered.subject,
+                            html: rendered.html,
+                            text: rendered.text,
+                        })
+                    } else {
+                        const html = await buildVendorWorkOrderAssignedEmailHtml({
+                            vendorName: vendorRow?.name ?? 'Vendor',
+                            propertyName,
+                            propertyAddress,
+                            propertyEmail,
+                            workOrderNumber: maintenanceTask.wo_number ?? maintenanceTask.id,
+                            taskTitle: maintenanceTask.title,
+                            category: maintenanceTask.category ?? null,
+                            priority: maintenanceTask.priority ?? null,
+                            siteLabel,
+                            description: maintenanceTask.description ?? null,
+                            estimatedLaborCost: maintenanceTask.estimated_labor_cost ?? null,
+                        })
+                        emailResult = await sendEmail({
+                            from: getFrom(),
+                            to: vendorEmail,
+                            subject: `Work Order Invitation: ${maintenanceTask.wo_number ?? maintenanceTask.id}`,
+                            html,
+                        })
+                    }
+
+                    if (access.companyId) {
+                        const service = createServiceRoleClient()
+                        const action = emailResult?.success ? 'email_sent' : 'email_failed'
+                        const woLabel = maintenanceTask.wo_number ?? maintenanceTask.id
+                        const details = emailResult?.success
+                            ? `Sent vendor assignment email for work order ${woLabel} to ${vendorEmail}.`
+                            : `Failed to send vendor assignment email for work order ${woLabel} to ${vendorEmail}: ${emailResult?.error ?? 'Unknown error'}.`
+                        await recordActivityLog(
+                            service,
+                            {
+                                companyId: access.companyId,
+                                propertyId,
+                                action,
+                                resource: 'maintenance',
+                                userId: user.id,
+                                details,
+                            },
+                            { failOpen: true },
+                        )
+                    }
+                }
+            } catch (emailErr) {
+                console.error('[Maintenance API v1] Vendor assignment email failed:', emailErr)
+            }
         }
 
         return success({ maintenanceTask, spendLimitWarnings }, request)

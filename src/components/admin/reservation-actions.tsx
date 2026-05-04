@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreVertical } from "lucide-react"
+import { Eye, MoreVertical } from "lucide-react"
 import { EditReservationDialog } from "./edit-reservation-dialog"
 import { CancelReservationDialog } from "./cancel-reservation-dialog"
 import { CheckInButton } from "./check-in-button"
@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 import type { RateDiscountsConfig } from "@/lib/config/types"
 import { cn } from "@/lib/utils"
+import { useProperty } from "@/components/property-context"
 
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
@@ -100,6 +101,7 @@ export function ReservationActions({
   const router = useRouter()
   const { toast } = useToast()
   const [noShowLoading, setNoShowLoading] = useState(false)
+  const { selectedPropertyId } = useProperty()
 
   const handleMarkNoShow = async (e: Event) => {
     e.preventDefault()
@@ -122,7 +124,6 @@ export function ReservationActions({
       toast({
         title: "Marked as no-show",
         description: "Reservation status updated.",
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
       router.refresh()
@@ -174,11 +175,9 @@ export function ReservationActions({
   })()
   const showNoShowButton = showNoShowStatus && checkInReached
   const showExtend = canModify && canExtendOrRenew
+  const showView = !!selectedPropertyId
   const showAnyActions =
-    canCheckIn ||
-    canCheckOut ||
-    canModify ||
-    canCancel
+    showView || canCheckIn || canCheckOut || canModify || canCancel
 
   if (!showAnyActions) return null
 
@@ -192,6 +191,17 @@ export function ReservationActions({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {selectedPropertyId ? (
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault()
+              router.push(`/dashboard/${selectedPropertyId}/reservations/${reservationId}`)
+            }}
+          >
+            <Eye className="h-4 w-4" />
+            View Reservation
+          </DropdownMenuItem>
+        ) : null}
         {canCheckIn && (
           <CheckInButton
             reservationId={reservationId}

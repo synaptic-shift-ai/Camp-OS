@@ -17,6 +17,7 @@ import { DryRunDialog } from "./dry-run-dialog"
 import { DEFAULT_AUTOMATION_TEMPLATES, type AutomationTemplate } from "@/lib/automations/templates"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { usePermissions } from "@/hooks/use-permissions"
 import { PHASE_ORDER, type AutomationPhase, type AutomationRow } from "@/lib/automations/types"
 import { PHASE_COLORS } from "@/lib/automations/templates"
 
@@ -30,6 +31,11 @@ type AutomationBuilderProps = {
 export function AutomationBuilder({ automations: initialAutomations, propertyId, companyId, systemMode }: AutomationBuilderProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const { can } = usePermissions()
+
+  const canManage = can(systemMode ? "automations.edit_system_automations" : "automations.edit_automations")
+  const canDelete = can(systemMode ? "automations.delete_system_automations" : "automations.delete_automations")
+  const canDuplicate = can(systemMode ? "automations.add_system_automations" : "automations.add_automations")
 
   const [search, setSearch] = useState("")
   const [phaseFilter, setPhaseFilter] = useState<AutomationPhase | "all">("all")
@@ -95,6 +101,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
   const baseUrl = `/dashboard/${propertyId}/automations`
 
   const handleToggleActive = useCallback(async (row: AutomationRow) => {
+    if (!canManage) return
     try {
       const url = systemMode ? `/api/v1/automations/${row.id}` : `/api/v1/automations/${row.id}?propertyId=${propertyId}`
       const res = await fetch(url, {
@@ -111,7 +118,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
     } catch {
       toast({ title: "Failed to update", variant: "destructive" })
     }
-  }, [propertyId, systemMode, toast, refresh])
+  }, [canManage, propertyId, systemMode, toast, refresh])
 
   const handleDeleted = useCallback(async () => {
     if (!deleteTarget) return
@@ -170,7 +177,8 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(systemMode ? {} : { companyId, propertyId }),
+          ...(companyId ? { companyId } : {}),
+          ...(!systemMode ? { propertyId } : {}),
           name: `${row.name} (Copy)`,
           description: row.description ?? undefined,
           phase: row.phase,
@@ -247,11 +255,13 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
-            <LayoutTemplate className="h-4 w-4 mr-1" />
-            Templates
-          </Button>
-          <PermissionGate permission="automations.manage">
+          <PermissionGate permission={systemMode ? "automations.add_system_automations" : "automations.add_automations"}>
+            <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
+              <LayoutTemplate className="h-4 w-4 mr-1" />
+              Templates
+            </Button>
+          </PermissionGate>
+          <PermissionGate permission={systemMode ? "automations.add_system_automations" : "automations.add_automations"}>
             <Button size="sm" onClick={() => router.push(systemMode ? `/dashboard/${propertyId}/automations/new?scope=system` : `${baseUrl}/new`)}>
               <Plus className="h-4 w-4 mr-1" />
               Create Automation
@@ -275,7 +285,9 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
         onDelete={row => setDeleteTarget(row)}
         onToggleActive={handleToggleActive}
         onDryRun={row => setDryRunTarget(row)}
-        canManage={true}
+        canManage={canManage}
+        canDelete={canDelete}
+        canDuplicate={canDuplicate}
         {...(!systemMode ? { readOnlyIds: systemIds } : {})}
       />
 
@@ -325,6 +337,13 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             setDryRunTarget(viewingAutomation)
           }
         }}
+        onDelete={() => {
+          if (viewingAutomation) {
+            setViewingAutomation(null)
+            setDeleteTarget(viewingAutomation)
+          }
+        }}
+        systemScope={systemMode ?? false}
       />
 
       {/* Delete dialog */}

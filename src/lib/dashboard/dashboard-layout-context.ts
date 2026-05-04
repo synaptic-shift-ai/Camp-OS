@@ -63,7 +63,8 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'staff-management' ||
       moduleKey === 'reservations' ||
       moduleKey === 'sites' ||
-      moduleKey === 'guests'
+      moduleKey === 'guests' ||
+      moduleKey === 'automations'
     )
   }
   if (role === 'manager' && category === 'housekeeping') {
@@ -71,7 +72,8 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'overview' ||
       moduleKey === 'staff-management' ||
       moduleKey === 'sites' ||
-      moduleKey === 'housekeeping'
+      moduleKey === 'housekeeping' ||
+      moduleKey === 'automations'
     )
   }
   if (role === 'manager' && category === 'maintenance') {
@@ -79,7 +81,8 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'overview' ||
       moduleKey === 'staff-management' ||
       moduleKey === 'sites' ||
-      moduleKey === 'maintenance'
+      moduleKey === 'maintenance' ||
+      moduleKey === 'automations'
     )
   }
 
@@ -99,7 +102,7 @@ function fallbackModuleViewForRoleCategory(
   }
 
   if (role === 'manager') {
-    return moduleKey === 'overview' || moduleKey === 'account-profile'
+    return moduleKey === 'overview' || moduleKey === 'account-profile' || moduleKey === 'automations'
   }
 
   return false
@@ -158,9 +161,11 @@ async function resolveCategoryBasedModuleNavVisibility(
   const moduleAccessVisible = { ...emptyVisibility }
 
   for (const mod of DASHBOARD_ROLE_ACCESS_MODULES) {
+    // Automations uses 'view-dashboard' as its primary view permission, all other modules use 'view'
+    const viewPermKey = mod.key === 'automations' ? 'view-dashboard' : 'view'
     moduleAccessVisible[mod.key] = rows.some((row) => {
       const access = normalizeAccessPayload(row.access)
-      const explicitView = access?.moduleAccessControl?.[mod.key]?.view
+      const explicitView = access?.moduleAccessControl?.[mod.key]?.[viewPermKey]
       if (typeof explicitView === 'boolean') {
         return explicitView
       }

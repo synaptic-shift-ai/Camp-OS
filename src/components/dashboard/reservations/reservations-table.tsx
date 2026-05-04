@@ -293,7 +293,7 @@ export function ReservationsTable({
             const hasOutstandingBalance = amountDueCents > 0
 
             const canRefund =
-              reservation.status === "cancelled" &&
+              (reservation.status === "cancelled" || reservation.status === "confirmed") &&
               reservation.paidAmount > 0 &&
               reservation.refundAmount < reservation.paidAmount
 
@@ -325,7 +325,7 @@ export function ReservationsTable({
                       </p>
                     </div>
                     <div
-                      className="-mt-0.5"
+                      className="-mt-0.5 flex items-center gap-2"
                       onClick={(event) => {
                         event.stopPropagation()
                       }}
@@ -504,7 +504,7 @@ export function ReservationsTable({
                 const hasOutstandingBalance = amountDueCents > 0
 
                 const canRefund =
-                  reservation.status === "cancelled" &&
+                  (reservation.status === "cancelled" || reservation.status === "confirmed") &&
                   reservation.paidAmount > 0 &&
                   reservation.refundAmount < reservation.paidAmount
 
@@ -563,6 +563,7 @@ export function ReservationsTable({
                         event.stopPropagation()
                       }}
                     >
+                    <div className="flex items-center justify-end gap-2">
                       <ReservationActions
                         reservationId={reservation.id}
                         confirmationNumber={reservation.confirmationNumber}
@@ -596,6 +597,7 @@ export function ReservationsTable({
                         canCheckOut={canCheckOutReservation}
                         canCancel={canCancelReservation}
                       />
+                    </div>
                     </TableCell>
                   </TableRow>
                 )

@@ -3,7 +3,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, AlertTriangle, CheckCircle2, ListChecks, Loader2, Play, SlidersHorizontal, Upload, X } from "lucide-react"
+import { ArrowLeft, AlertTriangle, CheckCircle2, ListChecks, Loader2, Lock, Play, SlidersHorizontal, Upload, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Json } from "@/contracts/db"
 import { parseChecklistTemplateLines } from "@/lib/dashboard/housekeeping/housekeeping-queries"
@@ -469,15 +469,6 @@ export function HousekeepingView({
     }
   }
 
-  const handleFlagIssue = async () => {
-    await loadTask()
-    toast({
-      title: "Issue reported",
-      description: "A maintenance work order has been created.",
-      variant: "success",
-    })
-  }
-
   const handleSelectImages = async (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
     if (selectedFiles.length === 0) return
@@ -659,6 +650,7 @@ export function HousekeepingView({
   const assigneeLabel = task.staff_id ? assigneeLabelById.get(task.staff_id) ?? "Assigned" : "Unassigned"
   const showStartTaskAction = task.status === "pending"
   const showMarkCompleteAction = task.status !== "done"
+  const taskStarted = task.status !== "pending"
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -680,6 +672,11 @@ export function HousekeepingView({
               <Badge variant="outline" className={statusBadgeClass(task.status)}>
                 {statusLabel(task.status)}
               </Badge>
+              {task.status === "pending" && task.end_date && new Date(task.end_date) < new Date() ? (
+                <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
+                  Overdue
+                </Badge>
+              ) : null}
               <Badge variant="outline" className={priorityBadgeClass(task.priority)}>
                 {priorityLabel(task.priority)}
               </Badge>
@@ -695,7 +692,7 @@ export function HousekeepingView({
                   {showStartTaskAction && (
                     <Button
                       type="button"
-                      className="col-span-1 min-h-[44px] gap-2 sm:w-auto"
+                      className="col-span-1 gap-2 sm:w-auto"
                       disabled={isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                       onClick={() => void handleStartTask()}
                     >
@@ -710,7 +707,7 @@ export function HousekeepingView({
 
                   <Button
                     type="button"
-                    className={`${showStartTaskAction ? "col-span-1" : "col-span-2"} min-h-[44px] gap-2 sm:w-auto`}
+                    className={`${showStartTaskAction ? "col-span-1" : "col-span-2"} gap-2 sm:w-auto`}
                     disabled={task.status === "done" || isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
                     onClick={() => void handleMarkAsComplete()}
                   >
@@ -724,18 +721,13 @@ export function HousekeepingView({
                 </>
               )}
 
-              <Button variant="outline" className="col-span-2 min-h-[44px] gap-2 sm:w-auto" onClick={() => setIsReassignOpen(true)}>
+              <Button variant="outline" className="col-span-2 gap-2 sm:w-auto" onClick={() => setIsReassignOpen(true)}>
                 <SlidersHorizontal className="h-4 w-4" />
                 Reassign
               </Button>
 
-              {showMarkCompleteAction && (
-                <Button
-                  variant="outline"
-                  className="col-span-2 min-h-[44px] gap-2 sm:w-auto"
-                  disabled={isStartingTask || isCompletingTask || isUpdatingChecklist || isUploadingImages}
-                  onClick={() => setIsFlagIssueOpen(true)}
-                >
+              {task.status !== "done" && (
+                <Button variant="outline" className="col-span-2 gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 sm:w-auto" onClick={() => setIsFlagIssueOpen(true)}>
                   <AlertTriangle className="h-4 w-4" />
                   Report Issue
                 </Button>
@@ -760,6 +752,12 @@ export function HousekeepingView({
             <Progress value={completionPercent} className="h-2" />
           </CardHeader>
           <CardContent className="space-y-2">
+            {!taskStarted && (
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                <Lock className="h-4 w-4 shrink-0" />
+                <span>Start the task to enable checklist and image uploads.</span>
+              </div>
+            )}
             {checklistItems.length === 0 ? (
               <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
                 No checklist template attached.
@@ -772,16 +770,16 @@ export function HousekeepingView({
                 return (
                   <label
                     key={itemId}
-                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors hover:bg-muted/20"
+                    className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-muted/20"
                   >
                     <Checkbox
                       checked={checked}
                       onCheckedChange={(nextChecked) => {
-                        if (!item.id || !canEditTask || isUpdatingChecklist) return
+                        if (!item.id || !canEditTask || isUpdatingChecklist || !taskStarted) return
                         void handleToggleChecklist(item.id, nextChecked === true)
                       }}
-                      disabled={!canEditTask || !item.id || isUpdatingChecklist}
-                      className="mt-0.5 shrink-0"
+                      disabled={!canEditTask || !item.id || isUpdatingChecklist || !taskStarted}
+                      className="mt-0.5"
                     />
                     <span
                       className={`text-sm leading-relaxed ${
@@ -808,7 +806,7 @@ export function HousekeepingView({
                 multiple
                 onChange={(event) => void handleSelectImages(event)}
                 className="hidden"
-                disabled={!canEditTask || isUploadingImages}
+                disabled={!canEditTask || isUploadingImages || !taskStarted}
               />
               <div className="w-full max-w-[420px] space-y-3">
                 <Button
@@ -816,7 +814,7 @@ export function HousekeepingView({
                   variant="outline"
                   size="sm"
                   className="gap-2"
-                  disabled={!canEditTask || isUploadingImages}
+                  disabled={!canEditTask || isUploadingImages || !taskStarted}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="h-4 w-4" />
@@ -968,13 +966,13 @@ export function HousekeepingView({
         isSubmitting={isReassigning}
         onSubmit={handleReassignTask}
       />
-
       <FlagIssueDialog
         open={canEditTask && isFlagIssueOpen}
         onOpenChange={setIsFlagIssueOpen}
         propertyId={propertyId}
-        housekeepingId={housekeepingId}
-        onSubmit={handleFlagIssue}
+        taskId={housekeepingId}
+        taskTitle={task.title}
+        onFlagged={() => void loadTask()}
       />
     </div>
   )

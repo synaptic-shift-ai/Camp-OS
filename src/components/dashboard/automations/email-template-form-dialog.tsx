@@ -27,6 +27,7 @@ import { RichEditor, VariableSelect } from "@/components/ui/rich-editor"
 import { VARIABLE_GROUPS } from "@/lib/email/variable-definitions"
 import { EmailTemplatePreview } from "./email-template-preview"
 import { Save, Loader2, Braces } from "lucide-react"
+import { usePermissions } from "@/hooks/use-permissions"
 
 type EmailTemplateFormDialogProps = {
   template: Record<string, unknown> | null
@@ -61,6 +62,8 @@ export function EmailTemplateFormDialog({
   companyId,
   onSaved,
 }: EmailTemplateFormDialogProps) {
+  const { can } = usePermissions()
+  const canSave = can("automations.add_email_templates") || can("automations.edit_email_templates")
   const isEdit = template !== null
   const isSystemDefault = (template?.system_default as boolean) ?? false
 
@@ -324,11 +327,13 @@ export function EmailTemplateFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Save className="h-4 w-4" />
-            {isEdit ? "Save Changes" : "Create Template"}
-          </Button>
+          {canSave && (
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Save className="h-4 w-4" />
+              {isEdit ? "Save Changes" : "Create Template"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

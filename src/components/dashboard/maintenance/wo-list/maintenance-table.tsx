@@ -244,7 +244,8 @@ export function MaintenanceTable({
       <Table className="min-w-[980px] w-full table-fixed text-xs lg:min-w-0">
         <colgroup>
           <col className="w-[9%]" />
-          <col className="w-[19%]" />
+          <col className="w-[18%]" />
+          <col className="w-[10%]" />
           <col className="w-[10%]" />
           <col className="w-[8%]" />
           <col className="w-[15%]" />
@@ -262,6 +263,9 @@ export function MaintenanceTable({
               Issue & Site
             </TableHead>
             <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
+              Category
+            </TableHead>
+            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Source
             </TableHead>
             <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
@@ -271,7 +275,7 @@ export function MaintenanceTable({
               Cost (Estimated / Actual)
             </TableHead>
             <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Asignee
+              Assignee
             </TableHead>
             <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Priority
@@ -287,13 +291,13 @@ export function MaintenanceTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                 Loading maintenance tasks...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -317,6 +321,11 @@ export function MaintenanceTable({
                       {row.siteTypeLabel ? `${row.siteName} · ${row.siteTypeLabel}` : row.siteName}
                     </div>
                   </div>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground">
+                  <span className="block truncate" title={row.category ?? "Uncategorized"}>
+                    {row.category ?? "Uncategorized"}
+                  </span>
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm text-muted-foreground">
                   <span className="block truncate" title={row.source ?? "Manual"}>

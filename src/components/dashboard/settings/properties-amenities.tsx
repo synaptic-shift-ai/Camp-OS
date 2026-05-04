@@ -24,7 +24,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
     "border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white"
 
 type Amenity = {
@@ -231,7 +231,6 @@ export function PropertiesAmenities({ propertyId, canEdit = true }: PropertiesAm
             toast({
                 title: "Amenities saved",
                 description: "Your amenity changes were saved successfully.",
-                className: SEASON_ALERT_TOAST_CLASS,
                 variant: "success",
             })
         } catch (err) {
@@ -240,7 +239,7 @@ export function PropertiesAmenities({ propertyId, canEdit = true }: PropertiesAm
                 title: "Save failed",
                 description: message,
                 variant: "destructive",
-                className: SEASON_ALERT_TOAST_CLASS,
+                className: SEASON_ERROR_TOAST_CLASS,
             })
         } finally {
             setIsSaving(false)
@@ -274,7 +273,7 @@ export function PropertiesAmenities({ propertyId, canEdit = true }: PropertiesAm
                     title: "Unable to load amenities",
                     description: message,
                     variant: "destructive",
-                    className: SEASON_ALERT_TOAST_CLASS,
+                    className: SEASON_ERROR_TOAST_CLASS,
                 })
             } finally {
                 if (!cancelled) setIsLoadingAmenities(false)

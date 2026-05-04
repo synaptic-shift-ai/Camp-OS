@@ -3,6 +3,9 @@ import { z } from 'zod'
 const emptyStringToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 
+const housekeepingStatusAllToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim().toLowerCase() === 'all' ? undefined : value
+
 const ChecklistItemDoneRequestSchema = z.object({
   item_id: z.string().trim().min(1).max(120),
   status: z.enum(['pending', 'completed']),
@@ -44,15 +47,20 @@ export const UpdateHousekeepingTaskRequestSchema = z.object({
   dueDate: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(64).optional()),
   checklistTemplateId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
   checklistItemDone: z.array(ChecklistItemDoneRequestSchema).optional(),
-  issueType: z.enum(['DAMAGE', 'MAINTENANCE']).optional().nullable(),
-  issueDescription: z.string().trim().min(10).optional().nullable(),
+ issueType: z.enum(['DAMAGE', 'MAINTENANCE']).optional().nullable(),
+  issueDescription: z.string().min(10).optional().nullable(),
   linkedMaintenanceTaskId: z.string().uuid().optional().nullable(),
 }).refine((payload) => Object.keys(payload).length > 0, {
   message: 'At least one field is required',
-}).refine((data) => {
-  if (data.issueType) return !!data.issueDescription && data.issueDescription.length >= 10
+}).refine((payload) => {
+  if (payload.issueType !== undefined && payload.issueType !== null && !payload.issueDescription) {
+    return false
+  }
   return true
-}, { message: 'issueDescription (min 10 chars) is required when issueType is set', path: ['issueDescription'] })
+}, {
+  message: 'issueDescription is required when issueType is provided',
+  path: ['issueDescription'],
+})
 
 export type UpdateHousekeepingTaskRequest = z.infer<typeof UpdateHousekeepingTaskRequestSchema>
 
@@ -75,7 +83,10 @@ export const ListHousekeepingTasksQuerySchema = z.object({
   siteId: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
   assigneeId: z
     .preprocess(emptyStringToUndefined, z.union([z.literal('unassigned'), z.string().uuid()]).optional()),
-  status: z.enum(['pending', 'in_progress', 'done']).optional(),
+  status: z.preprocess(
+    (value) => housekeepingStatusAllToUndefined(emptyStringToUndefined(value)),
+    z.enum(['pending', 'in_progress', 'done']).optional(),
+  ),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   page: z
     .string()

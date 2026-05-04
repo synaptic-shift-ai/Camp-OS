@@ -47,7 +47,7 @@ async function getMaintenancePageOptions(
 ): Promise<{ siteOptions: SelectOption[]; assigneeOptions: SelectOption[] }> {
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, site_number, site_name")
+    .select("id, site_number, site_name, site_type")
     .eq("property_id", propertyId)
     // .eq("status", "maintenance")
     .is("deleted_at", null)
@@ -172,6 +172,7 @@ export default async function MaintenancePage({ params }: PageProps) {
       canManageMaintenancePmSchedules={canManageMaintenancePmSchedules}
       canViewMaintenanceCostReports={canViewMaintenanceCostReports}
       canEnterLaborCost={canEnterLaborCost}
+      showAssigneeFilter={canAssignWorkOrder}
       selfAssigneeStaffId={selfStaffId}
       selfAssigneeLabel={selfAssigneeLabel}
     />

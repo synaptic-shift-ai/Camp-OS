@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     // 3. Verify reservation exists
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
-      .select('id, property_id')
+      .select('id, property_id, paid_amount, refund_amount_cents')
       .eq('id', validated.data.reservationId)
       .single()
 
@@ -119,6 +119,36 @@ export async function POST(request: NextRequest) {
       reason: validated.data.reason ?? null,
       createdBy: user.id,
     })
+
+    // Update reservation snapshot refund totals so UI reflects refunds immediately.
+    // (Reservation dashboards read refund_amount_cents/payment_status from reservations.)
+    try {
+      const serviceRole = createServiceRoleClient()
+      const previousRefund = (reservation.refund_amount_cents as number | null) ?? 0
+      const nextRefund = previousRefund + validated.data.amountCents
+      const paidAmount = (reservation.paid_amount as number | null) ?? 0
+      const nextPaymentStatus =
+        nextRefund >= paidAmount ? 'refunded' : nextRefund > 0 ? 'partially_refunded' : 'paid'
+
+      const { error: reservationUpdateError } = await serviceRole
+        .from('reservations')
+        .update({
+          refund_amount_cents: nextRefund,
+          payment_status: nextPaymentStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', validated.data.reservationId)
+        .eq('property_id', reservation.property_id)
+
+      if (reservationUpdateError) {
+        console.error('[Financial API v1] Process refund: reservation update failed (non-blocking)', {
+          reservationId: validated.data.reservationId,
+          error: reservationUpdateError,
+        })
+      }
+    } catch (reservationUpdateErr) {
+      console.error('[Financial API v1] Process refund: reservation update threw (non-blocking)', reservationUpdateErr)
+    }
 
     // 7. Convert to DTO and return
     const refundDTO = toTransactionDTO(refund)
@@ -201,5 +231,48 @@ async function handleV2Refund(
   refund.complete()
   await repo.save(refund)
 
+  // Update reservation snapshot refund totals so reservations UI reflects the refund.
+  if (payment.reservation_id) {
+    try {
+      const { data: reservationRow, error: reservationError } = await serviceRole
+        .from('reservations')
+        .select('paid_amount, refund_amount_cents')
+        .eq('id', payment.reservation_id)
+        .eq('property_id', payment.property_id)
+        .maybeSingle()
+
+      if (reservationError) {
+        console.error('[Financial API v1] V2 refund: reservation lookup failed (non-blocking)', {
+          reservationId: payment.reservation_id,
+          error: reservationError,
+        })
+      } else if (reservationRow) {
+        const previousRefund = (reservationRow.refund_amount_cents as number | null) ?? 0
+        const nextRefund = previousRefund + data.amount_cents
+        const paidAmount = (reservationRow.paid_amount as number | null) ?? 0
+        const nextPaymentStatus =
+          nextRefund >= paidAmount ? 'refunded' : nextRefund > 0 ? 'partially_refunded' : 'paid'
+
+        const { error: updateError } = await serviceRole
+          .from('reservations')
+          .update({
+            refund_amount_cents: nextRefund,
+            payment_status: nextPaymentStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', payment.reservation_id)
+          .eq('property_id', payment.property_id)
+
+        if (updateError) {
+          console.error('[Financial API v1] V2 refund: reservation update failed (non-blocking)', {
+            reservationId: payment.reservation_id,
+            error: updateError,
+          })
+        }
+      }
+    } catch (e) {
+      console.error('[Financial API v1] V2 refund: reservation update threw (non-blocking)', e)
+    }
+  }
   return NextResponse.json(success(toTransactionDTO(refund)), { status: 201 })
 }

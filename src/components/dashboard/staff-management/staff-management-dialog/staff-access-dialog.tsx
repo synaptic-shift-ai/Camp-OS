@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,7 @@ type RoleCategoryRow = { id: string; name: string; access?: RoleCategoryAccess }
 type PermissionRow = {
   id: string
   name: string
+  group?: string
 }
 
 /** Placeholder capability rows per role-access module (UI only until wired to RBAC). */
@@ -108,9 +111,27 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     // { id: 'export', name: 'Export audit data' },
   ],
   automations: [
-    { id: 'view', name: 'View automations' },
-    { id: 'manage', name: 'Create and edit automations' },
-    { id: 'view-log', name: 'View execution log' },
+    // Dashboard
+    { id: 'view-dashboard', name: 'View dashboard', group: 'Dashboard' },
+    // Automations CRUD
+    { id: 'view-automations', name: 'View automations', group: 'Automations' },
+    { id: 'add-automations', name: 'Add automations', group: 'Automations' },
+    { id: 'edit-automations', name: 'Edit automations', group: 'Automations' },
+    { id: 'delete-automations', name: 'Delete automations', group: 'Automations' },
+    // Execution Logs
+    { id: 'view-execution-log', name: 'View execution logs', group: 'Execution Logs' },
+    // Validation
+    { id: 'view-validation', name: 'View validation', group: 'Validation' },
+    // Email Templates
+    { id: 'view-email-templates', name: 'View email templates', group: 'Email Templates' },
+    { id: 'add-email-templates', name: 'Add email templates', group: 'Email Templates' },
+    { id: 'edit-email-templates', name: 'Edit email templates', group: 'Email Templates' },
+    { id: 'delete-email-templates', name: 'Delete email templates', group: 'Email Templates' },
+    // System Automations
+    { id: 'view-system-automations', name: 'View system automations', group: 'System Automations' },
+    { id: 'add-system-automations', name: 'Add system automations', group: 'System Automations' },
+    { id: 'edit-system-automations', name: 'Edit system automations', group: 'System Automations' },
+    { id: 'delete-system-automations', name: 'Delete system automations', group: 'System Automations' },
   ],
   settings: [
     { id: 'view', name: 'View settings' },
@@ -185,6 +206,14 @@ function buildStaffMaintenanceFallbackPermissionState(): Record<string, boolean>
   return next
 }
 
+function buildAdminFallbackPermissionState(): Record<string, boolean> {
+  const next = buildDefaultPermissionState()
+  next['automations:add-system-automations'] = false
+  next['automations:edit-system-automations'] = false
+  next['automations:delete-system-automations'] = false
+  return next
+}
+
 /** Matches new role-category DB defaults: overview view + full profile; all other modules off. */
 function buildOverviewAndFullProfileDefaultPermissionState(): Record<string, boolean> {
   const next = buildEmptyPermissionState()
@@ -217,6 +246,12 @@ function buildManagerFrontDeskFallbackPermissionState(): Record<string, boolean>
   next['reservations:check-out'] = true
   next['sites:view'] = true
   next['guests:view'] = true
+  next['automations:view-dashboard'] = true
+  next['automations:view-execution-log'] = true
+  next['automations:view-validation'] = true
+  next['automations:view-email-templates'] = true
+  next['automations:view-system-automations'] = true
+  next['automations:view-automations'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {
@@ -254,6 +289,12 @@ function buildManagerHousekeepingFallbackPermissionState(): Record<string, boole
   next['housekeeping:create'] = true
   next['housekeeping:update'] = true
   next['housekeeping:delete'] = true
+  next['automations:view-dashboard'] = true
+  next['automations:view-execution-log'] = true
+  next['automations:view-validation'] = true
+  next['automations:view-email-templates'] = true
+  next['automations:view-system-automations'] = true
+  next['automations:view-automations'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {
@@ -287,6 +328,12 @@ function buildManagerMaintenanceFallbackPermissionState(): Record<string, boolea
   next['maintenance:manage-vendors'] = true
   next['maintenance:manage-pm-schedules'] = true
   next['maintenance:view-cost-reports'] = true
+  next['automations:view-dashboard'] = true
+  next['automations:view-execution-log'] = true
+  next['automations:view-validation'] = true
+  next['automations:view-email-templates'] = true
+  next['automations:view-system-automations'] = true
+  next['automations:view-automations'] = true
 
   const accountProfilePerms = PERMISSIONS_BY_ROLE_ACCESS_MODULE['account-profile'] ?? []
   for (const p of accountProfilePerms) {
@@ -337,6 +384,17 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
   const permissionsForModule = selectedModule
     ? (PERMISSIONS_BY_ROLE_ACCESS_MODULE[selectedModule.key] ?? [])
     : []
+
+  const hasGroupedPermissions = permissionsForModule.some((p) => p.group)
+
+  const groupedPermissions = useMemo(() => {
+    if (!hasGroupedPermissions) return null
+    return permissionsForModule.reduce<Record<string, PermissionRow[]>>((acc, perm) => {
+      const g = perm.group ?? 'Other'
+      ;(acc[g] ??= []).push(perm)
+      return acc
+    }, {})
+  }, [permissionsForModule, hasGroupedPermissions])
 
   const categoryRole = useMemo(
     () => roleCategoriesApiRole(selectedRole),
@@ -449,7 +507,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       const isAdminRole = selectedRole === 'admin'
 
       if (isAdminRole) {
-        setPermissionEnabled(buildDefaultPermissionState())
+        setPermissionEnabled(buildAdminFallbackPermissionState())
         return
       }
 
@@ -715,24 +773,64 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
               </p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {permissionsForModule.map((perm) => {
-                const moduleKey = selectedModule?.key ?? DASHBOARD_ROLE_ACCESS_MODULES[0].key
-                const checked = permissionEnabled[`${moduleKey}:${perm.id}`] ?? false
-                return (
-                  <div key={perm.id}>
-                    <div className="flex items-center gap-3 px-3 py-3 sm:px-4">
-                      <Switch
-                        checked={checked}
-                        onCheckedChange={(next) => togglePermission(moduleKey, perm.id, next)}
-                        className="data-[state=checked]:bg-[#8b9568] data-[state=checked]:dark:bg-primary data-[state=unchecked]:bg-input"
-                        aria-label={perm.name}
-                      />
-                      <span className="text-sm font-medium">{perm.name}</span>
+              {hasGroupedPermissions && groupedPermissions ? (
+                Object.entries(groupedPermissions).map(([groupName, perms], idx) => (
+                  <Collapsible defaultOpen={false} key={groupName} className="group">
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex w-full items-center justify-between px-3 py-2 sm:px-4',
+                          'font-medium text-sm bg-muted/50 hover:bg-muted rounded transition-colors',
+                        )}
+                      >
+                        <span>{groupName}</span>
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {perms.map((perm) => {
+                        const moduleKey = selectedModule?.key ?? DASHBOARD_ROLE_ACCESS_MODULES[0].key
+                        const checked = permissionEnabled[`${moduleKey}:${perm.id}`] ?? false
+                        return (
+                          <div key={perm.id}>
+                            <div className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                              <Switch
+                                checked={checked}
+                                onCheckedChange={(next) => togglePermission(moduleKey, perm.id, next)}
+                                className="data-[state=checked]:bg-[#8b9568] data-[state=checked]:dark:bg-primary data-[state=unchecked]:bg-input"
+                                aria-label={perm.name}
+                              />
+                              <span className="text-sm font-medium">{perm.name}</span>
+                            </div>
+                            <Separator />
+                          </div>
+                        )
+                      })}
+                    </CollapsibleContent>
+                    {idx < Object.keys(groupedPermissions).length - 1 && <Separator />}
+                  </Collapsible>
+                ))
+              ) : (
+                permissionsForModule.map((perm) => {
+                  const moduleKey = selectedModule?.key ?? DASHBOARD_ROLE_ACCESS_MODULES[0].key
+                  const checked = permissionEnabled[`${moduleKey}:${perm.id}`] ?? false
+                  return (
+                    <div key={perm.id}>
+                      <div className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                        <Switch
+                          checked={checked}
+                          onCheckedChange={(next) => togglePermission(moduleKey, perm.id, next)}
+                          className="data-[state=checked]:bg-[#8b9568] data-[state=checked]:dark:bg-primary data-[state=unchecked]:bg-input"
+                          aria-label={perm.name}
+                        />
+                        <span className="text-sm font-medium">{perm.name}</span>
+                      </div>
+                      <Separator />
                     </div>
-                    <Separator />
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </section>
         </div>

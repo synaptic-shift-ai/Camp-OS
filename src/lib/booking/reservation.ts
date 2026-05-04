@@ -264,6 +264,7 @@ export async function confirmReservationPayment(
     propertyId: reservation.property_id,
     reservationId,
     guestId: reservation.guest_id,
+    createdByUserId: (reservation as any).created_by ?? null,
     amountCents: paymentDetails.amount,
     paymentMethod: PaymentMethod.CREDIT_CARD,
     stripePaymentIntentId: paymentDetails.stripe_payment_id,

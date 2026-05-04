@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Pencil, Copy, Zap } from "lucide-react"
+import { Pencil, Copy, Zap, Trash2 } from "lucide-react"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { useEffect, useState } from "react"
 import type { AutomationRow, ActionType } from "@/lib/automations/types"
@@ -27,6 +27,8 @@ type AutomationViewDialogProps = {
   onEdit: () => void
   onDuplicate: () => void
   onDryRun: () => void
+  onDelete?: () => void
+  systemScope?: boolean
 }
 
 type LoadedAutomation = {
@@ -90,6 +92,8 @@ export function AutomationViewDialog({
   onEdit,
   onDuplicate,
   onDryRun,
+  onDelete,
+  systemScope,
 }: AutomationViewDialogProps) {
   const [data, setData] = useState<LoadedAutomation | null>(null)
   const [loading, setLoading] = useState(false)
@@ -229,22 +233,32 @@ export function AutomationViewDialog({
         </ScrollArea>
 
         <DialogFooter className="px-6 py-4 border-t bg-muted/30">
-          <PermissionGate permission="automations.manage">
-            <>
-              <Button variant="outline" onClick={onEdit}>
-                <Pencil className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-              <Button variant="outline" onClick={onDuplicate}>
-                <Copy className="h-4 w-4 mr-1" />
-                Duplicate
-              </Button>
-              <Button variant="outline" onClick={onDryRun}>
-                <Zap className="h-4 w-4 mr-1" />
-                Dry Run
-              </Button>
-            </>
+          <PermissionGate permission={systemScope ? "automations.edit_system_automations" : "automations.edit_automations"}>
+            <Button variant="outline" onClick={onEdit}>
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
           </PermissionGate>
+          <PermissionGate permission={systemScope ? "automations.add_system_automations" : "automations.add_automations"}>
+            <Button variant="outline" onClick={onDuplicate}>
+              <Copy className="h-4 w-4 mr-1" />
+              Duplicate
+            </Button>
+          </PermissionGate>
+          <PermissionGate permission="automations.view_validation">
+            <Button variant="outline" onClick={onDryRun}>
+              <Zap className="h-4 w-4 mr-1" />
+              Dry Run
+            </Button>
+          </PermissionGate>
+          {onDelete && (
+            <PermissionGate permission={systemScope ? "automations.delete_system_automations" : "automations.delete_automations"}>
+              <Button variant="outline" onClick={onDelete}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            </PermissionGate>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

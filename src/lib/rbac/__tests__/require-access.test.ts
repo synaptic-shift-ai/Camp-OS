@@ -169,10 +169,10 @@ describe('checkPropertyAccess', () => {
   it('permission check denies manager without the specific permission (403)', async () => {
     vi.mocked(resolveUserPropertyAccess).mockResolvedValue(makeAccess({ role: 'manager' }))
 
-    // Manager does not have 'automations.system_admin'
+    // Manager does not have 'automations.add_system_automations'
     const result = await checkPropertyAccess(mockSupabase, 'user-1', {
       propertyId: 'prop-1',
-      permission: 'automations.system_admin',
+      permission: 'automations.add_system_automations',
     })
 
     expect(result.denied).toBe(true)

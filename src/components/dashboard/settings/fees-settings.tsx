@@ -127,7 +127,7 @@ const feeFormSchema = z.object({
 
 type FeeFormInput = z.infer<typeof feeFormSchema>
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function FeesSettings({
@@ -291,7 +291,6 @@ export function FeesSettings({
       toast({
         title: 'Additional charges saved',
         description: 'Additional charges saved successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
       router.refresh()
@@ -301,7 +300,7 @@ export function FeesSettings({
         title: 'Save failed',
         description: error instanceof Error ? error.message : 'Failed to save fees settings',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)

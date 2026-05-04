@@ -55,7 +55,6 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
             title: 'No Reservation',
             description: 'No confirmed reservations found for this site.',
             variant: 'default',
-            className: SEASON_ALERT_TOAST_CLASS,
           })
           return
         }
@@ -69,7 +68,6 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
           title: 'No Reservation',
           description: 'No confirmed reservations found for this site.',
           variant: 'default',
-          className: SEASON_ALERT_TOAST_CLASS,
         })
         return
       }

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const access = await requirePropertyAccess(supabase as any, user.id, {
       propertyId,
-      permission: 'automations.view',
+      permission: 'automations.view_validation',
     })
     if (isDenied(access)) return access
 

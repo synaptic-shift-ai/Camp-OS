@@ -89,11 +89,14 @@ export async function POST(request: NextRequest) {
 
     // Resolve property_id
     let propertyId: string | null = null
+    let reservationTotals:
+      | { total_amount: number; paid_amount: number | null; status: string; payment_status: string | null }
+      | null = null
 
     if (reservation_id) {
       const { data: reservation } = await supabase
         .from('reservations')
-        .select('id, property_id')
+        .select('id, property_id, total_amount, paid_amount, status, payment_status')
         .eq('id', reservation_id)
         .single()
 
@@ -104,6 +107,12 @@ export async function POST(request: NextRequest) {
         )
       }
       propertyId = reservation.property_id
+      reservationTotals = {
+        total_amount: reservation.total_amount as number,
+        paid_amount: (reservation.paid_amount as number | null) ?? 0,
+        status: reservation.status as string,
+        payment_status: (reservation.payment_status as string | null) ?? null,
+      }
     }
 
     if (!propertyId && guest_id) {
@@ -178,6 +187,41 @@ export async function POST(request: NextRequest) {
     payment.complete(processor ?? null)
     await repo.save(payment)
 
+    // Update reservation snapshot amounts so dashboards reflect the payment immediately.
+    // (The reservations UI reads paid_amount/payment_status from reservations, not just the ledger.)
+    if (reservation_id && propertyId && reservationTotals) {
+      const previousPaid = reservationTotals.paid_amount ?? 0
+      const nextPaid = previousPaid + amount_cents
+
+      const totalAmount = reservationTotals.total_amount ?? 0
+      const nextPaymentStatus =
+        nextPaid >= totalAmount ? 'paid' : nextPaid > 0 ? 'partial' : 'pending'
+
+      const reservationUpdate: Record<string, unknown> = {
+        paid_amount: nextPaid,
+        payment_status: nextPaymentStatus,
+        updated_at: new Date().toISOString(),
+      }
+
+      // If a reservation is pending, confirm it only when fully paid.
+      if (reservationTotals.status === 'pending' && nextPaid >= totalAmount) {
+        reservationUpdate.status = 'confirmed'
+      }
+
+      const { error: reservationUpdateError } = await serviceRole
+        .from('reservations')
+        .update(reservationUpdate)
+        .eq('id', reservation_id)
+        .eq('property_id', propertyId)
+
+      if (reservationUpdateError) {
+        console.error('[Financial API v1] Record payment: reservation update failed (non-blocking)', {
+          reservationId: reservation_id,
+          propertyId,
+          error: reservationUpdateError,
+        })
+      }
+    }
     const dto = toTransactionDTO(payment)
     return NextResponse.json(success(dto), { status: 201 })
   } catch (err: unknown) {

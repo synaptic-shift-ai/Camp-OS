@@ -35,11 +35,9 @@ async function getHousekeepingPageOptions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   propertyId: string,
 ): Promise<{ siteOptions: SelectOption[]; assigneeOptions: SelectOption[]; checklistOptions: SelectOption[] }> {
-  // All non-deleted sites: tasks can reference a site after turnover (e.g. status becomes available);
-  // restricting to housekeeping-only would leave Edit Task with no matching SelectItem and an empty Site field.
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, site_number, site_name")
+    .select("id, site_number, site_name, site_type")
     .eq("property_id", propertyId)
     .is("deleted_at", null)
     .order("site_number", { ascending: true })

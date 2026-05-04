@@ -12,7 +12,7 @@ export class HousekeepingTaskCreatedEvent extends DomainEvent {
     public readonly taskId: string,
     public readonly title: string,
     public readonly priority: string,
-    public readonly siteId: string | null,
+    public readonly siteId: string,
   ) {
     super()
   }

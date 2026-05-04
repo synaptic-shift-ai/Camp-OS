@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings')
+      .select('id, owner_id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings')
       .eq('id', validatedInput.property_id)
       .single()
 
@@ -890,6 +890,7 @@ export async function POST(request: NextRequest) {
         property_id: validatedInput.property_id,
         site_id: validatedInput.site_id,
         guest_id: guestId,
+        created_by: property.owner_id ?? null,
         confirmation_number: confirmationNumber,
         check_in_date: validatedInput.check_in_date,
         check_out_date: validatedInput.check_out_date,

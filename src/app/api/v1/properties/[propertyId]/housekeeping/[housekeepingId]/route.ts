@@ -12,6 +12,16 @@ import { UpdateHousekeepingTaskRequestSchema } from '@/types/api/v1/schemas/hous
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { HousekeepingTaskCompletedEvent } from '@/modules/Housekeeping/domain/events'
 
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+  return (siteType ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\bsite\b/g, '')
+    .trim()
+}
+
 function housekeepingFallbackForCategory(
   role: 'owner' | 'admin' | 'manager' | 'staff',
   categoryName: string,
@@ -145,6 +155,64 @@ export async function PATCH(
       })
     }
 
+    if (parsed.data.siteId) {
+      const { data: siteRow } = await supabase
+        .from('sites')
+        .select('id, site_type')
+        .eq('id', parsed.data.siteId)
+        .eq('property_id', propertyId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (!siteRow) {
+        return error(ErrorCodes.VALIDATION_ERROR, request, {
+          message: 'Site not found for this property',
+        })
+      }
+
+      const { data: propertyRow } = await supabase
+        .from('properties')
+        .select('site_type_config')
+        .eq('id', propertyId)
+        .maybeSingle()
+
+      const siteTypeConfig =
+        (propertyRow?.site_type_config as {
+          housekeeping?: Record<string, boolean>
+          allowed_site_types?: string[]
+        } | null | undefined) ?? null
+
+      const housekeepingMap = Object.fromEntries(
+        Object.entries(siteTypeConfig?.housekeeping ?? {}).map(([key, value]) => [
+          toCanonicalSiteTypeKey(key),
+          value,
+        ]),
+      )
+
+      const allowedSiteTypeSet = new Set(
+        Array.isArray(siteTypeConfig?.allowed_site_types)
+          ? siteTypeConfig!.allowed_site_types.map((siteType) =>
+            toCanonicalSiteTypeKey(siteType),
+          )
+          : [],
+      )
+
+      const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+      if (siteTypeKey) {
+        if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'The selected site is not available for housekeeping',
+          })
+        }
+
+        if (housekeepingMap[siteTypeKey] === false) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'The selected site is not available for housekeeping',
+          })
+        }
+      }
+    }
+
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
     const housekeepingTask = await queries.updateHousekeepingTask({
       id: housekeepingId,
@@ -165,21 +233,6 @@ export async function PATCH(
         : {}),
     })
 
-    // Publish domain event when task is completed (fire-and-forget)
-    if (housekeepingTask.status === 'done') {
-      try {
-        const eventBus = getEventBus()
-        await eventBus.publish(new HousekeepingTaskCompletedEvent(
-          propertyId,
-          housekeepingTask.id,
-          housekeepingTask.title,
-          housekeepingTask.site_id,
-        ))
-      } catch {
-        // Non-blocking: event publishing failures should not prevent response
-      }
-    }
-
     const siteAvailabilityLogPrefix = '[Housekeeping API v1] PATCH site-availability'
     if (housekeepingTask.status === 'done') {
       console.info(`${siteAvailabilityLogPrefix}: task is done, evaluating site update`, {
@@ -197,250 +250,160 @@ export async function PATCH(
         })
       }
       if (openForSite === 0) {
-        // Check housekeepingRequireApproval property setting (best-effort — fall back to auto-available on failure)
-        let requireApproval = false
-        try {
-          const serviceRoleForSettings = createServiceRoleClient()
-          const { data: propertyRow } = await serviceRoleForSettings
-            .from('properties')
-            .select('settings')
-            .eq('id', propertyId)
-            .maybeSingle()
-          const settingsJson = propertyRow?.settings as Record<string, unknown> | null | undefined
-          if (settingsJson && typeof settingsJson.housekeepingRequireApproval === 'boolean') {
-            requireApproval = settingsJson.housekeepingRequireApproval
-          }
-        } catch (settingsErr) {
-          console.warn(`${siteAvailabilityLogPrefix}: failed to load property settings, falling back to auto-available`, {
-            propertyId,
-            error: settingsErr,
-          })
-        }
+        // Check if operator approval is required
+        const propResult = await createServiceRoleClient().from('properties').select('settings').eq('id', propertyId).single()
+        const settings = propResult.data?.settings as Record<string, unknown> | null
+        const requireApproval = settings?.housekeepingRequireApproval === true
 
         if (requireApproval) {
-          console.info(`${siteAvailabilityLogPrefix}: skip — operator approval required (housekeepingRequireApproval is ON)`, {
-            propertyId,
-            siteId: housekeepingTask.site_id,
-            housekeepingTaskId: housekeepingTask.id,
-          })
-          if (access.companyId) {
-            const auditService = createServiceRoleClient()
-            const { data: auditSite } = await supabase
-              .from('sites')
-              .select('site_name, site_number')
-              .eq('id', housekeepingTask.site_id)
-              .eq('property_id', propertyId)
-              .maybeSingle()
-            const auditLabel = auditSite?.site_name?.trim() || auditSite?.site_number || housekeepingTask.site_id
-            await recordActivityLog(
-              auditService,
-              {
-                companyId: access.companyId,
-                propertyId,
-                action: 'update',
-                resource: 'housekeeping',
-                userId: user.id,
-                details: `Site auto-available skipped — operator approval required for site ${auditLabel}.`,
-              },
-              { failOpen: false },
-            )
-          }
+          console.log('[HK] Site auto-available skipped — operator approval required')
         } else {
-        // Service role: completing staff may lack sites UPDATE under RLS; property is already authorized above.
-        const service = createServiceRoleClient()
-        const { data: siteRow, error: siteLoadError } = await service
-          .from('sites')
-          .select('id, status, site_name, site_number')
-          .eq('id', housekeepingTask.site_id)
-          .eq('property_id', propertyId)
-          .is('deleted_at', null)
-          .maybeSingle()
+          // Service role: completing staff may lack sites UPDATE under RLS; property is already authorized above.
+          const service = createServiceRoleClient()
+          const { data: siteRow, error: siteLoadError } = await service
+            .from('sites')
+            .select('id, status, site_name, site_number')
+            .eq('id', housekeepingTask.site_id)
+            .eq('property_id', propertyId)
+            .is('deleted_at', null)
+            .maybeSingle()
 
-        if (siteLoadError) {
-          console.error(`${siteAvailabilityLogPrefix}: failed to load site`, {
-            propertyId,
-            siteId: housekeepingTask.site_id,
-            housekeepingTaskId: housekeepingTask.id,
-            siteLoadError,
-          })
-        } else if (!siteRow) {
-          console.warn(`${siteAvailabilityLogPrefix}: skip — no site row (wrong id, property, or deleted)`, {
-            propertyId,
-            siteId: housekeepingTask.site_id,
-            housekeepingTaskId: housekeepingTask.id,
-          })
-        } else {
-          const normalizedStatus = (siteRow.status ?? '').trim().toLowerCase()
-          console.info(`${siteAvailabilityLogPrefix}: loaded site`, {
-            propertyId,
-            siteId: siteRow.id,
-            housekeepingTaskId: housekeepingTask.id,
-            rawStatus: siteRow.status,
-            normalizedStatus,
-          })
-          if (normalizedStatus === 'available') {
-            console.info(`${siteAvailabilityLogPrefix}: skip — site already available`, {
+          if (siteLoadError) {
+            console.error(`${siteAvailabilityLogPrefix}: failed to load site`, {
               propertyId,
-              siteId: siteRow.id,
+              siteId: housekeepingTask.site_id,
+              housekeepingTaskId: housekeepingTask.id,
+              siteLoadError,
+            })
+          } else if (!siteRow) {
+            console.warn(`${siteAvailabilityLogPrefix}: skip — no site row (wrong id, property, or deleted)`, {
+              propertyId,
+              siteId: housekeepingTask.site_id,
               housekeepingTaskId: housekeepingTask.id,
             })
           } else {
-            const timestamp = new Date().toISOString()
-            const { data: updatedSites, error: siteUpdateError } = await service
-              .from('sites')
-              .update({ status: 'available', updated_at: timestamp })
-              .eq('id', siteRow.id)
-              .eq('property_id', propertyId)
-              .is('deleted_at', null)
-              .select('id')
-
-            if (siteUpdateError) {
-              console.error(`${siteAvailabilityLogPrefix}: update failed`, {
+            const normalizedStatus = (siteRow.status ?? '').trim().toLowerCase()
+            console.info(`${siteAvailabilityLogPrefix}: loaded site`, {
+              propertyId,
+              siteId: siteRow.id,
+              housekeepingTaskId: housekeepingTask.id,
+              rawStatus: siteRow.status,
+              normalizedStatus,
+            })
+            if (normalizedStatus === 'available') {
+              console.info(`${siteAvailabilityLogPrefix}: skip — site already available`, {
                 propertyId,
                 siteId: siteRow.id,
                 housekeepingTaskId: housekeepingTask.id,
-                siteUpdateError,
-              })
-            } else if (!updatedSites?.length) {
-              console.error(`${siteAvailabilityLogPrefix}: update matched zero rows`, {
-                propertyId,
-                siteId: siteRow.id,
-                housekeepingTaskId: housekeepingTask.id,
-                hint: 'Check site still exists, property_id matches, deleted_at is null',
               })
             } else {
-              console.info(`${siteAvailabilityLogPrefix}: site set to available`, {
-                propertyId,
-                siteId: siteRow.id,
-                housekeepingTaskId: housekeepingTask.id,
-                previousStatus: siteRow.status,
-              })
-              if (access.companyId) {
-                const siteLabel =
-                  siteRow.site_name?.trim() || siteRow.site_number || housekeepingTask.site_id
-                await recordActivityLog(
-                  service,
-                  {
-                    companyId: access.companyId,
-                    propertyId,
-                    action: 'update',
-                    resource: 'site',
-                    userId: user.id,
-                    details: `Site ${siteLabel} marked available after last housekeeping task was completed.`,
-                  },
-                  { failOpen: false },
-                )
-              } else {
-                console.warn(`${siteAvailabilityLogPrefix}: no activity log — missing companyId on access`, {
+              const timestamp = new Date().toISOString()
+              const { data: updatedSites, error: siteUpdateError } = await service
+                .from('sites')
+                .update({ status: 'available', updated_at: timestamp })
+                .eq('id', siteRow.id)
+                .eq('property_id', propertyId)
+                .is('deleted_at', null)
+                .select('id')
+
+              if (siteUpdateError) {
+                console.error(`${siteAvailabilityLogPrefix}: update failed`, {
                   propertyId,
                   siteId: siteRow.id,
+                  housekeepingTaskId: housekeepingTask.id,
+                  siteUpdateError,
                 })
+              } else if (!updatedSites?.length) {
+                console.error(`${siteAvailabilityLogPrefix}: update matched zero rows`, {
+                  propertyId,
+                  siteId: siteRow.id,
+                  housekeepingTaskId: housekeepingTask.id,
+                  hint: 'Check site still exists, property_id matches, deleted_at is null',
+                })
+              } else {
+                console.info(`${siteAvailabilityLogPrefix}: site set to available`, {
+                  propertyId,
+                  siteId: siteRow.id,
+                  housekeepingTaskId: housekeepingTask.id,
+                  previousStatus: siteRow.status,
+                })
+                if (access.companyId) {
+                  const siteLabel =
+                    siteRow.site_name?.trim() || siteRow.site_number || housekeepingTask.site_id
+                  await recordActivityLog(
+                    service,
+                    {
+                      companyId: access.companyId,
+                      propertyId,
+                      action: 'update',
+                      resource: 'site',
+                      userId: user.id,
+                      details: `Site ${siteLabel} marked available after last housekeeping task was completed.`,
+                    },
+                    { failOpen: false },
+                  )
+                } else {
+                  console.warn(`${siteAvailabilityLogPrefix}: no activity log — missing companyId on access`, {
+                    propertyId,
+                    siteId: siteRow.id,
+                  })
+                }
               }
             }
           }
         }
-        } // end else (auto-available path)
-      } // end openForSite === 0
+      }
     }
 
-    // --- Issue flag handling ---
-    let updatedTask = housekeepingTask
+    // Issue flag handling (CC36-18-08)
     if (parsed.data.issueType !== undefined) {
-      const issueLogPrefix = '[Housekeeping API v1] PATCH issue-flag'
+      try {
+        if (parsed.data.issueType !== null) {
+          const issueDescription =
+            parsed.data.issueDescription?.trim() ||
+            `Flagged as ${parsed.data.issueType} from housekeeping task ${housekeepingTask.id}`
 
-      if (parsed.data.issueType === null) {
-        // Clear the issue flag
-        updatedTask = await queries.clearIssue({ id: housekeepingId, propertyId })
-        console.info(`${issueLogPrefix}: issue flag cleared`, { propertyId, housekeepingId })
-        if (access.companyId) {
-          const auditService = createServiceRoleClient()
-          const { data: clearAuditSite } = await supabase
-            .from('sites')
-            .select('site_name, site_number')
-            .eq('id', housekeepingTask.site_id)
-            .eq('property_id', propertyId)
-            .maybeSingle()
-          const clearLabel = clearAuditSite?.site_name?.trim() || clearAuditSite?.site_number || housekeepingTask.site_id
-          await recordActivityLog(
-            auditService,
-            {
-              companyId: access.companyId,
-              propertyId,
-              action: 'update',
-              resource: 'housekeeping',
-              userId: user.id,
-              details: `Issue flag cleared for task "${housekeepingTask.title}" on site ${clearLabel}.`,
-            },
-            { failOpen: false },
-          )
-        }
-      } else if (parsed.data.issueDescription) {
-        // Create maintenance work order (best-effort)
-        let linkedMaintenanceTaskId: string | null = null
-        try {
-          const maintenanceService = createServiceRoleClient()
-          const { MaintenanceQueries } = await import('@/lib/dashboard/maintenance/maintenance-queries')
-          const maintenanceQueries = new MaintenanceQueries(maintenanceService as unknown as SupabaseClient)
+          // Auto-create maintenance WO when issue is flagged
+          let linkedMaintenanceTaskId: string | null = null
+          const serviceRole = createServiceRoleClient()
+          const { data: maintenanceTask, error: maintenanceError } = await serviceRole
+            .from('maintenance_tasks')
+            .insert({
+              property_id: propertyId,
+              site_id: housekeepingTask.site_id,
+              title: `Housekeeping issue: ${parsed.data.issueType} — ${housekeepingTask.title}`,
+              description: issueDescription,
+              category: parsed.data.issueType === 'MAINTENANCE' ? 'corrective' : 'damage',
+              priority: 'high',
+              status: 'open',
+              source: 'housekeeping',
+              created_by: user.id,
+              is_suspected_damage: parsed.data.issueType === 'DAMAGE',
+            })
+            .select('id')
+            .single()
 
-          const maintenanceTask = await maintenanceQueries.createMaintenanceTask({
+          if (!maintenanceError && maintenanceTask) {
+            linkedMaintenanceTaskId = maintenanceTask.id
+            console.log('[HK] Auto-created maintenance WO', { maintenanceTaskId: maintenanceTask.id, housekeepingTaskId: housekeepingTask.id })
+          } else {
+            console.warn('[HK] Failed to auto-create maintenance WO', { error: maintenanceError })
+          }
+
+          const flagged = await queries.flagIssue({
+            id: housekeepingTask.id,
             propertyId,
-            siteId: housekeepingTask.site_id,
-            createdBy: user.id,
-            title: `Housekeeping Issue: ${housekeepingTask.title}`,
-            description: parsed.data.issueDescription,
-            status: 'open',
-            priority: 'medium',
-            source: 'housekeeping',
-            isSuspectedDamage: parsed.data.issueType === 'DAMAGE',
+            issueType: parsed.data.issueType,
+            issueDescription,
+            linkedMaintenanceTaskId,
           })
-          linkedMaintenanceTaskId = maintenanceTask.id
-          console.info(`${issueLogPrefix}: maintenance WO created`, {
-            maintenanceTaskId: maintenanceTask.id,
-            woNumber: maintenanceTask.wo_number,
-          })
-        } catch (woError) {
-          console.error(`${issueLogPrefix}: maintenance WO creation failed (non-blocking)`, {
-            error: woError,
-          })
+          Object.assign(housekeepingTask, flagged)
+        } else {
+          const cleared = await queries.clearIssue({ id: housekeepingTask.id, propertyId })
+          Object.assign(housekeepingTask, cleared)
         }
-
-        // Flag the issue on the housekeeping task
-        updatedTask = await queries.flagIssue({
-          id: housekeepingId,
-          propertyId,
-          issueType: parsed.data.issueType,
-          issueDescription: parsed.data.issueDescription,
-          linkedMaintenanceTaskId,
-        })
-        console.info(`${issueLogPrefix}: issue flagged`, {
-          propertyId,
-          housekeepingId,
-          issueType: parsed.data.issueType,
-          linkedMaintenanceTaskId,
-        })
-
-        if (access.companyId) {
-          const auditService = createServiceRoleClient()
-          const { data: flagAuditSite } = await supabase
-            .from('sites')
-            .select('site_name, site_number')
-            .eq('id', housekeepingTask.site_id)
-            .eq('property_id', propertyId)
-            .maybeSingle()
-          const flagLabel = flagAuditSite?.site_name?.trim() || flagAuditSite?.site_number || housekeepingTask.site_id
-          await recordActivityLog(
-            auditService,
-            {
-              companyId: access.companyId,
-              propertyId,
-              action: 'update',
-              resource: 'housekeeping',
-              userId: user.id,
-              details: `Issue flagged: ${parsed.data.issueType} for task "${housekeepingTask.title}" on site ${flagLabel}.${linkedMaintenanceTaskId ? ` Work order created.` : ''}`,
-            },
-            { failOpen: false },
-          )
-        }
+      } catch (issueErr) {
+        console.warn('[HK] Issue flag handling failed (non-blocking)', issueErr)
       }
     }
 
@@ -448,10 +411,10 @@ export async function PATCH(
       const { data: siteRow } = await supabase
         .from('sites')
         .select('site_name, site_number')
-        .eq('id', updatedTask.site_id)
+        .eq('id', housekeepingTask.site_id)
         .eq('property_id', propertyId)
         .maybeSingle()
-      const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || updatedTask.site_id
+      const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || housekeepingTask.site_id
       const service = createServiceRoleClient()
       await recordActivityLog(
         service,
@@ -461,21 +424,40 @@ export async function PATCH(
           action: 'update',
           resource: 'housekeeping',
           userId: user.id,
-          details: `Updated housekeeping task "${updatedTask.title}" for site ${auditSiteLabel}.`,
+          details: `Updated housekeeping task "${housekeepingTask.title}" for site ${auditSiteLabel}.`,
         },
         { failOpen: false },
       )
     }
 
-    return success({ housekeepingTask: updatedTask }, request)
+    // Publish housekeeping task completed event
+    if (housekeepingTask.status === 'done') {
+      try {
+        const eventBus = getEventBus()
+        await eventBus.publish(new HousekeepingTaskCompletedEvent(
+          propertyId,
+          housekeepingTask.id,
+          housekeepingTask.title,
+          housekeepingTask.site_id,
+        ))
+      } catch (evtErr) {
+        console.warn('[HK] Failed to publish TaskCompleted event (non-blocking)', evtErr)
+      }
+    }
+
+    return success({ housekeepingTask }, request)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[Housekeeping API v1] PATCH error:', err)
     if (
       message === 'Reservation confirmation id was not found for this property.' ||
       message === 'Checklist template was not found for this property.' ||
+      message === 'Housekeeping task was not found for this property.' ||
       message.startsWith('Invalid date/time value:')
     ) {
+      if (message === 'Housekeeping task was not found for this property.') {
+        return error(ErrorCodes.RESOURCE_NOT_FOUND, request, { message })
+      }
       return error(ErrorCodes.VALIDATION_ERROR, request, { message })
     }
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

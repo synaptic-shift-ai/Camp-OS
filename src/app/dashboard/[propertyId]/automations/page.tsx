@@ -48,7 +48,7 @@ export default async function AutomationsPage({
 
     // ── Automations (builder) tab ────────────────────────────────────────
     if (tab === "automations") {
-        const automations = await listAutomations(propertyId)
+        const automations = await listAutomations(propertyId, undefined, property.company_id)
         return (
             <AutomationsPageClient
                 propertyName={property.name}
@@ -68,7 +68,7 @@ export default async function AutomationsPage({
 
     // ── System Automations tab ────────────────────────────────────────
     if (tab === "system-automations") {
-        const systemAutomations = await listSystemAutomations().catch(() => [])
+        const systemAutomations = await listSystemAutomations(property.company_id ?? '').catch(() => [])
         return (
             <AutomationsPageClient
                 propertyName={property.name}
@@ -169,7 +169,7 @@ export default async function AutomationsPage({
         if (search) logFilters.search = search
 
         // Fetch automations first so we can match search term against names
-        const automations = await listAutomations(propertyId)
+        const automations = await listAutomations(propertyId, undefined, property.company_id)
         if (search) {
             const matchingIds = automations
                 .filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
@@ -211,7 +211,7 @@ export default async function AutomationsPage({
 
     // ── Dashboard tab ─────────────────────────────────────────────────────
     const [automations, logsResult] = await Promise.all([
-        listAutomations(propertyId),
+        listAutomations(propertyId, undefined, property.company_id),
         listExecutionLogs(propertyId, { dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), limit: 100 }),
     ])
 

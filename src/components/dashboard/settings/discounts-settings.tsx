@@ -121,7 +121,7 @@ const discountFormSchema = z.object({
 
 type DiscountFormInput = z.infer<typeof discountFormSchema>
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function DiscountsSettings({
@@ -280,7 +280,6 @@ export function DiscountsSettings({
       toast({
         title: 'Discounts saved',
         description: 'Discounts saved successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
       router.refresh()
@@ -290,7 +289,7 @@ export function DiscountsSettings({
         title: 'Save failed',
         description: error instanceof Error ? error.message : 'Failed to save discounts',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)

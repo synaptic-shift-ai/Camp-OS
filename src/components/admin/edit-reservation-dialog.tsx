@@ -254,7 +254,6 @@ export function EditReservationDialog({
       toast({
         title: "Reservation updated",
         description: "Reservation changes were saved successfully.",
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
       setOpen(false)

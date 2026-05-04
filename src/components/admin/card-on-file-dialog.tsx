@@ -1,0 +1,113 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { CreditCard } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { ManualPaymentDialog } from "@/components/admin/manual-payment-dialog"
+import type { MoneyCents } from "@/contracts/booking"
+
+export type CardOnFileDialogProps = {
+  reservationId: string
+  confirmationNumber: string
+  guestName: string
+  totalAmountCents: MoneyCents
+  paidAmountCents: MoneyCents
+  guestId?: string | null
+  paymentCard?:
+    | {
+        brand: string
+        last4: string
+        exp_month: number
+        exp_year: number
+      }
+    | null
+  trigger: React.ReactNode
+}
+
+export function CardOnFileDialog({
+  reservationId,
+  confirmationNumber,
+  guestName,
+  totalAmountCents,
+  paidAmountCents,
+  guestId,
+  paymentCard,
+  trigger,
+}: CardOnFileDialogProps) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <span className="inline-flex">{trigger}</span>
+      </SheetTrigger>
+
+      <SheetContent className="w-[90vw] max-w-[90vw] overflow-y-auto sm:max-w-[480px]">
+        <SheetHeader>
+          <SheetTitle>Card on File</SheetTitle>
+          <SheetDescription>
+            {paymentCard?.last4
+              ? `Stored card for ${guestName}.`
+              : `No card on file for ${guestName}.`}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-4 py-4">
+          {paymentCard?.last4 ? (
+            <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+              <CreditCard className="h-5 w-5" />
+              <div className="min-w-0">
+                <div className="text-sm text-muted-foreground">Card</div>
+                <div className="font-mono text-base text-foreground">
+                  **** **** **** {paymentCard.last4}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  Exp {paymentCard.exp_month}/{String(paymentCard.exp_year).slice(-2)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+              No card payment method is available yet.
+            </div>
+          )}
+        </div>
+
+        <SheetFooter>
+          {/** Separate flows: this sheet previews the stored card, then lets you open payment recording. */}
+          <ManualPaymentDialog
+            reservationId={reservationId}
+            confirmationNumber={confirmationNumber}
+            guestName={guestName}
+            totalAmountCents={totalAmountCents}
+            paidAmountCents={paidAmountCents}
+            guestId={guestId ?? null}
+            defaultPaymentMethod="credit_card"
+            defaultProcessor="stripe"
+            defaultUseCardOnFile={!!paymentCard}
+            trigger={
+              <Button
+                variant="outline"
+                onClick={() => setOpen(false)}
+                className="w-full"
+                disabled={!paymentCard}
+              >
+                Record Payment
+              </Button>
+            }
+          />
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+

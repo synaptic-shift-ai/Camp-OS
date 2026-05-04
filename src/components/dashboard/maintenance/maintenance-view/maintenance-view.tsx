@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
 import { ReassignTaskDialog } from "../../housekeeping/housekeeping-dialog.tsx/reassign-task-dialog"
+import { AssignVendorDialog } from "../maintenance-dialog/assign-vendor-dialog"
 
 type AssigneeOption = {
   id: string
@@ -202,6 +203,7 @@ export function MaintenanceView({
   const [vendorInvoiceCost, setVendorInvoiceCost] = useState("")
   const [closeoutNotes, setCloseoutNotes] = useState("")
   const [isAssigningVendor, setIsAssigningVendor] = useState(false)
+  const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false)
   const [isCompletingVendor, setIsCompletingVendor] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [now, setNow] = useState(Date.now())
@@ -453,18 +455,21 @@ export function MaintenanceView({
   // ── Visibility flags ──
 
   const showStart = task?.status === "open" && canEditTask
-  const showComplete = (task?.status === "in_progress" || task?.status === "in_progress_vendor") && canEditTask
+  const showComplete = task?.status === "in_progress" && canEditTask
   const showReopen = (task?.status === "completed" || task?.status === "cancelled") && canEditTask
   const hasPendingOnHoldRequest =
     ["in_progress", "in_progress_vendor"].includes(task?.status ?? "") &&
     Boolean(task?.on_hold_reason) &&
     !task?.on_hold_at
-  const showHold = canHold && !canResume && task?.status === "in_progress" && !hasPendingOnHoldRequest
+  const showHold =
+    canHold &&
+    (task?.status === "in_progress" || task?.status === "in_progress_vendor") &&
+    !hasPendingOnHoldRequest
   const showApproveHold = canResume && hasPendingOnHoldRequest
   const showResume = canResume && task?.status === "on_hold"
   const showCancel = canCancel && ["open", "in_progress", "on_hold"].includes(task?.status ?? "")
   const showReassign = canAssignWo && !["completed", "cancelled"].includes(task?.status ?? "")
-  const showAssignVendor = (task?.status === "open" || task?.status === "in_progress") && canEditTask
+  const showAssignVendor = task?.status === "open" && canEditTask && !task?.vendor_id
   const showCloseout = task?.status === "in_progress_vendor" && canEditTask
 
   // ── Handlers ──
@@ -477,12 +482,13 @@ export function MaintenanceView({
     if (!task || task.status !== "open" || isStarting) return
     setIsStarting(true)
     try {
+      const targetStatus = task.vendor_id ? "in_progress_vendor" : "in_progress"
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress" }),
+          body: JSON.stringify({ status: targetStatus }),
         },
       )
       const payload = await res.json()
@@ -498,7 +504,7 @@ export function MaintenanceView({
         previous
           ? {
               ...previous,
-              status: "in_progress",
+              status: targetStatus,
               started_at: startedAt,
               updated_at:
                 typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
@@ -519,7 +525,7 @@ export function MaintenanceView({
   }
 
   const handleComplete = async () => {
-    if (!task || task.status !== "in_progress" || isCompleting) return
+    if (!task || !["in_progress", "in_progress_vendor"].includes(task.status) || isCompleting) return
     setIsCompleting(true)
     try {
       const res = await fetch(
@@ -609,6 +615,49 @@ export function MaintenanceView({
       setIsHoldDialogOpen(false)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to request on-hold."
+      toast({ title: "Unable to hold", description: message, variant: "destructive" })
+    } finally {
+      setIsStatusChanging(false)
+    }
+  }
+
+  const handlePutOnHold = async (reason: string) => {
+    if (!task || task.status === "on_hold" || isStatusChanging) return
+    setIsStatusChanging(true)
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "on_hold", on_hold_reason: reason }),
+        },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(
+          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to put on hold",
+        )
+      }
+      const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      setTask((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: "on_hold",
+              on_hold_at:
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              on_hold_reason:
+                typeof updated?.on_hold_reason === "string" ? updated.on_hold_reason : reason,
+              updated_at:
+                typeof updated?.updated_at === "string" ? updated.updated_at : previous.updated_at,
+            }
+          : previous,
+      )
+      toast({ title: "Work order put on hold", variant: "success" })
+      setIsHoldDialogOpen(false)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to put on hold."
       toast({ title: "Unable to hold", description: message, variant: "destructive" })
     } finally {
       setIsStatusChanging(false)
@@ -709,7 +758,10 @@ export function MaintenanceView({
         previous
           ? {
               ...previous,
-              status: "in_progress",
+              status:
+                updated?.status === "in_progress_vendor" || updated?.status === "in_progress"
+                  ? updated.status
+                  : "in_progress",
               started_at:
                 typeof updated?.started_at === "string" ? updated.started_at : previous.started_at,
               on_hold_at: null,
@@ -756,7 +808,7 @@ export function MaintenanceView({
     }
   }
 
-  const handleAssignVendor = async () => {
+  const handleAssignVendor = async (vendorId: string) => {
     if (!task || isAssigningVendor) return
     setIsAssigningVendor(true)
     try {
@@ -765,7 +817,7 @@ export function MaintenanceView({
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress_vendor" }),
+          body: JSON.stringify({ status: "in_progress_vendor", vendorId }),
         },
       )
       const payload = await res.json()
@@ -775,6 +827,7 @@ export function MaintenanceView({
         throw new Error(message)
       }
       toast({ title: "Assigned to vendor", variant: "success" })
+      setIsVendorDialogOpen(false)
       mutate()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to assign to vendor."
@@ -884,7 +937,11 @@ export function MaintenanceView({
   }
 
   const siteLabel = task.site?.site_name?.trim() || task.site?.site_number || "Unknown site"
-  const assigneeLabel = task.staff_id ? assigneeLabelById.get(task.staff_id) ?? "Assigned" : "Unassigned"
+  const assigneeLabel = task.staff_id
+    ? assigneeLabelById.get(task.staff_id) ?? "Assigned"
+    : task.vendor_id
+      ? "Vendor Assigned"
+      : "Unassigned"
   const isCancelled = task.status === "cancelled"
   const workOrderLabel = task.wo_number ?? `WO-${task.id.slice(0, 4).toUpperCase()}`
   const totalEstimated = (task.estimated_labor_cost ?? 0) + (task.estimated_parts_cost ?? 0)
@@ -1034,7 +1091,7 @@ export function MaintenanceView({
                 onClick={() => setIsHoldDialogOpen(true)}
               >
                 <Pause className="h-4 w-4" />
-                Request On Hold
+                {canResume ? "Put On Hold" : "Request On Hold"}
               </Button>
             ) : null}
             {showApproveHold ? (
@@ -1114,7 +1171,7 @@ export function MaintenanceView({
                 variant="outline"
                 className="col-span-1 gap-2 sm:w-auto"
                 disabled={isAssigningVendor}
-                onClick={() => void handleAssignVendor()}
+                onClick={() => setIsVendorDialogOpen(true)}
               >
                 {isAssigningVendor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
                 Assign to Vendor
@@ -1417,9 +1474,13 @@ export function MaintenanceView({
       <StatusChangeReasonDialog
         open={isHoldDialogOpen}
         onOpenChange={setIsHoldDialogOpen}
-        title="Request On Hold"
-        description="Please provide a reason for requesting this work order to be put on hold."
-        onSubmit={handleRequestOnHold}
+        title={canResume ? "Put Work Order On Hold" : "Request On Hold"}
+        description={
+          canResume
+            ? "Please provide a reason for putting this work order on hold."
+            : "Please provide a reason for requesting this work order to be put on hold."
+        }
+        onSubmit={canResume ? handlePutOnHold : handleRequestOnHold}
         isSubmitting={isStatusChanging}
       />
       <StatusChangeReasonDialog
@@ -1437,6 +1498,13 @@ export function MaintenanceView({
         currentUserId={task.staff_id}
         isSubmitting={isReassigning}
         onSubmit={handleReassignTask}
+      />
+      <AssignVendorDialog
+        open={isVendorDialogOpen}
+        onOpenChange={setIsVendorDialogOpen}
+        propertyId={propertyId}
+        isSubmitting={isAssigningVendor}
+        onSubmit={handleAssignVendor}
       />
     </div>
   )

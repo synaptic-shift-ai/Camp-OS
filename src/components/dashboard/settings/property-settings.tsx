@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast'
 import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 const propertyDetailsSchema = z.object({
@@ -155,7 +155,7 @@ export function PropertySettings({
           title: 'Stripe configuration missing',
           description: 'Stripe Connect is not configured. Please contact support.',
           variant: 'destructive',
-          className: SEASON_ALERT_TOAST_CLASS,
+            className: SEASON_ERROR_TOAST_CLASS,
         })
         return
       }
@@ -167,7 +167,7 @@ export function PropertySettings({
           title: 'Stripe configuration missing',
           description: 'Stripe Connect is not configured. Please contact support.',
           variant: 'destructive',
-          className: SEASON_ALERT_TOAST_CLASS,
+            className: SEASON_ERROR_TOAST_CLASS,
         })
         return
       }
@@ -188,7 +188,7 @@ export function PropertySettings({
         title: 'Stripe connection failed',
         description: 'Failed to start Stripe connection. Please try again.',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     }
   }
@@ -223,7 +223,6 @@ export function PropertySettings({
       toast({
         title: 'Stripe disconnected',
         description: 'Stripe account has been disconnected successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
     } catch (error) {
@@ -232,7 +231,7 @@ export function PropertySettings({
         title: 'Stripe disconnect failed',
         description: 'Failed to disconnect Stripe. Please try again.',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsStripeUpdating(false)
@@ -297,7 +296,6 @@ export function PropertySettings({
       toast({
         title: 'Property details saved',
         description: 'Your property settings were updated successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
     } catch (err) {
@@ -305,7 +303,7 @@ export function PropertySettings({
         title: 'Save failed',
         description: err instanceof Error ? err.message : 'Failed to save property details',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)

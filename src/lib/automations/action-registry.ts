@@ -81,6 +81,45 @@ export function createActionRegistry(): ActionHandlerMap {
     })
   }
 
+  // send_notification: creates activity log entries for in-app notifications
+  registry.set('send_notification', {
+    async execute(config, context) {
+      try {
+        const { createServiceRoleClient } = await import('@/lib/supabase/service-role')
+        const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+
+        const supabase = createServiceRoleClient()
+        const propertyId = context.property?.id as string | undefined
+        const companyId = context.property?.company_id as string | undefined
+        if (!companyId || !propertyId) {
+          console.warn('[send_notification] Missing companyId or propertyId in context')
+          return
+        }
+
+        const channel = (config.channel as string) ?? 'staff'
+        const priority = (config.priority as string) ?? 'medium'
+        const message = (config.message as string) ?? 'Automation notification'
+
+        await recordActivityLog(
+          supabase,
+          {
+            companyId,
+            propertyId,
+            action: 'notification',
+            resource: 'automation',
+            userId: null,
+            details: `[${priority.toUpperCase()}] ${channel}: ${message}`,
+          },
+          { failOpen: true },
+        )
+
+        console.log(`[send_notification] Activity log created: [${priority}] ${channel}: ${message}`)
+      } catch (err) {
+        console.error('[send_notification] Failed to create activity log entry:', err)
+      }
+    },
+  })
+
   // Real send_email handler: queries DB for template, renders with context, sends via SMTP
   registry.set('send_email', {
     async execute(config, context) {

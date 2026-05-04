@@ -396,13 +396,36 @@ export class HousekeepingQueries {
                 : {}),
         }
 
+        if (Object.keys(updateRow).length === 0) {
+            const { data, error } = await this.supabase
+                .from('housekeeping_tasks')
+                .select()
+                .eq('id', input.id)
+                .eq('property_id', input.propertyId)
+                .maybeSingle()
+
+            if (error) {
+                console.error('[HousekeepingQueries] Failed to load housekeeping task', {
+                    error,
+                    id: input.id,
+                })
+                throw new Error(`Failed to load housekeeping task: ${error.message}`)
+            }
+
+            if (!data) {
+                throw new Error('Housekeeping task was not found for this property.')
+            }
+
+            return data
+        }
+
         const { data, error } = await this.supabase
             .from('housekeeping_tasks')
             .update(updateRow)
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
-            .single()
+            .maybeSingle()
         
         if (error) {
             console.error('[HousekeepingQueries] Failed to update housekeeping task', {
@@ -413,7 +436,7 @@ export class HousekeepingQueries {
         }
 
         if (!data) {
-            throw new Error('Failed to update housekeeping task: no row returned')
+            throw new Error('Housekeeping task was not found for this property.')
         }
 
         return data
@@ -736,37 +759,6 @@ export class HousekeepingQueries {
         return { storagePath: data.storage_path as string }
     }
 
-    async getNextReservationForSite(
-        siteId: string,
-        propertyId: string,
-    ): Promise<{ check_in_date: string; status: string } | null> {
-        const today = new Date().toISOString().slice(0, 10)
-
-        const { data, error } = await this.supabase
-            .from('reservations')
-            .select('check_in_date, status')
-            .eq('site_id', siteId)
-            .eq('property_id', propertyId)
-            .gte('check_in_date', today)
-            .in('status', ['confirmed', 'upcoming'])
-            .order('check_in_date', { ascending: true })
-            .limit(1)
-            .maybeSingle()
-
-        if (error) {
-            console.error('[HousekeepingQueries] Failed to get next reservation for site', {
-                siteId,
-                propertyId,
-                error,
-            })
-            throw new Error(`Failed to get next reservation for site: ${error.message}`)
-        }
-
-        return data
-            ? { check_in_date: data.check_in_date as string, status: data.status as string }
-            : null
-    }
-
     async countOpenHousekeepingTasksForSite(propertyId: string, siteId: string): Promise<number> {
         const { count, error } = await this.supabase
             .from('housekeeping_tasks')
@@ -785,6 +777,24 @@ export class HousekeepingQueries {
         }
 
         return count ?? 0
+    }
+
+    async getNextReservationForSite(siteId: string, propertyId: string): Promise<{ check_in_date: string; status: string } | null> {
+        const { data, error } = await this.supabase
+            .from('reservations')
+            .select('check_in_date, status')
+            .eq('site_id', siteId)
+            .eq('property_id', propertyId)
+            .gte('check_in_date', new Date().toISOString().split('T')[0])
+            .in('status', ['confirmed', 'upcoming'])
+            .order('check_in_date', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+        if (error) {
+            console.error('[HousekeepingQueries] getNextReservationForSite failed', { siteId, propertyId, error })
+        }
+        return data ?? null
     }
 
     async flagIssue(input: {
@@ -806,28 +816,19 @@ export class HousekeepingQueries {
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
-            .single()
+            .maybeSingle()
 
         if (error) {
-            console.error('[HousekeepingQueries] Failed to flag issue on housekeeping task', {
-                error,
-                id: input.id,
-                propertyId: input.propertyId,
-            })
+            console.error('[HousekeepingQueries] flagIssue failed', { error, id: input.id })
             throw new Error(`Failed to flag issue: ${error.message}`)
         }
-
         if (!data) {
-            throw new Error('Failed to flag issue: no row returned')
+            throw new Error('Failed to flag issue: housekeeping task was not found for this property.')
         }
-
         return data
     }
 
-    async clearIssue(input: {
-        id: string
-        propertyId: string
-    }): Promise<HousekeepingTaskRow> {
+    async clearIssue(input: { id: string; propertyId: string }): Promise<HousekeepingTaskRow> {
         const updateRow: Database['public']['Tables']['housekeeping_tasks']['Update'] = {
             issue_type: null,
             issue_description: null,
@@ -840,46 +841,41 @@ export class HousekeepingQueries {
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
-            .single()
+            .maybeSingle()
 
         if (error) {
-            console.error('[HousekeepingQueries] Failed to clear issue on housekeeping task', {
-                error,
-                id: input.id,
-                propertyId: input.propertyId,
-            })
+            console.error('[HousekeepingQueries] clearIssue failed', { error, id: input.id })
             throw new Error(`Failed to clear issue: ${error.message}`)
         }
-
         if (!data) {
-            throw new Error('Failed to clear issue: no row returned')
+            throw new Error('Failed to clear issue: housekeeping task was not found for this property.')
         }
-
         return data
     }
 
-    async listFlaggedTasks(propertyId: string): Promise<(HousekeepingTaskRow & { site_name: string | null })[]> {
+    async listFlaggedTasks(propertyId: string): Promise<Array<
+        HousekeepingTaskRow & {
+            site: Pick<SiteRow, 'site_name' | 'site_number'> | null
+        }
+    >> {
         const { data, error } = await this.supabase
             .from('housekeeping_tasks')
-            .select('*, site:sites(site_name)')
+            .select(
+                `*, site:sites(site_name, site_number)`,
+            )
             .eq('property_id', propertyId)
             .not('issue_type', 'is', null)
-            .order('updated_at', { ascending: false })
+            .order('created_at', { ascending: false })
 
         if (error) {
-            console.error('[HousekeepingQueries] Failed to list flagged tasks', {
-                propertyId,
-                error,
-            })
+            console.error('[HousekeepingQueries] listFlaggedTasks failed', { propertyId, error })
             throw new Error(`Failed to list flagged tasks: ${error.message}`)
         }
 
-        return (data ?? []).map((row) => {
-            const typed = row as unknown as HousekeepingTaskRow & { site: { site_name: string | null } | null }
-            return {
-                ...typed,
-                site_name: typed.site?.site_name ?? null,
+        return (data ?? []) as Array<
+            HousekeepingTaskRow & {
+                site: Pick<SiteRow, 'site_name' | 'site_number'> | null
             }
-        })
+        >
     }
 }

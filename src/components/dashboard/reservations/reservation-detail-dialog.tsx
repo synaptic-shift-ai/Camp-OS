@@ -200,7 +200,7 @@ export function ReservationDetailDialog({
                   paidAmount={reservation.paidAmount}
                   hasOutstandingBalance={Math.max(0, reservation.totalAmount - reservation.paidAmount) > 0}
                   canRefund={
-                    reservation.status === 'cancelled' &&
+                    (reservation.status === 'cancelled' || reservation.status === 'confirmed') &&
                     reservation.paidAmount > 0 &&
                     reservation.refundAmount < reservation.paidAmount
                   }

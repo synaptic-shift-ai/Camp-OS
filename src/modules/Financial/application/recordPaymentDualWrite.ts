@@ -25,6 +25,12 @@ export interface RecordPaymentDualWriteParams {
   propertyId: string
   reservationId: string | null
   guestId: string | null
+  /**
+   * `financial_transactions.created_by` is a NOT NULL UUID (auth.users.id).
+   * Provide a real user id whenever possible. If omitted and `reservationId`
+   * is provided, this helper will attempt to look up `reservations.created_by`.
+   */
+  createdByUserId?: string | null
   amountCents: number
   paymentMethod: PaymentMethod
   stripePaymentIntentId?: string | null
@@ -48,6 +54,7 @@ export async function recordPaymentDualWrite(
     propertyId,
     reservationId,
     guestId,
+    createdByUserId = null,
     amountCents,
     paymentMethod,
     stripePaymentIntentId = null,
@@ -60,6 +67,29 @@ export async function recordPaymentDualWrite(
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
 
+    let resolvedCreatedByUserId = createdByUserId
+    if (!resolvedCreatedByUserId && reservationId) {
+      const { data: reservationRow, error: reservationLookupError } = await (supabase as any)
+        .from('reservations')
+        .select('created_by')
+        .eq('id', reservationId)
+        .eq('property_id', propertyId)
+        .maybeSingle()
+
+      if (reservationLookupError) {
+        console.warn(`${logPrefix} could not resolve created_by from reservation (non-blocking)`, {
+          reservationId,
+          error: reservationLookupError.message,
+        })
+      } else if (reservationRow?.created_by) {
+        resolvedCreatedByUserId = reservationRow.created_by as string
+      }
+    }
+
+    if (!resolvedCreatedByUserId) {
+      console.warn(`${logPrefix} skipped (missing createdByUserId)`, { propertyId, reservationId })
+      return
+    }
     // Idempotency check — skip if we already processed this event
     if (processorEventId) {
       const existingCharge = await repo.findByProcessorEventId(processorEventId, TransactionType.CHARGE)
@@ -79,7 +109,7 @@ export async function recordPaymentDualWrite(
       TransactionType.CHARGE,
       amount,
       paymentMethod,
-      'system',
+      resolvedCreatedByUserId,
       null, // invoiceId
       description ?? 'Charge via dual-write',
       TransactionSource.RESERVATION,
@@ -99,7 +129,7 @@ export async function recordPaymentDualWrite(
       TransactionType.PAYMENT,
       amount,
       paymentMethod,
-      'system',
+      resolvedCreatedByUserId,
       null, // invoiceId
       description ?? 'Payment via dual-write',
       TransactionSource.RESERVATION,

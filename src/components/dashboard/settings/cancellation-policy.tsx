@@ -46,7 +46,7 @@ interface CancellationPolicySettingsProps {
 const DEFAULT_PLACEHOLDER =
   'e.g. Free cancellation up to 7 days before check-in. 50% refund for cancellations 3–7 days before. No refund within 3 days of check-in.'
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function CancellationPolicySettings({
@@ -112,7 +112,6 @@ export function CancellationPolicySettings({
             toast({
               title: 'Terms & policy saved',
               description: 'Terms & Policy saved.',
-              className: SEASON_ALERT_TOAST_CLASS,
               variant: "success",
             })
             router.refresh()
@@ -121,7 +120,7 @@ export function CancellationPolicySettings({
               title: 'Save failed',
               description: err instanceof Error ? err.message : 'Failed to save cancellation policy',
               variant: 'destructive',
-              className: SEASON_ALERT_TOAST_CLASS,
+              className: SEASON_ERROR_TOAST_CLASS,
             })
         } finally {
             setIsSaving(false)

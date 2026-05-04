@@ -182,6 +182,7 @@ export async function performCheckIn(
         propertyId: typedReservation.property_id,
         reservationId: input.reservation_id,
         guestId: typedReservation.guest_id,
+        createdByUserId: input.checked_in_by,
         amountCents: input.balance_amount,
         paymentMethod: PaymentMethod.CREDIT_CARD,
         stripePaymentIntentId: paymentIntentId,

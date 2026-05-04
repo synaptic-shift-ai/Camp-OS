@@ -8,12 +8,22 @@ import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { HousekeepingQueries, type ListHousekeepingTasksFilters } from '@/lib/dashboard/housekeeping/housekeeping-queries'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { HousekeepingTaskCreatedEvent } from '@/modules/Housekeeping/domain/events'
 import {
   CreateHousekeepingTaskRequestSchema,
   ListHousekeepingTasksQuerySchema,
 } from '@/types/api/v1/schemas/housekeeping'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
-import { HousekeepingTaskCreatedEvent } from '@/modules/Housekeeping/domain/events'
+
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+  return (siteType ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\bsite\b/g, '')
+    .trim()
+}
 
 function housekeepingFallbackForCategory(
   role: 'owner' | 'admin' | 'manager' | 'staff',
@@ -269,6 +279,62 @@ export async function POST(
           })
         }
 
+        const { data: siteRow } = await supabase
+          .from('sites')
+          .select('id, site_type')
+          .eq('id', parsed.data.siteId)
+          .eq('property_id', propertyId)
+          .is('deleted_at', null)
+          .maybeSingle()
+
+        if (!siteRow) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'Site not found for this property',
+          })
+        }
+
+        const { data: propertyRow } = await supabase
+          .from('properties')
+          .select('site_type_config')
+          .eq('id', propertyId)
+          .maybeSingle()
+
+        const siteTypeConfig =
+          (propertyRow?.site_type_config as {
+            housekeeping?: Record<string, boolean>
+            allowed_site_types?: string[]
+          } | null | undefined) ?? null
+
+        const housekeepingMap = Object.fromEntries(
+          Object.entries(siteTypeConfig?.housekeeping ?? {}).map(([key, value]) => [
+            toCanonicalSiteTypeKey(key),
+            value,
+          ]),
+        )
+
+        const allowedSiteTypeSet = new Set(
+          Array.isArray(siteTypeConfig?.allowed_site_types)
+            ? siteTypeConfig!.allowed_site_types.map((siteType) =>
+              toCanonicalSiteTypeKey(siteType),
+            )
+            : [],
+        )
+
+        const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+        if (siteTypeKey) {
+          if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+            return error(ErrorCodes.VALIDATION_ERROR, request, {
+              message: 'The selected site is not available for housekeeping',
+            })
+          }
+
+          if (housekeepingMap[siteTypeKey] === false) {
+            return error(ErrorCodes.VALIDATION_ERROR, request, {
+              message: 'The selected site is not available for housekeeping',
+            })
+          }
+        }
+
         const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
         const housekeepingTask = await queries.createHousekeepingTask({
           propertyId,
@@ -288,87 +354,39 @@ export async function POST(
             : {}),
         })
 
-        // --- Priority escalation: auto-escalate if next guest check-in is within 4 hours ---
-        let escalatedTask = housekeepingTask
-        if (housekeepingTask.site_id) {
-            try {
-                const nextReservation = await queries.getNextReservationForSite(
-                    housekeepingTask.site_id,
-                    propertyId,
-                )
-
-                if (nextReservation) {
-                    const { data: propertyRow } = await supabase
-                        .from('properties')
-                        .select('check_in_time, timezone')
-                        .eq('id', propertyId)
-                        .maybeSingle()
-
-                    const checkInTime = (propertyRow?.check_in_time?.trim()) || '15:00'
-                    const [hours, minutes] = checkInTime.split(':').map(Number)
-
-                    const checkInDate = new Date(nextReservation.check_in_date + 'T00:00:00')
-                    checkInDate.setHours(hours, minutes, 0, 0)
-
-                    // Apply property timezone offset if available
-                    if (propertyRow?.timezone) {
-                        try {
-                            const utcNow = new Date()
-                            const tzDate = new Date(utcNow.toLocaleString('en-US', { timeZone: propertyRow.timezone }))
-                            const offsetMs = tzDate.getTime() - utcNow.getTime()
-                            checkInDate.setTime(checkInDate.getTime() - offsetMs)
-                        } catch {
-                            // Fall back to UTC if timezone parsing fails
-                        }
-                    }
-
-                    const msUntilCheckIn = checkInDate.getTime() - Date.now()
-                    const fourHoursMs = 4 * 60 * 60 * 1000
-
-                    if (msUntilCheckIn > 0 && msUntilCheckIn < fourHoursMs && housekeepingTask.priority !== 'urgent') {
-                        escalatedTask = await queries.updateHousekeepingTask({
-                            id: housekeepingTask.id,
-                            propertyId,
-                            priority: 'high',
-                        })
-                        console.info('[Housekeeping API v1] POST: task priority escalated to high', {
-                            taskId: housekeepingTask.id,
-                            siteId: housekeepingTask.site_id,
-                            msUntilCheckIn,
-                        })
-                    }
-                }
-            } catch (escalationErr) {
-                console.warn('[Housekeeping API v1] POST: priority escalation failed (non-blocking)', {
-                    taskId: housekeepingTask.id,
-                    siteId: housekeepingTask.site_id,
-                    error: escalationErr,
-                })
-            }
-        }
-
-        // Publish domain event (fire-and-forget)
+        // Priority escalation: HIGH if next reservation within 4 hours
         try {
-            const eventBus = getEventBus()
-            await eventBus.publish(new HousekeepingTaskCreatedEvent(
-                propertyId,
-                escalatedTask.id,
-                escalatedTask.title,
-                escalatedTask.priority,
-                escalatedTask.site_id,
-            ))
-        } catch {
-            // Non-blocking: event publishing failures should not prevent response
+          if (housekeepingTask.site_id) {
+            const nextRes = await queries.getNextReservationForSite(housekeepingTask.site_id, propertyId)
+            if (nextRes) {
+              const serviceRole = createServiceRoleClient()
+              const propRow = await serviceRole.from('properties').select('check_in_time, timezone').eq('id', propertyId).single()
+              const checkInTime = (propRow.data?.check_in_time?.trim()) || '15:00'
+              const [hours, mins] = checkInTime.split(':').map(Number)
+              const checkInDate = new Date(nextRes.check_in_date + 'T00:00:00')
+              checkInDate.setHours(hours, mins, 0, 0)
+              const now = new Date()
+              const diffMs = checkInDate.getTime() - now.getTime()
+              const fourHours = 4 * 60 * 60 * 1000
+              if (diffMs > 0 && diffMs < fourHours && housekeepingTask.priority !== 'urgent') {
+                const escalated = await queries.updateHousekeepingTask({ id: housekeepingTask.id, propertyId, priority: 'high' })
+                Object.assign(housekeepingTask, escalated)
+                console.log('[HK] Priority escalated to HIGH — next reservation within 4 hours')
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[HK] Priority escalation failed (non-blocking)', err)
         }
 
         if (access.companyId) {
           const { data: siteRow } = await supabase
             .from('sites')
             .select('site_name, site_number')
-            .eq('id', escalatedTask.site_id)
+            .eq('id', housekeepingTask.site_id)
             .eq('property_id', propertyId)
             .maybeSingle()
-          const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || escalatedTask.site_id
+          const auditSiteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || housekeepingTask.site_id
           const service = createServiceRoleClient()
           await recordActivityLog(
             service,
@@ -378,13 +396,27 @@ export async function POST(
               action: 'create',
               resource: 'housekeeping',
               userId: user.id,
-              details: `Created housekeeping task "${escalatedTask.title}" for site ${auditSiteLabel}.`,
+              details: `Created housekeeping task "${housekeepingTask.title}" for site ${auditSiteLabel}.`,
             },
             { failOpen: false },
           )
         }
 
-        return success({ housekeepingTask: escalatedTask }, request)
+        // Publish housekeeping task created event
+        try {
+          const eventBus = getEventBus()
+          await eventBus.publish(new HousekeepingTaskCreatedEvent(
+            propertyId,
+            housekeepingTask.id,
+            housekeepingTask.title,
+            housekeepingTask.priority,
+            housekeepingTask.site_id,
+          ))
+        } catch (evtErr) {
+          console.warn('[HK] Failed to publish TaskCreated event (non-blocking)', evtErr)
+        }
+
+        return success({ housekeepingTask }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Housekeeping API v1] POST error:', err)

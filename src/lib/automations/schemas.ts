@@ -167,10 +167,10 @@ export const CreateAutomationSchema = z
   )
   .refine(
     (data) => {
-      if (data.scope !== 'system' && !data.companyId) return false
+      if (!data.companyId) return false
       return true
     },
-    { message: 'companyId is required for property-scope automations' }
+    { message: 'companyId is required' }
   )
 
 export type CreateAutomationInput = z.infer<typeof CreateAutomationSchema>

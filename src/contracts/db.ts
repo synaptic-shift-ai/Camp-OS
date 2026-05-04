@@ -891,15 +891,21 @@ export type Database = {
           created_by: string
           currency: string
           failure_reason: string | null
+          guest_id: string | null
+          handling: string | null
           id: string
           invoice_id: string | null
+          is_voided: boolean
           notes: string | null
           payment_method: string
           processed_at: string | null
+          processor_event_id: string | null
           property_id: string
+          recognition_status: string
           reconciled_at: string | null
           reconciled_by: string | null
           reservation_id: string | null
+          source: string
           status: string
           stripe_payment_intent_id: string | null
           stripe_refund_id: string | null
@@ -912,15 +918,21 @@ export type Database = {
           created_by: string
           currency?: string
           failure_reason?: string | null
+          guest_id?: string | null
+          handling?: string | null
           id?: string
           invoice_id?: string | null
+          is_voided?: boolean
           notes?: string | null
           payment_method: string
           processed_at?: string | null
+          processor_event_id?: string | null
           property_id: string
+          recognition_status?: string
           reconciled_at?: string | null
           reconciled_by?: string | null
           reservation_id?: string | null
+          source?: string
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_refund_id?: string | null
@@ -933,15 +945,21 @@ export type Database = {
           created_by?: string
           currency?: string
           failure_reason?: string | null
+          guest_id?: string | null
+          handling?: string | null
           id?: string
           invoice_id?: string | null
+          is_voided?: boolean
           notes?: string | null
           payment_method?: string
           processed_at?: string | null
+          processor_event_id?: string | null
           property_id?: string
+          recognition_status?: string
           reconciled_at?: string | null
           reconciled_by?: string | null
           reservation_id?: string | null
+          source?: string
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_refund_id?: string | null
@@ -949,6 +967,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "financial_transactions_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financial_transactions_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -1154,6 +1179,9 @@ export type Database = {
           description: string | null
           end_date: string | null
           id: string
+          issue_description: string | null
+          issue_type: string | null
+          linked_maintenance_task_id: string | null
           priority: string
           property_id: string
           reservation_id: string | null
@@ -1164,9 +1192,6 @@ export type Database = {
           status: string
           title: string
           updated_at: string
-          issue_type: string | null
-          issue_description: string | null
-          linked_maintenance_task_id: string | null
         }
         Insert: {
           checklist_id?: string | null
@@ -1176,6 +1201,9 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          issue_description?: string | null
+          issue_type?: string | null
+          linked_maintenance_task_id?: string | null
           priority?: string
           property_id: string
           reservation_id?: string | null
@@ -1186,9 +1214,6 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
-          issue_type?: string | null
-          issue_description?: string | null
-          linked_maintenance_task_id?: string | null
         }
         Update: {
           checklist_id?: string | null
@@ -1198,6 +1223,9 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          issue_description?: string | null
+          issue_type?: string | null
+          linked_maintenance_task_id?: string | null
           priority?: string
           property_id?: string
           reservation_id?: string | null
@@ -1208,9 +1236,6 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
-          issue_type?: string | null
-          issue_description?: string | null
-          linked_maintenance_task_id?: string | null
         }
         Relationships: [
           {
@@ -2398,6 +2423,7 @@ export type Database = {
           checked_out_by: string | null
           confirmation_number: string
           created_at: string | null
+          created_by: string | null
           damage_inspection_data: Json | null
           equipment_length: number | null
           equipment_type: string | null
@@ -2452,6 +2478,7 @@ export type Database = {
           checked_out_by?: string | null
           confirmation_number: string
           created_at?: string | null
+          created_by?: string | null
           damage_inspection_data?: Json | null
           equipment_length?: number | null
           equipment_type?: string | null
@@ -2506,6 +2533,7 @@ export type Database = {
           checked_out_by?: string | null
           confirmation_number?: string
           created_at?: string | null
+          created_by?: string | null
           damage_inspection_data?: Json | null
           equipment_length?: number | null
           equipment_type?: string | null

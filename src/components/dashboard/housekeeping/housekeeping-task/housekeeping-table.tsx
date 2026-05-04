@@ -23,7 +23,6 @@ import {
   Eye,
   MoreHorizontal,
   Pencil,
-  Play,
   Trash2,
   UserRound,
 } from "lucide-react"
@@ -62,7 +61,12 @@ type HousekeepingTableProps = {
   canDeleteTask?: boolean
 }
 
-function StatusPill({ status }: { status: HousekeepingTaskRow["status"] }) {
+function isOverdue(status: HousekeepingTaskRow["status"], dueDate: string | null | undefined): boolean {
+  if (status !== "Pending" || !dueDate) return false
+  return new Date(dueDate) < new Date()
+}
+
+function StatusPill({ status, overdue }: { status: HousekeepingTaskRow["status"]; overdue?: boolean }) {
   const base = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border"
 
   if (status === "Done") {
@@ -71,6 +75,10 @@ function StatusPill({ status }: { status: HousekeepingTaskRow["status"] }) {
 
   if (status === "In Progress") {
     return <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`}>In Progress</span>
+  }
+
+  if (overdue) {
+    return <span className={`${base} border-red-200 bg-red-50 text-red-700`}>Overdue</span>
   }
 
   return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Pending</span>
@@ -244,10 +252,7 @@ export function HousekeepingTable({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold leading-tight text-foreground">{row.task}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{row.siteName}</span>
-                    <PriorityPill priority={row.priority} />
-                  </div>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{row.siteName}</p>
                 </div>
                 <TaskActionsMenu
                   row={row}
@@ -264,7 +269,11 @@ export function HousekeepingTable({
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {toDisplayTaskId(row.id)}
                 </p>
-                <StatusPill status={row.status} />
+                {row.reservationConfirmationId ? (
+                  <p className="shrink-0 truncate text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {row.reservationConfirmationId}
+                  </p>
+                ) : null}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span className="inline-flex min-w-0 items-center gap-1">
@@ -277,36 +286,22 @@ export function HousekeepingTable({
                 </span>
               </div>
               {row.description?.trim() ? (
-                <p className="mt-2 line-clamp-2 text-sm leading-snug text-muted-foreground">{row.description.trim()}</p>
+                <p className="mt-2 line-clamp-2 text-xs leading-snug text-muted-foreground">{row.description.trim()}</p>
               ) : null}
-              {/* Quick action buttons for mobile — 44px min touch target */}
-              {row.status !== "Done" && canEditTask && (onComplete || onReassign) ? (
-                <div
-                  className="mt-3 flex gap-2 border-t border-border/70 pt-3"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {row.status === "Pending" && onReassign ? (
-                    <button
-                      type="button"
-                      onClick={() => onReassign(row)}
-                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-                    >
-                      <Play className="h-4 w-4" />
-                      Start
-                    </button>
-                  ) : null}
-                  {onComplete ? (
-                    <button
-                      type="button"
-                      onClick={() => onComplete(row)}
-                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Complete
-                    </button>
-                  ) : null}
+              <div className="mt-2 flex flex-wrap items-start gap-4 border-t border-border/70 pt-2 text-xs">
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Status</p>
+                  <div className="mt-1">
+                    <StatusPill status={row.status} overdue={isOverdue(row.status, row.dueDate)} />
+                  </div>
                 </div>
-              ) : null}
+                <div>
+                  <p className="uppercase tracking-wide text-muted-foreground">Priority</p>
+                  <div className="mt-1">
+                    <PriorityPill priority={row.priority} />
+                  </div>
+                </div>
+              </div>
             </div>
           ))
         )}
@@ -415,7 +410,7 @@ export function HousekeepingTable({
                 </TableCell>
                 <TableCell className="hidden px-3 py-2 text-sm text-muted-foreground xl:table-cell">
                   <span
-                    className="block w-full max-w-[110px] truncate 2xl:max-w-[160px]"
+                    className={`block w-full max-w-[110px] truncate 2xl:max-w-[160px] ${isOverdue(row.status, row.dueDate) ? "font-medium text-red-600" : ""}`}
                     title={row.dueDate ?? "—"}
                   >
                     {row.dueDate ?? "—"}
@@ -425,7 +420,7 @@ export function HousekeepingTable({
                   <PriorityPill priority={row.priority} />
                 </TableCell>
                 <TableCell className="px-2 py-2 whitespace-nowrap">
-                  <StatusPill status={row.status} />
+                  <StatusPill status={row.status} overdue={isOverdue(row.status, row.dueDate)} />
                 </TableCell>
                 <TableCell className="px-2 py-2">
                   <TaskActionsMenu

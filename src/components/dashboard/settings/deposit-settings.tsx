@@ -46,7 +46,7 @@ const BOOKING_TYPES: { value: BookingType; label: string; description: string }[
   { value: 'long_term', label: 'Long-term', description: 'Extended stays (6+ months)' },
 ]
 
-const SEASON_ALERT_TOAST_CLASS =
+const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
 export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = true }: DepositSettingsProps) {
@@ -138,7 +138,6 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
       toast({
         title: 'Deposit settings saved',
         description: 'Deposit settings saved successfully.',
-        className: SEASON_ALERT_TOAST_CLASS,
         variant: "success",
       })
 
@@ -150,7 +149,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
         title: 'Save failed',
         description: error instanceof Error ? error.message : 'Failed to save deposit settings',
         variant: 'destructive',
-        className: SEASON_ALERT_TOAST_CLASS,
+        className: SEASON_ERROR_TOAST_CLASS,
       })
     } finally {
       setIsSaving(false)

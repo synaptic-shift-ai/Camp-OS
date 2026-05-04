@@ -1,8 +1,14 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import { AlertTriangle, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+/**
+ * FlagIssueDialog
+ *
+ * Allows staff to report an issue (DAMAGE or MAINTENANCE) on a housekeeping task.
+ * Submits the issue type and description to the PATCH endpoint.
+ */
+
+import { useState } from 'react'
+import { Loader2, AlertTriangle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,121 +16,126 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-
-type IssueType = "DAMAGE" | "MAINTENANCE"
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { useToast } from '@/hooks/use-toast'
 
 type FlagIssueDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   propertyId: string
-  housekeepingId: string
-  onSubmit: (result: { issueType: IssueType; issueDescription: string; woNumber?: string | null }) => Promise<void>
+  taskId: string
+  taskTitle: string
+  onFlagged: () => void
 }
+
+type IssueType = 'DAMAGE' | 'MAINTENANCE'
 
 export function FlagIssueDialog({
   open,
   onOpenChange,
   propertyId,
-  housekeepingId,
-  onSubmit,
+  taskId,
+  taskTitle,
+  onFlagged,
 }: FlagIssueDialogProps) {
-  const [issueType, setIssueType] = useState<IssueType>("MAINTENANCE")
-  const [description, setDescription] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+  const [issueType, setIssueType] = useState<IssueType | null>(null)
+  const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    if (!open) {
-      setIssueType("MAINTENANCE")
-      setDescription("")
-      setError(null)
-    }
-  }, [open])
+  const isValid =
+    issueType !== null && description.trim().length >= 10
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError(null)
-
-    const trimmedDescription = description.trim()
-    if (trimmedDescription.length < 10) {
-      setError("Description must be at least 10 characters.")
-      return
-    }
+  const handleSubmit = async () => {
+    if (!isValid) return
 
     setIsSubmitting(true)
     try {
       const response = await fetch(
-        `/api/v1/properties/${propertyId}/housekeeping/${housekeepingId}`,
+        `/api/v1/properties/${propertyId}/housekeeping/${taskId}`,
         {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             issueType,
-            issueDescription: trimmedDescription,
+            issueDescription: description.trim(),
           }),
         },
       )
+
       const payload = await response.json()
       if (!response.ok || !payload?.success) {
         const message =
-          payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to report issue."
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          'Failed to flag issue.'
         throw new Error(message)
       }
 
-      const woNumber = payload?.data?.housekeepingTask?.linked_maintenance_task_id
-        ? "Work order created"
-        : null
-      await onSubmit({ issueType, issueDescription: trimmedDescription, woNumber })
+      toast({
+        title: 'Issue reported',
+        description: `A ${issueType} issue has been flagged. A maintenance work order will be created automatically.`,
+        variant: 'success',
+      })
+
+      onFlagged()
       onOpenChange(false)
-    } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : "Failed to report issue."
-      setError(message)
+      setIssueType(null)
+      setDescription('')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to flag issue.'
+      toast({
+        title: 'Unable to report issue',
+        description: message,
+        variant: 'destructive',
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setIssueType(null)
+      setDescription('')
+    }
+    onOpenChange(nextOpen)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="inline-flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
             Report Issue
           </DialogTitle>
           <DialogDescription>
-            Flag a damage or maintenance issue found during housekeeping. A maintenance work
-            order will be created automatically.
+            Flag an issue for &ldquo;{taskTitle}&rdquo;. A maintenance work order will be created automatically.
           </DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-
+        <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Issue Type</Label>
+            <Label className="text-sm font-medium">Issue Type</Label>
             <RadioGroup
-              value={issueType}
+              value={issueType ?? ''}
               onValueChange={(value) => setIssueType(value as IssueType)}
               className="flex gap-4"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="DAMAGE" id="issue-damage" />
-                <Label htmlFor="issue-damage" className="font-normal cursor-pointer">
+                <Label htmlFor="issue-damage" className="cursor-pointer font-normal">
                   Damage
                 </Label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="MAINTENANCE" id="issue-maintenance" />
-                <Label htmlFor="issue-maintenance" className="font-normal cursor-pointer">
+                <Label htmlFor="issue-maintenance" className="cursor-pointer font-normal">
                   Maintenance
                 </Label>
               </div>
@@ -132,41 +143,48 @@ export function FlagIssueDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="issue-description">Description</Label>
+            <Label htmlFor="issue-description" className="text-sm font-medium">
+              Description <span className="text-muted-foreground">(min 10 characters)</span>
+            </Label>
             <Textarea
               id="issue-description"
-              placeholder="Describe the issue in detail (min 10 characters)..."
+              placeholder="Describe the issue in detail..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="resize-none"
+              maxLength={5000}
             />
             <p className="text-xs text-muted-foreground">
               {description.trim().length < 10
-                ? `${10 - description.trim().length} more characters needed`
-                : "✓ Minimum reached"}
+                ? `${10 - description.trim().length} more characters required`
+                : `${description.trim().length}/5000`}
             </p>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || description.trim().length < 10}>
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <AlertTriangle className="mr-2 h-4 w-4" />
-              )}
-              Report Issue
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={!isValid || isSubmitting}
+            onClick={() => void handleSubmit()}
+            className="gap-2"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            Report Issue
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

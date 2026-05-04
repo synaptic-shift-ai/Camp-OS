@@ -27,7 +27,7 @@ function isValidYmd(value: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(value)
 }
 
-export default async function AuditingPage({ params, searchParams }: pageProps) {
+export default async function ActivityLogsPage({ params, searchParams }: pageProps) {
     const { propertyId } = await params
 
     const property = await getPropertyForUser(propertyId)

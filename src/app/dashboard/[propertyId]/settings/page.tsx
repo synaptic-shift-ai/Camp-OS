@@ -26,8 +26,7 @@ import type {
   RateDiscountsConfig,
 } from "@/lib/config/types"
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
-import { MaintenanceSiteTypeConfig } from "@/components/dashboard/settings/maintenance-site-type-config"
-import { HousekeepingSettings } from "@/components/dashboard/settings/housekeeping-settings"
+import { HousekeepingSettings } from "@/components/dashboard/housekeeping/housekeeping-settings"
 import { RefundPolicySettings } from "@/components/dashboard/settings/refund-policy-settings"
 
 export const dynamic = "force-dynamic"
@@ -37,12 +36,11 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "amenities_configuration", label: "Amenities Configuration" },
   { value: "fees", label: "Additional Charges" },
   { value: "reservation-types", label: "Rate Types" },
-  { value: "site-types-rates", label: "Site Types Rates" },
+  { value: "site-types-configuration", label: "Site Types Configuration" },
   { value: "deposits", label: "Deposits" },
   { value: "booking-rules", label: "Booking Rules" },
   { value: "cancellation-policy", label: "Terms & Policies" },
   { value: "discounts", label: "Discounts" },
-  { value: "maintenance", label: "Maintenance Config" },
   { value: "housekeeping", label: "Housekeeping" },
   { value: "refund-policy", label: "Refund Policy" },
 ]
@@ -105,7 +103,13 @@ export default async function SettingsPage({ params }: PageProps) {
   }
 
   const rawSiteTypeConfig = (property.site_type_config ?? null) as
-    | { allowed_site_types?: string[]; site_type_rates?: Record<string, any> }
+    | {
+      allowed_site_types?: string[]
+      site_type_rates?: Record<string, any>
+      maintenance?: Record<string, boolean>
+      housekeeping?: Record<string, boolean>
+      [key: string]: unknown
+    }
     | null
 
   const siteypeRatesFromConfig = rawSiteTypeConfig?.site_type_rates ?? {}
@@ -211,13 +215,14 @@ export default async function SettingsPage({ params }: PageProps) {
           />
         </TabsContent>
 
-        <TabsContent value="site-types-rates" className="space-y-4">
+        <TabsContent value="site-types-configuration" className="space-y-4">
           <SiteTypeRateSettings
             propertyId={property.id}
             canEdit={canEditSettings}
             initialSiteTypes={siteTypes}
             initialAllowedSiteTypes={allowedSiteTypesFromConfig}
             initialSiteTypeRates={siteypeRatesFromConfig}
+            initialSiteTypeConfig={rawSiteTypeConfig}
           />
         </TabsContent>
 
@@ -275,25 +280,13 @@ export default async function SettingsPage({ params }: PageProps) {
           />
         </TabsContent>
 
-        <TabsContent value="maintenance" className="space-y-4">
-          <MaintenanceSiteTypeConfig
-            propertyId={property.id}
-            siteTypeConfig={rawSiteTypeConfig ?? {}}
-            allowedSiteTypes={allowedSiteTypesFromConfig}
-            canEdit={canEditSettings}
-          />
-        </TabsContent>
-
         <TabsContent value="housekeeping" className="space-y-4">
           <HousekeepingSettings
             propertyId={property.id}
-            initialRequireApproval={
-              Boolean(
-                (property.settings as Record<string, unknown> | null | undefined)
-                  ?.housekeepingRequireApproval,
-              )
-            }
             canEdit={canEditSettings}
+            initialSettings={
+              (property.settings as Record<string, unknown> | null) ?? {}
+            }
           />
         </TabsContent>
 

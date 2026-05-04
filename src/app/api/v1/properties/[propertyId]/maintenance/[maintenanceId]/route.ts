@@ -13,11 +13,21 @@ import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maint
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCompletedEvent } from '@/modules/Maintenance/domain/events'
 
+function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
+  return (siteType ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\bsite\b/g, '')
+    .trim()
+}
+
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  open: ['in_progress', 'cancelled'],
-  in_progress: ['on_hold', 'completed', 'cancelled'],
+  open: ['in_progress', 'in_progress_vendor', 'cancelled'],
+  in_progress: ['in_progress_vendor', 'on_hold', 'completed', 'cancelled'],
   in_progress_vendor: ['on_hold', 'completed', 'cancelled'],
-  on_hold: ['in_progress', 'cancelled'],
+  on_hold: ['in_progress', 'in_progress_vendor', 'cancelled'],
   completed: ['open'],
   cancelled: ['open'],
 }
@@ -122,7 +132,9 @@ export async function PATCH(
     // Completion lock: prevent cost changes on completed work orders
     const { data: currentTask } = await supabase
       .from('maintenance_tasks')
-      .select('status, started_at, on_hold_at, on_hold_reason, sla')
+      .select(
+        'status, started_at, on_hold_at, on_hold_reason, sla, vendor_id, category, estimated_labor_cost, estimated_parts_cost',
+      )
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)
       .maybeSingle()
@@ -149,7 +161,13 @@ export async function PATCH(
     // ── State machine validation ──
     const currentStatus = currentTask?.status ?? 'open'
     const requestedStatus = parsed.data.status
-    const isStatusTransition = Boolean(requestedStatus && currentStatus !== requestedStatus)
+    const effectiveRequestedStatus =
+      requestedStatus === 'in_progress' &&
+      currentStatus === 'on_hold' &&
+      Boolean(currentTask?.vendor_id)
+        ? 'in_progress_vendor'
+        : requestedStatus
+    const isStatusTransition = Boolean(effectiveRequestedStatus && currentStatus !== effectiveRequestedStatus)
 
     // On-hold request flow: staff can request hold by submitting reason only.
     if (!isStatusTransition && parsed.data.on_hold_reason !== undefined) {
@@ -180,18 +198,18 @@ export async function PATCH(
       }
     }
 
-    if (requestedStatus && currentStatus !== requestedStatus) {
+    if (effectiveRequestedStatus && currentStatus !== effectiveRequestedStatus) {
       const allowed = VALID_TRANSITIONS[currentStatus]
-      if (!allowed?.includes(requestedStatus)) {
+      if (!allowed?.includes(effectiveRequestedStatus)) {
         return error(
           ErrorCodes.VALIDATION_ERROR,
           request,
-          { message: `Invalid status transition: ${currentStatus} → ${requestedStatus}` },
+          { message: `Invalid status transition: ${currentStatus} → ${effectiveRequestedStatus}` },
         )
       }
 
       // Permission gating for protected transitions
-      if (requestedStatus === 'on_hold') {
+      if (effectiveRequestedStatus === 'on_hold') {
         if (!canApproveOnHold) {
           return error(
             ErrorCodes.AUTH_002.code,
@@ -201,7 +219,10 @@ export async function PATCH(
           )
         }
       }
-      if (requestedStatus === 'in_progress' && currentStatus === 'on_hold') {
+      if (
+        (effectiveRequestedStatus === 'in_progress' || effectiveRequestedStatus === 'in_progress_vendor') &&
+        currentStatus === 'on_hold'
+      ) {
         if (!actionAccess['approve-onhold']) {
           return error(
             ErrorCodes.AUTH_002.code,
@@ -211,7 +232,7 @@ export async function PATCH(
           )
         }
       }
-      if (requestedStatus === 'cancelled') {
+      if (effectiveRequestedStatus === 'cancelled') {
         if (!actionAccess['cancel-wo']) {
           return error(
             ErrorCodes.AUTH_002.code,
@@ -223,8 +244,12 @@ export async function PATCH(
       }
     }
 
-    // SLA guard: prevent open → in_progress without SLA
-    if (requestedStatus === 'in_progress' && currentStatus === 'open' && !currentTask?.sla) {
+    // SLA guard: prevent open → in_progress / in_progress_vendor without SLA
+    if (
+      (effectiveRequestedStatus === 'in_progress' || effectiveRequestedStatus === 'in_progress_vendor') &&
+      currentStatus === 'open' &&
+      !currentTask?.sla
+    ) {
       return error(
         ErrorCodes.VALIDATION_ERROR,
         request,
@@ -235,9 +260,10 @@ export async function PATCH(
     // ── Timestamp management ──
     const timestampUpdates: Record<string, any> = {}
 
-    if (requestedStatus && currentStatus !== requestedStatus) {
-      switch (requestedStatus) {
+    if (effectiveRequestedStatus && currentStatus !== effectiveRequestedStatus) {
+      switch (effectiveRequestedStatus) {
         case 'in_progress':
+        case 'in_progress_vendor':
           if (currentStatus === 'open') {
             timestampUpdates.started_at = new Date().toISOString()
           }
@@ -300,6 +326,95 @@ export async function PATCH(
       timestampUpdates.on_hold_at = null
     }
 
+    if (parsed.data.siteId) {
+      const { data: siteRow } = await supabase
+        .from('sites')
+        .select('id, site_type')
+        .eq('id', parsed.data.siteId)
+        .eq('property_id', propertyId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (!siteRow) {
+        return error(ErrorCodes.VALIDATION_ERROR, request, {
+          message: 'Site not found for this property',
+        })
+      }
+
+      const { data: propertyRow } = await supabase
+        .from('properties')
+        .select('site_type_config')
+        .eq('id', propertyId)
+        .maybeSingle()
+
+      const siteTypeConfig =
+        (propertyRow?.site_type_config as {
+          maintenance?: Record<string, boolean>
+          allowed_site_types?: string[]
+        } | null | undefined) ?? null
+
+      const maintenanceMap = Object.fromEntries(
+        Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
+          toCanonicalSiteTypeKey(key),
+          value,
+        ]),
+      )
+
+      const allowedSiteTypeSet = new Set(
+        Array.isArray(siteTypeConfig?.allowed_site_types)
+          ? siteTypeConfig!.allowed_site_types.map((siteType) =>
+            toCanonicalSiteTypeKey(siteType),
+          )
+          : [],
+      )
+
+      const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
+      if (siteTypeKey) {
+        if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'The selected site is not available for maintenance',
+          })
+        }
+
+        if (maintenanceMap[siteTypeKey] === false) {
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message: 'The selected site is not available for maintenance',
+          })
+        }
+      }
+    }
+
+    // Enforce per-category spend limit against edited estimate before updating a work order.
+    const nextCategory = parsed.data.category ?? currentTask?.category ?? null
+    if (nextCategory) {
+      try {
+        const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
+        const spendLimits = await queries.listSpendLimits(propertyId)
+        const matchedLimit = spendLimits.find(
+          (sl) => sl.category === nextCategory && sl.alert_enabled,
+        )
+
+        if (matchedLimit) {
+          const thresholdAmount = Number(matchedLimit.threshold_amount ?? 0)
+          const nextEstimatedLaborCost = Number(
+            parsed.data.estimatedLaborCost ?? currentTask?.estimated_labor_cost ?? 0,
+          )
+          const nextEstimatedPartsCost = Number(
+            parsed.data.estimatedPartsCost ?? currentTask?.estimated_parts_cost ?? 0,
+          )
+          const nextEstimatedTotal = nextEstimatedLaborCost + nextEstimatedPartsCost
+
+          if (thresholdAmount > 0 && nextEstimatedTotal > thresholdAmount) {
+            return error(ErrorCodes.VALIDATION_ERROR, request, {
+              message: `Estimated total cost (${nextEstimatedTotal}) exceeds spend limit (${thresholdAmount}) for category ${nextCategory}.`,
+            })
+          }
+        }
+      } catch {
+        // Non-blocking: if spend-limit lookup fails, continue with existing update flow.
+      }
+    }
+
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
     const maintenanceTask = await queries.updateMaintenanceTask({
       id: maintenanceId,
@@ -308,7 +423,7 @@ export async function PATCH(
       ...(parsed.data.staffId !== undefined && canAssignWorkOrder ? { staffId: parsed.data.staffId } : {}),
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
-      ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+      ...(effectiveRequestedStatus !== undefined ? { status: effectiveRequestedStatus } : {}),
       ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
       ...(parsed.data.category !== undefined ? { category: parsed.data.category } : {}),
       ...(parsed.data.source !== undefined ? { source: parsed.data.source } : {}),
@@ -351,9 +466,9 @@ export async function PATCH(
     }
 
     // Status-change activity log
-    if (access.companyId && requestedStatus && currentStatus !== requestedStatus) {
+    if (access.companyId && effectiveRequestedStatus && currentStatus !== effectiveRequestedStatus) {
       const fromLabel = currentStatus.replace(/_/g, ' ')
-      const toLabel = requestedStatus.replace(/_/g, ' ')
+      const toLabel = effectiveRequestedStatus.replace(/_/g, ' ')
       let logDetail = `Status changed from ${fromLabel} to ${toLabel} by ${user.email || 'Unknown'}`
       if (parsed.data.on_hold_reason) {
         logDetail += `. Reason: ${parsed.data.on_hold_reason}`

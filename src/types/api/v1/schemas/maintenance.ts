@@ -61,6 +61,10 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     dueDate: z.string().datetime().nullable().optional(),
     on_hold_reason: z.string().optional().nullable(),
     cancelled_reason: z.string().optional().nullable(),
+    /** Client wall time when resuming from on_hold; aligns shifted started_at with the UI clock. */
+    resumeAt: z.string().datetime().optional(),
+    /** Client wall time when entering on_hold; persisted so refresh matches the in-progress timer. */
+    holdAt: z.string().datetime().optional(),
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: 'At least one field is required',
 })

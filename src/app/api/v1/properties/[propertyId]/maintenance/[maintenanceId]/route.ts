@@ -10,6 +10,7 @@ import { MaintenanceQueries } from '@/lib/dashboard/maintenance/maintenance-quer
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
 import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maintenance'
+import { computeResumedMaintenanceStartedAtMs } from '@/lib/dashboard/maintenance/compute-resumed-maintenance-started-at'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCompletedEvent } from '@/modules/Maintenance/domain/events'
 
@@ -259,12 +260,21 @@ export async function PATCH(
           }
           // Resume from hold: clear hold fields
           if (currentStatus === 'on_hold') {
-            // Shift started_at forward by hold duration so work timer excludes paused time.
             const startedAtMs = currentTask?.started_at ? new Date(currentTask.started_at).getTime() : null
             const holdAtMs = currentTask?.on_hold_at ? new Date(currentTask.on_hold_at).getTime() : null
             if (startedAtMs && holdAtMs && holdAtMs > startedAtMs) {
-              const holdDurationMs = Date.now() - holdAtMs
-              timestampUpdates.started_at = new Date(startedAtMs + holdDurationMs).toISOString()
+              const serverMs = Date.now()
+              const parsedResumeAt = parsed.data.resumeAt ? new Date(parsed.data.resumeAt).getTime() : NaN
+              const resumeAtMs =
+                Number.isFinite(parsedResumeAt) && Math.abs(parsedResumeAt - serverMs) <= 5 * 60 * 1000
+                  ? parsedResumeAt
+                  : serverMs
+              const nextStartedMs = computeResumedMaintenanceStartedAtMs({
+                startedAtMs,
+                holdAtMs,
+                resumeAtMs,
+              })
+              timestampUpdates.started_at = new Date(nextStartedMs).toISOString()
             } else {
               timestampUpdates.started_at = currentTask?.started_at || new Date().toISOString()
             }
@@ -275,7 +285,7 @@ export async function PATCH(
         case 'completed':
           timestampUpdates.completed_at = new Date().toISOString()
           break
-        case 'on_hold':
+        case 'on_hold': {
           if (!parsed.data.on_hold_reason && !currentTask?.on_hold_reason) {
             return error(
               ErrorCodes.VALIDATION_ERROR,
@@ -284,8 +294,22 @@ export async function PATCH(
             )
           }
           timestampUpdates.on_hold_reason = parsed.data.on_hold_reason ?? currentTask?.on_hold_reason ?? null
-          timestampUpdates.on_hold_at = new Date().toISOString()
+          const serverMs = Date.now()
+          const startedAtMs = currentTask?.started_at ? new Date(currentTask.started_at).getTime() : null
+          let onHoldAtMs = serverMs
+          if (parsed.data.holdAt) {
+            const clientHoldMs = new Date(parsed.data.holdAt).getTime()
+            if (Number.isFinite(clientHoldMs)) {
+              const withinSkewWindow = Math.abs(clientHoldMs - serverMs) <= 5 * 60 * 1000
+              const onOrAfterStart = startedAtMs == null || clientHoldMs >= startedAtMs
+              if (withinSkewWindow && onOrAfterStart) {
+                onHoldAtMs = clientHoldMs
+              }
+            }
+          }
+          timestampUpdates.on_hold_at = new Date(onHoldAtMs).toISOString()
           break
+        }
         case 'cancelled':
           if (!parsed.data.cancelled_reason) {
             return error(

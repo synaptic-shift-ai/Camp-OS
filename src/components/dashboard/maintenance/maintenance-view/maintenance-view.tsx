@@ -29,6 +29,7 @@ import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
 import { ReassignTaskDialog } from "../../housekeeping/housekeeping-dialog.tsx/reassign-task-dialog"
 import { AssignVendorDialog } from "../maintenance-dialog/assign-vendor-dialog"
+import { clampMaintenanceHoldAtIso } from "./clamp-maintenance-hold-at"
 
 type AssigneeOption = {
   id: string
@@ -209,6 +210,7 @@ export function MaintenanceView({
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false)
   const [isCompletingVendor, setIsCompletingVendor] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastProgressTimerEndMsRef = useRef(Date.now())
   const [now, setNow] = useState(Date.now())
 
   const assigneeLabelById = useMemo(
@@ -339,6 +341,12 @@ export function MaintenanceView({
     }
   }, [task?.status])
 
+  useEffect(() => {
+    if (task?.status === "in_progress" || task?.status === "in_progress_vendor") {
+      lastProgressTimerEndMsRef.current = now
+    }
+  }, [task?.status, now])
+
   const workElapsedSeconds = useMemo(() => {
     if (!task?.started_at) return null
     const startMs = new Date(task.started_at).getTime()
@@ -356,36 +364,30 @@ export function MaintenanceView({
     return formatDuration(workElapsedSeconds)
   }, [workElapsedSeconds])
 
-  // ── SLA timer (counts UP: elapsed time since SLA reference) ──
+  // ── SLA timer (counts UP from started_at only; scheduled_start does not start the clock) ──
 
   const slaSecondsElapsed = useMemo(() => {
     if (!task?.sla || !task?.created_at) return null
-
-    // Reference point: scheduled_start takes priority, fall back to started_at
-    const refMs = task.scheduled_start
-      ? new Date(task.scheduled_start).getTime()
-      : task.started_at
-        ? new Date(task.started_at).getTime()
-        : null
-
-    if (!refMs) return null
-
-    if (task.status === "completed" && task.completed_at) {
-      return Math.max(0, Math.floor((new Date(task.completed_at).getTime() - refMs) / 1000))
-    }
     if (task.status === "cancelled") return null
 
-    // Freeze at hold time when on hold
+    const startedMs = task.started_at ? new Date(task.started_at).getTime() : null
+    if (!startedMs) return 0
+
+    if (task.status === "completed" && task.completed_at) {
+      return Math.max(0, Math.floor((new Date(task.completed_at).getTime() - startedMs) / 1000))
+    }
+
     const effectiveNow =
       task.status === "on_hold" && task.on_hold_at
         ? new Date(task.on_hold_at).getTime()
         : now
 
-    return Math.max(0, Math.floor((effectiveNow - refMs) / 1000))
-  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.completed_at, task?.scheduled_start, now])
+    return Math.max(0, Math.floor((effectiveNow - startedMs) / 1000))
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.completed_at, now])
 
   const slaDisplay = useMemo(() => {
     if (slaSecondsElapsed === null) return null
+    if (slaSecondsElapsed === 0) return "00:00:00"
     return formatDuration(slaSecondsElapsed)
   }, [slaSecondsElapsed])
 
@@ -643,13 +645,19 @@ export function MaintenanceView({
   const handlePutOnHold = async (reason: string) => {
     if (!task || task.status === "on_hold" || isStatusChanging) return
     setIsStatusChanging(true)
+    lastProgressTimerEndMsRef.current = Math.max(lastProgressTimerEndMsRef.current, Date.now())
+    const holdAtForRequest = clampMaintenanceHoldAtIso(undefined, task, lastProgressTimerEndMsRef.current)
     try {
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "on_hold", on_hold_reason: reason }),
+          body: JSON.stringify({
+            status: "on_hold",
+            on_hold_reason: reason,
+            holdAt: holdAtForRequest,
+          }),
         },
       )
       const payload = await res.json()
@@ -664,8 +672,11 @@ export function MaintenanceView({
           ? {
               ...previous,
               status: "on_hold",
-              on_hold_at:
-                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              on_hold_at: clampMaintenanceHoldAtIso(
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : undefined,
+                previous,
+                lastProgressTimerEndMsRef.current,
+              ),
               on_hold_reason:
                 typeof updated?.on_hold_reason === "string" ? updated.on_hold_reason : reason,
               updated_at:
@@ -686,13 +697,15 @@ export function MaintenanceView({
   const handleApproveOnHold = async () => {
     if (!task || task.status === "on_hold" || isStatusChanging) return
     setIsStatusChanging(true)
+    lastProgressTimerEndMsRef.current = Math.max(lastProgressTimerEndMsRef.current, Date.now())
+    const holdAtForRequest = clampMaintenanceHoldAtIso(undefined, task, lastProgressTimerEndMsRef.current)
     try {
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "on_hold" }),
+          body: JSON.stringify({ status: "on_hold", holdAt: holdAtForRequest }),
         },
       )
       const payload = await res.json()
@@ -707,8 +720,11 @@ export function MaintenanceView({
           ? {
               ...previous,
               status: "on_hold",
-              on_hold_at:
-                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : new Date().toISOString(),
+              on_hold_at: clampMaintenanceHoldAtIso(
+                typeof updated?.on_hold_at === "string" ? updated.on_hold_at : undefined,
+                previous,
+                lastProgressTimerEndMsRef.current,
+              ),
               on_hold_reason:
                 typeof updated?.on_hold_reason === "string"
                   ? updated.on_hold_reason
@@ -759,13 +775,17 @@ export function MaintenanceView({
   const handleResume = async () => {
     if (!task || task.status !== "on_hold") return
     setIsStatusChanging(true)
+    const resumeAtForServerMs = Date.now()
     try {
       const res = await fetch(
         `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress" }),
+          body: JSON.stringify({
+            status: "in_progress",
+            resumeAt: new Date(resumeAtForServerMs).toISOString(),
+          }),
         },
       )
       const payload = await res.json()
@@ -773,14 +793,19 @@ export function MaintenanceView({
         throw new Error(payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to resume")
       }
       const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
-      // Mirror server-side hold-duration shift for the optimistic timer
+      // Use the same clock *after* the round trip for `now` and shifted `started_at`. If `now` were set
+      // to a pre-fetch timestamp, the next interval tick would add the whole network delay to elapsed time.
+      const resumeSyncedMs = Date.now()
       const holdAtMs = task.on_hold_at ? new Date(task.on_hold_at).getTime() : null
       const startedAtMs = task.started_at ? new Date(task.started_at).getTime() : null
-      let localStartedAt = task.started_at
-      if (startedAtMs && holdAtMs && holdAtMs > startedAtMs) {
-        const holdDurationMs = Date.now() - holdAtMs
-        localStartedAt = new Date(startedAtMs + holdDurationMs).toISOString()
-      }
+      const frozenActiveMs =
+        startedAtMs != null && holdAtMs != null && Number.isFinite(startedAtMs) && Number.isFinite(holdAtMs)
+          ? Math.max(0, holdAtMs - startedAtMs)
+          : null
+      const clientAlignedStartedAt =
+        frozenActiveMs != null
+          ? new Date(resumeSyncedMs - frozenActiveMs).toISOString()
+          : null
       setTask((previous) =>
         previous
           ? {
@@ -790,7 +815,8 @@ export function MaintenanceView({
                   ? updated.status
                   : "in_progress",
               started_at:
-                typeof updated?.started_at === "string" ? updated.started_at : localStartedAt,
+                clientAlignedStartedAt ??
+                (typeof updated?.started_at === "string" ? updated.started_at : previous.started_at),
               on_hold_at: null,
               on_hold_reason: null,
               updated_at:
@@ -798,7 +824,7 @@ export function MaintenanceView({
             }
           : previous,
       )
-      setNow(Date.now())
+      setNow(resumeSyncedMs)
       toast({ title: "Work order resumed" })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to resume."

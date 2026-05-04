@@ -340,6 +340,11 @@ export async function POST(
             }
         }
 
+        // Compute SLA from scheduled_start + due_date
+        const computedSla = parsed.data.scheduledStart && parsed.data.dueDate
+            ? Math.max(0, Math.round((new Date(parsed.data.dueDate).getTime() - new Date(parsed.data.scheduledStart).getTime()) / 3600000))
+            : null
+
         const maintenanceTask = await queries.createMaintenanceTask({
             propertyId,
             siteId: parsed.data.siteId,
@@ -353,7 +358,7 @@ export async function POST(
             ...(parsed.data.estimatedPartsCost !== undefined ? { estimatedPartsCost: parsed.data.estimatedPartsCost } : {}),
             ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
             ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
-            ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
+            sla: computedSla,
             ...(parsed.data.scheduledStart !== undefined ? { scheduledStart: parsed.data.scheduledStart } : {}),
             ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),
             createdBy: user.id,

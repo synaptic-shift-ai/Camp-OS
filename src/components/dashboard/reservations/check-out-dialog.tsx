@@ -456,7 +456,6 @@ export function CheckOutDialog({
           estimatedLaborCost: input.estimatedLaborCost ?? null,
           estimatedPartsCost: input.estimatedPartsCost ?? null,
           vendorId: input.vendorId ?? null,
-          sla: input.sla ?? null,
         }),
       })
 

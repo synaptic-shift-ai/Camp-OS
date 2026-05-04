@@ -71,7 +71,6 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   estimatedPartsCost: null,
   isSuspectedDamage: false,
   vendorId: null,
-  sla: null,
   scheduledStart: null,
   dueDate: null,
 }
@@ -91,14 +90,6 @@ export function EditTaskDialog({
   const [form, setForm] = useState<AddMaintenanceTaskInput>(EMPTY_FORM)
   const [customCategory, setCustomCategory] = useState("")
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
-
-  // Auto-compute due date from SLA + scheduled start
-  useEffect(() => {
-    if (form.sla && form.sla > 0 && form.scheduledStart && !form.dueDate) {
-      const target = new Date(new Date(form.scheduledStart).getTime() + form.sla * 3600 * 1000)
-      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
-    }
-  }, [form.sla, form.scheduledStart, form.dueDate])
 
   const clearLocalImages = () => {
     setLocalImages((prev) => {
@@ -131,7 +122,6 @@ export function EditTaskDialog({
       estimatedPartsCost: task.estimatedPartsCost ?? null,
       isSuspectedDamage: task.isSuspectedDamage ?? false,
       vendorId: task.vendorId ?? null,
-      sla: task.sla ?? null,
       scheduledStart: task.scheduledStart ?? null,
       dueDate: task.dueDate ?? null,
     })
@@ -207,7 +197,6 @@ export function EditTaskDialog({
         estimatedLaborCost: form.estimatedLaborCost ?? null,
         estimatedPartsCost: form.estimatedPartsCost ?? null,
         vendorId: form.vendorId ?? null,
-        sla: form.sla ?? null,
         scheduledStart: form.scheduledStart ?? null,
         dueDate: form.dueDate ?? null,
         images: localImages.map((item) => item.file),
@@ -456,59 +445,34 @@ export function EditTaskDialog({
           </div>
           </PermissionGate>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Linked vendor</Label>
-              <Select
-                value={form.vendorId ?? "none"}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    vendorId: value === "none" ? null : value,
-                  }))
-                }
-                disabled={isSubmitting}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue
-                    placeholder={
-                      vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {vendorOptions.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
-                      {vendor.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs">SLA (hours)</Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Optional"
-                disabled={isSubmitting}
-                value={form.sla ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value
-                  setForm((prev) => ({
-                    ...prev,
-                    sla: raw === "" ? null : Number(raw),
-                  }))
-                }}
-              />
-              {!form.sla && task?.status === "Open" && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  SLA is required before starting work on this order.
-                </p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label>Linked vendor</Label>
+            <Select
+              value={form.vendorId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  vendorId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue
+                  placeholder={
+                    vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {vendorOptions.map((vendor) => (
+                  <SelectItem key={vendor.id} value={vendor.id}>
+                    {vendor.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Scheduled Start & Due Date */}
@@ -560,21 +524,7 @@ export function EditTaskDialog({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Due Date</Label>
-                {form.sla && form.scheduledStart ? (
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => {
-                      const target = new Date(new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000)
-                      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
-                    }}
-                  >
-                    Auto-calculate from SLA
-                  </button>
-                ) : null}
-              </div>
+              <Label>Due Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -619,20 +569,6 @@ export function EditTaskDialog({
               </Popover>
             </div>
           </div>
-
-          {/* SLA validation warning */}
-          {form.dueDate && form.sla && form.scheduledStart ? (() => {
-            const expectedDue = new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000
-            const dueMs = new Date(form.dueDate).getTime()
-            if (dueMs < expectedDue) {
-              return (
-                <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
-                  Due date is before SLA target — task may breach SLA
-                </div>
-              )
-            }
-            return null
-          })() : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

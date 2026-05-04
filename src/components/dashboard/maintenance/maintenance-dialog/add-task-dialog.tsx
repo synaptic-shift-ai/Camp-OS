@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import { CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -111,7 +111,6 @@ export type AddMaintenanceTaskInput = {
   estimatedPartsCost?: number | null
   isSuspectedDamage?: boolean
   vendorId?: string | null
-  sla?: number | null
   scheduledStart?: string | null
   dueDate?: string | null
   images?: File[]
@@ -199,7 +198,6 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   estimatedPartsCost: null,
   isSuspectedDamage: false,
   vendorId: null,
-  sla: null,
   scheduledStart: null,
   dueDate: null,
 }
@@ -220,14 +218,6 @@ export function AddTaskDialog({
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
   const [customCategory, setCustomCategory] = useState("")
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
-
-  // Auto-compute due date from SLA + scheduled start
-  useEffect(() => {
-    if (form.sla && form.sla > 0 && form.scheduledStart && !form.dueDate) {
-      const target = new Date(new Date(form.scheduledStart).getTime() + form.sla * 3600 * 1000)
-      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
-    }
-  }, [form.sla, form.scheduledStart, form.dueDate])
 
   const clearLocalImages = () => {
     setLocalImages((prev) => {
@@ -589,54 +579,34 @@ export function AddTaskDialog({
           </div>
           </PermissionGate>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Linked vendor</Label>
-              <Select
-                value={form.vendorId ?? "none"}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    vendorId: value === "none" ? null : value,
-                  }))
-                }
-                disabled={isSubmitting}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue
-                    placeholder={
-                      vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {vendorOptions.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
-                      {vendor.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs">SLA (hours)</Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Optional"
-                disabled={isSubmitting}
-                value={form.sla ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value
-                  setForm((prev) => ({
-                    ...prev,
-                    sla: raw === "" ? null : Number(raw),
-                  }))
-                }}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Linked vendor</Label>
+            <Select
+              value={form.vendorId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  vendorId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue
+                  placeholder={
+                    vendorOptions.length === 0 ? "No vendors on file (add in Vendors)" : "Select vendor"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {vendorOptions.map((vendor) => (
+                  <SelectItem key={vendor.id} value={vendor.id}>
+                    {vendor.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Scheduled Start & Due Date */}
@@ -688,21 +658,7 @@ export function AddTaskDialog({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Due Date</Label>
-                {form.sla && form.scheduledStart ? (
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => {
-                      const target = new Date(new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000)
-                      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
-                    }}
-                  >
-                    Auto-calculate from SLA
-                  </button>
-                ) : null}
-              </div>
+              <Label>Due Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -747,20 +703,6 @@ export function AddTaskDialog({
               </Popover>
             </div>
           </div>
-
-          {/* SLA validation warning */}
-          {form.dueDate && form.sla && form.scheduledStart ? (() => {
-            const expectedDue = new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000
-            const dueMs = new Date(form.dueDate).getTime()
-            if (dueMs < expectedDue) {
-              return (
-                <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
-                  Due date is before SLA target — task may breach SLA
-                </div>
-              )
-            }
-            return null
-          })() : null}
 
           {/* Booking conflict warning */}
           {form.siteId && form.scheduledStart && form.dueDate && <BookingConflictWarning siteId={form.siteId} startDate={form.scheduledStart} endDate={form.dueDate} />}

@@ -677,7 +677,6 @@ export function MaintenancePageContent({
           estimatedPartsCost: input.estimatedPartsCost ?? null,
           isSuspectedDamage: input.isSuspectedDamage ?? false,
           vendorId: input.vendorId ?? null,
-          sla: input.sla ?? null,
           scheduledStart: input.scheduledStart ?? null,
           dueDate: input.dueDate ?? null,
         }),
@@ -777,7 +776,6 @@ export function MaintenancePageContent({
         estimatedPartsCost: input.estimatedPartsCost ?? null,
         isSuspectedDamage: input.isSuspectedDamage,
         vendorId: input.vendorId ?? null,
-        sla: input.sla ?? null,
         scheduledStart: input.scheduledStart ?? null,
         dueDate: input.dueDate ?? null,
       }

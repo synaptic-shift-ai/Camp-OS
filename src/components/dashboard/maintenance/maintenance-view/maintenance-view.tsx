@@ -75,6 +75,8 @@ type TaskDetails = {
   on_hold_reason: string | null
   cancelled_at: string | null
   cancelled_reason: string | null
+  scheduled_start: string | null
+  due_date: string | null
   site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
 }
 
@@ -262,6 +264,8 @@ export function MaintenanceView({
         on_hold_reason: raw.on_hold_reason ?? null,
         cancelled_at: raw.cancelled_at ?? null,
         cancelled_reason: raw.cancelled_reason ?? null,
+        scheduled_start: raw.scheduled_start ?? null,
+        due_date: raw.due_date ?? null,
         site: raw.site ?? null,
       })
     } catch (loadError) {
@@ -363,14 +367,16 @@ export function MaintenanceView({
     }
 
     const startedMs = new Date(task.started_at).getTime()
-    const deadlineMs = startedMs + task.sla * 3600 * 1000
+    const deadlineMs = task.due_date
+      ? new Date(task.due_date).getTime()
+      : startedMs + task.sla * 3600 * 1000
     const slaNowMs =
       task.status === "on_hold" && task.on_hold_at
         ? new Date(task.on_hold_at).getTime()
         : now
     const remaining = Math.max(0, Math.floor((deadlineMs - slaNowMs) / 1000))
     return remaining
-  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, now])
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.due_date, now])
 
   const slaDisplay = useMemo(() => {
     if (slaSecondsRemaining === null) return null
@@ -1228,6 +1234,18 @@ export function MaintenanceView({
                     {task.source ? task.source.charAt(0).toUpperCase() + task.source.slice(1) : "—"}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Scheduled Start</p>
+                  <p className="font-semibold">{task.scheduled_start ? formatDateTime(task.scheduled_start) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Due Date</p>
+                  <p className="font-semibold">{task.due_date ? formatDateTime(task.due_date) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Started At</p>
+                  <p className="font-semibold">{task.started_at ? formatDateTime(task.started_at) : "—"}</p>
+                </div>
               </div>
               <div className="border-t pt-3">
                 <p className="mb-1 text-xs text-muted-foreground">Description</p>
@@ -1453,6 +1471,12 @@ export function MaintenanceView({
                 <span className="text-muted-foreground">Response SLA</span>
                 <span>{slaTargetHours ? `${slaTargetHours}h target` : "No SLA"}</span>
               </div>
+              {task.due_date ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Due Date</span>
+                  <span>{formatDateTime(task.due_date)}</span>
+                </div>
+              ) : null}
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div className={`h-full transition-all ${isSlaBreached ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${slaProgressPercent ?? 0}%` }} />
               </div>

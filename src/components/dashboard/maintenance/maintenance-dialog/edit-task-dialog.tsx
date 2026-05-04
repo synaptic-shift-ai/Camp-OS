@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Upload, X } from "lucide-react"
+import { format } from "date-fns"
+import { CalendarIcon, Upload, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Dialog,
   DialogContent,
@@ -69,6 +72,8 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   isSuspectedDamage: false,
   vendorId: null,
   sla: null,
+  scheduledStart: null,
+  dueDate: null,
 }
 
 export function EditTaskDialog({
@@ -119,6 +124,8 @@ export function EditTaskDialog({
       isSuspectedDamage: task.isSuspectedDamage ?? false,
       vendorId: task.vendorId ?? null,
       sla: task.sla ?? null,
+      scheduledStart: task.scheduledStart ?? null,
+      dueDate: task.dueDate ?? null,
     })
     setCustomCategory(parsedCategory === "other" ? task.category ?? "" : "")
     clearLocalImages()
@@ -193,6 +200,8 @@ export function EditTaskDialog({
         estimatedPartsCost: form.estimatedPartsCost ?? null,
         vendorId: form.vendorId ?? null,
         sla: form.sla ?? null,
+        scheduledStart: form.scheduledStart ?? null,
+        dueDate: form.dueDate ?? null,
         images: localImages.map((item) => item.file),
       })
       onOpenChange(false)
@@ -493,6 +502,129 @@ export function EditTaskDialog({
               )}
             </div>
           </div>
+
+          {/* Scheduled Start & Due Date */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Scheduled Start</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.scheduledStart && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.scheduledStart ? format(new Date(form.scheduledStart), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
+                  />
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"}
+                      onChange={(e) => {
+                        const date = form.scheduledStart ? new Date(form.scheduledStart) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Due Date</Label>
+                {form.sla && form.scheduledStart ? (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => {
+                      const target = new Date(new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000)
+                      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
+                    }}
+                  >
+                    Auto-calculate from SLA
+                  </button>
+                ) : null}
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.dueDate ? format(new Date(form.dueDate), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.dueDate ? new Date(form.dueDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
+                  />
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"}
+                      onChange={(e) => {
+                        const date = form.dueDate ? new Date(form.dueDate) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* SLA validation warning */}
+          {form.dueDate && form.sla && form.scheduledStart ? (() => {
+            const expectedDue = new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000
+            const dueMs = new Date(form.dueDate).getTime()
+            if (dueMs < expectedDue) {
+              return (
+                <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+                  Due date is before SLA target — task may breach SLA
+                </div>
+              )
+            }
+            return null
+          })() : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

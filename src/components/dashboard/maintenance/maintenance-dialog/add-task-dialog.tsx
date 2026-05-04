@@ -1,7 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { format } from "date-fns"
+import { CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Dialog,
   DialogContent,
@@ -109,6 +112,8 @@ export type AddMaintenanceTaskInput = {
   isSuspectedDamage?: boolean
   vendorId?: string | null
   sla?: number | null
+  scheduledStart?: string | null
+  dueDate?: string | null
   images?: File[]
 }
 
@@ -138,6 +143,37 @@ type AddTaskDialogProps = {
 const SITE_PLACEHOLDER_VALUE = "__maintenance_site_unselected__"
 export const SOURCE_OPTIONS = ["Guest", "Housekeeping", "Staff", "PM", "Checkout"] as const
 
+function BookingConflictWarning({ siteId, startDate, endDate }: { siteId: string; startDate: string; endDate: string }) {
+  const [conflictCount, setConflictCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const params = new URLSearchParams({ siteId, startDate, endDate })
+    fetch(`/api/v1/properties/${siteId}/maintenance/booking-conflicts?${params}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        if (json?.success && typeof json.data?.count === "number") {
+          setConflictCount(json.data.count)
+        } else {
+          setConflictCount(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setConflictCount(null)
+      })
+    return () => { cancelled = true }
+  }, [siteId, startDate, endDate])
+
+  if (conflictCount === null || conflictCount === 0) return null
+
+  return (
+    <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-600 dark:bg-red-950/30 dark:text-red-400">
+      ⚠ This site has {conflictCount} active maintenance task{conflictCount === 1 ? "" : "s"} overlapping with the selected dates.
+    </div>
+  )
+}
+
 export function parseMaintenanceSource(
   value: string | null | undefined,
 ): "Guest" | "Housekeeping" | "Staff" | "PM" | "Checkout" {
@@ -164,6 +200,8 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   isSuspectedDamage: false,
   vendorId: null,
   sla: null,
+  scheduledStart: null,
+  dueDate: null,
 }
 
 export function AddTaskDialog({
@@ -592,6 +630,132 @@ export function AddTaskDialog({
               />
             </div>
           </div>
+
+          {/* Scheduled Start & Due Date */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Scheduled Start</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.scheduledStart && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.scheduledStart ? format(new Date(form.scheduledStart), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
+                  />
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"}
+                      onChange={(e) => {
+                        const date = form.scheduledStart ? new Date(form.scheduledStart) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Due Date</Label>
+                {form.sla && form.scheduledStart ? (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => {
+                      const target = new Date(new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000)
+                      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
+                    }}
+                  >
+                    Auto-calculate from SLA
+                  </button>
+                ) : null}
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className={cn("w-full justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.dueDate ? format(new Date(form.dueDate), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.dueDate ? new Date(form.dueDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
+                        const [h, m] = time.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }
+                    }}
+                  />
+                  <div className="border-t p-3">
+                    <Input
+                      type="time"
+                      value={form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"}
+                      onChange={(e) => {
+                        const date = form.dueDate ? new Date(form.dueDate) : new Date()
+                        const [h, m] = e.target.value.split(":").map(Number)
+                        setForm((prev) => ({
+                          ...prev,
+                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                        }))
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* SLA validation warning */}
+          {form.dueDate && form.sla && form.scheduledStart ? (() => {
+            const expectedDue = new Date(form.scheduledStart!).getTime() + form.sla! * 3600 * 1000
+            const dueMs = new Date(form.dueDate).getTime()
+            if (dueMs < expectedDue) {
+              return (
+                <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+                  Due date is before SLA target — task may breach SLA
+                </div>
+              )
+            }
+            return null
+          })() : null}
+
+          {/* Booking conflict warning */}
+          {form.siteId && form.scheduledStart && form.dueDate && <BookingConflictWarning siteId={form.siteId} startDate={form.scheduledStart} endDate={form.dueDate} />}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

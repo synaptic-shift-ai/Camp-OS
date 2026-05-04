@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
@@ -154,6 +155,22 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: insertError.message })
+    }
+
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: data.companyId,
+        propertyId: data.propertyId ?? null,
+        action: 'create',
+        resource: 'email_template',
+        userId: user.id,
+        details: `Created email template '${template.name}' (category: ${template.category})`,
+      })
+    } catch (logError) {
+      console.error('[Email Templates] Failed to log activity:', logError)
     }
 
     return success({ emailTemplate: template }, request)

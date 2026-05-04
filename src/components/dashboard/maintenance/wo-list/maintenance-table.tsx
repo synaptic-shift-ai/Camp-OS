@@ -55,11 +55,12 @@ type MaintenanceTableProps = {
 }
 
 function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
-  const base = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border"
+  const base =
+    "inline-flex min-w-0 max-w-full items-center justify-start rounded-full px-2.5 py-1 text-xs font-medium border truncate sm:px-3"
 
   if (status === "Completed") {
     return (
-      <span className={`${base} border-emerald-200 bg-emerald-50 text-emerald-700`}>
+      <span className={`${base} border-emerald-200 bg-emerald-50 text-emerald-700`} title={status}>
         Completed
       </span>
     )
@@ -67,29 +68,41 @@ function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
 
   if (status === "In Progress") {
     return (
-      <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`}>In Progress</span>
+      <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`} title={status}>
+        In Progress
+      </span>
     )
   }
 
   if (status === "In Progress (Vendor)") {
     return (
-      <span className={`${base} border-purple-200 bg-purple-50 text-purple-700`}>In Progress (Vendor)</span>
+      <span className={`${base} border-purple-200 bg-purple-50 text-purple-700`} title={status}>
+        In Progress (Vendor)
+      </span>
     )
   }
 
   if (status === "On Hold") {
     return (
-      <span className={`${base} border-amber-300 bg-amber-50 text-amber-700`}>On Hold</span>
+      <span className={`${base} border-amber-300 bg-amber-50 text-amber-700`} title={status}>
+        On Hold
+      </span>
     )
   }
 
   if (status === "Cancelled") {
     return (
-      <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`}>Cancelled</span>
+      <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`} title={status}>
+        Cancelled
+      </span>
     )
   }
 
-  return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Open</span>
+  return (
+    <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`} title={status}>
+      Open
+    </span>
+  )
 }
 
 function PriorityPill({ priority }: { priority: MaintenanceTaskRow["priority"] }) {
@@ -138,7 +151,10 @@ function TaskActionsMenu({
   canDeleteTask = true,
 }: TaskActionsMenuProps) {
   return (
-    <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="flex shrink-0 items-center justify-end pl-1"
+      onClick={(event) => event.stopPropagation()}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="xs" aria-label="Task actions" className="h-8 w-8 p-0">
@@ -247,15 +263,15 @@ export function MaintenanceTable({
       <Table className="min-w-[980px] w-full table-fixed text-xs lg:min-w-0">
         <colgroup>
           <col className="w-[9%]" />
-          <col className="w-[18%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[8%]" />
           <col className="w-[15%]" />
-          <col className="w-[12%]" />
-          <col className="w-[10%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
           <col className="w-[7%]" />
-          <col className="w-[4%]" />
+          <col className="w-[14%]" />
+          <col className="w-[11%]" />
+          <col className="w-[9%]" />
+          <col className="w-[12%]" />
+          <col className="w-[5%]" />
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
@@ -283,10 +299,10 @@ export function MaintenanceTable({
             <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
               Priority
             </TableHead>
-            <TableHead className="px-2 py-2 text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="min-w-0 px-2 py-2 text-black/90 dark:text-white/90 font-medium">
               Status
             </TableHead>
-            <TableHead className="px-1 py-2 text-right text-black/90 dark:text-white/90 font-medium">
+            <TableHead className="w-12 min-w-12 shrink-0 px-1 py-2 text-right text-black/90 dark:text-white/90 font-medium">
               Actions
             </TableHead>
           </TableRow>
@@ -359,10 +375,10 @@ export function MaintenanceTable({
                 <TableCell className="px-3 py-2 whitespace-nowrap">
                   <PriorityPill priority={row.priority} />
                 </TableCell>
-                <TableCell className="px-2 py-2 whitespace-nowrap">
+                <TableCell className="min-w-0 overflow-hidden px-2 py-2">
                   <StatusPill status={row.status} />
                 </TableCell>
-                <TableCell className="px-1 py-2">
+                <TableCell className="w-12 min-w-[2.75rem] shrink-0 px-1 py-2 align-middle">
                   <TaskActionsMenu
                     row={row}
                     onView={onView}

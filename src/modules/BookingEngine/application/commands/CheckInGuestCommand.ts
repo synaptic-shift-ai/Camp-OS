@@ -14,6 +14,7 @@ export type CheckInGuestDto = {
   staffUserId: string
   balancePaidCents?: number | undefined
   notes?: string | null | undefined
+  incidentalsPaymentMethodId?: string | null | undefined
 }
 
 export class CheckInGuestCommandHandler {
@@ -33,7 +34,7 @@ export class CheckInGuestCommandHandler {
       : MoneyAmount.zero()
 
     // Check in guest (will throw if not confirmed or check-in date invalid)
-    reservation.checkIn(dto.staffUserId, balancePaid, dto.notes || null)
+    reservation.checkIn(dto.staffUserId, balancePaid, dto.notes || null, dto.incidentalsPaymentMethodId ?? null)
 
     // Save updated reservation
     await this.repository.save(reservation)

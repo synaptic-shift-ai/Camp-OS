@@ -2433,6 +2433,7 @@ export type Database = {
           guest_id: string | null
           has_damages: boolean | null
           id: string
+          incidentals_payment_method_id: string | null
           is_extension_of: string | null
           notes: string | null
           num_adults: number | null
@@ -2488,6 +2489,7 @@ export type Database = {
           guest_id?: string | null
           has_damages?: boolean | null
           id?: string
+          incidentals_payment_method_id?: string | null
           is_extension_of?: string | null
           notes?: string | null
           num_adults?: number | null
@@ -2543,6 +2545,7 @@ export type Database = {
           guest_id?: string | null
           has_damages?: boolean | null
           id?: string
+          incidentals_payment_method_id?: string | null
           is_extension_of?: string | null
           notes?: string | null
           num_adults?: number | null

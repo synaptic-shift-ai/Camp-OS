@@ -210,6 +210,7 @@ export async function POST(
       staffUserId: user.id, // Current authenticated user is performing check-in
       balancePaidCents: validatedRequest.balancePaidCents,
       notes: validatedRequest.notes ?? null,
+      incidentalsPaymentMethodId: validatedRequest.incidentalsPaymentMethodId ?? null,
     })
 
     if (reservation.siteId) {

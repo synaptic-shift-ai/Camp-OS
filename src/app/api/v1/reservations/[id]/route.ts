@@ -19,6 +19,7 @@ import {
   fetchPaymentCardDisplay,
   resolvePaymentIntentIdForReservation,
 } from '@/lib/stripe/payment-intent-card-display'
+import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
 
 const REFUND_ELIGIBILITY_SNAPSHOT_PREFIX = '[REFUND_ELIGIBILITY_SNAPSHOT]'
 
@@ -293,6 +294,39 @@ export async function GET(
       }
     }
 
+    // Resolve incidentals card display
+    let incidentals_card: {
+      brand: string
+      last4: string
+      exp_month: number
+      exp_year: number
+      funding?: string
+    } | null = null
+    if (reservation.incidentalsPaymentMethodId) {
+      try {
+        const tenantStripeResult = await getTenantStripeClient(reservation.propertyId)
+        if (tenantStripeResult.success) {
+          const { stripe, stripeAccountId } = tenantStripeResult
+          const pm = await stripe.paymentMethods.retrieve(
+            reservation.incidentalsPaymentMethodId,
+            {},
+            { stripeAccount: stripeAccountId }
+          )
+          if (pm.card) {
+            incidentals_card = {
+              brand: pm.card.brand,
+              last4: pm.card.last4,
+              exp_month: pm.card.exp_month,
+              exp_year: pm.card.exp_year,
+              funding: pm.card.funding,
+            }
+          }
+        }
+      } catch (incidentalsErr) {
+        console.warn('[Reservations API v1] GET incidentals card metadata failed', incidentalsErr)
+      }
+    }
+
     // Convert to DTO and add guest/site info
     const reservationDTO = toReservationDTO(reservation)
 
@@ -322,6 +356,7 @@ export async function GET(
       guest: guest || undefined,
       site: site || undefined,
       payment_card,
+      incidentals_card,
       payment_method: latestPayment?.payment_method ?? null,
       spouse_partner,
       children: reservationChildren ?? [],

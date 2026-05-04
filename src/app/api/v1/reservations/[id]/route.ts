@@ -203,8 +203,11 @@ export async function GET(
       .is('deleted_at', null)
       .single()
 
-    // Fetch latest payment — try unified ledger first, fall back to legacy payments table
-    const { data: latestLedgerPayment } = await supabase
+    // Fetch latest payment — try unified ledger first, fall back to legacy payments table.
+    // Prefer ledger records that actually carry a stripe_payment_intent_id so the card
+    // display can resolve.  If the newest ledger PAYMENT has no intent ID (manual /
+    // cash payment), still fall back to the legacy payments table which may have one.
+    const { data: ledgerPayments } = await supabase
       .from('financial_transactions')
       .select('payment_method, stripe_payment_intent_id')
       .eq('reservation_id', id)
@@ -212,17 +215,28 @@ export async function GET(
       .eq('status', 'completed')
       .neq('is_voided', true)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .limit(5)
+
+    const ledgerWithIntent = (ledgerPayments ?? []).find(
+      (r) => r.stripe_payment_intent_id != null && /^pi_[A-Za-z0-9_]+$/.test(r.stripe_payment_intent_id),
+    )
+    const latestLedgerPayment = ledgerPayments?.[0] ?? null
 
     let latestPayment: { stripe_payment_id: string | null; payment_method: string | null } | null = null
-    if (latestLedgerPayment) {
+    if (ledgerWithIntent) {
+      latestPayment = {
+        stripe_payment_id: ledgerWithIntent.stripe_payment_intent_id,
+        payment_method: ledgerWithIntent.payment_method,
+      }
+    } else if (latestLedgerPayment) {
       latestPayment = {
         stripe_payment_id: latestLedgerPayment.stripe_payment_intent_id,
         payment_method: latestLedgerPayment.payment_method,
       }
-    } else {
-      // Fallback: legacy payments table
+    }
+
+    // Fallback: legacy payments table if ledger has no intent ID
+    if (!latestPayment?.stripe_payment_id) {
       const { data: legacyPayment } = await supabase
         .from('payments')
         .select('stripe_payment_id, payment_method')
@@ -230,7 +244,7 @@ export async function GET(
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      if (legacyPayment) {
+      if (legacyPayment?.stripe_payment_id) {
         latestPayment = legacyPayment
       }
     }

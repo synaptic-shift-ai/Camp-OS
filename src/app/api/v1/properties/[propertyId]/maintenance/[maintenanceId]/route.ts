@@ -249,12 +249,12 @@ export async function PATCH(
     if (
       (effectiveRequestedStatus === 'in_progress' || effectiveRequestedStatus === 'in_progress_vendor') &&
       currentStatus === 'open' &&
-      !currentTask?.due_date
+      !currentTask?.sla && !currentTask?.due_date
     ) {
       return error(
         ErrorCodes.VALIDATION_ERROR,
         request,
-        { message: 'Cannot start work — a due date must be set before beginning work on this order.' },
+        { message: 'Cannot start work — a due date or SLA must be set before beginning work on this order.' },
       )
     }
 
@@ -440,11 +440,11 @@ export async function PATCH(
       }
     }
 
-    // Compute SLA from scheduled_start + due_date when both are provided
-    const hasBothDates = parsed.data.scheduledStart !== undefined && parsed.data.dueDate !== undefined
-    const computedSla = hasBothDates && parsed.data.scheduledStart && parsed.data.dueDate
-      ? Math.max(0, Math.round((new Date(parsed.data.dueDate).getTime() - new Date(parsed.data.scheduledStart).getTime()) / 3600000))
-      : null
+    // Only recompute SLA when both dates are provided and non-null;
+    // otherwise don't touch sla (avoids silently clearing an existing SLA).
+    const slaUpdate = (parsed.data.scheduledStart && parsed.data.dueDate)
+      ? { sla: Math.max(0, Math.round((new Date(parsed.data.dueDate).getTime() - new Date(parsed.data.scheduledStart).getTime()) / 3600000)) }
+      : {}
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
     const maintenanceTask = await queries.updateMaintenanceTask({
@@ -464,7 +464,7 @@ export async function PATCH(
       ...(parsed.data.actualPartsCost !== undefined ? { actualPartsCost: parsed.data.actualPartsCost } : {}),
       ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
       ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
-      ...(hasBothDates ? { sla: computedSla } : {}),
+      ...slaUpdate,
       ...(parsed.data.scheduledStart !== undefined ? { scheduledStart: parsed.data.scheduledStart } : {}),
       ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),
       ...timestampUpdates,

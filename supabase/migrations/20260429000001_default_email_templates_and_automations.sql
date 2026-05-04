@@ -25,10 +25,22 @@ CREATE TABLE IF NOT EXISTS public.default_email_templates (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-ALTER TABLE public.default_email_templates ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'default_email_templates' AND c.relrowsecurity = true
+  ) THEN
+    EXECUTE 'ALTER TABLE public.default_email_templates ENABLE ROW LEVEL SECURITY';
+  END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can read default email templates" ON public.default_email_templates
-  FOR SELECT TO authenticated USING (true);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can read default email templates' AND tablename = 'default_email_templates'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Authenticated users can read default email templates" ON public.default_email_templates FOR SELECT TO authenticated USING (true)';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- B. Create default_automations table (global master)
@@ -50,10 +62,22 @@ CREATE TABLE IF NOT EXISTS public.default_automations (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-ALTER TABLE public.default_automations ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'default_automations' AND c.relrowsecurity = true
+  ) THEN
+    EXECUTE 'ALTER TABLE public.default_automations ENABLE ROW LEVEL SECURITY';
+  END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can read default automations" ON public.default_automations
-  FOR SELECT TO authenticated USING (true);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can read default automations' AND tablename = 'default_automations'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Authenticated users can read default automations" ON public.default_automations FOR SELECT TO authenticated USING (true)';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- C. Add tracking columns to existing tables

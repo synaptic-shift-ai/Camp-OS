@@ -22,16 +22,6 @@ import {
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
 
-function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
-    return (siteType ?? '')
-        .trim()
-        .toLowerCase()
-        .replace(/[_-]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/\bsite\b/g, '')
-        .trim()
-}
-
 type ResolvedVendorEmailTemplate = {
     subject: string
     html: string
@@ -303,47 +293,7 @@ export async function POST(
             })
         }
 
-        const { data: propertyRow } = await supabase
-            .from('properties')
-            .select('site_type_config')
-            .eq('id', propertyId)
-            .maybeSingle()
 
-        const siteTypeConfig =
-            (propertyRow?.site_type_config as {
-                maintenance?: Record<string, boolean>
-                allowed_site_types?: string[]
-            } | null | undefined) ?? null
-
-        const maintenanceMap = Object.fromEntries(
-            Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
-                toCanonicalSiteTypeKey(key),
-                value,
-            ]),
-        )
-
-        const allowedSiteTypeSet = new Set(
-            Array.isArray(siteTypeConfig?.allowed_site_types)
-                ? siteTypeConfig!.allowed_site_types.map((siteType) =>
-                    toCanonicalSiteTypeKey(siteType),
-                )
-                : [],
-        )
-
-        const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
-        if (siteTypeKey) {
-            if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
-                return error(ErrorCodes.VALIDATION_ERROR, request, {
-                    message: 'The selected site is not available for maintenance',
-                })
-            }
-
-            if (maintenanceMap[siteTypeKey] === false) {
-                return error(ErrorCodes.VALIDATION_ERROR, request, {
-                    message: 'The selected site is not available for maintenance',
-                })
-            }
-        }
 
         // Enforce per-category spend limit against the requested estimate before creating a work order.
         if (parsed.data.category) {

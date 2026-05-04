@@ -13,16 +13,6 @@ import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maint
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCompletedEvent } from '@/modules/Maintenance/domain/events'
 
-function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
-  return (siteType ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/\bsite\b/g, '')
-    .trim()
-}
-
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ['in_progress', 'in_progress_vendor', 'cancelled'],
   in_progress: ['in_progress_vendor', 'on_hold', 'completed', 'cancelled'],
@@ -341,47 +331,7 @@ export async function PATCH(
         })
       }
 
-      const { data: propertyRow } = await supabase
-        .from('properties')
-        .select('site_type_config')
-        .eq('id', propertyId)
-        .maybeSingle()
 
-      const siteTypeConfig =
-        (propertyRow?.site_type_config as {
-          maintenance?: Record<string, boolean>
-          allowed_site_types?: string[]
-        } | null | undefined) ?? null
-
-      const maintenanceMap = Object.fromEntries(
-        Object.entries(siteTypeConfig?.maintenance ?? {}).map(([key, value]) => [
-          toCanonicalSiteTypeKey(key),
-          value,
-        ]),
-      )
-
-      const allowedSiteTypeSet = new Set(
-        Array.isArray(siteTypeConfig?.allowed_site_types)
-          ? siteTypeConfig!.allowed_site_types.map((siteType) =>
-            toCanonicalSiteTypeKey(siteType),
-          )
-          : [],
-      )
-
-      const siteTypeKey = toCanonicalSiteTypeKey(siteRow.site_type as string | null | undefined)
-      if (siteTypeKey) {
-        if (allowedSiteTypeSet.size > 0 && !allowedSiteTypeSet.has(siteTypeKey)) {
-          return error(ErrorCodes.VALIDATION_ERROR, request, {
-            message: 'The selected site is not available for maintenance',
-          })
-        }
-
-        if (maintenanceMap[siteTypeKey] === false) {
-          return error(ErrorCodes.VALIDATION_ERROR, request, {
-            message: 'The selected site is not available for maintenance',
-          })
-        }
-      }
     }
 
     // Enforce per-category spend limit against edited estimate before updating a work order.

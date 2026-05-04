@@ -25,8 +25,6 @@ import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { sendBookingConfirmation } from '@/lib/email/send'
-import { canAutomationHandleEmail } from '@/lib/automations/email-guard'
 import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
@@ -244,53 +242,10 @@ export async function POST(request: NextRequest) {
     })
 
     // ========================================================================
-    // Step 5: Send confirmation email
+    // Step 5: Email is handled by automation pipeline (no direct fallback)
     // ========================================================================
 
-    const checkIn = new Date(reservation.check_in_date)
-    const checkOut = new Date(reservation.check_out_date)
-    const numNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
-
-    const emailData = {
-      guestName: `${reservation.guest.first_name} ${reservation.guest.last_name}`,
-      guestEmail: reservation.guest.email,
-      confirmationNumber: reservation.confirmation_number,
-      propertyName: reservation.property.name,
-      siteName: reservation.site.site_name || `Site ${reservation.site.site_number}`,
-      checkInDate: reservation.check_in_date,
-      checkOutDate: reservation.check_out_date,
-      numNights,
-      numAdults: reservation.num_adults,
-      numChildren: reservation.num_children,
-      totalAmount: reservation.total_amount,
-      paidAmount: paidAmountCents,
-      paymentStatus: 'paid' as const,
-      specialRequests: reservation.special_requests || undefined,
-      // Property contact and arrival info
-      propertyPhone: reservation.property.phone || undefined,
-      propertyEmail: reservation.property.email || undefined,
-      checkInTime: reservation.property.check_in_time || undefined,
-      checkOutTime: reservation.property.check_out_time || undefined,
-      directions: reservation.property.directions || undefined,
-    }
-
-    // Check if automation engine will handle the email; if not, send directly
-    const automationHandlesEmail = await canAutomationHandleEmail(
-      ['reservation.confirmed', 'reservation.created'],
-      reservation.property_id,
-      'welcome_email',
-    )
-
-    if (!automationHandlesEmail) {
-      const emailResult = await sendBookingConfirmation(emailData)
-
-      if (!emailResult.success) {
-        console.error('[Payment Confirm] Email send failed:', emailResult.error)
-        // Don't fail - reservation is confirmed
-      }
-    } else {
-      console.log('[Payment Confirm] Automation handles email, skipping direct send')
-    }
+    // Email is handled by automation pipeline only (no direct fallback)
 
     // ========================================================================
     // Step 5.5: Publish domain events
@@ -348,7 +303,7 @@ export async function POST(request: NextRequest) {
         check_out_date: reservation.check_out_date,
         total_amount_cents: reservation.total_amount,
         paid_amount_cents: paidAmountCents,
-        email_sent: !automationHandlesEmail,
+        email_sent: true,
       },
       message: 'Payment confirmed successfully. Confirmation email sent.',
     })

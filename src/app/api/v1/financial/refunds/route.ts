@@ -25,8 +25,6 @@ import { TransactionSource } from '@/modules/Financial/domain/value-objects/Tran
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import type { RefundHandling } from '@/modules/Financial/domain/value-objects/RefundHandling'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { sendRefundIssuedEmail } from '@/lib/email/send'
-import { canAutomationHandleEmail } from '@/lib/automations/email-guard'
 
 /**
  * POST /api/v1/financial/refunds
@@ -153,45 +151,7 @@ export async function POST(request: NextRequest) {
       console.error('[Financial API v1] Process refund: reservation update threw (non-blocking)', reservationUpdateErr)
     }
 
-    // 7. Send refund notification email
-    try {
-      const { data: emailData, error: emailError } = await supabase
-        .from('reservations')
-        .select('confirmation_number, guest:guests(first_name, last_name, email), property:properties(name)')
-        .eq('id', validated.data.reservationId)
-        .single()
-
-      if (!emailError && emailData) {
-        const guest = emailData.guest as unknown as { first_name: string; last_name: string; email: string } | null
-        const propertyRow = emailData.property as unknown as { name: string } | null
-
-        if (guest?.email && propertyRow) {
-          const guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
-
-          const automationHandlesEmail = await canAutomationHandleEmail(
-            'refund.processed',
-            reservation.property_id,
-            'refund_issued',
-          )
-
-          if (!automationHandlesEmail) {
-            sendRefundIssuedEmail({
-              guestName,
-              guestEmail: guest.email,
-              confirmationNumber: emailData.confirmation_number,
-              propertyName: propertyRow.name,
-              refundAmountCents: validated.data.amountCents,
-            }).catch((err) => {
-              console.error('[Financial Refund] Failed to send refund-issued email:', err)
-            })
-          } else {
-            console.log('[Financial Refund] Automation handles email, skipping direct send')
-          }
-        }
-      }
-    } catch (emailErr) {
-      console.error('[Financial Refund] Email lookup/send failed (non-blocking):', emailErr)
-    }
+    // 7. Email is handled by automation pipeline only (no direct fallback)
 
     // 8. Trigger automation pipeline
     try {
@@ -331,47 +291,9 @@ async function handleV2Refund(
     }
   }
 
-  // Send refund notification email
+  // Email is handled by automation pipeline only (no direct fallback)
+
   if (payment.reservation_id) {
-    try {
-      const { data: emailData, error: emailError } = await supabase
-        .from('reservations')
-        .select('confirmation_number, guest:guests(first_name, last_name, email), property:properties(name)')
-        .eq('id', payment.reservation_id)
-        .single()
-
-      if (!emailError && emailData) {
-        const guest = emailData.guest as unknown as { first_name: string; last_name: string; email: string } | null
-        const propertyRow = emailData.property as unknown as { name: string } | null
-
-        if (guest?.email && propertyRow) {
-          const guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
-
-          const automationHandlesEmail = await canAutomationHandleEmail(
-            'refund.processed',
-            payment.property_id,
-            'refund_issued',
-          )
-
-          if (!automationHandlesEmail) {
-            sendRefundIssuedEmail({
-              guestName,
-              guestEmail: guest.email,
-              confirmationNumber: emailData.confirmation_number,
-              propertyName: propertyRow.name,
-              refundAmountCents: data.amount_cents,
-            }).catch((err) => {
-              console.error('[Financial Refund V2] Failed to send refund-issued email:', err)
-            })
-          } else {
-            console.log('[Financial Refund V2] Automation handles email, skipping direct send')
-          }
-        }
-      }
-    } catch (emailErr) {
-      console.error('[Financial Refund V2] Email lookup/send failed (non-blocking):', emailErr)
-    }
-
     // Trigger automation pipeline
     try {
       const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')

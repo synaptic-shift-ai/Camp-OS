@@ -13,17 +13,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import {
-  type MaintenanceGuideListItem,
-  type MaintenanceGuideStep,
-} from "@/lib/dashboard/maintenance/maintenance-queries"
 import { GripVertical, Plus, X } from "lucide-react"
 
 export type AddGuideInput = {
   name: string
   description: string | null
-  steps: MaintenanceGuideStep[]
+  steps: Array<{ id: string; label: string; notes: string | null }>
 }
 
 type GuideStepRow = {
@@ -34,17 +31,6 @@ type GuideStepRow = {
 
 function newStepRow(): GuideStepRow {
   return { id: crypto.randomUUID(), label: "", notes: "" }
-}
-
-function guideStepsToRows(
-  steps: MaintenanceGuideStep[],
-): GuideStepRow[] {
-  if (steps.length === 0) return [newStepRow()]
-  return steps.map((step) => ({
-    id: step.id ?? crypto.randomUUID(),
-    label: step.label,
-    notes: step.notes ?? "",
-  }))
 }
 
 type AddGuideDialogProps = {
@@ -60,6 +46,7 @@ export function AddGuideDialog({
   isSubmitting = false,
   onSubmit,
 }: AddGuideDialogProps) {
+  const { toast } = useToast()
   const formId = useId()
   const nameId = `${formId}-name`
   const descId = `${formId}-description`
@@ -71,13 +58,12 @@ export function AddGuideDialog({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   useEffect(() => {
-    if (open) {
-      setGuideName("")
-      setDescription("")
-      setSteps([newStepRow()])
-      setError(null)
-      setDraggedIndex(null)
-    }
+    if (!open) return
+    setGuideName("")
+    setDescription("")
+    setSteps([newStepRow()])
+    setError(null)
+    setDraggedIndex(null)
   }, [open])
 
   const addStepRow = useCallback(() => {
@@ -142,7 +128,13 @@ export function AddGuideDialog({
       .filter((row) => row.label.length > 0)
 
     if (payloadSteps.length === 0) {
-      setError("Add at least one step with a name.")
+      const message = "Add at least one step with a name."
+      setError(message)
+      toast({
+        title: "Step required",
+        description: message,
+        variant: "destructive",
+      })
       return
     }
 
@@ -157,6 +149,11 @@ export function AddGuideDialog({
       const message =
         submitError instanceof Error ? submitError.message : "Failed to save maintenance guide."
       setError(message)
+      toast({
+        title: "Unable to save guide",
+        description: message,
+        variant: "destructive",
+      })
     }
   }
 
@@ -164,9 +161,9 @@ export function AddGuideDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="space-y-1 border-b border-border px-6 py-4 text-left">
-          <DialogTitle className="text-xl font-semibold tracking-tight">New maintenance guide</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-tight">Create maintenance guide</DialogTitle>
           <DialogDescription className="sr-only">
-            Create a step-by-step maintenance guide for your team.
+            Create a reusable maintenance guide with step-by-step instructions and optional notes.
           </DialogDescription>
         </DialogHeader>
 

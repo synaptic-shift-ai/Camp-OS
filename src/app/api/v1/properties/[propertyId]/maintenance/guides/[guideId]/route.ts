@@ -126,12 +126,13 @@ export async function PATCH(
     const guide = await queries.updateMaintenanceGuide({
       id: guideId,
       propertyId,
+      createdBy: user.id,
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       steps: parsed.data.steps.map((step) => ({
         id: step.id,
         label: step.label,
-        notes: step.notes ?? null,
+        ...(step.notes ? { notes: step.notes } : {}),
       })),
     })
 

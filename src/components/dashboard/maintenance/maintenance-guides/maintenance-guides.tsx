@@ -7,10 +7,12 @@ import {
   type MaintenanceGuideListItem,
 } from "@/lib/dashboard/maintenance/maintenance-queries"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { EditGuideDialog, type EditGuideInput } from "../maintenance-dialog/edit-guide-dialog"
+import {
+  EditGuideDialog,
+  type EditGuideInput,
+} from "../maintenance-dialog/edit-guide-dialog"
 import { DeleteGuideConfirmationDialog } from "../maintenance-dialog/delete-guide-dialog"
 import { GuideDetailsDialog } from "../maintenance-dialog/guide-details-dialog"
-import type { MaintenanceGuideStep } from "@/lib/dashboard/maintenance/maintenance-queries"
 import {
   Table,
   TableBody,
@@ -31,6 +33,10 @@ import { formatShortDate } from "@/lib/utils"
 import { CalendarDays, ClipboardList, Eye, ListChecks, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
+
+function countGuideSteps(steps: MaintenanceGuideListItem["steps"]): number {
+  return Array.isArray(steps) ? steps.length : 0
+}
 
 type GuideActionsMenuProps = {
   row: MaintenanceGuideListItem
@@ -96,6 +102,7 @@ function GuideActionsMenu({
 
 type MaintenanceGuidesPanelProps = {
   propertyId: string
+  /** Increment to refetch after creating or updating guides elsewhere. */
   refreshKey?: number
   canEditGuide?: boolean
   canDeleteGuide?: boolean
@@ -175,7 +182,7 @@ export function MaintenanceGuidesPanel({
           body: JSON.stringify({
             name: input.name,
             description: input.description,
-            steps: input.steps.map((step: MaintenanceGuideStep) => ({
+            steps: input.steps.map((step) => ({
               id: step.id,
               label: step.label,
               notes: step.notes,
@@ -276,7 +283,7 @@ export function MaintenanceGuidesPanel({
       />
       <div className="space-y-2 md:hidden">
         {pageRows.map((row) => {
-          const stepCount = Array.isArray(row.steps) ? row.steps.length : 0
+          const stepCount = countGuideSteps(row.steps)
           const createdLabel = formatShortDate(row.created_at)
           const description = row.description?.trim() ? row.description.trim() : null
           return (
@@ -304,6 +311,14 @@ export function MaintenanceGuidesPanel({
                   onEdit={setEditingGuide}
                   onDelete={setGuidePendingDelete}
                 />
+              </div>
+              <div className="mt-2">
+                <p
+                  className="truncate font-mono text-[11px] uppercase tracking-wide text-muted-foreground"
+                  title={row.id}
+                >
+                  {row.id}
+                </p>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
@@ -342,7 +357,7 @@ export function MaintenanceGuidesPanel({
         </TableHeader>
         <TableBody>
           {pageRows.map((row) => {
-            const stepCount = Array.isArray(row.steps) ? row.steps.length : 0
+            const stepCount = countGuideSteps(row.steps)
             const createdLabel = formatShortDate(row.created_at)
             return (
               <TableRow

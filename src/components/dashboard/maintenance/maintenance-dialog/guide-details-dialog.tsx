@@ -42,7 +42,7 @@ export function GuideDetailsDialog({
 
           <div className="pt-3">
             {steps.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No steps found.</p>
+              <p className="text-sm text-muted-foreground">No guide steps found.</p>
             ) : (
               <div className="space-y-2">
                 {steps.map((step, index) => (
@@ -51,7 +51,7 @@ export function GuideDetailsDialog({
                     className="rounded-md border border-border/60 px-3 py-2"
                   >
                     <div className="flex items-start gap-2">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium tabular-nums text-muted-foreground">
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">

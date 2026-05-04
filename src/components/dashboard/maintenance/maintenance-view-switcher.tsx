@@ -87,18 +87,17 @@ export function MaintenanceViewSwitcher({
             Vendors List
           </button>
         ) : null}
-        {showGuides ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "guides"}
-            onClick={() => onModeChange("guides")}
-            className={tabButtonClass(mode === "guides")}
-          >
-            <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
-            Guides
-          </button>
-        ) : null}
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "guides"}
+          onClick={() => onModeChange("guides")}
+          className={tabButtonClass(mode === "guides")}
+        >
+          <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
+          Guides
+        </button>
       </div>
     </div>
   )

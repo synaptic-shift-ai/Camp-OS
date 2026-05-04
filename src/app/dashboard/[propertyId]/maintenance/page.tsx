@@ -49,7 +49,6 @@ async function getMaintenancePageOptions(
     .from("sites")
     .select("id, site_number, site_name, site_type")
     .eq("property_id", propertyId)
-    // .eq("status", "maintenance")
     .is("deleted_at", null)
     .order("site_number", { ascending: true })
 

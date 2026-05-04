@@ -127,7 +127,7 @@ export async function POST(
       steps: parsed.data.steps.map((step) => ({
         id: step.id,
         label: step.label,
-        notes: step.notes ?? null,
+        ...(step.notes ? { notes: step.notes } : {}),
       })),
     })
 

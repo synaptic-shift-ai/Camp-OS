@@ -384,6 +384,8 @@ export async function PATCH(
       ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
       ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
       ...(parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}),
+      ...(parsed.data.scheduledStart !== undefined ? { scheduledStart: parsed.data.scheduledStart } : {}),
+      ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),
       ...timestampUpdates,
     })
 

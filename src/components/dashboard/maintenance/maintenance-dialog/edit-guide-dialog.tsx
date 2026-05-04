@@ -14,17 +14,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import {
-  type MaintenanceGuideListItem,
-  type MaintenanceGuideStep,
-} from "@/lib/dashboard/maintenance/maintenance-queries"
+import type { MaintenanceGuideListItem } from "@/lib/dashboard/maintenance/maintenance-queries"
 import { GripVertical, Plus, X } from "lucide-react"
+import type { AddGuideInput } from "./add-guide-dialog"
 
-export type EditGuideInput = {
+export type EditGuideInput = AddGuideInput & {
   guideId: string
-  name: string
-  description: string | null
-  steps: MaintenanceGuideStep[]
 }
 
 type GuideStepRow = {
@@ -37,8 +32,8 @@ function newStepRow(): GuideStepRow {
   return { id: crypto.randomUUID(), label: "", notes: "" }
 }
 
-function guideStepsToRows(
-  steps: MaintenanceGuideStep[],
+function stepsToRows(
+  steps: Array<{ id?: string | null; label: string; notes?: string | null }>,
 ): GuideStepRow[] {
   if (steps.length === 0) return [newStepRow()]
   return steps.map((step) => ({
@@ -77,7 +72,7 @@ export function EditGuideDialog({
     if (!open || !guide) return
     setGuideName(guide.name)
     setDescription(guide.description?.trim() ?? "")
-    setSteps(guideStepsToRows(guide.steps))
+    setSteps(stepsToRows(guide.steps))
     setError(null)
     setDraggedIndex(null)
   }, [open, guide])

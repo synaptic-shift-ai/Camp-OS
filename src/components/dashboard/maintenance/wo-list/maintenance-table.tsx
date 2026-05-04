@@ -37,6 +37,8 @@ export type MaintenanceTaskRow = {
   isSuspectedDamage?: boolean
   vendorId?: string | null
   sla?: number | null
+  scheduledStart?: string | null
+  dueDate?: string | null
 }
 
 type MaintenanceTableProps = {

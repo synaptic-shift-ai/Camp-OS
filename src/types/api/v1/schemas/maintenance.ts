@@ -34,6 +34,8 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     isSuspectedDamage: z.boolean().optional(),
     vendorId: z.string().uuid().nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
+    scheduledStart: z.string().datetime().nullable().optional(),
+    dueDate: z.string().datetime().nullable().optional(),
 })
 
 export const UpdateMaintenanceTaskRequestSchema = z.object({
@@ -55,6 +57,8 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     vendorInvoiceCost: z.number().nonnegative().nullable().optional(),
     closeoutNotes: z.string().trim().max(5000).nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
+    scheduledStart: z.string().datetime().nullable().optional(),
+    dueDate: z.string().datetime().nullable().optional(),
     on_hold_reason: z.string().optional().nullable(),
     cancelled_reason: z.string().optional().nullable(),
 }).refine((payload) => Object.keys(payload).length > 0, {
@@ -198,9 +202,18 @@ export const MaintenanceGuideStepSchema = z.object({
 })
 
 export const CreateMaintenanceGuideSchema = z.object({
-    name: z.string().min(1, 'Guide name is required').max(200),
-    description: z.string().nullable().optional(),
+    name: z.string().trim().min(1, 'Guide name is required').max(200),
+    description: z.string().trim().max(5000).nullable().optional(),
     steps: z.array(MaintenanceGuideStepSchema).min(1, 'At least one step is required'),
 })
 
-export const UpdateMaintenanceGuideSchema = CreateMaintenanceGuideSchema
+export type CreateMaintenanceGuideRequest = z.infer<typeof CreateMaintenanceGuideSchema>
+
+/** Same shape as create; separate Zod object so bundlers always emit a real schema. */
+export const UpdateMaintenanceGuideSchema = z.object({
+    name: z.string().trim().min(1, 'Guide name is required').max(200),
+    description: z.string().trim().max(5000).nullable().optional(),
+    steps: z.array(MaintenanceGuideStepSchema).min(1, 'At least one step is required'),
+})
+
+export type UpdateMaintenanceGuideRequest = z.infer<typeof UpdateMaintenanceGuideSchema>

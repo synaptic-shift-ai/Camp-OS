@@ -14,6 +14,7 @@ import {
 import { CostReport } from "./cost-report/cost-report"
 import { SchedulesList } from "./schedules/schedules-list"
 import { VendorsTable } from "./vendors-list/vendors-table"
+import { MaintenanceGuidesPanel } from "./maintenance-guides/maintenance-guides"
 import {
   AddTaskDialog,
   maintenanceCategoryLabel,
@@ -23,6 +24,10 @@ import {
   AddPreventiveDialog,
   type AddPreventiveScheduleInput,
 } from "./maintenance-dialog/add-preventive-dialog"
+import {
+  AddGuideDialog,
+  type AddGuideInput,
+} from "./maintenance-dialog/add-guide-dialog"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { EditTaskDialog } from "./maintenance-dialog/edit-task-dialog"
@@ -32,8 +37,6 @@ import {
   type AddPreventiveScheduleInput as EditScheduleTaskInput,
 } from "./maintenance-dialog/edit-schedule-dialog"
 import { DeleteScheduleConfirmationDialog } from "./schedules/delete-schedule-confirmation-dialog"
-import { MaintenanceGuidesPanel } from "./maintenance-guides/maintenance-guides"
-import { AddGuideDialog, type AddGuideInput } from "./maintenance-dialog/add-guide-dialog"
 import { createClient } from "@/lib/supabase/client"
 
 const TASK_IMAGES_BUCKET = "maintenance-and-housekeeping-images"
@@ -241,8 +244,8 @@ export function MaintenancePageContent({
   const [isAddVendorDialogOpen, setIsAddVendorDialogOpen] = useState(false)
   const [isAddPreventiveDialogOpen, setIsAddPreventiveDialogOpen] = useState(false)
   const [isAddGuideDialogOpen, setIsAddGuideDialogOpen] = useState(false)
-  const [isCreatingGuide, setIsCreatingGuide] = useState(false)
-  const [guidesRefreshKey, setGuidesRefreshKey] = useState(0)
+  const [isSavingGuide, setIsSavingGuide] = useState(false)
+  const [guideRefreshKey, setGuideRefreshKey] = useState(0)
   const [isCreatingTask, setIsCreatingTask] = useState(false)
   const [isCreatingPreventiveSchedule, setIsCreatingPreventiveSchedule] = useState(false)
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
@@ -559,6 +562,40 @@ export function MaintenancePageContent({
     setIsDeleteDialogOpen(true)
   }
 
+  const handleSaveGuide = async (input: AddGuideInput) => {
+    setIsSavingGuide(true)
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/maintenance/guides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error?.details?.message ??
+          payload?.error?.message ??
+          "Failed to save maintenance guide."
+        throw new Error(message)
+      }
+      setGuideRefreshKey((key) => key + 1)
+      toast({
+        title: "Guide saved",
+        description: "Maintenance guide created successfully.",
+        variant: "success",
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save maintenance guide."
+      toast({
+        title: "Unable to save guide",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingGuide(false)
+    }
+  }
+
   const handleConfirmDelete = async () => {
     setIsDeletingSchedule(true)
     try {
@@ -703,42 +740,6 @@ export function MaintenancePageContent({
     }
   }
 
-  const handleAddGuide = async (input: AddGuideInput) => {
-    setIsCreatingGuide(true)
-    try {
-      const response = await fetch(`/api/v1/properties/${propertyId}/maintenance/guides`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: input.name,
-          description: input.description,
-          steps: input.steps.map((step) => ({
-            id: step.id,
-            label: step.label,
-            notes: step.notes,
-          })),
-        }),
-      })
-      const payload = await response.json()
-      if (!response.ok || !payload?.success) {
-        const message =
-          payload?.error?.details?.message ??
-          payload?.error?.message ??
-          "Failed to create maintenance guide."
-        throw new Error(message)
-      }
-      toast({
-        title: "Guide created",
-        description: `"${input.name}" has been saved.`,
-        variant: "success",
-      })
-      setIsAddGuideDialogOpen(false)
-      setGuidesRefreshKey((prev) => prev + 1)
-    } finally {
-      setIsCreatingGuide(false)
-    }
-  }
-
   const handleOpenEditTask = (row: MaintenanceTaskRow) => {
     setEditingTask(row)
     setIsEditTaskDialogOpen(true)
@@ -861,18 +862,12 @@ export function MaintenancePageContent({
   )
 
   const headerPrimaryActionLabel =
-    viewMode === "wo_list"
-      ? "Add Task"
-      : viewMode === "vendors"
-        ? "New Vendor"
-        : viewMode === "schedules"
-          ? "New Schedule"
-          : "New Guide"
+    viewMode === "wo_list" ? "Add Task" : viewMode === "vendors" ? "New Vendor" : viewMode === "guides" ? "New Guide" : "New Schedule"
   const headerPrimaryActionVisible =
     (viewMode === "wo_list" && canCreateTask) ||
     (viewMode === "vendors" && canManageMaintenanceVendors) ||
     (viewMode === "schedules" && canManageMaintenancePmSchedules) ||
-    viewMode === "guides"
+    (viewMode === "guides" && canCreateTask)
   const handleHeaderPrimaryAction = () => {
     if (viewMode === "wo_list") {
       setIsAddTaskDialogOpen(true)
@@ -882,12 +877,13 @@ export function MaintenancePageContent({
       setIsAddVendorDialogOpen(true)
       return
     }
+    if (viewMode === "guides") {
+      setIsAddGuideDialogOpen(true)
+      return
+    }
     if (viewMode === "schedules") {
       setIsAddPreventiveDialogOpen(true)
       return
-    }
-    if (viewMode === "guides") {
-      setIsAddGuideDialogOpen(true)
     }
   }
 
@@ -981,10 +977,9 @@ export function MaintenancePageContent({
       ) : viewMode === "guides" ? (
         <MaintenanceGuidesPanel
           propertyId={propertyId}
-          refreshKey={guidesRefreshKey}
+          refreshKey={guideRefreshKey}
           canEditGuide={canEditTask}
           canDeleteGuide={canDeleteTask}
-          onGuideDeleted={() => setGuidesRefreshKey((prev) => prev + 1)}
         />
       ) : null}
       <AddPreventiveDialog
@@ -1056,10 +1051,10 @@ export function MaintenancePageContent({
         isDeleting={isDeletingSchedule}
       />
       <AddGuideDialog
-        open={isAddGuideDialogOpen}
+        open={canCreateTask && isAddGuideDialogOpen}
         onOpenChange={setIsAddGuideDialogOpen}
-        isSubmitting={isCreatingGuide}
-        onSubmit={handleAddGuide}
+        isSubmitting={isSavingGuide}
+        onSubmit={handleSaveGuide}
       />
     </div>
   )

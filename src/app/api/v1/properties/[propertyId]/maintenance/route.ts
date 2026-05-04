@@ -322,6 +322,24 @@ export async function POST(
         }
 
         const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
+
+        // Server-side booking conflict warning (non-blocking)
+        let bookingConflictWarning: string | null = null
+        if (parsed.data.scheduledStart && parsed.data.dueDate) {
+            try {
+                const conflicts = await queries.findOverlappingMaintenance(
+                    parsed.data.siteId,
+                    parsed.data.scheduledStart,
+                    parsed.data.dueDate,
+                )
+                if (conflicts.length > 0) {
+                    bookingConflictWarning = `${conflicts.length} existing maintenance task${conflicts.length === 1 ? '' : 's'} overlap with the scheduled window.`
+                }
+            } catch {
+                // Non-blocking: conflict check failures should not prevent creation
+            }
+        }
+
         const maintenanceTask = await queries.createMaintenanceTask({
             propertyId,
             siteId: parsed.data.siteId,
@@ -523,7 +541,7 @@ export async function POST(
             }
         }
 
-        return success({ maintenanceTask, spendLimitWarnings }, request)
+        return success({ maintenanceTask, spendLimitWarnings, bookingConflictWarning }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Maintenance API v1] POST error:', err)

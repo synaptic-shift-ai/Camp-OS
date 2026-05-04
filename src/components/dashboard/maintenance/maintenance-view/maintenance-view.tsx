@@ -362,22 +362,29 @@ export function MaintenanceView({
     if (!task?.sla || !task?.created_at) return null
     if (task.status === "completed" || task.status === "cancelled") return null
 
-    // Show full SLA before work starts, then count down once task is active.
+    // Use scheduled_start as SLA reference when available
+    const slaRefMs = task.scheduled_start
+      ? new Date(task.scheduled_start).getTime()
+      : null
+
     if (!task.started_at || task.status === "open") {
+      if (slaRefMs) {
+        const deadlineMs = slaRefMs + task.sla * 3600 * 1000
+        return Math.max(0, Math.floor((deadlineMs - now) / 1000))
+      }
       return task.sla * 3600
     }
 
-    const startedMs = new Date(task.started_at).getTime()
     const deadlineMs = task.due_date
       ? new Date(task.due_date).getTime()
-      : startedMs + task.sla * 3600 * 1000
+      : (slaRefMs ?? new Date(task.started_at).getTime()) + task.sla * 3600 * 1000
     const slaNowMs =
       task.status === "on_hold" && task.on_hold_at
         ? new Date(task.on_hold_at).getTime()
         : now
     const remaining = Math.max(0, Math.floor((deadlineMs - slaNowMs) / 1000))
     return remaining
-  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.due_date, now])
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.due_date, task?.scheduled_start, now])
 
   const slaDisplay = useMemo(() => {
     if (slaSecondsRemaining === null) return null

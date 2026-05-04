@@ -185,6 +185,8 @@ type ApiMaintenanceTask = {
   vendor_id: string | null
   sla: number | null
   staff_id: string | null
+  scheduled_start: string | null
+  due_date: string | null
   site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
 }
 
@@ -416,6 +418,8 @@ export function MaintenancePageContent({
         isSuspectedDamage: task.is_suspected_damage ?? false,
         vendorId: task.vendor_id,
         sla: task.sla,
+        scheduledStart: task.scheduled_start ?? null,
+        dueDate: task.due_date ?? null,
       }))
 
       setRows(mappedRows)
@@ -674,6 +678,8 @@ export function MaintenancePageContent({
           isSuspectedDamage: input.isSuspectedDamage ?? false,
           vendorId: input.vendorId ?? null,
           sla: input.sla ?? null,
+          scheduledStart: input.scheduledStart ?? null,
+          dueDate: input.dueDate ?? null,
         }),
       })
 
@@ -772,6 +778,8 @@ export function MaintenancePageContent({
         isSuspectedDamage: input.isSuspectedDamage,
         vendorId: input.vendorId ?? null,
         sla: input.sla ?? null,
+        scheduledStart: input.scheduledStart ?? null,
+        dueDate: input.dueDate ?? null,
       }
       if (canAssignWorkOrder) {
         patchBody.staffId = input.assigneeId ?? null

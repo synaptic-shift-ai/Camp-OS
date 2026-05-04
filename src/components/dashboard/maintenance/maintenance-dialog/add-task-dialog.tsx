@@ -153,8 +153,8 @@ function BookingConflictWarning({ siteId, startDate, endDate }: { siteId: string
       .then((res) => res.json())
       .then((json) => {
         if (cancelled) return
-        if (json?.success && typeof json.data?.count === "number") {
-          setConflictCount(json.data.count)
+        if (json?.success && Array.isArray(json.data?.conflicts)) {
+          setConflictCount(json.data.conflicts.length)
         } else {
           setConflictCount(null)
         }
@@ -220,6 +220,14 @@ export function AddTaskDialog({
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
   const [customCategory, setCustomCategory] = useState("")
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
+
+  // Auto-compute due date from SLA + scheduled start
+  useEffect(() => {
+    if (form.sla && form.sla > 0 && form.scheduledStart && !form.dueDate) {
+      const target = new Date(new Date(form.scheduledStart).getTime() + form.sla * 3600 * 1000)
+      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
+    }
+  }, [form.sla, form.scheduledStart, form.dueDate])
 
   const clearLocalImages = () => {
     setLocalImages((prev) => {

@@ -92,6 +92,14 @@ export function EditTaskDialog({
   const [customCategory, setCustomCategory] = useState("")
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
+  // Auto-compute due date from SLA + scheduled start
+  useEffect(() => {
+    if (form.sla && form.sla > 0 && form.scheduledStart && !form.dueDate) {
+      const target = new Date(new Date(form.scheduledStart).getTime() + form.sla * 3600 * 1000)
+      setForm((prev) => ({ ...prev, dueDate: target.toISOString() }))
+    }
+  }, [form.sla, form.scheduledStart, form.dueDate])
+
   const clearLocalImages = () => {
     setLocalImages((prev) => {
       prev.forEach((item) => URL.revokeObjectURL(item.previewUrl))

@@ -1538,15 +1538,17 @@ export class MaintenanceQueries {
         startDate: string,
         endDate: string,
     ): Promise<Array<{ id: string; title: string; due_date: string | null; scheduled_start: string | null; status: string }>> {
+        const windowStart = startDate
+        const windowEnd = endDate
+
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
-            .select('id, title, due_date, scheduled_start, status')
+            .select('id, title, due_date, scheduled_start, started_at, created_at, status')
             .eq('site_id', siteId)
             .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
-            .neq('due_date', null)
-            .lt('due_date', endDate)
-            .or(`scheduled_start.lt.${endDate},started_at.lt.${endDate}`)
-            .gt('scheduled_start', startDate)
+            .lt('COALESCE(due_date, created_at)', windowEnd)
+            .lt('COALESCE(scheduled_start, started_at, created_at)', windowEnd)
+            .gt('COALESCE(scheduled_start, started_at, created_at)', windowStart)
             .order('due_date', { ascending: true })
 
         if (error) {

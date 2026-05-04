@@ -7,9 +7,11 @@ CREATE TABLE IF NOT EXISTS public.maintenance_guides (
   description TEXT,
   steps JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT maintenance_guides_name_unique UNIQUE (property_id, LOWER(name))
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS maintenance_guides_property_id_lower_name_idx
+  ON public.maintenance_guides (property_id, lower(name));
 
 ALTER TABLE public.maintenance_guides ENABLE ROW LEVEL SECURITY;
 

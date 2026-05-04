@@ -1,5 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/contracts/db'
 import { addDays, addMonths, addYears, format } from 'date-fns'
 
@@ -212,11 +211,6 @@ export interface UpdateMaintenanceGuideInput extends CreateMaintenanceGuideInput
 
 export class MaintenanceQueries {
     constructor(private supabase: SupabaseClient) {}
-
-    static async create(): Promise<MaintenanceQueries> {
-        const supabase = await createClient()
-        return new MaintenanceQueries(supabase as unknown as SupabaseClient)
-    }
 
     async createMaintenanceTask(input: CreateMaintenanceTaskInput): Promise<MaintenanceTaskRow> {
         const { data: siteRow, error: siteError } = await this.supabase

@@ -122,6 +122,7 @@ export function ReservationDetailDialog({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [paymentCard, setPaymentCard] = useState<PaymentCardDisplay | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
+  const [incidentalsCard, setIncidentalsCard] = useState<PaymentCardDisplay | null>(null)
 
   useEffect(() => {
     if (!reservation?.id) return
@@ -130,6 +131,7 @@ export function ReservationDetailDialog({
     setPreviewLoading(true)
     setPaymentCard(null)
     setPaymentMethod(null)
+    setIncidentalsCard(null)
 
     fetch(`/api/v1/reservations/${reservation.id}`)
       .then((res) => res.json())
@@ -153,6 +155,23 @@ export function ReservationDetailDialog({
             last4: pc.last4,
             exp_month: pc.exp_month,
             exp_year: pc.exp_year,
+          })
+        }
+        // Incidentals card
+        const ic = json?.data?.incidentals_card
+        if (
+          json?.success === true &&
+          ic &&
+          typeof ic.last4 === 'string' &&
+          typeof ic.brand === 'string' &&
+          typeof ic.exp_month === 'number' &&
+          typeof ic.exp_year === 'number'
+        ) {
+          setIncidentalsCard({
+            brand: ic.brand,
+            last4: ic.last4,
+            exp_month: ic.exp_month,
+            exp_year: ic.exp_year,
           })
         }
       })
@@ -303,6 +322,20 @@ export function ReservationDetailDialog({
                   </div>
                 ) : null}
               </div>
+
+              {incidentalsCard ? (
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <div className="text-xs font-medium text-muted-foreground">Incidentals Card-on-File</div>
+                  <div className="mt-2 inline-flex items-center gap-3 align-middle">
+                    <span className="inline-flex h-10 w-14 shrink-0 items-center justify-center">
+                      <PaymentCardLogo brand={incidentalsCard.brand} />
+                    </span>
+                    <span className="font-mono text-base text-foreground">
+                      **** **** **** {incidentalsCard.last4}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="rounded-md border bg-muted/40 p-3">
                 <div className="text-xs font-medium text-muted-foreground">Financials</div>

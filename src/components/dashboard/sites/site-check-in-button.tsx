@@ -33,6 +33,7 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
       })
     | null
   >(null)
+  const [bookingPaymentMethodId, setBookingPaymentMethodId] = useState<string | null>(null)
 
   // Only show check-in for booked sites (sites with confirmed reservations)
   if (siteStatus !== 'booked') {
@@ -73,6 +74,7 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
       }
 
       setReservationData(data.reservation)
+      setBookingPaymentMethodId(data.reservation?.booking_payment_method_id ?? null)
       setDialogOpen(true)
     } catch (error) {
       console.error('Error fetching reservation:', error)
@@ -107,6 +109,7 @@ export function SiteCheckInButton({ siteId, siteStatus }: SiteCheckInButtonProps
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           reservation={reservationData}
+          bookingPaymentMethodId={bookingPaymentMethodId}
         />
       )}
     </>

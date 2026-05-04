@@ -42,6 +42,7 @@ export function CheckInButton({
     })
     | null
   >(null)
+  const [bookingPaymentMethodId, setBookingPaymentMethodId] = useState<string | null>(null)
 
   // Show check-in for confirmed reservations
   if (status !== 'confirmed') {
@@ -62,6 +63,7 @@ export function CheckInButton({
 
       const data = await response.json()
       setReservationData(data.data)
+      setBookingPaymentMethodId(data.data?.booking_payment_method_id ?? null)
       setDialogOpen(true)
     } catch (error) {
       console.error('Error fetching reservation:', error)
@@ -95,6 +97,7 @@ export function CheckInButton({
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           reservation={reservationData}
+          bookingPaymentMethodId={bookingPaymentMethodId}
           blackoutDates={blackoutDates}
           allowedCheckInDays={allowedCheckInDays}
           checkInTime={checkInTime}

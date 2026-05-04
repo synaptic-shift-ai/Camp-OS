@@ -44,6 +44,7 @@ export function TodaysArrivalsCard({
   >(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingReservationId, setLoadingReservationId] = useState<string | null>(null)
+  const [bookingPaymentMethodId, setBookingPaymentMethodId] = useState<string | null>(null)
 
   const handleCheckIn = async (reservation: typeof arrivals[0]) => {
     setLoadingReservationId(reservation.id)
@@ -59,6 +60,7 @@ export function TodaysArrivalsCard({
       }
 
       setSelectedReservation(payload.data)
+      setBookingPaymentMethodId(payload.data?.booking_payment_method_id ?? null)
       setDialogOpen(true)
     } catch (err) {
       console.error('Failed to fetch reservation details for check-in:', err)
@@ -319,6 +321,7 @@ export function TodaysArrivalsCard({
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           reservation={selectedReservation}
+          bookingPaymentMethodId={bookingPaymentMethodId}
           checkInTime={checkInTime}
         />
       )}

@@ -16,7 +16,7 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 import {
-  fetchPaymentCardDisplay,
+  fetchPaymentCardResult,
   resolvePaymentIntentIdForReservation,
 } from '@/lib/stripe/payment-intent-card-display'
 import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
@@ -282,13 +282,16 @@ export async function GET(
       exp_month: number
       exp_year: number
     } | null = null
+    let booking_payment_method_id: string | null = null
 
     if (paymentIntentId != null) {
       try {
-        payment_card = await fetchPaymentCardDisplay(
+        const cardResult = await fetchPaymentCardResult(
           paymentIntentId,
           reservation.propertyId
         )
+        payment_card = cardResult.card
+        booking_payment_method_id = cardResult.paymentMethodId
       } catch (cardErr) {
         console.warn('[Reservations API v1] GET payment card metadata failed', cardErr)
       }
@@ -357,6 +360,7 @@ export async function GET(
       site: site || undefined,
       payment_card,
       incidentals_card,
+      booking_payment_method_id: booking_payment_method_id,
       payment_method: latestPayment?.payment_method ?? null,
       spouse_partner,
       children: reservationChildren ?? [],

@@ -7,8 +7,10 @@
  * Displays reservation details, handles balance payment, and calls check-in API.
  */
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import {
   Dialog,
   DialogContent,
@@ -41,7 +43,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
-import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText, AlertTriangle } from 'lucide-react'
+import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText, AlertTriangle, Shield } from 'lucide-react'
 import {
   AmericanExpressFlatRoundedIcon,
   DiscoverFlatRoundedIcon,
@@ -51,6 +53,8 @@ import {
 } from 'react-svg-credit-card-payment-icons'
 import type { Reservation } from '@/lib/booking/types'
 import { asYyyyMmDd, dayOfWeekFromYyyyMmDd, formatDisplayDate, normalizeDateString } from '@/lib/utils'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
@@ -96,6 +100,102 @@ function PaymentCardLogo({ brand }: { brand: string }) {
   }
 }
 
+/**
+ * Inner component for Stripe CardElement.
+ * Must be rendered inside <Elements> provider.
+ */
+function IncidentalsCardForm({
+  onPaymentMethodId,
+}: {
+  onPaymentMethodId: (pmId: string | null) => void
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [cardError, setCardError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+
+  // Confirm SetupIntent when card details are complete and user hasn't interacted with submit yet.
+  // We use a lightweight approach: confirm on blur/change when the element is complete.
+  const handleChange = async (event: any) => {
+    if (event.error) {
+      setCardError(event.error.message)
+      onPaymentMethodId(null)
+    } else {
+      setCardError(null)
+    }
+  }
+
+  const handleConfirmCard = async () => {
+    if (!stripe || !elements) return
+    setConfirming(true)
+    setCardError(null)
+    try {
+      const { setupIntent, error } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/api/v1/reservations/check-in/setup-intent/return`,
+        },
+        redirect: 'if_required',
+      })
+
+      if (error) {
+        setCardError(error.message ?? 'Failed to confirm card')
+        onPaymentMethodId(null)
+      } else if (setupIntent?.status === 'succeeded' && setupIntent.payment_method) {
+        onPaymentMethodId(setupIntent.payment_method as string)
+      }
+    } catch {
+      setCardError('Failed to confirm card details')
+      onPaymentMethodId(null)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <CardElement
+        options={{
+          hidePostalCode: true,
+          style: {
+            base: {
+              fontSize: '14px',
+              color: 'hsl(var(--foreground))',
+              '::placeholder': {
+                color: 'hsl(var(--muted-foreground))',
+              },
+            },
+          },
+        }}
+        onChange={handleChange}
+      />
+      {cardError && (
+        <p className="text-xs text-destructive">{cardError}</p>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => void handleConfirmCard()}
+        disabled={!stripe || confirming}
+        className="gap-2"
+      >
+        {confirming ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Confirming…
+          </>
+        ) : (
+          <>
+            <CheckCircle className="h-3.5 w-3.5" />
+            Save Card
+          </>
+        )}
+      </Button>
+    </div>
+  )
+}
+
 interface CheckInDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -116,6 +216,8 @@ interface CheckInDialogProps {
       is_alternate_contact: boolean
     } | null
   }
+  /** Stripe PaymentMethod ID for the booking card, resolved from PaymentIntent. */
+  bookingPaymentMethodId?: string | null
   blackoutDates?: string[] | undefined
   allowedCheckInDays?: string[] | undefined
   checkInTime?: string | null | undefined
@@ -125,6 +227,7 @@ export function CheckInDialog({
   open,
   onOpenChange,
   reservation,
+  bookingPaymentMethodId,
   blackoutDates,
   allowedCheckInDays,
   checkInTime,
@@ -136,6 +239,13 @@ export function CheckInDialog({
   const [checkInNotes, setCheckInNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [showEarlyCheckInWarning, setShowEarlyCheckInWarning] = useState(false)
+
+  // Incidentals card state
+  const [incidentalsChoice, setIncidentalsChoice] = useState<'booking-card' | 'new-card' | 'skip'>('booking-card')
+  const [setupIntentSecret, setSetupIntentSecret] = useState<string | null>(null)
+  const [setupIntentLoading, setSetupIntentLoading] = useState(false)
+  const [setupIntentError, setSetupIntentError] = useState<string | null>(null)
+  const [newCardPaymentMethodId, setNewCardPaymentMethodId] = useState<string | null>(null)
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationStartStr = normalizeDateString(reservation.check_in_date)
@@ -181,6 +291,38 @@ export function CheckInDialog({
     configuredCheckInDateTime !== null &&
     new Date() < configuredCheckInDateTime
 
+  const handleNewCardSelected = useCallback(async () => {
+    setSetupIntentLoading(true)
+    setSetupIntentError(null)
+    try {
+      const res = await fetch(`/api/v1/reservations/${reservation.id}/check-in/setup-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error('Failed to create setup intent')
+      const data = await res.json()
+      if (data.success && data.data?.client_secret) {
+        setSetupIntentSecret(data.data.client_secret)
+      } else {
+        throw new Error(data.error?.message || 'Failed to create setup intent')
+      }
+    } catch {
+      setSetupIntentError('Unable to set up card collection. You can skip this step.')
+    } finally {
+      setSetupIntentLoading(false)
+    }
+  }, [reservation.id])
+
+  // Reset incidentals state when dialog opens
+  useEffect(() => {
+    if (!open) {
+      setIncidentalsChoice('booking-card')
+      setSetupIntentSecret(null)
+      setSetupIntentError(null)
+      setNewCardPaymentMethodId(null)
+    }
+  }, [open])
+
   const handleCheckIn = async (forceProceed = false) => {
     setIsProcessing(true)
     setError(null)
@@ -213,6 +355,16 @@ export function CheckInDialog({
       // Determine if payment is being collected
       const isCollectingPayment = hasBalance && paymentMethod && paymentMethod !== 'skip'
 
+      // Resolve incidentals PaymentMethod ID
+      let incidentalsPaymentMethodId: string | null = null
+
+      if (incidentalsChoice === 'booking-card' && bookingPaymentMethodId) {
+        incidentalsPaymentMethodId = bookingPaymentMethodId
+      } else if (incidentalsChoice === 'new-card' && newCardPaymentMethodId) {
+        incidentalsPaymentMethodId = newCardPaymentMethodId
+      }
+      // skip → null
+
       const response = await fetch(`/api/v1/reservations/${reservation.id}/check-in`, {
         method: 'POST',
         headers: {
@@ -221,6 +373,7 @@ export function CheckInDialog({
         body: JSON.stringify({
           balancePaidCents: isCollectingPayment ? outstandingBalance : 0,
           notes: checkInNotes.trim() || null,
+          incidentalsPaymentMethodId,
         }),
       })
 
@@ -476,6 +629,100 @@ export function CheckInDialog({
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* Incidentals Card Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Incidentals Card-on-File
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Collect a card for incidentals, damages, or additional charges during the stay.
+              </p>
+
+              <div className="space-y-2">
+                {/* Option 1: Use booking card */}
+                {reservation.payment_card ? (
+                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                    <input
+                      type="radio"
+                      name="incidentals"
+                      value="booking-card"
+                      checked={incidentalsChoice === 'booking-card'}
+                      onChange={() => setIncidentalsChoice('booking-card')}
+                      className="accent-primary"
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <PaymentCardLogo brand={reservation.payment_card.brand} />
+                      <div>
+                        <span className="text-sm font-medium">Use booking card</span>
+                        <span className="text-xs text-muted-foreground block">
+                          {reservation.payment_card.brand} **** {reservation.payment_card.last4}
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                ) : null}
+
+                {/* Option 2: New card */}
+                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="incidentals"
+                    value="new-card"
+                    checked={incidentalsChoice === 'new-card'}
+                    onChange={() => {
+                      setIncidentalsChoice('new-card')
+                      setNewCardPaymentMethodId(null)
+                      if (!setupIntentSecret) handleNewCardSelected()
+                    }}
+                    disabled={setupIntentLoading}
+                    className="accent-primary"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium">Use a different card</span>
+                    <span className="text-xs text-muted-foreground block">Collect a new card for incidentals</span>
+                  </div>
+                  {setupIntentLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </label>
+
+                {/* Option 3: Skip */}
+                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="incidentals"
+                    value="skip"
+                    checked={incidentalsChoice === 'skip'}
+                    onChange={() => setIncidentalsChoice('skip')}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm text-muted-foreground">Skip — no card on file for incidentals</span>
+                </label>
+              </div>
+
+              {/* New card input (shown when "new-card" is selected) */}
+              {incidentalsChoice === 'new-card' && setupIntentSecret && (
+                <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                  {setupIntentError ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{setupIntentError}</AlertDescription>
+                    </Alert>
+                  ) : (
+                    <>
+                      <Elements stripe={stripePromise} options={{ clientSecret: setupIntentSecret, appearance: { theme: 'stripe' as const } }}>
+                        <IncidentalsCardForm
+                          onPaymentMethodId={(pmId) => setNewCardPaymentMethodId(pmId)}
+                        />
+                      </Elements>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        Card details are securely processed by Stripe
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Notes Section */}
             <div className="space-y-2">

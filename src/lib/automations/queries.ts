@@ -595,6 +595,7 @@ export async function listExecutionLogs(
     sortOrder?: ExecutionLogSortOrder
     limit?: number
     offset?: number
+    companyId?: string
   }
 ): Promise<{ logs: ExecutionLogRow[]; total: number }> {
   const supabase = createServiceRoleClient()
@@ -606,11 +607,22 @@ export async function listExecutionLogs(
     ? filters.sortOrder
     : 'desc'
 
+  // Include both property-scoped logs and system automation logs (property_id IS NULL)
+  // scoped to the same company to prevent cross-company visibility
   let query = supabase
     .from('automation_execution_log' as any)
     .select('*', { count: 'exact' })
-    .eq('property_id', propertyId)
     .order(sortBy, { ascending: sortOrder === 'asc' })
+
+  if (filters?.companyId) {
+    // Use .or() to include both property-scoped and system-scoped logs within the same company
+    query = query
+      .eq('company_id', filters.companyId)
+      .or(`property_id.eq.${propertyId},property_id.is.null`)
+  } else {
+    // Fallback: only property-scoped logs if companyId not provided
+    query = query.eq('property_id', propertyId)
+  }
 
   if (filters?.automationId) query = query.eq('automation_id', filters.automationId)
   if (filters?.dateFrom) query = query.gte('created_at', filters.dateFrom)
@@ -647,12 +659,28 @@ export async function listExecutionLogs(
     throw error
   }
 
+  // Post-fetch enrichment: batch-fetch automation names/scopes
+  const automationIds = [...new Set((data ?? []).map((r: any) => r.automation_id).filter(Boolean))]
+
+  const automationMap = new Map<string, { name: string; scope: string }>()
+  if (automationIds.length > 0) {
+    const { data: automations } = await supabase
+      .from('automations' as any)
+      .select('id, name, scope')
+      .in('id', automationIds)
+
+    for (const a of (automations ?? [])) {
+      automationMap.set(a.id, { name: a.name, scope: a.scope })
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const logs: ExecutionLogRow[] = (data ?? []).map((row: any) => {
+    const auto = automationMap.get(row.automation_id)
     return {
       ...row,
-      automation_name: null,
-      automation_scope: row.automations?.scope ?? null,
+      automation_name: auto?.name ?? (row.automation_id == null ? 'Summary' : null),
+      automation_scope: auto?.scope ?? null,
     }
   })
 
@@ -672,19 +700,26 @@ export async function listExecutionLogs(
  */
 export async function findActiveAutomationsByTrigger(
   triggerType: string,
-  propertyId: string
+  propertyId: string,
+  companyId?: string
 ): Promise<AutomationRow[]> {
   const supabase = createServiceRoleClient()
+
+  // Fetch property-scoped automations + system automations for the same company
+  const orParts = [`property_id.eq.${propertyId}`]
+  if (companyId) {
+    orParts.push(`and(property_id.is.null,company_id.eq.${companyId})`)
+  }
 
   const { data, error } = await supabase
     .from('automations' as any)
     .select('*')
-    .eq('property_id', propertyId)
+    .or(orParts.join(','))
     .eq('is_active', true)
     .eq('trigger_type', triggerType)
 
   if (error) {
-    console.error('[automations] findActiveAutomationsByTrigger failed', { triggerType, propertyId, error })
+    console.error('[automations] findActiveAutomationsByTrigger failed', { triggerType, propertyId, companyId, error })
     throw error
   }
 

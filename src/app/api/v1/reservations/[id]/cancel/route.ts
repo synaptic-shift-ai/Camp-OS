@@ -21,6 +21,7 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { computeRefundCentsFromCancellationPolicy } from '@/modules/BookingEngine/domain/services/CancellationPolicyRefundCalculator'
 import { sendCancellationNotice } from '@/lib/email/send'
+import { canAutomationHandleEmail } from '@/lib/automations/email-guard'
 import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
@@ -406,22 +407,33 @@ export async function POST(
             ? 'completed'
             : 'processing'
 
-      sendCancellationNotice({
-        guestName,
-        guestEmail: guest.email,
-        confirmationNumber: reservation.confirmationNumber.value,
-        propertyName: propertyRow.name,
-        siteName,
-        checkInDate: reservation.checkInDate.toISOString(),
-        checkOutDate: reservation.checkOutDate.toISOString(),
-        cancellationDate: new Date().toISOString(),
-        ...(validatedRequest.reason ? { cancellationReason: validatedRequest.reason } : {}),
-        ...(refundAmountCents > 0 ? { refundAmount: refundAmountCents } : {}),
-        ...(validatedRequest.refundPaymentMethod ? { refundPaymentMethod: validatedRequest.refundPaymentMethod } : {}),
-        refundStatus,
-      }).catch((err) => {
-        console.error('[Reservation API v1] Failed to send cancellation notice:', err)
-      })
+      // Check if automation engine will handle the email; if not, send directly
+      const automationHandlesEmail = await canAutomationHandleEmail(
+        'reservation.cancelled',
+        existingReservation.propertyId,
+        'cancellation_notice',
+      )
+
+      if (!automationHandlesEmail) {
+        sendCancellationNotice({
+          guestName,
+          guestEmail: guest.email,
+          confirmationNumber: reservation.confirmationNumber.value,
+          propertyName: propertyRow.name,
+          siteName,
+          checkInDate: reservation.checkInDate.toISOString(),
+          checkOutDate: reservation.checkOutDate.toISOString(),
+          cancellationDate: new Date().toISOString(),
+          ...(validatedRequest.reason ? { cancellationReason: validatedRequest.reason } : {}),
+          ...(refundAmountCents > 0 ? { refundAmount: refundAmountCents } : {}),
+          ...(validatedRequest.refundPaymentMethod ? { refundPaymentMethod: validatedRequest.refundPaymentMethod } : {}),
+          refundStatus,
+        }).catch((err) => {
+          console.error('[Reservation API v1] Failed to send cancellation notice:', err)
+        })
+      } else {
+        console.log('[CancelReservation] Automation handles email, skipping direct send')
+      }
     }
 
     if (access.companyId) {
@@ -446,6 +458,20 @@ export async function POST(
       stripeRefunded: stripeRefundId != null,
       stripeRefundId,
     })
+
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      await triggerReservationAutomations(
+        'reservation.cancelled',
+        reservationId,
+        existingReservation.propertyId,
+        property.company_id,
+      )
+    } catch (pipelineError) {
+      console.error('[CancelReservation] Automation pipeline failed:', pipelineError)
+      // Non-blocking — cancellation still succeeds
+    }
 
     return success(reservationDTO)
   } catch (err: any) {

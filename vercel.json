@@ -7,6 +7,18 @@
     {
       "path": "/api/cron/update-housekeeping-status",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/automation-scheduled",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/automation-check-in-reminder",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/automation-check-out-reminder",
+      "schedule": "0 8 * * *"
     }
   ]
 }

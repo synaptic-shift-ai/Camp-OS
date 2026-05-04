@@ -11,6 +11,8 @@ import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { UpdateHousekeepingTaskRequestSchema } from '@/types/api/v1/schemas/housekeeping'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { HousekeepingTaskCompletedEvent } from '@/modules/Housekeeping/domain/events'
+import { buildEventContext } from '@/lib/automations/event-context'
+import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
 
 function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
   return (siteType ?? '')
@@ -438,6 +440,22 @@ export async function PATCH(
         ))
       } catch (evtErr) {
         console.warn('[HK] Failed to publish TaskCompleted event (non-blocking)', evtErr)
+      }
+
+      // Direct automation trigger (bypasses unreliable EventBus in dev/serverless)
+      try {
+        const event = new HousekeepingTaskCompletedEvent(
+          propertyId,
+          housekeepingTask.id,
+          housekeepingTask.title,
+          housekeepingTask.site_id,
+        )
+        const context = await buildEventContext(event)
+        if (context.propertyId && context.companyId) {
+          await runPipelineForTrigger('housekeeping.task_completed', context.propertyId, context.companyId, context)
+        }
+      } catch (autoErr) {
+        console.warn('[HK] Direct automation trigger failed (non-blocking)', autoErr)
       }
     }
 

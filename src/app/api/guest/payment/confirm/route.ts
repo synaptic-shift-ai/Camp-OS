@@ -26,8 +26,12 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { sendBookingConfirmation } from '@/lib/email/send'
+import { canAutomationHandleEmail } from '@/lib/automations/email-guard'
 import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
+import { PaymentReceived } from '@/modules/BookingEngine/domain/events/PaymentReceived'
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -277,11 +281,72 @@ export async function POST(request: NextRequest) {
       directions: reservation.property.directions || undefined,
     }
 
-    const emailResult = await sendBookingConfirmation(emailData)
+    // Check if automation engine will handle the email; if not, send directly
+    const automationHandlesEmail = await canAutomationHandleEmail(
+      ['reservation.confirmed', 'reservation.created'],
+      reservation.property_id,
+      'welcome_email',
+    )
 
-    if (!emailResult.success) {
-      console.error('[Payment Confirm] Email send failed:', emailResult.error)
-      // Don't fail - reservation is confirmed
+    if (!automationHandlesEmail) {
+      const emailResult = await sendBookingConfirmation(emailData)
+
+      if (!emailResult.success) {
+        console.error('[Payment Confirm] Email send failed:', emailResult.error)
+        // Don't fail - reservation is confirmed
+      }
+    } else {
+      console.log('[Payment Confirm] Automation handles email, skipping direct send')
+    }
+
+    // ========================================================================
+    // Step 5.5: Publish domain events
+    // ========================================================================
+
+    try {
+      const eventBus = getEventBus()
+      await eventBus.publishAll([
+        new ReservationConfirmed(reservation.id, reservation.confirmation_number),
+        new PaymentReceived(
+          reservation.id,
+          reservation.confirmation_number,
+          paidAmountCents,
+          'credit_card',
+          validatedInput.payment_intent_id,
+        ),
+      ])
+    } catch (eventErr) {
+      console.error('[Payment Confirm] Event publish failed (non-blocking):', eventErr)
+    }
+
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      const reservationPropertyId = reservation.property_id as string
+      // Derive companyId from property
+      const { data: propData } = await createServiceRoleClient()
+        .from('properties')
+        .select('company_id')
+        .eq('id', reservationPropertyId)
+        .single()
+      const reservationCompanyId = propData?.company_id as string
+      if (reservationCompanyId) {
+        await triggerReservationAutomations(
+          'reservation.confirmed',
+          validatedInput.reservation_id,
+          reservationPropertyId,
+          reservationCompanyId,
+        )
+        await triggerReservationAutomations(
+          'payment.received',
+          validatedInput.reservation_id,
+          reservationPropertyId,
+          reservationCompanyId,
+        )
+      }
+    } catch (pipelineError) {
+      console.error('[Payment Confirm] Automation pipeline failed:', pipelineError)
+      // Non-blocking — payment confirmation still succeeds
     }
 
     // ========================================================================
@@ -303,7 +368,7 @@ export async function POST(request: NextRequest) {
         check_out_date: reservation.check_out_date,
         total_amount_cents: reservation.total_amount,
         paid_amount_cents: paidAmountCents,
-        email_sent: emailResult.success,
+        email_sent: !automationHandlesEmail,
       },
       message: 'Payment confirmed successfully. Confirmation email sent.',
     })

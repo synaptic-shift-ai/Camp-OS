@@ -114,6 +114,31 @@ export async function POST(
       )
     }
 
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      // Fetch property company_id for automation context
+      const { data: automationProperty } = await supabase
+        .from('properties')
+        .select('company_id')
+        .eq('id', existingReservation.propertyId)
+        .maybeSingle()
+
+      if (automationProperty?.company_id) {
+        await triggerReservationAutomations(
+          'reservation.modified',
+          reservationId,
+          existingReservation.propertyId,
+          automationProperty.company_id,
+        )
+      } else {
+        console.warn('[Renew] Skipping automation: no company_id for property', existingReservation.propertyId)
+      }
+    } catch (pipelineError) {
+      console.error('[Renew] Automation pipeline failed:', pipelineError)
+      // Non-blocking — renewal still succeeds
+    }
+
     // Convert to DTOs
     const originalReservationDTO = toReservationDTO(result.originalReservation)
     const renewalReservationDTO = toReservationDTO(result.renewalReservation)

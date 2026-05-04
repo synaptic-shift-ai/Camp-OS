@@ -20,6 +20,9 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { StripePaymentIntentSucceededSchema } from '@/contracts/schemas'
 import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
 import type { Guest } from '@/lib/booking/types'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
+import { PaymentReceived } from '@/modules/BookingEngine/domain/events/PaymentReceived'
 import { Transaction } from '@/modules/Financial/domain/Transaction'
 import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
 import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
@@ -312,6 +315,38 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       guestId: guest_id,
       amountCents: validated.amount,
       stripePaymentIntentId: validated.id,
+    })
+
+    // --- Publish domain events (fire-and-forget with timeout) ---
+    // Fetch confirmation_number for event payload
+    const { data: confirmedReservation } = await supabase
+      .from('reservations')
+      .select('confirmation_number')
+      .eq('id', reservation_id)
+      .eq('property_id', property_id)
+      .single()
+
+    const confirmationNumber = (confirmedReservation as any)?.confirmation_number ?? ''
+
+    const eventBus = getEventBus()
+    const events = [
+      new ReservationConfirmed(reservation_id, confirmationNumber),
+      new PaymentReceived(
+        reservation_id,
+        confirmationNumber,
+        validated.amount,
+        'card',
+        validated.id,
+      ),
+    ]
+
+    // Don't let pipeline block the webhook response beyond 5s
+    await Promise.race([
+      eventBus.publishAll(events),
+      new Promise(resolve => setTimeout(resolve, 5000)),
+    ]).catch(err => {
+      console.error('[Stripe Webhook] Event publishing failed:', err)
+      // Don't fail the webhook — DB writes already succeeded
     })
   } catch (error: any) {
     console.error('Error in handlePaymentIntentSucceeded:', error)

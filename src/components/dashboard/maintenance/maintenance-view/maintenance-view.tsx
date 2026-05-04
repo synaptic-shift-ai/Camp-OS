@@ -356,44 +356,43 @@ export function MaintenanceView({
     return formatDuration(workElapsedSeconds)
   }, [workElapsedSeconds])
 
-  // ── SLA timer ──
+  // ── SLA timer (counts UP: elapsed time since SLA reference) ──
 
-  const slaSecondsRemaining = useMemo(() => {
+  const slaSecondsElapsed = useMemo(() => {
     if (!task?.sla || !task?.created_at) return null
-    if (task.status === "completed" || task.status === "cancelled") return null
 
-    // Use scheduled_start as SLA reference when available
-    const slaRefMs = task.scheduled_start
+    // Reference point: scheduled_start takes priority, fall back to started_at
+    const refMs = task.scheduled_start
       ? new Date(task.scheduled_start).getTime()
-      : null
+      : task.started_at
+        ? new Date(task.started_at).getTime()
+        : null
 
-    if (!task.started_at || task.status === "open") {
-      if (slaRefMs) {
-        const deadlineMs = slaRefMs + task.sla * 3600 * 1000
-        return Math.max(0, Math.floor((deadlineMs - now) / 1000))
-      }
-      return task.sla * 3600
+    if (!refMs) return null
+
+    if (task.status === "completed" && task.completed_at) {
+      return Math.max(0, Math.floor((new Date(task.completed_at).getTime() - refMs) / 1000))
     }
+    if (task.status === "cancelled") return null
 
-    const deadlineMs = task.due_date
-      ? new Date(task.due_date).getTime()
-      : (slaRefMs ?? new Date(task.started_at).getTime()) + task.sla * 3600 * 1000
-    const slaNowMs =
+    // Freeze at hold time when on hold
+    const effectiveNow =
       task.status === "on_hold" && task.on_hold_at
         ? new Date(task.on_hold_at).getTime()
         : now
-    const remaining = Math.max(0, Math.floor((deadlineMs - slaNowMs) / 1000))
-    return remaining
-  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.due_date, task?.scheduled_start, now])
+
+    return Math.max(0, Math.floor((effectiveNow - refMs) / 1000))
+  }, [task?.sla, task?.created_at, task?.started_at, task?.status, task?.on_hold_at, task?.completed_at, task?.scheduled_start, now])
 
   const slaDisplay = useMemo(() => {
-    if (slaSecondsRemaining === null) return null
-    return formatDuration(slaSecondsRemaining)
-  }, [slaSecondsRemaining])
+    if (slaSecondsElapsed === null) return null
+    return formatDuration(slaSecondsElapsed)
+  }, [slaSecondsElapsed])
 
   const isSlaBreached =
-    slaSecondsRemaining !== null &&
-    slaSecondsRemaining === 0 &&
+    slaSecondsElapsed !== null &&
+    (task?.sla ?? 0) > 0 &&
+    slaSecondsElapsed > (task?.sla ?? 0) * 3600 &&
     task?.status !== "completed" &&
     task?.status !== "cancelled"
 
@@ -982,14 +981,8 @@ export function MaintenanceView({
     editPartsCost !== String(task.actual_parts_cost ?? "")
   const slaTargetHours = task.sla ?? null
   const slaProgressPercent =
-    slaTargetHours && slaSecondsRemaining !== null
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((slaTargetHours * 3600 - slaSecondsRemaining) / (slaTargetHours * 3600)) * 100,
-          ),
-        )
+    slaTargetHours && slaSecondsElapsed !== null
+      ? Math.max(0, (slaSecondsElapsed / (slaTargetHours * 3600)) * 100)
       : null
 
   return (
@@ -1028,7 +1021,7 @@ export function MaintenanceView({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase tracking-wide text-emerald-200/70">SLA</p>
+              <p className="text-xs uppercase tracking-wide text-emerald-200/70">SLA Elapsed</p>
               <p className={`text-3xl font-semibold ${isSlaBreached ? "text-red-300" : ""}`}>{slaDisplay ?? "—"}</p>
               <p className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-100/80">
                 <Clock className="h-3.5 w-3.5" />
@@ -1484,8 +1477,8 @@ export function MaintenanceView({
             </CardHeader>
             <CardContent className="space-y-3 pt-0 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Response SLA</span>
-                <span>{slaTargetHours ? `${slaTargetHours}h target` : "No SLA"}</span>
+                <span className="text-muted-foreground">SLA Target</span>
+                <span>{slaTargetHours ? `${slaTargetHours}h` : "No SLA"}</span>
               </div>
               {task.due_date ? (
                 <div className="flex items-center justify-between">
@@ -1497,7 +1490,7 @@ export function MaintenanceView({
                 <div className={`h-full transition-all ${isSlaBreached ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${slaProgressPercent ?? 0}%` }} />
               </div>
               <div className={`rounded-md px-3 py-2 text-sm ${isSlaBreached ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
-                {slaSecondsRemaining === null ? "No active SLA" : isSlaBreached ? "SLA Breached" : "On track"}
+                {slaSecondsElapsed === null ? "No active SLA" : isSlaBreached ? "SLA Breached" : "On track"}
               </div>
               {task.on_hold_reason ? (
                 <div className="space-y-1 border-t pt-2">

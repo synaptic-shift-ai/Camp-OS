@@ -202,7 +202,7 @@ export type UpdateSpendLimitRequest = z.infer<typeof UpdateSpendLimitRequestSche
 export const MaintenanceGuideStepSchema = z.object({
     id: z.string(),
     label: z.string().min(1, 'Step label is required'),
-    notes: z.string().optional(),
+    notes: z.string().nullable().optional(),
 })
 
 export const CreateMaintenanceGuideSchema = z.object({

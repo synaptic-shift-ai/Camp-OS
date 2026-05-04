@@ -34,6 +34,8 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     isSuspectedDamage: z.boolean().optional(),
     vendorId: z.string().uuid().nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
+    scheduledStart: z.string().datetime().nullable().optional(),
+    dueDate: z.string().datetime().nullable().optional(),
 })
 
 export const UpdateMaintenanceTaskRequestSchema = z.object({
@@ -55,6 +57,8 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     vendorInvoiceCost: z.number().nonnegative().nullable().optional(),
     closeoutNotes: z.string().trim().max(5000).nullable().optional(),
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
+    scheduledStart: z.string().datetime().nullable().optional(),
+    dueDate: z.string().datetime().nullable().optional(),
     on_hold_reason: z.string().optional().nullable(),
     cancelled_reason: z.string().optional().nullable(),
 }).refine((payload) => Object.keys(payload).length > 0, {

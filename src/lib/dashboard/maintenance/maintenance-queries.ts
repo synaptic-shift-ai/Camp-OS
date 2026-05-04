@@ -57,6 +57,8 @@ export type CreateMaintenanceTaskInput = {
     isSuspectedDamage?: boolean
     vendorId?: string | null
     sla?: number | null
+    scheduledStart?: string | null
+    dueDate?: string | null
 }
 
 export type UpdateMaintenanceTaskInput = {
@@ -86,6 +88,8 @@ export type UpdateMaintenanceTaskInput = {
     on_hold_reason?: string | null
     cancelled_at?: string | null
     cancelled_reason?: string | null
+    scheduledStart?: string | null
+    dueDate?: string | null
 }
 
 export type ListMaintenanceTasksFilters = {
@@ -288,6 +292,8 @@ export class MaintenanceQueries {
             ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
+            ...(input.scheduledStart !== undefined ? { scheduled_start: input.scheduledStart } : {}),
+            ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
         }
 
         const { data, error } = await this.supabase
@@ -586,7 +592,11 @@ export class MaintenanceQueries {
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
         }
 
-        // Lifecycle timestamp/reason fields (added via migration — gen:db will include these in the DB type)
+        // Date/time fields
+        const dateUpdates: Record<string, unknown> = {
+            ...(input.scheduledStart !== undefined ? { scheduled_start: input.scheduledStart } : {}),
+            ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
+        }
         const lifecycleUpdates: Record<string, unknown> = {
             ...(input.started_at !== undefined ? { started_at: input.started_at } : {}),
             ...(input.completed_at !== undefined ? { completed_at: input.completed_at } : {}),
@@ -598,7 +608,7 @@ export class MaintenanceQueries {
 
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
-            .update({ ...updateRow, ...lifecycleUpdates })
+            .update({ ...updateRow, ...lifecycleUpdates, ...dateUpdates })
             .eq('id', input.id)
             .eq('property_id', input.propertyId)
             .select()
@@ -1527,5 +1537,40 @@ export class MaintenanceQueries {
             })
             throw new Error(`Failed to delete maintenance guide: ${error.message}`)
         }
+    }
+
+    async findOverlappingMaintenance(
+        siteId: string,
+        startDate: string,
+        endDate: string,
+    ): Promise<Array<{ id: string; title: string; due_date: string | null; scheduled_start: string | null; status: string }>> {
+        const { data, error } = await this.supabase
+            .from('maintenance_tasks')
+            .select('id, title, due_date, scheduled_start, status')
+            .eq('site_id', siteId)
+            .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
+            .neq('due_date', null)
+            .lt('due_date', endDate)
+            .or(`scheduled_start.lt.${endDate},started_at.lt.${endDate}`)
+            .gt('scheduled_start', startDate)
+            .order('due_date', { ascending: true })
+
+        if (error) {
+            console.error('[MaintenanceQueries] Failed to find overlapping maintenance', {
+                siteId,
+                startDate,
+                endDate,
+                error,
+            })
+            throw new Error(`Failed to find overlapping maintenance: ${error.message}`)
+        }
+
+        return (data ?? []).map((row) => ({
+            id: row.id,
+            title: row.title,
+            due_date: row.due_date,
+            scheduled_start: row.scheduled_start,
+            status: row.status,
+        }))
     }
 }

@@ -111,6 +111,7 @@ export type AddMaintenanceTaskInput = {
   estimatedPartsCost?: number | null
   isSuspectedDamage?: boolean
   vendorId?: string | null
+  guideId?: string | null
   scheduledStart?: string | null
   dueDate?: string | null
   images?: File[]
@@ -136,6 +137,8 @@ type AddTaskDialogProps = {
   isSubmitting?: boolean
   /** Property vendors for optional task link (empty until loaded from API). */
   vendorOptions?: Array<{ id: string; label: string }>
+  /** Maintenance guides for optional task link. */
+  guideOptions?: Array<{ id: string; label: string }>
   onSubmit: (input: AddMaintenanceTaskInput) => Promise<void>
 }
 
@@ -198,6 +201,7 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   estimatedPartsCost: null,
   isSuspectedDamage: false,
   vendorId: null,
+  guideId: null,
   scheduledStart: null,
   dueDate: null,
 }
@@ -213,6 +217,7 @@ export function AddTaskDialog({
   selfAssigneeLabel = "You",
   isSubmitting = false,
   vendorOptions = [],
+  guideOptions = [],
 }: AddTaskDialogProps) {
   const { toast } = useToast()
   const [form, setForm] = useState<AddMaintenanceTaskInput>(INITIAL_FORM)
@@ -604,6 +609,30 @@ export function AddTaskDialog({
                   <SelectItem key={vendor.id} value={vendor.id}>
                     {vendor.label}
                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Linked Guide</Label>
+            <Select
+              value={form.guideId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  guideId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder={guideOptions.length === 0 ? "No guides available" : "Select a guide"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {guideOptions.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

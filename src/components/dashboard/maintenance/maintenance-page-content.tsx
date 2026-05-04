@@ -183,6 +183,7 @@ type ApiMaintenanceTask = {
   estimated_parts_cost: number | null
   is_suspected_damage: boolean | null
   vendor_id: string | null
+  guide_id: string | null
   sla: number | null
   staff_id: string | null
   scheduled_start: string | null
@@ -256,6 +257,7 @@ export function MaintenancePageContent({
   const [taskPendingDelete, setTaskPendingDelete] = useState<MaintenanceTaskRow | null>(null)
   const [viewMode, setViewMode] = useState<MaintenanceViewMode>("wo_list")
   const [vendorOptions, setVendorOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [guideOptions, setGuideOptions] = useState<Array<{ id: string; label: string }>>([])
   const [vendorRows, setVendorRows] = useState<VendorTableRow[]>([])
   const [schedulesRefreshKey, setSchedulesRefreshKey] = useState(0)
   const [editingSchedule, setEditingSchedule] = useState<any | null>(null)
@@ -266,6 +268,20 @@ export function MaintenancePageContent({
   const [isDeletingSchedule, setIsDeletingSchedule] = useState(false)
 
   const [_isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false)
+
+  const loadGuideOptions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/maintenance/guides`)
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) return
+      const guides = payload.data?.guides as Array<{ id: string; name: string }> | undefined
+      if (Array.isArray(guides)) {
+        setGuideOptions(guides.map((g) => ({ id: g.id, label: g.name })))
+      }
+    } catch {
+      /* ignore — guide link is optional */
+    }
+  }, [propertyId])
 
   const loadVendorOptions = useCallback(async () => {
     try {
@@ -283,10 +299,12 @@ export function MaintenancePageContent({
 
   useEffect(() => {
     void loadVendorOptions()
-  }, [loadVendorOptions])
+    void loadGuideOptions()
+  }, [loadVendorOptions, loadGuideOptions])
 
   useEffect(() => {
     if (isAddTaskDialogOpen || isEditTaskDialogOpen) void loadVendorOptions()
+    if (isAddTaskDialogOpen || isEditTaskDialogOpen) void loadGuideOptions()
   }, [isAddTaskDialogOpen, isEditTaskDialogOpen, loadVendorOptions])
 
   useEffect(() => {
@@ -417,6 +435,7 @@ export function MaintenancePageContent({
         estimatedPartsCost: task.estimated_parts_cost,
         isSuspectedDamage: task.is_suspected_damage ?? false,
         vendorId: task.vendor_id,
+        guideId: task.guide_id ?? null,
         sla: task.sla,
         scheduledStart: task.scheduled_start ?? null,
         dueDate: task.due_date ?? null,
@@ -677,6 +696,7 @@ export function MaintenancePageContent({
           estimatedPartsCost: input.estimatedPartsCost ?? null,
           isSuspectedDamage: input.isSuspectedDamage ?? false,
           vendorId: input.vendorId ?? null,
+          guideId: input.guideId ?? null,
           scheduledStart: input.scheduledStart ?? null,
           dueDate: input.dueDate ?? null,
         }),
@@ -776,6 +796,7 @@ export function MaintenancePageContent({
         estimatedPartsCost: input.estimatedPartsCost ?? null,
         isSuspectedDamage: input.isSuspectedDamage,
         vendorId: input.vendorId ?? null,
+        guideId: input.guideId ?? null,
         scheduledStart: input.scheduledStart ?? null,
         dueDate: input.dueDate ?? null,
       }
@@ -1006,6 +1027,7 @@ export function MaintenancePageContent({
         selfAssigneeLabel={selfAssigneeLabel}
         isSubmitting={isCreatingTask}
         vendorOptions={vendorOptions}
+        guideOptions={guideOptions}
         onSubmit={handleAddTask}
       />
       <EditTaskDialog
@@ -1017,6 +1039,7 @@ export function MaintenancePageContent({
         canAssignWorkOrder={canAssignWorkOrder}
         isSubmitting={isUpdatingTask}
         vendorOptions={vendorOptions}
+        guideOptions={guideOptions}
         onSubmit={handleEditTask}
       />
       <DeleteTaskConfirmationDialog

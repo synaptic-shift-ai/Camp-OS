@@ -55,6 +55,7 @@ export type CreateMaintenanceTaskInput = {
     estimatedPartsCost?: number | null
     isSuspectedDamage?: boolean
     vendorId?: string | null
+    guideId?: string | null
     sla?: number | null
     scheduledStart?: string | null
     dueDate?: string | null
@@ -77,6 +78,7 @@ export type UpdateMaintenanceTaskInput = {
     actualPartsCost?: number | null
     isSuspectedDamage?: boolean
     vendorId?: string | null
+    guideId?: string | null
     vendorInvoiceNumber?: string | null
     vendorInvoiceCost?: number | null
     closeoutNotes?: string | null
@@ -285,6 +287,7 @@ export class MaintenanceQueries {
             ...(input.estimatedPartsCost !== undefined ? { estimated_parts_cost: input.estimatedPartsCost } : {}),
             ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.guideId !== undefined ? { guide_id: input.guideId } : {}),
             ...(input.sla !== undefined ? { sla: input.sla } : {}),
             ...(input.scheduledStart !== undefined ? { scheduled_start: input.scheduledStart } : {}),
             ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
@@ -580,6 +583,7 @@ export class MaintenanceQueries {
             ...(input.actualPartsCost !== undefined ? { actual_parts_cost: input.actualPartsCost } : {}),
             ...(input.isSuspectedDamage !== undefined ? { is_suspected_damage: input.isSuspectedDamage } : {}),
             ...(input.vendorId !== undefined ? { vendor_id: input.vendorId } : {}),
+            ...(input.guideId !== undefined ? { guide_id: input.guideId } : {}),
             ...(input.vendorInvoiceNumber !== undefined ? { vendor_invoice_number: input.vendorInvoiceNumber } : {}),
             ...(input.vendorInvoiceCost !== undefined ? { vendor_invoice_cost: input.vendorInvoiceCost } : {}),
             ...(input.closeoutNotes !== undefined ? { closeout_notes: input.closeoutNotes } : {}),

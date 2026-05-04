@@ -46,6 +46,7 @@ type EditTaskDialogProps = {
   canAssignWorkOrder?: boolean
   isSubmitting?: boolean
   vendorOptions?: Array<{ id: string; label: string }>
+  guideOptions?: Array<{ id: string; label: string }>
   onSubmit: (input: AddMaintenanceTaskInput & { id: string }) => Promise<void>
 }
 
@@ -71,6 +72,7 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   estimatedPartsCost: null,
   isSuspectedDamage: false,
   vendorId: null,
+  guideId: null,
   scheduledStart: null,
   dueDate: null,
 }
@@ -84,6 +86,7 @@ export function EditTaskDialog({
   canAssignWorkOrder = true,
   isSubmitting = false,
   vendorOptions = [],
+  guideOptions = [],
   onSubmit,
 }: EditTaskDialogProps) {
   const { toast } = useToast()
@@ -122,6 +125,7 @@ export function EditTaskDialog({
       estimatedPartsCost: task.estimatedPartsCost ?? null,
       isSuspectedDamage: task.isSuspectedDamage ?? false,
       vendorId: task.vendorId ?? null,
+      guideId: (task as any).guideId ?? null,
       scheduledStart: task.scheduledStart ?? null,
       dueDate: task.dueDate ?? null,
     })
@@ -197,6 +201,7 @@ export function EditTaskDialog({
         estimatedLaborCost: form.estimatedLaborCost ?? null,
         estimatedPartsCost: form.estimatedPartsCost ?? null,
         vendorId: form.vendorId ?? null,
+        guideId: form.guideId ?? null,
         scheduledStart: form.scheduledStart ?? null,
         dueDate: form.dueDate ?? null,
         images: localImages.map((item) => item.file),
@@ -470,6 +475,30 @@ export function EditTaskDialog({
                   <SelectItem key={vendor.id} value={vendor.id}>
                     {vendor.label}
                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Linked Guide</Label>
+            <Select
+              value={form.guideId ?? "none"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  guideId: value === "none" ? null : value,
+                }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder={guideOptions.length === 0 ? "No guides available" : "Select a guide"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {guideOptions.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -1586,6 +1586,7 @@ export type Database = {
           due_date: string | null
           estimated_labor_cost: number | null
           estimated_parts_cost: number | null
+          guide_id: string | null
           id: string
           is_suspected_damage: boolean
           on_hold_at: string | null
@@ -1621,6 +1622,7 @@ export type Database = {
           due_date?: string | null
           estimated_labor_cost?: number | null
           estimated_parts_cost?: number | null
+          guide_id?: string | null
           id?: string
           is_suspected_damage?: boolean
           on_hold_at?: string | null
@@ -1656,6 +1658,7 @@ export type Database = {
           due_date?: string | null
           estimated_labor_cost?: number | null
           estimated_parts_cost?: number | null
+          guide_id?: string | null
           id?: string
           is_suspected_damage?: boolean
           on_hold_at?: string | null

@@ -36,6 +36,7 @@ export type MaintenanceTaskRow = {
   estimatedPartsCost?: number | null
   isSuspectedDamage?: boolean
   vendorId?: string | null
+  guideId?: string | null
   sla?: number | null
   scheduledStart?: string | null
   dueDate?: string | null

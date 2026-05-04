@@ -68,6 +68,7 @@ type TaskDetails = {
   closeout_notes: string | null
   sla: number | null
   vendor_id: string | null
+  guide_id: string | null
   staff_id: string | null
   created_at: string
   updated_at: string
@@ -198,6 +199,7 @@ export function MaintenanceView({
   const [isReassignOpen, setIsReassignOpen] = useState(false)
   const [isReassigning, setIsReassigning] = useState(false)
   const [taskImages, setTaskImages] = useState<TaskImageItem[]>([])
+  const [guideData, setGuideData] = useState<{ name: string; description: string | null; steps: Array<{ id: string; label: string; notes?: string }> } | null>(null)
   // Actual cost editing state
   const [editLaborCost, setEditLaborCost] = useState<string>("")
   const [editPartsCost, setEditPartsCost] = useState<string>("")
@@ -258,6 +260,7 @@ export function MaintenanceView({
         closeout_notes: raw.closeoutNotes ?? raw.closeout_notes ?? null,
         sla: raw.sla,
         vendor_id: raw.vendorId ?? raw.vendor_id,
+        guide_id: raw.guideId ?? raw.guide_id ?? null,
         staff_id: raw.staffId ?? raw.staff_id,
         created_at: raw.created_at,
         updated_at: raw.updated_at,
@@ -316,6 +319,31 @@ export function MaintenanceView({
   useEffect(() => {
     void loadTaskImages()
   }, [loadTaskImages])
+
+  useEffect(() => {
+    if (!task?.guide_id) {
+      setGuideData(null)
+      return
+    }
+    let cancelled = false
+    fetch(`/api/v1/properties/${propertyId}/maintenance/guides/${task.guide_id}`)
+      .then((res) => res.json())
+      .then((payload) => {
+        if (cancelled || !payload?.success) return
+        const guide = payload.data?.guide
+        if (guide) {
+          setGuideData({
+            name: guide.name,
+            description: guide.description ?? null,
+            steps: Array.isArray(guide.steps) ? guide.steps : [],
+          })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGuideData(null)
+      })
+    return () => { cancelled = true }
+  }, [task?.guide_id, propertyId])
 
   // ── Live timer for in-progress tasks ──
 
@@ -1288,6 +1316,31 @@ export function MaintenanceView({
               </div>
             </CardContent>
           </Card>
+
+          {task.guide_id && guideData && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Linked Guide</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <h4 className="font-medium">{guideData.name}</h4>
+                {guideData.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{guideData.description}</p>
+                )}
+                <div className="mt-3 space-y-2">
+                  {guideData.steps.map((step, idx) => (
+                    <div key={step.id} className="flex gap-2 text-sm">
+                      <span className="font-medium text-muted-foreground min-w-[20px]">{idx + 1}.</span>
+                      <div>
+                        <span>{step.label}</span>
+                        {step.notes && <p className="text-muted-foreground text-xs mt-0.5">{step.notes}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-2">

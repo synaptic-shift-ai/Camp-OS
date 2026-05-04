@@ -88,7 +88,7 @@ export async function POST(
 
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId,
-      permission: 'maintenance.create_manual',
+      permission: 'maintenance.create_wo',
     })
     if (isDenied(access)) return access
 
@@ -127,7 +127,7 @@ export async function POST(
       steps: parsed.data.steps.map((step) => ({
         id: step.id,
         label: step.label,
-        notes: step.notes ?? undefined,
+        ...(step.notes ? { notes: step.notes } : {}),
       })),
     })
 

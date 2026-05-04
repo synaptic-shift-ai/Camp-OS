@@ -92,7 +92,7 @@ export async function PATCH(
 
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId,
-      permission: 'maintenance.start_complete',
+      permission: 'maintenance.update_assigned',
     })
     if (isDenied(access)) return access
 
@@ -126,12 +126,13 @@ export async function PATCH(
     const guide = await queries.updateMaintenanceGuide({
       id: guideId,
       propertyId,
+      createdBy: user.id,
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       steps: parsed.data.steps.map((step) => ({
         id: step.id,
         label: step.label,
-        notes: step.notes ?? undefined,
+        ...(step.notes ? { notes: step.notes } : {}),
       })),
     })
 
@@ -183,7 +184,7 @@ export async function DELETE(
 
     const access = await requirePropertyAccess(supabase, user.id, {
       propertyId,
-      permission: 'maintenance.reassign',
+      permission: 'maintenance.assign_wo',
     })
     if (isDenied(access)) return access
 

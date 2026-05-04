@@ -774,6 +774,14 @@ export function MaintenanceView({
         throw new Error(payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to resume")
       }
       const updated = payload?.data?.maintenanceTask as Partial<TaskDetails> | undefined
+      // Mirror server-side hold-duration shift for the optimistic timer
+      const holdAtMs = task.on_hold_at ? new Date(task.on_hold_at).getTime() : null
+      const startedAtMs = task.started_at ? new Date(task.started_at).getTime() : null
+      let localStartedAt = task.started_at
+      if (startedAtMs && holdAtMs && holdAtMs > startedAtMs) {
+        const holdDurationMs = Date.now() - holdAtMs
+        localStartedAt = new Date(startedAtMs + holdDurationMs).toISOString()
+      }
       setTask((previous) =>
         previous
           ? {
@@ -783,7 +791,7 @@ export function MaintenanceView({
                   ? updated.status
                   : "in_progress",
               started_at:
-                typeof updated?.started_at === "string" ? updated.started_at : previous.started_at,
+                typeof updated?.started_at === "string" ? updated.started_at : localStartedAt,
               on_hold_at: null,
               on_hold_reason: null,
               updated_at:

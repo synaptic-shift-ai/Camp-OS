@@ -28,6 +28,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { sendBookingConfirmation } from '@/lib/email/send'
 import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
+import { resolveDepositConfig } from '@/lib/config/resolution'
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -136,9 +137,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify payment amount matches reservation total
+    // Verify payment amount matches reservation total (or deposit if configured)
     const paidAmountCents = paymentIntent.amount
-    if (paidAmountCents !== reservation.total_amount) {
+    const isDepositPayment = paidAmountCents < reservation.total_amount
+    if (paidAmountCents !== reservation.total_amount && !isDepositPayment) {
       console.error('[Payment Confirm] Amount mismatch', {
         expected: reservation.total_amount,
         actual: paidAmountCents,
@@ -163,10 +165,10 @@ export async function POST(request: NextRequest) {
       .from('reservations')
       .update({
         status: 'confirmed',
-        payment_status: 'paid',
+        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
         paid_amount: paidAmountCents,
         reserved_until: null, // Clear checkout timer - payment completed
-        notes: `Online payment via Stripe. PaymentIntent: ${validatedInput.payment_intent_id}`,
+        notes: `Online payment via Stripe${isDepositPayment ? ' (deposit)' : ''}. PaymentIntent: ${validatedInput.payment_intent_id}`,
         updated_at: new Date().toISOString(),
       })
       .eq('id', validatedInput.reservation_id)
@@ -233,9 +235,13 @@ export async function POST(request: NextRequest) {
       createdByUserId: null,
       guestInitiatedLedger: true,
       amountCents: paidAmountCents,
+      chargeAmountCents: isDepositPayment ? reservation.total_amount : paidAmountCents,
+      chargeRecognitionStatus: isDepositPayment ? 'deferred' : undefined,
       paymentMethod: PaymentMethod.STRIPE,
       stripePaymentIntentId: validatedInput.payment_intent_id,
-      description: 'Guest self-service reservation payment',
+      description: isDepositPayment
+        ? 'Guest self-service reservation deposit payment'
+        : 'Guest self-service reservation payment',
       processorEventId: validatedInput.payment_intent_id,
       logPrefix: '[GuestPaymentConfirm DualWrite]',
     })
@@ -261,7 +267,7 @@ export async function POST(request: NextRequest) {
       numChildren: reservation.num_children,
       totalAmount: reservation.total_amount,
       paidAmount: paidAmountCents,
-      paymentStatus: 'paid' as const,
+      paymentStatus: isDepositPayment ? 'deposit_paid' as const : 'paid' as const,
       specialRequests: reservation.special_requests || undefined,
       // Property contact and arrival info
       propertyPhone: reservation.property.phone || undefined,
@@ -288,7 +294,7 @@ export async function POST(request: NextRequest) {
         reservation_id: reservation.id,
         confirmation_number: reservation.confirmation_number,
         status: 'confirmed',
-        payment_status: 'paid',
+        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
         guest_name: `${reservation.guest.first_name} ${reservation.guest.last_name}`,
         guest_email: reservation.guest.email,
         property_name: reservation.property.name,

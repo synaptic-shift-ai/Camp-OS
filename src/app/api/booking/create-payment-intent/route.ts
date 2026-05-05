@@ -18,6 +18,7 @@ import {
   CreatePaymentIntentResponseSchema,
 } from '@/contracts/schemas'
 import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
+import { resolveDepositConfig } from '@/lib/config/resolution'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
@@ -64,7 +65,46 @@ export async function POST(request: NextRequest) {
     }
 
     // Phase 2c: Direct read from BIGINT column (already in cents)
-    const amountInCents = typedReservation.total_amount
+    const totalAmountCents = typedReservation.total_amount
+
+    // Check if deposit is configured for this property — use deposit amount if active
+    let amountInCents = totalAmountCents
+    const { data: property } = await supabase
+      .from('properties')
+      .select('deposit_config')
+      .eq('id', property_id)
+      .single()
+
+    if (property?.deposit_config) {
+      const depositConfig = resolveDepositConfig(property.deposit_config as any, null).config
+      if (
+        depositConfig.require_deposit &&
+        depositConfig.applies_to_booking_types.includes('nightly')
+      ) {
+        let depositAmountCents = 0
+        switch (depositConfig.deposit_type) {
+          case 'percentage':
+            depositAmountCents = Math.round((totalAmountCents * (depositConfig.deposit_percentage || 0)) / 100)
+            break
+          case 'flat_amount':
+            depositAmountCents = depositConfig.deposit_amount_cents || 0
+            break
+          case 'first_night': {
+            // Derive nightly rate from total / nights
+            const checkIn = new Date(typedReservation.check_in_date)
+            const checkOut = new Date(typedReservation.check_out_date)
+            const nights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
+            depositAmountCents = Math.round(totalAmountCents / nights)
+            break
+          }
+        }
+        if (depositAmountCents > 0 && depositAmountCents < totalAmountCents) {
+          amountInCents = depositAmountCents
+          console.log('[Create Payment Intent] Deposit configured — charging deposit:', depositAmountCents, 'of', totalAmountCents)
+        }
+      }
+    }
+
     console.log('[Create Payment Intent] Amount in cents:', amountInCents)
 
     // Get tenant-specific Stripe client

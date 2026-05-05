@@ -24,6 +24,7 @@ import { Transaction } from '@/modules/Financial/domain/Transaction'
 import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
 import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
+import { RecognitionStatus } from '@/modules/Financial/domain/value-objects/RecognitionStatus'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { randomUUID } from 'crypto'
@@ -49,6 +50,8 @@ async function writeFinancialTransactions(params: {
   guestId: string
   amountCents: number
   stripePaymentIntentId: string
+  /** When set and less than amountCents, this is a deposit payment */
+  reservationTotalCents?: number
 }): Promise<void> {
   const {
     supabase,
@@ -58,11 +61,16 @@ async function writeFinancialTransactions(params: {
     guestId,
     amountCents,
     stripePaymentIntentId,
+    reservationTotalCents,
   } = params
+
+  const isDepositPayment = reservationTotalCents != null && amountCents < reservationTotalCents
+  const chargeAmountCents = isDepositPayment ? reservationTotalCents : amountCents
 
   try {
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
+    const chargeAmount = MoneyAmount.create(chargeAmountCents)
 
     // Guest checkout: do not attribute ledger rows to property staff (reservations.created_by).
     const createdByUserId: string | null = null
@@ -85,16 +93,21 @@ async function writeFinancialTransactions(params: {
       propertyId,
       reservationId,
       TransactionType.CHARGE,
-      amount,
+      chargeAmount,
       PaymentMethod.STRIPE,
       createdByUserId,
       null, // invoiceId
-      'Guest self-service reservation payment',
+      isDepositPayment
+        ? 'Guest self-service reservation payment (deposit — balance deferred)'
+        : 'Guest self-service reservation payment',
       TransactionSource.RESERVATION,
       processorKey,
       guestId,
     )
     charge.complete(stripePaymentIntentId)
+    if (isDepositPayment) {
+      charge.applyRecognitionStatus(RecognitionStatus.DEFERRED)
+    }
     await repo.save(charge)
     console.log(`[Stripe Webhook] financial_transactions CHARGE created: ${chargeId}`)
 
@@ -269,12 +282,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       console.warn('No payment_method found on PaymentIntent - cannot save card')
     }
 
-    // Update reservation status to confirmed and paid
+    // Update reservation status to confirmed and paid (deposit-aware)
+    // Fetch reservation to compare PaymentIntent amount vs total
+    const { data: reservationRow } = await supabase
+      .from('reservations')
+      .select('total_amount')
+      .eq('id', reservation_id)
+      .eq('property_id', property_id)
+      .single()
+
+    const reservationTotal = (reservationRow?.total_amount ?? validated.amount) as number
+    const isDepositPayment = validated.amount < reservationTotal
+
     const { error: updateReservationError } = await supabase
       .from('reservations')
       .update({
         status: 'confirmed',
-        payment_status: 'paid',
+        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
         paid_amount: validated.amount, // Amount in cents (BIGINT)
         updated_at: new Date().toISOString(),
       })
@@ -285,7 +309,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       console.error('Failed to update reservation:', updateReservationError)
       // Don't throw - payment succeeded, customer created, just DB update failed
     } else {
-      console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100})`)
+      console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100}${isDepositPayment ? ', deposit payment' : ''})`)
     }
 
     // --- Dual-write to financial_transactions (unified ledger) ---
@@ -297,6 +321,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       guestId: guest_id,
       amountCents: validated.amount,
       stripePaymentIntentId: validated.id,
+      reservationTotalCents: reservationTotal,
     })
   } catch (error: any) {
     console.error('Error in handlePaymentIntentSucceeded:', error)

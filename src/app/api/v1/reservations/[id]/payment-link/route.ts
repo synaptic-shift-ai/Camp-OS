@@ -103,6 +103,8 @@ export async function POST(
 
 
     // Validate reservation can receive payment
+    // TODO(CC05-20A): 'deposit_paid' should also be treated as "not fully paid" here
+    // (it already is — deposit_paid !== 'paid' — but adding explicit guard for clarity)
     if (typedReservation.payment_status === 'paid') {
       return error(
         ErrorCodes.PAY_005,

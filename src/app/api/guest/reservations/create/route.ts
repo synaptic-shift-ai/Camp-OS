@@ -32,6 +32,7 @@ import {
   resolveReservationTypeRate,
   parseEnabledReservationTypesFromDB,
   parseBookingRulesFromDB,
+  resolveDepositConfig,
 } from '@/lib/config/resolution'
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
 import type { RateDiscountsConfig } from '@/lib/config/types'
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, owner_id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings')
+      .select('id, owner_id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings, deposit_config')
       .eq('id', validatedInput.property_id)
       .single()
 
@@ -606,6 +607,40 @@ export async function POST(request: NextRequest) {
         priceBreakdown.total_before_tax = subtotalCents - discountCents
         priceBreakdown.total =
           subtotalCents - discountCents + (priceBreakdown.taxes ?? 0) + (priceBreakdown.pet_fee ?? 0)
+
+        // Compute deposit amounts from property deposit config
+        const depositConfig = resolveDepositConfig(
+          (property as any)?.deposit_config ?? null,
+          (site as any)?.deposit_override ?? null,
+        ).config
+        const isDepositRequired =
+          depositConfig.require_deposit &&
+          depositConfig.applies_to_booking_types.includes('nightly')
+        if (isDepositRequired) {
+          let depositAmountCents = 0
+          switch (depositConfig.deposit_type) {
+            case 'percentage':
+              depositAmountCents = Math.round((priceBreakdown.total * (depositConfig.deposit_percentage || 0)) / 100)
+              break
+            case 'flat_amount':
+              depositAmountCents = depositConfig.deposit_amount_cents || 0
+              break
+            case 'first_night':
+              depositAmountCents = effectiveNightlyCents
+              break
+          }
+          priceBreakdown.deposit_required = true
+          priceBreakdown.deposit_amount = depositAmountCents
+          priceBreakdown.amount_due_now = depositAmountCents
+          priceBreakdown.amount_due_later = priceBreakdown.total - depositAmountCents
+          if (depositConfig.deposit_percentage !== undefined) {
+            priceBreakdown.deposit_percentage = depositConfig.deposit_percentage
+          }
+        } else {
+          priceBreakdown.deposit_required = false
+          priceBreakdown.amount_due_now = priceBreakdown.total
+          priceBreakdown.amount_due_later = 0
+        }
 
         return NextResponse.json({
           success: true,
@@ -1008,6 +1043,45 @@ export async function POST(request: NextRequest) {
     // ========================================================================
     // Step 10: Return reservation details for payment
     // ========================================================================
+
+    // Compute deposit amounts from property deposit config
+    const depositConfig = resolveDepositConfig(
+      (property as any)?.deposit_config ?? null,
+      (site as any)?.deposit_override ?? null,
+    ).config
+    const isDepositRequired =
+      depositConfig.require_deposit &&
+      depositConfig.applies_to_booking_types.includes('nightly')
+    if (isDepositRequired) {
+      let depositAmountCents = 0
+      switch (depositConfig.deposit_type) {
+        case 'percentage':
+          depositAmountCents = Math.round((priceBreakdown.total * (depositConfig.deposit_percentage || 0)) / 100)
+          break
+        case 'flat_amount':
+          depositAmountCents = depositConfig.deposit_amount_cents || 0
+          break
+        case 'first_night':
+          depositAmountCents = effectiveNightlyCents
+          break
+      }
+      priceBreakdown.deposit_required = true
+      priceBreakdown.deposit_amount = depositAmountCents
+      priceBreakdown.amount_due_now = depositAmountCents
+      priceBreakdown.amount_due_later = priceBreakdown.total - depositAmountCents
+      if (depositConfig.deposit_percentage !== undefined) {
+        priceBreakdown.deposit_percentage = depositConfig.deposit_percentage
+      }
+      if (depositConfig.full_payment_required_days_before) {
+        const dueDate = new Date(validatedInput.check_in_date)
+        dueDate.setDate(dueDate.getDate() - depositConfig.full_payment_required_days_before)
+        priceBreakdown.deposit_due_date = dueDate.toISOString().split('T')[0]
+      }
+    } else {
+      priceBreakdown.deposit_required = false
+      priceBreakdown.amount_due_now = priceBreakdown.total
+      priceBreakdown.amount_due_later = 0
+    }
 
     return NextResponse.json({
       success: true,

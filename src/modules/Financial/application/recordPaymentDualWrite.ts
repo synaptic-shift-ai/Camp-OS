@@ -37,7 +37,18 @@ export interface RecordPaymentDualWriteParams {
    * `created_by` to be stored as null on `financial_transactions`.
    */
   guestInitiatedLedger?: boolean
+  /** Amount for the PAYMENT record (actual money received). */
   amountCents: number
+  /**
+   * Amount for the CHARGE record. When set, the CHARGE is created with this amount
+   * (e.g., total_amount for deposit flows) instead of amountCents.
+   */
+  chargeAmountCents?: number
+  /**
+   * Recognition status for the CHARGE record. When set (e.g., 'deferred'), the CHARGE
+   * gets this recognition status instead of the default 'recognized'.
+   */
+  chargeRecognitionStatus?: 'recognized' | 'deferred' | 'written_off' | 'pending'
   paymentMethod: PaymentMethod
   stripePaymentIntentId?: string | null
   description?: string
@@ -72,7 +83,9 @@ export async function recordPaymentDualWrite(
 
   try {
     const repo = new SupabaseTransactionRepository(supabase as any)
+    const chargeAmountCents = params.chargeAmountCents ?? amountCents
     const amount = MoneyAmount.create(amountCents)
+    const chargeAmount = MoneyAmount.create(chargeAmountCents)
 
     let resolvedCreatedByUserId = createdByUserId ?? null
     if (!guestInitiatedLedger && !resolvedCreatedByUserId && reservationId) {
@@ -114,7 +127,7 @@ export async function recordPaymentDualWrite(
       propertyId,
       reservationId,
       TransactionType.CHARGE,
-      amount,
+      chargeAmount,
       paymentMethod,
       resolvedCreatedByUserId,
       null, // invoiceId
@@ -124,10 +137,21 @@ export async function recordPaymentDualWrite(
       guestId,
     )
     charge.complete(stripePaymentIntentId)
+    // Apply recognition status if specified (e.g., 'deferred' for deposit flows)
+    if (params.chargeRecognitionStatus && params.chargeRecognitionStatus !== 'pending') {
+      const { RecognitionStatus } = await import('@/modules/Financial/domain/value-objects/RecognitionStatus')
+      const statusMap: Record<string, any> = {
+        recognized: RecognitionStatus.RECOGNIZED,
+        deferred: RecognitionStatus.DEFERRED,
+        written_off: RecognitionStatus.WRITTEN_OFF,
+      }
+      const mapped = statusMap[params.chargeRecognitionStatus]
+      if (mapped) charge.applyRecognitionStatus(mapped)
+    }
     await repo.save(charge)
     console.log(`${logPrefix} CHARGE created: ${chargeId}`)
 
-    // Create PAYMENT record
+    // Create PAYMENT record (actual amount received)
     const paymentId = randomUUID()
     const payment = Transaction.create(
       paymentId,

@@ -106,10 +106,7 @@ export async function POST(
       stripe_customer_id: string | null
     }
 
-    // Get or create Stripe Customer via processor abstraction
-    let stripeCustomerId = typedGuest.stripe_customer_id
-
-    if (!stripeCustomerId) {
+    const createAndPersistStripeCustomer = async (): Promise<string> => {
       const customer = await processor.createCustomer({
         email: typedGuest.email,
         name: [typedGuest.first_name, typedGuest.last_name].filter(Boolean).join(' ').trim() || typedGuest.email,
@@ -120,13 +117,11 @@ export async function POST(
         },
       })
 
-      stripeCustomerId = customer.customerId
-
-      // Persist stripe_customer_id to guest record
+      const nextStripeCustomerId = customer.customerId
       const { error: updateGuestError } = await supabase
         .from('guests')
         .update({
-          stripe_customer_id: stripeCustomerId,
+          stripe_customer_id: nextStripeCustomerId,
           updated_at: new Date().toISOString(),
         })
         .eq('id', typedGuest.id)
@@ -134,19 +129,52 @@ export async function POST(
 
       if (updateGuestError) {
         console.error('[SetupIntent] Failed to save stripe_customer_id to guest', updateGuestError)
-        // Continue — customer was created, just not persisted
       }
+
+      return nextStripeCustomerId
+    }
+
+    // Get or create Stripe Customer via processor abstraction
+    let stripeCustomerId = typedGuest.stripe_customer_id
+
+    if (!stripeCustomerId) {
+      stripeCustomerId = await createAndPersistStripeCustomer()
     }
 
     // Create SetupIntent via processor abstraction (off_session for incidentals)
-    const setupIntent = await processor.createSetupIntent({
-      customerId: stripeCustomerId,
-      usage: 'off_session',
-      metadata: {
-        reservation_id: reservationId,
-        property_id: reservation.propertyId,
-      },
-    })
+    let setupIntent
+    try {
+      setupIntent = await processor.createSetupIntent({
+        customerId: stripeCustomerId,
+        usage: 'off_session',
+        metadata: {
+          reservation_id: reservationId,
+          property_id: reservation.propertyId,
+        },
+      })
+    } catch (setupIntentError: unknown) {
+      const maybeStripeError = setupIntentError as { code?: string; param?: string; message?: string }
+      const staleCustomerId =
+        maybeStripeError.code === 'resource_missing' &&
+        (maybeStripeError.param === 'customer' || maybeStripeError.message?.includes('No such customer'))
+
+      if (!staleCustomerId) throw setupIntentError
+
+      console.warn('[SetupIntent] Stale stripe_customer_id detected; recreating customer and retrying', {
+        guestId: typedGuest.id,
+        previousStripeCustomerId: stripeCustomerId,
+      })
+
+      stripeCustomerId = await createAndPersistStripeCustomer()
+      setupIntent = await processor.createSetupIntent({
+        customerId: stripeCustomerId,
+        usage: 'off_session',
+        metadata: {
+          reservation_id: reservationId,
+          property_id: reservation.propertyId,
+        },
+      })
+    }
 
     return success({
       client_secret: setupIntent.clientSecret,

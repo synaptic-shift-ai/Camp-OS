@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import {
@@ -106,13 +107,17 @@ function PaymentCardLogo({ brand }: { brand: string }) {
  */
 function IncidentalsCardForm({
   onPaymentMethodId,
+  setupIntentSecret,
 }: {
   onPaymentMethodId: (pmId: string | null) => void
+  setupIntentSecret: string
 }) {
   const stripe = useStripe()
   const elements = useElements()
+  const { resolvedTheme } = useTheme()
   const [cardError, setCardError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const isDarkMode = resolvedTheme === 'dark'
 
   // Confirm SetupIntent when card details are complete and user hasn't interacted with submit yet.
   // We use a lightweight approach: confirm on blur/change when the element is complete.
@@ -127,15 +132,20 @@ function IncidentalsCardForm({
 
   const handleConfirmCard = async () => {
     if (!stripe || !elements) return
+    const cardElement = elements.getElement(CardElement)
+    if (!cardElement) {
+      setCardError('Card form is not ready yet. Please try again.')
+      onPaymentMethodId(null)
+      return
+    }
+
     setConfirming(true)
     setCardError(null)
     try {
-      const { setupIntent, error } = await stripe.confirmSetup({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/api/v1/reservations/check-in/setup-intent/return`,
+      const { setupIntent, error } = await stripe.confirmCardSetup(setupIntentSecret, {
+        payment_method: {
+          card: cardElement,
         },
-        redirect: 'if_required',
       })
 
       if (error) {
@@ -144,8 +154,9 @@ function IncidentalsCardForm({
       } else if (setupIntent?.status === 'succeeded' && setupIntent.payment_method) {
         onPaymentMethodId(setupIntent.payment_method as string)
       }
-    } catch {
-      setCardError('Failed to confirm card details')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to confirm card details'
+      setCardError(message)
       onPaymentMethodId(null)
     } finally {
       setConfirming(false)
@@ -154,21 +165,26 @@ function IncidentalsCardForm({
 
   return (
     <div className="space-y-3">
-      <CardElement
-        options={{
-          hidePostalCode: true,
-          style: {
-            base: {
-              fontSize: '14px',
-              color: 'hsl(var(--foreground))',
-              '::placeholder': {
-                color: 'hsl(var(--muted-foreground))',
+      <div className="rounded-md border border-zinc-300 bg-white px-3 py-2 shadow-sm focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 dark:border-zinc-500 dark:bg-zinc-950">
+        <CardElement
+          options={{
+            hidePostalCode: true,
+            style: {
+              base: {
+                fontSize: '14px',
+                color: isDarkMode ? '#f5f5f5' : '#111827',
+                '::placeholder': {
+                  color: isDarkMode ? '#9ca3af' : '#6b7280',
+                },
+              },
+              invalid: {
+                color: '#ef4444',
               },
             },
-          },
-        }}
-        onChange={handleChange}
-      />
+          }}
+          onChange={handleChange}
+        />
+      </div>
       {cardError && (
         <p className="text-xs text-destructive">{cardError}</p>
       )}
@@ -246,6 +262,7 @@ export function CheckInDialog({
   const [setupIntentLoading, setSetupIntentLoading] = useState(false)
   const [setupIntentError, setSetupIntentError] = useState<string | null>(null)
   const [newCardPaymentMethodId, setNewCardPaymentMethodId] = useState<string | null>(null)
+  const hasBookablePaymentMethod = Boolean(bookingPaymentMethodId)
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationStartStr = normalizeDateString(reservation.check_in_date)
@@ -292,6 +309,7 @@ export function CheckInDialog({
     new Date() < configuredCheckInDateTime
 
   const handleNewCardSelected = useCallback(async () => {
+    if (setupIntentLoading || setupIntentSecret) return
     setSetupIntentLoading(true)
     setSetupIntentError(null)
     try {
@@ -311,7 +329,7 @@ export function CheckInDialog({
     } finally {
       setSetupIntentLoading(false)
     }
-  }, [reservation.id])
+  }, [reservation.id, setupIntentLoading, setupIntentSecret])
 
   // Reset incidentals state when dialog opens
   useEffect(() => {
@@ -320,7 +338,9 @@ export function CheckInDialog({
       setSetupIntentSecret(null)
       setSetupIntentError(null)
       setNewCardPaymentMethodId(null)
+      return
     }
+    setIncidentalsChoice(hasBookablePaymentMethod ? 'booking-card' : 'skip')
   }, [open])
 
   const handleCheckIn = async (forceProceed = false) => {
@@ -364,6 +384,16 @@ export function CheckInDialog({
         incidentalsPaymentMethodId = newCardPaymentMethodId
       }
       // skip → null
+
+      if (incidentalsChoice === 'booking-card' && !incidentalsPaymentMethodId) {
+        setError('Booking card is unavailable. Please choose "Use a different card" or "Skip".')
+        return
+      }
+
+      if (incidentalsChoice === 'new-card' && !incidentalsPaymentMethodId) {
+        setError('Please save the new card before completing check-in.')
+        return
+      }
 
       const response = await fetch(`/api/v1/reservations/${reservation.id}/check-in`, {
         method: 'POST',
@@ -649,6 +679,7 @@ export function CheckInDialog({
                       value="booking-card"
                       checked={incidentalsChoice === 'booking-card'}
                       onChange={() => setIncidentalsChoice('booking-card')}
+                      disabled={!hasBookablePaymentMethod}
                       className="accent-primary"
                     />
                     <div className="flex items-center gap-2 flex-1">
@@ -658,13 +689,25 @@ export function CheckInDialog({
                         <span className="text-xs text-muted-foreground block">
                           {reservation.payment_card.brand} **** {reservation.payment_card.last4}
                         </span>
+                        {!hasBookablePaymentMethod ? (
+                          <span className="text-xs text-amber-600 block">
+                            Payment method ID not available for this card. Choose a different card.
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </label>
                 ) : null}
 
                 {/* Option 2: New card */}
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                <label
+                  className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => {
+                    setIncidentalsChoice('new-card')
+                    setNewCardPaymentMethodId(null)
+                    void handleNewCardSelected()
+                  }}
+                >
                   <input
                     type="radio"
                     name="incidentals"
@@ -673,7 +716,7 @@ export function CheckInDialog({
                     onChange={() => {
                       setIncidentalsChoice('new-card')
                       setNewCardPaymentMethodId(null)
-                      if (!setupIntentSecret) handleNewCardSelected()
+                      void handleNewCardSelected()
                     }}
                     disabled={setupIntentLoading}
                     className="accent-primary"
@@ -700,18 +743,34 @@ export function CheckInDialog({
               </div>
 
               {/* New card input (shown when "new-card" is selected) */}
-              {incidentalsChoice === 'new-card' && setupIntentSecret && (
-                <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
-                  {setupIntentError ? (
+              {incidentalsChoice === 'new-card' && (
+                <div className="space-y-3 rounded-lg border border-border/80 bg-muted/30 p-3 dark:border-zinc-700 dark:bg-zinc-900/70">
+                  {setupIntentLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Preparing secure card form...
+                    </div>
+                  ) : setupIntentError ? (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{setupIntentError}</AlertDescription>
+                      <AlertDescription className="space-y-2">
+                        <p>{setupIntentError}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleNewCardSelected()}
+                        >
+                          Retry loading card form
+                        </Button>
+                      </AlertDescription>
                     </Alert>
-                  ) : (
+                  ) : setupIntentSecret ? (
                     <>
                       <Elements stripe={stripePromise} options={{ clientSecret: setupIntentSecret, appearance: { theme: 'stripe' as const } }}>
                         <IncidentalsCardForm
                           onPaymentMethodId={(pmId) => setNewCardPaymentMethodId(pmId)}
+                          setupIntentSecret={setupIntentSecret}
                         />
                       </Elements>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -719,6 +778,8 @@ export function CheckInDialog({
                         Card details are securely processed by Stripe
                       </p>
                     </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Preparing card form...</p>
                   )}
                 </div>
               )}

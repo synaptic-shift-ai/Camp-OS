@@ -142,33 +142,26 @@ export class StripeProcessor implements IPaymentProcessor {
     if (params.phone) customerParams.phone = params.phone
     if (params.metadata) customerParams.metadata = params.metadata
 
-    const customer = await stripe.customers.create(customerParams, {
-      stripeAccount: this.stripeAccount,
-    })
+    // Create on PLATFORM account so the resulting customer can be used by
+    // platform-created PaymentIntents/SetupIntents (publishable key flow).
+    const customer = await stripe.customers.create(customerParams)
 
     return { customerId: customer.id }
   }
 
   async attachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
     const stripe = getPlatformStripe()
-    await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId }, {
-      stripeAccount: this.stripeAccount,
-    })
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId })
   }
 
   async detachPaymentMethod(paymentMethodId: string): Promise<void> {
     const stripe = getPlatformStripe()
-    await stripe.paymentMethods.detach(paymentMethodId, undefined, {
-      stripeAccount: this.stripeAccount,
-    })
+    await stripe.paymentMethods.detach(paymentMethodId)
   }
 
   async listPaymentMethods(customerId: string): Promise<PaymentMethodResult[]> {
     const stripe = getPlatformStripe()
-    const methods = await stripe.paymentMethods.list(
-      { customer: customerId, type: 'card' },
-      { stripeAccount: this.stripeAccount },
-    )
+    const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' })
 
     return methods.data.map((pm) => {
       const result: PaymentMethodResult = { id: pm.id, type: pm.type }

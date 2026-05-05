@@ -443,6 +443,7 @@ export default function GuestInfoPage() {
         reservationId: result.data.reservation_id,
         confirmationNumber: result.data.confirmation_number,
         priceBreakdown: result.data.price_breakdown,
+        paymentProcessor: result.data.payment_processor,
         numPets,
         ...(result.data.reserved_until != null
           ? { reservedUntil: result.data.reserved_until }

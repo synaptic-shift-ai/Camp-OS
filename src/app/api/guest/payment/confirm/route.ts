@@ -25,8 +25,6 @@ import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
-import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
 // Initialize Stripe
@@ -224,27 +222,6 @@ export async function POST(request: NextRequest) {
       console.error('[Payment Confirm] Payment record creation error:', paymentRecordError)
       // Don't fail - reservation is already confirmed
     }
-
-    // Unified ledger (same idempotency key as Stripe webhook — PaymentIntent id)
-    const ledgerSupabase = createServiceRoleClient()
-    await recordPaymentDualWrite({
-      supabase: ledgerSupabase,
-      propertyId: reservation.property_id as string,
-      reservationId: reservation.id as string,
-      guestId: (reservation as { guest_id?: string | null }).guest_id ?? null,
-      createdByUserId: null,
-      guestInitiatedLedger: true,
-      amountCents: paidAmountCents,
-      chargeAmountCents: isDepositPayment ? reservation.total_amount : paidAmountCents,
-      ...(isDepositPayment ? { chargeRecognitionStatus: 'deferred' as const } : {}),
-      paymentMethod: PaymentMethod.STRIPE,
-      stripePaymentIntentId: validatedInput.payment_intent_id,
-      description: isDepositPayment
-        ? 'Guest self-service reservation deposit payment'
-        : 'Guest self-service reservation payment',
-      processorEventId: validatedInput.payment_intent_id,
-      logPrefix: '[GuestPaymentConfirm DualWrite]',
-    })
 
     // ========================================================================
     // Step 5: Email is handled by automation pipeline (no direct fallback)

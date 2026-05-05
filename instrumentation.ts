@@ -13,7 +13,7 @@ export async function register() {
   // by the email sender (emailit.ts) loaded transitively via
   // action-registry → send_email handler. Without this guard,
   // the Edge Runtime crashes and automations never initialize.
-  if (process.env.NEXT_RUNTIME === 'nodejs' && process.env.ENABLE_PERSISTENT_EVENT_BUS === 'true') {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { initializeAutomations } = await import('@/lib/automations/init')
     const { registerAutomationSubscriber } = await import('@/lib/automations/subscriber')
     initializeAutomations()

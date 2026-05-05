@@ -136,8 +136,8 @@ export async function POST(request: NextRequest) {
       guest_id ?? null,
     )
 
-    // Apply recognition status if provided and not 'pending'
-    if (recognition_status && recognition_status !== 'pending') {
+    // Complete charge unless recognition_status is explicitly 'pending'
+    if (recognition_status !== 'pending') {
       charge.complete()
       const statusMap: Record<string, RecognitionStatus> = {
         recognized: RecognitionStatus.RECOGNIZED,

@@ -259,6 +259,9 @@ export function ReservationLedgerPage({
             totalAmountCents={(reservation?.total_amount ?? 0) as MoneyCents}
             paidAmountCents={(reservation?.paid_amount ?? 0) as MoneyCents}
             guestId={reservation?.guest_id ?? null}
+            onSuccess={() => {
+              void fetchAll()
+            }}
             trigger={
               <Button className="gap-2" size="sm" disabled={loading}>
                 <DollarSign className="h-4 w-4" />
@@ -312,6 +315,9 @@ export function ReservationLedgerPage({
             paidAmountCents={(reservation?.paid_amount ?? 0) as MoneyCents}
             guestId={reservation?.guest_id ?? null}
             paymentCard={reservation?.payment_card ?? null}
+            onManualPaymentSuccess={() => {
+              void fetchAll()
+            }}
             trigger={
               <Button variant="outline" size="sm" disabled={loading} className="gap-2">
                 <CreditCard className="h-4 w-4" />

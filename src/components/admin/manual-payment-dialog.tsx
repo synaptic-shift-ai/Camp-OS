@@ -37,6 +37,8 @@ interface ManualPaymentDialogProps {
   defaultPaymentMethod?: PaymentMethodValue
   defaultProcessor?: (typeof PROCESSOR_OPTIONS)[number]["value"]
   defaultUseCardOnFile?: boolean
+  /** Called after a payment is recorded successfully (before the sheet closes). */
+  onSuccess?: () => void
   trigger: React.ReactNode
 }
 
@@ -105,6 +107,7 @@ export function ManualPaymentDialog({
   defaultPaymentMethod,
   defaultProcessor,
   defaultUseCardOnFile,
+  onSuccess,
   trigger,
 }: ManualPaymentDialogProps) {
   const router = useRouter()
@@ -117,12 +120,15 @@ export function ManualPaymentDialog({
   const [reference, setReference] = useState("")
   const [processor, setProcessor] = useState("none")
   const [useCardOnFile, setUseCardOnFile] = useState(false)
-  // Balance from financial API (in cents)
+  // Balance from financial API (ledger, in cents). May diverge briefly from reservation snapshot.
   const [apiBalance, setApiBalance] = useState<number | null>(null)
   const { toast } = useToast()
 
-  // Determine outstanding balance: prefer API balance, fall back to prop-based calculation
-  const outstandingBalance = Math.max(0, apiBalance ?? (totalAmountCents - paidAmountCents))
+  // Match reservation ledger "Computed Balance": total_amount − paid_amount on the reservation.
+  // Never allow the dialog to show "fully paid" when the page snapshot still shows an amount owed
+  // (ledger totals can lag or disagree with paid_amount during writes or legacy data).
+  const snapshotOutstandingCents = Math.max(0, totalAmountCents - paidAmountCents)
+  const outstandingBalance = Math.max(snapshotOutstandingCents, apiBalance ?? 0)
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
@@ -139,43 +145,39 @@ export function ManualPaymentDialog({
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true)
     try {
-      const res = await fetch(`/api/v1/financial/reservations/${reservationId}/balance`)
+      const res = await fetch(`/api/v1/financial/reservations/${reservationId}/balance`, {
+        credentials: "include",
+      })
       const json = await res.json()
       if (json.success && json.data) {
         const data: BalanceData = json.data
-        // Prefer ledger balance when it looks complete. However, we can have partial
-        // ledger data (e.g. PAYMENT rows written without matching CHARGE rows yet),
-        // which would make `balance` incorrect (often <= 0). In that case, derive
-        // outstanding balance from reservation total minus ledger payments/refunds.
         const hasLedgerActivity =
           data.charges_total !== 0 || data.payments_total !== 0 || data.refunds_total !== 0
 
-        if (!hasLedgerActivity) return
-
-        // If no charges recorded yet, treat reservation total as the charge basis.
-        if (data.charges_total === 0) {
-          const derivedOutstanding = Math.max(
-            0,
-            totalAmountCents - data.payments_total - data.refunds_total,
-          )
-          setApiBalance(derivedOutstanding)
+        if (!hasLedgerActivity) {
+          setApiBalance(0)
           return
         }
 
-        const ledgerBalance = data.balance
-        const snapshotBalance = totalAmountCents - data.payments_total - data.refunds_total
-        // If the ledger says "overpaid or zero" but the reservation snapshot disagrees,
-        // prefer the snapshot (handles incomplete ledger data from legacy migrations).
-        setApiBalance(
-          ledgerBalance > 0 ? ledgerBalance : Math.max(0, snapshotBalance)
-        )
+        // Ledger balance (charges − payments − refunds), floored at zero for display caps.
+        let ledgerOutstanding = Math.max(0, data.balance)
+
+        // No charge rows yet: API balance is often negative; align with reservation total vs ledger cash.
+        if (data.charges_total === 0) {
+          ledgerOutstanding = Math.max(
+            0,
+            totalAmountCents - data.payments_total - data.refunds_total,
+          )
+        }
+
+        setApiBalance(ledgerOutstanding)
       }
     } catch {
-      // Silently fall back to prop-based balance
+      // Silently fall back to snapshot-only balance (snapshotOutstandingCents)
     } finally {
       setBalanceLoading(false)
     }
-  }, [reservationId])
+  }, [reservationId, totalAmountCents])
 
   useEffect(() => {
     if (!open) return
@@ -197,11 +199,11 @@ export function ManualPaymentDialog({
   // Pre-fill amount once balance is available
   useEffect(() => {
     if (!open) return
-    const balance = apiBalance ?? Math.max(0, totalAmountCents - paidAmountCents)
+    const balance = Math.max(snapshotOutstandingCents, apiBalance ?? 0)
     if (balance > 0 && !amountDollars) {
       setAmountDollars((balance / 100).toFixed(2))
     }
-  }, [open, apiBalance, totalAmountCents, paidAmountCents, amountDollars])
+  }, [open, apiBalance, snapshotOutstandingCents, amountDollars])
 
   const handleRecordPayment = async () => {
     const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
@@ -253,6 +255,7 @@ export function ManualPaymentDialog({
         description: "Manual payment has been recorded successfully.",
         variant: "success",
       })
+      onSuccess?.()
       setOpen(false)
       router.refresh()
     } catch (err) {

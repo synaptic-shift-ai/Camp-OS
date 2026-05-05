@@ -42,6 +42,7 @@ import {
   AddTaskDialog as AddMaintenanceTaskDialog,
   type AddMaintenanceTaskInput,
 } from '@/components/dashboard/maintenance/maintenance-dialog/add-task-dialog'
+import { ManualPaymentDialog } from '@/components/admin/manual-payment-dialog'
 import { PostCheckoutTasksDialog } from '@/components/dashboard/reservations/post-checkout-tasks-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
@@ -582,6 +583,7 @@ export function CheckOutDialog({
 
             {/* Outstanding Balance Warning */}
             {hasBalance && (
+              <>
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
@@ -591,6 +593,26 @@ export function CheckOutDialog({
                   </p>
                 </AlertDescription>
               </Alert>
+              <div className="mt-3">
+                <ManualPaymentDialog
+                  reservationId={reservation.id}
+                  confirmationNumber={reservation.confirmation_number}
+                  guestName={`${reservation.guest?.first_name ?? ''} ${reservation.guest?.last_name ?? ''}`.trim()}
+                  totalAmountCents={reservation.total_amount}
+                  paidAmountCents={reservation.paid_amount}
+                  guestId={reservation.guest_id}
+                  onSuccess={() => {
+                    router.refresh()
+                  }}
+                  trigger={
+                    <Button variant="outline" className="w-full">
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      Record Payment
+                    </Button>
+                  }
+                />
+              </div>
+              </>
             )}
 
             {/* Site Inspection */}

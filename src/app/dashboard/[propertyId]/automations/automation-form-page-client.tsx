@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Loader2, Save, Shield, DollarSign, FileCheck, Wrench, Mail, ScrollText } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Shield, DollarSign, FileCheck, Wrench, Mail, ScrollText, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ConditionsSection } from "@/components/dashboard/automations/conditions-section"
 import { ActionsSection } from "@/components/dashboard/automations/actions-section"
@@ -124,12 +125,45 @@ export function AutomationFormPageClient({
   const [conditionGroups, setConditionGroups] = useState<ConditionGroupNode[]>([])
   const [actions, setActions] = useState<AutomationActionFormData[]>([])
 
+  // ── Initial values snapshot for dirty tracking ─────────────────────────
+  const initialValuesRef = useRef({
+    name: initialData?.name ?? "",
+    description: initialData?.description ?? "",
+    phase: (initialData?.phase ?? "GUARD") as AutomationPhase,
+    triggerType: (initialData?.trigger_type ?? "reservation.created") as TriggerType,
+    isActive: initialData?.is_active ?? false,
+    isTerminal: initialData?.is_terminal ?? false,
+    sortOrder: initialData?.sort_order ?? 0,
+    conditionGroups: [] as ConditionGroupNode[],
+    actions: [] as AutomationActionFormData[],
+  })
+
   // ── UI state ───────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(isEdit && !initialData)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("details")
   const phaseInitialized = useRef(false)
+
+  // ── Dirty state tracking ──────────────────────────────────────────────
+  const isDirty = useMemo(() => {
+    const initial = initialValuesRef.current
+    return (
+      name !== initial.name ||
+      description !== initial.description ||
+      phase !== initial.phase ||
+      triggerType !== initial.triggerType ||
+      isActive !== initial.isActive ||
+      isTerminal !== initial.isTerminal ||
+      sortOrder !== initial.sortOrder ||
+      JSON.stringify(conditionGroups) !== JSON.stringify(initial.conditionGroups) ||
+      JSON.stringify(actions) !== JSON.stringify(initial.actions)
+    )
+  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions])
+
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
+  const isIntentionalNavigationRef = useRef(false)
 
   // ── Reset actions when phase changes ─────────────────────────────────
   useEffect(() => {
@@ -151,17 +185,31 @@ export function AutomationFormPageClient({
       .then(res => { if (!res.ok) throw new Error(); return res.json() })
       .then(payload => {
         const data = payload.data ?? payload
-        if (data.conditionGroups?.length) {
-          setConditionGroups(hydrateTree(data.conditionGroups, data.conditions ?? []))
-        }
-        if (data.actions?.length) {
-          setActions(data.actions.map((a: any) => ({
+        const loadedConditions = data.conditionGroups?.length
+          ? hydrateTree(data.conditionGroups, data.conditions ?? [])
+          : []
+        const loadedActions = data.actions?.length
+          ? data.actions.map((a: any) => ({
             id: a.id,
             actionType: a.action_type,
             actionConfig: a.action_config ?? {},
             delayValue: a.delay_value,
             delayUnit: a.delay_unit,
-          })))
+          }))
+          : []
+        setConditionGroups(loadedConditions)
+        setActions(loadedActions)
+        // Snapshot initial values after loading edit data
+        initialValuesRef.current = {
+          name: initialData?.name ?? "",
+          description: initialData?.description ?? "",
+          phase: initialData?.phase ?? "GUARD",
+          triggerType: initialData?.trigger_type ?? "reservation.created",
+          isActive: initialData?.is_active ?? false,
+          isTerminal: initialData?.is_terminal ?? false,
+          sortOrder: initialData?.sort_order ?? 0,
+          conditionGroups: loadedConditions,
+          actions: loadedActions,
         }
       })
       .catch(() => {
@@ -171,14 +219,29 @@ export function AutomationFormPageClient({
       .finally(() => setLoading(false))
   }, [isEdit, automationId, propertyId, systemMode, toast, router])
 
-  // ── Navigate back ──────────────────────────────────────────────────────
-  const handleBack = useCallback(() => {
+  // ── Navigate back (bypasses dirty check) ─────────────────────────────
+  const navigateBack = useCallback(() => {
     if (systemMode) {
       router.push(`/dashboard/${propertyId}/automations?tab=system-automations`)
     } else {
       router.push(`/dashboard/${propertyId}/automations?tab=automations`)
     }
   }, [router, propertyId, systemMode])
+
+  // ── Navigate to an arbitrary URL ───────────────────────────────────────
+  const navigateTo = useCallback((href: string) => {
+    router.push(href)
+  }, [router])
+
+  // ── Navigate back with dirty check ──────────────────────────────────────
+  const handleBack = useCallback(() => {
+    if (isDirty) {
+      setPendingNavigation(() => () => navigateBack())
+      setShowDiscardDialog(true)
+      return
+    }
+    navigateBack()
+  }, [navigateBack, isDirty])
 
   // ── Validate ──────────────────────────────────────────────────────────
   const validate = useCallback((): string[] => {
@@ -284,17 +347,107 @@ export function AutomationFormPageClient({
         throw new Error(data.error?.message ?? data.message ?? "Failed to save")
       }
 
+      // Reset dirty state so isDirty becomes false after next render
+      initialValuesRef.current = {
+        name, description, phase, triggerType, isActive, isTerminal, sortOrder,
+        conditionGroups: [...conditionGroups],
+        actions: [...actions],
+      }
       toast({
         title: isEdit ? "Automation updated" : "Automation created",
         variant: "success",
       })
-      handleBack()
+      navigateBack()
+      return
     } catch (err: any) {
       toast({ title: "Failed to save", description: err.message ?? "Unknown error", variant: "destructive" })
     } finally {
       setSaving(false)
     }
-  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, handleBack, toast])
+  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, navigateBack, toast])
+
+  // ── Discard dialog handlers (after handleSave) ──────────────────────────
+  const handleSaveAndLeave = useCallback(async () => {
+    isIntentionalNavigationRef.current = true
+    setShowDiscardDialog(false)
+    await handleSave()
+  }, [handleSave])
+
+  const handleDiscard = useCallback(() => {
+    isIntentionalNavigationRef.current = true
+    setShowDiscardDialog(false)
+    if (pendingNavigation) {
+      pendingNavigation()
+      setPendingNavigation(null)
+    } else {
+      navigateBack()
+    }
+  }, [pendingNavigation, navigateBack])
+
+  const handleCancelDiscard = useCallback(() => {
+    setShowDiscardDialog(false)
+    setPendingNavigation(null)
+  }, [])
+
+  // ── Browser tab close / refresh warning ──────────────────────────────────
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [isDirty])
+
+  // ── Intercept browser back/forward when form is dirty ────────────────────
+  useEffect(() => {
+    if (!isDirty) return
+
+    // Push an extra history entry so browser back doesn't leave the page
+    window.history.pushState(null, '', window.location.href)
+
+    const handlePopState = () => {
+      // Skip if we're intentionally navigating away
+      if (isIntentionalNavigationRef.current) return
+
+      // Push another entry to prevent actual back navigation
+      window.history.pushState(null, '', window.location.href)
+
+      // Show discard dialog
+      setPendingNavigation(() => null)
+      setShowDiscardDialog(true)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [isDirty])
+
+
+
+  // ── Intercept in-app link clicks (sidebar, nav, etc.) when dirty ─────────
+  useEffect(() => {
+    if (!isDirty) return
+
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('a')
+      if (!target) return
+
+      const href = target.getAttribute('href')
+      if (!href || href.startsWith('http') || href.startsWith('//')) return
+      if (href.startsWith('#') || href === window.location.pathname) return
+
+      e.preventDefault()
+      e.stopPropagation()
+      setPendingNavigation(() => () => navigateTo(href))
+      setShowDiscardDialog(true)
+    }
+
+    document.addEventListener('click', handleClick, true)
+    return () => document.removeEventListener('click', handleClick, true)
+  }, [isDirty, navigateTo])
 
   return (
     <div className="space-y-6">
@@ -305,12 +458,20 @@ export function AutomationFormPageClient({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              {isEdit
-                ? systemMode ? "Edit System Automation" : "Edit Automation"
-                : systemMode ? "New System Automation" : "New Automation"
-              }
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold tracking-tight">
+                {isEdit
+                  ? systemMode ? "Edit System Automation" : "Edit Automation"
+                  : systemMode ? "New System Automation" : "New Automation"
+                }
+              </h1>
+              {isDirty && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-700 gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Unsaved
+                </Badge>
+              )}
+            </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">
                 {isEdit
@@ -327,10 +488,12 @@ export function AutomationFormPageClient({
             </div>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={saving || loading}>
-          {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-          {isEdit ? "Save Changes" : "Create Automation"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={handleSave} disabled={saving || loading}>
+            {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+            {isEdit ? "Save Changes" : "Create Automation"}
+          </Button>
+        </div>
       </div>
 
       {/* Errors */}
@@ -536,14 +699,35 @@ export function AutomationFormPageClient({
           {/* ── Actions Tab ─────────────────────────────────────────────── */}
           <TabsContent value="actions" className="mt-6">
             <ActionsSection
-                actions={actions}
-                phase={phase}
+              actions={actions}
+              phase={phase}
               onChange={setActions}
               propertyId={propertyId}
             />
           </TabsContent>
         </Tabs>
       )}
+
+      {/* ── Discard warning dialog ─────────────────────────────────────── */}
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to this automation. Would you like to save before leaving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDiscard}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDiscard}>
+              Discard
+            </AlertDialogAction>
+            <AlertDialogAction onClick={handleSaveAndLeave}>
+              Save &amp; Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

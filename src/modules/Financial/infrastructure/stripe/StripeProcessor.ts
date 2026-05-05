@@ -4,8 +4,12 @@
  * Implements IPaymentProcessor using Stripe Connect.
  * Wraps the platform Stripe client with tenant-specific account routing.
  *
- * All Stripe API calls include the `stripeAccount` parameter to route
- * operations through the tenant's connected Stripe account.
+ * PaymentIntent/SetupIntent/getPaymentIntent use the destination charge pattern
+ * (created on the platform account with `on_behalf_of` + `transfer_data`) so
+ * the platform's publishable key works with the returned `client_secret`.
+ *
+ * Server-side-only methods (refund, customer, payment methods) route through
+ * the connected account via `stripeAccount`.
  *
  * @module modules/Financial/infrastructure/stripe/StripeProcessor
  */
@@ -69,17 +73,22 @@ export class StripeProcessor implements IPaymentProcessor {
     if (params.automaticPaymentMethods !== false) {
       intentParams.automatic_payment_methods = { enabled: true }
     }
+    // Destination charge pattern: always route through connected account
+    // so platform publishable key works with the returned client_secret.
     if (params.onBehalfOf) intentParams.on_behalf_of = params.onBehalfOf
     if (params.transferDestination) {
       intentParams.transfer_data = { destination: params.transferDestination }
+    } else {
+      intentParams.on_behalf_of = this.stripeAccount
+      intentParams.transfer_data = { destination: this.stripeAccount }
     }
     if (params.paymentMethod) intentParams.payment_method = params.paymentMethod
     if (params.confirm) intentParams.confirm = true
     if (params.offSession) intentParams.off_session = true
 
-    const pi = await stripe.paymentIntents.create(intentParams, {
-      stripeAccount: this.stripeAccount,
-    })
+    // Create on PLATFORM account with destination charge pattern.
+    // This allows the platform's publishable key to work with the returned client_secret.
+    const pi = await stripe.paymentIntents.create(intentParams)
 
     return {
       paymentIntentId: pi.id,
@@ -92,9 +101,8 @@ export class StripeProcessor implements IPaymentProcessor {
 
   async getPaymentIntent(intentId: string): Promise<PaymentIntentResult> {
     const stripe = getPlatformStripe()
-    const pi = await stripe.paymentIntents.retrieve(intentId, undefined, {
-      stripeAccount: this.stripeAccount,
-    })
+    // Retrieve from platform account (destination-charge PIs live there)
+    const pi = await stripe.paymentIntents.retrieve(intentId)
 
     return {
       paymentIntentId: pi.id,
@@ -182,13 +190,13 @@ export class StripeProcessor implements IPaymentProcessor {
     const siParams: Stripe.SetupIntentCreateParams = {
       customer: params.customerId,
       payment_method_types: ['card'],
+      on_behalf_of: this.stripeAccount,
     }
     if (params.metadata) siParams.metadata = params.metadata
     if (params.usage) siParams.usage = params.usage
 
-    const si = await stripe.setupIntents.create(siParams, {
-      stripeAccount: this.stripeAccount,
-    })
+    // Create on PLATFORM account so platform publishable key works.
+    const si = await stripe.setupIntents.create(siParams)
 
     return {
       setupIntentId: si.id,

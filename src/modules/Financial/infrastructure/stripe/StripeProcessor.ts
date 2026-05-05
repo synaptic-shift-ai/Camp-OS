@@ -73,6 +73,9 @@ export class StripeProcessor implements IPaymentProcessor {
     if (params.transferDestination) {
       intentParams.transfer_data = { destination: params.transferDestination }
     }
+    if (params.paymentMethod) intentParams.payment_method = params.paymentMethod
+    if (params.confirm) intentParams.confirm = true
+    if (params.offSession) intentParams.off_session = true
 
     const pi = await stripe.paymentIntents.create(intentParams, {
       stripeAccount: this.stripeAccount,
@@ -181,6 +184,7 @@ export class StripeProcessor implements IPaymentProcessor {
       payment_method_types: ['card'],
     }
     if (params.metadata) siParams.metadata = params.metadata
+    if (params.usage) siParams.usage = params.usage
 
     const si = await stripe.setupIntents.create(siParams, {
       stripeAccount: this.stripeAccount,

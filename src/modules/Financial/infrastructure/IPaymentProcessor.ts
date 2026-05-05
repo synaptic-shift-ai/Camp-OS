@@ -28,6 +28,12 @@ export interface PaymentIntentParams {
   onBehalfOf?: string
   /** Connect: transfer data destination */
   transferDestination?: string
+  /** Payment method ID to charge (for off-session / saved card flows) */
+  paymentMethod?: string
+  /** Immediately confirm the PaymentIntent after creation */
+  confirm?: boolean
+  /** Indicate this is an off-session payment (no customer interaction) */
+  offSession?: boolean
 }
 
 export interface PaymentIntentResult {
@@ -76,6 +82,8 @@ export interface PaymentMethodResult {
 export interface SetupIntentParams {
   customerId: string
   metadata?: Record<string, string>
+  /** Controls when the saved payment method can be used. Default varies by processor. */
+  usage?: 'on_session' | 'off_session'
 }
 
 export interface SetupIntentResult {

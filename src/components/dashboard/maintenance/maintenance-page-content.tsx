@@ -654,7 +654,7 @@ export function MaintenancePageContent({
       const data = await res.json()
       if (!res.ok) {
         toast({
-          title: data.error ?? "Failed to generate work order",
+          title: data.error?.details?.message ?? data.error?.message ?? "Failed to generate work order",
           variant: "destructive",
         })
       } else {

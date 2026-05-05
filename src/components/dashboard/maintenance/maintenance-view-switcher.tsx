@@ -19,7 +19,7 @@ type MaintenanceViewSwitcherProps = {
 
 const tabButtonClass = (selected: boolean) =>
   [
-    "inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+    "inline-flex shrink-0 items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
     selected ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted/60",
   ].join(" ")
 
@@ -32,9 +32,9 @@ export function MaintenanceViewSwitcher({
   showGuides = true,
 }: MaintenanceViewSwitcherProps) {
   return (
-    <div className="flex items-center justify-end">
+    <div className="flex items-center sm:justify-end w-full">
       <div
-        className="relative inline-flex items-center rounded-md border border-border/80 bg-card/50 p-1"
+        className="relative inline-flex items-center rounded-md border border-border/80 bg-card/50 p-1 overflow-x-auto max-w-full"
         role="tablist"
         aria-label="Maintenance view"
       >

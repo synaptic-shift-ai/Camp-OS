@@ -162,7 +162,13 @@ export function ManualPaymentDialog({
           return
         }
 
-        setApiBalance(data.balance)
+        const ledgerBalance = data.balance
+        const snapshotBalance = totalAmountCents - data.payments_total - data.refunds_total
+        // If the ledger says "overpaid or zero" but the reservation snapshot disagrees,
+        // prefer the snapshot (handles incomplete ledger data from legacy migrations).
+        setApiBalance(
+          ledgerBalance > 0 ? ledgerBalance : Math.max(0, snapshotBalance)
+        )
       }
     } catch {
       // Silently fall back to prop-based balance

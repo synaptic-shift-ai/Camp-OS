@@ -163,44 +163,84 @@ export function TransactionHistoryTab({
   const [typeFilter, setTypeFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [totalCents, setTotalCents] = useState(totalAmountCents)
+  const [paidCents, setPaidCents] = useState(paidAmountCents)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  const fetchTransactions = useCallback(async (currentPage: number, currentTypeFilter: string) => {
-    setLoading(true)
-    setError(null)
+  useEffect(() => {
+    setTotalCents(totalAmountCents)
+    setPaidCents(paidAmountCents)
+  }, [totalAmountCents, paidAmountCents])
 
+  const refreshReservationAmounts = useCallback(async () => {
     try {
-      const params = new URLSearchParams({
-        page: String(currentPage),
-        pageSize: String(PAGE_SIZE),
+      const res = await fetch(`/api/v1/reservations/${reservationId}`, {
+        credentials: 'include',
       })
-      if (currentTypeFilter !== 'all') {
-        params.set('type', currentTypeFilter)
-      }
-
-      const res = await fetch(
-        `/api/v1/financial/reservations/${reservationId}/transactions?${params}`,
-      )
-      const json: TransactionsResponse = await res.json()
-
-      if (json.success) {
-        setTransactions(json.data.transactions)
-        setTotal(json.data.total)
-        setPage(json.data.page)
-      } else {
-        setError('Failed to load transactions')
+      const json = await res.json()
+      if (json.success && json.data) {
+        const d = json.data as { total_amount?: number; paid_amount?: number }
+        setTotalCents(d.total_amount ?? 0)
+        setPaidCents(d.paid_amount ?? 0)
       }
     } catch {
-      setError('Failed to load transactions')
-    } finally {
-      setLoading(false)
+      // Keep existing totals on failure
     }
   }, [reservationId])
 
+  const fetchTransactions = useCallback(
+    async (
+      currentPage: number,
+      currentTypeFilter: string,
+      mode: 'full' | 'inline' = 'full',
+    ) => {
+      if (mode === 'full') {
+        setLoading(true)
+      }
+      setError(null)
+
+      try {
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          pageSize: String(PAGE_SIZE),
+        })
+        if (currentTypeFilter !== 'all') {
+          params.set('type', currentTypeFilter)
+        }
+
+        const res = await fetch(
+          `/api/v1/financial/reservations/${reservationId}/transactions?${params}`,
+          { credentials: 'include' },
+        )
+        const json: TransactionsResponse = await res.json()
+
+        if (json.success) {
+          setTransactions(json.data.transactions)
+          setTotal(json.data.total)
+          setPage(json.data.page)
+        } else {
+          setError('Failed to load transactions')
+        }
+      } catch {
+        setError('Failed to load transactions')
+      } finally {
+        if (mode === 'full') {
+          setLoading(false)
+        }
+      }
+    },
+    [reservationId],
+  )
+
+  const handlePaymentRecorded = useCallback(() => {
+    void fetchTransactions(page, typeFilter, 'inline')
+    void refreshReservationAmounts()
+  }, [fetchTransactions, page, typeFilter, refreshReservationAmounts])
+
   // Initial load + refetch on filter/page changes
   useEffect(() => {
-    fetchTransactions(page, typeFilter)
+    void fetchTransactions(page, typeFilter, 'full')
   }, [fetchTransactions, page, typeFilter])
 
   const handleTypeFilterChange = (value: string) => {
@@ -212,8 +252,8 @@ export function TransactionHistoryTab({
     setPage(newPage)
   }
 
-  // --- Loading skeleton ---
-  if (loading) {
+  // --- Loading skeleton (avoid replacing the whole tab after inline refresh) ---
+  if (loading && transactions.length === 0) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -266,7 +306,7 @@ export function TransactionHistoryTab({
 
   const statusStyle = (status: string) => STATUS_BADGE[status] ?? { variant: 'outline' as const }
 
-  const outstandingBalance = Math.max(0, totalAmountCents - paidAmountCents)
+  const outstandingBalance = Math.max(0, totalCents - paidCents)
 
   return (
     <div className="space-y-3">
@@ -284,8 +324,9 @@ export function TransactionHistoryTab({
             confirmationNumber={confirmationNumber}
             guestName={guestName}
             guestId={guestId}
-            totalAmountCents={totalAmountCents}
-            paidAmountCents={paidAmountCents}
+            totalAmountCents={totalCents}
+            paidAmountCents={paidCents}
+            onSuccess={handlePaymentRecorded}
             trigger={
               <Button className="gap-2" size="sm">
                 <DollarSign className="h-4 w-4" />

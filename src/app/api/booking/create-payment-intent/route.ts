@@ -1,13 +1,17 @@
 /**
- * Stripe PaymentIntent Creation API Route
+ * PaymentIntent Creation API Route
  *
  * Creates a PaymentIntent for a pending reservation.
  * Called after reservation is created but before payment is collected.
  *
+ * Uses the property's configured payment processor (Stripe, CampOS Payments, etc.)
+ * via the IPaymentProcessor abstraction.
+ *
  * Flow:
  * 1. Validate reservation exists and is pending
- * 2. Create Stripe PaymentIntent with reservation metadata
- * 3. Return client_secret for frontend PaymentElement
+ * 2. Resolve payment processor from property config
+ * 3. Create PaymentIntent via processor abstraction
+ * 4. Return client_secret for frontend PaymentElement
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
@@ -17,7 +21,9 @@ import {
   CreatePaymentIntentRequestSchema,
   CreatePaymentIntentResponseSchema,
 } from '@/contracts/schemas'
-import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
+import { resolveDepositConfig, resolvePaymentProcessor } from '@/lib/config/resolution'
+import { getProcessor } from '@/modules/Financial/infrastructure/ProcessorFactory'
+import type { IPaymentProcessor } from '@/modules/Financial/infrastructure/IPaymentProcessor'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
@@ -64,43 +70,77 @@ export async function POST(request: NextRequest) {
     }
 
     // Phase 2c: Direct read from BIGINT column (already in cents)
-    const amountInCents = typedReservation.total_amount
+    const totalAmountCents = typedReservation.total_amount
+
+    // Check if deposit is configured for this property — use deposit amount if active
+    let amountInCents = totalAmountCents
+    const { data: property } = await supabase
+      .from('properties')
+      .select('deposit_config, payment_processor, stripe_account_id')
+      .eq('id', property_id)
+      .single()
+
+    if (property?.deposit_config) {
+      const depositConfig = resolveDepositConfig(property.deposit_config as any, null).config
+      if (
+        depositConfig.require_deposit &&
+        depositConfig.applies_to_booking_types.includes('nightly')
+      ) {
+        let depositAmountCents = 0
+        switch (depositConfig.deposit_type) {
+          case 'percentage':
+            depositAmountCents = Math.round((totalAmountCents * (depositConfig.deposit_percentage || 0)) / 100)
+            break
+          case 'flat_amount':
+            depositAmountCents = depositConfig.deposit_amount_cents || 0
+            break
+          case 'first_night': {
+            // Derive nightly rate from total / nights
+            const checkIn = new Date(typedReservation.check_in_date)
+            const checkOut = new Date(typedReservation.check_out_date)
+            const nights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
+            depositAmountCents = Math.round(totalAmountCents / nights)
+            break
+          }
+        }
+        if (depositAmountCents > 0 && depositAmountCents < totalAmountCents) {
+          amountInCents = depositAmountCents
+          console.log('[Create Payment Intent] Deposit configured — charging deposit:', depositAmountCents, 'of', totalAmountCents)
+        }
+      }
+    }
+
     console.log('[Create Payment Intent] Amount in cents:', amountInCents)
 
-    // Get tenant-specific Stripe client
-    const tenantStripeResult = await getTenantStripeClient(property_id)
-    if (!tenantStripeResult.success) {
+    // Resolve payment processor and create PaymentIntent via abstraction
+    const processorType = resolvePaymentProcessor(property?.payment_processor)
+    let processor: IPaymentProcessor
+    try {
+      processor = getProcessor(processorType, property?.stripe_account_id ?? undefined)
+    } catch (procError: any) {
       return NextResponse.json(
-        { error: tenantStripeResult.error },
+        { error: procError.message || 'Payment processor not configured' },
         { status: 400 }
       )
     }
 
-    const { stripe, stripeAccountId } = tenantStripeResult
-
-    // Create PaymentIntent on PLATFORM account with destination charge pattern
-    // This allows platform's publishable key to work on frontend
-    // Funds are transferred directly to connected account (tenant)
-    // Platform never touches the money (no application fee)
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountInCents,
+    const paymentIntentResult = await processor.createPaymentIntent({
+      amountCents: amountInCents,
       currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      on_behalf_of: stripeAccountId, // Charge appears on connected account's Stripe dashboard
-      transfer_data: {
-        destination: stripeAccountId, // Funds go directly to connected account
-      },
+      automaticPaymentMethods: true,
+      onBehalfOf: property?.stripe_account_id ?? undefined,
+      transferDestination: property?.stripe_account_id ?? undefined,
       metadata: {
         reservation_id: reservation_id,
         property_id: property_id,
         confirmation_number: typedReservation.confirmation_number,
         guest_email: typedReservation.guest.email,
-        guest_id: typedReservation.guest_id, // For customer creation in webhook
+        ...(typedReservation.guest_id != null
+          ? { guest_id: typedReservation.guest_id }
+          : {}),
       },
       description: `Campsite reservation ${typedReservation.confirmation_number}`,
-      receipt_email: typedReservation.guest.email,
+      receiptEmail: typedReservation.guest.email,
     })
 
     // Store PaymentIntent ID in reservation for reference
@@ -108,14 +148,14 @@ export async function POST(request: NextRequest) {
       .from('reservations')
       .update({
         // Store in notes for now - could add dedicated column
-        notes: `Stripe PaymentIntent: ${paymentIntent.id}`,
+        notes: `${processorType} PaymentIntent: ${paymentIntentResult.paymentIntentId}`,
       })
       .eq('id', reservation_id)
 
     // Phase 3: Validate output
     const response = CreatePaymentIntentResponseSchema.parse({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntentResult.clientSecret,
+      paymentIntentId: paymentIntentResult.paymentIntentId,
     })
 
     return NextResponse.json(response)

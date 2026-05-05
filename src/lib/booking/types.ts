@@ -522,6 +522,7 @@ export interface CheckoutData {
 
   // Payment
   stripePaymentIntentId?: string
+  paymentProcessor?: 'stripe' | 'campost_payments' | 'none'
 
   // Confirmation
   confirmationNumber?: string

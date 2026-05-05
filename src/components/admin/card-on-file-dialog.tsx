@@ -22,6 +22,7 @@ export type CardOnFileDialogProps = {
   totalAmountCents: MoneyCents
   paidAmountCents: MoneyCents
   guestId?: string | null
+  onManualPaymentSuccess?: () => void
   paymentCard?:
     | {
         brand: string
@@ -40,6 +41,7 @@ export function CardOnFileDialog({
   totalAmountCents,
   paidAmountCents,
   guestId,
+  onManualPaymentSuccess,
   paymentCard,
   trigger,
 }: CardOnFileDialogProps) {
@@ -91,6 +93,7 @@ export function CardOnFileDialog({
             totalAmountCents={totalAmountCents}
             paidAmountCents={paidAmountCents}
             guestId={guestId ?? null}
+            {...(onManualPaymentSuccess ? { onSuccess: onManualPaymentSuccess } : {})}
             defaultPaymentMethod="credit_card"
             defaultProcessor="stripe"
             defaultUseCardOnFile={!!paymentCard}

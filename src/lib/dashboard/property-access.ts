@@ -128,7 +128,8 @@ export async function getPropertyForUser(propertyId: string): Promise<{
       cancellation_policy_config,
       terms_and_conditions,
       stripe_account_id,
-      stripe_connected_at
+      stripe_connected_at,
+      payment_processor
     `)
     .eq("id", propertyId)
     .maybeSingle()

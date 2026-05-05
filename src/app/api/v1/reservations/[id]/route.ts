@@ -19,7 +19,7 @@ import {
   fetchPaymentCardResult,
   resolvePaymentIntentIdForReservation,
 } from '@/lib/stripe/payment-intent-card-display'
-import { getTenantStripeClient } from '@/lib/stripe/tenant-client'
+import { getPlatformStripeClient, getTenantStripeClient } from '@/lib/stripe/tenant-client'
 
 const REFUND_ELIGIBILITY_SNAPSHOT_PREFIX = '[REFUND_ELIGIBILITY_SNAPSHOT]'
 
@@ -307,22 +307,39 @@ export async function GET(
     } | null = null
     if (reservation.incidentalsPaymentMethodId) {
       try {
+        const attempts: Array<() => Promise<any>> = []
         const tenantStripeResult = await getTenantStripeClient(reservation.propertyId)
         if (tenantStripeResult.success) {
           const { stripe, stripeAccountId } = tenantStripeResult
-          const pm = await stripe.paymentMethods.retrieve(
-            reservation.incidentalsPaymentMethodId,
-            {},
-            { stripeAccount: stripeAccountId }
+          attempts.push(() =>
+            stripe.paymentMethods.retrieve(
+              reservation.incidentalsPaymentMethodId!,
+              {},
+              { stripeAccount: stripeAccountId }
+            )
           )
-          if (pm.card) {
-            incidentals_card = {
-              brand: pm.card.brand,
-              last4: pm.card.last4,
-              exp_month: pm.card.exp_month,
-              exp_year: pm.card.exp_year,
-              funding: pm.card.funding,
+        }
+        attempts.push(() =>
+          getPlatformStripeClient().paymentMethods.retrieve(
+            reservation.incidentalsPaymentMethodId!
+          )
+        )
+
+        for (const attempt of attempts) {
+          try {
+            const pm = await attempt()
+            if (pm.card) {
+              incidentals_card = {
+                brand: pm.card.brand,
+                last4: pm.card.last4,
+                exp_month: pm.card.exp_month,
+                exp_year: pm.card.exp_year,
+                funding: pm.card.funding,
+              }
+              break
             }
+          } catch {
+            // Try the next account context (tenant -> platform fallback).
           }
         }
       } catch (incidentalsErr) {

@@ -2,16 +2,19 @@
  * Stripe Webhook Handler
  *
  * Handles Stripe webhook events for payment processing.
- * Primary event: payment_intent.succeeded
+ *
+ * Supported events:
+ * - payment_intent.succeeded  — Confirm reservation, create ledger records
+ * - payment_intent.payment_failed — Mark reservation payment as failed
+ * - charge.refunded             — Create refund record in financial_transactions
+ * - setup_intent.succeeded       — Log confirmed card-on-file
+ * - setup_intent.failed          — Log failed card setup
  *
  * Flow:
  * 1. Verify webhook signature (security)
- * 2. Parse and validate event data
- * 3. Create Stripe Customer for guest (if not exists)
- * 4. Attach PaymentMethod to Customer
- * 5. Update guest with stripe_customer_id
- * 6. Update reservation status to confirmed
- * 7. Update payment_status to paid
+ * 2. Route event to the appropriate handler
+ * 3. Handlers are idempotent (processor_event_id dedup)
+ * 4. Always return 200 to acknowledge receipt (Stripe retries on non-200)
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
@@ -27,6 +30,7 @@ import { Transaction } from '@/modules/Financial/domain/Transaction'
 import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
 import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
+import { RecognitionStatus } from '@/modules/Financial/domain/value-objects/RecognitionStatus'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { randomUUID } from 'crypto'
@@ -52,6 +56,8 @@ async function writeFinancialTransactions(params: {
   guestId: string
   amountCents: number
   stripePaymentIntentId: string
+  /** When set and less than amountCents, this is a deposit payment */
+  reservationTotalCents?: number
 }): Promise<void> {
   const {
     supabase,
@@ -61,11 +67,16 @@ async function writeFinancialTransactions(params: {
     guestId,
     amountCents,
     stripePaymentIntentId,
+    reservationTotalCents,
   } = params
+
+  const isDepositPayment = reservationTotalCents != null && amountCents < reservationTotalCents
+  const chargeAmountCents = isDepositPayment ? reservationTotalCents : amountCents
 
   try {
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
+    const chargeAmount = MoneyAmount.create(chargeAmountCents)
 
     // Guest checkout: do not attribute ledger rows to property staff (reservations.created_by).
     const createdByUserId: string | null = null
@@ -88,16 +99,21 @@ async function writeFinancialTransactions(params: {
       propertyId,
       reservationId,
       TransactionType.CHARGE,
-      amount,
+      chargeAmount,
       PaymentMethod.STRIPE,
       createdByUserId,
       null, // invoiceId
-      'Guest self-service reservation payment',
+      isDepositPayment
+        ? 'Guest self-service reservation payment (deposit — balance deferred)'
+        : 'Guest self-service reservation payment',
       TransactionSource.RESERVATION,
       processorKey,
       guestId,
     )
     charge.complete(stripePaymentIntentId)
+    if (isDepositPayment) {
+      charge.applyRecognitionStatus(RecognitionStatus.DEFERRED)
+    }
     await repo.save(charge)
     console.log(`[Stripe Webhook] financial_transactions CHARGE created: ${chargeId}`)
 
@@ -272,12 +288,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       console.warn('No payment_method found on PaymentIntent - cannot save card')
     }
 
-    // Update reservation status to confirmed and paid
+    // Update reservation status to confirmed and paid (deposit-aware)
+    // Fetch reservation to compare PaymentIntent amount vs total
+    const { data: reservationRow } = await supabase
+      .from('reservations')
+      .select('total_amount')
+      .eq('id', reservation_id)
+      .eq('property_id', property_id)
+      .single()
+
+    const reservationTotal = (reservationRow?.total_amount ?? validated.amount) as number
+    const isDepositPayment = validated.amount < reservationTotal
+
     const { error: updateReservationError } = await supabase
       .from('reservations')
       .update({
         status: 'confirmed',
-        payment_status: 'paid',
+        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
         paid_amount: validated.amount, // Amount in cents (BIGINT)
         updated_at: new Date().toISOString(),
       })
@@ -288,7 +315,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       console.error('Failed to update reservation:', updateReservationError)
       // Don't throw - payment succeeded, customer created, just DB update failed
     } else {
-      console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100})`)
+      console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100}${isDepositPayment ? ', deposit payment' : ''})`)
     }
 
     // --- Dual-write to financial_transactions (unified ledger) ---
@@ -300,6 +327,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       guestId: guest_id,
       amountCents: validated.amount,
       stripePaymentIntentId: validated.id,
+      reservationTotalCents: reservationTotal,
     })
 
     // --- Publish domain events (fire-and-forget with timeout) ---
@@ -339,6 +367,184 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
   }
 }
 
+/**
+ * Handle failed payment intent
+ *
+ * Updates the reservation's payment_status to 'payment_failed' so the
+ * guest can retry. No financial_transactions records are created (no money moved).
+ */
+async function handlePaymentIntentFailed(
+  paymentIntent: Stripe.PaymentIntent,
+  stripeEventId: string,
+): Promise<void> {
+  const { reservation_id, property_id } = (paymentIntent.metadata ?? {}) as Record<string, string>
+
+  if (!reservation_id || !property_id) {
+    console.warn('[Stripe Webhook] payment_intent.payment_failed: missing reservation_id or property_id in metadata', {
+      stripeEventId,
+    })
+    return
+  }
+
+  const lastError = paymentIntent.last_payment_error
+  const failureMessage = lastError?.message ?? 'Unknown failure'
+  const declineCode = (lastError as any)?.decline_code ?? null
+
+  console.error('[Stripe Webhook] payment_intent.payment_failed', {
+    stripeEventId,
+    reservation_id,
+    property_id,
+    failureMessage,
+    declineCode,
+  })
+
+  const supabase = createServiceRoleClient()
+
+  const { error } = await supabase
+    .from('reservations')
+    .update({
+      payment_status: 'payment_failed',
+      notes: `Payment failed: ${failureMessage}${declineCode ? ` (${declineCode})` : ''}`,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reservation_id)
+    .eq('property_id', property_id)
+    .eq('status', 'pending') // Only update if still pending (don't overwrite confirmed)
+
+  if (error) {
+    console.error('[Stripe Webhook] Failed to update reservation on payment_intent.payment_failed:', error)
+  }
+}
+
+/**
+ * Handle charge.refunded event
+ *
+ * Creates a REFUND record in financial_transactions.
+ * Idempotent: skips if a record with processor_event_id already exists.
+ */
+async function handleChargeRefunded(charge: Stripe.Charge, stripeEventId: string): Promise<void> {
+  const { reservation_id, property_id, guest_id } = (charge.metadata ?? {}) as Record<string, string>
+
+  if (!reservation_id || !property_id) {
+    console.warn('[Stripe Webhook] charge.refunded: missing reservation_id or property_id in charge metadata', {
+      stripeEventId,
+    })
+    return
+  }
+
+  const refundAmountCents = charge.amount_refunded
+  if (!refundAmountCents || refundAmountCents <= 0) {
+    console.warn('[Stripe Webhook] charge.refunded: amount_refunded is 0 or missing, skipping', {
+      stripeEventId,
+      chargeId: charge.id,
+    })
+    return
+  }
+
+  const supabase = createServiceRoleClient()
+
+  try {
+    const repo = new SupabaseTransactionRepository(supabase as any)
+
+    // Idempotency: skip if already processed
+    const existing = await repo.findByProcessorEventId(stripeEventId, TransactionType.REFUND)
+    if (existing) {
+      console.log('[Stripe Webhook] charge.refunded: already processed (idempotent)', { stripeEventId })
+      return
+    }
+
+    const amount = MoneyAmount.create(refundAmountCents)
+    const refundId = randomUUID()
+    const refundReason = charge.refunds?.data?.[0]?.reason
+
+    const refund = Transaction.create(
+      refundId,
+      property_id,
+      reservation_id,
+      TransactionType.REFUND,
+      amount,
+      PaymentMethod.STRIPE,
+      null, // createdBy — system-initiated via Stripe
+      null, // invoiceId
+      `Stripe refund${refundReason ? ` (${refundReason})` : ''}`,
+      TransactionSource.RESERVATION,
+      stripeEventId,
+      guest_id ?? null,
+    )
+    refund.complete(charge.payment_intent as string | null)
+
+    await repo.save(refund)
+    console.log(`[Stripe Webhook] financial_transactions REFUND created: ${refundId}`, {
+      stripeEventId,
+      amountCents: refundAmountCents,
+      reservation_id,
+    })
+  } catch (ftError: any) {
+    const isConstraintViolation =
+      ftError?.message?.includes('duplicate key') ||
+      ftError?.message?.includes('unique constraint') ||
+      ftError?.message?.includes('23505')
+    if (isConstraintViolation) {
+      console.warn('[Stripe Webhook] charge.refunded: skipped (race condition, already exists)', {
+        stripeEventId,
+        error: ftError.message,
+      })
+    } else {
+      console.error('[Stripe Webhook] charge.refunded: failed to create refund record (non-blocking)', {
+        stripeEventId,
+        error: ftError,
+      })
+    }
+  }
+}
+
+/**
+ * Handle setup_intent.succeeded event
+ *
+ * Confirms that a payment method has been successfully saved for a guest.
+ * The PaymentIntent.succeeded handler already attaches the PM to the customer;
+ * this handler is an additional confirmation for card-on-file flows.
+ */
+async function handleSetupIntentSucceeded(
+  setupIntent: Stripe.SetupIntent,
+  stripeEventId: string,
+): Promise<void> {
+  const { guest_id } = (setupIntent.metadata ?? {}) as Record<string, string>
+
+  if (!guest_id) {
+    console.warn('[Stripe Webhook] setup_intent.succeeded: missing guest_id in metadata', { stripeEventId })
+    return
+  }
+
+  console.log('[Stripe Webhook] setup_intent.succeeded: card-on-file confirmed for guest', {
+    stripeEventId,
+    guest_id,
+    setupIntentId: setupIntent.id,
+  })
+}
+
+/**
+ * Handle setup_intent.failed event
+ *
+ * Logs the failure for monitoring. No action needed — the guest can retry.
+ */
+async function handleSetupIntentFailed(
+  setupIntent: Stripe.SetupIntent,
+  stripeEventId: string,
+): Promise<void> {
+  const { guest_id } = (setupIntent.metadata ?? {}) as Record<string, string>
+
+  const lastError = setupIntent.last_setup_error
+  const failureMessage = lastError?.message ?? 'Unknown failure'
+
+  console.error('[Stripe Webhook] setup_intent.failed', {
+    stripeEventId,
+    guest_id,
+    setupIntentId: setupIntent.id,
+    failureMessage,
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Get raw body for signature verification
@@ -364,9 +570,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Handle payment_intent.succeeded event
-    if (event.type === 'payment_intent.succeeded') {
-      await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, event.id)
+    // Route event to the appropriate handler
+    // `setup_intent.failed` is valid at runtime but may be missing from SDK `Event.type` union
+    const eventType = event.type as string
+    if (eventType === 'setup_intent.failed') {
+      await handleSetupIntentFailed(event.data.object as Stripe.SetupIntent, event.id)
+    } else {
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, event.id)
+          break
+
+        case 'payment_intent.payment_failed':
+          await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, event.id)
+          break
+
+        case 'charge.refunded':
+          await handleChargeRefunded(event.data.object as Stripe.Charge, event.id)
+          break
+
+        case 'setup_intent.succeeded':
+          await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent, event.id)
+          break
+
+        default:
+          // Acknowledge unhandled events without processing
+          console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`, { eventId: event.id })
+          break
+      }
     }
 
     // Acknowledge receipt of event

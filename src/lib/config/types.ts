@@ -282,6 +282,22 @@ export interface DepositConfig {
 }
 
 // =====================================================
+// Payment Processor Configuration
+// =====================================================
+
+/**
+ * Supported payment processor types.
+ *
+ * - stripe: Process payments through Stripe Connect
+ * - campost_payments: Built-in payment processing by CampOS (coming soon)
+ * - none: Disable online payments; all payments recorded manually
+ */
+export type PaymentProcessorType = 'stripe' | 'campost_payments' | 'none'
+
+/** Default payment processor */
+export const DEFAULT_PAYMENT_PROCESSOR: PaymentProcessorType = 'stripe'
+
+// =====================================================
 // Pricing Configuration
 // =====================================================
 
@@ -873,6 +889,8 @@ export interface PropertyWithConfig {
   pricing_config: PricingConfig
   booking_rules_config: BookingRulesConfig
   rate_discounts_config: RateDiscountsConfig
+  /** Payment processor to use for online payments */
+  payment_processor?: PaymentProcessorType | null
 
   // Existing operational fields
   check_in_time: string

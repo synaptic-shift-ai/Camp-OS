@@ -846,6 +846,8 @@ export const updatePropertyConfigSchema = z.object({
   enabled_reservation_types: z.array(z.string()).optional(),
   // Site type configuration (allowed types, per-site-type rules, etc.)
   site_type_config: z.unknown().optional(),
+  // Payment processor selection
+  payment_processor: z.enum(['stripe', 'campost_payments', 'none']).optional(),
 })
 
 /**

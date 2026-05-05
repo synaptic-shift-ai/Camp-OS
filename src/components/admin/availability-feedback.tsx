@@ -200,6 +200,7 @@ export function AvailabilityFeedback({
                   <Badge
                     variant="outline"
                     className={
+                      // TODO(CC05-20A): 'deposit_paid' should also show green — deposit is a valid partial payment
                       conflict.reservation?.payment_status === 'paid'
                         ? 'bg-green-500/10 text-green-600'
                         : 'bg-orange-500/10 text-orange-600'

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useCheckout } from "@/lib/booking/checkout-context"
@@ -267,6 +268,10 @@ export default function PaymentPage() {
   const { toast } = useToast()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [paypalEmail, setPaypalEmail] = useState("")
+  const [paypalFirstName, setPaypalFirstName] = useState("")
+  const [paypalLastName, setPaypalLastName] = useState("")
+  const resolvedPaymentProcessor = checkoutData.paymentProcessor ?? 'stripe'
   const displayPropertyName =
     checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
 
@@ -310,6 +315,12 @@ export default function PaymentPage() {
     // Don't validate until hydration is complete
     if (!isHydrated) {
       console.log('[Payment] Waiting for hydration...')
+      return
+    }
+
+    // Don't create payment intent if processor is not Stripe.
+    if (resolvedPaymentProcessor !== 'stripe') {
+      setIsLoading(false)
       return
     }
 
@@ -380,9 +391,18 @@ export default function PaymentPage() {
         })
       } catch (error) {
         console.error("[Payment] Error creating payment intent:", error)
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to prepare payment. Please try again."
+
+        if (errorMessage.includes("CampOS Payments integration is pending partner selection")) {
+          setCheckoutData({ paymentProcessor: 'campost_payments' })
+          setIsLoading(false)
+          return
+        }
+
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to prepare payment. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         })
         router.push(`/book/${slug}/guest-info`)
@@ -392,9 +412,9 @@ export default function PaymentPage() {
     }
 
     createPaymentIntent()
-  }, [isHydrated, clientSecret, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, checkoutData.guestInfo, checkoutData.reservationId, checkoutData.propertyId, router, slug])
+  }, [isHydrated, resolvedPaymentProcessor, clientSecret, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, checkoutData.guestInfo, checkoutData.reservationId, checkoutData.propertyId, router, slug])
 
-  if (isLoading || !clientSecret) {
+  if (isLoading || (resolvedPaymentProcessor === 'stripe' && !clientSecret)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-muted/50 to-background dark:from-muted/20">
         <div className="text-center">
@@ -646,13 +666,83 @@ export default function PaymentPage() {
                   <CreditCard className="h-6 w-6" />
                   <span>Payment Information</span>
                 </CardTitle>
-                <CardDescription>Complete your reservation with secure payment</CardDescription>
+                <CardDescription>
+                  {resolvedPaymentProcessor === 'stripe'
+                    ? 'Complete your reservation with secure payment'
+                    : 'Complete your reservation using CampOS payment processing'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {stripeElementsOptions ? (
+                {resolvedPaymentProcessor === 'stripe' && stripeElementsOptions ? (
                   <Elements key={resolvedTheme ?? "light"} stripe={stripePromise} options={stripeElementsOptions}>
                     <PaymentFormInner slug={slug} />
                   </Elements>
+                ) : null}
+                {resolvedPaymentProcessor !== 'stripe' ? (
+                  <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+                    <p className="text-sm text-foreground">
+                      This property uses <strong>CampOS Payments</strong>. Stripe checkout is disabled, and your
+                      reservation remains reserved while the property collects payment through its configured flow.
+                    </p>
+                    <Accordion type="single" collapsible className="w-full rounded-md border border-border bg-background">
+                      <AccordionItem value="paypal" className="border-0">
+                        <AccordionTrigger className="px-4 text-sm font-semibold hover:no-underline">
+                          Pay with PayPal
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              UI preview only. No PayPal payment is processed yet.
+                            </p>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label htmlFor="paypal-first-name">First name</Label>
+                                <Input
+                                  id="paypal-first-name"
+                                  placeholder="John"
+                                  value={paypalFirstName}
+                                  onChange={(event) => setPaypalFirstName(event.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="paypal-last-name">Last name</Label>
+                                <Input
+                                  id="paypal-last-name"
+                                  placeholder="Doe"
+                                  value={paypalLastName}
+                                  onChange={(event) => setPaypalLastName(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="paypal-email">PayPal email</Label>
+                              <Input
+                                id="paypal-email"
+                                type="email"
+                                placeholder="name@example.com"
+                                value={paypalEmail}
+                                onChange={(event) => setPaypalEmail(event.target.value)}
+                              />
+                            </div>
+                            <Button type="button" className="w-full" disabled>
+                              Continue with PayPal (UI only)
+                            </Button>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => router.push(`/book/${slug}/guest-info`)}
+                        className="sm:w-auto"
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Guest Info
+                      </Button>
+                    </div>
+                  </div>
                 ) : null}
               </CardContent>
             </Card>

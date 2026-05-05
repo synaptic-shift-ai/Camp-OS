@@ -868,3 +868,25 @@ export function parseEnabledReservationTypesFromDB(
   const validTypes: BookingType[] = ['nightly', 'weekly', 'monthly', 'seasonal', 'long_term']
   return dbResult.filter((type: string) => validTypes.includes(type as BookingType)) as BookingType[]
 }
+
+// =====================================================
+// Payment Processor Resolution
+// =====================================================
+
+/**
+ * Resolve the payment processor type for a property.
+ *
+ * Falls back to 'stripe' when no processor is configured.
+ *
+ * @param propertyProcessorConfig - The value of the `payment_processor` column on the property.
+ * @returns The resolved PaymentProcessorType.
+ */
+export function resolvePaymentProcessor(
+  propertyProcessorConfig: unknown
+): 'stripe' | 'campost_payments' | 'none' {
+  const valid: Array<'stripe' | 'campost_payments' | 'none'> = ['stripe', 'campost_payments', 'none']
+  if (typeof propertyProcessorConfig === 'string' && valid.includes(propertyProcessorConfig as any)) {
+    return propertyProcessorConfig as 'stripe' | 'campost_payments' | 'none'
+  }
+  return 'stripe'
+}

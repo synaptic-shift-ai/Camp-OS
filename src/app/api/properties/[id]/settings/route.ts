@@ -149,6 +149,10 @@ export async function PATCH(
       updateData.site_type_config = configUpdates.site_type_config
     }
 
+    if (configUpdates.payment_processor !== undefined) {
+      updateData.payment_processor = configUpdates.payment_processor
+    }
+
     // Add updated timestamp
     updateData.updated_at = new Date().toISOString()
 

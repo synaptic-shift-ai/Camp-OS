@@ -25,8 +25,6 @@ import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
-import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
 // Initialize Stripe
@@ -137,9 +135,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify payment amount matches reservation total
+    // Verify payment amount matches reservation total (or deposit if configured)
     const paidAmountCents = paymentIntent.amount
-    if (paidAmountCents !== reservation.total_amount) {
+    const isDepositPayment = paidAmountCents < reservation.total_amount
+    if (paidAmountCents !== reservation.total_amount && !isDepositPayment) {
       console.error('[Payment Confirm] Amount mismatch', {
         expected: reservation.total_amount,
         actual: paidAmountCents,
@@ -164,10 +163,10 @@ export async function POST(request: NextRequest) {
       .from('reservations')
       .update({
         status: 'confirmed',
-        payment_status: 'paid',
+        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
         paid_amount: paidAmountCents,
         reserved_until: null, // Clear checkout timer - payment completed
-        notes: `Online payment via Stripe. PaymentIntent: ${validatedInput.payment_intent_id}`,
+        notes: `Online payment via Stripe${isDepositPayment ? ' (deposit)' : ''}. PaymentIntent: ${validatedInput.payment_intent_id}`,
         updated_at: new Date().toISOString(),
       })
       .eq('id', validatedInput.reservation_id)
@@ -224,23 +223,6 @@ export async function POST(request: NextRequest) {
       // Don't fail - reservation is already confirmed
     }
 
-    // Unified ledger (same idempotency key as Stripe webhook — PaymentIntent id)
-    const ledgerSupabase = createServiceRoleClient()
-    await recordPaymentDualWrite({
-      supabase: ledgerSupabase,
-      propertyId: reservation.property_id as string,
-      reservationId: reservation.id as string,
-      guestId: (reservation as { guest_id?: string | null }).guest_id ?? null,
-      createdByUserId: null,
-      guestInitiatedLedger: true,
-      amountCents: paidAmountCents,
-      paymentMethod: PaymentMethod.STRIPE,
-      stripePaymentIntentId: validatedInput.payment_intent_id,
-      description: 'Guest self-service reservation payment',
-      processorEventId: validatedInput.payment_intent_id,
-      logPrefix: '[GuestPaymentConfirm DualWrite]',
-    })
-
     // ========================================================================
     // Step 5: Email is handled by automation pipeline (no direct fallback)
     // ========================================================================
@@ -294,7 +276,7 @@ export async function POST(request: NextRequest) {
         reservation_id: reservation.id,
         confirmation_number: reservation.confirmation_number,
         status: 'confirmed',
-        payment_status: 'paid',
+        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
         guest_name: `${reservation.guest.first_name} ${reservation.guest.last_name}`,
         guest_email: reservation.guest.email,
         property_name: reservation.property.name,

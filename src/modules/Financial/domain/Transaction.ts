@@ -74,6 +74,11 @@ export interface TransactionProps {
   // Charge recognition status
   recognitionStatus: RecognitionStatus
 
+  // Generic processor IDs (processor-agnostic)
+  processorPaymentId: string | null
+  processorChargeId: string | null
+  processorPaymentMethodId: string | null
+
   // Internal: original transaction ID for refunds
   _originalTransactionId?: string | null
 }
@@ -141,6 +146,9 @@ export class Transaction extends AggregateRoot<string> {
       guestId,
       handling: null,
       recognitionStatus: RecognitionStatus.RECOGNIZED,
+      processorPaymentId: null,
+      processorChargeId: null,
+      processorPaymentMethodId: null,
     })
 
     // Publish domain event
@@ -219,6 +227,9 @@ export class Transaction extends AggregateRoot<string> {
       guestId: data.guest_id ?? null,
       handling: data.handling ? (data.handling as RefundHandling) : null,
       recognitionStatus: (data.recognition_status as RecognitionStatus) ?? RecognitionStatus.RECOGNIZED,
+      processorPaymentId: data.processor_payment_id ?? null,
+      processorChargeId: data.processor_charge_id ?? null,
+      processorPaymentMethodId: data.processor_payment_method_id ?? null,
     }
 
     return new Transaction(
@@ -323,6 +334,18 @@ export class Transaction extends AggregateRoot<string> {
 
   get recognitionStatus(): RecognitionStatus {
     return this.props.recognitionStatus
+  }
+
+  get processorPaymentId(): string | null {
+    return this.props.processorPaymentId
+  }
+
+  get processorChargeId(): string | null {
+    return this.props.processorChargeId
+  }
+
+  get processorPaymentMethodId(): string | null {
+    return this.props.processorPaymentMethodId
   }
 
   // ============================================================================
@@ -528,6 +551,9 @@ export class Transaction extends AggregateRoot<string> {
       guest_id: this.props.guestId,
       handling: this.props.handling,
       recognition_status: this.props.recognitionStatus,
+      processor_payment_id: this.props.processorPaymentId,
+      processor_charge_id: this.props.processorChargeId,
+      processor_payment_method_id: this.props.processorPaymentMethodId,
     }
   }
 }

@@ -7,6 +7,7 @@ import { TabsContent } from "@/components/ui/tabs"
 import { OverflowTabs, type OverflowTabItem } from "@/components/ui/overflow-tabs"
 import { FeesSettings } from "@/components/dashboard/settings/fees-settings"
 import { DepositSettings } from "@/components/dashboard/settings/deposit-settings"
+import { PaymentProcessorSettings } from "@/components/dashboard/settings/payment-processor-settings"
 import { BookingRulesSettings } from "@/components/dashboard/settings/booking-rules-settings"
 import { DiscountsSettings } from "@/components/dashboard/settings/discounts-settings"
 import { ReservationTypeSettings } from "@/components/dashboard/settings/reservation-type-settings"
@@ -38,6 +39,7 @@ const SETTINGS_TAB_ITEMS: OverflowTabItem[] = [
   { value: "reservation-types", label: "Rate Types" },
   { value: "site-types-configuration", label: "Site Types Configuration" },
   { value: "deposits", label: "Deposits" },
+  { value: "payment-processor", label: "Payment Processor" },
   { value: "booking-rules", label: "Booking Rules" },
   { value: "cancellation-policy", label: "Terms & Policies" },
   { value: "discounts", label: "Discounts" },
@@ -233,6 +235,14 @@ export default async function SettingsPage({ params }: PageProps) {
             {...(property.deposit_config != null && {
               initialConfig: property.deposit_config as DepositConfig,
             })}
+          />
+        </TabsContent>
+
+        <TabsContent value="payment-processor" className="space-y-4">
+          <PaymentProcessorSettings
+            propertyId={property.id}
+            canEdit={canEditSettings}
+            initialProcessor={(property as any).payment_processor ?? null}
           />
         </TabsContent>
 

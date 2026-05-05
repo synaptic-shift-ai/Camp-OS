@@ -33,6 +33,9 @@ export interface TransactionDTO {
   processorEventId: string | null
   handling: string | null
   recognitionStatus: string
+  processorPaymentId: string | null
+  processorChargeId: string | null
+  processorPaymentMethodId: string | null
 }
 
 export function toTransactionDTO(transaction: Transaction): TransactionDTO {
@@ -62,5 +65,8 @@ export function toTransactionDTO(transaction: Transaction): TransactionDTO {
     processorEventId: transaction.processorEventId,
     handling: transaction.handling,
     recognitionStatus: transaction.recognitionStatus,
+    processorPaymentId: transaction.processorPaymentId,
+    processorChargeId: transaction.processorChargeId,
+    processorPaymentMethodId: transaction.processorPaymentMethodId,
   }
 }

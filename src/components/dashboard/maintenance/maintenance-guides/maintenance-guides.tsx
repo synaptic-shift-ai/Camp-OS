@@ -336,13 +336,13 @@ export function MaintenanceGuidesPanel({
       </div>
 
       <div className="hidden border border-border/80 bg-card/50 md:block md:overflow-x-auto">
-      <Table className="min-w-[1200px] table-fixed text-sm">
+      <Table className="min-w-[980px] table-fixed text-sm">
         <colgroup>
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "35%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
+          <col style={{ width: "24%" }} />
+          <col style={{ width: "36%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "14%" }} />
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-emerald-50 dark:bg-emerald-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
@@ -368,7 +368,10 @@ export function MaintenanceGuidesPanel({
                   <div className="break-words text-sm font-semibold leading-snug text-foreground">{row.name}</div>
                 </TableCell>
                 <TableCell className="px-3 py-2 align-top">
-                  <div className="break-words text-sm leading-normal text-muted-foreground">
+                  <div
+                    className="truncate text-sm leading-normal text-muted-foreground"
+                    title={row.description?.trim() || "—"}
+                  >
                     {row.description?.trim() ? row.description.trim() : "—"}
                   </div>
                 </TableCell>

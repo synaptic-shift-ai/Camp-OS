@@ -9,7 +9,6 @@ import type { IAvailabilityService } from '../../domain/services/IAvailabilitySe
 import type { Reservation } from '../../domain/Reservation'
 import { DateRange } from '../../domain/value-objects/DateRange'
 import { MoneyAmount } from '../../domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type ModifyReservationDatesDto = {
   reservationId: string
@@ -88,9 +87,7 @@ export class ModifyReservationDatesCommandHandler {
     // Save updated reservation
     await this.repository.save(reservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...reservation.getDomainEvents()])
+    // Clear domain events
     reservation.clearDomainEvents()
 
     return {

@@ -13,7 +13,6 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { CreateCompanyRequestSchema } from '@/types/api/v1/schemas/companies'
 import { CreateCompanyCommandHandler, companyToDTO } from '@/modules/CompanyManagement'
 import { SupabaseCompanyRepository } from '@/modules/CompanyManagement'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 
 /**
  * POST /api/v1/companies
@@ -53,8 +52,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Execute command
     const repository = new SupabaseCompanyRepository(supabase)
-    const eventBus = new InMemoryEventBus()
-    const handler = new CreateCompanyCommandHandler(repository, eventBus)
+    const handler = new CreateCompanyCommandHandler(repository)
 
     const result = await handler.execute({
       name: validated.data.name,

@@ -6,7 +6,6 @@
 
 import type { Company } from '../../domain/Company'
 import type { ICompanyRepository } from '../../domain/ICompanyRepository'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { SubscriptionPlan } from '../../domain/value-objects/SubscriptionPlan'
 import { BillingCycle } from '../../domain/value-objects/BillingCycle'
 
@@ -34,8 +33,7 @@ export type ChangePlanOutput = ChangePlanResult | ChangePlanError
 
 export class ChangePlanCommandHandler {
   constructor(
-    private readonly repository: ICompanyRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: ICompanyRepository
   ) {}
 
   async execute(input: ChangePlanInput): Promise<ChangePlanOutput> {
@@ -112,8 +110,7 @@ export class ChangePlanCommandHandler {
     // Save changes
     await this.repository.save(company)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...company.getDomainEvents()])
+    // Clear domain events
     company.clearDomainEvents()
 
     return {

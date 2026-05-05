@@ -7,7 +7,6 @@
 import type { IReservationRepository } from '../../domain/IReservationRepository'
 import type { Reservation } from '../../domain/Reservation'
 import { MoneyAmount } from '../../domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type CheckInGuestDto = {
   reservationId: string
@@ -39,9 +38,7 @@ export class CheckInGuestCommandHandler {
     // Save updated reservation
     await this.repository.save(reservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...reservation.getDomainEvents()])
+    // Clear domain events
     reservation.clearDomainEvents()
 
     return reservation

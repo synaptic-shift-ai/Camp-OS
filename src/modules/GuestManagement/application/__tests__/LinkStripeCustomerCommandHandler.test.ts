@@ -7,16 +7,13 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { LinkStripeCustomerCommandHandler, type LinkStripeCustomerInput } from '../commands/LinkStripeCustomerCommand'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
-import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'
-import { StripeCustomerLinked } from '../../domain/events/StripeCustomerLinked'
 
 describe('LinkStripeCustomerCommandHandler', () => {
   let handler: LinkStripeCustomerCommandHandler
   let mockRepository: IGuestRepository
-  let mockEventBus: IEventBus
   let existingGuest: Guest
 
   beforeEach(() => {
@@ -31,17 +28,7 @@ describe('LinkStripeCustomerCommandHandler', () => {
       softDelete: vi.fn(),
     }
 
-    // Create mock event bus
-    mockEventBus = {
-      publish: vi.fn(),
-      publishAll: vi.fn(),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-      clearSubscribers: vi.fn(),
-      getSubscriberCount: vi.fn(),
-    }
-
-    // Create existing guest WITHOUT Stripe customer
+    handler = new LinkStripeCustomerCommandHandler(mockRepository)
     existingGuest = Guest.create({
       id: 'guest-123',
       propertyId: 'property-456',
@@ -56,7 +43,7 @@ describe('LinkStripeCustomerCommandHandler', () => {
       notes: null,
     })
 
-    handler = new LinkStripeCustomerCommandHandler(mockRepository, mockEventBus)
+    handler = new LinkStripeCustomerCommandHandler(mockRepository)
   })
 
   test('should throw error when guest not found', async () => {
@@ -95,9 +82,7 @@ describe('LinkStripeCustomerCommandHandler', () => {
 
     await handler.execute(input)
 
-    expect(mockEventBus.publishAll).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.any(StripeCustomerLinked)])
-    )
+    // (EventBus publish assertion removed — EventBus infrastructure deleted)
   })
 
   test('should throw error when Stripe customer already linked', async () => {

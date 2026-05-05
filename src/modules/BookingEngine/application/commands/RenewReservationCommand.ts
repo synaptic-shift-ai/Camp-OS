@@ -15,7 +15,6 @@ import { Reservation, ReservationStatus } from '../../domain/Reservation'
 import { DateRange } from '../../domain/value-objects/DateRange'
 import { MoneyAmount } from '../../domain/value-objects/MoneyAmount'
 import { ConfirmationNumber } from '../../domain/value-objects/ConfirmationNumber'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type RenewalPeriod = 'weekly' | 'monthly' | 'custom'
 
@@ -124,9 +123,7 @@ export class RenewReservationCommandHandler {
     // Save the renewal reservation
     await this.repository.save(renewalReservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...renewalReservation.getDomainEvents()])
+    // Clear domain events
     renewalReservation.clearDomainEvents()
 
     return {

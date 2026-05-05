@@ -10,7 +10,6 @@ import { Invoice } from '../../domain/Invoice'
 import { InvoiceNumber } from '../../domain//value-objects/InvoiceNumber'
 import { InvoiceLineItem } from '../../domain//value-objects/InvoiceLineItem'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface InvoiceLineItemDto {
   description: string
@@ -86,9 +85,7 @@ export class GenerateInvoiceCommandHandler {
     // Save invoice
     await this.invoiceRepository.save(invoice)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...invoice.getDomainEvents()])
+    // Clear domain events
     invoice.clearDomainEvents()
 
     return invoice

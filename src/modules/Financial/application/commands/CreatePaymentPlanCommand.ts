@@ -7,7 +7,6 @@
 import type { IPaymentPlanRepository } from '../../domain/IPaymentPlanRepository'
 import { PaymentPlan } from '../../domain/PaymentPlan'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface CreatePaymentPlanDto {
   paymentPlanId: string
@@ -40,9 +39,7 @@ export class CreatePaymentPlanCommandHandler {
     // Save payment plan
     await this.paymentPlanRepository.save(plan)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...plan.getDomainEvents()])
+    // Clear domain events
     plan.clearDomainEvents()
 
     return plan

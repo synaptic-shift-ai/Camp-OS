@@ -8,7 +8,6 @@ import type { ITransactionRepository } from '../../domain/ITransactionRepository
 import { Transaction } from '../../domain/Transaction'
 import { type PaymentMethod } from '../../domain//value-objects/PaymentMethod'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface ProcessRefundDto {
   transactionId: string
@@ -47,9 +46,7 @@ export class ProcessRefundCommandHandler {
     // Save refund transaction
     await this.transactionRepository.save(refund)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...refund.getDomainEvents()])
+    // Clear domain events
     refund.clearDomainEvents()
 
     return refund

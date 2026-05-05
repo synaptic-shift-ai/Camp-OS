@@ -10,7 +10,6 @@
 import type { IReservationRepository } from '../../domain/IReservationRepository'
 import type { Reservation } from '../../domain/Reservation'
 import type { IStrategyProvider } from '../../domain/policies'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface ConfirmReservationDto {
   reservationId: string
@@ -94,9 +93,7 @@ export class ConfirmReservationCommandHandler {
     // Save updated reservation
     await this.repository.save(reservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...reservation.getDomainEvents()])
+    // Clear domain events
     reservation.clearDomainEvents()
 
     return {

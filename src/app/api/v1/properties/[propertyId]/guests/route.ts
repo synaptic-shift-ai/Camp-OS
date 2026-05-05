@@ -25,7 +25,6 @@ import {
 import { ListGuestsQueryHandler } from '@/modules/GuestManagement/application/queries/ListGuestsQuery'
 import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 import { GuestDTOMapper } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
 
 /**
@@ -214,7 +213,7 @@ export async function POST(
 
     // Execute command using application layer
     const repository = new SupabaseGuestRepository(supabase)
-    const commandHandler = new CreateGuestCommandHandler(repository, new InMemoryEventBus())
+    const commandHandler = new CreateGuestCommandHandler(repository)
 
     const guest = await commandHandler.execute({
       propertyId: propertyId,

@@ -5,7 +5,6 @@
  */
 
 import { type IGuestRepository } from '../../domain/IGuestRepository'
-import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface LinkStripeCustomerInput {
   guestId: string
@@ -14,8 +13,7 @@ export interface LinkStripeCustomerInput {
 
 export class LinkStripeCustomerCommandHandler {
   constructor(
-    private readonly repository: IGuestRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: IGuestRepository
   ) {}
 
   async execute(input: LinkStripeCustomerInput): Promise<void> {
@@ -31,8 +29,7 @@ export class LinkStripeCustomerCommandHandler {
     // Save changes
     await this.repository.save(guest)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...guest.getDomainEvents()])
+    // Clear domain events
     guest.clearDomainEvents()
   }
 }

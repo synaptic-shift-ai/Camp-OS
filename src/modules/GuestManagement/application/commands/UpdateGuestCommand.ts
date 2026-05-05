@@ -9,7 +9,6 @@ import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { Address } from '../../domain/value-objects/Address'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
-import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface UpdateGuestInput {
   guestId: string
@@ -31,8 +30,7 @@ export interface UpdateGuestInput {
 
 export class UpdateGuestCommandHandler {
   constructor(
-    private readonly repository: IGuestRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: IGuestRepository
   ) {}
 
   async execute(input: UpdateGuestInput): Promise<Guest> {
@@ -91,8 +89,7 @@ export class UpdateGuestCommandHandler {
     // Save changes
     await this.repository.save(guest)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...guest.getDomainEvents()])
+    // Clear domain events
     guest.clearDomainEvents()
 
     return guest

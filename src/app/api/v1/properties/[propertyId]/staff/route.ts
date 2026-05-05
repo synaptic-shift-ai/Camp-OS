@@ -19,7 +19,6 @@ import {
   propertyStaffToDTO,
   SupabasePropertyStaffRepository,
 } from '@/modules/StaffManagement'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 import { StaffManagementQueries } from '@/lib/dashboard/staff-management-queries'
 
 async function verifyPropertyAccess(
@@ -150,8 +149,7 @@ export async function POST(
 
     // 4. Execute command
     const repository = new SupabasePropertyStaffRepository(supabase)
-    const eventBus = new InMemoryEventBus()
-    const handler = new AddStaffCommandHandler(repository, eventBus)
+    const handler = new AddStaffCommandHandler(repository)
 
     // Build input - handle optional customPermissions for exactOptionalPropertyTypes
     const result = validated.data.customPermissions !== undefined

@@ -9,7 +9,6 @@ import { Site } from '../../domain/Site'
 import { type SiteType } from '../../domain/SiteType'
 import { type SiteStatus } from '../../domain/SiteStatus'
 import { Pricing } from '../../domain/Pricing'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type CreateSiteDto = {
   id: string
@@ -74,9 +73,7 @@ export class CreateSiteCommandHandler {
     // Save to database
     await this.repository.save(site)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll(site.getDomainEvents())
+    // Clear domain events
     site.clearDomainEvents()
 
     return site

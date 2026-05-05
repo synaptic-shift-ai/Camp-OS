@@ -23,7 +23,6 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { StripePaymentIntentSucceededSchema } from '@/contracts/schemas'
 import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
 import type { Guest } from '@/lib/booking/types'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
 import { PaymentReceived } from '@/modules/BookingEngine/domain/events/PaymentReceived'
 import { Transaction } from '@/modules/Financial/domain/Transaction'
@@ -341,7 +340,6 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
 
     const confirmationNumber = (confirmedReservation as any)?.confirmation_number ?? ''
 
-    const eventBus = getEventBus()
     const events = [
       new ReservationConfirmed(reservation_id, confirmationNumber),
       new PaymentReceived(
@@ -353,14 +351,9 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       ),
     ]
 
-    // Don't let pipeline block the webhook response beyond 5s
-    await Promise.race([
-      eventBus.publishAll(events),
-      new Promise(resolve => setTimeout(resolve, 5000)),
-    ]).catch(err => {
-      console.error('[Stripe Webhook] Event publishing failed:', err)
-      // Don't fail the webhook — DB writes already succeeded
-    })
+    // Fire-and-forget — events are no longer published via EventBus.
+    // Domain event objects are kept for potential future use.
+    void events
   } catch (error: any) {
     console.error('Error in handlePaymentIntentSucceeded:', error)
     // Don't throw - webhook already received, just log the error

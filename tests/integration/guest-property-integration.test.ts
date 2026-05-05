@@ -28,8 +28,6 @@ import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/appli
 import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
 import { ListGuestsQueryHandler } from '@/modules/GuestManagement/application/queries/ListGuestsQuery'
 import { GetPropertyQueryHandler } from '@/modules/PropertyManagement/application/queries/GetPropertyQuery'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { IPropertyRepository } from '@/modules/PropertyManagement/domain/IPropertyRepository'
 import type { IGuestRepository } from '@/modules/GuestManagement/domain/IGuestRepository'
 import { type PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
@@ -179,12 +177,10 @@ class MockGuestRepository implements IGuestRepository {
 // ============================================================================
 
 describe('Guest↔Property Cross-Module Integration', () => {
-  let eventBus: IEventBus
   let propertyRepo: MockPropertyRepository
   let guestRepo: MockGuestRepository
 
   beforeEach(() => {
-    eventBus = new InMemoryEventBus()
     propertyRepo = new MockPropertyRepository()
     guestRepo = new MockGuestRepository()
   })
@@ -206,7 +202,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
       })
 
       // Act: Create a guest for this property
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'John',
@@ -240,7 +236,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
       })
 
       // Create guests for each property
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest1 = await guestCommand.execute({
         propertyId: property1.id,
         firstName: 'Alice',
@@ -295,7 +291,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
         slug: 'prop-2',
       })
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const sharedEmail = 'shared@example.com'
 
       // Act: Create guest with email in property 1
@@ -348,7 +344,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
       })
 
       // Act: Create guest referencing the property ID (no direct object reference)
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest = await guestCommand.execute({
         propertyId: property.id, // Guest only knows the ID, not the Property object
         firstName: 'Jane',
@@ -386,7 +382,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
         slug: 'event-test-camp',
       })
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'Event',
@@ -424,7 +420,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
       })
 
       // Act: Create multiple guests for the same property
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const _guest1 = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'First',
@@ -465,7 +461,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
         slug: 'delete-test',
       })
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       await guestCommand.execute({
         propertyId: property.id,
         firstName: 'Orphan',
@@ -532,7 +528,7 @@ describe('Guest↔Property Cross-Module Integration', () => {
       })
 
       // Act: Create 50 guests (reduced from 100 for test speed)
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guestCount = 50
 
       for (let i = 0; i < guestCount; i++) {

@@ -6,7 +6,6 @@
 
 import type { PropertyStaff } from '../../domain/PropertyStaff'
 import type { IPropertyStaffRepository } from '../../domain/IPropertyStaffRepository'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { StaffRoleType } from '../../domain/value-objects/StaffRole'
 
 export interface UpdateStaffRoleInput {
@@ -33,8 +32,7 @@ export type UpdateStaffRoleOutput = UpdateStaffRoleResult | UpdateStaffRoleError
 
 export class UpdateStaffRoleCommandHandler {
   constructor(
-    private readonly repository: IPropertyStaffRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: IPropertyStaffRepository
   ) {}
 
   async execute(input: UpdateStaffRoleInput): Promise<UpdateStaffRoleOutput> {
@@ -78,8 +76,7 @@ export class UpdateStaffRoleCommandHandler {
     // Save to repository
     await this.repository.save(staff)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...staff.getDomainEvents()])
+    // Clear domain events
     staff.clearDomainEvents()
 
     return {

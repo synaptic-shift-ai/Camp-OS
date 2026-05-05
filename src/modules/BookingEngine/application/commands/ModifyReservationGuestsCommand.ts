@@ -8,7 +8,6 @@ import type { IReservationRepository } from '../../domain/IReservationRepository
 import type { Reservation } from '../../domain/Reservation'
 import { OccupancyInfo } from '../../domain/value-objects/OccupancyInfo'
 import { MoneyAmount } from '../../domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type ModifyReservationGuestsDto = {
   reservationId: string
@@ -78,9 +77,7 @@ export class ModifyReservationGuestsCommandHandler {
     // Save updated reservation
     await this.repository.save(reservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...reservation.getDomainEvents()])
+    // Clear domain events
     reservation.clearDomainEvents()
 
     return {

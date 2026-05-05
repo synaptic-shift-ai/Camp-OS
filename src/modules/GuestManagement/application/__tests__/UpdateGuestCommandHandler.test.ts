@@ -7,17 +7,14 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { UpdateGuestCommandHandler, type UpdateGuestInput } from '../commands/UpdateGuestCommand'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
-import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
 import { PersonName } from '../../domain/value-objects/PersonName'
 import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { Address } from '../../domain/value-objects/Address'
-import { GuestUpdated } from '../../domain/events/GuestUpdated'
 
 describe('UpdateGuestCommandHandler', () => {
   let handler: UpdateGuestCommandHandler
   let mockRepository: IGuestRepository
-  let mockEventBus: IEventBus
   let existingGuest: Guest
 
   beforeEach(() => {
@@ -32,17 +29,7 @@ describe('UpdateGuestCommandHandler', () => {
       softDelete: vi.fn(),
     }
 
-    // Create mock event bus
-    mockEventBus = {
-      publish: vi.fn(),
-      publishAll: vi.fn(),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-      clearSubscribers: vi.fn(),
-      getSubscriberCount: vi.fn(),
-    }
-
-    // Create existing guest for tests
+    handler = new UpdateGuestCommandHandler(mockRepository)
     existingGuest = Guest.create({
       id: 'guest-123',
       propertyId: 'property-456',
@@ -57,7 +44,7 @@ describe('UpdateGuestCommandHandler', () => {
       notes: null,
     })
 
-    handler = new UpdateGuestCommandHandler(mockRepository, mockEventBus)
+    handler = new UpdateGuestCommandHandler(mockRepository)
   })
 
   test('should throw error when guest not found', async () => {
@@ -84,9 +71,7 @@ describe('UpdateGuestCommandHandler', () => {
 
     expect(result.contact.email).toBe('newemail@example.com')
     expect(mockRepository.save).toHaveBeenCalledWith(existingGuest)
-    expect(mockEventBus.publishAll).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.any(GuestUpdated)])
-    )
+    // (EventBus publish assertion removed — EventBus infrastructure deleted)
   })
 
   test('should update phone', async () => {

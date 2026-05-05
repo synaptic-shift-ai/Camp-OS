@@ -21,7 +21,6 @@ import {
   propertyStaffToDTO,
   SupabasePropertyStaffRepository,
 } from '@/modules/StaffManagement'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 import { resolveDashboardAccess, canManageStaffRoster, canViewStaffRoster } from '@/lib/rbac/dashboard-guards'
 
 async function resolveAccess(
@@ -180,12 +179,11 @@ export async function PATCH(
       )
     }
 
-    const eventBus = new InMemoryEventBus()
     let updatedStaff = getResult.staff
 
     // 5. Update role if provided
     if (validated.data.role !== undefined) {
-      const roleHandler = new UpdateStaffRoleCommandHandler(repository, eventBus)
+      const roleHandler = new UpdateStaffRoleCommandHandler(repository)
 
       // Build input with explicit handling of optional resetPermissions
       const roleInput: {
@@ -220,7 +218,7 @@ export async function PATCH(
 
     // 6. Update permissions if provided (and no role change, or role change with custom perms)
     if (validated.data.customPermissions !== undefined && validated.data.role === undefined) {
-      const permHandler = new UpdateStaffPermissionsCommandHandler(repository, eventBus)
+      const permHandler = new UpdateStaffPermissionsCommandHandler(repository)
       const permResult = await permHandler.execute({
         staffId,
         permissions: validated.data.customPermissions,
@@ -312,8 +310,7 @@ export async function DELETE(
     }
 
     // 4. Execute command
-    const eventBus = new InMemoryEventBus()
-    const handler = new RemoveStaffCommandHandler(repository, eventBus)
+    const handler = new RemoveStaffCommandHandler(repository)
 
     const result = await handler.execute({
       staffId,

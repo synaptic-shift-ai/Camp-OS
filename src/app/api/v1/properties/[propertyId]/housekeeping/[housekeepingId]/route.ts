@@ -9,7 +9,6 @@ import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { HousekeepingQueries } from '@/lib/dashboard/housekeeping/housekeeping-queries'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { UpdateHousekeepingTaskRequestSchema } from '@/types/api/v1/schemas/housekeeping'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { HousekeepingTaskCompletedEvent } from '@/modules/Housekeeping/domain/events'
 import { buildEventContext } from '@/lib/automations/event-context'
 import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
@@ -432,21 +431,8 @@ export async function PATCH(
       )
     }
 
-    // Publish housekeeping task completed event
+    // Direct automation trigger
     if (housekeepingTask.status === 'done') {
-      try {
-        const eventBus = getEventBus()
-        await eventBus.publish(new HousekeepingTaskCompletedEvent(
-          propertyId,
-          housekeepingTask.id,
-          housekeepingTask.title,
-          housekeepingTask.site_id,
-        ))
-      } catch (evtErr) {
-        console.warn('[HK] Failed to publish TaskCompleted event (non-blocking)', evtErr)
-      }
-
-      // Direct automation trigger (bypasses unreliable EventBus in dev/serverless)
       try {
         const event = new HousekeepingTaskCompletedEvent(
           propertyId,

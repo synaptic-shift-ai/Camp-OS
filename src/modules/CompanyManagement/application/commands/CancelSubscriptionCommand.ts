@@ -6,7 +6,6 @@
 
 import type { Company } from '../../domain/Company'
 import type { ICompanyRepository } from '../../domain/ICompanyRepository'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface CancelSubscriptionInput {
   companyId: string
@@ -30,8 +29,7 @@ export type CancelSubscriptionOutput = CancelSubscriptionResult | CancelSubscrip
 
 export class CancelSubscriptionCommandHandler {
   constructor(
-    private readonly repository: ICompanyRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: ICompanyRepository
   ) {}
 
   async execute(input: CancelSubscriptionInput): Promise<CancelSubscriptionOutput> {
@@ -63,8 +61,7 @@ export class CancelSubscriptionCommandHandler {
     // Save changes
     await this.repository.save(company)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...company.getDomainEvents()])
+    // Clear domain events
     company.clearDomainEvents()
 
     return {

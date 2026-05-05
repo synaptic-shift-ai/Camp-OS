@@ -11,7 +11,6 @@ import { ContactInfo } from '../../domain/value-objects/ContactInfo'
 import { Address } from '../../domain/value-objects/Address'
 import { randomUUID } from 'crypto'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
-import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface CreateGuestInput {
   propertyId: string
@@ -34,8 +33,7 @@ export interface CreateGuestInput {
 
 export class CreateGuestCommandHandler {
   constructor(
-    private readonly repository: IGuestRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: IGuestRepository
   ) {}
 
   async execute(input: CreateGuestInput): Promise<Guest> {
@@ -92,8 +90,7 @@ export class CreateGuestCommandHandler {
     // Save to repository
     await this.repository.save(guest)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...guest.getDomainEvents()])
+    // Clear domain events
     guest.clearDomainEvents()
 
     return guest

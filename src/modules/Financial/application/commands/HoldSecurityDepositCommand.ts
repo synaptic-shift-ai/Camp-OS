@@ -7,7 +7,6 @@
 import type { ISecurityDepositRepository } from '../../domain/ISecurityDepositRepository'
 import { SecurityDeposit } from '../../domain/SecurityDeposit'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface HoldSecurityDepositDto {
   depositId: string
@@ -38,9 +37,7 @@ export class HoldSecurityDepositCommandHandler {
     // Save deposit
     await this.securityDepositRepository.save(deposit)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...deposit.getDomainEvents()])
+    // Clear domain events
     deposit.clearDomainEvents()
 
     return deposit

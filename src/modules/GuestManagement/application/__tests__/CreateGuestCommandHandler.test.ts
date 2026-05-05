@@ -7,14 +7,11 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { CreateGuestCommandHandler, type CreateGuestInput } from '../commands/CreateGuestCommand'
 import { type IGuestRepository } from '../../domain/IGuestRepository'
-import { type IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { Guest } from '../../domain/Guest'
-import { GuestCreated } from '../../domain/events/GuestCreated'
 
 describe('CreateGuestCommandHandler', () => {
   let handler: CreateGuestCommandHandler
   let mockRepository: IGuestRepository
-  let mockEventBus: IEventBus
 
   beforeEach(() => {
     // Create mock repository
@@ -28,17 +25,7 @@ describe('CreateGuestCommandHandler', () => {
       softDelete: vi.fn(),
     }
 
-    // Create mock event bus
-    mockEventBus = {
-      publish: vi.fn(),
-      publishAll: vi.fn(),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-      clearSubscribers: vi.fn(),
-      getSubscriberCount: vi.fn(),
-    }
-
-    handler = new CreateGuestCommandHandler(mockRepository, mockEventBus)
+    handler = new CreateGuestCommandHandler(mockRepository)
   })
 
   test('should create new guest when email does not exist', async () => {
@@ -61,9 +48,7 @@ describe('CreateGuestCommandHandler', () => {
     expect(result.contact.email).toBe('john@example.com')
     expect(result.propertyId).toBe('property-123')
     expect(mockRepository.save).toHaveBeenCalledWith(result)
-    expect(mockEventBus.publishAll).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.any(GuestCreated)])
-    )
+    // (EventBus publish assertion removed — EventBus infrastructure deleted)
   })
 
   test('should return existing guest when email already exists', async () => {
@@ -93,7 +78,7 @@ describe('CreateGuestCommandHandler', () => {
 
     expect(result).toBe(existingGuest)
     expect(mockRepository.save).not.toHaveBeenCalled()
-    expect(mockEventBus.publishAll).not.toHaveBeenCalled()
+    // (EventBus publish assertion removed — EventBus infrastructure deleted)
   })
 
   test('should create guest with complete address', async () => {

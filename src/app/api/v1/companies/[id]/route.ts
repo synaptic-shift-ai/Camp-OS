@@ -19,7 +19,6 @@ import {
   SupabaseCompanyRepository,
 } from '@/modules/CompanyManagement'
 import type { CompanyDTO } from '@/modules/CompanyManagement'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { userHasStaffAssignmentToCompany } from '@/lib/dashboard/company-access'
@@ -185,8 +184,7 @@ export async function PATCH(
     }
 
     // 4. Execute command
-    const eventBus = new InMemoryEventBus()
-    const updateHandler = new UpdateCompanyCommandHandler(repository, eventBus)
+    const updateHandler = new UpdateCompanyCommandHandler(repository)
 
     // Build input, only including name if defined (exactOptionalPropertyTypes compatibility)
     const updateInput: { companyId: string; name?: string; companyLogoUrl?: string | null } = { companyId }

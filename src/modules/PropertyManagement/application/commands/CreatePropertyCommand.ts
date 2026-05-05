@@ -8,7 +8,6 @@ import type { IPropertyRepository } from '../../domain/IPropertyRepository'
 import { Property, type PropertyAmenity } from '../../domain/Property'
 import { type PropertyType } from '../../domain/PropertyType'
 import { type PropertySettings } from '../../domain/PropertySettings'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type CreatePropertyDto = {
   id: string
@@ -70,9 +69,7 @@ export class CreatePropertyCommandHandler {
     // Save to database
     await this.repository.save(property)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll(property.getDomainEvents())
+    // Clear domain events
     property.clearDomainEvents()
 
     return property

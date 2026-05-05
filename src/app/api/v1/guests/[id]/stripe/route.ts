@@ -21,7 +21,6 @@ import {
 import { GetGuestQueryHandler } from '@/modules/GuestManagement/application/queries/GetGuestQuery'
 import { LinkStripeCustomerCommandHandler } from '@/modules/GuestManagement/application/commands/LinkStripeCustomerCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 /**
  * POST /api/v1/guests/[id]/stripe
  *
@@ -70,7 +69,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { stripeCustomerId }: LinkStripeCustomerRequest = validatedRequest.data
 
     // Execute command using application layer
-    const commandHandler = new LinkStripeCustomerCommandHandler(repository, new InMemoryEventBus())
+    const commandHandler = new LinkStripeCustomerCommandHandler(repository)
 
     await commandHandler.execute({
       guestId: id,

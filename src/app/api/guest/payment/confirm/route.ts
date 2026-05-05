@@ -25,8 +25,6 @@ import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
-import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -228,19 +226,6 @@ export async function POST(request: NextRequest) {
     // ========================================================================
 
     // Email is handled by automation pipeline only (no direct fallback)
-
-    // ========================================================================
-    // Step 5.5: Publish domain events
-    // ========================================================================
-
-    try {
-      const eventBus = getEventBus()
-      await eventBus.publishAll([
-        new ReservationConfirmed(reservation.id, reservation.confirmation_number),
-      ])
-    } catch (eventErr) {
-      console.error('[Payment Confirm] Event publish failed (non-blocking):', eventErr)
-    }
 
     // Trigger automation pipeline directly (primary mechanism)
     try {

@@ -15,7 +15,6 @@ import {
   GenerateInviteTokenCommandHandler,
   SupabaseCompanyRepository,
 } from '@/modules/CompanyManagement'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 
 /**
  * POST /api/v1/companies/[id]/invite
@@ -65,8 +64,7 @@ export async function POST(
     }
 
     // 3. Execute command
-    const eventBus = new InMemoryEventBus()
-    const inviteHandler = new GenerateInviteTokenCommandHandler(repository, eventBus)
+    const inviteHandler = new GenerateInviteTokenCommandHandler(repository)
 
     const result = await inviteHandler.execute({ companyId })
 

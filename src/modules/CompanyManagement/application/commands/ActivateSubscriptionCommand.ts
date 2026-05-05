@@ -6,7 +6,6 @@
 
 import type { Company } from '../../domain/Company'
 import type { ICompanyRepository } from '../../domain/ICompanyRepository'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import { SubscriptionPlan } from '../../domain/value-objects/SubscriptionPlan'
 import { BillingCycle } from '../../domain/value-objects/BillingCycle'
 
@@ -35,8 +34,7 @@ export type ActivateSubscriptionOutput = ActivateSubscriptionResult | ActivateSu
 
 export class ActivateSubscriptionCommandHandler {
   constructor(
-    private readonly repository: ICompanyRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: ICompanyRepository
   ) {}
 
   async execute(input: ActivateSubscriptionInput): Promise<ActivateSubscriptionOutput> {
@@ -101,8 +99,7 @@ export class ActivateSubscriptionCommandHandler {
     // Save changes
     await this.repository.save(company)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...company.getDomainEvents()])
+    // Clear domain events
     company.clearDomainEvents()
 
     return {

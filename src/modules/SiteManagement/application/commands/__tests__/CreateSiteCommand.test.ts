@@ -64,14 +64,7 @@ class MockSiteRepository implements ISiteRepository {
   }
 }
 
-// Mock EventBus
-vi.mock('@/shared/infrastructure/eventBus', () => ({
-  getEventBus: () => ({
-    publish: vi.fn(),
-    publishAll: vi.fn(),
-    subscribe: vi.fn(),
-  }),
-}))
+// (EventBus mock removed — EventBus infrastructure deleted)
 
 describe('CreateSiteCommand', () => {
   let repository: MockSiteRepository

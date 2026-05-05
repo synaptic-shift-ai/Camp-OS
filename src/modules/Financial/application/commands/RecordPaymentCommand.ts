@@ -11,7 +11,6 @@ import { Transaction } from '../../domain/Transaction'
 import { TransactionType } from '../../domain//value-objects/TransactionType'
 import { type PaymentMethod } from '../../domain//value-objects/PaymentMethod'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface RecordPaymentDto {
   transactionId: string
@@ -63,9 +62,7 @@ export class RecordPaymentCommandHandler {
       }
     }
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...transaction.getDomainEvents()])
+    // Clear domain events
     transaction.clearDomainEvents()
 
     return transaction

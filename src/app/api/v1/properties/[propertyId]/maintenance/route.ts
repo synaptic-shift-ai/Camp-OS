@@ -19,7 +19,6 @@ import {
     MaintenanceQueries,
     type ListMaintenanceTasksFilters,
 } from '@/lib/dashboard/maintenance/maintenance-queries'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
 import { buildEventContext } from '@/lib/automations/event-context'
 import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
@@ -442,22 +441,7 @@ export async function POST(
             // Non-blocking: spend limit check failures should not prevent WO creation
         }
 
-        // Publish domain event (fire-and-forget)
-        try {
-            const eventBus = getEventBus()
-            const task = maintenanceTask as any
-            await eventBus.publish(new MaintenanceTaskCreatedEvent(
-                propertyId,
-                task.id,
-                task.wo_number ?? '',
-                task.category ?? '',
-                task.priority ?? '',
-            ))
-        } catch {
-            // Non-blocking: event publishing failures should not prevent WO creation
-        }
-
-        // Direct automation trigger (bypasses unreliable EventBus in dev/serverless)
+        // Direct automation trigger
         try {
             const task = maintenanceTask as any
             const event = new MaintenanceTaskCreatedEvent(

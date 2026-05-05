@@ -32,8 +32,6 @@ import { CreatePropertyCommandHandler } from '@/modules/PropertyManagement/appli
 import { CreateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/CreateGuestCommand'
 import { ListSitesQueryHandler } from '@/modules/SiteManagement/application/queries/ListSitesQuery'
 import { ListGuestsQueryHandler } from '@/modules/GuestManagement/application/queries/ListGuestsQuery'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 import type { IPropertyRepository } from '@/modules/PropertyManagement/domain/IPropertyRepository'
 import type { IGuestRepository } from '@/modules/GuestManagement/domain/IGuestRepository'
 import { type PropertyStatus } from '@/modules/PropertyManagement/domain/PropertyStatus'
@@ -272,13 +270,11 @@ class MockSiteRepository implements ISiteRepository {
 // ============================================================================
 
 describe('Guest↔Site Cross-Module Integration', () => {
-  let eventBus: IEventBus
   let propertyRepo: MockPropertyRepository
   let guestRepo: MockGuestRepository
   let siteRepo: MockSiteRepository
 
   beforeEach(() => {
-    eventBus = new InMemoryEventBus()
     propertyRepo = new MockPropertyRepository()
     guestRepo = new MockGuestRepository()
     siteRepo = new MockSiteRepository()
@@ -311,7 +307,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       )
       await siteRepo.save(site)
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'John',
@@ -373,7 +369,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       )
       await siteRepo.save(site2)
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest1 = await guestCommand.execute({
         propertyId: property1.id,
         firstName: 'Alice',
@@ -477,7 +473,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       })
 
       // Create multiple guests
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       for (let i = 1; i <= 3; i++) {
         await guestCommand.execute({
           propertyId: property.id,
@@ -523,7 +519,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       )
       await siteRepo.save(site)
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'Independent',
@@ -575,7 +571,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       )
       await siteRepo.save(site)
 
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guest = await guestCommand.execute({
         propertyId: property.id,
         firstName: 'Future',
@@ -637,7 +633,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       }
 
       // Create 2 guests (family members)
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       const guests = []
       guests.push(
         await guestCommand.execute({
@@ -709,7 +705,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       }
 
       // Create 15 guests
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       for (let i = 1; i <= 15; i++) {
         await guestCommand.execute({
           propertyId: property.id,
@@ -766,7 +762,7 @@ describe('Guest↔Site Cross-Module Integration', () => {
       await siteRepo.save(occupiedSite)
 
       // Create guests
-      const guestCommand = new CreateGuestCommandHandler(guestRepo, eventBus)
+      const guestCommand = new CreateGuestCommandHandler(guestRepo)
       await guestCommand.execute({
         propertyId: property.id,
         firstName: 'Filter',

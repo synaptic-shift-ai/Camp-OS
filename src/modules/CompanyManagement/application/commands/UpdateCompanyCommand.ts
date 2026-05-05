@@ -6,7 +6,6 @@
 
 import type { Company } from '../../domain/Company'
 import type { ICompanyRepository } from '../../domain/ICompanyRepository'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface UpdateCompanyInput {
   companyId: string
@@ -31,8 +30,7 @@ export type UpdateCompanyOutput = UpdateCompanyResult | UpdateCompanyError
 
 export class UpdateCompanyCommandHandler {
   constructor(
-    private readonly repository: ICompanyRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: ICompanyRepository
   ) {}
 
   async execute(input: UpdateCompanyInput): Promise<UpdateCompanyOutput> {
@@ -72,8 +70,7 @@ export class UpdateCompanyCommandHandler {
     // Save changes
     await this.repository.save(company)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...company.getDomainEvents()])
+    // Clear domain events
     company.clearDomainEvents()
 
     return {

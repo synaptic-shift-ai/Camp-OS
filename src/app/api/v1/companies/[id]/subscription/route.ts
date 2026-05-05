@@ -19,7 +19,6 @@ import {
   companyToDTO,
   SupabaseCompanyRepository,
 } from '@/modules/CompanyManagement'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus'
 
 /**
  * GET /api/v1/companies/[id]/subscription
@@ -153,8 +152,7 @@ export async function POST(
     }
 
     // 4. Execute command
-    const eventBus = new InMemoryEventBus()
-    const activateHandler = new ActivateSubscriptionCommandHandler(repository, eventBus)
+    const activateHandler = new ActivateSubscriptionCommandHandler(repository)
 
     const result = await activateHandler.execute({
       companyId,

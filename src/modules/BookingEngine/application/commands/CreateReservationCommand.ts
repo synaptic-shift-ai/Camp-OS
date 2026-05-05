@@ -10,7 +10,6 @@ import { DateRange } from '../../domain/value-objects/DateRange'
 import { MoneyAmount } from '../../domain/value-objects/MoneyAmount'
 import { ConfirmationNumber } from '../../domain/value-objects/ConfirmationNumber'
 import { OccupancyInfo } from '../../domain/value-objects/OccupancyInfo'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { randomUUID } from 'crypto'
 
 export type CreateReservationDto = {
@@ -71,9 +70,7 @@ export class CreateReservationCommandHandler {
     // Save to database
     await this.repository.save(reservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...reservation.getDomainEvents()])
+    // Clear domain events
     reservation.clearDomainEvents()
 
     return reservation

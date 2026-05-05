@@ -6,7 +6,6 @@
 
 import type { ISecurityDepositRepository } from '../../domain/ISecurityDepositRepository'
 import type { SecurityDeposit } from '../../domain/SecurityDeposit'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export interface ReleaseSecurityDepositDto {
   depositId: string
@@ -31,9 +30,7 @@ export class ReleaseSecurityDepositCommandHandler {
     // Save updated deposit
     await this.securityDepositRepository.save(deposit)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...deposit.getDomainEvents()])
+    // Clear domain events
     deposit.clearDomainEvents()
 
     return deposit

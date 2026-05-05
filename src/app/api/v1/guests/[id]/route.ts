@@ -22,7 +22,6 @@ import { GetGuestQueryHandler } from '@/modules/GuestManagement/application/quer
 import { UpdateGuestCommandHandler } from '@/modules/GuestManagement/application/commands/UpdateGuestCommand'
 import { DeleteGuestCommandHandler } from '@/modules/GuestManagement/application/commands/DeleteGuestCommand'
 import { SupabaseGuestRepository } from '@/modules/GuestManagement/infrastructure/SupabaseGuestRepository'
-import { InMemoryEventBus } from '@/shared/infrastructure/eventBus/InMemoryEventBus'
 import { GuestDTOMapper } from '@/modules/GuestManagement/application/DTOs/GuestDTO'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
@@ -215,7 +214,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const updateData: UpdateGuestRequest = validatedRequest.data
 
     // Execute command using application layer
-    const commandHandler = new UpdateGuestCommandHandler(repository, new InMemoryEventBus())
+    const commandHandler = new UpdateGuestCommandHandler(repository)
 
     const guest = await commandHandler.execute({
       guestId: id,

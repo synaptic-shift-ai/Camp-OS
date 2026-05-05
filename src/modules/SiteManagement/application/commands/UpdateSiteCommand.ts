@@ -6,7 +6,6 @@
 import { type ISiteRepository } from '../../domain/ISiteRepository'
 import { type Site } from '../../domain/Site'
 import { Pricing } from '../../domain/Pricing'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 
 export type UpdateSiteDto = {
   siteId: string
@@ -66,9 +65,7 @@ export class UpdateSiteCommandHandler {
     // Save
     await this.repository.save(site)
 
-    // Publish events
-    const eventBus = getEventBus()
-    await eventBus.publishAll(site.getDomainEvents())
+    // Clear domain events
     site.clearDomainEvents()
 
     return site

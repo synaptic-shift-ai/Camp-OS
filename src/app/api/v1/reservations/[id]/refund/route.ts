@@ -19,7 +19,6 @@ import { GetReservationQueryHandler } from '@/modules/BookingEngine/application/
 import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastructure/SupabaseReservationRepository'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
-import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 
@@ -141,9 +140,7 @@ export async function POST(
     // Save updated reservation
     await repository.save(reservation)
 
-    // Publish domain events
-    const eventBus = getEventBus()
-    await eventBus.publishAll([...reservation.getDomainEvents()])
+    // Clear domain events
     reservation.clearDomainEvents()
 
     type RefundEmailRow = {

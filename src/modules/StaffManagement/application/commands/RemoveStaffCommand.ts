@@ -5,7 +5,6 @@
  */
 
 import type { IPropertyStaffRepository } from '../../domain/IPropertyStaffRepository'
-import type { IEventBus } from '@/shared/infrastructure/eventBus/IEventBus'
 
 export interface RemoveStaffInput {
   staffId: string
@@ -28,8 +27,7 @@ export type RemoveStaffOutput = RemoveStaffResult | RemoveStaffError
 
 export class RemoveStaffCommandHandler {
   constructor(
-    private readonly repository: IPropertyStaffRepository,
-    private readonly eventBus: IEventBus
+    private readonly repository: IPropertyStaffRepository
   ) {}
 
   async execute(input: RemoveStaffInput): Promise<RemoveStaffOutput> {
@@ -62,8 +60,7 @@ export class RemoveStaffCommandHandler {
     // Delete from repository
     await this.repository.delete(input.staffId)
 
-    // Publish domain events
-    await this.eventBus.publishAll([...staff.getDomainEvents()])
+    // Clear domain events
     staff.clearDomainEvents()
 
     return {

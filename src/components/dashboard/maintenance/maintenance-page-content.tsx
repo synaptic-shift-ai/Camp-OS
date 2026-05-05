@@ -188,6 +188,8 @@ type ApiMaintenanceTask = {
   staff_id: string | null
   scheduled_start: string | null
   due_date: string | null
+  created_at: string
+  started_at: string | null
   site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
 }
 
@@ -439,6 +441,8 @@ export function MaintenancePageContent({
         sla: task.sla,
         scheduledStart: task.scheduled_start ?? null,
         dueDate: task.due_date ?? null,
+        createdAt: task.created_at,
+        startedAt: task.started_at ?? null,
       }))
 
       setRows(mappedRows)

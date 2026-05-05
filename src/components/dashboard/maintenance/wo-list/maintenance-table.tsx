@@ -40,6 +40,8 @@ export type MaintenanceTaskRow = {
   sla?: number | null
   scheduledStart?: string | null
   dueDate?: string | null
+  createdAt?: string | null
+  startedAt?: string | null
 }
 
 type MaintenanceTableProps = {
@@ -54,7 +56,18 @@ type MaintenanceTableProps = {
   canViewCosts?: boolean
 }
 
-function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
+function hasBreachedSla(row: MaintenanceTaskRow): boolean {
+  if (row.sla == null || !Number.isFinite(row.sla) || row.sla <= 0) return false
+  if (row.status !== "In Progress" && row.status !== "In Progress (Vendor)") return false
+  const startedAtIso = row.startedAt ?? row.createdAt
+  if (!startedAtIso) return false
+  const startedAtMs = new Date(startedAtIso).getTime()
+  if (Number.isNaN(startedAtMs)) return false
+  const elapsedHours = (Date.now() - startedAtMs) / (1000 * 60 * 60)
+  return elapsedHours > row.sla
+}
+
+function StatusPill({ status, breached }: { status: MaintenanceTaskRow["status"]; breached?: boolean }) {
   const base =
     "inline-flex min-w-0 max-w-full items-center justify-start rounded-full px-2.5 py-1 text-xs font-medium border truncate sm:px-3"
 
@@ -68,7 +81,10 @@ function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
 
   if (status === "In Progress") {
     return (
-      <span className={`${base} border-blue-200 bg-blue-50 text-blue-700`} title={status}>
+      <span
+        className={breached ? `${base} border-red-200 bg-red-50 text-red-700` : `${base} border-blue-200 bg-blue-50 text-blue-700`}
+        title={breached ? `${status} (SLA breached)` : status}
+      >
         In Progress
       </span>
     )
@@ -76,7 +92,10 @@ function StatusPill({ status }: { status: MaintenanceTaskRow["status"] }) {
 
   if (status === "In Progress (Vendor)") {
     return (
-      <span className={`${base} border-purple-200 bg-purple-50 text-purple-700`} title={status}>
+      <span
+        className={breached ? `${base} border-red-200 bg-red-50 text-red-700` : `${base} border-purple-200 bg-purple-50 text-purple-700`}
+        title={breached ? `${status} (SLA breached)` : status}
+      >
         In Progress (Vendor)
       </span>
     )
@@ -204,7 +223,9 @@ export function MaintenanceTable({
             {emptyMessage}
           </div>
         ) : (
-          rows.map((row, index) => (
+          rows.map((row, index) => {
+            const breached = hasBreachedSla(row)
+            return (
             <div key={row.id} className="rounded-md border border-border/80 bg-card/50 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -250,12 +271,13 @@ export function MaintenanceTable({
                 <div>
                   <p className="uppercase tracking-wide text-muted-foreground">Status</p>
                   <div className="mt-1">
-                    <StatusPill status={row.status} />
+                    <StatusPill status={row.status} breached={breached} />
                   </div>
                 </div>
               </div>
             </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -321,7 +343,9 @@ export function MaintenanceTable({
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((row, index) => (
+            rows.map((row, index) => {
+              const breached = hasBreachedSla(row)
+              return (
               <TableRow
                 key={row.id}
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
@@ -376,7 +400,7 @@ export function MaintenanceTable({
                   <PriorityPill priority={row.priority} />
                 </TableCell>
                 <TableCell className="min-w-0 overflow-hidden px-2 py-2">
-                  <StatusPill status={row.status} />
+                  <StatusPill status={row.status} breached={breached} />
                 </TableCell>
                 <TableCell className="w-12 min-w-[2.75rem] shrink-0 px-1 py-2 align-middle">
                   <TaskActionsMenu
@@ -389,7 +413,8 @@ export function MaintenanceTable({
                   />
                 </TableCell>
               </TableRow>
-            ))
+              )
+            })
           )}
         </TableBody>
       </Table>

@@ -168,6 +168,9 @@ export async function POST(
 
     // Use the most recently added payment method
     const paymentMethod = paymentMethods[0]
+    if (paymentMethod === undefined) {
+      return error(ErrorCodes.VALIDATION_ERROR, 'No card on file for this guest')
+    }
 
     // ── C2: Create off-session, confirmed PaymentIntent ────────────────────
     // Generate Stripe Idempotency-Key: reservation_id + balance rounded to minute

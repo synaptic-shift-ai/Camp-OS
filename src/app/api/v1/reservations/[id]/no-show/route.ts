@@ -118,6 +118,31 @@ export async function POST(
 
     revalidatePath('/dashboard/reservations')
 
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      // Fetch property company_id for automation context
+      const { data: automationProperty } = await supabase
+        .from('properties')
+        .select('company_id')
+        .eq('id', existingReservation.propertyId)
+        .maybeSingle()
+
+      if (automationProperty?.company_id) {
+        await triggerReservationAutomations(
+          'reservation.no_show',
+          reservationId,
+          existingReservation.propertyId,
+          automationProperty.company_id,
+        )
+      } else {
+        console.warn('[NoShow] Skipping automation: no company_id for property', existingReservation.propertyId)
+      }
+    } catch (pipelineError) {
+      console.error('[NoShow] Automation pipeline failed:', pipelineError)
+      // Non-blocking — no-show still succeeds
+    }
+
     // Convert to DTO
     const reservationDTO = toReservationDTO(result.reservation)
 

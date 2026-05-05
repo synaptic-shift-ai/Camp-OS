@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
@@ -150,6 +151,23 @@ export async function PUT(
     await updateAutomationWithDetails(automationId, updateInput)
 
     const updated = await getAutomationWithDetails(automationId)
+
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: existing.automation.company_id,
+        propertyId: existing.automation.property_id ?? null,
+        action: 'update',
+        resource: 'automation',
+        userId: user.id,
+        details: `Updated automation '${updated?.automation.name ?? existing.automation.name}'`,
+      })
+    } catch (logError) {
+      console.error('[Automations] Failed to log activity:', logError)
+    }
+
     return success(updated, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
@@ -194,7 +212,27 @@ export async function DELETE(
       if (isDenied(access)) return access
     }
 
+    const automationName = existing.automation.name
+    const automationCompanyId = existing.automation.company_id
+    const automationPropertyId = existing.automation.property_id
+
     await deleteAutomation(automationId)
+
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: automationCompanyId,
+        propertyId: automationPropertyId ?? null,
+        action: 'delete',
+        resource: 'automation',
+        userId: user.id,
+        details: `Deleted automation '${automationName}'`,
+      })
+    } catch (logError) {
+      console.error('[Automations] Failed to log activity:', logError)
+    }
 
     return success({ deleted: true }, request)
   } catch (err: unknown) {

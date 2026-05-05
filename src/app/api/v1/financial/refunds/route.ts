@@ -11,7 +11,8 @@ import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
-import { ProcessRefundRequestSchema,
+import {
+  ProcessRefundRequestSchema,
   ProcessRefundV2RequestSchema,
 } from '@/types/api/v1/schemas/financial'
 import { ProcessRefundCommandHandler } from '@/modules/Financial/application/commands/ProcessRefundCommand'
@@ -150,7 +151,22 @@ export async function POST(request: NextRequest) {
       console.error('[Financial API v1] Process refund: reservation update threw (non-blocking)', reservationUpdateErr)
     }
 
-    // 7. Convert to DTO and return
+    // 7. Email is handled by automation pipeline only (no direct fallback)
+
+    // 8. Trigger automation pipeline
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      await triggerReservationAutomations(
+        'refund.processed',
+        validated.data.reservationId,
+        reservation.property_id,
+        access.companyId!,
+      )
+    } catch (err) {
+      console.error('[Financial Refund] Failed to trigger automation:', err)
+    }
+
+    // 9. Convert to DTO and return
     const refundDTO = toTransactionDTO(refund)
 
     return NextResponse.json(success(refundDTO), { status: 201 })
@@ -272,6 +288,23 @@ async function handleV2Refund(
       }
     } catch (e) {
       console.error('[Financial API v1] V2 refund: reservation update threw (non-blocking)', e)
+    }
+  }
+
+  // Email is handled by automation pipeline only (no direct fallback)
+
+  if (payment.reservation_id) {
+    // Trigger automation pipeline
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      await triggerReservationAutomations(
+        'refund.processed',
+        payment.reservation_id,
+        payment.property_id,
+        access.companyId!,
+      )
+    } catch (err) {
+      console.error('[Financial Refund V2] Failed to trigger automation:', err)
     }
   }
   return NextResponse.json(success(toTransactionDTO(refund)), { status: 201 })

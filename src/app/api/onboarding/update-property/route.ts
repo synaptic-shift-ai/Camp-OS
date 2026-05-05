@@ -87,6 +87,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to update property" }, { status: 500 })
     }
 
+    // Seed default automations if onboarding was just completed
+    if (validatedData.markComplete) {
+      try {
+        const { seedDefaultEmailAutomations } = await import('@/lib/automations/seed-defaults')
+        const companyId = property.company_id
+        if (companyId) {
+          await seedDefaultEmailAutomations(validatedData.propertyId, companyId)
+        }
+      } catch (seedError) {
+        console.error('[Update Property] Failed to seed default automations:', seedError)
+        // Non-blocking — property update still succeeds
+      }
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     if (error instanceof z.ZodError) {

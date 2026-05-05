@@ -7,7 +7,7 @@
 
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import type { EventConstructor, EventHandler } from '@/shared/infrastructure/eventBus'
-import { matchAutomations } from './trigger-matcher'
+import { matchAutomations, type MatchedAutomation } from './trigger-matcher'
 import { buildEventContext } from './event-context'
 import { executePipeline } from './pipeline'
 import { logAutomationExecution } from './execution-logger'
@@ -24,12 +24,10 @@ import {
   GuestCheckedIn,
   GuestCheckedOut,
   ReservationCancelled,
-  PaymentReceived,
   ReservationModified,
   NoShowMarked,
 } from '@/modules/BookingEngine/domain/events'
 import {
-  TransactionRecorded,
   RefundProcessed,
 } from '@/modules/Financial/domain/events'
 import {
@@ -40,6 +38,11 @@ import {
   HousekeepingTaskCreatedEvent,
   HousekeepingTaskCompletedEvent,
 } from '@/modules/Housekeeping/domain/events'
+import { GuestUpdated } from '@/modules/GuestManagement/domain/events'
+import {
+  SiteStatusChangedEvent,
+  SiteMaintenanceStartedEvent,
+} from '@/modules/SiteManagement/domain/events'
 
 /** Map domain event class → trigger type string */
 const EVENT_TRIGGER_MAP = new Map<string, string>([
@@ -50,13 +53,14 @@ const EVENT_TRIGGER_MAP = new Map<string, string>([
   ['ReservationCancelled', 'reservation.cancelled'],
   ['ReservationModified', 'reservation.modified'],
   ['NoShowMarked', 'reservation.no_show'],
-  ['PaymentReceived', 'payment.received'],
-  ['TransactionRecorded', 'payment.received'],
   ['RefundProcessed', 'refund.processed'],
   [MaintenanceTaskCreatedEvent.name, 'maintenance.task_created'],
   [MaintenanceTaskCompletedEvent.name, 'maintenance.task_completed'],
   [HousekeepingTaskCreatedEvent.name, 'housekeeping.task_created'],
   [HousekeepingTaskCompletedEvent.name, 'housekeeping.task_completed'],
+  [GuestUpdated.name, 'guest.updated'],
+  [SiteStatusChangedEvent.name, 'site.status_changed'],
+  [SiteMaintenanceStartedEvent.name, 'site.maintenance_started'],
 ])
 
 /** Events to subscribe to */
@@ -68,13 +72,14 @@ const SUBSCRIBED_EVENTS: EventConstructor<DomainEvent>[] = [
   ReservationCancelled,
   ReservationModified,
   NoShowMarked,
-  PaymentReceived,
-  TransactionRecorded,
   RefundProcessed,
   MaintenanceTaskCreatedEvent,
   MaintenanceTaskCompletedEvent,
   HousekeepingTaskCreatedEvent,
   HousekeepingTaskCompletedEvent,
+  GuestUpdated,
+  SiteStatusChangedEvent,
+  SiteMaintenanceStartedEvent,
 ]
 
 // Singleton registry (created once)
@@ -88,22 +93,14 @@ function getRegistry(): ActionHandlerMap {
 }
 
 /**
- * Extract propertyId from a domain event payload.
- */
-function extractPropertyId(event: DomainEvent): string | null {
-  const payload = event.toJSON()
-  const candidate = payload.propertyId ?? payload.property_id
-  if (typeof candidate === 'string' && candidate.length > 0) return candidate
-  return null
-}
-
-/**
  * Create a generic event handler for automations.
  */
 function createAutomationHandler(): EventHandler<DomainEvent> {
   return async (event: DomainEvent) => {
     const logger = getLogger()
     const triggerType = EVENT_TRIGGER_MAP.get(event.eventType)
+
+    console.log('[Automations] Event received:', event.eventType, '→ trigger:', triggerType)
 
     if (!triggerType) {
       logger.debug('[Automations] No trigger mapping for event', {
@@ -113,30 +110,38 @@ function createAutomationHandler(): EventHandler<DomainEvent> {
     }
 
     try {
-      const propertyId = extractPropertyId(event)
+      // Build enriched event context FIRST (resolves propertyId + companyId via DB lookups)
+      const context = await buildEventContext(event)
+
+      // Extract propertyId and companyId from context
+      const propertyId = context.propertyId
+      const companyId = context.companyId
+
       if (!propertyId) {
-        logger.debug('[Automations] No propertyId on event, skipping', {
+        logger.debug('[Automations] No propertyId resolved from context, skipping', {
           eventType: event.eventType,
         })
         return
       }
 
-      // Match automations for this trigger + property
-      const matched = await matchAutomations(triggerType, propertyId)
+      // Match automations for this trigger + property + company
+      const matched = await matchAutomations(triggerType, propertyId, companyId)
+
+      console.log('[Automations] Matched:', matched.length, 'automations for trigger:', triggerType)
 
       if (matched.length === 0) {
         logger.debug('[Automations] 0 automations matched', {
           triggerType,
           propertyId,
+          companyId,
         })
         return
       }
 
-      // Build enriched event context
-      const context = await buildEventContext(event)
+      // Evaluate conditions — filter to ONLY passing automations
+      const passingAutomations: MatchedAutomation[] = []
+      const evaluationResults: Array<{ ma: MatchedAutomation; passed: boolean }> = []
 
-      // Evaluate conditions for each matched automation
-      const passingAutomations = []
       for (const ma of matched) {
         const rootGroups = ma.conditionGroups.filter((g) => g.parent_group_id === null)
         const passed = evaluateConditions(
@@ -145,17 +150,52 @@ function createAutomationHandler(): EventHandler<DomainEvent> {
           ma.conditions,
           context,
         )
-        passingAutomations.push({ ma, passed })
+        evaluationResults.push({ ma, passed })
+        if (passed) {
+          passingAutomations.push(ma)
+        }
       }
 
-      // Execute pipeline with all matched automations (condition filtering is done inside)
+      if (passingAutomations.length === 0) {
+        console.log('[Automations] Passed conditions: 0 /', matched.length)
+        logger.debug('[Automations] 0 automations passed conditions', {
+          triggerType,
+          propertyId,
+          total: matched.length,
+        })
+        // Still log evaluation results for non-passing automations
+        for (const { ma, passed } of evaluationResults) {
+          try {
+            await logAutomationExecution(
+              ma.automation,
+              context,
+              {
+                totalDurationMs: 0,
+                terminalGuardFired: false,
+                phasesSkipped: [],
+                phaseResults: new Map(),
+              },
+              passed,
+              0,
+            )
+          } catch (logErr) {
+            logger.error('[Automations] Failed to log execution', {
+              automationId: ma.automation.id,
+              error: logErr instanceof Error ? logErr.message : String(logErr),
+            })
+          }
+        }
+        return
+      }
+
+      // Execute pipeline with ONLY passing automations
       const actionRegistry = getRegistry()
       const pipelineStart = Date.now()
-      const pipelineResult = await executePipeline(matched, context, actionRegistry)
+      const pipelineResult = await executePipeline(passingAutomations, context, actionRegistry)
       const pipelineDuration = Date.now() - pipelineStart
 
-      // Log results for each automation
-      for (const { ma, passed } of passingAutomations) {
+      // Log results for ALL evaluated automations (passing and non-passing)
+      for (const { ma, passed } of evaluationResults) {
         try {
           await logAutomationExecution(
             ma.automation,

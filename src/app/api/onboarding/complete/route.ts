@@ -81,6 +81,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to complete onboarding" }, { status: 500 })
     }
 
+    // Seed default automations and email templates for the property
+    try {
+      const { seedDefaultEmailAutomations } = await import('@/lib/automations/seed-defaults')
+      // Fetch company_id for the property
+      const { data: propCompany } = await supabaseAdmin
+        .from('properties')
+        .select('company_id')
+        .eq('id', validatedData.propertyId)
+        .single()
+      if (propCompany?.company_id) {
+        await seedDefaultEmailAutomations(validatedData.propertyId, propCompany.company_id)
+      }
+    } catch (seedError) {
+      console.error('[Onboarding Complete] Failed to seed default automations:', seedError)
+      // Non-blocking — onboarding completion still succeeds
+    }
+
     // Add deprecation headers (following RFC 8594)
     const response = NextResponse.json({ success: true })
     response.headers.set('Deprecation', 'true')

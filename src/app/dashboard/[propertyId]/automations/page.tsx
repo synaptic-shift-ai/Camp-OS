@@ -177,6 +177,8 @@ export default async function AutomationsPage({
             if (matchingIds.length) logFilters.automationIds = matchingIds
         }
 
+        if (property.company_id) logFilters.companyId = property.company_id
+
         const logsResult = await listExecutionLogs(propertyId, logFilters)
 
         return (
@@ -212,7 +214,11 @@ export default async function AutomationsPage({
     // ── Dashboard tab ─────────────────────────────────────────────────────
     const [automations, logsResult] = await Promise.all([
         listAutomations(propertyId, undefined, property.company_id),
-        listExecutionLogs(propertyId, { dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), limit: 100 }),
+        listExecutionLogs(propertyId, {
+            dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+            limit: 100,
+            ...(property.company_id ? { companyId: property.company_id } : {}),
+        }),
     ])
 
     const totalAutomations = automations.length

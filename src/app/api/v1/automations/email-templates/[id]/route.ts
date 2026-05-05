@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { z } from 'zod'
@@ -104,6 +105,22 @@ export async function PUT(
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: updateError.message })
     }
 
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: existing.company_id,
+        propertyId: existing.property_id ?? null,
+        action: 'update',
+        resource: 'email_template',
+        userId: user.id,
+        details: `Updated email template '${template.name}'`,
+      })
+    } catch (logError) {
+      console.error('[Email Templates] Failed to log activity:', logError)
+    }
+
     return success({ emailTemplate: template }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
@@ -129,7 +146,7 @@ export async function DELETE(
     // Check template exists and is not system default
     const { data: existing, error: fetchError } = await db
       .from('email_templates')
-      .select('id, is_system_default')
+      .select('id, name, is_system_default, company_id, property_id')
       .eq('id', id)
       .single()
 
@@ -141,6 +158,10 @@ export async function DELETE(
       return error(ErrorCodes.AUTH_002, request, { message: 'System default templates cannot be deleted. Clone to customize.' })
     }
 
+    const templateName = existing.name
+    const templateCompanyId = existing.company_id
+    const templatePropertyId = existing.property_id
+
     const { error: deleteError } = await db
       .from('email_templates')
       .delete()
@@ -148,6 +169,22 @@ export async function DELETE(
 
     if (deleteError) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: deleteError.message })
+    }
+
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: templateCompanyId,
+        propertyId: templatePropertyId ?? null,
+        action: 'delete',
+        resource: 'email_template',
+        userId: user.id,
+        details: `Deleted email template '${templateName}'`,
+      })
+    } catch (logError) {
+      console.error('[Email Templates] Failed to log activity:', logError)
     }
 
     return success({ deleted: true }, request)

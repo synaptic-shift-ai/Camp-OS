@@ -23,6 +23,9 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { StripePaymentIntentSucceededSchema } from '@/contracts/schemas'
 import { getTenantStripeClient, createTenantRequestOptions } from '@/lib/stripe/tenant-client'
 import type { Guest } from '@/lib/booking/types'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
+import { PaymentReceived } from '@/modules/BookingEngine/domain/events/PaymentReceived'
 import { Transaction } from '@/modules/Financial/domain/Transaction'
 import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
 import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
@@ -326,6 +329,38 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       stripePaymentIntentId: validated.id,
       reservationTotalCents: reservationTotal,
     })
+
+    // --- Publish domain events (fire-and-forget with timeout) ---
+    // Fetch confirmation_number for event payload
+    const { data: confirmedReservation } = await supabase
+      .from('reservations')
+      .select('confirmation_number')
+      .eq('id', reservation_id)
+      .eq('property_id', property_id)
+      .single()
+
+    const confirmationNumber = (confirmedReservation as any)?.confirmation_number ?? ''
+
+    const eventBus = getEventBus()
+    const events = [
+      new ReservationConfirmed(reservation_id, confirmationNumber),
+      new PaymentReceived(
+        reservation_id,
+        confirmationNumber,
+        validated.amount,
+        'card',
+        validated.id,
+      ),
+    ]
+
+    // Don't let pipeline block the webhook response beyond 5s
+    await Promise.race([
+      eventBus.publishAll(events),
+      new Promise(resolve => setTimeout(resolve, 5000)),
+    ]).catch(err => {
+      console.error('[Stripe Webhook] Event publishing failed:', err)
+      // Don't fail the webhook — DB writes already succeeded
+    })
   } catch (error: any) {
     console.error('Error in handlePaymentIntentSucceeded:', error)
     // Don't throw - webhook already received, just log the error
@@ -536,31 +571,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Route event to the appropriate handler
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, event.id)
-        break
+    // `setup_intent.failed` is valid at runtime but may be missing from SDK `Event.type` union
+    const eventType = event.type as string
+    if (eventType === 'setup_intent.failed') {
+      await handleSetupIntentFailed(event.data.object as Stripe.SetupIntent, event.id)
+    } else {
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, event.id)
+          break
 
-      case 'payment_intent.payment_failed':
-        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, event.id)
-        break
+        case 'payment_intent.payment_failed':
+          await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, event.id)
+          break
 
-      case 'charge.refunded':
-        await handleChargeRefunded(event.data.object as Stripe.Charge, event.id)
-        break
+        case 'charge.refunded':
+          await handleChargeRefunded(event.data.object as Stripe.Charge, event.id)
+          break
 
-      case 'setup_intent.succeeded':
-        await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent, event.id)
-        break
+        case 'setup_intent.succeeded':
+          await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent, event.id)
+          break
 
-      case 'setup_intent.failed':
-        await handleSetupIntentFailed(event.data.object as Stripe.SetupIntent, event.id)
-        break
-
-      default:
-        // Acknowledge unhandled events without processing
-        console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`, { eventId: event.id })
-        break
+        default:
+          // Acknowledge unhandled events without processing
+          console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`, { eventId: event.id })
+          break
+      }
     }
 
     // Acknowledge receipt of event

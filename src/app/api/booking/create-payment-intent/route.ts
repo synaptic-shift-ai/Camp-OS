@@ -135,7 +135,9 @@ export async function POST(request: NextRequest) {
         property_id: property_id,
         confirmation_number: typedReservation.confirmation_number,
         guest_email: typedReservation.guest.email,
-        guest_id: typedReservation.guest_id,
+        ...(typedReservation.guest_id != null
+          ? { guest_id: typedReservation.guest_id }
+          : {}),
       },
       description: `Campsite reservation ${typedReservation.confirmation_number}`,
       receiptEmail: typedReservation.guest.email,

@@ -13,6 +13,8 @@ import { UpdateMaintenanceTaskRequestSchema } from '@/types/api/v1/schemas/maint
 import { computeResumedMaintenanceStartedAtMs } from '@/lib/dashboard/maintenance/compute-resumed-maintenance-started-at'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCompletedEvent } from '@/modules/Maintenance/domain/events'
+import { buildEventContext } from '@/lib/automations/event-context'
+import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
 
 function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
   return (siteType ?? '')
@@ -595,6 +597,25 @@ export async function PATCH(
         ))
       } catch {
         // Non-blocking: event publishing failures should not prevent completion
+      }
+
+      // Direct automation trigger (bypasses unreliable EventBus in dev/serverless)
+      try {
+        const task = maintenanceTask as any
+        const event = new MaintenanceTaskCompletedEvent(
+          propertyId,
+          maintenanceId,
+          task.wo_number ?? '',
+          task.category ?? '',
+          Number(task.actual_labor_cost ?? 0),
+          Number(task.actual_parts_cost ?? 0),
+        )
+        const context = await buildEventContext(event)
+        if (context.propertyId && context.companyId) {
+          await runPipelineForTrigger('maintenance.task_completed', context.propertyId, context.companyId, context)
+        }
+      } catch (autoErr) {
+        console.warn('[Maintenance] Direct automation trigger failed (non-blocking)', autoErr)
       }
     }
 

@@ -1075,7 +1075,7 @@ export async function POST(request: NextRequest) {
       if (depositConfig.full_payment_required_days_before) {
         const dueDate = new Date(validatedInput.check_in_date)
         dueDate.setDate(dueDate.getDate() - depositConfig.full_payment_required_days_before)
-        priceBreakdown.deposit_due_date = dueDate.toISOString().split('T')[0]
+        priceBreakdown.deposit_due_date = dueDate.toISOString().slice(0, 10)
       }
     } else {
       priceBreakdown.deposit_required = false

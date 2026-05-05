@@ -15,6 +15,9 @@
  */
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { ReservationCreated } from '../../domain/events/ReservationCreated'
+import { ReservationConfirmed } from '../../domain/events/ReservationConfirmed'
 import { createGuest, updateGuestSpouse } from '@/lib/booking/guest'
 import { createReservationChildren } from '@/lib/booking/children'
 import { createReservationPets } from '@/lib/booking/pets'
@@ -318,6 +321,28 @@ export class CreateManualReservationCommandHandler {
         })
         .eq('id', reservation.id)
         .eq('property_id', dto.propertyId)
+    }
+
+    // 9. Publish domain events
+    try {
+      const eventBus = getEventBus()
+      await eventBus.publishAll([
+        new ReservationCreated(
+          reservation.id,
+          dto.propertyId,
+          dto.siteId,
+          guest.id,
+          reservation.confirmation_number,
+          new Date(dto.checkInDate),
+          new Date(dto.checkOutDate),
+          reservation.total_amount,
+        ),
+        ...(reservationStatus === 'confirmed'
+          ? [new ReservationConfirmed(reservation.id, reservation.confirmation_number)]
+          : []),
+      ])
+    } catch (eventErr) {
+      console.error('[CreateManualReservation] Event publish failed (non-blocking):', eventErr)
     }
 
     return {

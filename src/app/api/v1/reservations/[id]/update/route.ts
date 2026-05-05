@@ -212,6 +212,30 @@ export async function PATCH(
       })
     }
 
+    // Track meaningful changes for automation trigger
+    const meaningfulFields = ['check_in_date', 'check_out_date', 'site_id', 'num_adults', 'num_children', 'num_pets'] as const
+    const hasMeaningfulChange = meaningfulFields.some(field => {
+      const oldVal = reservation[field]
+      const newVal = field === 'site_id' ? targetSiteId : body[field]
+      return oldVal !== newVal
+    })
+
+    // Trigger automation pipeline if meaningful fields changed
+    if (hasMeaningfulChange && property?.company_id) {
+      try {
+        const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+        await triggerReservationAutomations(
+          'reservation.modified',
+          reservationId,
+          reservation.sites.property_id,
+          property.company_id,
+        )
+      } catch (pipelineError) {
+        console.error('[Update] Automation pipeline failed:', pipelineError)
+        // Non-blocking — update still succeeds
+      }
+    }
+
     return success({ reservation: updatedReservation }, request)
   } catch (err) {
     console.error('[Reservations API v1] Update error:', err)

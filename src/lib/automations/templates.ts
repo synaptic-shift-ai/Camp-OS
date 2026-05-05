@@ -5,11 +5,11 @@
  * Templates are not stored in DB; they are predefined configurations
  * users can use to quickly create automations.
  *
- * Total: 31 templates across 5 categories
+ * Total: 29 templates across 5 categories
  * - Availability: 6 (GUARD phase)
  * - Pricing: 8 (PRICE phase)
  * - Documents: 4 (ENFORCE phase)
- * - Guest Comms: 8 (COMMUNICATE phase)
+ * - Guest Comms: 6 (COMMUNICATE phase)
  * - Operations: 5 (OPERATE phase)
  */
 
@@ -789,49 +789,10 @@ export const DEFAULT_AUTOMATION_TEMPLATES: AutomationTemplate[] = [
   },
 
   // 23. Payment Confirmation
-  {
-    id: 'payment-confirmation',
-    name: 'Payment Confirmation',
-    description:
-      'Send guests a payment receipt confirmation when a payment is successfully received.',
-    phase: 'COMMUNICATE',
-    triggerType: 'payment.received',
-    category: 'Guest Comms',
-    actions: [
-      {
-        actionType: 'send_email',
-        actionConfig: {
-          template: 'payment_receipt',
-        },
-      },
-    ],
-  },
+  // (Removed — payment.received trigger type removed; reservation.confirmed covers payment success)
 
   // 24. Payment Failed Alert
-  {
-    id: 'payment-failed-alert',
-    name: 'Payment Failed Alert',
-    description:
-      'Notify both the guest and staff when a payment fails, allowing for quick resolution.',
-    phase: 'COMMUNICATE',
-    triggerType: 'payment.failed',
-    category: 'Guest Comms',
-    actions: [
-      {
-        actionType: 'send_email',
-        actionConfig: {
-          template: 'payment_failed',
-        },
-      },
-      {
-        actionType: 'send_notification',
-        actionConfig: {
-          channel: 'staff',
-          message: 'Payment failed for reservation. Please follow up with guest.',
-        },
-      },
-    ],
-  },
+  // (Removed — payment.failed trigger type removed)
 
   // 25. Pre-Arrival Email
   {
@@ -934,25 +895,6 @@ export const DEFAULT_AUTOMATION_TEMPLATES: AutomationTemplate[] = [
         actionType: 'update_site_status',
         actionConfig: {
           status: 'maintenance',
-        },
-      },
-    ],
-  },
-
-  // 29. Site Status Update
-  {
-    id: 'site-status-update',
-    name: 'Site Status Update',
-    description:
-      'Update site status to available after maintenance is completed.',
-    phase: 'OPERATE',
-    triggerType: 'site.maintenance_completed',
-    category: 'Operations',
-    actions: [
-      {
-        actionType: 'update_site_status',
-        actionConfig: {
-          status: 'available',
         },
       },
     ],

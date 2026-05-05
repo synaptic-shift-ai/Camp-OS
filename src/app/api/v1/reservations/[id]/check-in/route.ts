@@ -258,6 +258,20 @@ export async function POST(
       })
     }
 
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      await triggerReservationAutomations(
+        'reservation.checked_in',
+        reservationId,
+        existingReservation.propertyId,
+        property.company_id,
+      )
+    } catch (pipelineError) {
+      console.error('[CheckIn] Automation pipeline failed:', pipelineError)
+      // Non-blocking — check-in still succeeds
+    }
+
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)
 

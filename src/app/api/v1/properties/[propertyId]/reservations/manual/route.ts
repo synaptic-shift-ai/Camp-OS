@@ -18,7 +18,6 @@ import {
   CreateManualReservationRequestSchema,
 } from '@/types/api/v1/schemas/reservations'
 import { CreateManualReservationCommandHandler } from '@/modules/BookingEngine/application/commands/CreateManualReservationCommand'
-import { sendBookingConfirmation } from '@/lib/email/send'
 import {
   extractOpenPeriodFromPropertySettings,
   isStayWithinOpenPeriodByIsoDates,
@@ -184,28 +183,33 @@ export async function POST(
     const checkOut = new Date(data.checkOutDate)
     const numNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Send confirmation email (non-blocking)
-    // Build email data conditionally (exactOptionalPropertyTypes)
-    const emailData: Parameters<typeof sendBookingConfirmation>[0] = {
-      guestName: result.guestName,
-      guestEmail: data.guest.email,
-      confirmationNumber: result.confirmationNumber,
-      propertyName: property.name,
-      siteName: site.site_name || `Site ${data.siteId.slice(0, 8)}`,
-      checkInDate: data.checkInDate,
-      checkOutDate: data.checkOutDate,
-      numNights,
-      numAdults: data.numAdults,
-      numChildren: data.numChildren || 0,
-      totalAmount: result.totalAmountCents,
-      paidAmount: result.paidAmountCents,
-      paymentStatus: result.paymentStatus as 'paid' | 'partial' | 'pending',
-    }
-    if (data.specialRequests) emailData.specialRequests = data.specialRequests
+    // Email is handled by automation pipeline only (no direct fallback)
 
-    sendBookingConfirmation(emailData).catch((err) => {
-      console.error('[Manual Reservation v1] Failed to send confirmation email:', err)
-    })
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+
+      // Fire reservation.created
+      await triggerReservationAutomations(
+        'reservation.created',
+        result.id,
+        propertyId,
+        property.company_id,
+      )
+
+      // If confirmed, also fire reservation.confirmed
+      if (result.status === 'confirmed') {
+        await triggerReservationAutomations(
+          'reservation.confirmed',
+          result.id,
+          propertyId,
+          property.company_id,
+        )
+      }
+    } catch (pipelineError) {
+      console.error('[Manual Reservation v1] Automation pipeline failed:', pipelineError)
+      // Non-blocking — reservation still succeeds
+    }
 
     // Return success response
     return success(

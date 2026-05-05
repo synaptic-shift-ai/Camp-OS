@@ -1,9 +1,10 @@
 import { type NextRequest } from 'next/server'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
-import { SYSTEM_EMAIL_TEMPLATES } from '@/lib/email/variable-definitions'
+import { seedEmailTemplates } from '@/lib/automations/seed-defaults'
 import { z } from 'zod'
 
 // ============================================================================
@@ -34,28 +35,7 @@ async function getCompanyId(supabase: any, propertyId: string): Promise<string |
   return data?.company_id ?? null
 }
 
-async function lazySeedTemplates(supabase: any, companyId: string): Promise<void> {
-  const rows = SYSTEM_EMAIL_TEMPLATES.map(t => ({
-    company_id: companyId,
-    property_id: null,
-    slug: t.slug,
-    name: t.name,
-    description: t.description,
-    subject_template: t.subject_template,
-    html_template: t.html_template,
-    category: t.category,
-    is_system_default: true,
-    is_active: true,
-  }))
 
-  const { error: seedError } = await supabase
-    .from('email_templates')
-    .upsert(rows, { onConflict: 'company_id,COALESCE(property_id,\'00000000-0000-0000-0000-000000000000\'),slug' })
-
-  if (seedError) {
-    console.error('[email-templates] Lazy seed failed:', seedError)
-  }
-}
 
 // ============================================================================
 // GET — List templates
@@ -92,7 +72,7 @@ export async function GET(request: NextRequest) {
       .eq('company_id', companyId)
 
     if (count === 0) {
-      await lazySeedTemplates(db, companyId)
+      await seedEmailTemplates(companyId)
     }
 
     // Query: tenant-level (property_id IS NULL) OR property-level
@@ -175,6 +155,22 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: insertError.message })
+    }
+
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: data.companyId,
+        propertyId: data.propertyId ?? null,
+        action: 'create',
+        resource: 'email_template',
+        userId: user.id,
+        details: `Created email template '${template.name}' (category: ${template.category})`,
+      })
+    } catch (logError) {
+      console.error('[Email Templates] Failed to log activity:', logError)
     }
 
     return success({ emailTemplate: template }, request)

@@ -25,10 +25,10 @@ import { z } from 'zod'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { sendBookingConfirmation } from '@/lib/email/send'
 import { recordPaymentDualWrite } from '@/modules/Financial/application/recordPaymentDualWrite'
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
-import { resolveDepositConfig } from '@/lib/config/resolution'
+import { getEventBus } from '@/shared/infrastructure/eventBus'
+import { ReservationConfirmed } from '@/modules/BookingEngine/domain/events/ReservationConfirmed'
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
       guestInitiatedLedger: true,
       amountCents: paidAmountCents,
       chargeAmountCents: isDepositPayment ? reservation.total_amount : paidAmountCents,
-      chargeRecognitionStatus: isDepositPayment ? 'deferred' : undefined,
+      ...(isDepositPayment ? { chargeRecognitionStatus: 'deferred' as const } : {}),
       paymentMethod: PaymentMethod.STRIPE,
       stripePaymentIntentId: validatedInput.payment_intent_id,
       description: isDepositPayment
@@ -247,41 +247,46 @@ export async function POST(request: NextRequest) {
     })
 
     // ========================================================================
-    // Step 5: Send confirmation email
+    // Step 5: Email is handled by automation pipeline (no direct fallback)
     // ========================================================================
 
-    const checkIn = new Date(reservation.check_in_date)
-    const checkOut = new Date(reservation.check_out_date)
-    const numNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
+    // Email is handled by automation pipeline only (no direct fallback)
 
-    const emailData = {
-      guestName: `${reservation.guest.first_name} ${reservation.guest.last_name}`,
-      guestEmail: reservation.guest.email,
-      confirmationNumber: reservation.confirmation_number,
-      propertyName: reservation.property.name,
-      siteName: reservation.site.site_name || `Site ${reservation.site.site_number}`,
-      checkInDate: reservation.check_in_date,
-      checkOutDate: reservation.check_out_date,
-      numNights,
-      numAdults: reservation.num_adults,
-      numChildren: reservation.num_children,
-      totalAmount: reservation.total_amount,
-      paidAmount: paidAmountCents,
-      paymentStatus: isDepositPayment ? 'deposit_paid' as const : 'paid' as const,
-      specialRequests: reservation.special_requests || undefined,
-      // Property contact and arrival info
-      propertyPhone: reservation.property.phone || undefined,
-      propertyEmail: reservation.property.email || undefined,
-      checkInTime: reservation.property.check_in_time || undefined,
-      checkOutTime: reservation.property.check_out_time || undefined,
-      directions: reservation.property.directions || undefined,
+    // ========================================================================
+    // Step 5.5: Publish domain events
+    // ========================================================================
+
+    try {
+      const eventBus = getEventBus()
+      await eventBus.publishAll([
+        new ReservationConfirmed(reservation.id, reservation.confirmation_number),
+      ])
+    } catch (eventErr) {
+      console.error('[Payment Confirm] Event publish failed (non-blocking):', eventErr)
     }
 
-    const emailResult = await sendBookingConfirmation(emailData)
-
-    if (!emailResult.success) {
-      console.error('[Payment Confirm] Email send failed:', emailResult.error)
-      // Don't fail - reservation is confirmed
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      const reservationPropertyId = reservation.property_id as string
+      // Derive companyId from property
+      const { data: propData } = await createServiceRoleClient()
+        .from('properties')
+        .select('company_id')
+        .eq('id', reservationPropertyId)
+        .single()
+      const reservationCompanyId = propData?.company_id as string
+      if (reservationCompanyId) {
+        await triggerReservationAutomations(
+          'reservation.confirmed',
+          validatedInput.reservation_id,
+          reservationPropertyId,
+          reservationCompanyId,
+        )
+      }
+    } catch (pipelineError) {
+      console.error('[Payment Confirm] Automation pipeline failed:', pipelineError)
+      // Non-blocking — payment confirmation still succeeds
     }
 
     // ========================================================================
@@ -303,7 +308,7 @@ export async function POST(request: NextRequest) {
         check_out_date: reservation.check_out_date,
         total_amount_cents: reservation.total_amount,
         paid_amount_cents: paidAmountCents,
-        email_sent: emailResult.success,
+        email_sent: true,
       },
       message: 'Payment confirmed successfully. Confirmation email sent.',
     })

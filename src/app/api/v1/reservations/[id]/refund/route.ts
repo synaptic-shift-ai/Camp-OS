@@ -20,9 +20,8 @@ import { SupabaseReservationRepository } from '@/modules/BookingEngine/infrastru
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { toReservationDTO } from '@/modules/BookingEngine/application/DTOs/ReservationDTO'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
-import { sendRefundIssuedEmail } from '@/lib/email/send'
-import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 
 /**
  * POST /api/v1/reservations/[id]/refund
@@ -161,23 +160,7 @@ export async function POST(
     const row = rowData as RefundEmailRow | null
 
     if (!rowError && row?.guest && row?.property) {
-      const guest = row.guest as { first_name: string; last_name: string; email: string }
-      const propertyRow = row.property as { name: string }
-      const guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
-
-      const refundMethodMatch = validatedRequest.notes?.match(/Refund method:\s*(\S+)/i)
-      const refundPaymentMethod = refundMethodMatch?.[1] ?? undefined
-
-      sendRefundIssuedEmail({
-        guestName,
-        guestEmail: guest.email,
-        confirmationNumber: reservation.confirmationNumber.value,
-        propertyName: propertyRow.name,
-        refundAmountCents: validatedRequest.amountCents,
-        ...(refundPaymentMethod ? { refundPaymentMethod } : {}),
-      }).catch((err) => {
-        console.error('[Reservations API v1] Failed to send refund-issued email:', err)
-      })
+      // Email is handled by automation pipeline only (no direct fallback)
     }
 
     if (access.companyId) {
@@ -195,6 +178,20 @@ export async function POST(
 
     // Convert to DTO
     const reservationDTO = toReservationDTO(reservation)
+
+    // Trigger automation pipeline directly (primary mechanism)
+    try {
+      const { triggerReservationAutomations } = await import('@/lib/automations/run-pipeline')
+      await triggerReservationAutomations(
+        'refund.processed',
+        reservationId,
+        reservation.propertyId,
+        access.companyId!,
+      )
+    } catch (pipelineError) {
+      console.error('[Refund] Automation pipeline failed:', pipelineError)
+      // Non-blocking — refund still succeeds
+    }
 
     return success(reservationDTO)
   } catch (err: unknown) {

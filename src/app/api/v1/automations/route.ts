@@ -137,6 +137,22 @@ export async function POST(request: NextRequest) {
 
     const result = await createAutomationWithDetails(input as unknown as Parameters<typeof createAutomationWithDetails>[0])
 
+    // Activity log — non-blocking
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId: result.automation.company_id,
+        propertyId: result.automation.property_id ?? null,
+        action: 'create',
+        resource: 'automation',
+        userId: user.id,
+        details: `Created automation '${result.automation.name}' (phase: ${result.automation.phase}, trigger: ${result.automation.trigger_type})`,
+      })
+    } catch (logError) {
+      console.error('[Automations] Failed to log activity:', logError)
+    }
+
     return success(result, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

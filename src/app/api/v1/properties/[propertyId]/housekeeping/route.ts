@@ -10,6 +10,8 @@ import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { HousekeepingQueries, type ListHousekeepingTasksFilters } from '@/lib/dashboard/housekeeping/housekeeping-queries'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { HousekeepingTaskCreatedEvent } from '@/modules/Housekeeping/domain/events'
+import { buildEventContext } from '@/lib/automations/event-context'
+import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
 import {
   CreateHousekeepingTaskRequestSchema,
   ListHousekeepingTasksQuerySchema,
@@ -414,6 +416,23 @@ export async function POST(
           ))
         } catch (evtErr) {
           console.warn('[HK] Failed to publish TaskCreated event (non-blocking)', evtErr)
+        }
+
+        // Direct automation trigger (bypasses unreliable EventBus in dev/serverless)
+        try {
+          const event = new HousekeepingTaskCreatedEvent(
+            propertyId,
+            housekeepingTask.id,
+            housekeepingTask.title,
+            housekeepingTask.priority,
+            housekeepingTask.site_id,
+          )
+          const context = await buildEventContext(event)
+          if (context.propertyId && context.companyId) {
+            await runPipelineForTrigger('housekeeping.task_created', context.propertyId, context.companyId, context)
+          }
+        } catch (autoErr) {
+          console.warn('[HK] Direct automation trigger failed (non-blocking)', autoErr)
         }
 
         return success({ housekeepingTask }, request)

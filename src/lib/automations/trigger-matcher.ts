@@ -29,10 +29,11 @@ export interface MatchedAutomation {
  */
 export async function matchAutomations(
   triggerType: string,
-  propertyId: string
+  propertyId: string,
+  companyId?: string
 ): Promise<MatchedAutomation[]> {
   // 1. Find active automations matching the trigger
-  const automationRows = await findActiveAutomationsByTrigger(triggerType, propertyId)
+  const automationRows = await findActiveAutomationsByTrigger(triggerType, propertyId, companyId)
 
   if (automationRows.length === 0) return []
 

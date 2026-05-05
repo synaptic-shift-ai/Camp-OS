@@ -21,6 +21,8 @@ import {
 } from '@/lib/dashboard/maintenance/maintenance-queries'
 import { getEventBus } from '@/shared/infrastructure/eventBus'
 import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
+import { buildEventContext } from '@/lib/automations/event-context'
+import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
 
 function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
     return (siteType ?? '')
@@ -453,6 +455,24 @@ export async function POST(
             ))
         } catch {
             // Non-blocking: event publishing failures should not prevent WO creation
+        }
+
+        // Direct automation trigger (bypasses unreliable EventBus in dev/serverless)
+        try {
+            const task = maintenanceTask as any
+            const event = new MaintenanceTaskCreatedEvent(
+                propertyId,
+                task.id,
+                task.wo_number ?? '',
+                task.category ?? '',
+                task.priority ?? '',
+            )
+            const context = await buildEventContext(event)
+            if (context.propertyId && context.companyId) {
+                await runPipelineForTrigger('maintenance.task_created', context.propertyId, context.companyId, context)
+            }
+        } catch (autoErr) {
+            console.warn('[Maintenance] Direct automation trigger failed (non-blocking)', autoErr)
         }
 
         if (access.companyId) {

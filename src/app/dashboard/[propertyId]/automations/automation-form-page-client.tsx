@@ -35,15 +35,15 @@ const TRIGGER_GROUPS: Array<{ label: string; triggers: TriggerType[] }> = [
   },
   {
     label: "Guest",
-    triggers: ["guest.registered", "guest.updated", "guest.checked_out"],
+    triggers: ["guest.updated"],
   },
   {
     label: "Payment",
-    triggers: ["payment.received", "payment.succeeded", "payment.failed", "payment.refunded", "refund.processed"],
+    triggers: ["refund.processed"],
   },
   {
     label: "Site",
-    triggers: ["site.status_changed", "site.maintenance_started", "site.maintenance_completed"],
+    triggers: ["site.status_changed", "site.maintenance_started"],
   },
   {
     label: "Housekeeping",
@@ -539,6 +539,7 @@ export function AutomationFormPageClient({
                 actions={actions}
                 phase={phase}
               onChange={setActions}
+              propertyId={propertyId}
             />
           </TabsContent>
         </Tabs>

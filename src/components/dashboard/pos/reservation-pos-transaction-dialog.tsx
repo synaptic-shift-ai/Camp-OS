@@ -5,14 +5,11 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { CreditCard, Banknote, FileText, AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
 import { useProperty } from "@/components/property-context"
-
-type PaymentMethodValue = "credit_card" | "cash" | "other"
 
 export type ReservationPosTransactionDialogProps = {
   reservationId: string
@@ -21,19 +18,6 @@ export type ReservationPosTransactionDialogProps = {
   mode?: "pos" | "charge_only"
   onSuccess?: () => void
 }
-
-const PAYMENT_METHODS: { value: PaymentMethodValue; label: string; icon: React.ElementType }[] = [
-  { value: "credit_card", label: "Card", icon: CreditCard },
-  { value: "cash", label: "Cash", icon: Banknote },
-  { value: "other", label: "Other", icon: FileText },
-]
-
-const METHODS_WITH_PROCESSOR = new Set<PaymentMethodValue>(["credit_card"])
-
-const PROCESSOR_OPTIONS = [
-  { value: "none", label: "None (Manual)" },
-  { value: "stripe", label: "Stripe" },
-] as const
 
 export function ReservationPosTransactionDialog({
   reservationId,
@@ -51,42 +35,18 @@ export function ReservationPosTransactionDialog({
 
   const [description, setDescription] = useState("")
   const [amountDollars, setAmountDollars] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue | "">("")
-  const [processor, setProcessor] = useState<(typeof PROCESSOR_OPTIONS)[number]["value"]>("none")
-  const [reference, setReference] = useState("")
   const [error, setError] = useState<string | null>(null)
-
-  const showProcessor = useMemo(
-    () => paymentMethod !== "" && METHODS_WITH_PROCESSOR.has(paymentMethod as PaymentMethodValue),
-    [paymentMethod],
-  )
 
   const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
 
-  const isFormValid = description.trim().length > 0 && amountCents >= 1 && paymentMethod !== ""
+  const isFormValid = description.trim().length > 0 && amountCents >= 1
 
   useEffect(() => {
     if (!open) return
     setError(null)
     setDescription("")
     setAmountDollars("")
-    setPaymentMethod("")
-    setProcessor("none")
-    setReference("")
   }, [open])
-
-  const apiPaymentMethod = useMemo(() => {
-    switch (paymentMethod) {
-      case "credit_card":
-        return "credit_card"
-      case "cash":
-        return "cash"
-      case "other":
-        return "cash"
-      default:
-        return "cash"
-    }
-  }, [paymentMethod])
 
   const handleSubmit = async () => {
     if (!isFormValid) return
@@ -124,9 +84,9 @@ export function ReservationPosTransactionDialog({
             reservation_id: reservationId,
             guest_id: guestId ?? null,
             amount_cents: amountCents,
-            payment_method: apiPaymentMethod,
-            processor: showProcessor && processor !== "none" ? processor : null,
-            reference: reference.trim() || null,
+            payment_method: "cash",
+            processor: null,
+            reference: null,
             source: "pos",
           }),
         })
@@ -204,63 +164,6 @@ export function ReservationPosTransactionDialog({
               value={amountDollars}
               onChange={(e) => setAmountDollars(e.target.value)}
               disabled={loading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="pos-payment-method">Payment Method</Label>
-            <Select
-              value={paymentMethod}
-              onValueChange={(val) => {
-                setPaymentMethod(val as PaymentMethodValue)
-                setProcessor("none")
-              }}
-              disabled={loading}
-            >
-              <SelectTrigger id="pos-payment-method">
-                <SelectValue placeholder="Select payment method…" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map((method) => (
-                  <SelectItem key={method.value} value={method.value}>
-                    <div className="flex items-center gap-2">
-                      <method.icon className="h-4 w-4" />
-                      <span>{method.label}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {showProcessor ? (
-            <div className="space-y-2">
-              <Label htmlFor="pos-processor">Processor</Label>
-              <Select value={processor} onValueChange={(val) => setProcessor(val as any)} disabled={loading}>
-                <SelectTrigger id="pos-processor">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROCESSOR_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <Label htmlFor="pos-reference">Reference (Optional)</Label>
-            <Input
-              id="pos-reference"
-              type="text"
-              placeholder="e.g. Receipt #, Transaction ID…"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              disabled={loading}
-              maxLength={255}
             />
           </div>
 

@@ -444,6 +444,9 @@ export default function GuestInfoPage() {
         confirmationNumber: result.data.confirmation_number,
         priceBreakdown: result.data.price_breakdown,
         paymentProcessor: result.data.payment_processor,
+        ...(Array.isArray(result.data.enabled_payment_methods)
+          ? { enabledPaymentMethods: result.data.enabled_payment_methods }
+          : {}),
         numPets,
         ...(result.data.reserved_until != null
           ? { reservedUntil: result.data.reserved_until }

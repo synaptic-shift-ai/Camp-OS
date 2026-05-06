@@ -30,6 +30,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
 })
 
+function resolveLegacyPaymentMethodFromStripePaymentMethodType(type: string | null | undefined): string {
+  switch (type) {
+    case 'cashapp':
+      return 'cashapp'
+    case 'amazon_pay':
+      return 'amazon_pay'
+    case 'card':
+      return 'credit_card'
+    default:
+      return 'credit_card'
+  }
+}
+
 // Input validation schema
 const confirmPaymentSchema = z.object({
   payment_intent_id: z.string().startsWith('pi_', 'Invalid PaymentIntent ID'),
@@ -203,13 +216,27 @@ export async function POST(request: NextRequest) {
     // Step 4: Create payment record
     // ========================================================================
 
+    let legacyPaymentMethod = 'credit_card'
+    try {
+      const pmId = paymentIntent.payment_method
+      if (typeof pmId === 'string' && pmId.trim().length > 0) {
+        const pm = await stripe.paymentMethods.retrieve(pmId)
+        legacyPaymentMethod = resolveLegacyPaymentMethodFromStripePaymentMethodType(pm.type)
+      }
+    } catch (err) {
+      // Non-blocking: if we can't resolve the concrete method, store a safe default.
+      console.warn('[Payment Confirm] Failed to resolve Stripe payment method type; defaulting to credit_card', {
+        error: err instanceof Error ? err.message : err,
+      })
+    }
+
     const { error: paymentRecordError } = await supabase
       .from('payments')
       .insert({
         property_id: reservation.property_id,
         reservation_id: reservation.id,
         amount: paidAmountCents,
-        payment_method: 'credit_card',
+        payment_method: legacyPaymentMethod,
         payment_status: 'completed',
         stripe_payment_id: validatedInput.payment_intent_id,
         processed_at: new Date().toISOString(),

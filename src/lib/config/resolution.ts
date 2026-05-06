@@ -8,30 +8,30 @@
  */
 
 import { format } from 'date-fns'
-import type {
-  DepositConfig,
-  PricingConfig,
-  BookingRulesConfig,
-  RateDiscountsConfig,
-  EffectiveDepositConfig,
-  EffectivePricingConfig,
-  EffectiveBookingRulesConfig,
-  PropertyWithConfig,
-  SiteWithConfig,
-  ConfigurationResolution,
-  BookingType,
-  PropertyReservationTypesConfig,
-  SeasonalPeriod,
-  SiteSeasonalRate,
-  UserDefinedDiscount,
-} from './types'
 import {
+  type DepositConfig,
+  type PricingConfig,
+  type BookingRulesConfig,
+  type RateDiscountsConfig,
+  type EffectiveDepositConfig,
+  type EffectivePricingConfig,
+  type EffectiveBookingRulesConfig,
+  type PropertyWithConfig,
+  type SiteWithConfig,
+  type ConfigurationResolution,
+  type BookingType,
+  type PropertyReservationTypesConfig,
+  type SeasonalPeriod,
+  type SiteSeasonalRate,
+  type UserDefinedDiscount,
+  type PaymentProcessorType,
   DEFAULT_DEPOSIT_CONFIG,
   DEFAULT_PRICING_CONFIG,
   DEFAULT_BOOKING_RULES_CONFIG,
   DEFAULT_RATE_DISCOUNTS_CONFIG,
   DEFAULT_RESERVATION_TYPES_CONFIG,
   DEFAULT_ENABLED_RESERVATION_TYPES,
+  DEFAULT_PAYMENT_PROCESSOR,
 } from './types'
 
 // =====================================================
@@ -874,19 +874,48 @@ export function parseEnabledReservationTypesFromDB(
 // =====================================================
 
 /**
- * Resolve the payment processor type for a property.
+ * Normalize the `payment_processor` column (text[] in DB; legacy call sites may pass a string).
  *
- * Falls back to 'stripe' when no processor is configured.
- *
- * @param propertyProcessorConfig - The value of the `payment_processor` column on the property.
- * @returns The resolved PaymentProcessorType.
+ * @param propertyProcessorConfig - Raw value from the property row or API.
+ * @returns Non-empty trimmed processor ids in order; empty when null/invalid.
  */
-export function resolvePaymentProcessor(
-  propertyProcessorConfig: unknown
-): 'stripe' | 'campost_payments' | 'none' {
-  const valid: Array<'stripe' | 'campost_payments' | 'none'> = ['stripe', 'campost_payments', 'none']
-  if (typeof propertyProcessorConfig === 'string' && valid.includes(propertyProcessorConfig as any)) {
-    return propertyProcessorConfig as 'stripe' | 'campost_payments' | 'none'
+export function parsePaymentProcessorList(propertyProcessorConfig: unknown): string[] {
+  if (propertyProcessorConfig == null) {
+    return []
   }
-  return 'stripe'
+  if (Array.isArray(propertyProcessorConfig)) {
+    return propertyProcessorConfig
+      .filter((x): x is string => typeof x === 'string')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+  }
+  if (typeof propertyProcessorConfig === 'string') {
+    const t = propertyProcessorConfig.trim()
+    return t.length > 0 ? [t] : []
+  }
+  return []
+}
+
+const KNOWN_PAYMENT_PROCESSORS = new Set<PaymentProcessorType>([
+  'stripe',
+  'campost_payments',
+  'none',
+])
+
+/**
+ * Resolve which built-in payment processor implementation to use for a property.
+ *
+ * Uses the first entry in `payment_processor` that matches a supported
+ * {@link PaymentProcessorType}; otherwise {@link DEFAULT_PAYMENT_PROCESSOR}.
+ *
+ * @param propertyProcessorConfig - The `payment_processor` column (string[] or legacy string).
+ */
+export function resolvePaymentProcessor(propertyProcessorConfig: unknown): PaymentProcessorType {
+  const list = parsePaymentProcessorList(propertyProcessorConfig)
+  for (const entry of list) {
+    if (KNOWN_PAYMENT_PROCESSORS.has(entry as PaymentProcessorType)) {
+      return entry as PaymentProcessorType
+    }
+  }
+  return DEFAULT_PAYMENT_PROCESSOR
 }

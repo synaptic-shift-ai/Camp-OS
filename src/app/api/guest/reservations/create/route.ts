@@ -35,6 +35,10 @@ import {
   resolveDepositConfig,
   resolvePaymentProcessor,
 } from '@/lib/config/resolution'
+import {
+  DEFAULT_PAYMENT_METHODS,
+  resolveEnabledPaymentMethodsFromProperty,
+} from '@/lib/config/types'
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
 import type { RateDiscountsConfig } from '@/lib/config/types'
 import { ConfirmationNumber } from '@/modules/BookingEngine/domain/value-objects/ConfirmationNumber'
@@ -237,7 +241,7 @@ export async function POST(request: NextRequest) {
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, owner_id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings, deposit_config')
+      .select('id, owner_id, name, booking_page_slug, onboarding_completed, pricing_config, rate_discounts_config, booking_rules_config, enabled_reservation_types, reservation_type_config, site_type_config, settings, deposit_config, payment_processor')
       .eq('id', validatedInput.property_id)
       .single()
 
@@ -1121,6 +1125,11 @@ export async function POST(request: NextRequest) {
         total_amount_cents: reservation.total_amount,
         property_id: validatedInput.property_id,
         payment_processor: resolvePaymentProcessor((property as any)?.payment_processor),
+        enabled_payment_methods:
+          resolveEnabledPaymentMethodsFromProperty(
+            (property as any)?.settings as Record<string, unknown> | null | undefined,
+            ((property as any)?.payment_processor as string[] | null | undefined) ?? undefined,
+          ) ?? DEFAULT_PAYMENT_METHODS,
         site_name: site.site_name || `Site ${site.site_number}`,
         check_in_date: validatedInput.check_in_date,
         check_out_date: validatedInput.check_out_date,

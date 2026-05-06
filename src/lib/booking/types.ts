@@ -500,6 +500,8 @@ export interface CheckoutData {
   propertyId?: string
   propertyName?: string
   cancellationPolicy?: string | null
+  /** Guest-visible payment methods enabled for this property */
+  enabledPaymentMethods?: Array<'card' | 'amazon_pay' | 'cashapp'>
 
   // Site selection
   site?: AvailableSite

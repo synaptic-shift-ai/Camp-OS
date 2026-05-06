@@ -302,10 +302,59 @@ export const DEFAULT_PAYMENT_PROCESSOR: PaymentProcessorType = 'stripe'
 // =====================================================
 
 /** Supported payment methods for guest checkout */
-export type PaymentMethod = 'stripe' | 'paypal' | 'apple_pay'
+export type PaymentMethod = 'card' | 'amazon_pay' | 'cashapp'
 
 /** Default enabled payment methods */
-export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = ['stripe', 'paypal', 'apple_pay']
+export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = ['card', 'amazon_pay', 'cashapp']
+
+/** Guest checkout method ids in UI order. */
+export const ORDERED_GUEST_PAYMENT_METHODS: readonly PaymentMethod[] = DEFAULT_PAYMENT_METHODS
+
+export function normalizePaymentMethodsOrder(methods: readonly PaymentMethod[]): PaymentMethod[] {
+  return ORDERED_GUEST_PAYMENT_METHODS.filter((m) => methods.includes(m))
+}
+
+/**
+ * Merge guest payment-method checkboxes into `properties.payment_processor` without dropping
+ * non-guest ids (e.g. `campost_payments`). Guest methods replace prior guest slots; order is
+ * checkbox order first, then remaining ids.
+ */
+export function mergePaymentProcessorColumnWithGuestMethods(
+  existingColumn: readonly string[],
+  orderedGuestMethods: readonly PaymentMethod[],
+): string[] {
+  const guestSet = new Set<string>(ORDERED_GUEST_PAYMENT_METHODS)
+  const nonGuest = existingColumn.filter((id) => !guestSet.has(id))
+  return [...normalizePaymentMethodsOrder([...orderedGuestMethods]), ...nonGuest]
+}
+
+export function resolveEnabledPaymentMethodsFromProperty(
+  settings: Record<string, unknown> | null | undefined,
+  paymentProcessorColumn: string[] | null | undefined,
+): PaymentMethod[] | undefined {
+  const fromSettings = settings?.enabled_payment_methods
+  if (Array.isArray(fromSettings)) {
+    const asMethods = fromSettings.filter(
+      (x): x is PaymentMethod =>
+        typeof x === 'string' && (ORDERED_GUEST_PAYMENT_METHODS as readonly string[]).includes(x),
+    )
+    const ordered = normalizePaymentMethodsOrder(asMethods)
+    if (ordered.length > 0) {
+      return ordered
+    }
+  }
+  if (paymentProcessorColumn?.length) {
+    const asMethods = paymentProcessorColumn.filter(
+      (x): x is PaymentMethod =>
+        (ORDERED_GUEST_PAYMENT_METHODS as readonly string[]).includes(x),
+    )
+    const ordered = normalizePaymentMethodsOrder(asMethods)
+    if (ordered.length > 0) {
+      return ordered
+    }
+  }
+  return undefined
+}
 
 // =====================================================
 // Pricing Configuration
@@ -899,8 +948,8 @@ export interface PropertyWithConfig {
   pricing_config: PricingConfig
   booking_rules_config: BookingRulesConfig
   rate_discounts_config: RateDiscountsConfig
-  /** Payment processor to use for online payments */
-  payment_processor?: PaymentProcessorType | null
+  /** Payment processor ids for online payments (DB: text[]) */
+  payment_processor?: string[] | null
 
   // Existing operational fields
   check_in_time: string

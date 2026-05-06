@@ -2009,7 +2009,7 @@ export type Database = {
           onboarding_completed: boolean | null
           onboarding_completed_at: string | null
           owner_id: string | null
-          payment_processor: string
+          payment_processor: string[]
           phone: string | null
           pricing_config: Json | null
           property_type: string | null
@@ -2080,7 +2080,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           onboarding_completed_at?: string | null
           owner_id?: string | null
-          payment_processor?: string
+          payment_processor?: string[]
           phone?: string | null
           pricing_config?: Json | null
           property_type?: string | null
@@ -2151,7 +2151,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           onboarding_completed_at?: string | null
           owner_id?: string | null
-          payment_processor?: string
+          payment_processor?: string[]
           phone?: string | null
           pricing_config?: Json | null
           property_type?: string | null

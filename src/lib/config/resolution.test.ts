@@ -6,6 +6,8 @@
 
 import { describe, test, expect } from 'vitest'
 import {
+  parsePaymentProcessorList,
+  resolvePaymentProcessor,
   resolveReservationTypeRate,
   resolveReservationTypeRateWithSource,
 } from './resolution'
@@ -252,5 +254,47 @@ describe('resolveReservationTypeRateWithSource', () => {
       source: 'base_price',
       is_overridden: false,
     })
+  })
+})
+
+describe('parsePaymentProcessorList', () => {
+  test('returns empty list for null and undefined', () => {
+    expect(parsePaymentProcessorList(null)).toEqual([])
+    expect(parsePaymentProcessorList(undefined)).toEqual([])
+  })
+
+  test('wraps a non-empty string as a single-element list', () => {
+    expect(parsePaymentProcessorList('stripe')).toEqual(['stripe'])
+  })
+
+  test('trims string entries and drops blanks', () => {
+    expect(parsePaymentProcessorList('  stripe  ')).toEqual(['stripe'])
+    expect(parsePaymentProcessorList([' stripe ', '', '  '])).toEqual(['stripe'])
+  })
+
+  test('preserves custom processor ids and order', () => {
+    expect(parsePaymentProcessorList(['custom_a', 'custom_b'])).toEqual(['custom_a', 'custom_b'])
+  })
+})
+
+describe('resolvePaymentProcessor', () => {
+  test('returns first supported type when list mixes custom and known ids', () => {
+    expect(resolvePaymentProcessor(['future_gateway', 'campost_payments'])).toBe('campost_payments')
+  })
+
+  test('returns first supported type in array order', () => {
+    expect(resolvePaymentProcessor(['stripe', 'campost_payments'])).toBe('stripe')
+  })
+
+  test('returns default when list is empty', () => {
+    expect(resolvePaymentProcessor([])).toBe('stripe')
+  })
+
+  test('returns default when no supported type is present', () => {
+    expect(resolvePaymentProcessor(['only_custom'])).toBe('stripe')
+  })
+
+  test('accepts legacy single string value', () => {
+    expect(resolvePaymentProcessor('none')).toBe('none')
   })
 })

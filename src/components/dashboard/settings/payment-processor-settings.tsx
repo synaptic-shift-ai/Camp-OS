@@ -3,13 +3,11 @@
 /**
  * Payment Processor Settings Component
  *
- * Allows property owners to enable multiple payment methods:
- * - Stripe (credit/debit cards, ACH, card-on-file)
- * - PayPal
- * - Apple Pay
+ * Allows property owners to choose which payment methods appear for guests at checkout.
  *
- * The enabled methods are stored as an array in the `settings` JSONB field
- * under the key `enabled_payment_methods`.
+ * The enabled methods are stored under `settings.enabled_payment_methods` and are
+ * merged into `properties.payment_processor` (text[]) on save so the DB column
+ * stays in sync with the checkboxes.
  *
  * @module components/dashboard/settings/payment-processor-settings
  */
@@ -30,22 +28,19 @@ const SEASON_ERROR_TOAST_CLASS =
 
 const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string; description: string }[] = [
   {
-    value: 'stripe',
-    label: 'Stripe',
-    description:
-      'Process payments through Stripe Connect. Supports credit/debit cards, ACH, and card-on-file.',
+    value: 'card',
+    label: 'Cards',
+    description: 'Accept credit and debit card payments at checkout.',
   },
   {
-    value: 'paypal',
-    label: 'PayPal',
-    description:
-      'Accept PayPal payments from guests. Supports PayPal balance, linked cards, and Venmo.',
+    value: 'amazon_pay',
+    label: 'Amazon Pay',
+    description: 'Allow guests to pay using Amazon Pay where available.',
   },
   {
-    value: 'apple_pay',
-    label: 'Apple Pay',
-    description:
-      'Enable Apple Pay for a fast, secure checkout experience on Safari and supported browsers.',
+    value: 'cashapp',
+    label: 'Cash App Pay',
+    description: 'Allow guests to pay using Cash App Pay where available.',
   },
 ]
 
@@ -158,7 +153,7 @@ export function PaymentProcessorSettings({
             <AlertDescription>
               {enabledMethods.length === 0
                 ? 'No payment methods are enabled. Guests will not be able to pay online.'
-                : `${enabledMethods.length} payment method${enabledMethods.length === 1 ? '' : 's'} enabled. Guests can choose from these at checkout.`}
+                : `${enabledMethods.length} payment method${enabledMethods.length === 1 ? '' : 's'} enabled. Guests can choose from these during booking payment.`}
             </AlertDescription>
           </Alert>
         </CardContent>

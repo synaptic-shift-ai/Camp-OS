@@ -70,20 +70,17 @@ async function writeFinancialTransactions(params: {
   } = params
 
   const isDepositPayment = reservationTotalCents != null && amountCents < reservationTotalCents
-  const chargeAmountCents = isDepositPayment ? reservationTotalCents : amountCents
 
   try {
     const repo = new SupabaseTransactionRepository(supabase as any)
     const amount = MoneyAmount.create(amountCents)
-    const chargeAmount = MoneyAmount.create(chargeAmountCents)
 
     // Guest checkout: do not attribute ledger rows to property staff (reservations.created_by).
     const createdByUserId: string | null = null
     // Dedupe with guest `/api/guest/payment/confirm` dual-write (same PaymentIntent id).
     const processorKey = stripePaymentIntentId
-    const existingCharge = await repo.findByProcessorEventId(processorKey, TransactionType.CHARGE)
     const existingPayment = await repo.findByProcessorEventId(processorKey, TransactionType.PAYMENT)
-    if (existingCharge || existingPayment) {
+    if (existingPayment) {
       console.log('[Stripe Webhook] financial_transactions dual-write skipped (already exists)', {
         stripeEventId,
         stripePaymentIntentId,
@@ -91,32 +88,7 @@ async function writeFinancialTransactions(params: {
       return
     }
 
-    // Create CHARGE record
-    const chargeId = randomUUID()
-    const charge = Transaction.create(
-      chargeId,
-      propertyId,
-      reservationId,
-      TransactionType.CHARGE,
-      chargeAmount,
-      PaymentMethod.STRIPE,
-      createdByUserId,
-      null, // invoiceId
-      isDepositPayment
-        ? 'Guest self-service reservation payment (deposit — balance deferred)'
-        : 'Guest self-service reservation payment',
-      TransactionSource.RESERVATION,
-      processorKey,
-      guestId,
-    )
-    charge.complete(stripePaymentIntentId)
-    if (isDepositPayment) {
-      charge.applyRecognitionStatus(RecognitionStatus.DEFERRED)
-    }
-    await repo.save(charge)
-    console.log(`[Stripe Webhook] financial_transactions CHARGE created: ${chargeId}`)
-
-    // Create PAYMENT record
+    // Create PAYMENT record (guest checkout should show as "Payment" in transaction history)
     const paymentId = randomUUID()
     const payment = Transaction.create(
       paymentId,
@@ -127,7 +99,9 @@ async function writeFinancialTransactions(params: {
       PaymentMethod.STRIPE,
       createdByUserId,
       null, // invoiceId
-      'Guest self-service reservation payment',
+      isDepositPayment
+        ? 'Guest self-service reservation payment (deposit)'
+        : 'Guest self-service reservation payment',
       TransactionSource.RESERVATION,
       processorKey,
       guestId,

@@ -6,6 +6,7 @@ import {
   updatePropertyConfigSchema,
   type UpdatePropertyConfigInput,
 } from "@/lib/config/schemas"
+import { mergePaymentProcessorColumnWithGuestMethods } from "@/lib/config/types"
 import { recordActivityLog } from "@/shared/activity-log/record-activity-log"
 import {
   canEditPropertySettingsModule,
@@ -24,6 +25,7 @@ const CONFIG_PATCH_ACTIVITY_KEYS = [
   "enabled_reservation_types",
   "site_type_config",
   "enabled_payment_methods",
+  "payment_processor",
 ] as const satisfies readonly (keyof UpdatePropertyConfigInput)[]
 
 const CONFIG_PATCH_ACTIVITY_LABEL: Partial<Record<keyof UpdatePropertyConfigInput, string>> = {
@@ -35,6 +37,7 @@ const CONFIG_PATCH_ACTIVITY_LABEL: Partial<Record<keyof UpdatePropertyConfigInpu
   reservation_type_config: "reservation types",
   enabled_reservation_types: "reservation types",
   enabled_payment_methods: "payment methods",
+  payment_processor: "payment processor",
 }
 
 function buildSettingsPatchActivityDetails(config: UpdatePropertyConfigInput): string {
@@ -156,10 +159,9 @@ export async function PATCH(
     }
 
     if (configUpdates.enabled_payment_methods !== undefined) {
-      // Merge into the settings JSONB field
       const { data: existingProperty } = await supabaseAdmin
         .from("properties")
-        .select("settings")
+        .select("settings, payment_processor")
         .eq("id", propertyId)
         .single()
 
@@ -168,6 +170,12 @@ export async function PATCH(
         ...existingSettings,
         enabled_payment_methods: configUpdates.enabled_payment_methods,
       }
+
+      const existingProcessors = (existingProperty?.payment_processor as string[] | null) ?? []
+      updateData.payment_processor = mergePaymentProcessorColumnWithGuestMethods(
+        existingProcessors,
+        configUpdates.enabled_payment_methods,
+      )
     }
 
     // Add updated timestamp

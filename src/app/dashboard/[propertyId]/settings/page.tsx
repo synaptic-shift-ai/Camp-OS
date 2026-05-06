@@ -25,8 +25,8 @@ import type {
   DepositConfig,
   BookingRulesConfig,
   RateDiscountsConfig,
-  PaymentMethod,
 } from "@/lib/config/types"
+import { resolveEnabledPaymentMethodsFromProperty } from "@/lib/config/types"
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
 import { HousekeepingSettings } from "@/components/dashboard/housekeeping/housekeeping-settings"
 
@@ -102,6 +102,11 @@ export default async function SettingsPage({ params }: PageProps) {
   if (!property) {
     redirect("/auth/login")
   }
+
+  const initialGuestPaymentMethods = resolveEnabledPaymentMethodsFromProperty(
+    property.settings as Record<string, unknown> | null | undefined,
+    (property as { payment_processor?: string[] | null }).payment_processor ?? undefined,
+  )
 
   const rawSiteTypeConfig = (property.site_type_config ?? null) as
     | {
@@ -241,10 +246,8 @@ export default async function SettingsPage({ params }: PageProps) {
           <PaymentProcessorSettings
             propertyId={property.id}
             canEdit={canEditSettings}
-            {...((property.settings as Record<string, unknown> | null | undefined)
-              ?.enabled_payment_methods != null && {
-              initialEnabledMethods: (property.settings as Record<string, unknown>)
-                .enabled_payment_methods as PaymentMethod[],
+            {...(initialGuestPaymentMethods != null && {
+              initialEnabledMethods: initialGuestPaymentMethods,
             })}
           />
         </TabsContent>

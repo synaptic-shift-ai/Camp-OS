@@ -846,10 +846,20 @@ export const updatePropertyConfigSchema = z.object({
   enabled_reservation_types: z.array(z.string()).optional(),
   // Site type configuration (allowed types, per-site-type rules, etc.)
   site_type_config: z.unknown().optional(),
-  // Payment processor selection
-  payment_processor: z.enum(['stripe', 'campost_payments', 'none']).optional(),
+  // Payment processor ids (property column is text[]; arbitrary strings allowed)
+  payment_processor: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .transform((v): string[] | undefined => {
+      if (v === undefined) return undefined
+      if (typeof v === 'string') {
+        const t = v.trim()
+        return t === '' ? [] : [t]
+      }
+      return v.map((s) => String(s).trim()).filter((s) => s.length > 0)
+    }),
   // Enabled payment methods (stored in settings JSONB)
-  enabled_payment_methods: z.array(z.enum(['stripe', 'paypal', 'apple_pay'])).optional(),
+  enabled_payment_methods: z.array(z.enum(['card', 'amazon_pay', 'cashapp'])).optional(),
 })
 
 /**

@@ -25,6 +25,7 @@ import type {
   DepositConfig,
   BookingRulesConfig,
   RateDiscountsConfig,
+  PaymentMethod,
 } from "@/lib/config/types"
 import { PropertiesAmenities } from "@/components/dashboard/settings/properties-amenities"
 import { HousekeepingSettings } from "@/components/dashboard/housekeeping/housekeeping-settings"
@@ -240,7 +241,11 @@ export default async function SettingsPage({ params }: PageProps) {
           <PaymentProcessorSettings
             propertyId={property.id}
             canEdit={canEditSettings}
-            initialProcessor={(property as any).payment_processor ?? null}
+            {...((property.settings as Record<string, unknown> | null | undefined)
+              ?.enabled_payment_methods != null && {
+              initialEnabledMethods: (property.settings as Record<string, unknown>)
+                .enabled_payment_methods as PaymentMethod[],
+            })}
           />
         </TabsContent>
 

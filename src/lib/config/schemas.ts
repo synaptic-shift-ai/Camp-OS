@@ -848,6 +848,8 @@ export const updatePropertyConfigSchema = z.object({
   site_type_config: z.unknown().optional(),
   // Payment processor selection
   payment_processor: z.enum(['stripe', 'campost_payments', 'none']).optional(),
+  // Enabled payment methods (stored in settings JSONB)
+  enabled_payment_methods: z.array(z.enum(['stripe', 'paypal', 'apple_pay'])).optional(),
 })
 
 /**

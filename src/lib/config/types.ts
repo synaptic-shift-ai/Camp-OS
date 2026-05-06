@@ -298,6 +298,16 @@ export type PaymentProcessorType = 'stripe' | 'campost_payments' | 'none'
 export const DEFAULT_PAYMENT_PROCESSOR: PaymentProcessorType = 'stripe'
 
 // =====================================================
+// Payment Methods
+// =====================================================
+
+/** Supported payment methods for guest checkout */
+export type PaymentMethod = 'stripe' | 'paypal' | 'apple_pay'
+
+/** Default enabled payment methods */
+export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = ['stripe', 'paypal', 'apple_pay']
+
+// =====================================================
 // Pricing Configuration
 // =====================================================
 

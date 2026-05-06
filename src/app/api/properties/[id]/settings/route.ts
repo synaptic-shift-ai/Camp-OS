@@ -23,6 +23,7 @@ const CONFIG_PATCH_ACTIVITY_KEYS = [
   "reservation_type_config",
   "enabled_reservation_types",
   "site_type_config",
+  "enabled_payment_methods",
 ] as const satisfies readonly (keyof UpdatePropertyConfigInput)[]
 
 const CONFIG_PATCH_ACTIVITY_LABEL: Partial<Record<keyof UpdatePropertyConfigInput, string>> = {
@@ -33,6 +34,7 @@ const CONFIG_PATCH_ACTIVITY_LABEL: Partial<Record<keyof UpdatePropertyConfigInpu
   pricing_config: "pricing",
   reservation_type_config: "reservation types",
   enabled_reservation_types: "reservation types",
+  enabled_payment_methods: "payment methods",
 }
 
 function buildSettingsPatchActivityDetails(config: UpdatePropertyConfigInput): string {
@@ -151,6 +153,21 @@ export async function PATCH(
 
     if (configUpdates.payment_processor !== undefined) {
       updateData.payment_processor = configUpdates.payment_processor
+    }
+
+    if (configUpdates.enabled_payment_methods !== undefined) {
+      // Merge into the settings JSONB field
+      const { data: existingProperty } = await supabaseAdmin
+        .from("properties")
+        .select("settings")
+        .eq("id", propertyId)
+        .single()
+
+      const existingSettings = (existingProperty?.settings as Record<string, unknown> | null) ?? {}
+      updateData.settings = {
+        ...existingSettings,
+        enabled_payment_methods: configUpdates.enabled_payment_methods,
+      }
     }
 
     // Add updated timestamp

@@ -67,6 +67,8 @@ export type CreateHousekeepingTaskInput = {
     title: string
     description?: string | null
     staffId?: string | null
+    startBy?: string | null
+    completedBy?: string | null
     status?: 'pending' | 'in_progress' | 'done'
     reservationId?: string | null
     checklistId?: string | null
@@ -86,6 +88,8 @@ export type UpdateHousekeepingTaskInput = {
     siteId?: string
     description?: string | null
     staffId?: string | null
+    startBy?: string | null
+    completedBy?: string | null
     title?: string
     status?: 'pending' | 'in_progress' | 'done'
     reservationId?: string | null
@@ -227,6 +231,8 @@ export class HousekeepingQueries {
         title: input.title,
         description: input.description ?? null,
         staff_id: input.staffId ?? null,
+        ...(input.startBy !== undefined ? { start_by: input.startBy } : {}),
+        ...(input.completedBy !== undefined ? { completed_by: input.completedBy } : {}),
         reservation_id: input.reservationId ?? null,
         checklist_id: input.checklistId ?? null,
         ...(input.status !== undefined ? { status: input.status } : {}),
@@ -384,6 +390,8 @@ export class HousekeepingQueries {
             ...(input.title !== undefined ? { title: input.title } : {}),
             ...(input.description !== undefined ? { description: input.description } : {}),
             ...(input.staffId !== undefined ? { staff_id: input.staffId } : {}),
+            ...(input.startBy !== undefined ? { start_by: input.startBy } : {}),
+            ...(input.completedBy !== undefined ? { completed_by: input.completedBy } : {}),
             ...(input.status !== undefined ? { status: input.status } : {}),
             ...(input.reservationId !== undefined ? { reservation_id: input.reservationId } : {}),
             ...(input.checklistId !== undefined ? { checklist_id: input.checklistId } : {}),

@@ -344,6 +344,8 @@ export async function POST(
           title: parsed.data.title,
           description: parsed.data.description ?? null,
           createdBy: user.id,
+          ...(parsed.data.status === 'in_progress' ? { startBy: user.id } : {}),
+          ...(parsed.data.status === 'done' ? { completedBy: user.id } : {}),
           ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
           ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
           ...(reservationId !== null ? { reservationId } : {}),

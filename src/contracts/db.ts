@@ -1285,6 +1285,7 @@ export type Database = {
         Row: {
           checklist_id: string | null
           checklist_item_done: Json
+          completed_by: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -1299,6 +1300,7 @@ export type Database = {
           site_id: string
           staff_id: string | null
           start_at: string | null
+          start_by: string | null
           start_date: string | null
           status: string
           title: string
@@ -1307,6 +1309,7 @@ export type Database = {
         Insert: {
           checklist_id?: string | null
           checklist_item_done?: Json
+          completed_by?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -1321,6 +1324,7 @@ export type Database = {
           site_id: string
           staff_id?: string | null
           start_at?: string | null
+          start_by?: string | null
           start_date?: string | null
           status?: string
           title: string
@@ -1329,6 +1333,7 @@ export type Database = {
         Update: {
           checklist_id?: string | null
           checklist_item_done?: Json
+          completed_by?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -1343,6 +1348,7 @@ export type Database = {
           site_id?: string
           staff_id?: string | null
           start_at?: string | null
+          start_by?: string | null
           start_date?: string | null
           status?: string
           title?: string

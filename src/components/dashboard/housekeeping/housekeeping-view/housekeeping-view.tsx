@@ -26,6 +26,7 @@ type HousekeepingViewProps = {
   propertyName: string
   housekeepingId: string
   assigneeOptions: AssigneeOption[]
+  userDisplayNameById: Record<string, string>
   canEditTask: boolean
 }
 
@@ -36,6 +37,7 @@ type TaskDetails = {
   status: string
   priority: string | null
   created_at: string
+  created_by: string
   updated_at: string
   start_date: string | null
   start_at: string | null
@@ -45,6 +47,8 @@ type TaskDetails = {
   reservation: { confirmation_number: string | null } | null
   checklist: { name: string | null; item: Json } | null
   staff_id: string | null
+  start_by: string | null
+  completed_by: string | null
 }
 
 type ChecklistDoneEntry = {
@@ -78,6 +82,14 @@ function formatDateTime(date: string | null): string {
     hour: "numeric",
     minute: "2-digit",
   })
+}
+
+function labelForAuthUserId(
+  userDisplayNameById: Record<string, string>,
+  userId: string | null | undefined,
+): string | null {
+  if (!userId) return null
+  return userDisplayNameById[userId] ?? "Owner"
 }
 
 function statusLabel(status: string): string {
@@ -134,6 +146,7 @@ export function HousekeepingView({
   propertyName,
   housekeepingId,
   assigneeOptions,
+  userDisplayNameById,
   canEditTask,
 }: HousekeepingViewProps) {
   const { toast } = useToast()
@@ -169,12 +182,15 @@ export function HousekeepingView({
           status,
           priority,
           created_at,
+          created_by,
           updated_at,
           start_date,
           start_at,
           end_date,
           checklist_item_done,
           staff_id,
+          start_by,
+          completed_by,
           site:sites(site_name, site_number),
           reservation:reservations(confirmation_number),
           checklist:checklist(name, item)
@@ -399,12 +415,16 @@ export function HousekeepingView({
         throw new Error(message)
       }
 
+      const hk = payload?.data?.housekeepingTask as
+        | { updated_at?: string; completed_by?: string | null }
+        | undefined
       setTask((previous) =>
         previous
           ? {
               ...previous,
               status: "done",
-              updated_at: payload?.data?.housekeepingTask?.updated_at ?? previous.updated_at,
+              completed_by: hk?.completed_by ?? previous.completed_by,
+              updated_at: hk?.updated_at ?? previous.updated_at,
             }
           : previous,
       )
@@ -442,13 +462,23 @@ export function HousekeepingView({
         throw new Error(message)
       }
 
+      const hk = payload?.data?.housekeepingTask as
+        | {
+            updated_at?: string
+            start_at?: string | null
+            start_by?: string | null
+            completed_by?: string | null
+          }
+        | undefined
       setTask((previous) =>
         previous
           ? {
               ...previous,
               status: "in_progress",
-              start_at: payload?.data?.housekeepingTask?.start_at ?? new Date().toISOString(),
-              updated_at: payload?.data?.housekeepingTask?.updated_at ?? previous.updated_at,
+              start_at: hk?.start_at ?? new Date().toISOString(),
+              start_by: hk?.start_by ?? previous.start_by,
+              completed_by: hk?.completed_by ?? previous.completed_by,
+              updated_at: hk?.updated_at ?? previous.updated_at,
             }
           : previous,
       )
@@ -914,9 +944,23 @@ export function HousekeepingView({
                 <span className="text-muted-foreground">Completed</span>
                 <span>{task.status === "done" ? formatDateTime(task.updated_at) : "—"}</span>
               </div>
+              {task.status === "done" ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Completed by</span>
+                  <span>
+                    {task.completed_by
+                      ? labelForAuthUserId(userDisplayNameById, task.completed_by)
+                      : "—"}
+                  </span>
+                </div>
+              ) : null}
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Created</span>
                 <span>{formatDateTime(task.created_at)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Created by</span>
+                <span>{labelForAuthUserId(userDisplayNameById, task.created_by) ?? "—"}</span>
               </div>
               <div className="space-y-1 border-t pt-2">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>
@@ -930,22 +974,38 @@ export function HousekeepingView({
               <CardTitle className="text-base">Activity</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-0 text-sm">
-              {task.start_at ? (
+              {task.status === "done" ? (
                 <div>
                   <p className="font-medium text-foreground">Task completed</p>
                   <p className="text-muted-foreground">{formatDateTime(task.updated_at)}</p>
+                  {task.completed_by ? (
+                    <p className="text-muted-foreground">
+                      Completed by{" "}
+                      {labelForAuthUserId(userDisplayNameById, task.completed_by)}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               
-              {task.start_at ? (
+              {task.start_at || task.start_by ? (
                 <div>
                   <p className="font-medium text-foreground">Task started</p>
-                  <p className="text-muted-foreground">{formatDateTime(task.start_at)}</p>
+                  {task.start_at ? (
+                    <p className="text-muted-foreground">{formatDateTime(task.start_at)}</p>
+                  ) : null}
+                  {task.start_by ? (
+                    <p className="text-muted-foreground">
+                      Started by {labelForAuthUserId(userDisplayNameById, task.start_by)}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               <div>
                 <p className="font-medium text-foreground">Task created</p>
                 <p className="text-muted-foreground">{formatDateTime(task.created_at)}</p>
+                <p className="text-muted-foreground">
+                  Created by {labelForAuthUserId(userDisplayNameById, task.created_by) ?? "—"}
+                </p>
               </div>
               {task.status === "done" ? (
                 <div className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">

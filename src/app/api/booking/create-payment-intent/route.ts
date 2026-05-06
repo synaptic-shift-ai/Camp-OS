@@ -24,6 +24,11 @@ import {
 import { resolveDepositConfig, resolvePaymentProcessor } from '@/lib/config/resolution'
 import { getProcessor } from '@/modules/Financial/infrastructure/ProcessorFactory'
 import type { IPaymentProcessor } from '@/modules/Financial/infrastructure/IPaymentProcessor'
+import {
+  DEFAULT_PAYMENT_METHODS,
+  resolveEnabledPaymentMethodsFromProperty,
+  type PaymentMethod,
+} from '@/lib/config/types'
 
 type Reservation = Database['public']['Tables']['reservations']['Row']
 
@@ -76,7 +81,7 @@ export async function POST(request: NextRequest) {
     let amountInCents = totalAmountCents
     const { data: property } = await supabase
       .from('properties')
-      .select('deposit_config, payment_processor, stripe_account_id')
+      .select('deposit_config, payment_processor, stripe_account_id, settings')
       .eq('id', property_id)
       .single()
 
@@ -124,10 +129,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const paymentIntentResult = await processor.createPaymentIntent({
+    const enabledMethods: PaymentMethod[] =
+      resolveEnabledPaymentMethodsFromProperty(
+        (property as any)?.settings as Record<string, unknown> | null | undefined,
+        (property as any)?.payment_processor as string[] | null | undefined,
+      ) ?? DEFAULT_PAYMENT_METHODS
+
+    const stripePaymentMethodTypes = (() => {
+      // Stripe: wallets (incl. Apple Pay) ride on 'card' (when available), so we always include 'card'.
+      const types = new Set<string>(['card'])
+      if (enabledMethods.includes('amazon_pay')) types.add('amazon_pay')
+      if (enabledMethods.includes('cashapp')) types.add('cashapp')
+      return Array.from(types)
+    })()
+
+    const createIntentParams = {
       amountCents: amountInCents,
       currency: 'usd',
-      automaticPaymentMethods: true,
+      // Avoid exposing Stripe methods the property didn't enable (e.g. Cash App Pay).
+      ...(processorType === 'stripe'
+        ? { automaticPaymentMethods: false, paymentMethodTypes: stripePaymentMethodTypes }
+        : { automaticPaymentMethods: true }),
       onBehalfOf: property?.stripe_account_id ?? undefined,
       transferDestination: property?.stripe_account_id ?? undefined,
       metadata: {
@@ -141,7 +163,29 @@ export async function POST(request: NextRequest) {
       },
       description: `Campsite reservation ${typedReservation.confirmation_number}`,
       receiptEmail: typedReservation.guest.email,
-    })
+    } satisfies Parameters<IPaymentProcessor['createPaymentIntent']>[0]
+
+    let paymentIntentResult
+    try {
+      paymentIntentResult = await processor.createPaymentIntent(createIntentParams)
+    } catch (err) {
+      // Safety fallback: if the account doesn't support one of the configured types, retry with card-only.
+      if (
+        processorType === 'stripe' &&
+        (stripePaymentMethodTypes.includes('amazon_pay') || stripePaymentMethodTypes.includes('cashapp'))
+      ) {
+        console.warn(
+          '[Create Payment Intent] Failed with configured methods; retrying with card-only.',
+          err instanceof Error ? err.message : err,
+        )
+        paymentIntentResult = await processor.createPaymentIntent({
+          ...createIntentParams,
+          paymentMethodTypes: ['card'],
+        })
+      } else {
+        throw err
+      }
+    }
 
     // Store PaymentIntent ID in reservation for reference
     await supabase

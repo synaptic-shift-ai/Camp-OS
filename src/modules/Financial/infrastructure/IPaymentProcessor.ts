@@ -24,6 +24,11 @@ export interface PaymentIntentParams {
   receiptEmail?: string
   /** Enable automatic payment methods */
   automaticPaymentMethods?: boolean
+  /**
+   * Explicit Stripe payment method types (e.g. ['card', 'amazon_pay']).
+   * When set, processors that support it should prefer these over automatic payment methods.
+   */
+  paymentMethodTypes?: string[]
   /** Connect: charge on behalf of this account */
   onBehalfOf?: string
   /** Connect: transfer data destination */

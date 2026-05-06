@@ -70,7 +70,9 @@ export class StripeProcessor implements IPaymentProcessor {
       intentParams.statement_descriptor_suffix = params.statementDescriptor.slice(0, 22)
     }
     if (params.receiptEmail) intentParams.receipt_email = params.receiptEmail
-    if (params.automaticPaymentMethods !== false) {
+    if (Array.isArray(params.paymentMethodTypes) && params.paymentMethodTypes.length > 0) {
+      intentParams.payment_method_types = params.paymentMethodTypes
+    } else if (params.automaticPaymentMethods !== false) {
       intentParams.automatic_payment_methods = { enabled: true }
     }
     // Destination charge pattern: always route through connected account

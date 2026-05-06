@@ -3,12 +3,11 @@
 /**
  * Payment Processor Settings Component
  *
- * Allows property owners to select which payment processor to use:
- * - Stripe (Stripe Connect)
- * - CampOS Payments (coming soon)
- * - None (manual payments only)
+ * Allows property owners to choose which payment methods appear for guests at checkout.
  *
- * Follows the same pattern as DepositSettings for consistency.
+ * The enabled methods are stored under `settings.enabled_payment_methods` and are
+ * merged into `properties.payment_processor` (text[]) on save so the DB column
+ * stays in sync with the checkboxes.
  *
  * @module components/dashboard/settings/payment-processor-settings
  */
@@ -17,44 +16,42 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Info } from 'lucide-react'
-import type { PaymentProcessorType } from '@/lib/config/types'
+import { DEFAULT_PAYMENT_METHODS, type PaymentMethod } from '@/lib/config/types'
 
 const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-const PROCESSOR_OPTIONS: { value: PaymentProcessorType; label: string; description: string }[] = [
+const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string; description: string }[] = [
   {
-    value: 'stripe',
-    label: 'Stripe',
-    description:
-      'Process payments through Stripe Connect. Supports credit/debit cards, ACH, and card-on-file.',
+    value: 'card',
+    label: 'Cards',
+    description: 'Accept credit and debit card payments at checkout.',
   },
   {
-    value: 'campost_payments',
-    label: 'CampOS Payments',
-    description:
-      'Built-in payment processing by CampOS. Coming soon — pending partner selection.',
+    value: 'amazon_pay',
+    label: 'Amazon Pay',
+    description: 'Allow guests to pay using Amazon Pay where available.',
   },
   {
-    value: 'none',
-    label: 'None',
-    description: 'Disable online payments. All payments must be recorded manually.',
+    value: 'cashapp',
+    label: 'Cash App Pay',
+    description: 'Allow guests to pay using Cash App Pay where available.',
   },
 ]
 
 interface PaymentProcessorSettingsProps {
-  initialProcessor?: PaymentProcessorType | null
+  initialEnabledMethods?: PaymentMethod[] | null
   propertyId: string
   canEdit?: boolean
 }
 
 export function PaymentProcessorSettings({
-  initialProcessor,
+  initialEnabledMethods,
   propertyId,
   canEdit = true,
 }: PaymentProcessorSettingsProps) {
@@ -62,9 +59,17 @@ export function PaymentProcessorSettings({
   const router = useRouter()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
-  const [selectedProcessor, setSelectedProcessor] = useState<PaymentProcessorType>(
-    initialProcessor ?? 'stripe',
+  const [enabledMethods, setEnabledMethods] = useState<PaymentMethod[]>(
+    initialEnabledMethods ?? DEFAULT_PAYMENT_METHODS,
   )
+
+  const toggleMethod = (method: PaymentMethod) => {
+    setEnabledMethods((prev) =>
+      prev.includes(method)
+        ? prev.filter((m) => m !== method)
+        : [...prev, method],
+    )
+  }
 
   const onSubmit = async () => {
     setIsSaving(true)
@@ -73,25 +78,29 @@ export function PaymentProcessorSettings({
       const response = await fetch(`/api/properties/${propertyId}/settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_processor: selectedProcessor }),
+        body: JSON.stringify({ enabled_payment_methods: enabledMethods }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save payment processor setting')
+        throw new Error('Failed to save payment methods')
       }
 
+      const labels = enabledMethods
+        .map((m) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m)
+        .join(', ')
+
       toast({
-        title: 'Payment processor saved',
-        description: `Payment processor set to ${PROCESSOR_OPTIONS.find((o) => o.value === selectedProcessor)?.label ?? selectedProcessor}.`,
+        title: 'Payment methods saved',
+        description: `Enabled: ${labels}`,
         variant: 'success',
       })
 
       router.refresh()
     } catch (error) {
-      console.error('Error saving payment processor:', error)
+      console.error('Error saving payment methods:', error)
       toast({
         title: 'Save failed',
-        description: error instanceof Error ? error.message : 'Failed to save payment processor',
+        description: error instanceof Error ? error.message : 'Failed to save payment methods',
         variant: 'destructive',
         className: SEASON_ERROR_TOAST_CLASS,
       })
@@ -100,54 +109,53 @@ export function PaymentProcessorSettings({
     }
   }
 
-  const isDirty = selectedProcessor !== (initialProcessor ?? 'stripe')
+  const initial = initialEnabledMethods ?? DEFAULT_PAYMENT_METHODS
+  const isDirty =
+    enabledMethods.length !== initial.length ||
+    !enabledMethods.every((m) => initial.includes(m))
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Payment Processor</CardTitle>
+          <CardTitle>Payment Methods</CardTitle>
           <CardDescription>
-            Choose how online payments are processed for your property
+            Choose which payment methods are available to your guests at checkout
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="payment_processor">Processor</Label>
-            <Select
-              value={selectedProcessor}
-              disabled={readOnly}
-              onValueChange={(value) => setSelectedProcessor(value as PaymentProcessorType)}
+          {PAYMENT_METHOD_OPTIONS.map((option) => (
+            <div
+              key={option.value}
+              className="flex items-start gap-3 rounded-lg border p-4"
             >
-              <SelectTrigger id="payment_processor" disabled={readOnly}>
-                <SelectValue placeholder="Select a payment processor" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROCESSOR_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <Checkbox
+                id={`payment-method-${option.value}`}
+                checked={enabledMethods.includes(option.value)}
+                onCheckedChange={() => toggleMethod(option.value)}
+                disabled={readOnly}
+                className="mt-0.5"
+              />
+              <div className="grid gap-1">
+                <Label
+                  htmlFor={`payment-method-${option.value}`}
+                  className="text-sm font-medium leading-none cursor-pointer"
+                >
+                  {option.label}
+                </Label>
+                <p className="text-sm text-muted-foreground">{option.description}</p>
+              </div>
+            </div>
+          ))}
 
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              {PROCESSOR_OPTIONS.find((o) => o.value === selectedProcessor)?.description}
+              {enabledMethods.length === 0
+                ? 'No payment methods are enabled. Guests will not be able to pay online.'
+                : `${enabledMethods.length} payment method${enabledMethods.length === 1 ? '' : 's'} enabled. Guests can choose from these during booking payment.`}
             </AlertDescription>
           </Alert>
-
-          {selectedProcessor === 'campost_payments' && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                CampOS Payments is not yet available. Your guests will not be able to pay online until
-                a processor is configured. Select Stripe or None to enable payments.
-              </AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
 

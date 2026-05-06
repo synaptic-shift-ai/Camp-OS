@@ -21,6 +21,22 @@ import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { cn } from "@/lib/utils"
+import { DEFAULT_PAYMENT_METHODS, type PaymentMethod } from "@/lib/config/types"
+
+const PAYMENT_METHOD_DISPLAY: Record<PaymentMethod, { title: string; description: string }> = {
+  card: {
+    title: "Card",
+    description: "Pay with credit or debit card",
+  },
+  amazon_pay: {
+    title: "Amazon Pay",
+    description: "Pay using Amazon Pay",
+  },
+  cashapp: {
+    title: "Cash App Pay",
+    description: "Pay using Cash App Pay",
+  },
+}
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -274,6 +290,11 @@ export default function PaymentPage() {
   const resolvedPaymentProcessor = checkoutData.paymentProcessor ?? 'stripe'
   const displayPropertyName =
     checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+
+  const enabledPaymentMethods =
+    (Array.isArray(checkoutData.enabledPaymentMethods) && checkoutData.enabledPaymentMethods.length > 0
+      ? checkoutData.enabledPaymentMethods
+      : DEFAULT_PAYMENT_METHODS)
 
   const isDarkMode = resolvedTheme === "dark"
   const stripeAppearance = useMemo(
@@ -673,6 +694,22 @@ export default function PaymentPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* <div className="mb-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Available payment methods</p>
+                  <div className="space-y-2">
+                    {enabledPaymentMethods.map((method) => (
+                      <div
+                        key={method}
+                        className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{PAYMENT_METHOD_DISPLAY[method].title}</p>
+                          <p className="text-xs text-muted-foreground">{PAYMENT_METHOD_DISPLAY[method].description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div> */}
                 {resolvedPaymentProcessor === 'stripe' && stripeElementsOptions ? (
                   <Elements key={resolvedTheme ?? "light"} stripe={stripePromise} options={stripeElementsOptions}>
                     <PaymentFormInner slug={slug} />

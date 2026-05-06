@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { AlertCircle, Banknote, CreditCard, Loader2, Search, ShoppingCart } from "lucide-react"
+import { AlertCircle, Loader2, Search, ShoppingCart } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
@@ -50,27 +50,6 @@ const LINKAGE_OPTIONS = [
   { value: "linked", label: "Link to Reservation" },
 ] as const
 
-const PAYMENT_METHODS = [
-  { value: "credit_card", label: "Card", icon: CreditCard },
-  { value: "cash", label: "Cash", icon: Banknote },
-  { value: "other", label: "Other", icon: Banknote },
-] as const
-
-type PaymentMethodValue = (typeof PAYMENT_METHODS)[number]["value"]
-
-const METHODS_WITH_PROCESSOR: ReadonlySet<PaymentMethodValue> = new Set(["credit_card"])
-
-const PROCESSOR_OPTIONS = [
-  { value: "none", label: "None (Manual)" },
-  { value: "stripe", label: "Stripe" },
-] as const
-
-const METHOD_TO_API: Record<string, string> = {
-  credit_card: "credit_card",
-  cash: "cash",
-  other: "cash",
-}
-
 const TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
@@ -90,9 +69,6 @@ export function PosTransactionDialog() {
   const [linkage, setLinkage] = useState<string>("standalone")
   const [description, setDescription] = useState("")
   const [amountDollars, setAmountDollars] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState<string>("")
-  const [processor, setProcessor] = useState("none")
-  const [reference, setReference] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   // Reservation search state
@@ -101,16 +77,12 @@ export function PosTransactionDialog() {
   const [selectedReservationId, setSelectedReservationId] = useState<string>("")
   const [reservationsLoading, setReservationsLoading] = useState(false)
 
-  const selectedMethod = paymentMethod as PaymentMethodValue
-  const showProcessor = METHODS_WITH_PROCESSOR.has(selectedMethod)
-
   const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
   const selectedReservation = reservations.find((r) => r.id === selectedReservationId)
 
   const isFormValid =
     description.trim().length > 0 &&
     amountCents >= 1 &&
-    paymentMethod !== "" &&
     (linkage === "standalone" || selectedReservationId !== "")
 
   // Reset form on open/close
@@ -120,9 +92,6 @@ export function PosTransactionDialog() {
     setLinkage("standalone")
     setDescription("")
     setAmountDollars("")
-    setPaymentMethod("")
-    setProcessor("none")
-    setReference("")
     setSelectedReservationId("")
     setReservationSearch("")
     setReservations([])
@@ -198,10 +167,6 @@ export function PosTransactionDialog() {
       setError("Amount must be at least $0.01")
       return
     }
-    if (!paymentMethod) {
-      setError("Please select a payment method")
-      return
-    }
     if (linkage === "linked" && !selectedReservationId) {
       setError("Please select a reservation")
       return
@@ -213,7 +178,6 @@ export function PosTransactionDialog() {
 
       const reservationId = linkage === "linked" ? selectedReservationId : null
       const guestId = linkage === "linked" ? selectedReservation?.guestId ?? null : null
-      const apiMethod = METHOD_TO_API[paymentMethod] ?? "cash"
 
       // Step 1: Create the charge
       const chargeRes = await fetch("/api/v1/financial/charges", {
@@ -241,9 +205,9 @@ export function PosTransactionDialog() {
           reservation_id: reservationId,
           guest_id: guestId,
           amount_cents: cents,
-          payment_method: apiMethod,
-          processor: showProcessor && processor !== "none" ? processor : null,
-          reference: reference.trim() || null,
+          payment_method: "cash",
+          processor: null,
+          reference: null,
           source: "pos",
         }),
       })
@@ -397,65 +361,6 @@ export function PosTransactionDialog() {
               placeholder="$ 0.00"
               value={amountDollars}
               onChange={(e) => setAmountDollars(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          {/* Payment method */}
-          <div className="space-y-2">
-            <Label htmlFor="pos-payment-method">Payment Method</Label>
-            <Select
-              value={paymentMethod}
-              onValueChange={(val) => {
-                setPaymentMethod(val)
-                setProcessor("none")
-              }}
-              disabled={loading}
-            >
-              <SelectTrigger id="pos-payment-method">
-                <SelectValue placeholder="Select payment method…" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map((method) => (
-                  <SelectItem key={method.value} value={method.value}>
-                    <div className="flex items-center gap-2">
-                      <method.icon className="h-4 w-4" />
-                      <span>{method.label}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Processor select — shown for Card payments */}
-          {showProcessor && (
-            <div className="space-y-2">
-              <Label htmlFor="pos-processor">Processor</Label>
-              <Select value={processor} onValueChange={setProcessor} disabled={loading}>
-                <SelectTrigger id="pos-processor">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROCESSOR_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Reference */}
-          <div className="space-y-2">
-            <Label htmlFor="pos-reference">Reference (Optional)</Label>
-            <Input
-              id="pos-reference"
-              type="text"
-              placeholder="e.g. Receipt #, Transaction ID…"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
               disabled={loading}
             />
           </div>

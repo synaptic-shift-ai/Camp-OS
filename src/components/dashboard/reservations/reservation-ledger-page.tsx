@@ -62,6 +62,14 @@ type ReservationLedgerReservation = {
         exp_year: number
       }
     | null
+  incidentals_card?:
+    | {
+        brand: string
+        last4: string
+        exp_month: number
+        exp_year: number
+      }
+    | null
   status: ReservationLedgerStatus
   created_at: string
   site?: { site_name?: string | null; site_number?: string | null } | null
@@ -315,6 +323,7 @@ export function ReservationLedgerPage({
             paidAmountCents={(reservation?.paid_amount ?? 0) as MoneyCents}
             guestId={reservation?.guest_id ?? null}
             paymentCard={reservation?.payment_card ?? null}
+            incidentalsCard={reservation?.incidentals_card ?? null}
             onManualPaymentSuccess={() => {
               void fetchAll()
             }}

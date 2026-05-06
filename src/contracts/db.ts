@@ -1285,6 +1285,7 @@ export type Database = {
         Row: {
           checklist_id: string | null
           checklist_item_done: Json
+          completed_by: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -1299,6 +1300,7 @@ export type Database = {
           site_id: string
           staff_id: string | null
           start_at: string | null
+          start_by: string | null
           start_date: string | null
           status: string
           title: string
@@ -1307,6 +1309,7 @@ export type Database = {
         Insert: {
           checklist_id?: string | null
           checklist_item_done?: Json
+          completed_by?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -1321,6 +1324,7 @@ export type Database = {
           site_id: string
           staff_id?: string | null
           start_at?: string | null
+          start_by?: string | null
           start_date?: string | null
           status?: string
           title: string
@@ -1329,6 +1333,7 @@ export type Database = {
         Update: {
           checklist_id?: string | null
           checklist_item_done?: Json
+          completed_by?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -1343,6 +1348,7 @@ export type Database = {
           site_id?: string
           staff_id?: string | null
           start_at?: string | null
+          start_by?: string | null
           start_date?: string | null
           status?: string
           title?: string
@@ -2003,7 +2009,7 @@ export type Database = {
           onboarding_completed: boolean | null
           onboarding_completed_at: string | null
           owner_id: string | null
-          payment_processor: string
+          payment_processor: string[]
           phone: string | null
           pricing_config: Json | null
           property_type: string | null
@@ -2074,7 +2080,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           onboarding_completed_at?: string | null
           owner_id?: string | null
-          payment_processor?: string
+          payment_processor?: string[]
           phone?: string | null
           pricing_config?: Json | null
           property_type?: string | null
@@ -2145,7 +2151,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           onboarding_completed_at?: string | null
           owner_id?: string | null
-          payment_processor?: string
+          payment_processor?: string[]
           phone?: string | null
           pricing_config?: Json | null
           property_type?: string | null

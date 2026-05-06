@@ -589,10 +589,17 @@ export function AddTaskDialog({
             <Select
               value={form.vendorId ?? "none"}
               onValueChange={(value) =>
-                setForm((prev) => ({
-                  ...prev,
-                  vendorId: value === "none" ? null : value,
-                }))
+                setForm((prev) => {
+                  const vendorId = value === "none" ? null : value
+                  let nextStatus = prev.status
+                  if (vendorId && prev.status === "In Progress") {
+                    nextStatus = "In Progress (Vendor)"
+                  }
+                  if (!vendorId && prev.status === "In Progress (Vendor)") {
+                    nextStatus = "In Progress"
+                  }
+                  return { ...prev, vendorId, status: nextStatus }
+                })
               }
               disabled={isSubmitting}
             >
@@ -750,7 +757,11 @@ export function AddTaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  {form.vendorId ? (
+                    <SelectItem value="In Progress (Vendor)">In Progress (Vendor)</SelectItem>
+                  ) : (
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                  )}
                   <SelectItem value="Completed">Completed</SelectItem>
                 </SelectContent>
               </Select>

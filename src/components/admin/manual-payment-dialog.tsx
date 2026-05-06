@@ -26,6 +26,11 @@ import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
+import { loadStripe, type Stripe } from "@stripe/stripe-js"
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
+import { useTheme } from "next-themes"
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface ManualPaymentDialogProps {
   reservationId: string
@@ -90,6 +95,35 @@ interface BalanceData {
   guest_credit_balance: number
 }
 
+type StripeConfirmRefs = {
+  stripe: Stripe | null
+  elements: ReturnType<typeof useElements> | null
+}
+
+function StripePaymentElementSection({
+  clientSecret,
+  onStripeReady,
+}: {
+  clientSecret: string
+  onStripeReady: (refs: StripeConfirmRefs) => void
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+
+  useEffect(() => {
+    onStripeReady({ stripe: stripe ?? null, elements: elements ?? null })
+  }, [stripe, elements, onStripeReady])
+
+  return (
+    <div className="space-y-2">
+      <Label>Card Details</Label>
+      <div className="rounded-md border border-border/80 bg-muted/30 p-3 text-foreground dark:border-zinc-700 dark:bg-zinc-900/70">
+        <PaymentElement />
+      </div>
+    </div>
+  )
+}
+
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
@@ -111,6 +145,7 @@ export function ManualPaymentDialog({
   trigger,
 }: ManualPaymentDialogProps) {
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [balanceLoading, setBalanceLoading] = useState(false)
@@ -122,13 +157,28 @@ export function ManualPaymentDialog({
   const [useCardOnFile, setUseCardOnFile] = useState(false)
   // Balance from financial API (ledger, in cents). May diverge briefly from reservation snapshot.
   const [apiBalance, setApiBalance] = useState<number | null>(null)
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null)
+  const [stripeIntentLoading, setStripeIntentLoading] = useState(false)
+  const [stripeConfirmRefs, setStripeConfirmRefs] = useState<StripeConfirmRefs>({
+    stripe: null,
+    elements: null,
+  })
   const { toast } = useToast()
+  const isDarkMode = resolvedTheme === "dark"
 
   // Match reservation ledger "Computed Balance": total_amount − paid_amount on the reservation.
-  // Never allow the dialog to show "fully paid" when the page snapshot still shows an amount owed
-  // (ledger totals can lag or disagree with paid_amount during writes or legacy data).
+  // If the reservation snapshot is fully paid, always treat it as fully paid in this dialog,
+  // even if the financial ledger briefly disagrees (stale/legacy data).
   const snapshotOutstandingCents = Math.max(0, totalAmountCents - paidAmountCents)
-  const outstandingBalance = Math.max(snapshotOutstandingCents, apiBalance ?? 0)
+  const isSnapshotFullyPaid = snapshotOutstandingCents === 0
+  const ledgerOutstandingCents = apiBalance ?? null
+  // Only cap to ledger balance if the ledger has activity (apiBalance != null).
+  // If the ledger has no activity yet, rely on the reservation snapshot so we don't hide real balances due.
+  const cappedOutstandingCents =
+    ledgerOutstandingCents == null
+      ? snapshotOutstandingCents
+      : Math.min(snapshotOutstandingCents, ledgerOutstandingCents)
+  const outstandingBalance = isSnapshotFullyPaid ? 0 : cappedOutstandingCents
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
@@ -140,6 +190,8 @@ export function ManualPaymentDialog({
   const selectedMethod = paymentMethod as PaymentMethodValue
   const showReference = METHODS_WITH_REFERENCE.has(selectedMethod)
   const showProcessor = METHODS_WITH_PROCESSOR.has(selectedMethod)
+  const isStripeCardPayment =
+    selectedMethod === "credit_card" && showProcessor && processor === "stripe" && !useCardOnFile
 
   // Fetch balance from financial API when dialog opens
   const fetchBalance = useCallback(async () => {
@@ -155,7 +207,8 @@ export function ManualPaymentDialog({
           data.charges_total !== 0 || data.payments_total !== 0 || data.refunds_total !== 0
 
         if (!hasLedgerActivity) {
-          setApiBalance(0)
+          // Ledger has no rows yet; don't override the reservation snapshot.
+          setApiBalance(null)
           return
         }
 
@@ -189,6 +242,9 @@ export function ManualPaymentDialog({
     setUseCardOnFile(defaultUseCardOnFile ?? false)
     setApiBalance(null)
     setAmountDollars("")
+    setStripeClientSecret(null)
+    setStripeIntentLoading(false)
+    setStripeConfirmRefs({ stripe: null, elements: null })
 
     // Fetch balance and pre-fill amount
     fetchBalance().then(() => {
@@ -199,11 +255,58 @@ export function ManualPaymentDialog({
   // Pre-fill amount once balance is available
   useEffect(() => {
     if (!open) return
-    const balance = Math.max(snapshotOutstandingCents, apiBalance ?? 0)
+    const balance = snapshotOutstandingCents === 0 ? 0 : Math.max(snapshotOutstandingCents, apiBalance ?? 0)
     if (balance > 0 && !amountDollars) {
       setAmountDollars((balance / 100).toFixed(2))
     }
   }, [open, apiBalance, snapshotOutstandingCents, amountDollars])
+
+  const fetchStripePaymentIntent = useCallback(
+    async (amountCents: number) => {
+      setStripeIntentLoading(true)
+      try {
+        const res = await fetch(
+          `/api/v1/financial/reservations/${reservationId}/payment-intent`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ amount_cents: amountCents }),
+          },
+        )
+        const json = await res.json().catch(() => null)
+        if (!res.ok || !json?.success || !json?.data?.client_secret) {
+          throw new Error(json?.error?.message ?? "Failed to prepare Stripe payment")
+        }
+        setStripeClientSecret(json.data.client_secret)
+      } catch (err) {
+        setStripeClientSecret(null)
+        setError(err instanceof Error ? err.message : "Failed to prepare Stripe payment")
+      } finally {
+        setStripeIntentLoading(false)
+      }
+    },
+    [reservationId],
+  )
+
+  // Prepare Stripe PaymentIntent when needed (Card + Stripe, not charging card-on-file).
+  useEffect(() => {
+    if (!open) return
+    if (!isStripeCardPayment) {
+      setStripeClientSecret(null)
+      return
+    }
+    if (!hasBalance || !isAmountValid) {
+      setStripeClientSecret(null)
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      void fetchStripePaymentIntent(amountCentsEntered)
+    }, 250)
+
+    return () => clearTimeout(timeout)
+  }, [open, isStripeCardPayment, hasBalance, isAmountValid, amountCentsEntered, fetchStripePaymentIntent])
 
   const handleRecordPayment = async () => {
     const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
@@ -222,6 +325,66 @@ export function ManualPaymentDialog({
     try {
       setLoading(true)
       setError(null)
+
+      if (isStripeCardPayment) {
+        const { stripe, elements } = stripeConfirmRefs
+        if (!stripe || !elements) {
+          throw new Error("Stripe card form is not ready yet. Please try again.")
+        }
+
+        const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
+          elements,
+          redirect: "if_required",
+        })
+
+        if (stripeError) {
+          throw new Error(stripeError.message ?? "Stripe payment failed")
+        }
+
+        if (paymentIntent?.status && paymentIntent.status !== "succeeded" && paymentIntent.status !== "processing") {
+          throw new Error(`Payment status: ${paymentIntent.status}`)
+        }
+
+        // Record payment immediately so reservation balance + transaction history update,
+        // even if the Stripe webhook is delayed or not configured.
+        if (paymentIntent?.status === "succeeded") {
+          const recordRes = await fetch(`/api/v1/financial/payments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              reservation_id: reservationId,
+              guest_id: guestId ?? null,
+              amount_cents: amountCents,
+              payment_method: "stripe",
+              processor: paymentIntent.id,
+              source: "manual",
+            }),
+          })
+
+          if (!recordRes.ok) {
+            const data = await recordRes.json().catch(() => null)
+            const message =
+              data?.error?.message ??
+              data?.error?.details?.message ??
+              "Payment succeeded, but failed to record it in CampOS"
+            throw new Error(message)
+          }
+        }
+
+        toast({
+          title: "Payment processing",
+          description:
+            paymentIntent?.status === "succeeded"
+              ? "Payment succeeded."
+              : "Payment is processing. It will be recorded automatically.",
+          variant: "success",
+        })
+        onSuccess?.()
+        setOpen(false)
+        router.refresh()
+        return
+      }
 
       const apiMethod = METHOD_TO_API[paymentMethod] ?? "cash"
 
@@ -336,6 +499,8 @@ export function ManualPaymentDialog({
                     setReference("")
                     setProcessor("none")
                     setUseCardOnFile(false)
+                    setStripeClientSecret(null)
+                    setStripeConfirmRefs({ stripe: null, elements: null })
                   }}
                 >
                   <SelectTrigger id="manual-payment-method">
@@ -377,20 +542,68 @@ export function ManualPaymentDialog({
 
               {/* Card on file switch — shown for Card payments */}
               {showProcessor && (
-                <div className="flex items-center justify-between rounded-md border p-3">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="card-on-file" className="text-sm">
-                      Use Card on File
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Charge the guest&apos;s stored payment method
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="card-on-file" className="text-sm">
+                        Use Card on File
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Charge the guest&apos;s stored payment method
+                      </p>
+                    </div>
+                    <Switch
+                      id="card-on-file"
+                      checked={useCardOnFile}
+                      onCheckedChange={(checked) => {
+                        setUseCardOnFile(checked)
+                        setStripeClientSecret(null)
+                        setStripeConfirmRefs({ stripe: null, elements: null })
+                      }}
+                    />
                   </div>
-                  <Switch
-                    id="card-on-file"
-                    checked={useCardOnFile}
-                    onCheckedChange={setUseCardOnFile}
-                  />
+
+                  {/* Stripe card entry (shown when Processor = Stripe and not using card on file) */}
+                  {isStripeCardPayment && (
+                    <>
+                      {stripeIntentLoading ? (
+                        <Alert>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <AlertDescription>Preparing secure card form…</AlertDescription>
+                        </Alert>
+                      ) : stripeClientSecret ? (
+                        <Elements
+                          stripe={stripePromise}
+                          options={{
+                            clientSecret: stripeClientSecret,
+                            appearance: {
+                              theme: (isDarkMode ? "night" : "stripe") as "night" | "stripe",
+                              variables: {
+                                colorPrimary: "#ef4444",
+                                colorBackground: "transparent",
+                                colorText: "currentColor",
+                                colorDanger: "#ef4444",
+                                fontFamily: "system-ui, sans-serif",
+                                borderRadius: "8px",
+                              },
+                            },
+                          }}
+                        >
+                          <StripePaymentElementSection
+                            clientSecret={stripeClientSecret}
+                            onStripeReady={setStripeConfirmRefs}
+                          />
+                        </Elements>
+                      ) : (
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            Enter an amount to load the card form.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 

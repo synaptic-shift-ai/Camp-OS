@@ -214,6 +214,27 @@ export async function PATCH(
       }
     }
 
+    type HousekeepingActorPatch = { startBy?: string | null; completedBy?: string | null }
+
+    let actorPatch: HousekeepingActorPatch =
+      parsed.data.status === undefined
+        ? {}
+        : parsed.data.status === 'pending'
+          ? { startBy: null, completedBy: null }
+          : parsed.data.status === 'in_progress'
+            ? { startBy: user.id, completedBy: null }
+            : { completedBy: user.id }
+
+    const shouldRecordStarterFromStartAt =
+      startedAt !== null &&
+      parsed.data.startAt !== undefined &&
+      parsed.data.status !== 'pending' &&
+      parsed.data.status !== 'done'
+
+    if (shouldRecordStarterFromStartAt && actorPatch.startBy === undefined) {
+      actorPatch = { ...actorPatch, startBy: user.id }
+    }
+
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
     const housekeepingTask = await queries.updateHousekeepingTask({
       id: housekeepingId,
@@ -222,6 +243,7 @@ export async function PATCH(
       ...(parsed.data.staffId !== undefined ? { staffId: parsed.data.staffId } : {}),
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.description !== undefined ? { description: parsed.data.description } : {}),
+      ...actorPatch,
       ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
       ...(parsed.data.priority !== undefined ? { priority: parsed.data.priority } : {}),
       ...(reservationId !== undefined ? { reservationId } : {}),

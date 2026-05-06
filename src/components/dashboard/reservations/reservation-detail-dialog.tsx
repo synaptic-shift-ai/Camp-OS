@@ -47,6 +47,17 @@ function formatDate(dateString: string): string {
   })
 }
 
+function humanizePaymentMethod(method: string): string {
+  const normalized = method.trim()
+  if (normalized.length === 0) return '—'
+  return normalized
+    .replaceAll('_', ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 type PaymentCardDisplay = {
   brand: string
   last4: string
@@ -308,7 +319,9 @@ export function ReservationDetailDialog({
 
               <div className="rounded-md border bg-muted/40 p-3">
                 <div className="text-xs font-medium text-muted-foreground">Payment Method</div>
-                <div className="mt-1 font-medium">{paymentMethod ?? '—'}</div>
+                <div className="mt-1 font-medium">
+                  {paymentMethod ? humanizePaymentMethod(paymentMethod) : '—'}
+                </div>
                 {previewLoading ? (
                   <div className="mt-2 text-xs text-muted-foreground">Loading card…</div>
                 ) : paymentCard ? (

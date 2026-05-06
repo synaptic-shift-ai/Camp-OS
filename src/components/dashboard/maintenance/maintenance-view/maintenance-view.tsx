@@ -16,7 +16,6 @@ import {
   SlidersHorizontal,
   Truck,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -143,15 +142,9 @@ const formatCurrency = (val: number | null) =>
 
 type StepDef = { label: string; apiStatuses: string[] }
 
-const DEFAULT_STEPS: StepDef[] = [
-  { label: "Open", apiStatuses: ["open"] },
-  { label: "In Progress", apiStatuses: ["in_progress", "in_progress_vendor"] },
-  { label: "Complete", apiStatuses: ["completed"] },
-]
-
 const VENDOR_STEPS: StepDef[] = [
   { label: "Open", apiStatuses: ["open"] },
-  { label: "Vendor Work", apiStatuses: ["in_progress_vendor"] },
+  { label: "In Progress (Vendor)", apiStatuses: ["in_progress_vendor"] },
   { label: "Complete", apiStatuses: ["completed"] },
 ]
 
@@ -436,17 +429,25 @@ export function MaintenanceView({
 
   // ── Stepper ──
 
+  const stepperSteps = useMemo((): StepDef[] => {
+    if (task?.status === "on_hold") return ON_HOLD_STEPS
+    if (task?.status === "in_progress_vendor") return VENDOR_STEPS
+    const hasVendor = Boolean(task?.vendor_id)
+    return [
+      { label: "Open", apiStatuses: ["open"] },
+      {
+        label: hasVendor ? "In Progress (Vendor)" : "In Progress",
+        apiStatuses: ["in_progress", "in_progress_vendor"],
+      },
+      { label: "Complete", apiStatuses: ["completed"] },
+    ]
+  }, [task?.status, task?.vendor_id])
+
   const activeStepIndex = useMemo(() => {
     if (!task) return 0
-    const steps = task.status === "on_hold" ? ON_HOLD_STEPS : DEFAULT_STEPS
-    const index = steps.findIndex((step) => step.apiStatuses.includes(task.status))
+    const index = stepperSteps.findIndex((step) => step.apiStatuses.includes(task.status))
     return index >= 0 ? index : 0
-  }, [task])
-
-  const stepperSteps = useMemo(
-    () => (task?.status === "on_hold" ? ON_HOLD_STEPS : task?.status === "in_progress_vendor" ? VENDOR_STEPS : DEFAULT_STEPS),
-    [task?.status],
-  )
+  }, [task, stepperSteps])
 
   // ── Activity timeline ──
 

@@ -15,6 +15,21 @@ type SelectOption = {
   label: string
 }
 
+function authUserDisplayLabel(
+  user: {
+    email?: string | null
+    user_metadata?: Record<string, unknown> | null
+  },
+  fallback = "Team member",
+): string {
+  const metadata = (user.user_metadata ?? {}) as Record<string, unknown>
+  const fullName = typeof metadata.full_name === "string" ? metadata.full_name.trim() : ""
+  const firstName = typeof metadata.first_name === "string" ? metadata.first_name.trim() : ""
+  const lastName = typeof metadata.last_name === "string" ? metadata.last_name.trim() : ""
+  const fallbackName = [firstName, lastName].filter(Boolean).join(" ").trim()
+  return fullName || fallbackName || user.email?.trim() || fallback
+}
+
 function housekeepingFallbackForCategory(
   role: "owner" | "admin" | "manager" | "staff",
   categoryName: string,
@@ -62,16 +77,9 @@ async function getHousekeepingAssigneeOptions(
         const { data, error } = await adminClient.auth.admin.getUserById(staffRow.user_id)
         if (error || !data.user) return null
 
-        const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
-        const fullName = typeof metadata.full_name === "string" ? metadata.full_name.trim() : ""
-        const firstName = typeof metadata.first_name === "string" ? metadata.first_name.trim() : ""
-        const lastName = typeof metadata.last_name === "string" ? metadata.last_name.trim() : ""
-        const fallbackName = [firstName, lastName].filter(Boolean).join(" ").trim()
-        const displayName = fullName || fallbackName || data.user.email || "Staff member"
-
         return {
           id: staffRow.id as string,
-          label: displayName,
+          label: authUserDisplayLabel(data.user, "Staff member"),
         }
       }),
     )
@@ -80,6 +88,48 @@ async function getHousekeepingAssigneeOptions(
     .sort((a, b) => a.label.localeCompare(b.label))
 
   return assigneeOptions
+}
+
+async function getPropertyUserDisplayNameById(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  sessionUser: {
+    id: string
+    email?: string | null
+    user_metadata?: Record<string, unknown> | null
+  },
+): Promise<Record<string, string>> {
+  const byId: Record<string, string> = {}
+  const adminClient = createServiceRoleClient()
+
+  const { data: sessionAuth, error: sessionAuthError } = await adminClient.auth.admin.getUserById(
+    sessionUser.id,
+  )
+  if (!sessionAuthError && sessionAuth?.user) {
+    byId[sessionUser.id] = authUserDisplayLabel(sessionAuth.user)
+  } else {
+    byId[sessionUser.id] = authUserDisplayLabel(sessionUser)
+  }
+
+  const { data: staffRows } = await supabase
+    .from("property_staff")
+    .select("user_id")
+    .eq("property_id", propertyId)
+    .eq("status", "active")
+    .not("user_id", "is", null)
+
+  const userIds = [
+    ...new Set((staffRows ?? []).map((row) => row.user_id as string).filter(Boolean)),
+  ]
+
+  for (const userId of userIds) {
+    if (byId[userId]) continue
+    const { data, error } = await adminClient.auth.admin.getUserById(userId)
+    if (error || !data?.user) continue
+    byId[userId] = authUserDisplayLabel(data.user)
+  }
+
+  return byId
 }
 
 export default async function HousekeepingDetailsPage({ params }: PageProps) {
@@ -98,7 +148,7 @@ export default async function HousekeepingDetailsPage({ params }: PageProps) {
     redirect(`/dashboard/${propertyId}/access-denied`)
   }
 
-  const [assigneeOptions, taskActionAccess] = await Promise.all([
+  const [assigneeOptions, taskActionAccess, userDisplayNameById] = await Promise.all([
     getHousekeepingAssigneeOptions(supabase, propertyId),
     resolveModuleActionAccess({
       supabase,
@@ -108,6 +158,7 @@ export default async function HousekeepingDetailsPage({ params }: PageProps) {
       actions: ["update"],
       fallbackForCategory: housekeepingFallbackForCategory,
     }),
+    getPropertyUserDisplayNameById(supabase, propertyId, user),
   ])
 
   return (
@@ -116,6 +167,7 @@ export default async function HousekeepingDetailsPage({ params }: PageProps) {
       propertyName={property.name}
       housekeepingId={housekeepingId}
       assigneeOptions={assigneeOptions}
+      userDisplayNameById={userDisplayNameById}
       canEditTask={taskActionAccess.update === true}
     />
   )

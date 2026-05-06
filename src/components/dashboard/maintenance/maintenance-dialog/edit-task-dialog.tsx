@@ -110,6 +110,13 @@ export function EditTaskDialog({
     }
 
     const parsedCategory = parseMaintenanceTaskCategory(task.category)
+    let status = task.status
+    if (task.vendorId && status === "In Progress") {
+      status = "In Progress (Vendor)"
+    }
+    if (!task.vendorId && status === "In Progress (Vendor)") {
+      status = "In Progress"
+    }
     setForm({
       siteId: task.siteId ?? "",
       siteName: task.siteName,
@@ -117,7 +124,7 @@ export function EditTaskDialog({
       description: task.description ?? "",
       assigneeId: task.assigneeId ?? null,
       assignee: task.assignee,
-      status: task.status,
+      status,
       priority: task.priority,
       category: parsedCategory,
       source: parseMaintenanceSource(task.source),
@@ -455,10 +462,17 @@ export function EditTaskDialog({
             <Select
               value={form.vendorId ?? "none"}
               onValueChange={(value) =>
-                setForm((prev) => ({
-                  ...prev,
-                  vendorId: value === "none" ? null : value,
-                }))
+                setForm((prev) => {
+                  const vendorId = value === "none" ? null : value
+                  let nextStatus = prev.status
+                  if (vendorId && prev.status === "In Progress") {
+                    nextStatus = "In Progress (Vendor)"
+                  }
+                  if (!vendorId && prev.status === "In Progress (Vendor)") {
+                    nextStatus = "In Progress"
+                  }
+                  return { ...prev, vendorId, status: nextStatus }
+                })
               }
               disabled={isSubmitting}
             >
@@ -613,8 +627,11 @@ export function EditTaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="In Progress (Vendor)">In Progress (Vendor)</SelectItem>
+                  {form.vendorId ? (
+                    <SelectItem value="In Progress (Vendor)">In Progress (Vendor)</SelectItem>
+                  ) : (
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                  )}
                   <SelectItem value="Completed">Completed</SelectItem>
                 </SelectContent>
               </Select>

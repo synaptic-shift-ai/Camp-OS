@@ -81,7 +81,8 @@ export async function GET(
       .from('maintenance_tasks')
       .select(
         `*,
-         site:sites(site_name, site_number, site_type)`,
+         site:sites(site_name, site_number, site_type),
+         vendor:property_vendor(name, phone, email, service_type)`,
       )
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)
@@ -153,6 +154,20 @@ export async function PATCH(
       return error(ErrorCodes.VALIDATION_ERROR, request, {
         errors: parsed.error.format(),
       })
+    }
+
+    if (parsed.data.scheduledStart && parsed.data.dueDate) {
+      const startMs = new Date(parsed.data.scheduledStart).getTime()
+      const endMs = new Date(parsed.data.dueDate).getTime()
+      if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs < startMs) {
+        logMaintenancePatchValidationFailure(request, patchLogCtx, 'Due date before scheduled start', {
+          scheduledStart: parsed.data.scheduledStart,
+          dueDate: parsed.data.dueDate,
+        })
+        return error(ErrorCodes.VALIDATION_ERROR, request, {
+          message: 'Due date must be the same as or after the scheduled start.',
+        })
+      }
     }
 
     const canAssignWorkOrder = actionAccess['assign-wo'] === true
@@ -547,6 +562,47 @@ export async function PATCH(
       : {}
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
+
+    // Reservation conflicts must block schedule edits (guest stays take precedence).
+    const nextSiteId = parsed.data.siteId ?? (currentTask?.site_id as string | null | undefined) ?? null
+    const nextScheduledStart =
+      parsed.data.scheduledStart ?? (currentTask?.scheduled_start as string | null | undefined) ?? null
+    const nextDueDate = parsed.data.dueDate ?? (currentTask?.due_date as string | null | undefined) ?? null
+
+    if (nextSiteId && nextScheduledStart && nextDueDate) {
+      try {
+        const nextScheduledStartDateOnly = new Date(nextScheduledStart).toISOString().slice(0, 10)
+        const nextDueDateDateOnly = new Date(nextDueDate).toISOString().slice(0, 10)
+        const nextDueDateExclusive = new Date(`${nextDueDateDateOnly}T00:00:00.000Z`)
+        nextDueDateExclusive.setUTCDate(nextDueDateExclusive.getUTCDate() + 1)
+        const nextDueDateExclusiveDateOnly = nextDueDateExclusive.toISOString().slice(0, 10)
+
+        const { count: resCount, error: resError } = await supabase
+          .from('reservations')
+          .select('id', { count: 'exact', head: true })
+          .eq('property_id', propertyId)
+          .eq('site_id', nextSiteId)
+          .in('status', ['pending', 'confirmed', 'checked_in', 'reserved', 'booked'])
+          .lt('check_in_date', nextDueDateExclusiveDateOnly)
+          .gt('check_out_date', nextScheduledStartDateOnly)
+
+        if (!resError && resCount != null && resCount > 0) {
+          logMaintenancePatchValidationFailure(
+            request,
+            patchLogCtx,
+            'Work order schedule conflicts with reservation',
+            { reservationConflicts: resCount, nextSiteId, nextScheduledStart, nextDueDate },
+          )
+          return error(ErrorCodes.VALIDATION_ERROR, request, {
+            message:
+              'This work order conflicts with an existing reservation. Please adjust the scheduled dates.',
+            reservationConflicts: resCount,
+          })
+        }
+      } catch {
+        // Fail-open: if conflict check fails, do not block updates.
+      }
+    }
     const maintenanceTask = await queries.updateMaintenanceTask({
       id: maintenanceId,
       propertyId,
@@ -576,7 +632,11 @@ export async function PATCH(
       const scheduleId = (maintenanceTask as any).schedule_id
       if (scheduleId) {
         try {
-          await queries.generateNextWorkOrder(scheduleId, new Date())
+          await queries.generateNextWorkOrder(scheduleId, {
+            completedAt: new Date(),
+            previousScheduledStart:
+              (maintenanceTask as { scheduled_start?: string | null }).scheduled_start ?? null,
+          })
         } catch {
           // Silently fail — don't block completion
         }

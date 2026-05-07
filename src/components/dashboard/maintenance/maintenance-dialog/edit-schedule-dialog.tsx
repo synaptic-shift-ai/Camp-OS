@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
+import { format } from "date-fns"
 import {
   Dialog,
   DialogContent,
@@ -29,7 +30,7 @@ import {
 export type AddPreventiveScheduleInput = {
   name: string
   description: string | null
-  site_id: string | null
+  site_id: string
   assigned_to: string | null
   frequency: "weekly" | "monthly" | "annual"
   days: string | null
@@ -66,11 +67,21 @@ type EditScheduleDialogProps = {
 const EMPTY_FORM: AddPreventiveScheduleInput = {
   name: "",
   description: null,
-  site_id: null,
+  site_id: "",
   assigned_to: null,
   frequency: "weekly",
   days: null,
   schedule_date: null,
+}
+
+function toDayOfMonth(value: string | null | undefined): string | null {
+  const raw = value?.trim()
+  if (!raw) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (!m) return null
+  const day = Number(m[3])
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null
+  return String(day)
 }
 
 const DAY_OPTIONS = [
@@ -82,8 +93,6 @@ const DAY_OPTIONS = [
   { value: "Saturday", label: "Saturday" },
   { value: "Sunday", label: "Sunday" },
 ]
-
-const SITE_PLACEHOLDER_VALUE = "__schedule_edit_site_unselected__"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -114,7 +123,7 @@ export function EditScheduleDialog({
     setForm({
       name: schedule.name ?? "",
       description: schedule.description ?? null,
-      site_id: schedule.site_id ?? null,
+      site_id: schedule.site_id ?? "",
       assigned_to: schedule.assigned_to ?? null,
       frequency: (schedule.frequency as AddPreventiveScheduleInput["frequency"]) ?? "weekly",
       days: schedule.days ?? null,
@@ -131,9 +140,30 @@ export function EditScheduleDialog({
       setError("Schedule name is required.")
       return
     }
+    const siteId = form.site_id.trim()
+    if (!siteId) {
+      setError("Site is required.")
+      return
+    }
 
     try {
-      await onSubmit(form)
+      const nextForm = { ...form, name, site_id: siteId }
+      if (nextForm.frequency === "monthly") {
+        const dayStr = toDayOfMonth(nextForm.schedule_date)
+        const day = dayStr ? Number.parseInt(dayStr, 10) : NaN
+        const selectedDay = Number.isFinite(day) && day >= 1 && day <= 31 ? day : 1
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = now.getMonth()
+        const todayStart = new Date(year, month, now.getDate())
+        const thisMonthCandidate = new Date(year, month, selectedDay)
+        const next =
+          thisMonthCandidate >= todayStart
+            ? thisMonthCandidate
+            : new Date(year, month + 1, selectedDay)
+        nextForm.schedule_date = format(next, "yyyy-MM-dd")
+      }
+      await onSubmit(nextForm)
       onOpenChange(false)
     } catch (submitError) {
       const message =
@@ -143,9 +173,7 @@ export function EditScheduleDialog({
   }
 
   const siteSelectValue =
-    form.site_id && siteOptions.some((site) => site.id === form.site_id)
-      ? form.site_id
-      : SITE_PLACEHOLDER_VALUE
+    form.site_id && siteOptions.some((site) => site.id === form.site_id) ? form.site_id : ""
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,10 +209,6 @@ export function EditScheduleDialog({
               <Select
                 value={siteSelectValue}
                 onValueChange={(value) => {
-                  if (value === SITE_PLACEHOLDER_VALUE) {
-                    setForm((prev) => ({ ...prev, site_id: null }))
-                    return
-                  }
                   setForm((prev) => ({ ...prev, site_id: value }))
                 }}
               >
@@ -192,9 +216,6 @@ export function EditScheduleDialog({
                   <SelectValue placeholder="Select a site" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SITE_PLACEHOLDER_VALUE} className="text-muted-foreground">
-                    All sites
-                  </SelectItem>
                   {siteOptions.map((site) => (
                     <SelectItem key={site.id} value={site.id}>
                       {site.label}
@@ -294,16 +315,46 @@ export function EditScheduleDialog({
             ) : (
               <div className="space-y-2">
                 <Label>Anchor date</Label>
-                <Input
-                  type="date"
-                  value={form.schedule_date ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      schedule_date: event.target.value || null,
-                    }))
-                  }
-                />
+                {form.frequency === "monthly" ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={31}
+                      step={1}
+                      value={toDayOfMonth(form.schedule_date) ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        if (!raw.trim()) {
+                          setForm((prev) => ({ ...prev, schedule_date: null }))
+                          return
+                        }
+                        const parsed = Number.parseInt(raw, 10)
+                        const safeDay = Number.isFinite(parsed)
+                          ? Math.min(31, Math.max(1, parsed))
+                          : 1
+                        setForm((prev) => ({
+                          ...prev,
+                          schedule_date: `2000-01-${String(safeDay).padStart(2, "0")}`,
+                        }))
+                      }}
+                      placeholder="Day"
+                    />
+                    <span className="text-xs text-muted-foreground">of the month</span>
+                  </div>
+                ) : (
+                  <Input
+                    type="date"
+                    value={form.schedule_date ?? ""}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        schedule_date: event.target.value || null,
+                      }))
+                    }
+                  />
+                )}
               </div>
             )}
           </div>

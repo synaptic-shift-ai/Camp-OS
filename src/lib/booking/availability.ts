@@ -30,6 +30,7 @@ import {
   isStayWithinOpenPeriodByIsoDates,
   buildOpenPeriodBookingErrorMessage,
 } from './open-period'
+import { stayOverlapsPreventiveMaintenanceSchedule } from './maintenance-schedule-blocks'
 
 type AvailableSiteRate = {
   nightlyCents: number
@@ -145,6 +146,14 @@ export function siteStayOverlapsBlackoutDates(
   return blackouts.includes(checkInDate)
 }
 
+export type CheckSiteAvailabilityOptions = {
+  /**
+   * When true, overlapping reservations are not checked. Use when the caller already
+   * applied reservation overlap rules (e.g. guest flow allowing the same guest to resume a pending hold).
+   */
+  skipReservationOverlapCheck?: boolean
+}
+
 /**
  * Check if a specific site is available for given dates
  *
@@ -153,7 +162,8 @@ export function siteStayOverlapsBlackoutDates(
  * - Site status must be in GUEST_BOOKABLE_SITE_STATUSES (available, housekeeping, or occupied)
  * - Check-in must not fall on this site's availability_rules.blackout_dates (per-site only)
  * - No overlapping housekeeping/maintenance blocked_dates in availability_rules
- * - No overlapping blocking reservations (incl. reserved/booked on overlapping dates)
+ * - Recurring maintenance_schedule (preventive) calendar days must not fall within the stay
+ * - No overlapping blocking reservations (incl. reserved/booked on overlapping dates), unless skipped via options
  * - Same-day turnover allowed (checkout day = checkin day)
  *
  * @param siteId - Site to check
@@ -164,7 +174,8 @@ export function siteStayOverlapsBlackoutDates(
 export async function checkSiteAvailability(
   siteId: string,
   checkInDate: string,
-  checkOutDate: string
+  checkOutDate: string,
+  options?: CheckSiteAvailabilityOptions,
 ): Promise<BookingResult<boolean>> {
   const supabase = createServiceRoleClient()
 
@@ -213,34 +224,55 @@ export async function checkSiteAvailability(
     }
   }
 
-  // Check for overlapping reservations
-  // Overlap occurs when:
-  // - new check-in < existing check-out AND
-  // - new check-out > existing check-in
-  //
-  // Same-day turnover: checkout on same day as new checkin is allowed
-  // So we check: new_checkin < existing_checkout (strictly less)
-  const { data: overlappingReservations, error: reservationError } = await supabase
-    .from('reservations')
-    .select('id')
-    .eq('site_id', siteId)
-    .in('status', ['pending', 'confirmed', 'checked_in', 'reserved', 'booked'])
-    .lt('check_in_date', checkOutDate) // Existing check-in before new checkout
-    .gt('check_out_date', checkInDate) // Existing check-out after new checkin
+  const { data: scheduleRows } = await supabase
+    .from('maintenance_schedule')
+    .select('frequency, schedule_date, days, site_id')
+    .eq('property_id', site.property_id)
 
-  if (reservationError) {
-    return {
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Error checking reservations',
-      },
-    }
+  const scheduleBlocksBooking = (scheduleRows ?? []).some(
+    (row) =>
+      (!row.site_id || row.site_id === siteId) &&
+      stayOverlapsPreventiveMaintenanceSchedule(checkInDate, checkOutDate, {
+        frequency: row.frequency,
+        schedule_date: row.schedule_date,
+        days: row.days,
+      }),
+  )
+
+  if (scheduleBlocksBooking) {
+    return { success: true, data: false }
   }
 
-  const isAvailable = overlappingReservations.length === 0
-  if (!isAvailable) {
-    return { success: true, data: false }
+  if (!options?.skipReservationOverlapCheck) {
+    // Check for overlapping reservations
+    // Overlap occurs when:
+    // - new check-in < existing check-out AND
+    // - new check-out > existing check-in
+    //
+    // Same-day turnover: checkout on same day as new checkin is allowed
+    // So we check: new_checkin < existing_checkout (strictly less)
+    const { data: overlappingReservations, error: reservationError } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('site_id', siteId)
+      .in('status', ['pending', 'confirmed', 'checked_in', 'reserved', 'booked'])
+      .lt('check_in_date', checkOutDate) // Existing check-in before new checkout
+      .gt('check_out_date', checkInDate) // Existing check-out after new checkin
+
+    if (reservationError) {
+      return {
+        success: false,
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'Error checking reservations',
+        },
+      }
+    }
+
+    const isAvailable = overlappingReservations.length === 0
+    if (!isAvailable) {
+      return { success: true, data: false }
+    }
   }
 
   // Check for overlapping active maintenance tasks.
@@ -471,12 +503,29 @@ export async function searchAvailableSites(
       .map((task) => task.site_id)
   )
 
+  const { data: preventiveSchedules } = await supabase
+    .from('maintenance_schedule')
+    .select('frequency, schedule_date, days, site_id')
+    .eq('property_id', params.property_id)
+
+  const scheduleRows = preventiveSchedules ?? []
+
   // Filter out occupied sites, maintenance-blocked sites, housekeeping/maintenance blocks, and per-site blackout_dates (sites.availability_rules)
   let filteredSites = sitesToSearch.filter((site) => {
     if (occupiedSiteIds.has(site.id)) return false
     if (maintenanceBlockedIds.has(site.id)) return false
     if (hasBlockedDateOverlap(site.availability_rules, params.check_in_date, params.check_out_date)) return false
     if (siteStayOverlapsBlackoutDates(site.availability_rules, params.check_in_date)) return false
+    const scheduleBlocksSite = scheduleRows.some(
+      (row) =>
+        (!row.site_id || row.site_id === site.id) &&
+        stayOverlapsPreventiveMaintenanceSchedule(params.check_in_date, params.check_out_date, {
+          frequency: row.frequency,
+          schedule_date: row.schedule_date,
+          days: row.days,
+        }),
+    )
+    if (scheduleBlocksSite) return false
     return true
   })
 

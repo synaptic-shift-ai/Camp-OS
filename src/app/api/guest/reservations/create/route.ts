@@ -48,6 +48,7 @@ import {
   isStayWithinOpenPeriodByIsoDates,
   buildOpenPeriodBookingErrorMessage,
 } from '@/lib/booking/open-period'
+import { checkSiteAvailability } from '@/lib/booking/availability'
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
 import { updateGuestSpouse } from '@/lib/booking/guest'
 import { replaceReservationChildren } from '@/lib/booking/children'
@@ -714,6 +715,37 @@ export async function POST(request: NextRequest) {
           }
         },
         { status: 409 }
+      )
+    }
+
+    const scheduleAndRulesCheck = await checkSiteAvailability(
+      validatedInput.site_id,
+      validatedInput.check_in_date,
+      validatedInput.check_out_date,
+      { skipReservationOverlapCheck: true },
+    )
+    if (!scheduleAndRulesCheck.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'AVAILABILITY_CHECK_FAILED',
+            message: 'Could not verify availability',
+          },
+        },
+        { status: 500 },
+      )
+    }
+    if (!scheduleAndRulesCheck.data) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'SITE_UNAVAILABLE',
+            message: 'This site is not available for the selected dates. Please choose different dates.',
+          },
+        },
+        { status: 409 },
       )
     }
 

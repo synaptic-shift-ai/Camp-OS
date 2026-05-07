@@ -1,6 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/contracts/db'
-import { addDays, addMonths, addYears, format } from 'date-fns'
+import { addDays, addMonths, addYears, format, startOfDay } from 'date-fns'
+import {
+    computeInitialWeeklyOccurrence,
+    computeNextAnnualOccurrence,
+    computeNextMonthlyOccurrence,
+    computeNextWeeklyOccurrence,
+    dateOnlyFromIsoTimestamp,
+    localEndOfDayIsoFromDate,
+    localMidnightIsoFromDate,
+} from './preventive-schedule-dates'
 
 type MaintenanceTaskRow = Database['public']['Tables']['maintenance_tasks']['Row']
 type SiteRow = Database['public']['Tables']['sites']['Row']
@@ -774,6 +783,7 @@ export class MaintenanceQueries {
         // Fetch last_completed_at for each schedule via a single batch query
         const scheduleIds = rawRows.map((r) => r.id)
         const lastCompletedMap: Record<string, string | null> = {}
+        const openWorkOrderStartMap: Record<string, string | null> = {}
         if (scheduleIds.length > 0) {
             const { data: completedRows } = await this.supabase
                 .from('maintenance_tasks')
@@ -794,15 +804,47 @@ export class MaintenanceQueries {
                     }
                 }
             }
+
+            // If a schedule already has an open / in-progress WO, that date is the "next due".
+            // We expect at most one due to duplicate prevention, but we still pick the earliest start.
+            const { data: openRows } = await this.supabase
+                .from('maintenance_tasks')
+                .select('schedule_id, scheduled_start, started_at, created_at')
+                .eq('property_id', propertyId)
+                .not('schedule_id', 'is', null)
+                .in('schedule_id', scheduleIds)
+                .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
+                .order('scheduled_start', { ascending: true })
+
+            if (openRows) {
+                for (const row of openRows) {
+                    const sid = row.schedule_id as string
+                    if (openWorkOrderStartMap[sid]) continue
+                    const iso =
+                        (row.scheduled_start as string | null | undefined) ??
+                        (row.started_at as string | null | undefined) ??
+                        (row.created_at as string | null | undefined) ??
+                        null
+                    openWorkOrderStartMap[sid] = iso
+                }
+            }
         }
 
         return rawRows.map((row) => {
             const lastCompletedAt = lastCompletedMap[row.id] ?? null
-            const lastCompletedDate = lastCompletedAt ? new Date(lastCompletedAt) : null
+            const openWoStartIso = openWorkOrderStartMap[row.id] ?? null
 
-            // Calculate next_due_date from last_completed_at + frequency interval
+            // Calculate next_due_date:
+            // 1) If an open/in-progress WO exists, show its scheduled start day.
+            // 2) Otherwise, prefer schedule.schedule_date (which we advance on generate/auto-generate).
+            // 3) As a fallback, use last_completed_at + interval (legacy behavior).
             let nextDueDate: string | null = null
-            if (lastCompletedDate) {
+            if (openWoStartIso) {
+                nextDueDate = openWoStartIso.slice(0, 10)
+            } else if (row.schedule_date) {
+                nextDueDate = row.schedule_date
+            } else if (lastCompletedAt) {
+                const lastCompletedDate = new Date(lastCompletedAt)
                 let next: Date
                 switch (row.frequency) {
                     case 'weekly':
@@ -818,9 +860,6 @@ export class MaintenanceQueries {
                         next = addMonths(lastCompletedDate, 1)
                 }
                 nextDueDate = format(next, 'yyyy-MM-dd')
-            } else if (row.schedule_date) {
-                // No completed WO yet — use the schedule's own schedule_date as next due
-                nextDueDate = row.schedule_date
             }
 
             return {
@@ -934,6 +973,40 @@ export class MaintenanceQueries {
         // maintenance_tasks Insert type won't include it until `npm run gen:db` is run
         // after applying the migration 20260424030000.
         const sched = schedule as unknown as MaintenanceScheduleRow
+        const freq = String(sched.frequency ?? '').trim().toLowerCase()
+        const scheduleDateOnly = typeof sched.schedule_date === 'string' && sched.schedule_date.trim()
+            ? sched.schedule_date.trim()
+            : null
+        let scheduledStart: string | null = null
+        let dueDate: string | null = null
+        let scheduleDateToPersist: string | null = null
+
+        if (freq === 'weekly') {
+            const occ = computeInitialWeeklyOccurrence(new Date(), sched.days)
+            scheduledStart = localMidnightIsoFromDate(occ)
+            dueDate = localEndOfDayIsoFromDate(occ)
+            scheduleDateToPersist = format(occ, 'yyyy-MM-dd')
+        } else {
+            const dateParts = scheduleDateOnly ? scheduleDateOnly.split('-') : []
+            const y = Number.parseInt(dateParts[0] ?? '', 10)
+            const m = Number.parseInt(dateParts[1] ?? '', 10)
+            const d = Number.parseInt(dateParts[2] ?? '', 10)
+            scheduledStart =
+                Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+                    ? new Date(y, m - 1, d, 0, 0, 0, 0).toISOString()
+                    : null
+            dueDate =
+                Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+                    ? new Date(y, m - 1, d, 23, 59, 0, 0).toISOString()
+                    : null
+            scheduleDateToPersist = scheduleDateOnly
+        }
+
+        const computedSla =
+            scheduledStart && dueDate
+                ? Math.max(0, Math.round((new Date(dueDate).getTime() - new Date(scheduledStart).getTime()) / 3600000))
+                : null
+
         const insertRow = {
             property_id: propertyId,
             site_id: sched.site_id ?? null,
@@ -946,6 +1019,9 @@ export class MaintenanceQueries {
             source: 'pm' as const,
             category: 'preventive',
             schedule_id: scheduleId,
+            sla: computedSla,
+            scheduled_start: scheduledStart,
+            due_date: dueDate,
         }
 
         const { data: task, error } = await this.supabase
@@ -967,10 +1043,29 @@ export class MaintenanceQueries {
             throw new Error('Failed to generate work order: no row returned')
         }
 
+        if (scheduleDateToPersist) {
+            const { error: schedUpdateError } = await this.supabase
+                .from('maintenance_schedule')
+                .update({ schedule_date: scheduleDateToPersist })
+                .eq('id', scheduleId)
+                .eq('property_id', propertyId)
+
+            if (schedUpdateError) {
+                console.warn('[MaintenanceQueries] Failed to update schedule_date after PM generate', {
+                    error: schedUpdateError,
+                    scheduleId,
+                    propertyId,
+                })
+            }
+        }
+
         return task
     }
 
-    async generateNextWorkOrder(scheduleId: string, completedDate: Date): Promise<any | null> {
+    async generateNextWorkOrder(
+        scheduleId: string,
+        ctx: { completedAt: Date; previousScheduledStart: string | null | undefined },
+    ): Promise<any | null> {
         try {
             // 1. Look up the schedule row
             const { data: schedule, error: schedError } = await this.supabase
@@ -987,26 +1082,40 @@ export class MaintenanceQueries {
                 return null
             }
 
-            // 2. Calculate next due date based on frequency
-            const freq = schedule.frequency
+            // 2. Calculate next due date based on frequency (anchor on previous WO scheduled day when set)
+            const freq = String(schedule.frequency ?? '').trim().toLowerCase()
+            const prevScheduled = dateOnlyFromIsoTimestamp(ctx.previousScheduledStart)
             let nextDate: Date
 
-            switch (freq) {
-                case 'weekly':
-                    nextDate = addDays(completedDate, 7)
-                    break
-                case 'monthly':
-                    nextDate = addMonths(completedDate, 1)
-                    break
-                case 'annual':
-                    nextDate = addYears(completedDate, 1)
-                    break
-                default:
-                    console.warn('[MaintenanceQueries] Unsupported schedule frequency for auto-generation, skipping', {
-                        frequency: freq,
-                        scheduleId,
-                    })
-                    return null
+            try {
+                switch (freq) {
+                    case 'weekly':
+                        nextDate = computeNextWeeklyOccurrence(
+                            prevScheduled,
+                            schedule.days,
+                            ctx.completedAt,
+                        )
+                        break
+                    case 'monthly':
+                        nextDate = computeNextMonthlyOccurrence(prevScheduled, ctx.completedAt)
+                        break
+                    case 'annual':
+                        nextDate = computeNextAnnualOccurrence(prevScheduled, ctx.completedAt)
+                        break
+                    default:
+                        console.warn('[MaintenanceQueries] Unsupported schedule frequency for auto-generation, skipping', {
+                            frequency: freq,
+                            scheduleId,
+                        })
+                        return null
+                }
+            } catch (calcErr) {
+                console.warn('[MaintenanceQueries] Could not compute next PM occurrence', {
+                    error: calcErr,
+                    scheduleId,
+                    frequency: freq,
+                })
+                return null
             }
 
             const nextDateStr = format(nextDate, 'yyyy-MM-dd')
@@ -1039,6 +1148,7 @@ export class MaintenanceQueries {
             // NOTE: schedule_id is typed via plain object because the generated
             // maintenance_tasks Insert type won't include it until `npm run gen:db`
             // is run after applying the migration 20260424030000.
+            const day = startOfDay(nextDate)
             const insertRow = {
                 property_id: sched.property_id,
                 site_id: sched.site_id ?? null,
@@ -1051,6 +1161,16 @@ export class MaintenanceQueries {
                 source: 'pm' as const,
                 category: 'preventive',
                 schedule_id: scheduleId,
+                sla: Math.max(
+                    0,
+                    Math.round(
+                        (new Date(localEndOfDayIsoFromDate(day)).getTime() -
+                            new Date(localMidnightIsoFromDate(day)).getTime()) /
+                            3600000,
+                    ),
+                ),
+                scheduled_start: localMidnightIsoFromDate(day),
+                due_date: localEndOfDayIsoFromDate(day),
             }
 
             const { data: task, error: taskError } = await this.supabase
@@ -1542,17 +1662,21 @@ export class MaintenanceQueries {
         startDate: string,
         endDate: string,
     ): Promise<Array<{ id: string; title: string; due_date: string | null; scheduled_start: string | null; status: string }>> {
-        const windowStart = startDate
-        const windowEnd = endDate
+        const parseWindowDate = (value: string): number => {
+            // Accepts either YYYY-MM-DD or ISO datetime.
+            // Date-only values are treated as UTC midnight to avoid local timezone shifts.
+            const normalized = value.includes('T') ? value : `${value}T00:00:00.000Z`
+            return new Date(normalized).getTime()
+        }
+
+        const windowStartMs = parseWindowDate(startDate)
+        const windowEndMs = parseWindowDate(endDate)
 
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
             .select('id, title, due_date, scheduled_start, started_at, created_at, status')
             .eq('site_id', siteId)
             .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
-            .lt('COALESCE(due_date, created_at)', windowEnd)
-            .lt('COALESCE(scheduled_start, started_at, created_at)', windowEnd)
-            .gt('COALESCE(scheduled_start, started_at, created_at)', windowStart)
             .order('due_date', { ascending: true })
 
         if (error) {
@@ -1565,7 +1689,19 @@ export class MaintenanceQueries {
             throw new Error(`Failed to find overlapping maintenance: ${error.message}`)
         }
 
-        return (data ?? []).map((row) => ({
+        const overlaps = (data ?? []).filter((row) => {
+            const startValue = row.scheduled_start ?? row.started_at ?? row.created_at ?? null
+            const endValue = row.due_date ?? row.created_at ?? null
+            if (!startValue || !endValue) return false
+
+            const taskStartMs = new Date(startValue).getTime()
+            const taskEndMs = new Date(endValue).getTime()
+
+            // Overlap: taskStart < windowEnd AND taskEnd > windowStart
+            return taskStartMs < windowEndMs && taskEndMs > windowStartMs
+        })
+
+        return overlaps.map((row) => ({
             id: row.id,
             title: row.title,
             due_date: row.due_date,

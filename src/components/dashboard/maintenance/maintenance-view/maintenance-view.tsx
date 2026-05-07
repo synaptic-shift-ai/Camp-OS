@@ -29,6 +29,10 @@ import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
 import { ReassignTaskDialog } from "../../housekeeping/housekeeping-dialog.tsx/reassign-task-dialog"
 import { AssignVendorDialog } from "../maintenance-dialog/assign-vendor-dialog"
+import {
+  normalizeUtcCalendarEndForUi,
+  normalizeUtcCalendarStartForUi,
+} from "@/lib/dashboard/maintenance/utc-calendar-datetime-for-ui"
 import { clampMaintenanceHoldAtIso } from "./clamp-maintenance-hold-at"
 
 type AssigneeOption = {
@@ -81,6 +85,7 @@ type TaskDetails = {
   scheduled_start: string | null
   due_date: string | null
   site: { site_name: string | null; site_number: string | null; site_type: string | null } | null
+  vendor: { name: string; phone: string | null; email: string | null; service_type: string | null } | null
 }
 
 function formatDateTime(date: string | null): string {
@@ -265,9 +270,10 @@ export function MaintenanceView({
         on_hold_reason: raw.on_hold_reason ?? null,
         cancelled_at: raw.cancelled_at ?? null,
         cancelled_reason: raw.cancelled_reason ?? null,
-        scheduled_start: raw.scheduled_start ?? null,
-        due_date: raw.due_date ?? null,
+        scheduled_start: normalizeUtcCalendarStartForUi(raw.scheduled_start ?? null),
+        due_date: normalizeUtcCalendarEndForUi(raw.due_date ?? null),
         site: raw.site ?? null,
+        vendor: raw.vendor ?? null,
       })
     } catch (loadError) {
       const message =
@@ -1030,7 +1036,7 @@ export function MaintenanceView({
   const assigneeLabel = task.staff_id
     ? assigneeLabelById.get(task.staff_id) ?? "Assigned"
     : task.vendor_id
-      ? "Vendor Assigned"
+      ? (task.vendor?.name ?? "Vendor Assigned")
       : "Unassigned"
   const isCancelled = task.status === "cancelled"
   const workOrderLabel = task.wo_number ?? `WO-${task.id.slice(0, 4).toUpperCase()}`
@@ -1318,6 +1324,17 @@ export function MaintenanceView({
                   <p className="text-xs text-muted-foreground">Started At</p>
                   <p className="font-semibold">{task.started_at ? formatDateTime(task.started_at) : "—"}</p>
                 </div>
+                {task.vendor ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Assigned Vendor</p>
+                    <p className="font-semibold">{task.vendor.name}</p>
+                    {(task.vendor.service_type || task.vendor.phone) && (
+                      <p className="text-xs text-muted-foreground">
+                        {[task.vendor.service_type, task.vendor.phone].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
               <div className="border-t pt-3">
                 <p className="mb-1 text-xs text-muted-foreground">Description</p>

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { MoreHorizontal } from "lucide-react"
+import { formatShortDate } from "@/lib/utils"
 
 export type MaintenanceTaskRow = {
   id: string
@@ -152,6 +153,13 @@ function formatSlaHours(sla: number | null | undefined): string {
   return `${sla}h`
 }
 
+function formatDateOnlyForTable(iso: string | null | undefined): string {
+  if (!iso?.trim()) return "—"
+  const ms = new Date(iso).getTime()
+  if (Number.isNaN(ms)) return "—"
+  return formatShortDate(new Date(ms).toISOString())
+}
+
 type TaskActionsMenuProps = {
   row: MaintenanceTaskRow
   onView?: MaintenanceTableProps["onView"]
@@ -281,48 +289,59 @@ export function MaintenanceTable({
         )}
       </div>
 
-      <div className="hidden overflow-x-auto border border-border/80 bg-card/50 md:block">
-      <Table className="min-w-[980px] w-full table-fixed text-xs lg:min-w-0">
+      <div className="hidden max-h-[min(70vh,42rem)] overflow-auto border border-border/80 bg-card/50 md:block">
+      <Table className="min-w-[1160px] w-full table-fixed text-xs lg:min-w-0">
         <colgroup>
           <col className="w-[9%]" />
-          <col className="w-[15%]" />
-          <col className="w-[9%]" />
-          <col className="w-[9%]" />
-          <col className="w-[7%]" />
-          <col className="w-[14%]" />
-          <col className="w-[11%]" />
-          <col className="w-[9%]" />
           <col className="w-[12%]" />
-          <col className="w-[5%]" />
+          <col className="w-[8%]" />
+          <col className="w-[8%]" />
+          <col className="w-[6%]" />
+          <col className="w-[8%]" />
+          <col className="w-[8%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[7%]" />
+          <col className="w-[10%]" />
+          <col className="w-[4%]" />
         </colgroup>
-        <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
+        <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase text-[10px] sm:text-xs">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              ID
+            <TableHead className="min-w-0 px-3 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="ID">ID</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Issue & Site
+            <TableHead className="min-w-0 px-3 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Issue & Site">Issue & Site</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Category
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Category">Category</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Source
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Source">Source</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              SLA
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="SLA">SLA</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Cost (Estimated / Actual)
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Schedule start">Schedule start</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Assignee
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Due date">Due date</span>
             </TableHead>
-            <TableHead className="px-3 py-2 text-black/90 dark:text-white/90 font-medium">
-              Priority
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Cost (Estimated / Actual)">
+                <span className="hidden xl:inline">Cost (Estimated / Actual)</span>
+                <span className="xl:hidden">Cost</span>
+              </span>
             </TableHead>
-            <TableHead className="min-w-0 px-2 py-2 text-black/90 dark:text-white/90 font-medium">
-              Status
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Assignee">Assignee</span>
+            </TableHead>
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Priority">Priority</span>
+            </TableHead>
+            <TableHead className="min-w-0 px-2 py-2 font-medium text-black/90 dark:text-white/90">
+              <span className="block truncate" title="Status">Status</span>
             </TableHead>
             <TableHead className="w-12 min-w-12 shrink-0 px-1 py-2 text-right text-black/90 dark:text-white/90 font-medium">
               Actions
@@ -332,13 +351,13 @@ export function MaintenanceTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                 Loading maintenance tasks...
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -350,12 +369,15 @@ export function MaintenanceTable({
                 key={row.id}
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
               >
-                <TableCell className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
-                  <span title={formatWorkOrderDisplayId(row, index + 1)}>
+                <TableCell className="max-w-0 px-4 py-2 text-sm font-medium text-foreground">
+                  <span
+                    className="block truncate"
+                    title={formatWorkOrderDisplayId(row, index + 1)}
+                  >
                     {formatWorkOrderDisplayId(row, index + 1)}
                   </span>
                 </TableCell>
-                <TableCell className="px-3 py-2">
+                <TableCell className="px-4 py-2">
                   <div className="space-y-0.5 min-w-0">
                     <div className="truncate text-sm text-foreground" title={row.task}>
                       {row.task}
@@ -381,6 +403,16 @@ export function MaintenanceTable({
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                  <span className="block truncate" title={row.scheduledStart ?? undefined}>
+                    {formatDateOnlyForTable(row.scheduledStart)}
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                  <span className="block truncate" title={row.dueDate ?? undefined}>
+                    {formatDateOnlyForTable(row.dueDate)}
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
                   {canViewCosts && ((row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0)) > 0 ? (
                     <span className="block truncate" title={`$${((row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0)).toFixed(2)}`}>
                       ${((row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0)).toFixed(2)}
@@ -399,10 +431,10 @@ export function MaintenanceTable({
                 <TableCell className="px-3 py-2 whitespace-nowrap">
                   <PriorityPill priority={row.priority} />
                 </TableCell>
-                <TableCell className="min-w-0 overflow-hidden px-2 py-2">
+                <TableCell className="max-w-0 overflow-hidden px-3 py-2 pr-2">
                   <StatusPill status={row.status} breached={breached} />
                 </TableCell>
-                <TableCell className="w-12 min-w-[2.75rem] shrink-0 px-1 py-2 align-middle">
+                <TableCell className="w-12 min-w-[2.75rem] shrink-0 pl-3 pr-2 py-2 align-middle">
                   <TaskActionsMenu
                     row={row}
                     onView={onView}

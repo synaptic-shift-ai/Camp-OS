@@ -735,6 +735,7 @@ export function CheckOutDialog({
         onSubmit={handleCreateTaskFromReservation}
       />
       <AddMaintenanceTaskDialog
+        propertyId={reservation.property_id}
         open={isCreateMaintenanceTaskDialogOpen}
         onOpenChange={setIsCreateMaintenanceTaskDialogOpen}
         siteOptions={followUpMaintenanceSiteOptions}

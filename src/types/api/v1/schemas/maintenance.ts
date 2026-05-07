@@ -40,6 +40,18 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     sla: z.number().int().nonnegative().max(87600).nullable().optional(),
     scheduledStart: isoDateTimeString.nullable().optional(),
     dueDate: isoDateTimeString.nullable().optional(),
+}).superRefine((payload, ctx) => {
+    if (!payload.scheduledStart || !payload.dueDate) return
+    const startMs = new Date(payload.scheduledStart).getTime()
+    const endMs = new Date(payload.dueDate).getTime()
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return
+    if (endMs < startMs) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'dueDate must be the same as or after scheduledStart',
+            path: ['dueDate'],
+        })
+    }
 })
 
 export const UpdateMaintenanceTaskRequestSchema = z.object({
@@ -72,6 +84,18 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     holdAt: isoDateTimeString.optional(),
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: 'At least one field is required',
+}).superRefine((payload, ctx) => {
+    if (!payload.scheduledStart || !payload.dueDate) return
+    const startMs = new Date(payload.scheduledStart).getTime()
+    const endMs = new Date(payload.dueDate).getTime()
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return
+    if (endMs < startMs) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'dueDate must be the same as or after scheduledStart',
+            path: ['dueDate'],
+        })
+    }
 })
 
 export const ListMaintenanceTasksQuerySchema = z.object({

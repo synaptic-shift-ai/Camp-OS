@@ -38,6 +38,10 @@ import {
 } from "./maintenance-dialog/edit-schedule-dialog"
 import { DeleteScheduleConfirmationDialog } from "./schedules/delete-schedule-confirmation-dialog"
 import { createClient } from "@/lib/supabase/client"
+import {
+  normalizeUtcCalendarEndForUi,
+  normalizeUtcCalendarStartForUi,
+} from "@/lib/dashboard/maintenance/utc-calendar-datetime-for-ui"
 
 const TASK_IMAGES_BUCKET = "maintenance-and-housekeeping-images"
 
@@ -439,8 +443,8 @@ export function MaintenancePageContent({
         vendorId: task.vendor_id,
         guideId: task.guide_id ?? null,
         sla: task.sla,
-        scheduledStart: task.scheduled_start ?? null,
-        dueDate: task.due_date ?? null,
+        scheduledStart: normalizeUtcCalendarStartForUi(task.scheduled_start ?? null),
+        dueDate: normalizeUtcCalendarEndForUi(task.due_date ?? null),
         createdAt: task.created_at,
         startedAt: task.started_at ?? null,
       }))

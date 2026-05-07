@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
+import { AlertTriangle, CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -149,32 +149,57 @@ export const SOURCE_OPTIONS = ["Guest", "Housekeeping", "Staff", "PM", "Checkout
 function BookingConflictWarning({ propertyId, siteId, startDate, endDate }: { propertyId: string; siteId: string; startDate: string; endDate: string }) {
   const [maintenanceConflicts, setMaintenanceConflicts] = useState<number | null>(null)
   const [reservationConflicts, setReservationConflicts] = useState<number | null>(null)
+  const [
+    firstReservationConflict,
+    setFirstReservationConflict,
+  ] = useState<{
+    confirmationNumber: string | null
+    checkInDate: string
+    checkOutDate: string
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    const params = new URLSearchParams({ siteId, startDate, endDate })
+    const startDateOnly = new Date(startDate).toISOString().slice(0, 10)
+    const endDateOnly = new Date(endDate).toISOString().slice(0, 10)
+    const params = new URLSearchParams({ siteId, startDate: startDateOnly, endDate: endDateOnly })
     fetch(`/api/v1/properties/${propertyId}/maintenance/booking-conflicts?${params}`)
-      .then((res) => res.json())
-      .then((json) => {
+      .then(async (res) => {
+        const json = await res.json().catch(() => null)
+        return { ok: res.ok, json }
+      })
+      .then(({ ok, json }) => {
         if (cancelled) return
-        if (json?.success) {
+        if (ok && json?.success) {
           setMaintenanceConflicts(json.data?.maintenanceConflicts ?? 0)
           setReservationConflicts(json.data?.reservationConflicts ?? 0)
+          setFirstReservationConflict(json.data?.firstReservationConflict ?? null)
         } else {
           setMaintenanceConflicts(null)
           setReservationConflicts(null)
+          setFirstReservationConflict(null)
         }
       })
       .catch(() => {
         if (!cancelled) {
           setMaintenanceConflicts(null)
           setReservationConflicts(null)
+          setFirstReservationConflict(null)
         }
       })
     return () => { cancelled = true }
-  }, [siteId, startDate, endDate])
+  }, [propertyId, siteId, startDate, endDate])
 
-  if ((maintenanceConflicts === null && reservationConflicts === null) || (maintenanceConflicts === 0 && reservationConflicts === 0)) return null
+  if ((maintenanceConflicts === null && reservationConflicts === null) || (maintenanceConflicts === 0 && reservationConflicts === 0)) {
+    return null
+  }
+
+  const blockedCheckIn = firstReservationConflict?.checkInDate
+    ? format(new Date(firstReservationConflict.checkInDate), "MMM d")
+    : null
+  const blockedCheckOut = firstReservationConflict?.checkOutDate
+    ? format(new Date(firstReservationConflict.checkOutDate), "MMM d")
+    : null
 
   return (
     <div className="space-y-2">
@@ -185,7 +210,22 @@ function BookingConflictWarning({ propertyId, siteId, startDate, endDate }: { pr
       )}
       {reservationConflicts !== null && reservationConflicts > 0 && (
         <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-600 dark:bg-red-950/30 dark:text-red-400">
-          ⚠ This site has {reservationConflicts} reservation{reservationConflicts === 1 ? "" : "s"} overlapping with the selected dates.
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-300" aria-hidden />
+            <div className="min-w-0">
+              <div className="font-medium">
+                Blocked: Guest booking{" "}
+                {firstReservationConflict?.confirmationNumber?.trim()
+                  ? `#${firstReservationConflict.confirmationNumber.trim()}`
+                  : ""}
+              </div>
+              {blockedCheckIn && blockedCheckOut ? (
+                <div className="text-xs text-red-600 dark:text-red-300">
+                  {blockedCheckIn} &ndash; {blockedCheckOut}
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -322,6 +362,19 @@ export function AddTaskDialog({
         variant: "destructive",
       })
       return
+    }
+
+    if (form.scheduledStart && form.dueDate) {
+      const scheduledStartMs = new Date(form.scheduledStart).getTime()
+      const dueDateMs = new Date(form.dueDate).getTime()
+      if (Number.isFinite(scheduledStartMs) && Number.isFinite(dueDateMs) && dueDateMs < scheduledStartMs) {
+        toast({
+          title: "Invalid schedule window",
+          description: "Due date must be the same or after the scheduled start.",
+          variant: "destructive",
+        })
+        return
+      }
     }
 
     try {

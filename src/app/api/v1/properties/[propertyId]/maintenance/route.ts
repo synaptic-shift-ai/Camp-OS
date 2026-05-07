@@ -269,6 +269,16 @@ export async function POST(
             })
         }
 
+        if (parsed.data.scheduledStart && parsed.data.dueDate) {
+            const startMs = new Date(parsed.data.scheduledStart).getTime()
+            const endMs = new Date(parsed.data.dueDate).getTime()
+            if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs < startMs) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message: 'Due date must be the same as or after the scheduled start.',
+                })
+            }
+        }
+
         const assignAccess = await resolveModuleActionAccess({
             supabase: supabase as any,
             propertyId,
@@ -376,6 +386,12 @@ export async function POST(
         // Server-side booking conflict warning (non-blocking)
         let bookingConflictWarning: string | null = null
         if (parsed.data.scheduledStart && parsed.data.dueDate) {
+            const scheduledStartDateOnly = new Date(parsed.data.scheduledStart).toISOString().slice(0, 10)
+            const dueDateDateOnly = new Date(parsed.data.dueDate).toISOString().slice(0, 10)
+            const dueDateExclusive = new Date(`${dueDateDateOnly}T00:00:00.000Z`)
+            dueDateExclusive.setUTCDate(dueDateExclusive.getUTCDate() + 1)
+            const dueDateExclusiveDateOnly = dueDateExclusive.toISOString().slice(0, 10)
+
             try {
                 const conflicts = await queries.findOverlappingMaintenance(
                     parsed.data.siteId,
@@ -385,24 +401,32 @@ export async function POST(
                 if (conflicts.length > 0) {
                     bookingConflictWarning = `${conflicts.length} existing maintenance task${conflicts.length === 1 ? '' : 's'} overlap with the scheduled window.`
                 }
-
-                // Also check for reservation conflicts
-                const { count: resCount, error: resError } = await supabase
-                    .from('reservations')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('site_id', parsed.data.siteId)
-                    .in('status', ['confirmed', 'checked_in', 'pending'])
-                    .lt('check_in_date', parsed.data.dueDate)
-                    .gt('check_out_date', parsed.data.scheduledStart)
-
-                if (!resError && resCount != null && resCount > 0) {
-                    const resNote = `${resCount} reservation${resCount === 1 ? '' : 's'} overlap with the scheduled window.`
-                    bookingConflictWarning = bookingConflictWarning
-                        ? `${bookingConflictWarning} ${resNote}`
-                        : resNote
-                }
             } catch {
-                // Non-blocking: conflict check failures should not prevent creation
+                // Non-blocking: maintenance overlap warning failures should not prevent creation
+            }
+
+            // Reservation conflicts must block WO creation (guest stays take precedence).
+            const { count: resCount, error: resError } = await supabase
+                .from('reservations')
+                .select('id', { count: 'exact', head: true })
+                .eq('property_id', propertyId)
+                .eq('site_id', parsed.data.siteId)
+                .in('status', ['pending', 'confirmed', 'checked_in', 'reserved', 'booked'])
+                .lt('check_in_date', dueDateExclusiveDateOnly)
+                .gt('check_out_date', scheduledStartDateOnly)
+
+            if (resError) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message: 'Unable to validate reservation conflicts. Please try again.',
+                })
+            }
+
+            if (resCount != null && resCount > 0) {
+                return error(ErrorCodes.VALIDATION_ERROR, request, {
+                    message:
+                        'This work order conflicts with an existing reservation. Please adjust the scheduled dates.',
+                    reservationConflicts: resCount,
+                })
             }
         }
 

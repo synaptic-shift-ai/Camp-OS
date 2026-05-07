@@ -192,6 +192,19 @@ export function EditTaskDialog({
       return
     }
 
+    if (form.scheduledStart && form.dueDate) {
+      const scheduledStartMs = new Date(form.scheduledStart).getTime()
+      const dueDateMs = new Date(form.dueDate).getTime()
+      if (Number.isFinite(scheduledStartMs) && Number.isFinite(dueDateMs) && dueDateMs < scheduledStartMs) {
+        toast({
+          title: "Invalid schedule window",
+          description: "Due date must be the same or after the scheduled start.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     try {
       await onSubmit({
         id: task.id,

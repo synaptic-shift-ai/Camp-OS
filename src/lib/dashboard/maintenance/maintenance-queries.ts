@@ -934,6 +934,21 @@ export class MaintenanceQueries {
         // maintenance_tasks Insert type won't include it until `npm run gen:db` is run
         // after applying the migration 20260424030000.
         const sched = schedule as unknown as MaintenanceScheduleRow
+        const scheduleDateOnly = typeof sched.schedule_date === 'string' && sched.schedule_date.trim()
+            ? sched.schedule_date.trim()
+            : null
+        const dateParts = scheduleDateOnly ? scheduleDateOnly.split('-') : []
+        const y = Number.parseInt(dateParts[0] ?? '', 10)
+        const m = Number.parseInt(dateParts[1] ?? '', 10)
+        const d = Number.parseInt(dateParts[2] ?? '', 10)
+        const scheduledStart =
+            Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+                ? new Date(y, m - 1, d, 0, 0, 0, 0).toISOString()
+                : null
+        const dueDate =
+            Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+                ? new Date(y, m - 1, d, 23, 59, 0, 0).toISOString()
+                : null
         const insertRow = {
             property_id: propertyId,
             site_id: sched.site_id ?? null,
@@ -946,6 +961,8 @@ export class MaintenanceQueries {
             source: 'pm' as const,
             category: 'preventive',
             schedule_id: scheduleId,
+            scheduled_start: scheduledStart,
+            due_date: dueDate,
         }
 
         const { data: task, error } = await this.supabase
@@ -1051,6 +1068,24 @@ export class MaintenanceQueries {
                 source: 'pm' as const,
                 category: 'preventive',
                 schedule_id: scheduleId,
+                scheduled_start: new Date(
+                    Number.parseInt(nextDateStr.slice(0, 4), 10),
+                    Number.parseInt(nextDateStr.slice(5, 7), 10) - 1,
+                    Number.parseInt(nextDateStr.slice(8, 10), 10),
+                    0,
+                    0,
+                    0,
+                    0,
+                ).toISOString(),
+                due_date: new Date(
+                    Number.parseInt(nextDateStr.slice(0, 4), 10),
+                    Number.parseInt(nextDateStr.slice(5, 7), 10) - 1,
+                    Number.parseInt(nextDateStr.slice(8, 10), 10),
+                    23,
+                    59,
+                    0,
+                    0,
+                ).toISOString(),
             }
 
             const { data: task, error: taskError } = await this.supabase
@@ -1542,17 +1577,21 @@ export class MaintenanceQueries {
         startDate: string,
         endDate: string,
     ): Promise<Array<{ id: string; title: string; due_date: string | null; scheduled_start: string | null; status: string }>> {
-        const windowStart = startDate
-        const windowEnd = endDate
+        const parseWindowDate = (value: string): number => {
+            // Accepts either YYYY-MM-DD or ISO datetime.
+            // Date-only values are treated as UTC midnight to avoid local timezone shifts.
+            const normalized = value.includes('T') ? value : `${value}T00:00:00.000Z`
+            return new Date(normalized).getTime()
+        }
+
+        const windowStartMs = parseWindowDate(startDate)
+        const windowEndMs = parseWindowDate(endDate)
 
         const { data, error } = await this.supabase
             .from('maintenance_tasks')
             .select('id, title, due_date, scheduled_start, started_at, created_at, status')
             .eq('site_id', siteId)
             .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
-            .lt('COALESCE(due_date, created_at)', windowEnd)
-            .lt('COALESCE(scheduled_start, started_at, created_at)', windowEnd)
-            .gt('COALESCE(scheduled_start, started_at, created_at)', windowStart)
             .order('due_date', { ascending: true })
 
         if (error) {
@@ -1565,7 +1604,19 @@ export class MaintenanceQueries {
             throw new Error(`Failed to find overlapping maintenance: ${error.message}`)
         }
 
-        return (data ?? []).map((row) => ({
+        const overlaps = (data ?? []).filter((row) => {
+            const startValue = row.scheduled_start ?? row.started_at ?? row.created_at ?? null
+            const endValue = row.due_date ?? row.created_at ?? null
+            if (!startValue || !endValue) return false
+
+            const taskStartMs = new Date(startValue).getTime()
+            const taskEndMs = new Date(endValue).getTime()
+
+            // Overlap: taskStart < windowEnd AND taskEnd > windowStart
+            return taskStartMs < windowEndMs && taskEndMs > windowStartMs
+        })
+
+        return overlaps.map((row) => ({
             id: row.id,
             title: row.title,
             due_date: row.due_date,

@@ -114,6 +114,17 @@ export function AddPreventiveDialog({
     return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
   }, [form.scheduleDate])
 
+  const monthlyDayOfMonth = useMemo(() => {
+    if (form.frequency !== "monthly") return null
+    const raw = form.scheduleDate?.trim()
+    if (!raw) return null
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+    if (!m) return null
+    const day = Number(m[3])
+    if (!Number.isFinite(day) || day < 1 || day > 31) return null
+    return String(day)
+  }, [form.frequency, form.scheduleDate])
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
@@ -129,6 +140,23 @@ export function AddPreventiveDialog({
       if (!days || !WEEKLY_DAY_VALUES.has(days)) {
         days = "Monday"
       }
+    }
+
+    if (form.frequency === "monthly") {
+      // Treat scheduleDate as "day of month" by storing the next upcoming date on that day.
+      // Example: selecting 13 means "every 13th", stored as the next YYYY-MM-13.
+      const day = scheduleDate ? Number(scheduleDate.slice(-2)) : NaN
+      const selectedDay = Number.isFinite(day) && day >= 1 && day <= 31 ? day : 1
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = now.getMonth()
+      const todayStart = new Date(year, month, now.getDate())
+      const thisMonthCandidate = new Date(year, month, selectedDay)
+      const next =
+        thisMonthCandidate >= todayStart
+          ? thisMonthCandidate
+          : new Date(year, month + 1, selectedDay)
+      scheduleDate = format(next, "yyyy-MM-dd")
     }
 
     if (!name) {
@@ -342,35 +370,71 @@ export function AddPreventiveDialog({
               ) : (
                 <>
                   <Label>Anchor date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isSubmitting}
-                        className="h-9 w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.scheduleDate
-                          ? format(new Date(form.scheduleDate), "MMM dd, yyyy")
-                          : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={anchorDate}
-                        onSelect={(date) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            scheduleDate: date ? format(date, "yyyy-MM-dd") : null,
-                          }))
-                        }
-                        disabled={isSubmitting}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <p className="text-xs text-muted-foreground">Optional start or next-due calendar date.</p>
+                  {form.frequency === "monthly" ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={31}
+                          step={1}
+                          value={monthlyDayOfMonth ?? ""}
+                          onChange={(event) => {
+                            const raw = event.target.value
+                            if (!raw.trim()) {
+                              setForm((prev) => ({ ...prev, scheduleDate: null }))
+                              return
+                            }
+                            const parsed = Number.parseInt(raw, 10)
+                            const safeDay = Number.isFinite(parsed)
+                              ? Math.min(31, Math.max(1, parsed))
+                              : 1
+                            setForm((prev) => ({
+                              ...prev,
+                              scheduleDate: `2000-01-${String(safeDay).padStart(2, "0")}`,
+                            }))
+                          }}
+                          placeholder="Day"
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-xs text-muted-foreground">of the month</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Repeats every month on this day.</p>
+                    </>
+                  ) : (
+                    <>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isSubmitting}
+                            className="h-9 w-full justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {form.scheduleDate
+                              ? format(new Date(form.scheduleDate), "MMM dd, yyyy")
+                              : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar
+                            mode="single"
+                            selected={anchorDate}
+                            onSelect={(date) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                scheduleDate: date ? format(date, "yyyy-MM-dd") : null,
+                              }))
+                            }
+                            disabled={isSubmitting}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-muted-foreground">Optional start or next-due calendar date.</p>
+                    </>
+                  )}
                 </>
               )}
             </div>

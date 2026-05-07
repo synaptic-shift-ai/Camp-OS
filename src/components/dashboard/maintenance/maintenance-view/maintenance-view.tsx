@@ -29,6 +29,10 @@ import { PermissionGate } from "@/components/ui/permission-gate"
 import { StatusChangeReasonDialog } from "../maintenance-dialog/status-change-reason-dialog"
 import { ReassignTaskDialog } from "../../housekeeping/housekeeping-dialog.tsx/reassign-task-dialog"
 import { AssignVendorDialog } from "../maintenance-dialog/assign-vendor-dialog"
+import {
+  normalizeUtcCalendarEndForUi,
+  normalizeUtcCalendarStartForUi,
+} from "@/lib/dashboard/maintenance/utc-calendar-datetime-for-ui"
 import { clampMaintenanceHoldAtIso } from "./clamp-maintenance-hold-at"
 
 type AssigneeOption = {
@@ -266,8 +270,8 @@ export function MaintenanceView({
         on_hold_reason: raw.on_hold_reason ?? null,
         cancelled_at: raw.cancelled_at ?? null,
         cancelled_reason: raw.cancelled_reason ?? null,
-        scheduled_start: raw.scheduled_start ?? null,
-        due_date: raw.due_date ?? null,
+        scheduled_start: normalizeUtcCalendarStartForUi(raw.scheduled_start ?? null),
+        due_date: normalizeUtcCalendarEndForUi(raw.due_date ?? null),
         site: raw.site ?? null,
         vendor: raw.vendor ?? null,
       })

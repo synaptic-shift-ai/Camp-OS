@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
+import { format } from "date-fns"
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,16 @@ const EMPTY_FORM: AddPreventiveScheduleInput = {
   schedule_date: null,
 }
 
+function toDayOfMonth(value: string | null | undefined): string | null {
+  const raw = value?.trim()
+  if (!raw) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (!m) return null
+  const day = Number(m[3])
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null
+  return String(day)
+}
+
 const DAY_OPTIONS = [
   { value: "Monday", label: "Monday" },
   { value: "Tuesday", label: "Tuesday" },
@@ -133,7 +144,23 @@ export function EditScheduleDialog({
     }
 
     try {
-      await onSubmit(form)
+      const nextForm = { ...form, name }
+      if (nextForm.frequency === "monthly") {
+        const dayStr = toDayOfMonth(nextForm.schedule_date)
+        const day = dayStr ? Number.parseInt(dayStr, 10) : NaN
+        const selectedDay = Number.isFinite(day) && day >= 1 && day <= 31 ? day : 1
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = now.getMonth()
+        const todayStart = new Date(year, month, now.getDate())
+        const thisMonthCandidate = new Date(year, month, selectedDay)
+        const next =
+          thisMonthCandidate >= todayStart
+            ? thisMonthCandidate
+            : new Date(year, month + 1, selectedDay)
+        nextForm.schedule_date = format(next, "yyyy-MM-dd")
+      }
+      await onSubmit(nextForm)
       onOpenChange(false)
     } catch (submitError) {
       const message =
@@ -294,16 +321,46 @@ export function EditScheduleDialog({
             ) : (
               <div className="space-y-2">
                 <Label>Anchor date</Label>
-                <Input
-                  type="date"
-                  value={form.schedule_date ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      schedule_date: event.target.value || null,
-                    }))
-                  }
-                />
+                {form.frequency === "monthly" ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={31}
+                      step={1}
+                      value={toDayOfMonth(form.schedule_date) ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        if (!raw.trim()) {
+                          setForm((prev) => ({ ...prev, schedule_date: null }))
+                          return
+                        }
+                        const parsed = Number.parseInt(raw, 10)
+                        const safeDay = Number.isFinite(parsed)
+                          ? Math.min(31, Math.max(1, parsed))
+                          : 1
+                        setForm((prev) => ({
+                          ...prev,
+                          schedule_date: `2000-01-${String(safeDay).padStart(2, "0")}`,
+                        }))
+                      }}
+                      placeholder="Day"
+                    />
+                    <span className="text-xs text-muted-foreground">of the month</span>
+                  </div>
+                ) : (
+                  <Input
+                    type="date"
+                    value={form.schedule_date ?? ""}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        schedule_date: event.target.value || null,
+                      }))
+                    }
+                  />
+                )}
               </div>
             )}
           </div>

@@ -35,7 +35,7 @@ export function HousekeepingPageHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {canCreateTask && (
+        {canCreateTask && (viewMode === "tasks" || viewMode === "checklist") && (
           <Button
             type="button"
             size="sm"

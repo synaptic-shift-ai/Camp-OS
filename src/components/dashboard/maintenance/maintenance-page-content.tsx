@@ -1022,6 +1022,7 @@ export function MaintenancePageContent({
         onSubmit={handleAddPreventiveSchedule}
       />
       <AddTaskDialog
+        propertyId={propertyId}
         open={canCreateTask && isAddTaskDialogOpen}
         onOpenChange={setIsAddTaskDialogOpen}
         siteOptions={siteOptions}

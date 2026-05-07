@@ -124,6 +124,7 @@ type LocalImageItem = {
 }
 
 type AddTaskDialogProps = {
+  propertyId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   siteOptions: Array<{ id: string; label: string }>
@@ -145,14 +146,14 @@ type AddTaskDialogProps = {
 const SITE_PLACEHOLDER_VALUE = "__maintenance_site_unselected__"
 export const SOURCE_OPTIONS = ["Guest", "Housekeeping", "Staff", "PM", "Checkout"] as const
 
-function BookingConflictWarning({ siteId, startDate, endDate }: { siteId: string; startDate: string; endDate: string }) {
+function BookingConflictWarning({ propertyId, siteId, startDate, endDate }: { propertyId: string; siteId: string; startDate: string; endDate: string }) {
   const [maintenanceConflicts, setMaintenanceConflicts] = useState<number | null>(null)
   const [reservationConflicts, setReservationConflicts] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
     const params = new URLSearchParams({ siteId, startDate, endDate })
-    fetch(`/api/v1/properties/${siteId}/maintenance/booking-conflicts?${params}`)
+    fetch(`/api/v1/properties/${propertyId}/maintenance/booking-conflicts?${params}`)
       .then((res) => res.json())
       .then((json) => {
         if (cancelled) return
@@ -222,6 +223,7 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
 }
 
 export function AddTaskDialog({
+  propertyId,
   open,
   onOpenChange,
   onSubmit,
@@ -756,7 +758,7 @@ export function AddTaskDialog({
           </div>
 
           {/* Booking conflict warning */}
-          {form.siteId && form.scheduledStart && form.dueDate && <BookingConflictWarning siteId={form.siteId} startDate={form.scheduledStart} endDate={form.dueDate} />}
+          {form.siteId && form.scheduledStart && form.dueDate && <BookingConflictWarning propertyId={propertyId} siteId={form.siteId} startDate={form.scheduledStart} endDate={form.dueDate} />}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

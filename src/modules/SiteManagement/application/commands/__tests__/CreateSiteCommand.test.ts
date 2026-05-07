@@ -1,7 +1,7 @@
 /**
  * CreateSiteCommand Tests
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { CreateSiteCommandHandler } from '../CreateSiteCommand'
 import { type ISiteRepository } from '../../../domain/ISiteRepository'
 import { type Site } from '../../../domain/Site'

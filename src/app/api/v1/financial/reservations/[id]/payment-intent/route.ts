@@ -63,7 +63,7 @@ export async function POST(
 
     const { data: guest, error: guestError } = await supabase
       .from("guests")
-      .select("id, email")
+      .select("id, email, first_name, last_name, phone, stripe_customer_id")
       .eq("id", reservation.guest_id)
       .eq("property_id", reservation.property_id)
       .single()
@@ -101,9 +101,55 @@ export async function POST(
       return error(ErrorCodes.VALIDATION_ERROR, msg)
     }
 
+    const typedGuest = guest as {
+      id: string
+      email: string
+      first_name: string | null
+      last_name: string | null
+      phone: string | null
+      stripe_customer_id: string | null
+    }
+
+    const createAndPersistStripeCustomer = async (): Promise<string> => {
+      const customer = await processor.createCustomer({
+        email: typedGuest.email,
+        name:
+          [typedGuest.first_name, typedGuest.last_name].filter(Boolean).join(" ").trim() ||
+          typedGuest.email,
+        ...(typedGuest.phone ? { phone: typedGuest.phone } : {}),
+        metadata: {
+          guest_id: typedGuest.id,
+          property_id: reservation.property_id,
+        },
+      })
+
+      const nextStripeCustomerId = customer.customerId
+      const { error: updateGuestError } = await supabase
+        .from("guests")
+        .update({
+          stripe_customer_id: nextStripeCustomerId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", typedGuest.id)
+        .eq("property_id", reservation.property_id)
+
+      if (updateGuestError) {
+        console.error("[Manual PaymentIntent] Failed to save stripe_customer_id to guest", updateGuestError)
+      }
+
+      return nextStripeCustomerId
+    }
+
+    let stripeCustomerId = typedGuest.stripe_customer_id
+    if (!stripeCustomerId) {
+      stripeCustomerId = await createAndPersistStripeCustomer()
+    }
+
     const intent = await processor.createPaymentIntent({
       amountCents: body.data.amount_cents,
       currency: "usd",
+      customerId: stripeCustomerId,
+      setupFutureUsage: "off_session",
       automaticPaymentMethods: false,
       paymentMethodTypes: ["card"],
       onBehalfOf: property?.stripe_account_id ?? undefined,

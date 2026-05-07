@@ -1203,6 +1203,7 @@ export type Database = {
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           first_name: string
+          guest_credit_cents: number
           id: string
           last_name: string
           notes: string | null
@@ -1229,6 +1230,7 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           first_name: string
+          guest_credit_cents?: number
           id?: string
           last_name: string
           notes?: string | null
@@ -1255,6 +1257,7 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           first_name?: string
+          guest_credit_cents?: number
           id?: string
           last_name?: string
           notes?: string | null

@@ -1,7 +1,7 @@
 /**
  * UpdateSiteStatusCommand Tests
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { UpdateSiteStatusCommandHandler } from '../UpdateSiteStatusCommand'
 import { type ISiteRepository } from '../../../domain/ISiteRepository'
 import { Site } from '../../../domain/Site'

@@ -228,24 +228,94 @@ async function handleV2Refund(
   const repo = new SupabaseTransactionRepository(serviceRole)
   const amount = MoneyAmount.create(data.amount_cents)
 
+  const isGuestCredit = data.handling === 'guest_credit'
+  const refundPaymentMethod: PaymentMethod = isGuestCredit
+    ? PaymentMethod.STORE_CREDIT
+    : (payment.payment_method as PaymentMethod)
+
+  // Some legacy payment rows may not have guest_id populated.
+  // For guest_credit handling we can fall back to the reservation's guest_id.
+  let resolvedGuestId: string | null = (payment.guest_id as string | null) ?? null
+  if (isGuestCredit && !resolvedGuestId && payment.reservation_id) {
+    const { data: reservationRow, error: reservationLookupError } = await serviceRole
+      .from('reservations')
+      .select('id, guest_id')
+      .eq('id', payment.reservation_id)
+      .eq('property_id', payment.property_id)
+      .maybeSingle()
+
+    if (reservationLookupError) {
+      console.error('[Financial API v1] V2 refund: reservation guest lookup failed (non-blocking)', {
+        reservationId: payment.reservation_id,
+        propertyId: payment.property_id,
+        error: reservationLookupError,
+      })
+    } else if (reservationRow?.guest_id) {
+      resolvedGuestId = reservationRow.guest_id as string
+    }
+  }
+
   const refund = Transaction.create(
     crypto.randomUUID(),
     payment.property_id,
     payment.reservation_id,
     TransactionType.REFUND,
     amount,
-    payment.payment_method as PaymentMethod,
+    refundPaymentMethod,
     userId,
     null, // invoiceId
     data.reason ?? `Refund for payment ${data.payment_id}`,
     TransactionSource.RESERVATION,
     null, // processorEventId
-    payment.guest_id,
+    resolvedGuestId,
   )
 
   refund.setHandling(data.handling as RefundHandling)
   refund.complete()
   await repo.save(refund)
+
+  // If refund is issued as guest credit, increment guest's credit balance (property-scoped).
+  // This is intentionally separate from the transaction ledger so UI can show a fast balance.
+  if (isGuestCredit && resolvedGuestId) {
+    try {
+      const { data: guestRow, error: guestLookupError } = await serviceRole
+        .from('guests')
+        .select('id, property_id, guest_credit_cents')
+        .eq('id', resolvedGuestId)
+        .eq('property_id', payment.property_id)
+        .maybeSingle()
+
+      if (guestLookupError) {
+        console.error('[Financial API v1] V2 refund: guest lookup failed (non-blocking)', {
+          guestId: resolvedGuestId,
+          propertyId: payment.property_id,
+          error: guestLookupError,
+        })
+      } else if (guestRow) {
+        const previousCredit = (guestRow.guest_credit_cents as number | null) ?? 0
+        const nextCredit = previousCredit + data.amount_cents
+
+        const { error: guestUpdateError } = await serviceRole
+          .from('guests')
+          .update({
+            guest_credit_cents: nextCredit,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', resolvedGuestId)
+          .eq('property_id', payment.property_id)
+
+        if (guestUpdateError) {
+          console.error('[Financial API v1] V2 refund: guest credit update failed (non-blocking)', {
+            guestId: resolvedGuestId,
+            propertyId: payment.property_id,
+            error: guestUpdateError,
+          })
+        }
+      }
+    } catch (e) {
+      console.error('[Financial API v1] V2 refund: guest credit update threw (non-blocking)', e)
+    }
+  }
 
   // Update reservation snapshot refund totals so reservations UI reflects the refund.
   if (payment.reservation_id) {

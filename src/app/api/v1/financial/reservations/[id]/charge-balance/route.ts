@@ -33,6 +33,11 @@ import { TransactionSource } from '@/modules/Financial/domain/value-objects/Tran
 import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
+import { z } from 'zod'
+
+const BodySchema = z.object({
+  payment_method_id: z.string().optional(),
+})
 
 /**
  * POST /api/v1/financial/reservations/[id]/charge-balance
@@ -44,6 +49,11 @@ export async function POST(
   try {
     const { id: reservationId } = await params
     const supabase = await createClient()
+    const body = BodySchema.safeParse(await request.json().catch(() => null))
+    const requestedPaymentMethodId =
+      body.success && typeof body.data.payment_method_id === 'string' && body.data.payment_method_id.length > 0
+        ? body.data.payment_method_id
+        : null
 
     // Authenticate user
     const {
@@ -166,10 +176,12 @@ export async function POST(
       return error(ErrorCodes.VALIDATION_ERROR, 'No card on file for this guest')
     }
 
-    // Use the most recently added payment method
-    const paymentMethod = paymentMethods[0]
+    const paymentMethod =
+      requestedPaymentMethodId != null
+        ? paymentMethods.find((pm) => pm.id === requestedPaymentMethodId)
+        : paymentMethods[0]
     if (paymentMethod === undefined) {
-      return error(ErrorCodes.VALIDATION_ERROR, 'No card on file for this guest')
+      return error(ErrorCodes.VALIDATION_ERROR, 'Selected card is not available for this guest')
     }
 
     // ── C2: Create off-session, confirmed PaymentIntent ────────────────────

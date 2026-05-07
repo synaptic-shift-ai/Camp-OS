@@ -305,6 +305,9 @@ export function ReservationLedgerPage({
               0,
               (reservation?.paid_amount ?? 0) - ((reservation?.refund_amount_cents ?? 0) as number),
             )}
+            onSuccess={() => {
+              void fetchAll()
+            }}
             trigger={
               <Button variant="outline" size="sm" disabled={loading} className="gap-2">
                 <Undo2 className="h-4 w-4" />
@@ -319,6 +322,7 @@ export function ReservationLedgerPage({
             reservationId={reservation?.id ?? reservationId}
             confirmationNumber={reservation?.confirmation_number ?? "—"}
             guestName={guestName}
+            propertyId={reservation?.property_id ?? ""}
             totalAmountCents={(reservation?.total_amount ?? 0) as MoneyCents}
             paidAmountCents={(reservation?.paid_amount ?? 0) as MoneyCents}
             guestId={reservation?.guest_id ?? null}

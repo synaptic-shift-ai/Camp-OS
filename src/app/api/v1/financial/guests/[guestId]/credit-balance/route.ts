@@ -33,19 +33,19 @@ export async function GET(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        error(ErrorCodes.AUTH_001, 'Unauthorized'),
-        { status: 401 },
-      )
+      return error(ErrorCodes.AUTH_001, request)
     }
 
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
 
     if (!propertyId) {
-      return NextResponse.json(
-        error(ErrorCodes.VALIDATION_ERROR, 'propertyId query parameter is required'),
-        { status: 400 },
+      console.warn('[Financial API v1] Guest credit balance missing propertyId', { guestId })
+      return error(
+        ErrorCodes.VALIDATION_ERROR,
+        'propertyId query parameter is required',
+        400,
+        request,
       )
     }
 
@@ -55,41 +55,56 @@ export async function GET(
       minimumRole: 'staff',
       permission: 'financial.view_transactions',
     })
-    if (isDenied(access)) return access
+    if (isDenied(access)) {
+      console.warn('[Financial API v1] Guest credit balance access denied', { guestId, propertyId })
+      return access
+    }
 
     // Verify guest belongs to this property
     const { data: guest } = await supabase
       .from('guests')
-      .select('id, property_id')
+      .select('id, property_id, guest_credit_cents')
       .eq('id', guestId)
       .eq('property_id', propertyId)
       .maybeSingle()
 
     if (!guest) {
-      return NextResponse.json(
-        error(ErrorCodes.RESOURCE_NOT_FOUND, 'Guest not found for this property'),
-        { status: 404 },
+      console.warn('[Financial API v1] Guest credit balance guest not found for property', { guestId, propertyId })
+      return error(
+        ErrorCodes.RESOURCE_NOT_FOUND,
+        'Guest not found for this property',
+        404,
+        request,
       )
     }
 
     const serviceRole = createServiceRoleClient()
     const balance = await getGuestCreditBalance(serviceRole, guestId, propertyId)
 
-    return NextResponse.json(
-      success({
+    return success(
+      {
         guest_id: guestId,
         property_id: propertyId,
         total_credits_cents: balance.totalCredits,
         total_used_cents: balance.totalUsed,
-        credit_balance_cents: balance.creditBalance,
-      }),
+        // Source of truth: denormalized balance on guests table (property-scoped via guests.property_id)
+        // Fallback to computed balance if column missing for any reason.
+        credit_balance_cents:
+          typeof guest.guest_credit_cents === 'number'
+            ? guest.guest_credit_cents
+            : balance.creditBalance,
+      },
+      request,
     )
   } catch (err: unknown) {
     console.error('[Financial API v1] Guest credit balance error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json(
-      error(ErrorCodes.INTERNAL_ERROR, 'Failed to get guest credit balance', { message }),
-      { status: 500 },
+    return error(
+      ErrorCodes.INTERNAL_ERROR,
+      'Failed to get guest credit balance',
+      500,
+      request,
+      { message },
     )
   }
 }

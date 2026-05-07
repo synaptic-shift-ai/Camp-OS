@@ -45,6 +45,7 @@ interface RefundReservationDialogProps {
   guestId?: string
   propertyId?: string
   trigger?: React.ReactNode
+  onSuccess?: () => void
 }
 
 export function RefundReservationDialog({
@@ -55,6 +56,7 @@ export function RefundReservationDialog({
   guestId,
   propertyId,
   trigger,
+  onSuccess,
 }: RefundReservationDialogProps) {
   const [open, setOpen] = useState(false)
   const [amountDollars, setAmountDollars] = useState("")
@@ -69,6 +71,8 @@ export function RefundReservationDialog({
   const [handling, setHandling] = useState<RefundHandling>("original_method")
   const [creditBalanceLoading, setCreditBalanceLoading] = useState(false)
   const [creditBalanceCents, setCreditBalanceCents] = useState<number | null>(null)
+  const [resolvedGuestId, setResolvedGuestId] = useState<string | null>(null)
+  const [resolvedPropertyId, setResolvedPropertyId] = useState<string | null>(null)
   // First completed payment ID (needed for guest_credit v2 API)
   const [paymentId, setPaymentId] = useState<string | null>(null)
 
@@ -89,6 +93,8 @@ export function RefundReservationDialog({
       setEligibilityLoading(false)
       setCreditBalanceCents(null)
       setCreditBalanceLoading(false)
+      setResolvedGuestId(null)
+      setResolvedPropertyId(null)
       setPaymentId(null)
       setAmountDollars("")
       setReason("")
@@ -105,8 +111,19 @@ export function RefundReservationDialog({
       const data = await response.json()
       const message = data?.data?.refund_eligibility?.message
       setEligibilityMessage(typeof message === "string" && message.length > 0 ? message : null)
+      const apiGuestId = data?.data?.guest_id
+      const apiPropertyId = data?.data?.property_id
+      console.debug("[RefundReservationDialog] Resolved IDs from reservation API", {
+        reservationId,
+        apiGuestId,
+        apiPropertyId,
+      })
+      setResolvedGuestId(typeof apiGuestId === "string" && apiGuestId.length > 0 ? apiGuestId : null)
+      setResolvedPropertyId(typeof apiPropertyId === "string" && apiPropertyId.length > 0 ? apiPropertyId : null)
     } catch {
       setEligibilityMessage(null)
+      setResolvedGuestId(null)
+      setResolvedPropertyId(null)
     } finally {
       setEligibilityLoading(false)
     }
@@ -121,23 +138,42 @@ export function RefundReservationDialog({
   useEffect(() => {
     if (!open || handling !== "guest_credit") return
 
-    setCreditBalanceLoading(true)
-    setCreditBalanceCents(null)
+    const effectiveGuestId = guestId ?? resolvedGuestId
+    const effectivePropertyId = propertyId ?? resolvedPropertyId
+    console.debug("[RefundReservationDialog] Guest credit fetch prerequisites", {
+      reservationId,
+      guestIdProp: guestId ?? null,
+      propertyIdProp: propertyId ?? null,
+      resolvedGuestId,
+      resolvedPropertyId,
+      effectiveGuestId,
+      effectivePropertyId,
+    })
 
     const fetchCreditBalance = async () => {
+      setCreditBalanceLoading(true)
+      setCreditBalanceCents(null)
       try {
         const params = new URLSearchParams()
-        if (propertyId) params.set("propertyId", propertyId)
+        if (effectivePropertyId) params.set("propertyId", effectivePropertyId)
 
+        const url = `/api/v1/financial/guests/${effectiveGuestId}/credit-balance?${params}`
+        console.debug("[RefundReservationDialog] Fetching guest credit balance", { url })
         const res = await fetch(
-          `/api/v1/financial/guests/${guestId}/credit-balance?${params}`,
+          url,
         )
-        const json = await res.json()
-        if (json.success && json.data) {
+        const json = await res.json().catch(() => null)
+        console.debug("[RefundReservationDialog] Guest credit balance response", {
+          ok: res.ok,
+          status: res.status,
+          json,
+        })
+        if (res.ok && json?.success && json?.data && typeof json.data.credit_balance_cents === "number") {
           setCreditBalanceCents(json.data.credit_balance_cents)
         }
-      } catch {
+      } catch (err) {
         // Silently fail — credit balance is informational
+        console.debug("[RefundReservationDialog] Guest credit balance fetch failed", err)
       } finally {
         setCreditBalanceLoading(false)
       }
@@ -157,11 +193,13 @@ export function RefundReservationDialog({
       }
     }
 
-    if (guestId && propertyId) {
-      fetchCreditBalance()
+    if (effectiveGuestId && effectivePropertyId) void fetchCreditBalance()
+    else {
+      setCreditBalanceLoading(false)
+      setCreditBalanceCents(null)
     }
     fetchPaymentId()
-  }, [open, handling, guestId, propertyId, reservationId])
+  }, [open, handling, guestId, propertyId, resolvedGuestId, resolvedPropertyId, reservationId])
 
   const handleRefund = async () => {
     try {
@@ -213,6 +251,7 @@ export function RefundReservationDialog({
 
         setOpen(false)
         router.refresh()
+        onSuccess?.()
       } else {
         // Original method: use v1 schema via financial refunds endpoint
         if (!refundPaymentMethod) {
@@ -254,6 +293,7 @@ export function RefundReservationDialog({
 
         setOpen(false)
         router.refresh()
+        onSuccess?.()
       }
     } catch (err) {
       console.error("Refund reservation error:", err)

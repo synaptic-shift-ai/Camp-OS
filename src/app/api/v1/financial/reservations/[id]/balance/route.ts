@@ -40,7 +40,7 @@ export async function GET(
     // Verify reservation exists
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
-      .select('id, property_id')
+      .select('id, property_id, total_amount, paid_amount')
       .eq('id', reservationId)
       .single()
 
@@ -101,7 +101,14 @@ export async function GET(
       }
     }
 
-    const balance = chargesTotal - paymentsTotal - refundsTotal
+    const ledgerBalance = chargesTotal - paymentsTotal - refundsTotal
+    const reservationTotalAmount = (reservation.total_amount as number | null) ?? 0
+    const reservationPaidAmount = (reservation.paid_amount as number | null) ?? 0
+    const reservationBalance = Math.max(0, reservationTotalAmount - reservationPaidAmount)
+
+    // Use the larger of ledger vs reservation snapshot so pending reservations
+    // without ledger rows still show the correct balance due.
+    const balance = Math.max(ledgerBalance, reservationBalance)
 
     return success({
       reservation_id: reservationId,

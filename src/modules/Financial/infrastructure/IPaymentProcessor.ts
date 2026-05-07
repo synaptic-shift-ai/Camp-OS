@@ -22,6 +22,11 @@ export interface PaymentIntentParams {
   statementDescriptor?: string
   /** Receipt email for the payment */
   receiptEmail?: string
+  /**
+   * Persist the payment method for future usage.
+   * Stripe: maps to `setup_future_usage`.
+   */
+  setupFutureUsage?: 'on_session' | 'off_session'
   /** Enable automatic payment methods */
   automaticPaymentMethods?: boolean
   /**

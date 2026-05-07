@@ -95,6 +95,17 @@ interface BalanceData {
   guest_credit_balance: number
 }
 
+type GuestPaymentMethod = {
+  id: string
+  type: string
+  card: {
+    brand: string
+    last4: string
+    exp_month: number
+    exp_year: number
+  } | null
+}
+
 type StripeConfirmRefs = {
   stripe: Stripe | null
   elements: ReturnType<typeof useElements> | null
@@ -163,22 +174,15 @@ export function ManualPaymentDialog({
     stripe: null,
     elements: null,
   })
+  const [savedCardsLoading, setSavedCardsLoading] = useState(false)
+  const [savedCards, setSavedCards] = useState<GuestPaymentMethod[]>([])
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string>("")
   const { toast } = useToast()
   const isDarkMode = resolvedTheme === "dark"
 
-  // Match reservation ledger "Computed Balance": total_amount − paid_amount on the reservation.
-  // If the reservation snapshot is fully paid, always treat it as fully paid in this dialog,
-  // even if the financial ledger briefly disagrees (stale/legacy data).
+  // Prefer the financial ledger balance when available; fall back to the reservation snapshot.
   const snapshotOutstandingCents = Math.max(0, totalAmountCents - paidAmountCents)
-  const isSnapshotFullyPaid = snapshotOutstandingCents === 0
-  const ledgerOutstandingCents = apiBalance ?? null
-  // Only cap to ledger balance if the ledger has activity (apiBalance != null).
-  // If the ledger has no activity yet, rely on the reservation snapshot so we don't hide real balances due.
-  const cappedOutstandingCents =
-    ledgerOutstandingCents == null
-      ? snapshotOutstandingCents
-      : Math.min(snapshotOutstandingCents, ledgerOutstandingCents)
-  const outstandingBalance = isSnapshotFullyPaid ? 0 : cappedOutstandingCents
+  const outstandingBalance = apiBalance ?? snapshotOutstandingCents
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
@@ -192,6 +196,8 @@ export function ManualPaymentDialog({
   const showProcessor = METHODS_WITH_PROCESSOR.has(selectedMethod)
   const isStripeCardPayment =
     selectedMethod === "credit_card" && showProcessor && processor === "stripe" && !useCardOnFile
+  const isStripeSavedCardPayment =
+    selectedMethod === "credit_card" && showProcessor && processor === "stripe" && useCardOnFile
 
   // Fetch balance from financial API when dialog opens
   const fetchBalance = useCallback(async () => {
@@ -203,34 +209,39 @@ export function ManualPaymentDialog({
       const json = await res.json()
       if (json.success && json.data) {
         const data: BalanceData = json.data
-        const hasLedgerActivity =
-          data.charges_total !== 0 || data.payments_total !== 0 || data.refunds_total !== 0
-
-        if (!hasLedgerActivity) {
-          // Ledger has no rows yet; don't override the reservation snapshot.
-          setApiBalance(null)
-          return
-        }
-
-        // Ledger balance (charges − payments − refunds), floored at zero for display caps.
-        let ledgerOutstanding = Math.max(0, data.balance)
-
-        // No charge rows yet: API balance is often negative; align with reservation total vs ledger cash.
-        if (data.charges_total === 0) {
-          ledgerOutstanding = Math.max(
-            0,
-            totalAmountCents - data.payments_total - data.refunds_total,
-          )
-        }
-
-        setApiBalance(ledgerOutstanding)
+        setApiBalance(Math.max(0, data.balance))
       }
     } catch {
       // Silently fall back to snapshot-only balance (snapshotOutstandingCents)
     } finally {
       setBalanceLoading(false)
     }
-  }, [reservationId, totalAmountCents])
+  }, [reservationId])
+
+  const fetchSavedCards = useCallback(async () => {
+    if (!guestId) return
+    setSavedCardsLoading(true)
+    try {
+      const res = await fetch(`/api/v1/reservations/${reservationId}`, { credentials: "include" })
+      const json = await res.json().catch(() => null)
+      const propertyId = json?.data?.property_id as string | undefined
+      if (!propertyId) return
+
+      const params = new URLSearchParams({ property_id: propertyId, guest_id: guestId })
+      const pmRes = await fetch(`/api/v1/guest/payment-methods?${params.toString()}`, {
+        credentials: "include",
+      })
+      const pmJson = await pmRes.json().catch(() => null)
+      const list = (pmJson?.data?.payment_methods ?? pmJson?.payment_methods ?? []) as GuestPaymentMethod[]
+      setSavedCards(Array.isArray(list) ? list : [])
+      const firstCardId = Array.isArray(list) && list.length > 0 ? list[0]?.id : ""
+      setSelectedSavedCardId((prev) => prev || (typeof firstCardId === "string" ? firstCardId : ""))
+    } catch {
+      setSavedCards([])
+    } finally {
+      setSavedCardsLoading(false)
+    }
+  }, [guestId, reservationId])
 
   useEffect(() => {
     if (!open) return
@@ -245,17 +256,20 @@ export function ManualPaymentDialog({
     setStripeClientSecret(null)
     setStripeIntentLoading(false)
     setStripeConfirmRefs({ stripe: null, elements: null })
+    setSavedCards([])
+    setSelectedSavedCardId("")
 
     // Fetch balance and pre-fill amount
     fetchBalance().then(() => {
       // Will be set after fetchBalance completes and apiBalance is updated
     })
-  }, [open, fetchBalance, defaultPaymentMethod, defaultProcessor, defaultUseCardOnFile])
+    void fetchSavedCards()
+  }, [open, fetchBalance, fetchSavedCards, defaultPaymentMethod, defaultProcessor, defaultUseCardOnFile])
 
   // Pre-fill amount once balance is available
   useEffect(() => {
     if (!open) return
-    const balance = snapshotOutstandingCents === 0 ? 0 : Math.max(snapshotOutstandingCents, apiBalance ?? 0)
+    const balance = apiBalance ?? snapshotOutstandingCents
     if (balance > 0 && !amountDollars) {
       setAmountDollars((balance / 100).toFixed(2))
     }
@@ -378,6 +392,38 @@ export function ManualPaymentDialog({
             paymentIntent?.status === "succeeded"
               ? "Payment succeeded."
               : "Payment is processing. It will be recorded automatically.",
+          variant: "success",
+        })
+        onSuccess?.()
+        setOpen(false)
+        router.refresh()
+        return
+      }
+
+      if (isStripeSavedCardPayment) {
+        if (amountCents !== outstandingBalance) {
+          setError(`Card on file charges must match the full outstanding balance ($${balanceInDollars})`)
+          return
+        }
+        const response = await fetch(`/api/v1/financial/reservations/${reservationId}/charge-balance`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            ...(selectedSavedCardId ? { payment_method_id: selectedSavedCardId } : {}),
+          }),
+        })
+
+        const data = await response.json().catch(() => null)
+        if (!response.ok || !data?.success) {
+          const message =
+            data?.error?.message ?? data?.error?.details?.message ?? "Failed to charge card on file"
+          throw new Error(message)
+        }
+
+        toast({
+          title: "Payment recorded",
+          description: "Card on file has been charged successfully.",
           variant: "success",
         })
         onSuccess?.()
@@ -563,6 +609,33 @@ export function ManualPaymentDialog({
                     />
                   </div>
 
+                  {useCardOnFile && processor === "stripe" ? (
+                    <div className="space-y-2">
+                      <Label>Saved cards</Label>
+                      <Select
+                        value={selectedSavedCardId}
+                        onValueChange={setSelectedSavedCardId}
+                        disabled={savedCardsLoading || loading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={savedCardsLoading ? "Loading cards…" : "Select a saved card..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedCards.map((pm) => (
+                            <SelectItem key={pm.id} value={pm.id}>
+                              {pm.card
+                                ? `${pm.card.brand.toUpperCase()} •••• ${pm.card.last4} (exp ${pm.card.exp_month}/${String(pm.card.exp_year).slice(-2)})`
+                                : pm.type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Charging a saved card will charge the full outstanding balance.
+                      </p>
+                    </div>
+                  ) : null}
+
                   {/* Stripe card entry (shown when Processor = Stripe and not using card on file) */}
                   {isStripeCardPayment && (
                     <>
@@ -637,6 +710,7 @@ export function ManualPaymentDialog({
                   placeholder="$ 0.00"
                   value={amountDollars}
                   onChange={(e) => setAmountDollars(e.target.value)}
+                  disabled={loading || isStripeSavedCardPayment}
                 />
               </div>
             </>

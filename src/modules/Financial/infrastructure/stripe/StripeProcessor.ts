@@ -70,6 +70,7 @@ export class StripeProcessor implements IPaymentProcessor {
       intentParams.statement_descriptor_suffix = params.statementDescriptor.slice(0, 22)
     }
     if (params.receiptEmail) intentParams.receipt_email = params.receiptEmail
+    if (params.setupFutureUsage) intentParams.setup_future_usage = params.setupFutureUsage
     if (Array.isArray(params.paymentMethodTypes) && params.paymentMethodTypes.length > 0) {
       intentParams.payment_method_types = params.paymentMethodTypes
     } else if (params.automaticPaymentMethods !== false) {

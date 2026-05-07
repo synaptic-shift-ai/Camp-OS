@@ -47,8 +47,7 @@ const WEEKLY_DAY_VALUES = new Set<string>(WEEKLY_DAY_OPTIONS.map((o) => o.value)
 export type PreventiveScheduleFrequency = (typeof PREVENTIVE_FREQUENCY_OPTIONS)[number]["value"]
 
 export type AddPreventiveScheduleInput = {
-  /** When null, the schedule applies to all sites on the property. */
-  siteId: string | null
+  siteId: string
   assigneeId: string | null
   name: string
   description: string | null
@@ -68,11 +67,10 @@ type AddPreventiveDialogProps = {
   onSubmit: (input: AddPreventiveScheduleInput) => Promise<void>
 }
 
-const ALL_SITES_VALUE = "__preventive_all_sites__"
 const UNASSIGNED_VALUE = "__preventive_unassigned__"
 
 const INITIAL_FORM: AddPreventiveScheduleInput = {
-  siteId: null,
+  siteId: "",
   assigneeId: null,
   name: "",
   description: null,
@@ -94,12 +92,14 @@ export function AddPreventiveDialog({
 
   useEffect(() => {
     if (!open) return
-    setForm(INITIAL_FORM)
+    setForm((prev) => ({
+      ...INITIAL_FORM,
+      siteId: siteOptions[0]?.id ?? "",
+    }))
     setError(null)
-  }, [open])
+  }, [open, siteOptions])
 
-  const siteSelectValue =
-    form.siteId && siteOptions.some((s) => s.id === form.siteId) ? form.siteId : ALL_SITES_VALUE
+  const siteSelectValue = form.siteId && siteOptions.some((s) => s.id === form.siteId) ? form.siteId : ""
 
   const assigneeSelectValue =
     form.assigneeId && assigneeOptions.some((a) => a.id === form.assigneeId)
@@ -131,6 +131,7 @@ export function AddPreventiveDialog({
 
     const name = form.name.trim()
     const description = form.description?.trim() ? form.description.trim() : null
+    const siteId = form.siteId.trim()
 
     let days: string | null = form.days?.trim() ? form.days.trim() : null
     let scheduleDate: string | null = form.scheduleDate?.trim() ? form.scheduleDate.trim() : null
@@ -164,9 +165,15 @@ export function AddPreventiveDialog({
       return
     }
 
+    if (!siteId) {
+      setError("Site is required.")
+      return
+    }
+
     try {
       await onSubmit({
         ...form,
+        siteId,
         name,
         description,
         days,
@@ -238,10 +245,6 @@ export function AddPreventiveDialog({
               <Select
                 value={siteSelectValue}
                 onValueChange={(value) => {
-                  if (value === ALL_SITES_VALUE) {
-                    setForm((prev) => ({ ...prev, siteId: null }))
-                    return
-                  }
                   setForm((prev) => ({ ...prev, siteId: value }))
                 }}
                 disabled={isSubmitting}
@@ -254,7 +257,6 @@ export function AddPreventiveDialog({
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL_SITES_VALUE}>All sites</SelectItem>
                   {siteOptions.map((site) => (
                     <SelectItem key={site.id} value={site.id}>
                       {site.label}

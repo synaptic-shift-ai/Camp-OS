@@ -30,7 +30,7 @@ import {
 export type AddPreventiveScheduleInput = {
   name: string
   description: string | null
-  site_id: string | null
+  site_id: string
   assigned_to: string | null
   frequency: "weekly" | "monthly" | "annual"
   days: string | null
@@ -67,7 +67,7 @@ type EditScheduleDialogProps = {
 const EMPTY_FORM: AddPreventiveScheduleInput = {
   name: "",
   description: null,
-  site_id: null,
+  site_id: "",
   assigned_to: null,
   frequency: "weekly",
   days: null,
@@ -93,8 +93,6 @@ const DAY_OPTIONS = [
   { value: "Saturday", label: "Saturday" },
   { value: "Sunday", label: "Sunday" },
 ]
-
-const SITE_PLACEHOLDER_VALUE = "__schedule_edit_site_unselected__"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -125,7 +123,7 @@ export function EditScheduleDialog({
     setForm({
       name: schedule.name ?? "",
       description: schedule.description ?? null,
-      site_id: schedule.site_id ?? null,
+      site_id: schedule.site_id ?? "",
       assigned_to: schedule.assigned_to ?? null,
       frequency: (schedule.frequency as AddPreventiveScheduleInput["frequency"]) ?? "weekly",
       days: schedule.days ?? null,
@@ -142,9 +140,14 @@ export function EditScheduleDialog({
       setError("Schedule name is required.")
       return
     }
+    const siteId = form.site_id.trim()
+    if (!siteId) {
+      setError("Site is required.")
+      return
+    }
 
     try {
-      const nextForm = { ...form, name }
+      const nextForm = { ...form, name, site_id: siteId }
       if (nextForm.frequency === "monthly") {
         const dayStr = toDayOfMonth(nextForm.schedule_date)
         const day = dayStr ? Number.parseInt(dayStr, 10) : NaN
@@ -170,9 +173,7 @@ export function EditScheduleDialog({
   }
 
   const siteSelectValue =
-    form.site_id && siteOptions.some((site) => site.id === form.site_id)
-      ? form.site_id
-      : SITE_PLACEHOLDER_VALUE
+    form.site_id && siteOptions.some((site) => site.id === form.site_id) ? form.site_id : ""
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -208,10 +209,6 @@ export function EditScheduleDialog({
               <Select
                 value={siteSelectValue}
                 onValueChange={(value) => {
-                  if (value === SITE_PLACEHOLDER_VALUE) {
-                    setForm((prev) => ({ ...prev, site_id: null }))
-                    return
-                  }
                   setForm((prev) => ({ ...prev, site_id: value }))
                 }}
               >
@@ -219,9 +216,6 @@ export function EditScheduleDialog({
                   <SelectValue placeholder="Select a site" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SITE_PLACEHOLDER_VALUE} className="text-muted-foreground">
-                    All sites
-                  </SelectItem>
                   {siteOptions.map((site) => (
                     <SelectItem key={site.id} value={site.id}>
                       {site.label}

@@ -253,12 +253,13 @@ export function VendorsTable({
       </div>
 
       <div className="hidden overflow-x-auto border border-border/80 bg-card/50 md:block">
-        <Table className="w-full min-w-[860px] table-fixed text-xs lg:min-w-0">
+        <Table className="w-full min-w-[700px] table-fixed text-xs lg:min-w-0">
           <colgroup>
+            <col className="w-[10%]" />
+            <col className="w-[22%]" />
             <col className="w-[14%]" />
-            <col className="w-[28%]" />
             <col className="w-[18%]" />
-            <col className="w-[24%]" />
+            <col className="w-[14%]" />
             <col className="w-[10%]" />
             <col className="w-[6%]" />
           </colgroup>
@@ -274,6 +275,9 @@ export function VendorsTable({
               <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">
                 Contact
               </TableHead>
+              <TableHead className="px-3 py-2 font-medium text-black/90 dark:text-white/90">
+                Phone
+              </TableHead>
               <TableHead className="px-2 py-2 font-medium text-black/90 dark:text-white/90">
                 Linked WOs
               </TableHead>
@@ -285,7 +289,7 @@ export function VendorsTable({
           <TableBody>
             {vendors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   No vendors added yet.
                 </TableCell>
               </TableRow>
@@ -311,6 +315,11 @@ export function VendorsTable({
                   <TableCell className="px-3 py-2 text-sm text-muted-foreground">
                     <span className="block truncate" title={vendor.contact}>
                       {vendor.contact}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-sm text-muted-foreground">
+                    <span className="block truncate" title={vendor.phone ?? undefined}>
+                      {vendor.phone ?? "—"}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap px-2 py-2 text-sm text-muted-foreground">

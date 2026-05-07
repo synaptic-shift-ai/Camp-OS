@@ -81,7 +81,8 @@ export async function GET(
       .from('maintenance_tasks')
       .select(
         `*,
-         site:sites(site_name, site_number, site_type)`,
+         site:sites(site_name, site_number, site_type),
+         vendor:property_vendor(name, phone, email, service_type)`,
       )
       .eq('id', maintenanceId)
       .eq('property_id', propertyId)

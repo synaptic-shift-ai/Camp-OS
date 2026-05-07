@@ -385,6 +385,22 @@ export async function POST(
                 if (conflicts.length > 0) {
                     bookingConflictWarning = `${conflicts.length} existing maintenance task${conflicts.length === 1 ? '' : 's'} overlap with the scheduled window.`
                 }
+
+                // Also check for reservation conflicts
+                const { count: resCount, error: resError } = await supabase
+                    .from('reservations')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('site_id', parsed.data.siteId)
+                    .in('status', ['confirmed', 'checked_in', 'pending'])
+                    .lt('check_in_date', parsed.data.dueDate)
+                    .gt('check_out_date', parsed.data.scheduledStart)
+
+                if (!resError && resCount != null && resCount > 0) {
+                    const resNote = `${resCount} reservation${resCount === 1 ? '' : 's'} overlap with the scheduled window.`
+                    bookingConflictWarning = bookingConflictWarning
+                        ? `${bookingConflictWarning} ${resNote}`
+                        : resNote
+                }
             } catch {
                 // Non-blocking: conflict check failures should not prevent creation
             }

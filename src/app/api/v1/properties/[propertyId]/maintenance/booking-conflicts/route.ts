@@ -63,7 +63,25 @@ export async function GET(
             parsed.data.endDate,
         )
 
-        return success({ conflicts }, request)
+        // Check for overlapping reservations
+        let reservationConflicts = 0
+        try {
+            const { count: resCount, error: resError } = await supabase
+                .from('reservations')
+                .select('id', { count: 'exact', head: true })
+                .eq('site_id', parsed.data.siteId)
+                .in('status', ['confirmed', 'checked_in', 'pending'])
+                .lt('check_in_date', parsed.data.endDate)
+                .gt('check_out_date', parsed.data.startDate)
+
+            if (!resError && resCount != null) {
+                reservationConflicts = resCount
+            }
+        } catch {
+            // Non-blocking
+        }
+
+        return success({ maintenanceConflicts: conflicts.length, reservationConflicts }, request)
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         console.error('[Maintenance booking-conflicts API v1] GET error:', err)

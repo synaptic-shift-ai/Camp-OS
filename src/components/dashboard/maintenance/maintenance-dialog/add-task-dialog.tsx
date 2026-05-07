@@ -146,7 +146,8 @@ const SITE_PLACEHOLDER_VALUE = "__maintenance_site_unselected__"
 export const SOURCE_OPTIONS = ["Guest", "Housekeeping", "Staff", "PM", "Checkout"] as const
 
 function BookingConflictWarning({ siteId, startDate, endDate }: { siteId: string; startDate: string; endDate: string }) {
-  const [conflictCount, setConflictCount] = useState<number | null>(null)
+  const [maintenanceConflicts, setMaintenanceConflicts] = useState<number | null>(null)
+  const [reservationConflicts, setReservationConflicts] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -155,23 +156,37 @@ function BookingConflictWarning({ siteId, startDate, endDate }: { siteId: string
       .then((res) => res.json())
       .then((json) => {
         if (cancelled) return
-        if (json?.success && Array.isArray(json.data?.conflicts)) {
-          setConflictCount(json.data.conflicts.length)
+        if (json?.success) {
+          setMaintenanceConflicts(json.data?.maintenanceConflicts ?? 0)
+          setReservationConflicts(json.data?.reservationConflicts ?? 0)
         } else {
-          setConflictCount(null)
+          setMaintenanceConflicts(null)
+          setReservationConflicts(null)
         }
       })
       .catch(() => {
-        if (!cancelled) setConflictCount(null)
+        if (!cancelled) {
+          setMaintenanceConflicts(null)
+          setReservationConflicts(null)
+        }
       })
     return () => { cancelled = true }
   }, [siteId, startDate, endDate])
 
-  if (conflictCount === null || conflictCount === 0) return null
+  if ((maintenanceConflicts === null && reservationConflicts === null) || (maintenanceConflicts === 0 && reservationConflicts === 0)) return null
 
   return (
-    <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-600 dark:bg-red-950/30 dark:text-red-400">
-      ⚠ This site has {conflictCount} active maintenance task{conflictCount === 1 ? "" : "s"} overlapping with the selected dates.
+    <div className="space-y-2">
+      {maintenanceConflicts !== null && maintenanceConflicts > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+          ⚠ This site has {maintenanceConflicts} active maintenance task{maintenanceConflicts === 1 ? "" : "s"} overlapping with the selected dates.
+        </div>
+      )}
+      {reservationConflicts !== null && reservationConflicts > 0 && (
+        <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-600 dark:bg-red-950/30 dark:text-red-400">
+          ⚠ This site has {reservationConflicts} reservation{reservationConflicts === 1 ? "" : "s"} overlapping with the selected dates.
+        </div>
+      )}
     </div>
   )
 }

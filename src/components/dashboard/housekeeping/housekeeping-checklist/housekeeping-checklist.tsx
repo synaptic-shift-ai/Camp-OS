@@ -298,7 +298,9 @@ export function HousekeepingChecklistPanel({
                   <p className="truncate text-base font-semibold leading-tight text-foreground">{row.name}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {description ? (
-                      <span className="line-clamp-2 break-words">{description}</span>
+                      <span className="line-clamp-2 break-words" title={description}>
+                        {description}
+                      </span>
                     ) : (
                       "—"
                     )}
@@ -337,49 +339,63 @@ export function HousekeepingChecklistPanel({
       </div>
 
       <div className="hidden border border-border/80 bg-card/50 md:block md:overflow-x-auto">
-      <Table className="min-w-[1200px] table-fixed text-xs">
+      <Table className="min-w-[720px] w-full table-fixed text-xs">
         <colgroup>
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "20%" }} />
+          <col style={{ width: "18%" }} />
+          <col style={{ width: "54%" }} />
+          <col style={{ width: "6%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "8%" }} />
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-red-50 dark:bg-red-950/30 uppercase">
           <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
-            <TableHead className="px-4 py-2 text-left font-medium text-black/90 dark:text-white/90">Name</TableHead>
-            <TableHead className="px-4 py-2 text-left font-medium text-black/90 dark:text-white/90">
+            <TableHead className="px-3 py-2 text-left font-medium text-black/90 dark:text-white/90">Name</TableHead>
+            <TableHead className="px-3 py-2 text-left font-medium text-black/90 dark:text-white/90">
               Description
             </TableHead>
-            <TableHead className="px-3 py-2 text-right font-medium text-black/90 dark:text-white/90">Items</TableHead>
-            <TableHead className="px-3 py-2 text-right font-medium text-black/90 dark:text-white/90">Created</TableHead>
-            <TableHead className="px-3 py-2 text-right font-medium text-black/90 dark:text-white/90">Actions</TableHead>
+            <TableHead className="px-2 py-2 text-right font-medium whitespace-nowrap text-black/90 dark:text-white/90">
+              Items
+            </TableHead>
+            <TableHead className="px-2 py-2 text-right font-medium whitespace-nowrap text-black/90 dark:text-white/90">
+              Created
+            </TableHead>
+            <TableHead className="px-2 py-2 text-right font-medium whitespace-nowrap text-black/90 dark:text-white/90">
+              Actions
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageRows.map((row) => {
             const itemCount = countChecklistItems(row.item)
             const createdLabel = formatShortDate(row.created_at)
+            const description = row.description?.trim() ? row.description.trim() : null
             return (
               <TableRow
                 key={row.id}
                 className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
               >
-                <TableCell className="px-3 py-2 align-top">
+                <TableCell className="max-w-0 px-3 py-2 align-top">
                   <div className="break-words text-sm font-semibold leading-snug text-foreground">{row.name}</div>
                 </TableCell>
-                <TableCell className="px-3 py-2 align-top">
-                  <div className="break-words text-sm leading-snug text-muted-foreground">
-                    {row.description?.trim() ? row.description.trim() : "—"}
-                  </div>
+                <TableCell className="max-w-0 px-3 py-2 align-top">
+                  {description ? (
+                    <div
+                      className="line-clamp-2 break-words text-sm leading-snug text-muted-foreground"
+                      title={description}
+                    >
+                      {description}
+                    </div>
+                  ) : (
+                    <div className="text-sm leading-snug text-muted-foreground">—</div>
+                  )}
                 </TableCell>
-                <TableCell className="px-3 py-2 text-right align-middle text-sm tabular-nums text-muted-foreground">
+                <TableCell className="px-2 py-2 text-right align-middle text-sm tabular-nums whitespace-nowrap text-muted-foreground">
                   {itemCount}
                 </TableCell>
-                <TableCell className="px-3 py-2 text-right align-middle text-sm text-muted-foreground whitespace-nowrap">
+                <TableCell className="px-2 py-2 text-right align-middle text-sm text-muted-foreground whitespace-nowrap">
                   {createdLabel}
                 </TableCell>
-                <TableCell className="px-3 py-2 align-middle">
+                <TableCell className="px-2 py-2 align-middle">
                   <ChecklistActionsMenu
                     row={row}
                     canEditChecklist={canEditChecklist}

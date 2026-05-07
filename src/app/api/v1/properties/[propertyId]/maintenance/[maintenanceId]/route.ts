@@ -632,7 +632,11 @@ export async function PATCH(
       const scheduleId = (maintenanceTask as any).schedule_id
       if (scheduleId) {
         try {
-          await queries.generateNextWorkOrder(scheduleId, new Date())
+          await queries.generateNextWorkOrder(scheduleId, {
+            completedAt: new Date(),
+            previousScheduledStart:
+              (maintenanceTask as { scheduled_start?: string | null }).scheduled_start ?? null,
+          })
         } catch {
           // Silently fail — don't block completion
         }

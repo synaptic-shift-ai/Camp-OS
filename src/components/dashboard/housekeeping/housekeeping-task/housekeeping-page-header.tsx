@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { ExportMenu } from "@/components/ui/export-menu"
 import { ClipboardList, Plus } from "lucide-react"
 import type { HousekeepingViewMode } from "../housekeeping-view-switcher"
 
@@ -35,6 +36,12 @@ export function HousekeepingPageHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <ExportMenu
+          onExport={(format) => onExportClick?.(format)}
+          aria-label="Export housekeeping tasks"
+          disabled={!onExportClick || pendingTasksCount === 0}
+        />
+
         {canCreateTask && (viewMode === "tasks" || viewMode === "checklist") && (
           <Button
             type="button"

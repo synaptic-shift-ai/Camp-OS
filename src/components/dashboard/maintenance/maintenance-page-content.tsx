@@ -495,28 +495,150 @@ export function MaintenancePageContent({
     void loadTasks()
   }
 
-  const handleExport = (format: string) => {
+  const handleExport = async (format: string) => {
     if (format !== "csv") return
 
-    const filename = buildExportFilename("MAINTENANCE")
-    exportToCsv<MaintenanceTaskRow>(filename, filteredRows, [
-      { key: "siteName", header: "Site" },
-      { key: "task", header: "Task" },
-      {
-        key: "assignee",
-        header: "Asignee",
-        accessor: (row) => row.assignee ?? "Unassigned",
-      },
-      { key: "status", header: "Status" },
-      { key: "priority", header: "Priority" },
-      { key: "category", header: "Category", accessor: (row) => row.category ?? "—" },
-    ])
+    try {
+      const filename = buildExportFilename("MAINTENANCE")
+      const params = new URLSearchParams()
+      const search = debouncedFilters.search.trim()
+      if (search.length > 0) params.set("search", search)
+      if (debouncedFilters.status !== "all") {
+        params.set("status", toApiStatus(debouncedFilters.status as AddMaintenanceTaskInput["status"]))
+      }
+      const priorityParam = filterPriorityToApi(debouncedFilters.priority)
+      if (priorityParam) params.set("priority", priorityParam)
+      const sourceParam = filterSourceToApi(debouncedFilters.source)
+      if (sourceParam) params.set("source", sourceParam)
+      const categoryParam = filterCategoryToApi(debouncedFilters.category)
+      if (categoryParam) params.set("category", categoryParam)
+      if (debouncedFilters.siteId !== "all") params.set("siteId", debouncedFilters.siteId)
+      if (showAssigneeFilter && debouncedFilters.assigneeId !== "all") {
+        params.set("assigneeId", debouncedFilters.assigneeId)
+      }
 
-    toast({
-      title: "Export ready",
-      description: "Maintenance CSV has been downloaded.",
-      variant: "success",
-    })
+      const opts = assigneeOptionsRef.current
+      const assigneeLabelById = new Map(opts.map((option) => [option.id, option.label]))
+
+      const exportRows: MaintenanceTaskRow[] = []
+      const exportPerPage = 500
+      let exportPage = 1
+      let totalFromApi: number | null = null
+
+      while (true) {
+        const pageParams = new URLSearchParams(params)
+        pageParams.set("page", String(exportPage))
+        pageParams.set("per_page", String(exportPerPage))
+        const query = pageParams.toString()
+        const response = await fetch(
+          `/api/v1/properties/${propertyId}/maintenance${query ? `?${query}` : ""}`,
+        )
+        const payload = await response.json()
+        if (!response.ok || !payload?.success) {
+          const message =
+            payload?.error?.details?.message ??
+            payload?.error?.message ??
+            "Export failed."
+          throw new Error(message)
+        }
+
+        const tasks = (payload.data?.tasks ?? []) as ApiMaintenanceTask[]
+        if (totalFromApi == null && typeof payload.data?.total === "number") {
+          totalFromApi = payload.data.total
+        }
+
+        const mapped: MaintenanceTaskRow[] = tasks.map((task) => {
+          const siteTypeLabel = toSiteTypeLabel(task.site?.site_type)
+          return {
+            id: task.id,
+            woNumber: (task as any).wo_number ?? null,
+            siteId: task.site_id,
+            siteName: task.site?.site_name?.trim() || task.site?.site_number || "Unknown site",
+            ...(siteTypeLabel ? { siteTypeLabel } : {}),
+            task: task.title,
+            assigneeId: task.staff_id,
+            description: task.description,
+            assignee: task.staff_id
+              ? (assigneeLabelById.get(task.staff_id) ?? "Assigned")
+              : task.vendor_id
+                ? "Vendor Assigned"
+                : null,
+            status: fromApiStatus(task.status),
+            priority: fromApiPriority(task.priority),
+            ...(task.category ? { category: maintenanceCategoryLabel(task.category) } : {}),
+            source: fromApiSource(task.source),
+            estimatedLaborCost: task.estimated_labor_cost,
+            estimatedPartsCost: task.estimated_parts_cost,
+            isSuspectedDamage: task.is_suspected_damage ?? false,
+            vendorId: task.vendor_id,
+            guideId: task.guide_id ?? null,
+            sla: task.sla,
+            scheduledStart: normalizeUtcCalendarStartForUi(task.scheduled_start ?? null),
+            dueDate: normalizeUtcCalendarEndForUi(task.due_date ?? null),
+            createdAt: task.created_at,
+            startedAt: task.started_at ?? null,
+          }
+        })
+
+        exportRows.push(...mapped)
+
+        if (tasks.length < exportPerPage) break
+        if (totalFromApi != null && exportRows.length >= totalFromApi) break
+        exportPage += 1
+      }
+
+      exportToCsv<MaintenanceTaskRow>(filename, exportRows, [
+        { key: "woNumber", header: "Work Order", accessor: (row) => row.woNumber ?? row.id },
+        { key: "siteName", header: "Site" },
+        { key: "siteTypeLabel", header: "Site Type", accessor: (row) => row.siteTypeLabel ?? "—" },
+        { key: "task", header: "Task" },
+        { key: "description", header: "Description", accessor: (row) => row.description ?? "—" },
+        { key: "category", header: "Category", accessor: (row) => row.category ?? "—" },
+        { key: "source", header: "Source", accessor: (row) => row.source ?? "—" },
+        { key: "sla", header: "SLA (hours)", accessor: (row) => row.sla ?? "" },
+        { key: "scheduledStart", header: "Scheduled Start", accessor: (row) => row.scheduledStart ?? "—" },
+        { key: "dueDate", header: "Due Date", accessor: (row) => row.dueDate ?? "—" },
+        {
+          key: "assignee",
+          header: "Assignee",
+          accessor: (row) => row.assignee ?? "Unassigned",
+        },
+        { key: "status", header: "Status" },
+        { key: "priority", header: "Priority" },
+        {
+          key: "estimatedLaborCost",
+          header: "Estimated Labor Cost",
+          accessor: (row) => row.estimatedLaborCost ?? "",
+        },
+        {
+          key: "estimatedPartsCost",
+          header: "Estimated Parts Cost",
+          accessor: (row) => row.estimatedPartsCost ?? "",
+        },
+        {
+          key: "totalEstimatedCost",
+          header: "Estimated Total Cost",
+          accessor: (row) => (row.estimatedLaborCost ?? 0) + (row.estimatedPartsCost ?? 0),
+        },
+        { key: "vendorId", header: "Vendor ID", accessor: (row) => row.vendorId ?? "—" },
+        { key: "guideId", header: "Guide ID", accessor: (row) => row.guideId ?? "—" },
+        { key: "createdAt", header: "Created At", accessor: (row) => row.createdAt ?? "—" },
+        { key: "startedAt", header: "Started At", accessor: (row) => row.startedAt ?? "—" },
+      ])
+
+      toast({
+        title: "Export ready",
+        description: `Maintenance CSV has been downloaded (${exportRows.length} work orders).`,
+        variant: "success",
+      })
+    } catch (exportError) {
+      const message = exportError instanceof Error ? exportError.message : "Export failed."
+      toast({
+        title: "Export failed",
+        description: message,
+        variant: "destructive",
+      })
+    }
   }
 
   const handleAddPreventiveSchedule = async (input: AddPreventiveScheduleInput) => {

@@ -255,13 +255,13 @@ export function VendorsTable({
       <div className="hidden overflow-x-auto border border-border/80 bg-card/50 md:block">
         <Table className="w-full min-w-[700px] table-fixed text-xs lg:min-w-0">
           <colgroup>
-            <col className="w-[10%]" />
-            <col className="w-[22%]" />
-            <col className="w-[14%]" />
-            <col className="w-[18%]" />
-            <col className="w-[14%]" />
-            <col className="w-[10%]" />
-            <col className="w-[6%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[7%]" />
           </colgroup>
           <TableHeader className="sticky top-0 z-10 bg-red-50 uppercase dark:bg-red-950/30">
             <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">

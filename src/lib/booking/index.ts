@@ -35,6 +35,8 @@ export type {
 } from './types'
 
 // Export all API functions
+export type { CheckSiteAvailabilityOptions } from './availability'
+
 export {
   // Availability
   searchAvailableSites,

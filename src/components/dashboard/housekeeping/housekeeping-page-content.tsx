@@ -344,34 +344,108 @@ export function HousekeepingPageContent({
     void loadTasks()
   }
 
-  const handleExport = (format: string) => {
+  const handleExport = async (format: string) => {
     if (format !== "csv") return
 
-    const filename = buildExportFilename("HOUSEKEEPING")
-    exportToCsv<HousekeepingTaskRow>(filename, rows, [
-      { key: "siteName", header: "Site" },
-      { key: "task", header: "Task" },
-      {
-        key: "description",
-        header: "Description",
-        accessor: (row) => row.description ?? "—",
-      },
-      {
-        key: "assignee",
-        header: "Asignee",
-        accessor: (row) => row.assignee ?? "Unassigned",
-      },
-      { key: "status", header: "Status" },
-      { key: "priority", header: "Priority" },
-      { key: "dueTime", header: "Due Time" },
-      { key: "zone", header: "Zone", accessor: (row) => row.zone ?? "—" },
-    ])
+    try {
+      const filename = buildExportFilename("HOUSEKEEPING")
+      const params = new URLSearchParams()
+      const search = filtersForApi.search.trim()
+      if (search.length > 0) params.set("search", search)
+      if (filtersForApi.siteId !== "all") params.set("siteId", filtersForApi.siteId)
+      if (filtersForApi.assigneeId !== "all") params.set("assigneeId", filtersForApi.assigneeId)
+      const statusParam = filterStatusToApi(filtersForApi.status)
+      if (statusParam) params.set("status", statusParam)
+      const priorityParam = filterPriorityToApi(filtersForApi.priority)
+      if (priorityParam) params.set("priority", priorityParam)
 
-    toast({
-      title: "Export ready",
-      description: "Housekeeping CSV has been downloaded (current page only).",
-      variant: "success",
-    })
+      const opts = assigneeOptionsRef.current
+      const assigneeLabelById = new Map(opts.map((option) => [option.id, option.label]))
+
+      const exportRows: HousekeepingTaskRow[] = []
+      const exportPerPage = 100
+      let exportPage = 1
+      let totalFromApi: number | null = null
+
+      while (true) {
+        const pageParams = new URLSearchParams(params)
+        pageParams.set("page", String(exportPage))
+        pageParams.set("per_page", String(exportPerPage))
+        const query = pageParams.toString()
+        const response = await fetch(
+          `/api/v1/properties/${propertyId}/housekeeping${query ? `?${query}` : ""}`,
+        )
+        const payload = await response.json()
+        if (!response.ok || !payload?.success) {
+          const message =
+            payload?.error?.details?.message ??
+            payload?.error?.message ??
+            "Export failed."
+          throw new Error(message)
+        }
+
+        const tasks = (payload.data?.tasks ?? []) as ApiHousekeepingTask[]
+        if (totalFromApi == null && typeof payload.data?.total === "number") {
+          totalFromApi = payload.data.total
+        }
+
+        const mapped: HousekeepingTaskRow[] = tasks.map((task) => ({
+          id: task.id,
+          siteId: task.site_id,
+          siteName: task.site?.site_name?.trim() || task.site?.site_number || "Unknown site",
+          reservationConfirmationId: task.reservation?.confirmation_number?.trim() || null,
+          checklistId: task.checklist_id,
+          checklistItemDone: task.checklist_item_done ?? [],
+          task: task.title,
+          description: task.description,
+          assigneeId: task.staff_id,
+          assignee: task.staff_id ? (assigneeLabelById.get(task.staff_id) ?? "Assigned") : null,
+          status: fromApiStatus(task.status),
+          priority: fromApiPriority(task.priority),
+          startDate: formatTaskDate(task.start_date),
+          dueDate: formatTaskDate(task.end_date),
+          startDateValue: toDatetimeLocalValue(task.start_date),
+          dueDateValue: toDatetimeLocalValue(task.end_date),
+          dueTime: formatTaskDate(task.end_date),
+          zone: "Unassigned",
+        }))
+
+        exportRows.push(...mapped)
+
+        if (tasks.length < exportPerPage) break
+        if (totalFromApi != null && exportRows.length >= totalFromApi) break
+        exportPage += 1
+      }
+
+      exportToCsv<HousekeepingTaskRow>(filename, exportRows, [
+        { key: "id", header: "Task ID" },
+        { key: "siteName", header: "Site" },
+        { key: "reservationConfirmationId", header: "Reservation", accessor: (row) => row.reservationConfirmationId ?? "—" },
+        { key: "task", header: "Task" },
+        { key: "description", header: "Description", accessor: (row) => row.description ?? "—" },
+        { key: "assignee", header: "Assignee", accessor: (row) => row.assignee ?? "Unassigned" },
+        { key: "status", header: "Status" },
+        { key: "priority", header: "Priority" },
+        { key: "startDate", header: "Start Date", accessor: (row) => row.startDate ?? "—" },
+        { key: "dueDate", header: "Due Date", accessor: (row) => row.dueDate ?? "—" },
+        { key: "dueTime", header: "Due Time", accessor: (row) => row.dueTime ?? "—" },
+        { key: "zone", header: "Zone", accessor: (row) => row.zone ?? "—" },
+        { key: "checklistId", header: "Checklist ID", accessor: (row) => row.checklistId ?? "—" },
+      ])
+
+      toast({
+        title: "Export ready",
+        description: `Housekeeping CSV has been downloaded (${exportRows.length} tasks).`,
+        variant: "success",
+      })
+    } catch (exportError) {
+      const message = exportError instanceof Error ? exportError.message : "Export failed."
+      toast({
+        title: "Export failed",
+        description: message,
+        variant: "destructive",
+      })
+    }
   }
 
   const handleSaveChecklistTemplate = async (input: AddChecklistTemplateInput) => {

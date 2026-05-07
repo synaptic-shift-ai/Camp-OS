@@ -33,10 +33,11 @@ export function MaintenancePageHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {/* <ExportMenu
+        <ExportMenu
           onExport={(format) => onExportClick?.(format)}
           aria-label="Export maintenance tasks"
-        /> */}
+          disabled={!onExportClick || openTasksCount === 0}
+        />
 
         {showPrimaryAction && onPrimaryActionClick ? (
           <Button type="button" size="sm" onClick={onPrimaryActionClick}>

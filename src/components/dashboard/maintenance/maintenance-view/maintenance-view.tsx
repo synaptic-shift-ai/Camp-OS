@@ -8,13 +8,16 @@ import {
   Ban,
   CheckCircle2,
   Clock,
+  FileText,
   Loader2,
   Pause,
   Play,
   RotateCcw,
   Save,
   SlidersHorizontal,
+  Trash2,
   Truck,
+  Upload,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -211,6 +214,11 @@ export function MaintenanceView({
   const [isAssigningVendor, setIsAssigningVendor] = useState(false)
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false)
   const [isCompletingVendor, setIsCompletingVendor] = useState(false)
+  // Invoice files state
+  const [invoiceFiles, setInvoiceFiles] = useState<TaskImageItem[]>([])
+  const [invoiceFilesLoading, setInvoiceFilesLoading] = useState(false)
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false)
+  const invoiceFileInputRef = useRef<HTMLInputElement>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastProgressTimerEndMsRef = useRef(Date.now())
   const [now, setNow] = useState(Date.now())
@@ -320,6 +328,126 @@ export function MaintenanceView({
   useEffect(() => {
     void loadTaskImages()
   }, [loadTaskImages])
+
+  const loadInvoiceFiles = useCallback(async () => {
+    setInvoiceFilesLoading(true)
+    try {
+      const response = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}/images?task_type=maintenance_invoice`,
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        const message = payload?.error?.message ?? "Failed to load invoice files."
+        throw new Error(message)
+      }
+      const files = Array.isArray(payload?.data?.images)
+        ? payload.data.images.map((row: { id: string; storage_path: string }) => ({
+            id: row.id,
+            storagePath: row.storage_path,
+          }))
+        : []
+      setInvoiceFiles(files)
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : "Failed to load invoice files."
+      toast({
+        title: "Unable to load invoice files",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setInvoiceFilesLoading(false)
+    }
+  }, [maintenanceId, propertyId, toast])
+
+  useEffect(() => {
+    void loadInvoiceFiles()
+  }, [loadInvoiceFiles])
+
+  const handleUploadInvoice = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setIsUploadingInvoice(true)
+    let registeredCount = 0
+    let registerFailedCount = 0
+    try {
+      const supabase = createClient()
+      for (const file of Array.from(files)) {
+        const isPdf = file.type === "application/pdf"
+        const isImage = file.type.startsWith("image/")
+        if (!isPdf && !isImage) continue
+        if (file.size > 10 * 1024 * 1024) {
+          toast({ title: "File too large", description: `${file.name} exceeds the 10MB limit.`, variant: "destructive" })
+          continue
+        }
+        const ext = file.name.split(".").pop() ?? "bin"
+        const storagePath = `property/${propertyId}/maintenance/${maintenanceId}/invoices/${crypto.randomUUID()}-${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from(TASK_IMAGES_BUCKET)
+          .upload(storagePath, file, { cacheControl: "3600", upsert: false })
+        if (uploadError) {
+          toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" })
+          continue
+        }
+        const res = await fetch(
+          `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}/images`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ storagePath, taskType: "maintenance_invoice" }),
+          },
+        )
+        const payload = await res.json().catch(() => null)
+        if (!res.ok || !payload?.success) {
+          registerFailedCount += 1
+          const message =
+            (typeof payload?.error?.message === "string" && payload.error.message) ||
+            (typeof payload?.error?.details?.message === "string" && payload.error.details.message) ||
+            "Could not save file to the work order."
+          toast({
+            title: "Failed to register file",
+            description: `${file.name}: ${message}`,
+            variant: "destructive",
+          })
+          continue
+        }
+        registeredCount += 1
+      }
+      if (registeredCount > 0 && registerFailedCount === 0) {
+        toast({ title: "Invoice files uploaded", variant: "success" })
+      } else if (registeredCount > 0 && registerFailedCount > 0) {
+        toast({
+          title: "Some invoice files could not be saved",
+          description: `${registeredCount} saved, ${registerFailedCount} failed.`,
+          variant: "destructive",
+        })
+      }
+      void loadInvoiceFiles()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to upload invoice files."
+      toast({ title: "Upload error", description: message, variant: "destructive" })
+    } finally {
+      setIsUploadingInvoice(false)
+      if (invoiceFileInputRef.current) invoiceFileInputRef.current.value = ""
+    }
+  }, [propertyId, maintenanceId, loadInvoiceFiles, toast])
+
+  const handleDeleteInvoice = useCallback(async (imageId: string) => {
+    try {
+      const res = await fetch(
+        `/api/v1/properties/${propertyId}/maintenance/${maintenanceId}/images/${imageId}`,
+        { method: "DELETE" },
+      )
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        const message = payload?.error?.details?.message ?? payload?.error?.message ?? "Failed to delete file."
+        throw new Error(message)
+      }
+      toast({ title: "File deleted", variant: "success" })
+      void loadInvoiceFiles()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete file."
+      toast({ title: "Unable to delete", description: message, variant: "destructive" })
+    }
+  }, [propertyId, maintenanceId, loadInvoiceFiles, toast])
 
   useEffect(() => {
     if (!task?.guide_id) {
@@ -1485,6 +1613,86 @@ export function MaintenanceView({
                     <p className="text-xs text-muted-foreground mb-1">Resolution Notes</p>
                     <p className="text-sm whitespace-pre-wrap">{task.closeout_notes}</p>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {(task.vendor_invoice_number || task.vendor_invoice_cost || task.status === "in_progress_vendor") && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Invoice Files</CardTitle>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={isUploadingInvoice}
+                    onClick={() => invoiceFileInputRef.current?.click()}
+                  >
+                    {isUploadingInvoice ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    Upload
+                  </Button>
+                  <input
+                    ref={invoiceFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,application/pdf"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => { void handleUploadInvoice(e.target.files) }}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {invoiceFilesLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : invoiceFiles.length > 0 ? (
+                  <ul className="space-y-2">
+                    {invoiceFiles.map((file) => {
+                      const isPdf = file.storagePath.toLowerCase().endsWith(".pdf")
+                      const publicUrl = createClient().storage.from(TASK_IMAGES_BUCKET).getPublicUrl(file.storagePath).data.publicUrl
+                      const fileName = file.storagePath.split("/").pop() ?? "file"
+                      return (
+                        <li key={file.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                          {isPdf ? (
+                            <FileText className="h-4 w-4 shrink-0 text-red-500" aria-hidden />
+                          ) : (
+                            <Image
+                              src={publicUrl}
+                              alt={fileName}
+                              width={28}
+                              height={28}
+                              className="h-7 w-7 shrink-0 rounded object-cover"
+                            />
+                          )}
+                          <a
+                            href={publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-w-0 flex-1 truncate underline-offset-2 hover:underline"
+                          >
+                            {fileName}
+                          </a>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => { void handleDeleteInvoice(file.id) }}
+                            aria-label={`Delete ${fileName}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="py-4 text-center text-xs text-muted-foreground">No invoice files uploaded yet</p>
                 )}
               </CardContent>
             </Card>

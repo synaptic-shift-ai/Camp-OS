@@ -114,6 +114,7 @@ export type AddMaintenanceTaskInput = {
   guideId?: string | null
   scheduledStart?: string | null
   dueDate?: string | null
+  sla?: number | null
   images?: File[]
 }
 
@@ -260,6 +261,7 @@ const INITIAL_FORM: AddMaintenanceTaskInput = {
   guideId: null,
   scheduledStart: null,
   dueDate: null,
+  sla: null,
 }
 
 export function AddTaskDialog({
@@ -808,6 +810,27 @@ export function AddTaskDialog({
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="maintenance-sla">SLA (hours)</Label>
+            <Input
+              id="maintenance-sla"
+              type="number"
+              placeholder="e.g., 24"
+              min={1}
+              max={87600}
+              step={1}
+              value={form.sla ?? ""}
+              onChange={(event) => {
+                const raw = event.target.value
+                setForm((prev) => ({
+                  ...prev,
+                  sla: raw === "" ? null : Number(raw),
+                }))
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Enter the Service Level Agreement target in hours</p>
           </div>
 
           {/* Booking conflict warning */}

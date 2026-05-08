@@ -75,6 +75,7 @@ const EMPTY_FORM: AddMaintenanceTaskInput = {
   guideId: null,
   scheduledStart: null,
   dueDate: null,
+  sla: null,
 }
 
 export function EditTaskDialog({
@@ -135,6 +136,7 @@ export function EditTaskDialog({
       guideId: (task as any).guideId ?? null,
       scheduledStart: task.scheduledStart ?? null,
       dueDate: task.dueDate ?? null,
+      sla: task.sla ?? null,
     })
     setCustomCategory(parsedCategory === "other" ? task.category ?? "" : "")
     clearLocalImages()
@@ -224,6 +226,7 @@ export function EditTaskDialog({
         guideId: form.guideId ?? null,
         scheduledStart: form.scheduledStart ?? null,
         dueDate: form.dueDate ?? null,
+        sla: form.sla ?? null,
         images: localImages.map((item) => item.file),
       })
       onOpenChange(false)
@@ -624,6 +627,27 @@ export function EditTaskDialog({
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-maintenance-sla">SLA (hours)</Label>
+            <Input
+              id="edit-maintenance-sla"
+              type="number"
+              placeholder="e.g., 24"
+              min={1}
+              max={87600}
+              step={1}
+              value={form.sla ?? ""}
+              onChange={(event) => {
+                const raw = event.target.value
+                setForm((prev) => ({
+                  ...prev,
+                  sla: raw === "" ? null : Number(raw),
+                }))
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Enter the Service Level Agreement target in hours</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

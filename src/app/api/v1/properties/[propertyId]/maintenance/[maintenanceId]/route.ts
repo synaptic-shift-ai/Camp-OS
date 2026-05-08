@@ -555,11 +555,7 @@ export async function PATCH(
       }
     }
 
-    // Only recompute SLA when both dates are provided and non-null;
-    // otherwise don't touch sla (avoids silently clearing an existing SLA).
-    const slaUpdate = (parsed.data.scheduledStart && parsed.data.dueDate)
-      ? { sla: Math.max(0, Math.round((new Date(parsed.data.dueDate).getTime() - new Date(parsed.data.scheduledStart).getTime()) / 3600000)) }
-      : {}
+    const slaUpdate = parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
 
@@ -621,6 +617,9 @@ export async function PATCH(
       ...(parsed.data.isSuspectedDamage !== undefined ? { isSuspectedDamage: parsed.data.isSuspectedDamage } : {}),
       ...(parsed.data.vendorId !== undefined ? { vendorId: parsed.data.vendorId } : {}),
       ...(parsed.data.guideId !== undefined ? { guideId: parsed.data.guideId } : {}),
+      ...(parsed.data.vendorInvoiceNumber !== undefined ? { vendorInvoiceNumber: parsed.data.vendorInvoiceNumber } : {}),
+      ...(parsed.data.vendorInvoiceCost !== undefined ? { vendorInvoiceCost: parsed.data.vendorInvoiceCost } : {}),
+      ...(parsed.data.closeoutNotes !== undefined ? { closeoutNotes: parsed.data.closeoutNotes } : {}),
       ...slaUpdate,
       ...(parsed.data.scheduledStart !== undefined ? { scheduledStart: parsed.data.scheduledStart } : {}),
       ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),

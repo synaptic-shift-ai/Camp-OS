@@ -125,6 +125,7 @@ export type UpdateChecklistRequest = z.infer<typeof UpdateChecklistRequestSchema
 
 export const CreateHousekeepingTaskImageRequestSchema = z.object({
   storagePath: z.string().trim().min(1).max(1000),
+  taskType: z.enum(['housekeeping', 'maintenance', 'maintenance_invoice']).optional(),
 })
 
 export type CreateHousekeepingTaskImageRequest = z.infer<

@@ -7,6 +7,12 @@ import { requirePropertyAccess, isDenied } from "@/lib/rbac"
 import { HousekeepingQueries } from "@/lib/dashboard/housekeeping/housekeeping-queries"
 import { CreateHousekeepingTaskImageRequestSchema } from "@/types/api/v1/schemas/housekeeping"
 
+type MaintenanceTaskType = "maintenance" | "maintenance_invoice"
+
+function isValidMaintenanceTaskType(value: string | null | undefined): value is MaintenanceTaskType {
+  return value === "maintenance" || value === "maintenance_invoice"
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ propertyId: string; maintenanceId: string }> },
@@ -29,12 +35,18 @@ export async function GET(
     })
     if (isDenied(access)) return access
 
+    const { searchParams } = new URL(request.url)
+    const taskTypeParam = searchParams.get("task_type")
+
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
-    const images = await queries.listTaskImages({
+    const listInput: { propertyId: string; taskType?: "maintenance" | "maintenance_invoice"; taskId: string } = {
       propertyId,
-      taskType: "maintenance",
       taskId: maintenanceId,
-    })
+    }
+    if (isValidMaintenanceTaskType(taskTypeParam)) {
+      listInput.taskType = taskTypeParam
+    }
+    const images = await queries.listTaskImages(listInput)
 
     return success({ images }, request)
   } catch (err) {
@@ -73,10 +85,14 @@ export async function POST(
       })
     }
 
+    const taskType = isValidMaintenanceTaskType(parsed.data.taskType)
+      ? parsed.data.taskType
+      : "maintenance"
+
     const queries = new HousekeepingQueries(supabase as unknown as SupabaseClient)
     const image = await queries.createTaskImage({
       propertyId,
-      taskType: "maintenance",
+      taskType,
       taskId: maintenanceId,
       storagePath: parsed.data.storagePath,
       uploadedBy: user.id,

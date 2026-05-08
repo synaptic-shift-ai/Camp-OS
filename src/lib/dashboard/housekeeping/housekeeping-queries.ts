@@ -128,7 +128,7 @@ export type ListHousekeepingTasksResult = {
     total: number
 }
 
-export type TaskImageTaskType = 'housekeeping' | 'maintenance'
+export type TaskImageTaskType = 'housekeeping' | 'maintenance' | 'maintenance_invoice'
 
 export type TaskImageRow = {
     id: string
@@ -151,7 +151,7 @@ export type CreateTaskImageInput = {
 
 export type ListTaskImagesInput = {
     propertyId: string
-    taskType: TaskImageTaskType
+    taskType?: TaskImageTaskType
     taskId: string
 }
 
@@ -726,11 +726,14 @@ export class HousekeepingQueries {
     }
 
     async listTaskImages(input: ListTaskImagesInput): Promise<TaskImageRow[]> {
-        const { data, error } = await this.supabase
+        let query = this.supabase
             .from('task_images' as 'housekeeping_tasks')
             .select('*')
             .eq('property_id', input.propertyId)
-            .eq('task_type', input.taskType)
+        if (input.taskType) {
+            query = query.eq('task_type', input.taskType)
+        }
+        const { data, error } = await query
             .eq('task_id', input.taskId)
             .order('created_at', { ascending: false })
 

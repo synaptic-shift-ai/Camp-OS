@@ -555,11 +555,7 @@ export async function PATCH(
       }
     }
 
-    // Only recompute SLA when both dates are provided and non-null;
-    // otherwise don't touch sla (avoids silently clearing an existing SLA).
-    const slaUpdate = (parsed.data.scheduledStart && parsed.data.dueDate)
-      ? { sla: Math.max(0, Math.round((new Date(parsed.data.dueDate).getTime() - new Date(parsed.data.scheduledStart).getTime()) / 3600000)) }
-      : {}
+    const slaUpdate = parsed.data.sla !== undefined ? { sla: parsed.data.sla } : {}
 
     const queries = new MaintenanceQueries(supabase as unknown as SupabaseClient)
 

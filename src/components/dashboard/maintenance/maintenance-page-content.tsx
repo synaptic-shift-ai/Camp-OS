@@ -829,6 +829,7 @@ export function MaintenancePageContent({
           guideId: input.guideId ?? null,
           scheduledStart: input.scheduledStart ?? null,
           dueDate: input.dueDate ?? null,
+          sla: input.sla ?? null,
         }),
       })
 
@@ -929,6 +930,7 @@ export function MaintenancePageContent({
         guideId: input.guideId ?? null,
         scheduledStart: input.scheduledStart ?? null,
         dueDate: input.dueDate ?? null,
+        sla: input.sla ?? null,
       }
       if (canAssignWorkOrder) {
         patchBody.staffId = input.assigneeId ?? null

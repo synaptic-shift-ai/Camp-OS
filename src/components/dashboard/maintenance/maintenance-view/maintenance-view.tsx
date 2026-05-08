@@ -366,6 +366,8 @@ export function MaintenanceView({
   const handleUploadInvoice = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setIsUploadingInvoice(true)
+    let registeredCount = 0
+    let registerFailedCount = 0
     try {
       const supabase = createClient()
       for (const file of Array.from(files)) {
@@ -393,11 +395,31 @@ export function MaintenanceView({
             body: JSON.stringify({ storagePath, taskType: "maintenance_invoice" }),
           },
         )
-        if (!res.ok) {
-          toast({ title: "Failed to register file", variant: "destructive" })
+        const payload = await res.json().catch(() => null)
+        if (!res.ok || !payload?.success) {
+          registerFailedCount += 1
+          const message =
+            (typeof payload?.error?.message === "string" && payload.error.message) ||
+            (typeof payload?.error?.details?.message === "string" && payload.error.details.message) ||
+            "Could not save file to the work order."
+          toast({
+            title: "Failed to register file",
+            description: `${file.name}: ${message}`,
+            variant: "destructive",
+          })
+          continue
         }
+        registeredCount += 1
       }
-      toast({ title: "Invoice files uploaded", variant: "success" })
+      if (registeredCount > 0 && registerFailedCount === 0) {
+        toast({ title: "Invoice files uploaded", variant: "success" })
+      } else if (registeredCount > 0 && registerFailedCount > 0) {
+        toast({
+          title: "Some invoice files could not be saved",
+          description: `${registeredCount} saved, ${registerFailedCount} failed.`,
+          variant: "destructive",
+        })
+      }
       void loadInvoiceFiles()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to upload invoice files."

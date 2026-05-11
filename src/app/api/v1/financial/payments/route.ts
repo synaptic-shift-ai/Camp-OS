@@ -18,7 +18,7 @@ import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentM
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { toTransactionDTO } from '@/modules/Financial/application/DTOs/TransactionDTO'
-import { getGuestCreditBalance } from '@/modules/Financial/application/guestCreditBalance'
+import { getEffectiveGuestCreditAvailableCents } from '@/modules/Financial/application/guestCreditBalance'
 
 function mapPaymentMethod(method: string): PaymentMethod {
   const map: Record<string, PaymentMethod> = {
@@ -69,6 +69,13 @@ export async function POST(request: NextRequest) {
     const validated = RecordPaymentV2RequestSchema.safeParse(body)
 
     if (!validated.success) {
+      console.warn('[Financial API v1] Record payment: request body validation failed', {
+        issues: validated.error.issues.map((i) => ({
+          path: i.path.join('.') || '(root)',
+          code: i.code,
+          message: i.message,
+        })),
+      })
       return NextResponse.json(
         error(ErrorCodes.VALIDATION_ERROR, 'Invalid request body', {
           errors: validated.error.errors,
@@ -132,6 +139,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!propertyId) {
+      console.warn('[Financial API v1] Record payment: could not resolve property_id', {
+        reservationId: reservation_id ?? null,
+        guestId: guest_id ?? null,
+        source,
+      })
       return NextResponse.json(
         error(ErrorCodes.VALIDATION_ERROR, 'Could not determine property'),
         { status: 400 },
@@ -149,16 +161,33 @@ export async function POST(request: NextRequest) {
     const sourceEnum = mapSource(source)
     const amount = MoneyAmount.create(amount_cents)
 
-    // Guest credit balance validation
+    // Guest credit: allow spend up to max(ledger, guests.guest_credit_cents) so UI and API agree.
     if (sourceEnum === TransactionSource.GUEST_CREDIT && guest_id && propertyId) {
       const creditServiceRole = createServiceRoleClient()
-      const { creditBalance } = await getGuestCreditBalance(creditServiceRole, guest_id, propertyId)
+      const effective = await getEffectiveGuestCreditAvailableCents(
+        creditServiceRole,
+        guest_id,
+        propertyId,
+      )
 
-      if (creditBalance < amount_cents) {
+      if (effective.effectiveAvailableCents < amount_cents) {
+        console.warn('[Financial API v1] Record payment: guest credit rejected — insufficient spendable balance', {
+          guestId: guest_id,
+          propertyId,
+          reservationId: reservation_id ?? null,
+          requestedAmountCents: amount_cents,
+          effectiveAvailableCents: effective.effectiveAvailableCents,
+          ledgerBalanceCents: effective.ledger.creditBalance,
+          ledgerTotalCreditsCents: effective.ledger.totalCredits,
+          ledgerTotalUsedCents: effective.ledger.totalUsed,
+          guestsTableGuestCreditCents: effective.guestsColumnCents,
+        })
         return NextResponse.json(
           error(ErrorCodes.VALIDATION_ERROR, 'Insufficient guest credit balance', {
-            available: creditBalance,
+            available: effective.effectiveAvailableCents,
             requested: amount_cents,
+            ledger_balance_cents: effective.ledger.creditBalance,
+            guests_table_guest_credit_cents: effective.guestsColumnCents,
           }),
           { status: 400 },
         )
@@ -186,6 +215,53 @@ export async function POST(request: NextRequest) {
 
     payment.complete(processor ?? null)
     await repo.save(payment)
+
+    // Decrement denormalized guest credit (guests.guest_credit_cents), matching refund guest_credit handling.
+    // GET credit-balance prefers this column when set; ledger alone left the balance unchanged in the UI.
+    if (sourceEnum === TransactionSource.GUEST_CREDIT && guest_id && propertyId && amount_cents > 0) {
+      try {
+        const { data: guestRow, error: guestLookupError } = await serviceRole
+          .from('guests')
+          .select('id, guest_credit_cents')
+          .eq('id', guest_id)
+          .eq('property_id', propertyId)
+          .maybeSingle()
+
+        if (guestLookupError) {
+          console.error('[Financial API v1] Record payment: guest credit lookup failed (non-blocking)', {
+            guestId: guest_id,
+            propertyId,
+            error: guestLookupError,
+          })
+        } else if (guestRow) {
+          const previousCredit = (guestRow.guest_credit_cents as number | null) ?? 0
+          const nextCredit = Math.max(0, previousCredit - amount_cents)
+          const { error: guestUpdateError } = await serviceRole
+            .from('guests')
+            .update({
+              guest_credit_cents: nextCredit,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', guest_id)
+            .eq('property_id', propertyId)
+
+          if (guestUpdateError) {
+            console.error('[Financial API v1] Record payment: guest credit decrement failed (non-blocking)', {
+              guestId: guest_id,
+              propertyId,
+              error: guestUpdateError,
+            })
+          }
+        } else {
+          console.warn('[Financial API v1] Record payment: guest not found for guest credit decrement (non-blocking)', {
+            guestId: guest_id,
+            propertyId,
+          })
+        }
+      } catch (e) {
+        console.error('[Financial API v1] Record payment: guest credit decrement threw (non-blocking)', e)
+      }
+    }
 
     // Update reservation snapshot amounts so dashboards reflect the payment immediately.
     // (The reservations UI reads paid_amount/payment_status from reservations, not just the ledger.)

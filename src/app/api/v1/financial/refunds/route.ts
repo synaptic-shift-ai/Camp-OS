@@ -51,16 +51,35 @@ export async function POST(request: NextRequest) {
     // 2. Parse and validate request body
     const body = await request.json()
 
+    console.warn('[Financial API v1] POST /financial/refunds: request received', {
+      userId: user.id,
+      keys: body && typeof body === 'object' ? Object.keys(body as object) : [],
+      payment_id: typeof body?.payment_id === 'string' ? body.payment_id : undefined,
+      amount_cents: typeof body?.amount_cents === 'number' ? body.amount_cents : undefined,
+      handling: typeof body?.handling === 'string' ? body.handling : undefined,
+      reservationId: typeof body?.reservationId === 'string' ? body.reservationId : undefined,
+    })
+
     // Try v2 schema first (has payment_id + handling)
     const v2Validated = ProcessRefundV2RequestSchema.safeParse(body)
     if (v2Validated.success) {
       return handleV2Refund(v2Validated.data, user.id, supabase, request)
     }
 
+    console.warn('[Financial API v1] POST /financial/refunds: v2 schema not used', {
+      userId: user.id,
+      v2Issues: v2Validated.error.flatten(),
+    })
+
     // Fall back to v1 schema
     const validated = ProcessRefundRequestSchema.safeParse(body)
 
     if (!validated.success) {
+      console.warn('[Financial API v1] POST /financial/refunds: v1 schema validation failed (400)', {
+        userId: user.id,
+        v1Issues: validated.error.flatten(),
+        v2Issues: v2Validated.error.flatten(),
+      })
       return NextResponse.json(
         error(ErrorCodes.VALIDATION_ERROR, 'Invalid request body', {
           errors: validated.error.errors,
@@ -191,6 +210,13 @@ async function handleV2Refund(
   supabase: Awaited<ReturnType<typeof createClient>>,
   _request: NextRequest,
 ) {
+  console.warn('[Financial API v1] POST /financial/refunds: processing v2 refund', {
+    userId,
+    payment_id: data.payment_id,
+    amount_cents: data.amount_cents,
+    handling: data.handling,
+  })
+
   // Look up the original payment to get property_id and reservation_id
   const serviceRole = createServiceRoleClient()
   const { data: payment, error: paymentError } = await serviceRole
@@ -203,6 +229,14 @@ async function handleV2Refund(
     .single()
 
   if (paymentError || !payment) {
+    console.warn('[Financial API v1] POST /financial/refunds: v2 payment lookup failed (404)', {
+      userId,
+      payment_id: data.payment_id,
+      supabaseError: paymentError
+        ? { message: paymentError.message, code: paymentError.code, details: paymentError.details }
+        : null,
+      rowFound: Boolean(payment),
+    })
     return NextResponse.json(
       error(ErrorCodes.RESOURCE_NOT_FOUND, 'Payment not found or invalid'),
       { status: 404 },
@@ -215,12 +249,52 @@ async function handleV2Refund(
     minimumRole: 'admin',
     permission: 'financial.refund',
   })
-  if (isDenied(access)) return access
+  if (isDenied(access)) {
+    console.warn('[Financial API v1] POST /financial/refunds: v2 RBAC denied', {
+      userId,
+      propertyId: payment.property_id,
+      payment_id: data.payment_id,
+    })
+    return access
+  }
 
-  // Validate refund amount doesn't exceed original payment
-  if (data.amount_cents > payment.amount_cents) {
+  // Refund cap: guest_credit may refund up to remaining paid on the reservation (guest credit +
+  // cash are separate ledger rows; UI often passes the first payment id only). original_method
+  // stays capped to the selected payment row.
+  let maxRefundableCents = payment.amount_cents as number
+  if (data.handling === 'guest_credit' && payment.reservation_id) {
+    const { data: resCap, error: resCapError } = await serviceRole
+      .from('reservations')
+      .select('paid_amount, refund_amount_cents')
+      .eq('id', payment.reservation_id)
+      .eq('property_id', payment.property_id)
+      .maybeSingle()
+
+    if (!resCapError && resCap) {
+      const paid = (resCap.paid_amount as number | null) ?? 0
+      const alreadyRefunded = (resCap.refund_amount_cents as number | null) ?? 0
+      maxRefundableCents = Math.max(0, paid - alreadyRefunded)
+    }
+  }
+
+  if (data.amount_cents > maxRefundableCents) {
+    console.warn('[Financial API v1] POST /financial/refunds: v2 refund amount exceeds cap (400)', {
+      userId,
+      payment_id: data.payment_id,
+      reservation_id: payment.reservation_id,
+      property_id: payment.property_id,
+      requested_amount_cents: data.amount_cents,
+      original_payment_row_cents: payment.amount_cents,
+      max_refundable_cents_applied: maxRefundableCents,
+      handling: data.handling,
+    })
     return NextResponse.json(
-      error(ErrorCodes.VALIDATION_ERROR, 'Refund amount cannot exceed original payment amount'),
+      error(
+        ErrorCodes.VALIDATION_ERROR,
+        data.handling === 'guest_credit'
+          ? 'Refund amount cannot exceed remaining paid balance on this reservation'
+          : 'Refund amount cannot exceed original payment amount',
+      ),
       { status: 400 },
     )
   }

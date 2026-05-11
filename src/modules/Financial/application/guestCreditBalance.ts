@@ -15,7 +15,58 @@ export interface GuestCreditBalanceResult {
 }
 
 /**
- * Calculate the guest credit balance for a guest at a specific property.
+ * Spendable guest credit reconciles the financial ledger with `guests.guest_credit_cents`.
+ * Refunds to guest credit update both; older rows can drift. The UI and GET credit-balance
+ * surface the column; ledger-only checks would block valid spends when the column is higher.
+ */
+export function computeEffectiveGuestCreditAvailableCents(
+  ledgerBalanceCents: number,
+  guestsColumnCents: number | null | undefined,
+): number {
+  const column =
+    typeof guestsColumnCents === 'number' && Number.isFinite(guestsColumnCents) && guestsColumnCents >= 0
+      ? guestsColumnCents
+      : 0
+  return Math.max(ledgerBalanceCents, column)
+}
+
+export type EffectiveGuestCreditResult = {
+  effectiveAvailableCents: number
+  ledger: GuestCreditBalanceResult
+  guestsColumnCents: number | null
+}
+
+/**
+ * Ledger balance plus guests-table denormalized balance (see computeEffectiveGuestCreditAvailableCents).
+ */
+export async function getEffectiveGuestCreditAvailableCents(
+  supabase: SupabaseClient,
+  guestId: string,
+  propertyId: string,
+): Promise<EffectiveGuestCreditResult> {
+  const ledger = await getGuestCreditBalance(supabase, guestId, propertyId)
+  const { data } = await supabase
+    .from('guests')
+    .select('guest_credit_cents')
+    .eq('id', guestId)
+    .eq('property_id', propertyId)
+    .maybeSingle()
+
+  const guestsColumnCents =
+    data && typeof data.guest_credit_cents === 'number' ? data.guest_credit_cents : null
+
+  return {
+    effectiveAvailableCents: computeEffectiveGuestCreditAvailableCents(
+      ledger.creditBalance,
+      guestsColumnCents,
+    ),
+    ledger,
+    guestsColumnCents,
+  }
+}
+
+/**
+ * Calculate the guest credit balance for a guest at a specific property.getGuestCreditBalance
  *
  * Credits IN:  refunds where handling='guest_credit' AND status='completed' AND not voided
  * Credits OUT: payments where source='guest_credit' AND status='completed' AND not voided

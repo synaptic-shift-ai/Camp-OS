@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -177,6 +177,11 @@ export function ManualPaymentDialog({
   const [savedCardsLoading, setSavedCardsLoading] = useState(false)
   const [savedCards, setSavedCards] = useState<GuestPaymentMethod[]>([])
   const [selectedSavedCardId, setSelectedSavedCardId] = useState<string>("")
+  const [useGuestCredit, setUseGuestCredit] = useState(false)
+  const [resolvedPropertyId, setResolvedPropertyId] = useState<string | null>(null)
+  const [guestCreditBalanceCents, setGuestCreditBalanceCents] = useState<number | null>(null)
+  const [guestCreditBalanceLoading, setGuestCreditBalanceLoading] = useState(false)
+  const guestCreditSplitPrefilledRef = useRef(false)
   const { toast } = useToast()
   const isDarkMode = resolvedTheme === "dark"
 
@@ -186,18 +191,69 @@ export function ManualPaymentDialog({
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
-  const amountCentsEntered = Math.round(parseFloat(amountDollars || "0") * 100)
+  /** Guest credit applied when toggle is on: min(available, outstanding), after balance is known. */
+  const guestCreditAppliedCents =
+    useGuestCredit &&
+    !guestCreditBalanceLoading &&
+    guestCreditBalanceCents !== null &&
+    guestCreditBalanceCents > 0
+      ? Math.min(outstandingBalance, guestCreditBalanceCents)
+      : 0
+
+  const cashInputCents = useGuestCredit
+    ? Math.round(parseFloat(amountDollars || "0") * 100)
+    : Math.round(parseFloat(amountDollars || "0") * 100)
+
+  const remainingAfterGuestCreditCents = useGuestCredit
+    ? Math.max(0, outstandingBalance - guestCreditAppliedCents)
+    : outstandingBalance
+
+  const showCashCollectSection = !useGuestCredit || remainingAfterGuestCreditCents > 0
+
+  const maxCashAfterGuestCents = Math.max(0, outstandingBalance - guestCreditAppliedCents)
+
+  const totalPaymentCents = guestCreditAppliedCents + cashInputCents
+
+  const guestCreditAmountValid =
+    !useGuestCredit ||
+    (!guestCreditBalanceLoading && guestCreditBalanceCents !== null)
+
+  const cashAmountValid =
+    !useGuestCredit ||
+    (cashInputCents >= 0 && cashInputCents <= maxCashAfterGuestCents)
+
+  const paymentMethodOk =
+    !useGuestCredit ||
+    cashInputCents < 1 ||
+    (typeof paymentMethod === "string" && paymentMethod.length > 0)
+
   const isAmountValid =
-    amountCentsEntered >= 1 && amountCentsEntered <= outstandingBalance
+    totalPaymentCents >= 1 &&
+    guestCreditAmountValid &&
+    cashAmountValid &&
+    paymentMethodOk &&
+    (!useGuestCredit ? cashInputCents <= outstandingBalance : true)
+
+  const stripeIntentAmountCents = cashInputCents
 
   // Determine if conditional fields should show
   const selectedMethod = paymentMethod as PaymentMethodValue
   const showReference = METHODS_WITH_REFERENCE.has(selectedMethod)
   const showProcessor = METHODS_WITH_PROCESSOR.has(selectedMethod)
   const isStripeCardPayment =
-    selectedMethod === "credit_card" && showProcessor && processor === "stripe" && !useCardOnFile
+    selectedMethod === "credit_card" &&
+    showProcessor &&
+    processor === "stripe" &&
+    !useCardOnFile &&
+    (!useGuestCredit || cashInputCents > 0)
   const isStripeSavedCardPayment =
-    selectedMethod === "credit_card" && showProcessor && processor === "stripe" && useCardOnFile
+    selectedMethod === "credit_card" &&
+    showProcessor &&
+    processor === "stripe" &&
+    useCardOnFile &&
+    !useGuestCredit
+
+  const paymentMethodRequired = !useGuestCredit || cashInputCents > 0
 
   // Fetch balance from financial API when dialog opens
   const fetchBalance = useCallback(async () => {
@@ -210,6 +266,12 @@ export function ManualPaymentDialog({
       if (json.success && json.data) {
         const data: BalanceData = json.data
         setApiBalance(Math.max(0, data.balance))
+      }
+      const resProp = await fetch(`/api/v1/reservations/${reservationId}`, { credentials: "include" })
+      const jsonProp = await resProp.json().catch(() => null)
+      const pid = jsonProp?.data?.property_id as string | undefined
+      if (typeof pid === "string" && pid.length > 0) {
+        setResolvedPropertyId((prev) => prev ?? pid)
       }
     } catch {
       // Silently fall back to snapshot-only balance (snapshotOutstandingCents)
@@ -226,6 +288,7 @@ export function ManualPaymentDialog({
       const json = await res.json().catch(() => null)
       const propertyId = json?.data?.property_id as string | undefined
       if (!propertyId) return
+      setResolvedPropertyId(propertyId)
 
       const params = new URLSearchParams({ property_id: propertyId, guest_id: guestId })
       const pmRes = await fetch(`/api/v1/guest/payment-methods?${params.toString()}`, {
@@ -253,11 +316,16 @@ export function ManualPaymentDialog({
     setUseCardOnFile(defaultUseCardOnFile ?? false)
     setApiBalance(null)
     setAmountDollars("")
+    guestCreditSplitPrefilledRef.current = false
     setStripeClientSecret(null)
     setStripeIntentLoading(false)
     setStripeConfirmRefs({ stripe: null, elements: null })
     setSavedCards([])
     setSelectedSavedCardId("")
+    setUseGuestCredit(false)
+    setResolvedPropertyId(null)
+    setGuestCreditBalanceCents(null)
+    setGuestCreditBalanceLoading(false)
 
     // Fetch balance and pre-fill amount
     fetchBalance().then(() => {
@@ -266,14 +334,67 @@ export function ManualPaymentDialog({
     void fetchSavedCards()
   }, [open, fetchBalance, fetchSavedCards, defaultPaymentMethod, defaultProcessor, defaultUseCardOnFile])
 
-  // Pre-fill amount once balance is available
+  // Pre-fill amount once balance is available (single-field mode only)
   useEffect(() => {
-    if (!open) return
+    if (!open || useGuestCredit) return
     const balance = apiBalance ?? snapshotOutstandingCents
     if (balance > 0 && !amountDollars) {
       setAmountDollars((balance / 100).toFixed(2))
     }
-  }, [open, apiBalance, snapshotOutstandingCents, amountDollars])
+  }, [open, apiBalance, snapshotOutstandingCents, amountDollars, useGuestCredit])
+
+  useEffect(() => {
+    if (!useGuestCredit) guestCreditSplitPrefilledRef.current = false
+  }, [useGuestCredit])
+
+  useEffect(() => {
+    if (!open || !useGuestCredit) return
+    if (guestCreditBalanceLoading) return
+    if (guestCreditBalanceCents === null) return
+    const cap = Math.min(outstandingBalance, Math.max(0, guestCreditBalanceCents))
+    if (cap < 1) return
+    if (guestCreditSplitPrefilledRef.current) return
+    guestCreditSplitPrefilledRef.current = true
+    setAmountDollars((Math.max(0, outstandingBalance - cap) / 100).toFixed(2))
+  }, [
+    open,
+    useGuestCredit,
+    guestCreditBalanceLoading,
+    guestCreditBalanceCents,
+    outstandingBalance,
+  ])
+
+  useEffect(() => {
+    if (!open || !useGuestCredit || !guestId || !resolvedPropertyId) {
+      if (!useGuestCredit) setGuestCreditBalanceCents(null)
+      return
+    }
+    let cancelled = false
+    setGuestCreditBalanceLoading(true)
+    void (async () => {
+      try {
+        const params = new URLSearchParams({ propertyId: resolvedPropertyId })
+        const res = await fetch(
+          `/api/v1/financial/guests/${guestId}/credit-balance?${params.toString()}`,
+          { credentials: "include" },
+        )
+        const json = await res.json().catch(() => null)
+        if (cancelled) return
+        if (res.ok && json?.success && json?.data && typeof json.data.credit_balance_cents === "number") {
+          setGuestCreditBalanceCents(json.data.credit_balance_cents)
+        } else {
+          setGuestCreditBalanceCents(0)
+        }
+      } catch {
+        if (!cancelled) setGuestCreditBalanceCents(null)
+      } finally {
+        if (!cancelled) setGuestCreditBalanceLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, useGuestCredit, guestId, resolvedPropertyId])
 
   const fetchStripePaymentIntent = useCallback(
     async (amountCents: number) => {
@@ -316,29 +437,107 @@ export function ManualPaymentDialog({
     }
 
     const timeout = setTimeout(() => {
-      void fetchStripePaymentIntent(amountCentsEntered)
+      void fetchStripePaymentIntent(stripeIntentAmountCents)
     }, 250)
 
     return () => clearTimeout(timeout)
-  }, [open, isStripeCardPayment, hasBalance, isAmountValid, amountCentsEntered, fetchStripePaymentIntent])
+  }, [open, isStripeCardPayment, hasBalance, isAmountValid, stripeIntentAmountCents, fetchStripePaymentIntent])
 
   const handleRecordPayment = async () => {
-    const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
+    const gcCents =
+      useGuestCredit &&
+      !guestCreditBalanceLoading &&
+      guestCreditBalanceCents !== null &&
+      guestCreditBalanceCents > 0
+        ? Math.min(outstandingBalance, guestCreditBalanceCents)
+        : 0
+    const cashCents = useGuestCredit
+      ? Math.round(parseFloat(amountDollars || "0") * 100)
+      : Math.round(parseFloat(amountDollars || "0") * 100)
 
-    if (!paymentMethod) return
+    if (paymentMethodRequired && !paymentMethod) {
+      setError(
+        useGuestCredit && cashCents > 0
+          ? "Select a payment method for the additional amount"
+          : "Select a payment method",
+      )
+      return
+    }
 
-    if (amountCents < 1) {
+    if (gcCents + cashCents < 1) {
       setError("Amount must be greater than 0")
       return
     }
-    if (amountCents > outstandingBalance) {
+
+    if (useGuestCredit) {
+      if (!guestId) {
+        setError("Guest is required to apply guest credit")
+        return
+      }
+      if (guestCreditBalanceLoading) {
+        setError("Guest credit balance is still loading. Please wait.")
+        return
+      }
+      if (gcCents < 0 || cashCents < 0) {
+        setError("Amounts cannot be negative")
+        return
+      }
+      const maxCash = Math.max(0, outstandingBalance - gcCents)
+      if (cashCents > maxCash) {
+        setError(
+          `Additional payment cannot exceed $${(maxCash / 100).toFixed(2)} remaining after guest credit`,
+        )
+        return
+      }
+    } else if (cashCents > outstandingBalance) {
       setError(`Amount cannot exceed outstanding balance ($${balanceInDollars})`)
       return
     }
 
+    const cashToCollect = cashCents
+
     try {
       setLoading(true)
       setError(null)
+
+      if (useGuestCredit && gcCents > 0) {
+        const response = await fetch(`/api/v1/financial/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            reservation_id: reservationId,
+            guest_id: guestId,
+            amount_cents: gcCents,
+            payment_method: "store_credit",
+            processor: null,
+            source: "guest_credit",
+          }),
+        })
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null)
+          const message =
+            data?.error?.message ??
+            data?.error?.details?.message ??
+            "Failed to record guest credit payment"
+          throw new Error(message)
+        }
+      }
+
+      if (cashToCollect < 1) {
+        if (useGuestCredit && gcCents > 0) {
+          toast({
+            title: "Payment recorded",
+            description: "Guest credit has been applied to this reservation.",
+            variant: "success",
+          })
+          onSuccess?.()
+          setOpen(false)
+          router.refresh()
+        }
+        return
+      }
 
       if (isStripeCardPayment) {
         const { stripe, elements } = stripeConfirmRefs
@@ -359,8 +558,6 @@ export function ManualPaymentDialog({
           throw new Error(`Payment status: ${paymentIntent.status}`)
         }
 
-        // Record payment immediately so reservation balance + transaction history update,
-        // even if the Stripe webhook is delayed or not configured.
         if (paymentIntent?.status === "succeeded") {
           const recordRes = await fetch(`/api/v1/financial/payments`, {
             method: "POST",
@@ -369,7 +566,7 @@ export function ManualPaymentDialog({
             body: JSON.stringify({
               reservation_id: reservationId,
               guest_id: guestId ?? null,
-              amount_cents: amountCents,
+              amount_cents: cashToCollect,
               payment_method: "stripe",
               processor: paymentIntent.id,
               source: "manual",
@@ -390,7 +587,9 @@ export function ManualPaymentDialog({
           title: "Payment processing",
           description:
             paymentIntent?.status === "succeeded"
-              ? "Payment succeeded."
+              ? useGuestCredit && gcCents > 0
+                ? "Guest credit and card payment recorded."
+                : "Payment succeeded."
               : "Payment is processing. It will be recorded automatically.",
           variant: "success",
         })
@@ -401,7 +600,7 @@ export function ManualPaymentDialog({
       }
 
       if (isStripeSavedCardPayment) {
-        if (amountCents !== outstandingBalance) {
+        if (cashToCollect !== outstandingBalance) {
           setError(`Card on file charges must match the full outstanding balance ($${balanceInDollars})`)
           return
         }
@@ -442,7 +641,7 @@ export function ManualPaymentDialog({
         body: JSON.stringify({
           reservation_id: reservationId,
           guest_id: guestId ?? null,
-          amount_cents: amountCents,
+          amount_cents: cashToCollect,
           payment_method: apiMethod,
           processor: showProcessor && processor !== "none" ? processor : null,
           reference: showReference && reference.trim() ? reference.trim() : null,
@@ -461,7 +660,10 @@ export function ManualPaymentDialog({
 
       toast({
         title: "Payment recorded",
-        description: "Manual payment has been recorded successfully.",
+        description:
+          useGuestCredit && gcCents > 0
+            ? "Guest credit and additional payment have been recorded."
+            : "Manual payment has been recorded successfully.",
         variant: "success",
       })
       onSuccess?.()
@@ -535,8 +737,90 @@ export function ManualPaymentDialog({
                 </Alert>
               </div>
 
+              {guestId ? (
+                <div className="flex items-center justify-between rounded-md border p-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="manual-payment-use-guest-credit" className="text-sm">
+                      Use guest credit
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Apply available guest credit toward this balance (store credit payment).
+                    </p>
+                    {useGuestCredit ? (
+                      <p className="text-xs font-medium text-foreground">
+                        {guestCreditBalanceLoading ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Loading guest credit…
+                          </span>
+                        ) : typeof guestCreditBalanceCents === "number" ? (
+                          <>
+                            Available:{" "}
+                            <span className="tabular-nums">
+                              ${(guestCreditBalanceCents / 100).toFixed(2)}
+                            </span>
+                            {guestCreditAppliedCents > 0 ? (
+                              <>
+                                {" "}
+                                · Applying from guest credit:{" "}
+                                <span className="tabular-nums">
+                                  ${(guestCreditAppliedCents / 100).toFixed(2)}
+                                </span>
+                              </>
+                            ) : null}
+                          </>
+                        ) : (
+                          "Unable to load guest credit."
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Switch
+                    id="manual-payment-use-guest-credit"
+                    checked={useGuestCredit}
+                    onCheckedChange={(checked) => {
+                      const on = Boolean(checked)
+                      setUseGuestCredit(on)
+                      if (on) {
+                        guestCreditSplitPrefilledRef.current = false
+                        setPaymentMethod("")
+                        setReference("")
+                        setProcessor("none")
+                        setUseCardOnFile(false)
+                        setStripeClientSecret(null)
+                        setStripeConfirmRefs({ stripe: null, elements: null })
+                        const canSplitNow =
+                          Boolean(guestId) &&
+                          typeof guestCreditBalanceCents === "number" &&
+                          guestCreditBalanceCents >= 1 &&
+                          !guestCreditBalanceLoading &&
+                          outstandingBalance > 0
+                        if (canSplitNow) {
+                          const cap = Math.min(outstandingBalance, guestCreditBalanceCents)
+                          if (cap >= 1) {
+                            guestCreditSplitPrefilledRef.current = true
+                            setAmountDollars((Math.max(0, outstandingBalance - cap) / 100).toFixed(2))
+                          }
+                        } else if (guestId) {
+                          setAmountDollars("")
+                        }
+                      } else {
+                        guestCreditSplitPrefilledRef.current = false
+                        setPaymentMethod(defaultPaymentMethod ?? "")
+                        setAmountDollars((outstandingBalance / 100).toFixed(2))
+                      }
+                    }}
+                    disabled={loading}
+                  />
+                </div>
+              ) : null}
+
+              {showCashCollectSection ? (
+              <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="manual-payment-method">Collect Payment</Label>
+                <Label htmlFor="manual-payment-method">
+                  {useGuestCredit ? "Collect remaining balance" : "Collect Payment"}
+                </Label>
                 <Select
                   value={paymentMethod}
                   onValueChange={(val) => {
@@ -558,7 +842,10 @@ export function ManualPaymentDialog({
                         <div className="flex items-center gap-2">
                           <method.icon className="h-4 w-4" />
                           <span>
-                            {method.label} — ${balanceInDollars}
+                            {method.label} — $
+                            {useGuestCredit
+                              ? (remainingAfterGuestCreditCents / 100).toFixed(2)
+                              : balanceInDollars}
                           </span>
                         </div>
                       </SelectItem>
@@ -568,7 +855,7 @@ export function ManualPaymentDialog({
               </div>
 
               {/* Processor select — shown for Card payments */}
-              {showProcessor && (
+              {showCashCollectSection && showProcessor && (
                 <div className="space-y-2">
                   <Label htmlFor="payment-processor">Processor</Label>
                   <Select value={processor} onValueChange={setProcessor}>
@@ -587,7 +874,7 @@ export function ManualPaymentDialog({
               )}
 
               {/* Card on file switch — shown for Card payments */}
-              {showProcessor && (
+              {showCashCollectSection && showProcessor && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between rounded-md border p-3">
                     <div className="space-y-0.5">
@@ -671,7 +958,9 @@ export function ManualPaymentDialog({
                         <Alert>
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription>
-                            Enter an amount to load the card form.
+                            {useGuestCredit
+                              ? "Enter the additional payment amount to load the card form."
+                              : "Enter an amount to load the card form."}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -681,7 +970,7 @@ export function ManualPaymentDialog({
               )}
 
               {/* Reference input — shown for Check and ACH */}
-              {showReference && (
+              {showCashCollectSection && showReference && (
                 <div className="space-y-2">
                   <Label htmlFor="payment-reference">
                     {selectedMethod === "check" ? "Check Number" : "Reference (Optional)"}
@@ -706,13 +995,27 @@ export function ManualPaymentDialog({
                   id="amount-paid"
                   type="number"
                   min="0"
-                  max={parseFloat(balanceInDollars)}
+                  max={
+                    useGuestCredit
+                      ? maxCashAfterGuestCents / 100
+                      : parseFloat(balanceInDollars)
+                  }
+                  step="0.01"
                   placeholder="$ 0.00"
                   value={amountDollars}
                   onChange={(e) => setAmountDollars(e.target.value)}
                   disabled={loading || isStripeSavedCardPayment}
                 />
               </div>
+              </div>
+              ) : useGuestCredit ? (
+                <Alert>
+                  <DollarSign className="h-4 w-4" />
+                  <AlertDescription>
+                    Guest credit covers the full outstanding balance. Record payment to apply guest credit only.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </>
           ) : (
             <Alert>
@@ -741,7 +1044,12 @@ export function ManualPaymentDialog({
           </Button>
           <Button
             onClick={handleRecordPayment}
-            disabled={loading || !hasBalance || !paymentMethod || !isAmountValid}
+            disabled={
+              loading ||
+              !hasBalance ||
+              !isAmountValid ||
+              (useGuestCredit && (!guestId || guestCreditBalanceLoading))
+            }
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? "Recording..." : "Record Payment"}

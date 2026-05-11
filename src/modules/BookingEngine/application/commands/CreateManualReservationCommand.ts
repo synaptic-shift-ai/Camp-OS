@@ -21,6 +21,13 @@ import { createReservationPets } from '@/lib/booking/pets'
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
 import { checkSiteAvailability } from '@/lib/booking/availability'
 import { generateConfirmationNumber } from '@/lib/booking/api'
+import { getEffectiveGuestCreditAvailableCents } from '@/modules/Financial/application/guestCreditBalance'
+import { Transaction } from '@/modules/Financial/domain/Transaction'
+import { TransactionType } from '@/modules/Financial/domain/value-objects/TransactionType'
+import { TransactionSource } from '@/modules/Financial/domain/value-objects/TransactionSource'
+import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentMethod'
+import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
+import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import type { CreatePetInputData, CreateVehicleInputData, Guest } from '@/lib/booking/types'
 import type {
   CreateManualReservationRequest,
@@ -283,63 +290,132 @@ export class CreateManualReservationCommandHandler {
         .eq('property_id', dto.propertyId)
     }
 
-    // 8. Handle payment
-    const paidAmountCents = dto.paidAmountCents || 0
+    // 8. Handle payment (optional guest credit + optional cash toward total)
+    const cashPaidCents = dto.paidAmountCents || 0
     const totalAmountCents = dto.totalAmountCents ?? reservation.total_amount
 
     const resolvedPaymentMethod =
       dto.paymentMethod ??
       (dto.paymentMode === 'card' ? 'credit_card' : dto.paymentMode === 'send_link' ? 'stripe' : dto.paymentMode)
 
-    const isFullyPaid = paidAmountCents >= totalAmountCents
-    const paymentStatus = paidAmountCents > 0
+    let guestCreditAppliedCents = 0
+    if (dto.useGuestCredit) {
+      const { effectiveAvailableCents } = await getEffectiveGuestCreditAvailableCents(
+        supabase,
+        guestId,
+        dto.propertyId,
+      )
+      guestCreditAppliedCents = Math.min(
+        Math.max(0, effectiveAvailableCents),
+        Math.max(0, totalAmountCents),
+      )
+    }
+
+    const totalPaidCents = guestCreditAppliedCents + cashPaidCents
+    const isFullyPaid = totalPaidCents >= totalAmountCents
+    const paymentStatus = totalPaidCents > 0
       ? (isFullyPaid ? 'paid' : 'partial')
       : 'pending'
 
     const reservationStatus = isFullyPaid ? 'confirmed' : 'pending'
 
-    if (paidAmountCents > 0) {
-      // Update reservation payment status
+    const paymentNotesForReservation =
+      dto.notes
+      ?? (guestCreditAppliedCents > 0 && cashPaidCents > 0
+        ? `Manual booking. Guest credit + ${resolvedPaymentMethod}`
+        : guestCreditAppliedCents > 0
+          ? 'Manual booking. Guest credit'
+          : `Manual booking. Payment method: ${resolvedPaymentMethod}`)
+
+    if (totalPaidCents > 0) {
       await supabase
         .from('reservations')
         .update({
           status: reservationStatus,
           payment_status: paymentStatus,
-          paid_amount: paidAmountCents,
-          notes: dto.notes || `Manual booking. Payment method: ${resolvedPaymentMethod}`,
+          paid_amount: totalPaidCents,
+          notes: paymentNotesForReservation,
         })
         .eq('id', reservation.id)
         .eq('property_id', dto.propertyId)
 
-      // Create payment record (legacy)
-      await supabase
-        .from('payments')
-        .insert({
-          property_id: dto.propertyId,
-          reservation_id: reservation.id,
-          amount: paidAmountCents,
-          payment_method: resolvedPaymentMethod,
-          payment_status: 'completed',
-          processed_at: new Date().toISOString(),
-          notes: `Manual payment - ${resolvedPaymentMethod}`,
-        })
+      if (guestCreditAppliedCents > 0) {
+        const repo = new SupabaseTransactionRepository(supabase)
+        const guestCreditPayment = Transaction.create(
+          crypto.randomUUID(),
+          dto.propertyId,
+          reservation.id,
+          TransactionType.PAYMENT,
+          MoneyAmount.create(guestCreditAppliedCents),
+          PaymentMethod.STORE_CREDIT,
+          dto.createdBy,
+          null,
+          'Manual booking — guest credit',
+          TransactionSource.GUEST_CREDIT,
+          null,
+          guestId,
+        )
+        guestCreditPayment.complete(null)
+        await repo.save(guestCreditPayment)
 
-      // Dual-write to unified financial ledger (best-effort)
-      try {
-        const insert = buildManualPaymentLedgerInsert({
-          propertyId: dto.propertyId,
-          reservationId: reservation.id,
-          amountCents: paidAmountCents,
-          paymentMethod: resolvedPaymentMethod,
-          createdBy: dto.createdBy,
-        })
+        const { data: guestRow } = await supabase
+          .from('guests')
+          .select('guest_credit_cents')
+          .eq('id', guestId)
+          .eq('property_id', dto.propertyId)
+          .maybeSingle()
 
-        await supabase.from('financial_transactions').insert(insert)
-      } catch (dualWriteErr) {
-        console.error('[CreateManualReservation] financial_transactions dual-write failed (non-blocking):', dualWriteErr)
+        if (guestRow && typeof guestRow.guest_credit_cents === 'number') {
+          await supabase
+            .from('guests')
+            .update({
+              guest_credit_cents: Math.max(0, guestRow.guest_credit_cents - guestCreditAppliedCents),
+            })
+            .eq('id', guestId)
+            .eq('property_id', dto.propertyId)
+        }
+
+        await supabase
+          .from('payments')
+          .insert({
+            property_id: dto.propertyId,
+            reservation_id: reservation.id,
+            amount: guestCreditAppliedCents,
+            payment_method: 'store_credit',
+            payment_status: 'completed',
+            processed_at: new Date().toISOString(),
+            notes: 'Guest credit applied to reservation',
+          })
+      }
+
+      if (cashPaidCents > 0) {
+        await supabase
+          .from('payments')
+          .insert({
+            property_id: dto.propertyId,
+            reservation_id: reservation.id,
+            amount: cashPaidCents,
+            payment_method: resolvedPaymentMethod,
+            payment_status: 'completed',
+            processed_at: new Date().toISOString(),
+            notes: `Manual payment - ${resolvedPaymentMethod}`,
+          })
+
+        try {
+          const insert = buildManualPaymentLedgerInsert({
+            propertyId: dto.propertyId,
+            reservationId: reservation.id,
+            amountCents: cashPaidCents,
+            paymentMethod: resolvedPaymentMethod,
+            createdBy: dto.createdBy,
+          })
+
+          await supabase.from('financial_transactions').insert(insert)
+        } catch (dualWriteErr) {
+          console.error('[CreateManualReservation] financial_transactions dual-write failed (non-blocking):', dualWriteErr)
+        }
       }
     } else {
-      // Unpaid: keep status pending
       await supabase
         .from('reservations')
         .update({
@@ -366,7 +442,7 @@ export class CreateManualReservationCommandHandler {
       checkInDate: dto.checkInDate,
       checkOutDate: dto.checkOutDate,
       totalAmountCents: reservation.total_amount,
-      paidAmountCents,
+      paidAmountCents: totalPaidCents,
       status: reservationStatus,
       paymentStatus,
       childrenCount,

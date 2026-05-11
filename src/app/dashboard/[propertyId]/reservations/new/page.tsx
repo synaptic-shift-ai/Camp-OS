@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
 import type { HolidayRule } from "@/lib/config/types"
 import { format } from "date-fns"
@@ -64,6 +64,7 @@ type ExistingGuestMatch = {
   addressState: string | null
   addressZipCode: string | null
   addressCountry: string | null
+  guestCreditCents: number
 }
 
 // Form validation schema - Enhanced with spouse, children, and vehicles
@@ -305,6 +306,20 @@ export default function NewReservationPage() {
   const [lastCheckedGuestEmail, setLastCheckedGuestEmail] = useState<string | null>(null)
   const [dismissedExistingGuestEmail, setDismissedExistingGuestEmail] = useState<string | null>(null)
 
+  const linkedGuestCreditCents = useMemo(
+    () =>
+      selectedExistingGuestId != null
+        ? existingGuests.find((g) => g.id === selectedExistingGuestId)?.guestCreditCents ?? 0
+        : 0,
+    [selectedExistingGuestId, existingGuests],
+  )
+
+  useEffect(() => {
+    if (selectedExistingGuestId == null || linkedGuestCreditCents <= 0) {
+      setUseGuestCredit(false)
+    }
+  }, [selectedExistingGuestId, linkedGuestCreditCents])
+
   const selectedSiteId = watch("siteId")
   const checkInDate = watch("checkInDate")
   const checkOutDate = watch("checkOutDate")
@@ -318,6 +333,15 @@ export default function NewReservationPage() {
   const guestEmail = watch("guestEmail")
   const totalCents = summaryTotalCents ?? 0
   const totalDollars = totalCents / 100
+  const guestCreditAppliedPreviewCents = useMemo(
+    () =>
+      useGuestCredit && selectedExistingGuestId != null && linkedGuestCreditCents > 0
+        ? Math.min(linkedGuestCreditCents, Math.max(0, totalCents))
+        : 0,
+    [useGuestCredit, selectedExistingGuestId, linkedGuestCreditCents, totalCents],
+  )
+  const remainingAfterCreditCents = Math.max(0, totalCents - guestCreditAppliedPreviewCents)
+  const remainingAfterCreditDollars = remainingAfterCreditCents / 100
   const validPetsCount = (pets ?? []).filter((pet) => {
     if (!pet) return false
     const hasName = typeof pet.name === 'string' && pet.name.trim().length > 0
@@ -359,7 +383,9 @@ export default function NewReservationPage() {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('guests')
-        .select('id, first_name, last_name, email, phone, address, city, state, zip_code, country')
+        .select(
+          'id, first_name, last_name, email, phone, address, city, state, zip_code, country, guest_credit_cents',
+        )
         .eq('property_id', propertyId)
         .ilike('email', email)
         .limit(20)
@@ -385,6 +411,15 @@ export default function NewReservationPage() {
             addressState: row.state ?? null,
             addressZipCode: row.zip_code ?? null,
             addressCountry: row.country ?? null,
+            guestCreditCents: (() => {
+              const raw = row.guest_credit_cents
+              if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+              if (typeof raw === 'string' && raw.trim() !== '') {
+                const n = Number(raw)
+                return Number.isFinite(n) ? Math.trunc(n) : 0
+              }
+              return 0
+            })(),
           }
         })
 
@@ -773,6 +808,10 @@ export default function NewReservationPage() {
           paymentMethod: data.paymentMethod,
           paidAmountCents: paidAmountCents,
           totalAmountCents: totalAmountCents > 0 ? totalAmountCents : undefined,
+          useGuestCredit:
+            useGuestCredit &&
+            selectedExistingGuestId != null &&
+            linkedGuestCreditCents > 0,
           paymentNotes: data.paymentNotes || null,
           // Discounts/fees
           selectedDiscountIds,
@@ -826,12 +865,12 @@ export default function NewReservationPage() {
   }
 
   const formatMoney = (cents: number) => {
+    const safe = typeof cents === 'number' && Number.isFinite(cents) ? cents : 0
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(cents / 100)
+    }).format(safe / 100)
   }
-
 
   const selectedSite = availableSites.find(s => s.id === selectedSiteId)
 
@@ -928,6 +967,12 @@ export default function NewReservationPage() {
                                     <div className="truncate">
                                       <span className="text-muted-foreground">Phone:</span>{' '}
                                       <span className="font-medium">{g.phone ?? '—'}</span>
+                                    </div>
+                                    <div className="truncate sm:col-span-2">
+                                      <span className="text-muted-foreground">Guest credit:</span>{' '}
+                                      <span className="font-medium tabular-nums">
+                                        {formatMoney(g.guestCreditCents)}
+                                      </span>
                                     </div>
                                     {addressLine ? (
                                       <div className="sm:col-span-2 truncate">
@@ -1569,7 +1614,18 @@ export default function NewReservationPage() {
                           variant="outline"
                           size="sm"
                           className="shrink-0"
-                          onClick={() => setValue("paidAmount", String(totalDollars))}
+                          onClick={() =>
+                            setValue(
+                              'paidAmount',
+                              String(
+                                useGuestCredit &&
+                                  selectedExistingGuestId != null &&
+                                  linkedGuestCreditCents > 0
+                                  ? remainingAfterCreditDollars
+                                  : totalDollars,
+                              ),
+                            )
+                          }
                         >
                           Set to Total
                         </Button>
@@ -1577,6 +1633,19 @@ export default function NewReservationPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Leave empty if payment will be collected later
+                      {useGuestCredit &&
+                      selectedExistingGuestId != null &&
+                      linkedGuestCreditCents > 0 &&
+                      totalCents > 0 ? (
+                        <>
+                          {' '}
+                          Remaining after guest credit:{' '}
+                          <span className="font-medium text-foreground tabular-nums">
+                            {formatMoney(remainingAfterCreditCents)}
+                          </span>
+                          .
+                        </>
+                      ) : null}
                     </p>
                   </div>
 
@@ -1586,7 +1655,19 @@ export default function NewReservationPage() {
                         Use guest credit
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Optional — applies available guest credit to this payment
+                        {selectedExistingGuestId != null && linkedGuestCreditCents > 0 ? (
+                          <>
+                            Available:{' '}
+                            <span className="font-medium text-foreground tabular-nums">
+                              {formatMoney(linkedGuestCreditCents)}
+                            </span>
+                            {' — '}applied to this payment when enabled.
+                          </>
+                        ) : selectedExistingGuestId != null && linkedGuestCreditCents <= 0 ? (
+                          <>No guest credit</>
+                        ) : (
+                          <>Optional — applies available guest credit to this payment</>
+                        )}
                       </p>
                     </div>
                     <Checkbox
@@ -1594,6 +1675,7 @@ export default function NewReservationPage() {
                       checked={useGuestCredit}
                       onCheckedChange={(checked) => setUseGuestCredit(Boolean(checked))}
                       aria-label="Use guest credit"
+                      disabled={!selectedExistingGuestId || linkedGuestCreditCents <= 0}
                     />
                   </div>
 
@@ -1645,6 +1727,7 @@ export default function NewReservationPage() {
                   selectedFeeIds={selectedFeeIds}
                   paidAmount={paidAmount}
                   onTotalChange={setSummaryTotalCents}
+                  guestCreditAppliedCents={guestCreditAppliedPreviewCents}
                 />
               </div>
 
@@ -1702,6 +1785,7 @@ export default function NewReservationPage() {
             selectedFeeIds={selectedFeeIds}
             paidAmount={paidAmount}
             onTotalChange={setSummaryTotalCents}
+            guestCreditAppliedCents={guestCreditAppliedPreviewCents}
           />
         </div>
       </div>

@@ -19,6 +19,18 @@ import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyA
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { toTransactionDTO } from '@/modules/Financial/application/DTOs/TransactionDTO'
 import { getEffectiveGuestCreditAvailableCents } from '@/modules/Financial/application/guestCreditBalance'
+import {
+  buildSiteStayReceiptLineItem,
+  formatEntityAddressLines,
+  formatReceiptDate,
+  isGenericReservationChargeNote,
+  paymentMethodToLabel,
+  paymentSourceToLabel,
+  receiptNumberFromPaymentId,
+  sendPaymentReceivedInvoiceEmail,
+  siteDisplayLabel,
+  type PaymentReceiptLineItem,
+} from '@/lib/email/send-payment-received-invoice'
 
 function mapPaymentMethod(method: string): PaymentMethod {
   const map: Record<string, PaymentMethod> = {
@@ -97,13 +109,22 @@ export async function POST(request: NextRequest) {
     // Resolve property_id
     let propertyId: string | null = null
     let reservationTotals:
-      | { total_amount: number; paid_amount: number | null; status: string; payment_status: string | null }
+      | {
+          total_amount: number
+          paid_amount: number | null
+          status: string
+          payment_status: string | null
+          confirmation_number: string
+          guest_id: string | null
+        }
       | null = null
 
     if (reservation_id) {
       const { data: reservation } = await supabase
         .from('reservations')
-        .select('id, property_id, total_amount, paid_amount, status, payment_status')
+        .select(
+          'id, property_id, total_amount, paid_amount, status, payment_status, confirmation_number, guest_id',
+        )
         .eq('id', reservation_id)
         .single()
 
@@ -119,6 +140,8 @@ export async function POST(request: NextRequest) {
         paid_amount: (reservation.paid_amount as number | null) ?? 0,
         status: reservation.status as string,
         payment_status: (reservation.payment_status as string | null) ?? null,
+        confirmation_number: reservation.confirmation_number as string,
+        guest_id: (reservation.guest_id as string | null) ?? null,
       }
     }
 
@@ -298,6 +321,216 @@ export async function POST(request: NextRequest) {
         })
       }
     }
+
+    const paymentRecordId = payment.id
+    const targetGuestId = guest_id ?? reservationTotals?.guest_id ?? null
+    if (targetGuestId && amount_cents > 0) {
+      void (async () => {
+        try {
+          const chargePromise =
+            reservation_id != null && reservation_id.length > 0
+              ? serviceRole
+                  .from('financial_transactions')
+                  .select('amount_cents, notes, created_at')
+                  .eq('reservation_id', reservation_id)
+                  .eq('property_id', propertyId)
+                  .eq('type', 'charge')
+                  .eq('status', 'completed')
+                  .eq('is_voided', false)
+                  .order('created_at', { ascending: true })
+              : Promise.resolve({ data: [] as { amount_cents: number; notes: string | null; created_at: string }[] })
+
+          const stayContextPromise =
+            reservation_id != null && reservation_id.length > 0
+              ? (async () => {
+                  const { data: res } = await serviceRole
+                    .from('reservations')
+                    .select('site_id, check_in_date, check_out_date')
+                    .eq('id', reservation_id)
+                    .eq('property_id', propertyId)
+                    .maybeSingle()
+                  if (!res?.site_id || !res.check_in_date || !res.check_out_date) {
+                    return null
+                  }
+                  const { data: site } = await serviceRole
+                    .from('sites')
+                    .select('site_name, site_number')
+                    .eq('id', res.site_id)
+                    .eq('property_id', propertyId)
+                    .maybeSingle()
+                  return { reservation: res, site }
+                })()
+              : Promise.resolve(null)
+
+          const [guestRes, propertyRes, chargeRes, stayContext] = await Promise.all([
+            serviceRole
+              .from('guests')
+              .select('email, first_name, last_name, address, city, state, zip_code, country')
+              .eq('id', targetGuestId)
+              .eq('property_id', propertyId)
+              .maybeSingle(),
+            serviceRole
+              .from('properties')
+              .select('name, address, city, state, zip_code, country, email, phone')
+              .eq('id', propertyId)
+              .maybeSingle(),
+            chargePromise,
+            stayContextPromise,
+          ])
+
+          const guestRow = guestRes.data
+          const propertyRow = propertyRes.data
+          const chargeRows = chargeRes.data ?? []
+
+          const guestEmail = typeof guestRow?.email === 'string' ? guestRow.email.trim() : ''
+          if (!guestEmail) {
+            console.warn('[Financial API v1] Record payment: skip payment receipt email — guest has no email', {
+              guestId: targetGuestId,
+              propertyId,
+            })
+            return
+          }
+
+          const first = typeof guestRow?.first_name === 'string' ? guestRow.first_name.trim() : ''
+          const last = typeof guestRow?.last_name === 'string' ? guestRow.last_name.trim() : ''
+          const guestName = [first, last].filter(Boolean).join(' ') || 'Guest'
+          const propertyName =
+            propertyRow && typeof propertyRow.name === 'string' && propertyRow.name.length > 0
+              ? propertyRow.name
+              : 'Campground'
+
+          const propertyAddressLines = propertyRow
+            ? formatEntityAddressLines({
+                address: propertyRow.address,
+                city: propertyRow.city,
+                state: propertyRow.state,
+                zip_code: propertyRow.zip_code,
+                country: propertyRow.country,
+              })
+            : []
+
+          const guestAddressLines = guestRow
+            ? formatEntityAddressLines({
+                address: guestRow.address,
+                city: guestRow.city,
+                state: guestRow.state,
+                zip_code: guestRow.zip_code,
+                country: guestRow.country,
+              })
+            : []
+
+          const confirmationNumber =
+            reservationTotals?.confirmation_number ?? 'Payment on file'
+
+          const previousPaid = reservationTotals?.paid_amount ?? 0
+          const newPaidTotalCents = reservation_id ? previousPaid + amount_cents : null
+          const totalReservationCents = reservationTotals?.total_amount ?? null
+          const reservationTotalPositiveCents =
+            totalReservationCents != null && totalReservationCents > 0
+              ? totalReservationCents
+              : null
+
+          let lineItems: PaymentReceiptLineItem[] = []
+          let chargesSubtotalCents = 0
+
+          const siteLabel =
+            stayContext?.site != null ? siteDisplayLabel(stayContext.site) : null
+          const siteStayLine =
+            reservation_id &&
+            stayContext?.reservation &&
+            siteLabel &&
+            typeof stayContext.reservation.check_in_date === 'string' &&
+            typeof stayContext.reservation.check_out_date === 'string' &&
+            reservationTotalPositiveCents != null
+              ? buildSiteStayReceiptLineItem({
+                  siteLabel,
+                  checkInDate: stayContext.reservation.check_in_date,
+                  checkOutDate: stayContext.reservation.check_out_date,
+                  totalChargeCents: reservationTotalPositiveCents,
+                })
+              : null
+
+          const loneCompletedCharge = chargeRows.length === 1 ? chargeRows[0] : null
+          const useSiteStayReceiptLine =
+            Boolean(reservation_id && siteStayLine && reservationTotalPositiveCents != null) &&
+            (chargeRows.length === 0 ||
+              (loneCompletedCharge != null &&
+                reservationTotalPositiveCents != null &&
+                Math.abs((loneCompletedCharge.amount_cents as number) - reservationTotalPositiveCents) <= 1 &&
+                isGenericReservationChargeNote(loneCompletedCharge.notes)))
+
+          if (useSiteStayReceiptLine && siteStayLine && reservationTotalPositiveCents != null) {
+            lineItems = [siteStayLine]
+            chargesSubtotalCents = reservationTotalPositiveCents
+          } else if (reservation_id && chargeRows.length > 0) {
+            lineItems = chargeRows.map((r) => {
+              const cents = r.amount_cents as number
+              const desc =
+                typeof r.notes === 'string' && r.notes.trim().length > 0 ? r.notes.trim() : 'Charge'
+              return {
+                quantity: 1,
+                description: desc,
+                unitPriceCents: cents,
+                amountCents: cents,
+              }
+            })
+            chargesSubtotalCents = lineItems.reduce((sum, row) => sum + row.amountCents, 0)
+          } else if (reservation_id && totalReservationCents != null && totalReservationCents > 0) {
+            lineItems = [
+              {
+                quantity: 1,
+                description: 'Reservation charges',
+                unitPriceCents: totalReservationCents,
+                amountCents: totalReservationCents,
+              },
+            ]
+            chargesSubtotalCents = totalReservationCents
+          } else {
+            lineItems = [
+              {
+                quantity: 1,
+                description: `${paymentSourceToLabel(source)} — ${paymentMethodToLabel(payment_method)}`,
+                unitPriceCents: amount_cents,
+                amountCents: amount_cents,
+              },
+            ]
+            chargesSubtotalCents = amount_cents
+          }
+
+          const receiptResult = await sendPaymentReceivedInvoiceEmail({
+            guestEmail,
+            guestName,
+            guestAddressLines,
+            propertyName,
+            propertyAddressLines,
+            propertyContactEmail:
+              propertyRow && typeof propertyRow.email === 'string' ? propertyRow.email.trim() : null,
+            propertyContactPhone:
+              propertyRow && typeof propertyRow.phone === 'string' ? propertyRow.phone.trim() : null,
+            confirmationNumber,
+            receiptNumber: receiptNumberFromPaymentId(paymentRecordId),
+            receiptDate: formatReceiptDate(new Date()),
+            lineItems,
+            chargesSubtotalCents,
+            amountPaidCents: amount_cents,
+            paymentMethodLabel: paymentMethodToLabel(payment_method),
+            paymentSourceLabel: paymentSourceToLabel(source),
+            totalReservationCents,
+            newPaidTotalCents,
+          })
+
+          if (!receiptResult.success) {
+            console.warn('[Financial API v1] Record payment: payment receipt email send failed', {
+              guestId: targetGuestId,
+              error: receiptResult.error,
+            })
+          }
+        } catch (e) {
+          console.error('[Financial API v1] Record payment: payment receipt email threw (non-blocking)', e)
+        }
+      })()
+    }
+
     const dto = toTransactionDTO(payment)
     return NextResponse.json(success(dto), { status: 201 })
   } catch (err: unknown) {

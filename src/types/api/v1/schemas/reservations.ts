@@ -359,8 +359,9 @@ export const CreateManualReservationRequestSchema = z.object({
   numPets: z.number().int().min(0).max(10).optional().default(0),
   numVehicles: z.number().int().min(0).max(5).optional().default(1),
 
-  // Guest information (required)
-  guest: ManualGuestInputSchema,
+  // Guest information — either guestId (link existing) or guest (create new) is required
+  guestId: z.string().uuid().optional(),
+  guest: ManualGuestInputSchema.optional(),
 
   // Family information (optional)
   spousePartner: SpousePartnerInputSchema.optional().nullable(),
@@ -379,6 +380,7 @@ export const CreateManualReservationRequestSchema = z.object({
   paidAmountCents: z.number().int().min(0).optional().default(0),
   /** Total reservation amount in cents (from pricing summary). When provided, used as reservation total_amount. */
   totalAmountCents: z.number().int().min(0).optional(),
+  useGuestCredit: z.boolean().optional().default(false),
   paymentNotes: z.string().max(500).optional().nullable(),
 
   // Discounts and fees
@@ -388,6 +390,21 @@ export const CreateManualReservationRequestSchema = z.object({
   // Notes
   specialRequests: z.string().max(1000).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (!data.guestId && !data.guest) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Guest information is required when guestId is not provided',
+      path: ['guest'],
+    })
+  }
+  if (data.useGuestCredit && !data.guestId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'guestId is required when applying guest credit',
+      path: ['useGuestCredit'],
+    })
+  }
 })
 
 export type CreateManualReservationRequest = z.infer<typeof CreateManualReservationRequestSchema>

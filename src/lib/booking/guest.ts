@@ -117,6 +117,78 @@ export async function createGuest(
 }
 
 /**
+ * Update an existing guest's contact / address fields.
+ *
+ * @param guestId - Guest ID to update
+ * @param updates - Partial guest fields to apply
+ */
+export async function updateGuest(
+  guestId: string,
+  propertyId: string,
+  updates: {
+    firstName?: string
+    lastName?: string
+    email?: string
+    phone?: string | null
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    zipCode?: string | null
+    country?: string | null
+  }
+): Promise<void> {
+  const supabase = createServiceRoleClient()
+
+  const { error } = await supabase
+    .from('guests')
+    .update({
+      first_name: updates.firstName,
+      last_name: updates.lastName,
+      email: updates.email,
+      phone: updates.phone,
+      address: updates.address,
+      city: updates.city,
+      state: updates.state,
+      zip_code: updates.zipCode,
+      country: updates.country,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', guestId)
+    .eq('property_id', propertyId)
+
+  if (error) throw new Error(`Failed to update guest: ${error.message}`)
+}
+
+/**
+ * Fetch a guest by ID scoped to a property (security: ensures tenant isolation).
+ * Only returns non-deleted guests.
+ *
+ * @param guestId - Guest ID to look up
+ * @param propertyId - Property ID for tenant isolation
+ * @returns Guest row or null if not found
+ */
+export async function getGuestByIdAndProperty(
+  guestId: string,
+  propertyId: string
+): Promise<Guest | null> {
+  const supabase = createServiceRoleClient()
+
+  const { data, error } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('id', guestId)
+    .eq('property_id', propertyId)
+    .is('deleted_at', null)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Failed to fetch guest: ${error.message}`)
+  }
+
+  return data ?? null
+}
+
+/**
  * Create a new guest or return existing guest if email already exists.
  * Used for online/self-service bookings to avoid duplicate records.
  *

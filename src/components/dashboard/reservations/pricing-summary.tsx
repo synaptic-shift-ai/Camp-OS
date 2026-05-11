@@ -43,6 +43,8 @@ interface PricingSummaryProps {
   selectedFeeIds?: string[]
   paidAmount?: string | undefined
   onTotalChange?: (totalCents: number) => void
+  /** Guest credit applied toward this reservation (cents); when positive, summary shows guest credit use */
+  guestCreditAppliedCents?: number
 }
 
 interface CalculatedFee {
@@ -75,6 +77,7 @@ export function PricingSummary({
   selectedFeeIds = [],
   paidAmount,
   onTotalChange,
+  guestCreditAppliedCents = 0,
 }: PricingSummaryProps) {
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -457,7 +460,12 @@ export function PricingSummary({
   onTotalChange?.(Math.round(total * 100))
   const paidAmountValue = Number.parseFloat(paidAmount ?? "")
   const safePaidAmount = Number.isFinite(paidAmountValue) && paidAmountValue > 0 ? paidAmountValue : 0
-  const changeAmount = safePaidAmount > total ? safePaidAmount - total : 0
+  const guestCreditDollars =
+    typeof guestCreditAppliedCents === 'number' && guestCreditAppliedCents > 0
+      ? guestCreditAppliedCents / 100
+      : 0
+  const totalPaidTowardReservation = guestCreditDollars + safePaidAmount
+  const changeAmount = totalPaidTowardReservation > total ? totalPaidTowardReservation - total : 0
 
   // Deposit calculation (if applicable)
   let depositAmount = 0
@@ -542,14 +550,36 @@ export function PricingSummary({
             <span className="text-2xl font-bold text-primary">{formatMoney(total)}</span>
           </div>
 
-          {safePaidAmount > 0 && (
+          {guestCreditDollars > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Guest credit applied</span>
+                  <span className="font-semibold tabular-nums text-primary">
+                    {formatMoney(guestCreditDollars)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Remaining before cash/card payment</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {formatMoney(Math.max(0, total - guestCreditDollars))}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {(safePaidAmount > 0 || changeAmount > 0) && (
             <>
               <Separator />
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Amount Paid</span>
-                  <span className="font-medium">{formatMoney(safePaidAmount)}</span>
-                </div>
+                {safePaidAmount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Amount paid (cash/card)</span>
+                    <span className="font-medium">{formatMoney(safePaidAmount)}</span>
+                  </div>
+                )}
                 {changeAmount > 0 && (
                   <div className="flex items-center justify-between text-sm">
                     <span>Change</span>

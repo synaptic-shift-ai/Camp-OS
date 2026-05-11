@@ -151,7 +151,7 @@ export async function POST(
       propertyId,
       checkInDate: data.checkInDate,
       checkOutDate: data.checkOutDate,
-      guestEmail: data.guest.email,
+      guestEmail: data.guest?.email,
     })
 
     const handler = new CreateManualReservationCommandHandler()

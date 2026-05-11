@@ -11,7 +11,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
-import { getGuestCreditBalance } from '@/modules/Financial/application/guestCreditBalance'
+import { getEffectiveGuestCreditAvailableCents } from '@/modules/Financial/application/guestCreditBalance'
 
 /**
  * GET /api/v1/financial/guests/[guestId]/credit-balance
@@ -79,20 +79,17 @@ export async function GET(
     }
 
     const serviceRole = createServiceRoleClient()
-    const balance = await getGuestCreditBalance(serviceRole, guestId, propertyId)
+    const effective = await getEffectiveGuestCreditAvailableCents(serviceRole, guestId, propertyId)
 
     return success(
       {
         guest_id: guestId,
         property_id: propertyId,
-        total_credits_cents: balance.totalCredits,
-        total_used_cents: balance.totalUsed,
-        // Source of truth: denormalized balance on guests table (property-scoped via guests.property_id)
-        // Fallback to computed balance if column missing for any reason.
-        credit_balance_cents:
-          typeof guest.guest_credit_cents === 'number'
-            ? guest.guest_credit_cents
-            : balance.creditBalance,
+        total_credits_cents: effective.ledger.totalCredits,
+        total_used_cents: effective.ledger.totalUsed,
+        ledger_balance_cents: effective.ledger.creditBalance,
+        guests_table_guest_credit_cents: effective.guestsColumnCents,
+        credit_balance_cents: effective.effectiveAvailableCents,
       },
       request,
     )

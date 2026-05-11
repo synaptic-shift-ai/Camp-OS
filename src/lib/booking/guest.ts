@@ -10,6 +10,12 @@ import type { Guest, CreateGuestInput, BookingResult, SpousePartnerInput } from 
 import type { GuestWithSpouse } from './vehicle-types'
 
 /**
+ * Row type returned by Supabase guests table queries.
+ * Matches the Guest interface but is explicitly nullable for `.single()` / `.maybeSingle()` results.
+ */
+type GuestRow = Guest | null
+
+/**
  * Extended guest input with spouse information
  */
 export interface CreateGuestWithSpouseInput extends CreateGuestInput {
@@ -114,6 +120,76 @@ export async function createGuest(
     success: true,
     data: createdGuest as Guest,
   }
+}
+
+/**
+ * Update an existing guest's contact / address fields.
+ *
+ * @param guestId - Guest ID to update
+ * @param updates - Partial guest fields to apply
+ */
+export async function updateGuest(
+  guestId: string,
+  updates: {
+    firstName?: string
+    lastName?: string
+    email?: string
+    phone?: string | null
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    zipCode?: string | null
+    country?: string | null
+  }
+): Promise<void> {
+  const supabase = createServiceRoleClient()
+
+  const { error } = await supabase
+    .from('guests')
+    .update({
+      first_name: updates.firstName,
+      last_name: updates.lastName,
+      email: updates.email,
+      phone: updates.phone,
+      address: updates.address,
+      city: updates.city,
+      state: updates.state,
+      zip_code: updates.zipCode,
+      country: updates.country,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', guestId)
+
+  if (error) throw new Error(`Failed to update guest: ${error.message}`)
+}
+
+/**
+ * Fetch a guest by ID scoped to a property (security: ensures tenant isolation).
+ * Only returns non-deleted guests.
+ *
+ * @param guestId - Guest ID to look up
+ * @param propertyId - Property ID for tenant isolation
+ * @returns Guest row or null if not found
+ */
+export async function getGuestByIdAndProperty(
+  guestId: string,
+  propertyId: string
+): Promise<GuestRow> {
+  const supabase = createServiceRoleClient()
+
+  const { data, error } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('id', guestId)
+    .eq('property_id', propertyId)
+    .is('deleted_at', null)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Failed to fetch guest: ${error.message}`)
+  }
+
+  return data ?? null
 }
 
 /**

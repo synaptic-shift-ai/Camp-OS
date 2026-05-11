@@ -15,7 +15,7 @@
  */
 
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { createGuest, updateGuestSpouse } from '@/lib/booking/guest'
+import { createGuest, updateGuestSpouse, updateGuest, getGuestByIdAndProperty } from '@/lib/booking/guest'
 import { createReservationChildren } from '@/lib/booking/children'
 import { createReservationPets } from '@/lib/booking/pets'
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
@@ -84,24 +84,51 @@ export class CreateManualReservationCommandHandler {
   async execute(dto: CreateManualReservationDto & { createdBy: string }): Promise<ManualReservationResult> {
     const supabase = createServiceRoleClient()
 
-    // 1. Always create a new guest record (manual bookings never reuse existing by email)
-    // Build guest input conditionally to avoid undefined values (exactOptionalPropertyTypes)
-    const guestInput: Parameters<typeof createGuest>[1] = {
-      first_name: dto.guest.firstName,
-      last_name: dto.guest.lastName,
-      email: dto.guest.email,
-      phone: dto.guest.phone,
-    }
-    if (dto.guest.address) guestInput.address = dto.guest.address
-    if (dto.guest.city) guestInput.city = dto.guest.city
-    if (dto.guest.state) guestInput.state = dto.guest.state
-    if (dto.guest.zipCode) guestInput.zip_code = dto.guest.zipCode
+    // 1. Link to existing guest or create a new one
+    let guestId: string
 
-    const guestResult = await createGuest(dto.propertyId, guestInput)
-    if (!guestResult.success) {
-      throw new Error(guestResult.error.message)
+    if (dto.guestId) {
+      // Link to existing guest — verify property scope
+      const existingGuest = await getGuestByIdAndProperty(dto.guestId, dto.propertyId)
+      if (!existingGuest) {
+        throw new Error('Guest not found or does not belong to this property')
+      }
+      guestId = dto.guestId
+
+      // Always overwrite guest fields when guestId is provided alongside guest data
+      if (dto.guest) {
+        const guestUpdates: Parameters<typeof updateGuest>[1] = {
+          firstName: dto.guest.firstName,
+          lastName: dto.guest.lastName,
+          email: dto.guest.email,
+          phone: dto.guest.phone,
+        }
+        if (dto.guest.address !== undefined) guestUpdates.address = dto.guest.address
+        if (dto.guest.city !== undefined) guestUpdates.city = dto.guest.city
+        if (dto.guest.state !== undefined) guestUpdates.state = dto.guest.state
+        if (dto.guest.zipCode !== undefined) guestUpdates.zipCode = dto.guest.zipCode
+
+        await updateGuest(guestId, guestUpdates)
+      }
+    } else {
+      // Create new guest (existing behavior)
+      const guestInput: Parameters<typeof createGuest>[1] = {
+        first_name: dto.guest!.firstName,
+        last_name: dto.guest!.lastName,
+        email: dto.guest!.email,
+        phone: dto.guest!.phone,
+      }
+      if (dto.guest!.address) guestInput.address = dto.guest!.address
+      if (dto.guest!.city) guestInput.city = dto.guest!.city
+      if (dto.guest!.state) guestInput.state = dto.guest!.state
+      if (dto.guest!.zipCode) guestInput.zip_code = dto.guest!.zipCode
+
+      const guestResult = await createGuest(dto.propertyId, guestInput)
+      if (!guestResult.success) {
+        throw new Error(guestResult.error.message)
+      }
+      guestId = guestResult.data.id
     }
-    const guest = guestResult.data
 
     // 2. Check site availability (guard against double-booking)
     const availabilityResult = await checkSiteAvailability(
@@ -122,7 +149,7 @@ export class CreateManualReservationCommandHandler {
       .insert({
         property_id: dto.propertyId,
         site_id: dto.siteId,
-        guest_id: guest.id,
+        guest_id: guestId,
         confirmation_number: generateConfirmationNumber(),
         check_in_date: dto.checkInDate,
         check_out_date: dto.checkOutDate,
@@ -170,7 +197,7 @@ export class CreateManualReservationCommandHandler {
       if (dto.spousePartner.phone) spouseDbInput.phone = dto.spousePartner.phone
       if (dto.spousePartner.email) spouseDbInput.email = dto.spousePartner.email
 
-      await updateGuestSpouse(guest.id, dto.propertyId, spouseDbInput)
+      await updateGuestSpouse(guestId, dto.propertyId, spouseDbInput)
     }
 
     // 4. Handle children information (per reservation)
@@ -231,7 +258,7 @@ export class CreateManualReservationCommandHandler {
         return vData
       })
 
-      const vehicleResult = await createGuestVehicles(guest.id, dto.propertyId, vehicleInput)
+      const vehicleResult = await createGuestVehicles(guestId, dto.propertyId, vehicleInput)
       if (vehicleResult.success && vehicleResult.data.length > 0) {
         const vehicleIds = vehicleResult.data.map((v) => v.id)
         await linkVehiclesToReservation(reservation.id, vehicleIds)
@@ -326,8 +353,10 @@ export class CreateManualReservationCommandHandler {
     return {
       id: reservation.id,
       confirmationNumber: reservation.confirmation_number,
-      guestId: guest.id,
-      guestName: `${dto.guest.firstName} ${dto.guest.lastName}`,
+      guestId: guestId,
+      guestName: dto.guest
+        ? `${dto.guest.firstName} ${dto.guest.lastName}`
+        : 'Existing guest',
       checkInDate: dto.checkInDate,
       checkOutDate: dto.checkOutDate,
       totalAmountCents: reservation.total_amount,

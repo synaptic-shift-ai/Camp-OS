@@ -10,12 +10,6 @@ import type { Guest, CreateGuestInput, BookingResult, SpousePartnerInput } from 
 import type { GuestWithSpouse } from './vehicle-types'
 
 /**
- * Row type returned by Supabase guests table queries.
- * Matches the Guest interface but is explicitly nullable for `.single()` / `.maybeSingle()` results.
- */
-type GuestRow = Guest | null
-
-/**
  * Extended guest input with spouse information
  */
 export interface CreateGuestWithSpouseInput extends CreateGuestInput {
@@ -130,6 +124,7 @@ export async function createGuest(
  */
 export async function updateGuest(
   guestId: string,
+  propertyId: string,
   updates: {
     firstName?: string
     lastName?: string
@@ -159,6 +154,7 @@ export async function updateGuest(
       updated_at: new Date().toISOString(),
     })
     .eq('id', guestId)
+    .eq('property_id', propertyId)
 
   if (error) throw new Error(`Failed to update guest: ${error.message}`)
 }
@@ -174,7 +170,7 @@ export async function updateGuest(
 export async function getGuestByIdAndProperty(
   guestId: string,
   propertyId: string
-): Promise<GuestRow> {
+): Promise<Guest | null> {
   const supabase = createServiceRoleClient()
 
   const { data, error } = await supabase

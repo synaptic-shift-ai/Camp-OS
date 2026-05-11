@@ -21,7 +21,7 @@ import { createReservationPets } from '@/lib/booking/pets'
 import { createGuestVehicles, linkVehiclesToReservation } from '@/lib/booking/vehicles'
 import { checkSiteAvailability } from '@/lib/booking/availability'
 import { generateConfirmationNumber } from '@/lib/booking/api'
-import type { CreatePetInputData, CreateVehicleInputData } from '@/lib/booking/types'
+import type { CreatePetInputData, CreateVehicleInputData, Guest } from '@/lib/booking/types'
 import type {
   CreateManualReservationRequest,
   ChildInput,
@@ -86,10 +86,11 @@ export class CreateManualReservationCommandHandler {
 
     // 1. Link to existing guest or create a new one
     let guestId: string
+    let existingGuest: Guest | null = null
 
     if (dto.guestId) {
       // Link to existing guest — verify property scope
-      const existingGuest = await getGuestByIdAndProperty(dto.guestId, dto.propertyId)
+      existingGuest = await getGuestByIdAndProperty(dto.guestId, dto.propertyId)
       if (!existingGuest) {
         throw new Error('Guest not found or does not belong to this property')
       }
@@ -97,7 +98,7 @@ export class CreateManualReservationCommandHandler {
 
       // Always overwrite guest fields when guestId is provided alongside guest data
       if (dto.guest) {
-        const guestUpdates: Parameters<typeof updateGuest>[1] = {
+        const guestUpdates: Parameters<typeof updateGuest>[2] = {
           firstName: dto.guest.firstName,
           lastName: dto.guest.lastName,
           email: dto.guest.email,
@@ -108,20 +109,23 @@ export class CreateManualReservationCommandHandler {
         if (dto.guest.state !== undefined) guestUpdates.state = dto.guest.state
         if (dto.guest.zipCode !== undefined) guestUpdates.zipCode = dto.guest.zipCode
 
-        await updateGuest(guestId, guestUpdates)
+        await updateGuest(guestId, dto.propertyId, guestUpdates)
       }
     } else {
       // Create new guest (existing behavior)
-      const guestInput: Parameters<typeof createGuest>[1] = {
-        first_name: dto.guest!.firstName,
-        last_name: dto.guest!.lastName,
-        email: dto.guest!.email,
-        phone: dto.guest!.phone,
+      if (!dto.guest) {
+        throw new Error('Guest data is required when guestId is not provided')
       }
-      if (dto.guest!.address) guestInput.address = dto.guest!.address
-      if (dto.guest!.city) guestInput.city = dto.guest!.city
-      if (dto.guest!.state) guestInput.state = dto.guest!.state
-      if (dto.guest!.zipCode) guestInput.zip_code = dto.guest!.zipCode
+      const guestInput: Parameters<typeof createGuest>[1] = {
+        first_name: dto.guest.firstName,
+        last_name: dto.guest.lastName,
+        email: dto.guest.email,
+        phone: dto.guest.phone,
+      }
+      if (dto.guest.address) guestInput.address = dto.guest.address
+      if (dto.guest.city) guestInput.city = dto.guest.city
+      if (dto.guest.state) guestInput.state = dto.guest.state
+      if (dto.guest.zipCode) guestInput.zip_code = dto.guest.zipCode
 
       const guestResult = await createGuest(dto.propertyId, guestInput)
       if (!guestResult.success) {
@@ -356,7 +360,9 @@ export class CreateManualReservationCommandHandler {
       guestId: guestId,
       guestName: dto.guest
         ? `${dto.guest.firstName} ${dto.guest.lastName}`
-        : 'Existing guest',
+        : existingGuest
+          ? `${existingGuest.first_name} ${existingGuest.last_name}`
+          : 'Existing guest',
       checkInDate: dto.checkInDate,
       checkOutDate: dto.checkOutDate,
       totalAmountCents: reservation.total_amount,

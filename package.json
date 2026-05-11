@@ -26,6 +26,7 @@
     "check:full": "npm run gen:db && npm run check && npm run build",
     "prepare": "husky || true",
     "test:email": "tsx scripts/test-email.ts",
+    "stripe:list-payment-methods": "tsx scripts/list-stripe-enabled-payment-methods.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",

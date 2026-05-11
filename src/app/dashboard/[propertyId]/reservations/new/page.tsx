@@ -743,6 +743,10 @@ export default function NewReservationPage() {
           numPets: petsData.length > 0 ? petsData.length : (data.numPets || 0),
           pets: petsData,
           numVehicles: actualNumVehicles,
+          // Link to existing guest when detected, otherwise provide guest data
+          ...(selectedExistingGuestId
+            ? { guestId: selectedExistingGuestId }
+            : {}),
           guest: {
             firstName: data.guestFirstName,
             lastName: data.guestLastName,

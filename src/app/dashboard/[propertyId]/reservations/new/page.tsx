@@ -40,6 +40,31 @@ import {
   buildOpenPeriodBookingErrorMessage,
 } from '@/lib/booking/open-period'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+
+type ExistingGuestMatch = {
+  id: string
+  firstName: string
+  lastName: string
+  fullName: string
+  email: string
+  phone: string | null
+  addressStreet: string | null
+  addressCity: string | null
+  addressState: string | null
+  addressZipCode: string | null
+  addressCountry: string | null
+}
 
 // Form validation schema - Enhanced with spouse, children, and vehicles
 const manualBookingSchema = z.object({
@@ -181,6 +206,7 @@ export default function NewReservationPage() {
   const [propertyName, setPropertyName] = useState<string | null>(null)
   const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
   const [openPeriodUntil, setOpenPeriodUntil] = useState<string | null>(null)
+  const [useGuestCredit, setUseGuestCredit] = useState(false)
   const { toast } = useToast()
   const lastHolidayToastKeyRef = useRef<string | null>(null)
   /** Set when search-availability fails (e.g. OPEN_PERIOD) so Step 2 can show a specific message */
@@ -272,6 +298,13 @@ export default function NewReservationPage() {
     trigger,
   } = methods
 
+  const [existingGuestDialogOpen, setExistingGuestDialogOpen] = useState(false)
+  const [existingGuests, setExistingGuests] = useState<ExistingGuestMatch[]>([])
+  const [selectedExistingGuestId, setSelectedExistingGuestId] = useState<string | null>(null)
+  const [isCheckingGuestEmail, setIsCheckingGuestEmail] = useState(false)
+  const [lastCheckedGuestEmail, setLastCheckedGuestEmail] = useState<string | null>(null)
+  const [dismissedExistingGuestEmail, setDismissedExistingGuestEmail] = useState<string | null>(null)
+
   const selectedSiteId = watch("siteId")
   const checkInDate = watch("checkInDate")
   const checkOutDate = watch("checkOutDate")
@@ -282,6 +315,7 @@ export default function NewReservationPage() {
   const pets = watch("pets")
   const paymentMethod = watch("paymentMethod")
   const paidAmount = watch("paidAmount")
+  const guestEmail = watch("guestEmail")
   const totalCents = summaryTotalCents ?? 0
   const totalDollars = totalCents / 100
   const validPetsCount = (pets ?? []).filter((pet) => {
@@ -296,6 +330,73 @@ export default function NewReservationPage() {
     if (!checkInDate || !checkOutDate) return
     void trigger(['stayType', 'checkInDate', 'checkOutDate'])
   }, [stayType, checkInDate, checkOutDate, trigger])
+
+  useEffect(() => {
+    const normalized = typeof guestEmail === 'string' ? guestEmail.trim().toLowerCase() : ''
+    if (!normalized) {
+      setExistingGuests([])
+      setSelectedExistingGuestId(null)
+      setExistingGuestDialogOpen(false)
+      setLastCheckedGuestEmail(null)
+      setDismissedExistingGuestEmail(null)
+      return
+    }
+    if (dismissedExistingGuestEmail && normalized !== dismissedExistingGuestEmail) {
+      setDismissedExistingGuestEmail(null)
+    }
+  }, [guestEmail, dismissedExistingGuestEmail])
+
+  const checkForExistingGuestByEmail = async (rawEmail: string) => {
+    const email = rawEmail.trim().toLowerCase()
+    if (!email) return
+    if (!propertyId) return
+    if (dismissedExistingGuestEmail && email === dismissedExistingGuestEmail) return
+    if (lastCheckedGuestEmail && email === lastCheckedGuestEmail) return
+
+    setIsCheckingGuestEmail(true)
+    setLastCheckedGuestEmail(email)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('guests')
+        .select('id, first_name, last_name, email, phone, address, city, state, zip_code, country')
+        .eq('property_id', propertyId)
+        .ilike('email', email)
+        .limit(20)
+
+      if (error || !data || data.length === 0) return
+
+      const matches: ExistingGuestMatch[] = data
+        .filter((row) => (row.email ?? '').trim().toLowerCase() === email)
+        .map((row) => {
+          const first = (row.first_name ?? '').trim()
+          const last = (row.last_name ?? '').trim()
+          const fullName = [first, last].filter(Boolean).join(' ').trim()
+
+          return {
+            id: row.id,
+            firstName: first,
+            lastName: last,
+            fullName: fullName || '(Unnamed guest)',
+            email: row.email,
+            phone: row.phone ?? null,
+            addressStreet: row.address ?? null,
+            addressCity: row.city ?? null,
+            addressState: row.state ?? null,
+            addressZipCode: row.zip_code ?? null,
+            addressCountry: row.country ?? null,
+          }
+        })
+
+      if (matches.length === 0) return
+
+      setExistingGuests(matches)
+      setSelectedExistingGuestId(matches[0]?.id ?? null)
+      setExistingGuestDialogOpen(true)
+    } finally {
+      setIsCheckingGuestEmail(false)
+    }
+  }
 
   useEffect(() => {
     if (dateRange?.from) {
@@ -776,6 +877,105 @@ export default function NewReservationPage() {
         {/* Main Form - Left Column */}
         <div className="lg:col-span-2">
           <FormProvider {...methods}>
+            <AlertDialog open={existingGuestDialogOpen} onOpenChange={setExistingGuestDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Has this guest stayed with us before?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {existingGuests.length > 0 ? (
+                      <div className="mt-3 space-y-2 text-sm text-foreground">
+                        {existingGuests.length > 1 ? (
+                          <p className="text-xs text-muted-foreground">
+                            We found {existingGuests.length} guest profiles with this email. Please select the correct one.
+                          </p>
+                        ) : null}
+
+                        <RadioGroup
+                          value={selectedExistingGuestId ?? undefined}
+                          onValueChange={(value) => setSelectedExistingGuestId(value)}
+                          className="gap-2"
+                        >
+                          {existingGuests.map((g) => {
+                            const addressParts = [
+                              g.addressStreet?.trim() ? g.addressStreet : null,
+                              g.addressCity?.trim() ? g.addressCity : null,
+                              g.addressState?.trim() ? g.addressState : null,
+                              g.addressZipCode?.trim() ? g.addressZipCode : null,
+                              // Intentionally optional: show address even when country is null
+                              g.addressCountry?.trim() ? g.addressCountry : null,
+                            ]
+                            const addressLine = addressParts.filter(Boolean).join(', ') || null
+
+                            return (
+                              <label
+                                key={g.id}
+                                className="flex items-start gap-3 rounded-md border p-3 hover:bg-muted/30 cursor-pointer"
+                              >
+                                <RadioGroupItem value={g.id} className="mt-1" />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="font-medium">{g.fullName}</div>
+                                  </div>
+                                  <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                                    <div className="truncate">
+                                      <span className="text-muted-foreground">Email:</span>{' '}
+                                      <span className="font-medium">{g.email}</span>
+                                    </div>
+                                    <div className="truncate">
+                                      <span className="text-muted-foreground">Phone:</span>{' '}
+                                      <span className="font-medium">{g.phone ?? '—'}</span>
+                                    </div>
+                                    {addressLine ? (
+                                      <div className="sm:col-span-2 truncate">
+                                        <span className="text-muted-foreground">Address:</span>{' '}
+                                        <span className="font-medium">{addressLine}</span>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </RadioGroup>
+                      </div>
+                    ) : (
+                      'We found an existing guest with this email.'
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    onClick={() => {
+                      const currentEmail = typeof guestEmail === 'string' ? guestEmail.trim().toLowerCase() : null
+                      setExistingGuests([])
+                      setSelectedExistingGuestId(null)
+                      setExistingGuestDialogOpen(false)
+                      setDismissedExistingGuestEmail(currentEmail)
+                    }}
+                  >
+                    No — register as new guest
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      const selected =
+                        existingGuests.find((g) => g.id === selectedExistingGuestId) ?? existingGuests[0]
+                      if (!selected) return
+                      setValue('guestFirstName', selected.firstName, { shouldValidate: true })
+                      setValue('guestLastName', selected.lastName, { shouldValidate: true })
+                      setValue('guestEmail', selected.email, { shouldValidate: true })
+                      setValue('guestPhone', selected.phone ?? '', { shouldValidate: true })
+                      setValue('guestAddress', selected.addressStreet ?? '', { shouldValidate: true })
+                      setValue('guestCity', selected.addressCity ?? '', { shouldValidate: true })
+                      setValue('guestState', selected.addressState ?? '', { shouldValidate: true })
+                      setValue('guestZipCode', selected.addressZipCode ?? '', { shouldValidate: true })
+                      setExistingGuestDialogOpen(false)
+                    }}
+                  >
+                    Yes — use existing guest
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               {/* Date Selection - Priority #1 for phone bookings */}
               <Card className="border-primary/20 bg-primary/5">
@@ -1177,6 +1377,43 @@ export default function NewReservationPage() {
                     <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Primary Guest</h4>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                       <div>
+                        <Label htmlFor="guestEmail">Email *</Label>
+                        {(() => {
+                          const guestEmailField = register("guestEmail")
+                          return (
+                        <Input
+                          id="guestEmail"
+                          type="email"
+                          {...guestEmailField}
+                          onBlur={(e) => {
+                            guestEmailField.onBlur(e)
+                            void checkForExistingGuestByEmail(e.target.value)
+                          }}
+                        />
+                          )
+                        })()}
+                        {errors.guestEmail && (
+                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestEmail.message}</p>
+                        )}
+                        {isCheckingGuestEmail && (
+                          <p className="mt-1 text-xs text-muted-foreground">Checking guest list…</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="guestPhone">Phone *</Label>
+                        <Input
+                          id="guestPhone"
+                          type="tel"
+                          {...register("guestPhone")}
+                        />
+                        {errors.guestPhone && (
+                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestPhone.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                      <div>
                         <Label htmlFor="guestFirstName">First Name *</Label>
                         <Input
                           id="guestFirstName"
@@ -1194,31 +1431,6 @@ export default function NewReservationPage() {
                         />
                         {errors.guestLastName && (
                           <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestLastName.message}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                      <div>
-                        <Label htmlFor="guestEmail">Email *</Label>
-                        <Input
-                          id="guestEmail"
-                          type="email"
-                          {...register("guestEmail")}
-                        />
-                        {errors.guestEmail && (
-                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestEmail.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="guestPhone">Phone *</Label>
-                        <Input
-                          id="guestPhone"
-                          type="tel"
-                          {...register("guestPhone")}
-                        />
-                        {errors.guestPhone && (
-                          <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestPhone.message}</p>
                         )}
                       </div>
                     </div>
@@ -1362,6 +1574,23 @@ export default function NewReservationPage() {
                     <p className="text-xs text-muted-foreground mt-1">
                       Leave empty if payment will be collected later
                     </p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="use-guest-credit" className="text-sm">
+                        Use guest credit
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Optional — applies available guest credit to this payment
+                      </p>
+                    </div>
+                    <Checkbox
+                      id="use-guest-credit"
+                      checked={useGuestCredit}
+                      onCheckedChange={(checked) => setUseGuestCredit(Boolean(checked))}
+                      aria-label="Use guest credit"
+                    />
                   </div>
 
                   <div>

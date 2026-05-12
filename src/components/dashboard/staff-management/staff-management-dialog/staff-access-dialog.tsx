@@ -71,6 +71,9 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'delete', name: 'Delete guests' },
     { id: 'export', name: 'Export guest list' },
   ],
+  'guest-communication': [
+    { id: 'view', name: 'View guest communications' },
+  ],
   payments: [
     { id: 'view', name: 'View payments' },
     // { id: 'refund', name: 'Issue refunds' },

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -8,8 +8,20 @@ import {
   Mail,
   Smartphone,
 } from "lucide-react"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ExportMenu } from "@/components/ui/export-menu"
 import {
   Table,
   TableBody,
@@ -18,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Pagination } from "@/components/ui/pagination"
 import { cn } from "@/lib/utils"
 
 const PANEL =
@@ -37,53 +50,27 @@ type ActivityRow = {
   reservation: string
 }
 
-const ACTIVITY_ROWS: ActivityRow[] = [
-  {
-    id: "1",
-    when: "2m ago",
-    guest: "Sarah Mitchell",
-    template: "Booking Confirmation",
-    channel: "EMAIL",
-    status: "Delivered",
-    reservation: "#R-48231",
-  },
-  {
-    id: "2",
-    when: "12m ago",
-    guest: "James Porter",
-    template: "Check-In Day",
-    channel: "SMS",
-    status: "Opened",
-    reservation: "#R-48102",
-  },
-  {
-    id: "3",
-    when: "1h ago",
-    guest: "Unknown",
-    template: "Promo — Spring",
-    channel: "EMAIL",
-    status: "Bounced",
-    reservation: "—",
-  },
-  {
-    id: "4",
-    when: "2h ago",
-    guest: "Elena Ruiz",
-    template: "Balance Reminder",
-    channel: "SMS",
-    status: "Skipped",
-    reservation: "#R-47988",
-  },
-  {
-    id: "5",
-    when: "3h ago",
-    guest: "Marcus Lin",
-    template: "Pre-Arrival Info",
-    channel: "EMAIL",
-    status: "Queued",
-    reservation: "#R-47844",
-  },
-]
+type StatusCounts = {
+  counts: Record<string, number>
+  total: number
+}
+
+type LogEntry = {
+  id: string
+  guest: { first_name: string; last_name: string; email: string } | null
+  template: { name: string } | null
+  channel: string
+  status: string
+  reservation_id: string | null
+  recipient_address: string
+  created_at: string
+}
+
+type ChartDataPoint = {
+  date: string
+  EMAIL: number
+  SMS: number
+}
 
 function StatusBadge({ status }: { status: ActivityRow["status"] }) {
   const styles: Record<ActivityRow["status"], string> = {
@@ -111,19 +98,239 @@ function StatusBadge({ status }: { status: ActivityRow["status"] }) {
   )
 }
 
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now()
+  const then = new Date(dateStr).getTime()
+  const diffMs = now - then
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return "Just now"
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return `${diffHr}h ago`
+  const diffDay = Math.floor(diffHr / 24)
+  return `${diffDay}d ago`
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
+
+function TrendArrow({ direction, value }: { direction: "up" | "down"; value: string }) {
+  const isGood = direction === "up"
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-xs font-semibold",
+        isGood
+          ? "text-emerald-700 dark:text-emerald-400"
+          : "text-red-600 dark:text-red-400",
+      )}
+    >
+      {direction === "up" ? (
+        <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+      ) : (
+        <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+      )}
+      {value}
+    </span>
+  )
+}
+
 export function GuestDeliveryPanel() {
   const [query, setQuery] = useState("")
+  const [statusCounts, setStatusCounts] = useState<StatusCounts | null>(null)
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [logCount, setLogCount] = useState(0)
+  const [logPage, setLogPage] = useState(1)
+  const [loadingKpi, setLoadingKpi] = useState(true)
+  const [loadingLogs, setLoadingLogs] = useState(true)
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([])
+  const [loadingChart, setLoadingChart] = useState(true)
+  const [channelMix, setChannelMix] = useState<{ email: number; sms: number; total: number }>({
+    email: 0,
+    sms: 0,
+    total: 0,
+  })
+
+  const pageSize = 10
+
+  // Fetch status counts (KPIs)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchCounts() {
+      try {
+        setLoadingKpi(true)
+        const res = await fetch(`/api/v1/communications/log?groupBy=status&dateFrom=${new Date().toISOString().split("T")[0]}`)
+        const json = await res.json()
+        if (cancelled || !json.success) return
+        setStatusCounts(json.data)
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setLoadingKpi(false)
+      }
+    }
+    fetchCounts()
+    return () => { cancelled = true }
+  }, [])
+
+  // Fetch channel mix (last 7 days)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchChannelMix() {
+      try {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const from = sevenDaysAgo.toISOString().split("T")[0]
+        const res = await fetch(`/api/v1/communications/log?dateFrom=${from}&limit=10000`)
+        const json = await res.json()
+        if (cancelled || !json.success) return
+
+        const entries: LogEntry[] = json.data.data ?? []
+        let email = 0
+        let sms = 0
+        for (const e of entries) {
+          if (e.channel === "EMAIL") email++
+          else if (e.channel === "SMS") sms++
+        }
+        const total = email + sms
+        setChannelMix({ email, sms, total })
+      } catch {
+        // silent
+      }
+    }
+    fetchChannelMix()
+    return () => { cancelled = true }
+  }, [])
+
+  // Fetch chart data (last 14 days)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchChartData() {
+      try {
+        setLoadingChart(true)
+        const fourteenDaysAgo = new Date()
+        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13)
+        const from = fourteenDaysAgo.toISOString().split("T")[0]
+        const res = await fetch(`/api/v1/communications/log?dateFrom=${from}&limit=10000`)
+        const json = await res.json()
+        if (cancelled || !json.success) return
+
+        const entries: LogEntry[] = json.data.data ?? []
+        const dayMap: Record<string, { EMAIL: number; SMS: number }> = {}
+
+        for (let i = 0; i < 14; i++) {
+          const d = new Date()
+          d.setDate(d.getDate() - (13 - i))
+          const key = d.toISOString().split("T")[0] ?? ""
+          dayMap[key] = { EMAIL: 0, SMS: 0 }
+        }
+
+        for (const e of entries) {
+          const day = e.created_at ? e.created_at.split("T")[0] : undefined
+          if (day && dayMap[day]) {
+            if (e.channel === "EMAIL") dayMap[day].EMAIL++
+            else if (e.channel === "SMS") dayMap[day].SMS++
+          }
+        }
+
+        const points: ChartDataPoint[] = Object.entries(dayMap).map(([date, counts]) => ({
+          date: new Date(date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          ...counts,
+        }))
+
+        setChartData(points)
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setLoadingChart(false)
+      }
+    }
+    fetchChartData()
+    return () => { cancelled = true }
+  }, [])
+
+  // Fetch activity logs
+  useEffect(() => {
+    let cancelled = false
+    async function fetchLogs() {
+      try {
+        setLoadingLogs(true)
+        const offset = (logPage - 1) * pageSize
+        const res = await fetch(`/api/v1/communications/log?limit=${pageSize}&offset=${offset}`)
+        const json = await res.json()
+        if (cancelled || !json.success) return
+        setLogs(json.data.data ?? [])
+        setLogCount(json.data.count ?? 0)
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setLoadingLogs(false)
+      }
+    }
+    fetchLogs()
+    return () => { cancelled = true }
+  }, [logPage])
+
+  // Compute KPIs
+  const kpis = useMemo(() => {
+    const c = statusCounts?.counts ?? {}
+    const sent = (c.queued ?? 0) + (c.sent ?? 0) + (c.delivered ?? 0) + (c.opened ?? 0) + (c.bounced ?? 0) + (c.failed ?? 0)
+    const delivered = (c.delivered ?? 0) + (c.opened ?? 0)
+    const bounced = c.bounced ?? 0
+    const failed = c.failed ?? 0
+    const opened = c.opened ?? 0
+    const total = statusCounts?.total ?? 0
+
+    const deliveryRate = (delivered + bounced + failed) > 0
+      ? ((delivered / (delivered + bounced + failed)) * 100).toFixed(1)
+      : "—"
+    const openRate = delivered > 0
+      ? ((opened / delivered) * 100).toFixed(1)
+      : "—"
+    const bounceRate = total > 0
+      ? ((bounced / total) * 100).toFixed(1)
+      : "—"
+
+    return { sent, deliveryRate, openRate, bounceRate }
+  }, [statusCounts])
+
+  // Map log entries to activity rows
+  const activityRows: ActivityRow[] = useMemo(() => {
+    return logs.map((entry) => {
+      const guest = entry.guest
+      const firstName = guest?.first_name ?? ""
+      const lastName = guest?.last_name ?? ""
+      const guestName = [firstName, lastName].filter(Boolean).join(" ") || "Unknown"
+
+      return {
+        id: entry.id,
+        when: formatRelativeTime(entry.created_at),
+        guest: guestName,
+        template: entry.template?.name ?? "—",
+        channel: (entry.channel as "EMAIL" | "SMS") ?? "EMAIL",
+        status: capitalize(entry.status) as ActivityRow["status"],
+        reservation: entry.reservation_id ? `#${entry.reservation_id}` : "—",
+      }
+    })
+  }, [logs])
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return ACTIVITY_ROWS
-    return ACTIVITY_ROWS.filter(
+    if (!q) return activityRows
+    return activityRows.filter(
       (r) =>
         r.guest.toLowerCase().includes(q) ||
         r.reservation.toLowerCase().includes(q) ||
         r.template.toLowerCase().includes(q),
     )
-  }, [query])
+  }, [query, activityRows])
+
+  const totalPages = Math.max(1, Math.ceil(logCount / pageSize))
+
+  // Channel mix percentages
+  const emailPct = channelMix.total > 0 ? Math.round((channelMix.email / channelMix.total) * 100) : 0
+  const smsPct = channelMix.total > 0 ? 100 - emailPct : 0
 
   return (
     <div
@@ -148,13 +355,16 @@ export function GuestDeliveryPanel() {
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
               Sent today
             </p>
-            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-              12%
-            </span>
+            {loadingKpi ? (
+              <Skeleton className="h-4 w-12" />
+            ) : (
+              <TrendArrow direction="up" value="—" />
+            )}
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">1,284</p>
-          <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">vs. yesterday</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
+            {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : kpis.sent.toLocaleString()}
+          </p>
+          <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email + SMS combined</p>
         </div>
 
         <div className={cn(CARD, "border-l-4", GREEN)}>
@@ -162,12 +372,10 @@ export function GuestDeliveryPanel() {
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
               Delivery rate
             </p>
-            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-              0.3%
-            </span>
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">98.6%</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
+            {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : `${kpis.deliveryRate}%`}
+          </p>
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email + SMS combined</p>
         </div>
 
@@ -176,12 +384,10 @@ export function GuestDeliveryPanel() {
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
               Open rate
             </p>
-            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-              4%
-            </span>
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">62.1%</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
+            {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : `${kpis.openRate}%`}
+          </p>
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email only · 24h</p>
         </div>
 
@@ -190,12 +396,10 @@ export function GuestDeliveryPanel() {
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
               Bounce rate
             </p>
-            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
-              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-              0.2%
-            </span>
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">1.3%</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
+            {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : `${kpis.bounceRate}%`}
+          </p>
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Within 2% target</p>
         </div>
       </div>
@@ -207,35 +411,46 @@ export function GuestDeliveryPanel() {
             <h3 className="text-sm font-semibold text-stone-900 dark:text-zinc-50">Channel mix</h3>
             <span className="text-xs text-stone-500 dark:text-zinc-400">Last 7 days</span>
           </div>
-          <div className="space-y-3">
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-stone-600 dark:text-zinc-300">
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <Mail className="h-3.5 w-3.5 text-emerald-800 dark:text-emerald-400" aria-hidden />
-                  Email
-                </span>
-                <span className="tabular-nums text-stone-500 dark:text-zinc-400">6,420 · 78%</span>
+          {channelMix.total === 0 && !loadingKpi ? (
+            <p className="py-4 text-center text-sm text-stone-400 dark:text-zinc-500">No data yet</p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-stone-600 dark:text-zinc-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Mail className="h-3.5 w-3.5 text-emerald-800 dark:text-emerald-400" aria-hidden />
+                    Email
+                  </span>
+                  <span className="tabular-nums text-stone-500 dark:text-zinc-400">
+                    {loadingKpi ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.email.toLocaleString()} · ${emailPct}%`}
+                  </span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-[hsl(142.1,76.2%,32%)] dark:bg-[hsl(142.1,55%,40%)] transition-all duration-500"
+                    style={{ width: `${emailPct}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
-                <div
-                  className="h-full rounded-full bg-[hsl(142.1,76.2%,32%)] dark:bg-[hsl(142.1,55%,40%)]"
-                  style={{ width: "78%" }}
-                />
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-stone-600 dark:text-zinc-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Smartphone className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
+                    SMS
+                  </span>
+                  <span className="tabular-nums text-stone-500 dark:text-zinc-400">
+                    {loadingKpi ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.sms.toLocaleString()} · ${smsPct}%`}
+                  </span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
+                  <div
+                    className="h-full w-[22%] rounded-full bg-amber-500 dark:bg-amber-600 transition-all duration-500"
+                    style={{ width: `${smsPct}%` }}
+                  />
+                </div>
               </div>
             </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-stone-600 dark:text-zinc-300">
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <Smartphone className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
-                  SMS
-                </span>
-                <span className="tabular-nums text-stone-500 dark:text-zinc-400">1,812 · 22%</span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
-                <div className="h-full w-[22%] rounded-full bg-amber-500 dark:bg-amber-600" />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className={cn(CARD, "flex min-h-[200px] flex-col")}>
@@ -243,11 +458,65 @@ export function GuestDeliveryPanel() {
             <h3 className="text-sm font-semibold text-stone-900 dark:text-zinc-50">
               Send volume · last 14 days
             </h3>
-            <span className="text-xs text-stone-500 dark:text-zinc-400">Peak: Sat 9am</span>
+            <span className="text-xs text-stone-500 dark:text-zinc-400">
+              {loadingChart ? "" : `${channelMix.total} total`}
+            </span>
           </div>
-          <div className="mt-auto flex flex-1 items-center justify-center rounded-lg border border-dashed border-stone-200 bg-stone-50/80 py-12 text-center text-xs text-stone-400 dark:border-zinc-700 dark:bg-zinc-950/40 dark:text-zinc-500">
-            Chart placeholder — connect analytics to render send volume.
-          </div>
+          {loadingChart ? (
+            <div className="mt-auto flex flex-1 items-center justify-center">
+              <Skeleton className="h-full w-full" />
+            </div>
+          ) : chartData.length > 0 ? (
+            <div className="mt-auto flex-1">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-stone-200 dark:stroke-zinc-700" />
+                  <XAxis
+                    dataKey="date"
+                    className="text-xs"
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    className="text-xs"
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: "12px" }}
+                  />
+                  <Bar
+                    dataKey="EMAIL"
+                    name="Email"
+                    stackId="a"
+                    fill="hsl(142.1, 76.2%, 32%)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="SMS"
+                    name="SMS"
+                    stackId="a"
+                    fill="#f59e0b"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="mt-auto flex flex-1 items-center justify-center rounded-lg border border-dashed border-stone-200 bg-stone-50/80 py-12 text-center text-xs text-stone-400 dark:border-zinc-700 dark:bg-zinc-950/40 dark:text-zinc-500">
+              No send data yet for the last 14 days.
+            </div>
+          )}
         </div>
       </div>
 
@@ -302,10 +571,21 @@ export function GuestDeliveryPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredRows.length === 0 ? (
+            {loadingLogs ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i} className="border-stone-100 dark:border-zinc-800">
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                </TableRow>
+              ))
+            ) : filteredRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
-                  No rows match your search.
+                  No activity recorded yet.
                 </TableCell>
               </TableRow>
             ) : (
@@ -349,6 +629,16 @@ export function GuestDeliveryPanel() {
             )}
           </TableBody>
         </Table>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-end border-t border-stone-100 px-4 py-3 dark:border-zinc-800">
+            <Pagination
+              currentPage={logPage}
+              totalPages={totalPages}
+              onPageChange={setLogPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

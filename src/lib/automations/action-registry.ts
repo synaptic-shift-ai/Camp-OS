@@ -265,7 +265,7 @@ export function createActionRegistry(): ActionHandlerMap {
             companyId,
             propertyId: propertyId ?? '',
             reservationId: context.reservation?.id as string | null,
-            guestId,
+            guestId: guestId ?? null,
             templateId: template.id,
             channel: 'email',
             recipientAddress: guestEmail,

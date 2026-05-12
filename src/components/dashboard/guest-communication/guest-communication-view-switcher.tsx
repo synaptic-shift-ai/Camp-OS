@@ -1,8 +1,8 @@
 "use client"
 
-import { Inbox, Package } from "lucide-react"
+import { Inbox, Package, Palette, ShieldOff } from "lucide-react"
 
-export type GuestCommunicationViewMode = "sms_inbox" | "guest_delivery"
+export type GuestCommunicationViewMode = "sms_inbox" | "guest_delivery" | "branding" | "opt_outs"
 
 type GuestCommunicationViewSwitcherProps = {
   mode: GuestCommunicationViewMode
@@ -49,6 +49,30 @@ export function GuestCommunicationViewSwitcher({
         >
           <Package className="h-4 w-4 shrink-0" aria-hidden />
           Guest Delivery
+        </button>
+        <button
+          id="guest-comm-tab-branding"
+          type="button"
+          role="tab"
+          aria-selected={mode === "branding"}
+          aria-controls="guest-comm-panel-branding"
+          onClick={() => onModeChange("branding")}
+          className={tabButtonClass(mode === "branding")}
+        >
+          <Palette className="h-4 w-4 shrink-0" aria-hidden />
+          Branding
+        </button>
+        <button
+          id="guest-comm-tab-opt-outs"
+          type="button"
+          role="tab"
+          aria-selected={mode === "opt_outs"}
+          aria-controls="guest-comm-panel-opt-outs"
+          onClick={() => onModeChange("opt_outs")}
+          className={tabButtonClass(mode === "opt_outs")}
+        >
+          <ShieldOff className="h-4 w-4 shrink-0" aria-hidden />
+          Opt-Outs
         </button>
       </div>
     </div>

@@ -20,17 +20,6 @@ const UpdateBrandingSchema = z.object({
 
 // ============================================================================
 // Helpers
-// ============================================================================
-
-function toCamelCase(row: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const [key, val] of Object.entries(row)) {
-    const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
-    out[camel] = val
-  }
-  return out
-}
-
 function mergeBranding(
   branding: Record<string, unknown> | null,
   property: Record<string, unknown>,

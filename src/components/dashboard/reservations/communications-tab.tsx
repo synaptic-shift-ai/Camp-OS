@@ -7,8 +7,6 @@ import {
   Smartphone,
   ChevronDown,
   ChevronUp,
-  Filter,
-  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

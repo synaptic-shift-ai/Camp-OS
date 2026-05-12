@@ -15,7 +15,6 @@ import {
   extractEmailSettings,
   wrapWithEmailLayout,
   stripEmailSettings,
-  isFullEmailDocument,
   replaceVariables,
 } from "@/lib/email/template-renderer"
 import { getSampleData } from "@/lib/email/variable-definitions"
@@ -33,7 +32,6 @@ type BrandingForm = {
   replyToEmail: string
 }
 
-const SAMPLE_SUBJECT = "Your reservation at {{property.name}}"
 const SAMPLE_HTML = `<!--email-settings:${typeof window !== "undefined" ? btoa(JSON.stringify(DEFAULT_EMAIL_SETTINGS)) : ""}--><h1 style="font-size:22px;font-weight:bold;margin-bottom:16px;">Welcome, {{guest.first_name}}!</h1><p style="margin-bottom:12px;">Thank you for booking at <strong>{{property.name}}</strong>. We're looking forward to your stay from {{reservation.check_in_date}} to {{reservation.check_out_date}}.</p><p style="margin-bottom:12px;">If you have any questions before your arrival, don't hesitate to reach out.</p><p>Best regards,<br/>{{property.name}} Team</p>`
 
 const DEFAULT_FORM: BrandingForm = {
@@ -57,7 +55,6 @@ export function EmailBrandingPanel({
   const [iframeHeight, setIframeHeight] = useState(400)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [hasConfig, setHasConfig] = useState(false)
   const [form, setForm] = useState<BrandingForm>({
     ...DEFAULT_FORM,
     senderName: propertyName,
@@ -85,10 +82,8 @@ export function EmailBrandingPanel({
         }
         setForm(loaded)
         setOriginalForm(loaded)
-        setHasConfig(true)
       } catch {
         // Branding not configured yet — show empty state
-        setHasConfig(false)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -148,7 +143,6 @@ export function EmailBrandingPanel({
       const json = await res.json()
       if (json.success) {
         setOriginalForm({ ...form })
-        setHasConfig(true)
         toast({ title: "Branding saved", description: "Email branding updated successfully.", variant: "success" })
       } else {
         toast({ title: "Save failed", description: json.error?.message ?? "Could not save branding.", variant: "destructive" })

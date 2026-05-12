@@ -62,17 +62,68 @@ export function stripEmailSettings(html: string): string {
 }
 
 /**
+ * Optional branding injected into the email layout.
+ * When omitted, wrapWithEmailLayout renders exactly as before.
+ */
+export interface EmailBranding {
+  logoUrl?: string | null
+  primaryColor?: string | null
+  secondaryColor?: string | null
+  senderName?: string
+  propertyName?: string
+  unsubscribeUrl?: string
+}
+
+/**
  * Wrap HTML content in an email-client-safe centered table layout.
  * Uses <table> centering (works in Gmail, Outlook, Yahoo, Apple Mail).
+ *
+ * When `branding` is provided, injects a logo header, primary-color accent bar,
+ * and a CAN-SPAM compliant footer with unsubscribe link.
+ * When omitted, renders exactly as before (backward compatible).
  */
-export function wrapWithEmailLayout(content: string, settings: EmailSettings): string {
+export function wrapWithEmailLayout(content: string, settings: EmailSettings, branding?: EmailBranding): string {
   const width = settings.width === 'full' ? '100%' : `${settings.width}px`
+
+  let bodyContent = content
+
+  // ── Branding header: logo + accent bar ──────────────────────────────────
+  if (branding) {
+    const parts: string[] = []
+
+    if (branding.logoUrl) {
+      parts.push(`<a href="${branding.unsubscribeUrl ?? ''}" target="_blank" style="display:inline-block;margin-bottom:12px;"><img src="${branding.logoUrl}" alt="${branding.propertyName ?? ''}" style="max-height:60px;width:auto;" /></a>`)
+    }
+
+    if (branding.primaryColor) {
+      parts.push(`<div style="height:3px;background-color:${branding.primaryColor};border-radius:2px;margin-bottom:20px;"></div>`)
+    }
+
+    bodyContent = parts.join('') + bodyContent
+  }
+
+  // ── CAN-SPAM footer ──────────────────────────────────────────────────────
+  if (branding) {
+    const footerLink = branding.unsubscribeUrl
+      ? `<a href="${branding.unsubscribeUrl}" target="_blank" style="color:#888888;">Unsubscribe</a>`
+      : '{{unsubscribe_url}}'
+
+    const propertyName = branding.propertyName || 'CampOS'
+
+    bodyContent += `
+<div style="border-top:1px solid #e0e0e0;margin-top:32px;padding-top:16px;text-align:center;font-size:12px;color:#888888;line-height:1.5;">
+  ${footerLink}
+  <br />
+  &copy; ${propertyName}. All rights reserved.
+</div>`
+  }
+
   const centerHTML = settings.centered
     ? `<table role="presentation" align="center" width="${width}" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;background-color:${settings.bgColor};max-width:${width};">
-  <tr><td style="padding:24px;font-family:sans-serif;">${content}</td></tr>
+  <tr><td style="padding:24px;font-family:sans-serif;">${bodyContent}</td></tr>
 </table>`
     : `<table role="presentation" width="${width}" cellpadding="0" cellspacing="0" border="0" style="background-color:${settings.bgColor};max-width:${width};">
-  <tr><td style="padding:24px;font-family:sans-serif;">${content}</td></tr>
+  <tr><td style="padding:24px;font-family:sans-serif;">${bodyContent}</td></tr>
 </table>`
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>html,body{margin:0;padding:0;min-height:100%;background:${settings.bgColor};}img{max-width:100%;height:auto;}</style></head><body>${centerHTML}</body></html>`
@@ -198,12 +249,13 @@ export function resolvePath(obj: Record<string, unknown>, path: string): unknown
 
 /**
  * Replace {{variable.path}} placeholders in a string with values from data.
- * Missing variables are left as-is (for debugging).
+ * Missing variables (undefined/null) are replaced with empty string to avoid
+ * raw placeholders leaking into guest-facing emails.
  */
 export function replaceVariables(template: string, data: Record<string, unknown>): string {
-  return template.replace(/\{\{([\w.]+)\}\}/g, (match, path: string) => {
+  return template.replace(/\{\{([\w.]+)\}\}/g, (_match, path: string) => {
     const value = resolvePath(data, path)
-    if (value === undefined || value === null) return match
+    if (value === undefined || value === null) return ''
     return String(value)
   })
 }

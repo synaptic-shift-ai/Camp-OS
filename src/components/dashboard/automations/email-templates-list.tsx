@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { EmailTemplateFormDialog } from "./email-template-form-dialog"
+import { EmailTemplatePreviewDialog } from "./email-template-preview-dialog"
 import { usePermissions } from "@/hooks/use-permissions"
 
 type EmailTemplatesListProps = {
@@ -191,6 +192,8 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
   }
 
   const [deleteTemplate, setDeleteTemplate] = useState<Record<string, unknown> | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<Record<string, unknown> | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   async function handleTestSend() {
     if (!testEmail.trim() || !testDialogTemplate) return
@@ -305,7 +308,8 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                 return (
                   <TableRow
                     key={id}
-                    className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                    className="cursor-pointer border-border/80 hover:bg-muted/50 data-[state=selected]:bg-muted/30"
+                    onClick={() => { setSelectedTemplate(t); setPreviewOpen(true) }}
                   >
                     <TableCell className="py-1.5">
                       <div className="space-y-0.5">
@@ -331,7 +335,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                     <TableCell className="py-1.5">
                       <button
                         type="button"
-                        onClick={() => canEdit && handleToggleActive(t)}
+                        onClick={(e) => { e.stopPropagation(); if (canEdit) handleToggleActive(t) }}
                         disabled={isLoading || !canEdit}
                         className={cn(
                           "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors",
@@ -356,7 +360,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                     <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">
                       {t.updated_at ? formatDate(t.updated_at as string) : "—"}
                     </TableCell>
-                    <TableCell className="py-1.5">
+                    <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
                         {isLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -486,6 +490,13 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
         propertyId={propertyId}
         companyId={companyId}
         onSaved={fetchTemplates}
+      />
+
+      {/* Preview dialog */}
+      <EmailTemplatePreviewDialog
+        template={selectedTemplate}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
       />
     </div>
   )

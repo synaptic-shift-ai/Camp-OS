@@ -626,7 +626,10 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
                     const remaining = b.amount - b.spent
                     const overBudget = remaining < 0
                     return (
-                      <tr key={b.id} className="border-b last:border-b-0">
+                      <tr key={b.id} className="cursor-pointer border-b last:border-b-0 hover:bg-muted/50" onClick={() => {
+                            setEditingBudget(b)
+                            setIsBudgetDialogOpen(true)
+                          }}>
                         <td className="px-3 py-2">{formatCategoryLabel(b.category)}</td>
                         <td className="px-3 py-2 text-muted-foreground">{PERIOD_LABELS[b.period] ?? b.period}</td>
                         <td className="px-3 py-2 text-right">{formatCurrency(b.amount)}</td>
@@ -634,7 +637,7 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
                         <td className={`px-3 py-2 text-right font-medium ${overBudget ? "text-red-600" : "text-emerald-700"}`}>
                           {overBudget ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -697,7 +700,10 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
                 </thead>
                 <tbody>
                   {spendLimits.map((sl) => (
-                    <tr key={sl.id} className="border-b last:border-b-0">
+                    <tr key={sl.id} className="cursor-pointer border-b last:border-b-0 hover:bg-muted/50" onClick={() => {
+                              setEditingLimit(sl)
+                              setIsLimitDialogOpen(true)
+                            }}>
                       <td className="px-3 py-2">{formatCategoryLabel(sl.category)}</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(sl.threshold_amount)}</td>
                       <td className="px-3 py-2 text-center">
@@ -705,7 +711,7 @@ export function BudgetManagement({ propertyId }: BudgetManagementProps) {
                           {sl.alert_enabled ? "Enabled" : "Disabled"}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

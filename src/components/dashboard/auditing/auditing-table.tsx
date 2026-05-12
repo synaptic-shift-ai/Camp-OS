@@ -1,12 +1,13 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { type DashboardActivityLog } from "@/lib/dashboard/queries"
+import { ActivityLogDetailDialog } from "./activity-log-detail-dialog"
 
 function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -41,7 +42,14 @@ export default function AuditingTable({
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const [isPending, startTransition] = useTransition()
+    const [selectedLog, setSelectedLog] = useState<DashboardActivityLog | null>(null)
+    const [dialogOpen, setDialogOpen] = useState(false)
     const rows = activityLogs ?? []
+
+    const handleRowClick = (log: DashboardActivityLog) => {
+        setSelectedLog(log)
+        setDialogOpen(true)
+    }
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const clampedCurrentPage = Math.min(Math.max(currentPage, 1), totalPages)
@@ -174,7 +182,11 @@ export default function AuditingTable({
                         {rows.map((activityLog) => {
                             const formattedDate = formatDate(activityLog.createdAt)
                             return (
-                                <TableRow key={activityLog.rowId}>
+                                <TableRow
+                                    key={activityLog.rowId}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => handleRowClick(activityLog)}
+                                >
                                     <TableCell className="py-1.5">{activityLog.displayId}</TableCell>
                                     <TableCell className="py-1.5">{activityLog.action}</TableCell>
                                     <TableCell className="py-1.5">{activityLog.resource}</TableCell>
@@ -212,6 +224,12 @@ export default function AuditingTable({
                     />
                 </div>
             </div>
+
+            <ActivityLogDetailDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                activityLog={selectedLog}
+            />
         </div>
     )
 }

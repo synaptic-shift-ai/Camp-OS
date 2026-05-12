@@ -188,7 +188,18 @@ export function StaffManagementTable({
               staff.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                  className="border-border/80 cursor-pointer hover:bg-muted/50 data-[state=selected]:bg-muted/30"
+                  onClick={() =>
+                    onViewStaff?.({
+                      id: row.id,
+                      name: row.name,
+                      email: row.email,
+                      role: row.role,
+                      categories: row.categories,
+                      status: row.status,
+                      lastLogin: row.lastLogin,
+                    })
+                  }
                 >
                   <TableCell className="py-1.5">
                     <div className="flex items-center gap-3">
@@ -215,7 +226,10 @@ export function StaffManagementTable({
                   <TableCell className="py-1.5 text-sm text-muted-foreground whitespace-nowrap">
                     {row.lastLogin}
                   </TableCell>
-                  <TableCell className="py-0.5">
+                  <TableCell
+                    className="py-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="flex items-center justify-end">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

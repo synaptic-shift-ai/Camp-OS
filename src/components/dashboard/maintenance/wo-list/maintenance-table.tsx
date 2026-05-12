@@ -234,7 +234,11 @@ export function MaintenanceTable({
           rows.map((row, index) => {
             const breached = hasBreachedSla(row)
             return (
-            <div key={row.id} className="rounded-md border border-border/80 bg-card/50 p-3">
+            <div
+              key={row.id}
+              className={["rounded-md border border-border/80 bg-card/50 p-3", onView ? "cursor-pointer hover:bg-muted/50" : ""].filter(Boolean).join(" ")}
+              onClick={() => onView?.(row)}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold leading-tight text-foreground" title={row.task}>
@@ -367,7 +371,8 @@ export function MaintenanceTable({
               return (
               <TableRow
                 key={row.id}
-                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                className={["border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30", onView ? "cursor-pointer hover:bg-muted/50" : ""].filter(Boolean).join(" ")}
+                onClick={() => onView?.(row)}
               >
                 <TableCell className="max-w-0 px-4 py-2 text-sm font-medium text-foreground">
                   <span

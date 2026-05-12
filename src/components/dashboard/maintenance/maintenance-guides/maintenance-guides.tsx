@@ -362,7 +362,8 @@ export function MaintenanceGuidesPanel({
             return (
               <TableRow
                 key={row.id}
-                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30 cursor-pointer hover:bg-muted/50"
+                onClick={() => setViewingGuide(row)}
               >
                 <TableCell className="px-3 py-2 align-top">
                   <div className="break-words text-sm font-semibold leading-snug text-foreground">{row.name}</div>

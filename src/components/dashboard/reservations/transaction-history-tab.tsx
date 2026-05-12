@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ManualPaymentDialog } from '@/components/admin/manual-payment-dialog'
+import { TransactionDetailDialog } from '@/components/dashboard/reservations/transaction-detail-dialog'
 import { DollarSign } from 'lucide-react'
 import {
   Select,
@@ -165,6 +166,8 @@ export function TransactionHistoryTab({
   const [error, setError] = useState<string | null>(null)
   const [totalCents, setTotalCents] = useState(totalAmountCents)
   const [paidCents, setPaidCents] = useState(paidAmountCents)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -378,7 +381,11 @@ export function TransactionHistoryTab({
               return (
                 <TableRow
                   key={txn.id}
-                  className={txn.is_voided ? 'opacity-60' : undefined}
+                  className={`cursor-pointer hover:bg-muted/50 ${txn.is_voided ? 'opacity-60' : ''}`}
+                  onClick={() => {
+                    setSelectedTransaction(txn)
+                    setDetailDialogOpen(true)
+                  }}
                 >
                   <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                     <span className={txn.is_voided ? 'line-through' : undefined}>
@@ -446,6 +453,13 @@ export function TransactionHistoryTab({
           />
         </div>
       )}
+
+      {/* Transaction detail dialog */}
+      <TransactionDetailDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        transaction={selectedTransaction}
+      />
     </div>
   )
 }

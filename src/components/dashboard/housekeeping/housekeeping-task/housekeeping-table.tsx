@@ -372,7 +372,8 @@ export function HousekeepingTable({
             rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                className={["border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30", onView ? "cursor-pointer hover:bg-muted/50" : ""].filter(Boolean).join(" ")}
+                onClick={() => onView?.(row)}
               >
                 <TableCell className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
                   <span title={row.id}>{toDisplayTaskId(row.id)}</span>

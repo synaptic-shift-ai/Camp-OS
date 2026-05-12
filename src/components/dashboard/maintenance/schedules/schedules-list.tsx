@@ -175,7 +175,10 @@ function MobileCard({
   onGenerateNow?: ((scheduleId: string) => void) | undefined
 }) {
   return (
-    <div className="rounded-md border border-border/80 bg-card/50 p-3">
+    <div
+      className="cursor-pointer rounded-md border border-border/80 bg-card/50 p-3 hover:bg-muted/50"
+      onClick={() => onEdit?.(schedule)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p
@@ -186,7 +189,9 @@ function MobileCard({
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">{siteLabel}</p>
         </div>
-        <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />
+        <div onClick={(e) => e.stopPropagation()}>
+          <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-border/70 pt-2 text-xs">
@@ -459,7 +464,8 @@ export function SchedulesList({
               schedules.map((schedule) => (
                 <TableRow
                   key={schedule.id}
-                  className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                  className="cursor-pointer border-border/80 hover:bg-muted/50 data-[state=selected]:bg-muted/30"
+                  onClick={() => onEdit?.(schedule)}
                 >
                   <TableCell className="px-3 py-2">
                     <div className="min-w-0 space-y-0.5">
@@ -494,7 +500,7 @@ export function SchedulesList({
                   <TableCell className="px-3 py-2 text-right text-sm text-muted-foreground">
                     {schedule.total_generated}
                   </TableCell>
-                  <TableCell className="px-1 py-2">
+                  <TableCell className="px-1 py-2" onClick={(e) => e.stopPropagation()}>
                     <ScheduleActionsMenu schedule={schedule} onEdit={onEdit} onDelete={onDelete} onGenerateNow={onGenerateNow} />
                   </TableCell>
                 </TableRow>

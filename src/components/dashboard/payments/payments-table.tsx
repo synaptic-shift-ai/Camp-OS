@@ -1,8 +1,9 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { CalendarPlus2, CreditCard } from "lucide-react"
+import { PaymentDetailDialog } from "./payment-detail-dialog"
 import {
   Table,
   TableBody,
@@ -117,6 +118,13 @@ export function PaymentsTable({
 }: PaymentsTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [selectedPayment, setSelectedPayment] = useState<DashboardPayment | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleRowClick = (payment: DashboardPayment) => {
+    setSelectedPayment(payment)
+    setDialogOpen(true)
+  }
 
   if (!payments.length) {
     return (
@@ -186,7 +194,11 @@ export function PaymentsTable({
           {payments.map((payment) => {
             const isCredit = payment.amount < 0
             return (
-              <div key={payment.id} className="rounded-md border border-border/80 bg-card/50 p-3">
+              <div
+                key={payment.id}
+                className="cursor-pointer rounded-md border border-border/80 bg-card/50 p-3 transition-colors hover:bg-muted/50"
+                onClick={() => handleRowClick(payment)}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -248,7 +260,11 @@ export function PaymentsTable({
               {payments.map((payment) => {
                 const isCredit = payment.amount < 0
                 return (
-                  <TableRow key={payment.id} className="h-10">
+                  <TableRow
+                    key={payment.id}
+                    className="h-10 cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(payment)}
+                  >
                     <TableCell className="py-2">
                       {formatDate(payment.createdAt)}
                     </TableCell>
@@ -312,6 +328,12 @@ export function PaymentsTable({
           />
         </div>
       </div>
+
+      <PaymentDetailDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        payment={selectedPayment}
+      />
     </>
   )
 }

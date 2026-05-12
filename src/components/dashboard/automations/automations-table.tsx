@@ -132,7 +132,8 @@ export function AutomationsTable({
             rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                className="cursor-pointer border-border/80 hover:bg-muted/50 data-[state=selected]:bg-muted/30"
+                onClick={() => onView?.(row)}
               >
                 <TableCell className="py-1.5">
                   <div className="space-y-0.5">
@@ -167,7 +168,7 @@ export function AutomationsTable({
                 <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">
                   {formatDate(row.created_at)}
                 </TableCell>
-                <TableCell className="py-1.5">
+                <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-2">
                     <Button
                       variant="ghost"

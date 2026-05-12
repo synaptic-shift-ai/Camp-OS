@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Loader2, MoreHorizontal, Trash2 } from "lucide-react"
+import { VendorDetailDialog, type VendorDetailDialogTarget } from "@/components/dashboard/maintenance/vendors-list/vendor-detail-dialog"
 
 import {
   AddVendorDialog,
@@ -90,6 +91,21 @@ export function VendorsTable({
   const [isSubmittingVendor, setIsSubmittingVendor] = useState(false)
   const [vendorToDelete, setVendorToDelete] = useState<VendorRow | null>(null)
   const [isDeletingVendor, setIsDeletingVendor] = useState(false)
+  const [selectedVendor, setSelectedVendor] = useState<VendorDetailDialogTarget | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+
+  const openVendorDetail = (vendor: VendorRow) => {
+    setSelectedVendor({
+      id: vendor.id,
+      displayId: vendor.displayId,
+      name: vendor.name,
+      service: vendor.service,
+      contact: vendor.contact,
+      phone: vendor.phone,
+      linkedWorkOrders: vendor.linkedWorkOrders,
+    })
+    setDetailDialogOpen(true)
+  }
 
   const handleAddVendor = async (input: AddVendorInput) => {
     setIsSubmittingVendor(true)
@@ -213,7 +229,11 @@ export function VendorsTable({
           </div>
         ) : (
           vendors.map((vendor) => (
-            <div key={vendor.id} className="rounded-md border border-border/80 bg-card/50 p-3">
+            <div
+              key={vendor.id}
+              className="cursor-pointer rounded-md border border-border/80 bg-card/50 p-3 transition-colors hover:bg-muted/50"
+              onClick={() => openVendorDetail(vendor)}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold leading-tight text-foreground" title={vendor.name}>
@@ -223,11 +243,13 @@ export function VendorsTable({
                     {vendor.service}
                   </p>
                 </div>
-                <VendorActionsMenu
-                  vendorName={vendor.name}
-                  onEdit={() => setEditingVendor(vendor)}
-                  onDelete={() => setVendorToDelete(vendor)}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <VendorActionsMenu
+                    vendorName={vendor.name}
+                    onEdit={() => setEditingVendor(vendor)}
+                    onDelete={() => setVendorToDelete(vendor)}
+                  />
+                </div>
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-2">
@@ -297,7 +319,8 @@ export function VendorsTable({
               vendors.map((vendor) => (
                 <TableRow
                   key={vendor.id}
-                  className="border-border/80 hover:bg-muted/30 data-[state=selected]:bg-muted/30"
+                  className="border-border/80 cursor-pointer hover:bg-muted/50 data-[state=selected]:bg-muted/30"
+                  onClick={() => openVendorDetail(vendor)}
                 >
                   <TableCell className="whitespace-nowrap px-3 py-2 text-sm font-medium text-foreground">
                     {vendor.displayId}
@@ -325,7 +348,10 @@ export function VendorsTable({
                   <TableCell className="whitespace-nowrap px-2 py-2 text-sm text-muted-foreground">
                     {vendor.linkedWorkOrders ?? "—"}
                   </TableCell>
-                  <TableCell className="px-1 py-2">
+                  <TableCell
+                    className="px-1 py-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <VendorActionsMenu
                       vendorName={vendor.name}
                       onEdit={() => setEditingVendor(vendor)}
@@ -365,6 +391,11 @@ export function VendorsTable({
             : null
         }
         onSubmit={handleEditVendor}
+      />
+      <VendorDetailDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        vendor={selectedVendor}
       />
       <AlertDialog open={vendorToDelete !== null} onOpenChange={(open) => {
         if (!open) setVendorToDelete(null)

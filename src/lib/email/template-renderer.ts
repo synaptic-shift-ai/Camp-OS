@@ -294,6 +294,7 @@ export function renderWithContext(
   subject: string,
   html: string,
   context: Record<string, unknown>,
+  branding?: EmailBranding,
 ): {
   subject: string
   html: string
@@ -306,7 +307,7 @@ export function renderWithContext(
   const full = isFullEmailDocument(renderedContent)
   const renderedHtml = full
     ? applyLegacyBackgroundOverride(renderedContent, settings)
-    : wrapWithEmailLayout(renderedContent, settings)
+    : wrapWithEmailLayout(renderedContent, settings, branding)
   const renderedText = renderedContent
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')

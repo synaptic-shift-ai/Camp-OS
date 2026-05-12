@@ -144,14 +144,15 @@ export function createActionRegistry(): ActionHandlerMap {
         }
 
         const propertyId = context.property?.id as string | undefined
+        const guestId = context.guest?.id as string | undefined
 
         // Template resolution: property-specific → tenant-level
-        let template: { subject_template: string; html_template: string } | null = null
+        let template: { id: string; subject_template: string; html_template: string } | null = null
 
         if (propertyId) {
           const { data } = await supabase
             .from('email_templates')
-            .select('subject_template, html_template')
+            .select('id, subject_template, html_template')
             .eq('company_id', companyId)
             .eq('property_id', propertyId)
             .eq('slug', templateSlug)
@@ -164,7 +165,7 @@ export function createActionRegistry(): ActionHandlerMap {
         if (!template) {
           const { data } = await supabase
             .from('email_templates')
-            .select('subject_template, html_template')
+            .select('id, subject_template, html_template')
             .eq('company_id', companyId)
             .is('property_id', null)
             .eq('slug', templateSlug)
@@ -186,20 +187,127 @@ export function createActionRegistry(): ActionHandlerMap {
           return
         }
 
-        // Render with real context (enriched with computed fields + plain-text fallback)
+        // ── Opt-out check (non-blocking) ────────────────────────────────────
+        if (guestId && propertyId) {
+          try {
+            const { isOptedOut } = await import('@/lib/communications/opt-out-checker')
+            const { logDelivery } = await import('@/lib/communications/delivery-logger')
+
+            const optedOut = await isOptedOut(supabase, companyId, guestId, 'email')
+            if (optedOut) {
+              await logDelivery({
+                supabase,
+                companyId,
+                propertyId,
+                guestId,
+                templateId: template.id,
+                channel: 'email',
+                recipientAddress: guestEmail,
+                subject: template.subject_template,
+                status: 'skipped',
+              }).catch(() => {})
+              console.log(`[send_email] Skipped "${templateSlug}" — guest ${guestId} opted out`)
+              return
+            }
+          } catch (optOutErr) {
+            console.error('[send_email] Opt-out check failed, proceeding with send:', optOutErr)
+          }
+        }
+
+        // ── Fetch branding (non-blocking) ────────────────────────────────────
+        let branding: import('@/lib/communications/branding-applier').BrandingConfig | null = null
+        if (propertyId) {
+          try {
+            const { getPropertyBranding } = await import('@/lib/communications/branding-applier')
+            branding = await getPropertyBranding(supabase, propertyId)
+          } catch (brandingErr) {
+            console.error('[send_email] Branding fetch failed, sending without branding:', brandingErr)
+          }
+        }
+
+        // ── Render with branding ─────────────────────────────────────────────
         const { subject, html, text } = renderWithContext(
           template.subject_template,
           template.html_template,
           context as unknown as Record<string, unknown>,
+          branding
+            ? {
+                logoUrl: branding.logoUrl,
+                primaryColor: branding.primaryColor,
+                secondaryColor: branding.secondaryColor,
+                senderName: branding.senderName,
+                propertyName: branding.propertyName,
+              }
+            : undefined,
         )
 
+        // ── Generate unsubscribe URL & inject ────────────────────────────────
+        let finalHtml = html
+        let finalText = text
+        if (guestId && propertyId) {
+          try {
+            const { generateUnsubscribeToken } = await import('@/lib/communications/unsubscribe')
+            const token = generateUnsubscribeToken(guestId, propertyId)
+            const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.camposapp.com'}/api/v1/public/unsubscribe/${token}`
+            finalHtml = html.replace(/\{\{unsubscribe_url\}\}/g, unsubscribeUrl)
+            finalText = text.replace(/\{\{unsubscribe_url\}\}/g, unsubscribeUrl)
+          } catch (tokenErr) {
+            console.error('[send_email] Unsubscribe token generation failed:', tokenErr)
+          }
+        }
+
+        // ── Log delivery (non-blocking) ──────────────────────────────────────
+        let deliveryLog: import('@/lib/communications/delivery-logger').CommunicationLogRow | null = null
+        try {
+          const { logDelivery } = await import('@/lib/communications/delivery-logger')
+          deliveryLog = await logDelivery({
+            supabase,
+            companyId,
+            propertyId: propertyId ?? '',
+            reservationId: context.reservation?.id as string | null,
+            guestId,
+            templateId: template.id,
+            channel: 'email',
+            recipientAddress: guestEmail,
+            subject,
+            status: 'sent',
+          })
+        } catch (logErr) {
+          console.error('[send_email] Delivery log failed, sending anyway:', logErr)
+        }
+
+        // ── Send email ───────────────────────────────────────────────────────
         const result = await sendEmail({
           from: getFrom(),
           to: guestEmail,
           subject,
-          html,
-          text,
+          html: finalHtml,
+          text: finalText,
         })
+
+        // ── Update delivery status (non-blocking) ────────────────────────────
+        if (deliveryLog) {
+          try {
+            const { updateDeliveryStatus } = await import('@/lib/communications/delivery-logger')
+            if (result.success) {
+              await updateDeliveryStatus({
+                supabase,
+                logId: deliveryLog.id,
+                status: 'delivered',
+                deliveredAt: new Date().toISOString(),
+              })
+            } else {
+              await updateDeliveryStatus({
+                supabase,
+                logId: deliveryLog.id,
+                status: 'failed',
+                failureReason: result.error,
+              })
+            }
+          } catch (statusErr) {
+            console.error('[send_email] Delivery status update failed:', statusErr)
+          }
+        }
 
         if (!result.success) {
           console.error(`[send_email] Failed to send "${templateSlug}":`, result.error)

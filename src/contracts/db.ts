@@ -639,9 +639,9 @@ export type Database = {
           description: string | null
           html_template: string | null
           id: string
-          is_active: boolean | null
           name: string
           slug: string
+          status: string
           subject_template: string | null
           updated_at: string | null
           version: number | null
@@ -652,9 +652,9 @@ export type Database = {
           description?: string | null
           html_template?: string | null
           id?: string
-          is_active?: boolean | null
           name: string
           slug: string
+          status?: string
           subject_template?: string | null
           updated_at?: string | null
           version?: number | null
@@ -665,9 +665,9 @@ export type Database = {
           description?: string | null
           html_template?: string | null
           id?: string
-          is_active?: boolean | null
           name?: string
           slug?: string
+          status?: string
           subject_template?: string | null
           updated_at?: string | null
           version?: number | null
@@ -683,12 +683,12 @@ export type Database = {
           description: string | null
           html_template: string
           id: string
-          is_active: boolean
           is_modified: boolean | null
           is_system_default: boolean
           name: string
           property_id: string | null
           slug: string
+          status: string
           subject_template: string
           updated_at: string
         }
@@ -700,12 +700,12 @@ export type Database = {
           description?: string | null
           html_template?: string
           id?: string
-          is_active?: boolean
           is_modified?: boolean | null
           is_system_default?: boolean
           name: string
           property_id?: string | null
           slug: string
+          status?: string
           subject_template?: string
           updated_at?: string
         }
@@ -717,12 +717,12 @@ export type Database = {
           description?: string | null
           html_template?: string
           id?: string
-          is_active?: boolean
           is_modified?: boolean | null
           is_system_default?: boolean
           name?: string
           property_id?: string | null
           slug?: string
+          status?: string
           subject_template?: string
           updated_at?: string
         }

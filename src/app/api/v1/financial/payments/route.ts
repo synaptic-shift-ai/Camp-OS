@@ -31,6 +31,7 @@ import {
   siteDisplayLabel,
   type PaymentReceiptLineItem,
 } from '@/lib/email/send-payment-received-invoice'
+import { triggerPaymentAutomations } from '@/lib/automations/run-pipeline'
 
 function mapPaymentMethod(method: string): PaymentMethod {
   const map: Record<string, PaymentMethod> = {
@@ -497,6 +498,43 @@ export async function POST(request: NextRequest) {
             chargesSubtotalCents = amount_cents
           }
 
+          // Try automation pipeline first
+          const companyId = access.companyId
+          if (companyId) {
+            try {
+              const receiptCtx = buildPaymentPipelineContext({
+                guestEmail,
+                lineItems,
+                chargesSubtotalCents,
+                amountPaidCents: amount_cents,
+                totalReservationCents,
+                newPaidTotalCents,
+                guestName,
+                guestAddressLines,
+                propertyName,
+                propertyAddressLines,
+                propertyRow,
+                confirmationNumber,
+                paymentRecordId,
+                paymentMethodLabel: paymentMethodToLabel(payment_method),
+                paymentSourceLabel: paymentSourceToLabel(source),
+              })
+              const pipelineResult = await triggerPaymentAutomations(
+                'payment.received',
+                propertyId,
+                companyId,
+                receiptCtx,
+              )
+              if (pipelineResult && pipelineResult.executed > 0) {
+                // Pipeline handled the receipt email
+                return
+              }
+            } catch (pipelineErr) {
+              console.warn('[Financial API v1] Record payment: automation pipeline failed, falling back to hardcoded template:', pipelineErr)
+            }
+          }
+
+          // Fallback: hardcoded React Email component
           const receiptResult = await sendPaymentReceivedInvoiceEmail({
             guestEmail,
             guestName,
@@ -540,5 +578,149 @@ export async function POST(request: NextRequest) {
       error(ErrorCodes.INTERNAL_ERROR, 'Failed to record payment', { message }),
       { status: 500 },
     )
+  }
+}
+
+// ============================================================================
+// Payment pipeline context builder
+// ============================================================================
+
+/** Format cents to dollar string, e.g. 12500 → $125.00 */
+function formatCents(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(cents / 100)
+}
+
+/** Format cents to plain number string, e.g. 12500 → 125.00 */
+function formatCentsPlain(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100)
+}
+
+/** Build HTML table rows for receipt line items */
+function buildLineItemsHtml(lineItems: PaymentReceiptLineItem[]): string {
+  if (lineItems.length === 0) return ''
+  return lineItems
+    .map((row) => {
+      const unitPrice = row.unitPricePerNight
+        ? `${formatCents(row.unitPriceCents)}/night`
+        : formatCentsPlain(row.unitPriceCents)
+      return `<tr><td style="border-bottom:1px solid #eee;color:#222;font-size:13px;padding:12px;text-align:center;vertical-align:top;">${row.quantity}</td><td style="border-bottom:1px solid #eee;color:#222;font-size:13px;padding:12px;vertical-align:top;">${escapeHtml(row.description)}</td><td style="border-bottom:1px solid #eee;color:#222;font-size:13px;padding:12px;text-align:right;vertical-align:top;">${unitPrice}</td><td style="border-bottom:1px solid #eee;color:#222;font-size:13px;padding:12px;text-align:right;vertical-align:top;font-weight:600;">${formatCents(row.amountCents)}</td></tr>`
+    })
+    .join('\n')
+}
+
+/** Escape HTML entities for safe inclusion in templates */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** Build HTML for property address lines (each on its own <p>) */
+function buildPropertyAddressLinesHtml(addressLines: string[]): string {
+  return addressLines
+    .map((line) => `<p style="margin:0;color:#444;font-size:13px;line-height:20px;">${escapeHtml(line)}</p>`)
+    .join('')
+}
+
+/** Build the pipeline context for payment receipt automation */
+function buildPaymentPipelineContext(params: {
+  guestEmail: string
+  lineItems: PaymentReceiptLineItem[]
+  chargesSubtotalCents: number
+  amountPaidCents: number
+  totalReservationCents: number | null
+  newPaidTotalCents: number | null
+  guestName: string
+  guestAddressLines: string[]
+  propertyName: string
+  propertyAddressLines: string[]
+  propertyRow: { email?: string | null; phone?: string | null } | null
+  confirmationNumber: string
+  paymentRecordId: string
+  paymentMethodLabel: string
+  paymentSourceLabel: string
+}): {
+  guestEmail: string
+  guestName: string
+  receiptNumber: string
+  confirmationNumber: string
+  receiptDate: string
+  lineItemsHtml: string
+  subtotal: string
+  amountPaid: string
+  remainingBalance: string
+  paymentMethodLabel: string
+  paymentSourceLabel: string
+  propertyName: string
+  propertyAddress: string
+  propertyAddressLinesHtml: string
+  propertyContactInfo: string
+  billedTo: string
+  documentTitle: string
+  reservationTotalsNote: string
+} {
+  const receiptNumber = receiptNumberFromPaymentId(params.paymentRecordId)
+  const receiptDate = formatReceiptDate(new Date())
+
+  // Compute remaining balance
+  const remainingCents =
+    params.totalReservationCents != null && params.newPaidTotalCents != null
+      ? Math.max(0, params.totalReservationCents - params.newPaidTotalCents)
+      : null
+
+  // Build billed-to block
+  const billedTo = [params.guestName, ...params.guestAddressLines]
+    .filter(Boolean)
+    .join('\n')
+
+  // Build property contact info string
+  const contactParts: string[] = []
+  if (params.propertyRow?.email) contactParts.push(` at ${params.propertyRow.email}`)
+  if (params.propertyRow?.phone) contactParts.push(` or ${params.propertyRow.phone}`)
+  const propertyContactInfo = contactParts.join('')
+
+  // Build reservation totals note
+  let reservationTotalsNote = ''
+  if (params.totalReservationCents != null) {
+    let note = `Reservation total ${formatCents(params.totalReservationCents)}`
+    if (params.newPaidTotalCents != null) {
+      note += ` · Total paid after this receipt ${formatCents(params.newPaidTotalCents)}`
+    }
+    note += '.'
+    reservationTotalsNote = `<p style="margin:0;color:#777;font-size:12px;line-height:18px;">${escapeHtml(note)}</p>`
+  }
+
+  // Compute subtotal from line items
+  const subtotalCents = params.lineItems.length > 0
+    ? params.chargesSubtotalCents
+    : params.amountPaidCents
+
+  return {
+    guestEmail: params.guestEmail,
+    guestName: params.guestName,
+    receiptNumber,
+    confirmationNumber: params.confirmationNumber,
+    receiptDate,
+    lineItemsHtml: buildLineItemsHtml(params.lineItems),
+    subtotal: formatCents(subtotalCents),
+    amountPaid: formatCents(params.amountPaidCents),
+    remainingBalance: remainingCents != null ? formatCents(remainingCents) : '$0.00',
+    paymentMethodLabel: params.paymentMethodLabel,
+    paymentSourceLabel: params.paymentSourceLabel,
+    propertyName: params.propertyName,
+    propertyAddress: params.propertyAddressLines.join(', '),
+    propertyAddressLinesHtml: buildPropertyAddressLinesHtml(params.propertyAddressLines),
+    propertyContactInfo,
+    billedTo,
+    documentTitle: 'PAYMENT RECEIPT',
+    reservationTotalsNote,
   }
 }

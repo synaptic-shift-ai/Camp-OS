@@ -89,7 +89,7 @@ export async function seedEmailTemplates(companyId: string): Promise<void> {
   const { data: defaults, error: defaultsError } = await supabase
     .from('default_email_templates')
     .select('id, slug, name, description, subject_template, html_template, category, version')
-    .eq('is_active', true)
+    .eq('status', 'active')
 
   if (defaultsError) {
     console.error('[seed-defaults] Failed to fetch default_email_templates:', defaultsError)
@@ -156,7 +156,7 @@ export async function seedEmailTemplates(companyId: string): Promise<void> {
       is_system_default: true,
       is_modified: false,
       default_version: tmpl.version,
-      is_active: true,
+      status: 'active',
     }))
 
     const { error: insertError } = await supabase

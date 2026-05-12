@@ -43,10 +43,14 @@ function useEmailTemplates(propertyId: string | undefined) {
         if (cancelled) return
         const list = payload?.data?.emailTemplates ?? []
         if (Array.isArray(list)) {
-          setTemplates(list.map((t: Record<string, unknown>) => ({
-            value: String(t.slug),
-            label: String(t.name),
-          })))
+          setTemplates(
+            list
+              .filter((t: Record<string, unknown>) => t.status === 'active')
+              .map((t: Record<string, unknown>) => ({
+                value: String(t.slug),
+                label: String(t.name),
+              }))
+          )
         }
       })
       .catch(() => { /* empty list on error */ })

@@ -55,7 +55,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   reservation: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400",
   payment: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
   review: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-400",
-  notification: "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400",
+  notification: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
   custom: "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400",
 }
 
@@ -174,13 +174,14 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
     }
   }
 
-  async function handleToggleActive(t: Record<string, unknown>) {
+  async function handleToggleStatus(t: Record<string, unknown>) {
     setActionLoading(t.id as string)
     try {
+      const newStatus = (t.status as string) === 'active' ? 'draft' : 'active'
       const res = await fetch(`/api/v1/automations/email-templates/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !(t.is_active as boolean) }),
+        body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) throw new Error(`Toggle failed (${res.status})`)
       await fetchTemplates()
@@ -300,7 +301,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
             ) : (
               filtered.map((t) => {
                 const id = t.id as string
-                const isActive = (t.is_active as boolean) ?? false
+                const status = (t.status as string) ?? 'draft'
                 const isSystem = (t.system_default as boolean) ?? false
                 const isLoading = actionLoading === id
                 const cat = (t.category as string) ?? "custom"
@@ -335,17 +336,17 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                     <TableCell className="py-1.5">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); if (canEdit) handleToggleActive(t) }}
+                        onClick={(e) => { e.stopPropagation(); if (canEdit) handleToggleStatus(t) }}
                         disabled={isLoading || !canEdit}
                         className={cn(
                           "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors",
                           canEdit ? "cursor-pointer" : "cursor-default opacity-60",
-                          isActive
+                          status === 'active'
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
-                            : "border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500",
+                            : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
                         )}
                       >
-                        {isActive ? "Active" : "Inactive"}
+                        {status === 'active' ? "Active" : "Draft"}
                       </button>
                     </TableCell>
                     <TableCell className="py-1.5">

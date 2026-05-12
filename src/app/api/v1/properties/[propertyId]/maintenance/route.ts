@@ -9,7 +9,6 @@ import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 import { resolveModuleActionAccess } from '@/lib/dashboard/module-action-access'
 import { maintenanceFallbackForCategory } from '@/lib/dashboard/maintenance-module-access'
 import { sendEmail, getFrom } from '@/lib/email/emailit'
-import { renderWithContext } from '@/lib/email/template-renderer'
 import { buildVendorWorkOrderAssignedEmailHtml } from '@/lib/email/templates/vendor-work-order-assigned'
 import {
     CreateMaintenanceTaskRequestSchema,
@@ -21,7 +20,7 @@ import {
 } from '@/lib/dashboard/maintenance/maintenance-queries'
 import { MaintenanceTaskCreatedEvent } from '@/modules/Maintenance/domain/events'
 import { buildEventContext } from '@/lib/automations/event-context'
-import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
+import { triggerMaintenanceAutomations, runPipelineForTrigger } from '@/lib/automations/run-pipeline'
 
 function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
     return (siteType ?? '')
@@ -33,69 +32,7 @@ function toCanonicalSiteTypeKey(siteType: string | null | undefined): string {
         .trim()
 }
 
-type ResolvedVendorEmailTemplate = {
-    subject: string
-    html: string
-}
 
-async function resolveConfiguredVendorEmailTemplate(
-    supabase: SupabaseClient,
-    propertyId: string,
-    companyId: string | null,
-): Promise<ResolvedVendorEmailTemplate | null> {
-    const { data: automations } = await (supabase as any)
-        .from('automations')
-        .select('id')
-        .eq('property_id', propertyId)
-        .eq('is_active', true)
-        .eq('trigger_type', 'maintenance.task_created')
-
-    const automationIds = (automations ?? []).map((row: { id?: string }) => row.id).filter(Boolean)
-    if (automationIds.length === 0) return null
-
-    const { data: actions } = await (supabase as any)
-        .from('automation_actions')
-        .select('action_config, sort_order')
-        .in('automation_id', automationIds)
-        .eq('action_type', 'send_email')
-        .order('sort_order', { ascending: true })
-
-    const templateSlug = (actions ?? [])
-        .map((action: { action_config?: Record<string, unknown> }) => action.action_config?.template)
-        .find((slug: unknown): slug is string => typeof slug === 'string' && slug.trim().length > 0)
-
-    if (!templateSlug) return null
-
-    let template: { subject_template: string; html_template: string } | null = null
-    if (companyId) {
-        const { data } = await (supabase as any)
-            .from('email_templates')
-            .select('subject_template, html_template')
-            .eq('company_id', companyId)
-            .eq('property_id', propertyId)
-            .eq('slug', templateSlug)
-            .eq('is_active', true)
-            .maybeSingle()
-        if (data) template = data
-    }
-
-    if (!template) {
-        const { data } = await (supabase as any)
-            .from('email_templates')
-            .select('subject_template, html_template')
-            .eq('slug', templateSlug)
-            .eq('is_system', true)
-            .eq('is_active', true)
-            .maybeSingle()
-        if (data) template = data
-    }
-
-    if (!template) return null
-    return {
-        subject: template.subject_template,
-        html: template.html_template,
-    }
-}
 
 export async function GET(
     request: NextRequest,
@@ -476,22 +413,26 @@ export async function POST(
             // Non-blocking: spend limit check failures should not prevent WO creation
         }
 
-        // Direct automation trigger
-        try {
-            const task = maintenanceTask as any
-            const event = new MaintenanceTaskCreatedEvent(
-                propertyId,
-                task.id,
-                task.wo_number ?? '',
-                task.category ?? '',
-                task.priority ?? '',
-            )
-            const context = await buildEventContext(event)
-            if (context.propertyId && context.companyId) {
-                await runPipelineForTrigger('maintenance.task_created', context.propertyId, context.companyId, context)
+        // Direct automation trigger for non-vendor tasks
+        // Vendor tasks are handled separately via sendVendorNotification() which
+        // includes proper vendor context in the pipeline (avoiding duplicate triggers).
+        if (!maintenanceTask.vendor_id || !access?.companyId) {
+            try {
+                const task = maintenanceTask as any
+                const event = new MaintenanceTaskCreatedEvent(
+                    propertyId,
+                    task.id,
+                    task.wo_number ?? '',
+                    task.category ?? '',
+                    task.priority ?? '',
+                )
+                const context = await buildEventContext(event)
+                if (context.propertyId && context.companyId) {
+                    await runPipelineForTrigger('maintenance.task_created', context.propertyId, context.companyId, context)
+                }
+            } catch (autoErr) {
+                console.warn('[Maintenance] Direct automation trigger failed (non-blocking)', autoErr)
             }
-        } catch (autoErr) {
-            console.warn('[Maintenance] Direct automation trigger failed (non-blocking)', autoErr)
         }
 
         if (access.companyId) {
@@ -519,120 +460,19 @@ export async function POST(
             )
         }
 
-        if (maintenanceTask.vendor_id) {
-            try {
-                const [{ data: vendorRow }, { data: propertyRow }, { data: siteRow }] = await Promise.all([
-                    supabase
-                        .from('property_vendor')
-                        .select('name, email')
-                        .eq('id', maintenanceTask.vendor_id)
-                        .eq('property_id', propertyId)
-                        .maybeSingle(),
-                    supabase
-                        .from('properties')
-                        .select('name, address, city, state, zip_code, email')
-                        .eq('id', propertyId)
-                        .maybeSingle(),
-                    supabase
-                        .from('sites')
-                        .select('site_name, site_number')
-                        .eq('id', maintenanceTask.site_id)
-                        .eq('property_id', propertyId)
-                        .maybeSingle(),
-                ])
-
-                const vendorEmail = vendorRow?.email?.trim()
-                if (vendorEmail) {
-                    let emailResult: Awaited<ReturnType<typeof sendEmail>> | null = null
-                    const template = await resolveConfiguredVendorEmailTemplate(
-                        supabase as unknown as SupabaseClient,
-                        propertyId,
-                        access.companyId ?? null,
-                    )
-                    const propertyName = propertyRow?.name ?? 'Campground'
-                    const propertyAddress = [
-                        propertyRow?.address ?? null,
-                        [propertyRow?.city ?? null, propertyRow?.state ?? null].filter(Boolean).join(', ') || null,
-                        propertyRow?.zip_code ?? null,
-                    ]
-                        .filter(Boolean)
-                        .join(' ')
-                        .trim() || 'Address not provided'
-                    const propertyEmail = propertyRow?.email?.trim() || 'support@campos.com'
-                    const siteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || 'Unassigned site'
-
-                    if (template) {
-                        const rendered = renderWithContext(template.subject, template.html, {
-                            property: {
-                                name: propertyName,
-                                address: propertyAddress,
-                                email: propertyEmail,
-                            },
-                            vendor: { name: vendorRow?.name ?? 'Vendor' },
-                            maintenance: {
-                                wo_number: maintenanceTask.wo_number ?? maintenanceTask.id,
-                                title: maintenanceTask.title,
-                                category: maintenanceTask.category ?? 'Uncategorized',
-                                priority: maintenanceTask.priority ?? 'medium',
-                                description: maintenanceTask.description ?? '',
-                                site_label: siteLabel,
-                                estimated_labor_cost: maintenanceTask.estimated_labor_cost ?? null,
-                            },
-                        })
-
-                        emailResult = await sendEmail({
-                            from: getFrom(),
-                            to: vendorEmail,
-                            subject: rendered.subject,
-                            html: rendered.html,
-                            text: rendered.text,
-                        })
-                    } else {
-                        const html = await buildVendorWorkOrderAssignedEmailHtml({
-                            vendorName: vendorRow?.name ?? 'Vendor',
-                            propertyName,
-                            propertyAddress,
-                            propertyEmail,
-                            workOrderNumber: maintenanceTask.wo_number ?? maintenanceTask.id,
-                            taskTitle: maintenanceTask.title,
-                            category: maintenanceTask.category ?? null,
-                            priority: maintenanceTask.priority ?? null,
-                            siteLabel,
-                            description: maintenanceTask.description ?? null,
-                            estimatedLaborCost: maintenanceTask.estimated_labor_cost ?? null,
-                        })
-                        emailResult = await sendEmail({
-                            from: getFrom(),
-                            to: vendorEmail,
-                            subject: `Work Order Invitation: ${maintenanceTask.wo_number ?? maintenanceTask.id}`,
-                            html,
-                        })
-                    }
-
-                    if (access.companyId) {
-                        const service = createServiceRoleClient()
-                        const action = emailResult?.success ? 'email_sent' : 'email_failed'
-                        const woLabel = maintenanceTask.wo_number ?? maintenanceTask.id
-                        const details = emailResult?.success
-                            ? `Sent vendor assignment email for work order ${woLabel} to ${vendorEmail}.`
-                            : `Failed to send vendor assignment email for work order ${woLabel} to ${vendorEmail}: ${emailResult?.error ?? 'Unknown error'}.`
-                        await recordActivityLog(
-                            service,
-                            {
-                                companyId: access.companyId,
-                                propertyId,
-                                action,
-                                resource: 'maintenance',
-                                userId: user.id,
-                                details,
-                            },
-                            { failOpen: true },
-                        )
-                    }
-                }
-            } catch (emailErr) {
-                console.error('[Maintenance API v1] Vendor assignment email failed:', emailErr)
-            }
+        // Vendor notification: trigger the automation pipeline
+        // If the pipeline fails or doesn't match, fall back to the hardcoded React Email component
+        if (maintenanceTask.vendor_id && access.companyId) {
+            // Fire-and-forget: vendor email is non-blocking
+            sendVendorNotification(
+                supabase as unknown as SupabaseClient,
+                propertyId,
+                access.companyId,
+                maintenanceTask as Record<string, unknown>,
+                user.id,
+            ).catch((err) => {
+                console.error('[Maintenance API v1] Vendor notification failed (non-blocking):', err)
+            })
         }
 
         return success({ maintenanceTask, spendLimitWarnings, bookingConflictWarning }, request)
@@ -649,5 +489,145 @@ export async function POST(
         }
 
         return error(ErrorCodes.INTERNAL_ERROR, request, { message })
+    }
+}
+
+/**
+ * Send vendor notification via the automation pipeline.
+ * Falls back to the hardcoded React Email component if the pipeline fails.
+ */
+async function sendVendorNotification(
+    supabase: SupabaseClient,
+    propertyId: string,
+    companyId: string,
+    task: Record<string, unknown>,
+    userId: string,
+): Promise<void> {
+    const vendorId = task.vendor_id as string
+    const siteId = task.site_id as string
+
+    const [{ data: vendorRow }, { data: propertyRow }, { data: siteRow }] = await Promise.all([
+        supabase
+            .from('property_vendor')
+            .select('name, email')
+            .eq('id', vendorId)
+            .eq('property_id', propertyId)
+            .maybeSingle(),
+        supabase
+            .from('properties')
+            .select('name, address, city, state, zip_code, email')
+            .eq('id', propertyId)
+            .maybeSingle(),
+        supabase
+            .from('sites')
+            .select('site_name, site_number')
+            .eq('id', siteId)
+            .eq('property_id', propertyId)
+            .maybeSingle(),
+    ])
+
+    const vendorEmail = vendorRow?.email?.trim()
+    if (!vendorEmail) return
+
+    const propertyName = propertyRow?.name ?? 'Campground'
+    const propertyAddress = [
+        propertyRow?.address ?? null,
+        [propertyRow?.city ?? null, propertyRow?.state ?? null].filter(Boolean).join(', ') || null,
+        propertyRow?.zip_code ?? null,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Address not provided'
+    const propertyEmail = propertyRow?.email?.trim() || 'support@campos.com'
+    const siteLabel = siteRow?.site_name?.trim() || siteRow?.site_number || 'Unassigned site'
+
+    // Try automation pipeline first
+    try {
+        const pipelineResult = await triggerMaintenanceAutomations(
+            'maintenance.task_created',
+            propertyId,
+            companyId,
+            {
+                vendorId,
+                vendorName: vendorRow?.name ?? 'Vendor',
+                vendorEmail,
+                workOrderNumber: (task.wo_number ?? task.id) as string,
+                taskTitle: task.title as string,
+                category: (task.category as string) ?? 'Uncategorized',
+                priority: (task.priority as string) ?? 'medium',
+                siteLabel,
+                description: (task.description as string) ?? '',
+                estimatedLaborCost: task.estimated_labor_cost as number | null ?? null,
+                propertyName,
+                propertyAddress,
+                propertyEmail,
+            },
+        )
+
+        if (pipelineResult && pipelineResult.executed > 0) {
+            // Pipeline handled the email — log success
+            const service = createServiceRoleClient()
+            const woLabel = (task.wo_number ?? task.id) as string
+            await recordActivityLog(
+                service,
+                {
+                    companyId,
+                    propertyId,
+                    action: 'email_sent',
+                    resource: 'maintenance',
+                    userId,
+                    details: `Sent vendor assignment email for work order ${woLabel} to ${vendorEmail} via automation pipeline.`,
+                },
+                { failOpen: true },
+            )
+            return
+        }
+    } catch (pipelineErr) {
+        console.warn('[Maintenance] Automation pipeline failed, falling back to hardcoded template:', pipelineErr)
+    }
+
+    // Fallback: hardcoded React Email component
+    try {
+        const html = await buildVendorWorkOrderAssignedEmailHtml({
+            vendorName: vendorRow?.name ?? 'Vendor',
+            propertyName,
+            propertyAddress,
+            propertyEmail,
+            workOrderNumber: (task.wo_number ?? task.id) as string,
+            taskTitle: task.title as string,
+            category: task.category as string | null ?? null,
+            priority: task.priority as string | null ?? null,
+            siteLabel,
+            description: task.description as string | null ?? null,
+            estimatedLaborCost: task.estimated_labor_cost as number | null ?? null,
+        })
+
+        const emailResult = await sendEmail({
+            from: getFrom(),
+            to: vendorEmail,
+            subject: `Work Order Invitation: ${task.wo_number ?? task.id}`,
+            html,
+        })
+
+        const service = createServiceRoleClient()
+        const action = emailResult?.success ? 'email_sent' : 'email_failed'
+        const woLabel = (task.wo_number ?? task.id) as string
+        const details = emailResult?.success
+            ? `Sent vendor assignment email for work order ${woLabel} to ${vendorEmail} (fallback).`
+            : `Failed to send vendor assignment email for work order ${woLabel} to ${vendorEmail}: ${emailResult?.error ?? 'Unknown error'}.`
+        await recordActivityLog(
+            service,
+            {
+                companyId,
+                propertyId,
+                action,
+                resource: 'maintenance',
+                userId,
+                details,
+            },
+            { failOpen: true },
+        )
+    } catch (fallbackErr) {
+        console.error('[Maintenance API v1] Vendor assignment email fallback failed:', fallbackErr)
     }
 }

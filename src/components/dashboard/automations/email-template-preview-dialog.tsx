@@ -69,7 +69,7 @@ export function EmailTemplatePreviewDialog({ open, onOpenChange, template }: Ema
                 <DetailField label="Description" value={template.description as string | null} />
                 <DetailField
                   label="Status"
-                  value={template.is_active ? 'Active' : 'Inactive'}
+                  value={(template.status as string) === 'active' ? 'Active' : 'Draft'}
                 />
                 <DetailField
                   label="System Default"

@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, DollarSign, ArrowUp, ArrowDown, CreditCard, Undo2, CircleDashed } from "lucide-react"
+import { Eye, DollarSign, ArrowUp, ArrowDown, CreditCard, Undo2, CircleDashed, Mail } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CommunicationsTab } from "@/components/dashboard/reservations/communications-tab"
 import type { MoneyCents } from "@/contracts/booking"
 import { usePermissions } from "@/hooks/use-permissions"
 import { ManualPaymentDialog } from "@/components/admin/manual-payment-dialog"
@@ -223,6 +225,16 @@ export function ReservationLedgerPage({
   const headerDates = reservation ? `${formatDate(reservation.check_in_date)} - ${formatDate(reservation.check_out_date)}` : ""
 
   return (
+    <Tabs defaultValue="ledger" className="space-y-4 sm:space-y-6">
+      <TabsList>
+        <TabsTrigger value="ledger">Ledger</TabsTrigger>
+        <TabsTrigger value="communications" className="gap-1.5">
+          <Mail className="h-3.5 w-3.5" aria-hidden />
+          Communications
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="ledger" className="space-y-4 sm:space-y-6">
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -474,6 +486,12 @@ export function ReservationLedgerPage({
         </CardContent>
       </Card>
     </div>
+      </TabsContent>
+
+      <TabsContent value="communications">
+        <CommunicationsTab propertyId={propertyId} reservationId={reservationId} />
+      </TabsContent>
+    </Tabs>
   )
 }
 

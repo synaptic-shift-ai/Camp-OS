@@ -18,7 +18,7 @@ import {
 import type { UiRole } from '@/lib/dashboard/staff-management-queries'
 
 export type DashboardNavVisibility = {
-  /** Operations modules (reservations, sites, guests, auditing, analytics) */
+  /** Operations modules (reservations, sites, guests, guest communications, auditing, analytics) */
   operationsModulesNavVisible: boolean
   /** Staff Management sidebar link — mirrors `moduleNavVisible['staff-management']` */
   staffManagementNavVisible: boolean
@@ -64,6 +64,7 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'reservations' ||
       moduleKey === 'sites' ||
       moduleKey === 'guests' ||
+      moduleKey === 'guest-communication' ||
       moduleKey === 'automations'
     )
   }
@@ -226,6 +227,7 @@ export async function resolveDashboardNavVisibility(
     reservations: canAccessOperationsModules(access),
     sites: canAccessOperationsModules(access),
     guests: canAccessOperationsModules(access),
+    'guest-communication': canAccessOperationsModules(access),
     payments: canViewFinancials(access),
     analytics: canAccessOperationsModules(access),
     housekeeping: canAccessHousekeepingModule(access),

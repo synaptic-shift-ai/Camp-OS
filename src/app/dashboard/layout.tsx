@@ -29,6 +29,7 @@ import {
   Wrench,
   ClipboardList,
   Zap,
+  MessageSquare,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -57,6 +58,7 @@ const NAV_ITEM_ICONS = {
   reservations: Calendar,
   sites: Tent,
   guests: Users,
+  "guest-communication": MessageSquare,
   payments: CreditCard,
   analytics: BarChart3,
   housekeeping: ClipboardList,

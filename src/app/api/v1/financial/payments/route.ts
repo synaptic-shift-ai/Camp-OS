@@ -32,6 +32,7 @@ import {
   type PaymentReceiptLineItem,
 } from '@/lib/email/send-payment-received-invoice'
 import { triggerPaymentAutomations } from '@/lib/automations/run-pipeline'
+import { recordPaymentReceiptEmailDelivery } from '@/lib/communications/payment-receipt-delivery'
 
 function mapPaymentMethod(method: string): PaymentMethod {
   const map: Record<string, PaymentMethod> = {
@@ -372,7 +373,7 @@ export async function POST(request: NextRequest) {
               .maybeSingle(),
             serviceRole
               .from('properties')
-              .select('name, address, city, state, zip_code, country, email, phone')
+              .select('name, address, city, state, zip_code, country, email, phone, company_id')
               .eq('id', propertyId)
               .maybeSingle(),
             chargePromise,
@@ -422,6 +423,9 @@ export async function POST(request: NextRequest) {
 
           const confirmationNumber =
             reservationTotals?.confirmation_number ?? 'Payment on file'
+
+          const receiptNumber = receiptNumberFromPaymentId(paymentRecordId)
+          const receiptSubject = `Payment receipt #${receiptNumber} — ${confirmationNumber} · ${propertyName}`
 
           const previousPaid = reservationTotals?.paid_amount ?? 0
           const newPaidTotalCents = reservation_id ? previousPaid + amount_cents : null
@@ -498,9 +502,9 @@ export async function POST(request: NextRequest) {
             chargesSubtotalCents = amount_cents
           }
 
-          // Try automation pipeline first
-          const companyId = access.companyId
-          if (companyId) {
+          // Try automation pipeline first (tenant context from RBAC only)
+          const rbacCompanyId = access.companyId ?? null
+          if (rbacCompanyId) {
             try {
               const receiptCtx = buildPaymentPipelineContext({
                 guestEmail,
@@ -522,7 +526,7 @@ export async function POST(request: NextRequest) {
               const pipelineResult = await triggerPaymentAutomations(
                 'payment.received',
                 propertyId,
-                companyId,
+                rbacCompanyId,
                 receiptCtx,
               )
               if (pipelineResult && pipelineResult.executed > 0) {
@@ -546,7 +550,7 @@ export async function POST(request: NextRequest) {
             propertyContactPhone:
               propertyRow && typeof propertyRow.phone === 'string' ? propertyRow.phone.trim() : null,
             confirmationNumber,
-            receiptNumber: receiptNumberFromPaymentId(paymentRecordId),
+            receiptNumber,
             receiptDate: formatReceiptDate(new Date()),
             lineItems,
             chargesSubtotalCents,
@@ -563,6 +567,30 @@ export async function POST(request: NextRequest) {
               error: receiptResult.error,
             })
           }
+
+          const companyIdForLog =
+            rbacCompanyId ??
+            (propertyRow && typeof propertyRow.company_id === 'string' ? propertyRow.company_id : null)
+          if (!companyIdForLog) {
+            console.warn('[Financial API v1] Record payment: skip receipt log — property has no company_id', {
+              propertyId,
+              guestId: targetGuestId,
+            })
+            return
+          }
+
+          await recordPaymentReceiptEmailDelivery({
+            supabase: serviceRole,
+            companyId: companyIdForLog,
+            propertyId,
+            reservationId: reservation_id ?? null,
+            guestId: targetGuestId,
+            recipientEmail: guestEmail,
+            subject: receiptSubject,
+            sendResult: receiptResult.success
+              ? { success: true }
+              : { success: false, error: receiptResult.error },
+          })
         } catch (e) {
           console.error('[Financial API v1] Record payment: payment receipt email threw (non-blocking)', e)
         }

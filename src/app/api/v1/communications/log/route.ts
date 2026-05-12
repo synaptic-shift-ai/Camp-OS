@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createSupabaseClientForApiRoute } from '@/lib/supabase/api-route-client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
@@ -26,7 +27,9 @@ export async function GET(request: NextRequest) {
     })
     if (isDenied(access)) return access
 
-    const db = supabase as any
+    // Use service-role for delivery log reads so joins (e.g. reservation confirmation_number)
+    // are not impacted by RLS, while still enforcing access + tenant scoping explicitly.
+    const db = createServiceRoleClient() as any
 
     // ── groupBy=status mode: return counts per status ──────────────────────
     const groupBy = sp.get('groupBy')
@@ -76,6 +79,7 @@ export async function GET(request: NextRequest) {
         retry_count,
         created_at,
         delivered_at,
+        reservation:reservation_id(confirmation_number),
         guest:guest_id(first_name, last_name, email),
         template:template_id(name)
       `, { count: 'exact' })

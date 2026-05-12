@@ -45,7 +45,7 @@ export function GuestCommunicationPageContent({
           <SmsInboxPanel />
         </div>
       ) : viewMode === "guest_delivery" ? (
-        <GuestDeliveryPanel />
+        <GuestDeliveryPanel propertyId={propertyId} />
       ) : viewMode === "branding" ? (
         <EmailBrandingPanel propertyId={propertyId} propertyName={propertyName} />
       ) : viewMode === "opt_outs" ? (

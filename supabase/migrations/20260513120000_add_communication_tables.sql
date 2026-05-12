@@ -1,7 +1,7 @@
 -- Migration: Add communication tables for CC50-01 Guest Communications
 -- NOTE: Made idempotent for branch creation support
 -- Description: Append-only delivery audit trail, per-property email branding, and CAN-SPAM/TCPA opt-out registry
--- Created: 2026-05-12
+-- Version: 20260513120000 (follows 20260512000000_fix_payment_receipt_template_subject_and_padding)
 
 -- ============================================================================
 -- 1. communication_log (append-only delivery audit trail)
@@ -217,8 +217,8 @@ CREATE POLICY "communication_opt_outs_select_authenticated"
         company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
         OR guest_id IN (
             SELECT g.id FROM public.guests g
-            JOIN public.companies c ON g.company_id = c.id
-            WHERE c.owner_id = auth.uid()
+            WHERE g.property_id IS NOT NULL
+              AND g.property_id IN (SELECT public.get_accessible_property_ids())
         )
     );
 

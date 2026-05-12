@@ -213,7 +213,7 @@ export function createActionRegistry(): ActionHandlerMap {
                 guestId,
                 templateId: template.id,
                 channel: 'email',
-                recipientAddress: guestEmail,
+                recipientAddress: recipientEmail,
                 subject: template.subject_template,
                 status: 'skipped',
               }).catch(() => {})
@@ -279,7 +279,7 @@ export function createActionRegistry(): ActionHandlerMap {
             guestId: guestId ?? null,
             templateId: template.id,
             channel: 'email',
-            recipientAddress: guestEmail,
+            recipientAddress: recipientEmail,
             subject,
             status: 'sent',
           })

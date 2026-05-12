@@ -56,6 +56,7 @@ type StatusCounts = {
 
 type LogEntry = {
   id: string
+  reservation: { confirmation_number: string } | null
   guest: { first_name: string; last_name: string; email: string } | null
   template: { name: string } | null
   channel: string
@@ -135,7 +136,7 @@ function TrendArrow({ direction, value }: { direction: "up" | "down"; value: str
   )
 }
 
-export function GuestDeliveryPanel() {
+export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
   const [query, setQuery] = useState("")
   const [statusCounts, setStatusCounts] = useState<StatusCounts | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
@@ -159,7 +160,9 @@ export function GuestDeliveryPanel() {
     async function fetchCounts() {
       try {
         setLoadingKpi(true)
-        const res = await fetch(`/api/v1/communications/log?groupBy=status&dateFrom=${new Date().toISOString().split("T")[0]}`)
+        const res = await fetch(
+          `/api/v1/communications/log?propertyId=${propertyId}&groupBy=status&dateFrom=${new Date().toISOString().split("T")[0]}`,
+        )
         const json = await res.json()
         if (cancelled || !json.success) return
         setStatusCounts(json.data)
@@ -171,7 +174,7 @@ export function GuestDeliveryPanel() {
     }
     fetchCounts()
     return () => { cancelled = true }
-  }, [])
+  }, [propertyId])
 
   // Fetch channel mix (last 7 days)
   useEffect(() => {
@@ -181,7 +184,7 @@ export function GuestDeliveryPanel() {
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
         const from = sevenDaysAgo.toISOString().split("T")[0]
-        const res = await fetch(`/api/v1/communications/log?dateFrom=${from}&limit=10000`)
+        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&dateFrom=${from}&limit=10000`)
         const json = await res.json()
         if (cancelled || !json.success) return
 
@@ -200,7 +203,7 @@ export function GuestDeliveryPanel() {
     }
     fetchChannelMix()
     return () => { cancelled = true }
-  }, [])
+  }, [propertyId])
 
   // Fetch chart data (last 14 days)
   useEffect(() => {
@@ -211,7 +214,7 @@ export function GuestDeliveryPanel() {
         const fourteenDaysAgo = new Date()
         fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13)
         const from = fourteenDaysAgo.toISOString().split("T")[0]
-        const res = await fetch(`/api/v1/communications/log?dateFrom=${from}&limit=10000`)
+        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&dateFrom=${from}&limit=10000`)
         const json = await res.json()
         if (cancelled || !json.success) return
 
@@ -247,7 +250,7 @@ export function GuestDeliveryPanel() {
     }
     fetchChartData()
     return () => { cancelled = true }
-  }, [])
+  }, [propertyId])
 
   // Fetch activity logs
   useEffect(() => {
@@ -256,7 +259,7 @@ export function GuestDeliveryPanel() {
       try {
         setLoadingLogs(true)
         const offset = (logPage - 1) * pageSize
-        const res = await fetch(`/api/v1/communications/log?limit=${pageSize}&offset=${offset}`)
+        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&limit=${pageSize}&offset=${offset}`)
         const json = await res.json()
         if (cancelled || !json.success) return
         setLogs(json.data.data ?? [])
@@ -269,7 +272,7 @@ export function GuestDeliveryPanel() {
     }
     fetchLogs()
     return () => { cancelled = true }
-  }, [logPage])
+  }, [propertyId, logPage])
 
   // Compute KPIs
   const kpis = useMemo(() => {
@@ -309,7 +312,9 @@ export function GuestDeliveryPanel() {
         template: entry.template?.name ?? "—",
         channel: (entry.channel as "EMAIL" | "SMS") ?? "EMAIL",
         status: capitalize(entry.status) as ActivityRow["status"],
-        reservation: entry.reservation_id ? `#${entry.reservation_id}` : "—",
+        reservation: entry.reservation?.confirmation_number
+          ? `#${entry.reservation.confirmation_number}`
+          : "—",
       }
     })
   }, [logs])

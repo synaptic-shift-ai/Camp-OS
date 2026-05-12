@@ -14,8 +14,8 @@ const UpdateEmailTemplateSchema = z.object({
   description: z.string().max(1000).nullable().optional(),
   subjectTemplate: z.string().max(500).optional(),
   htmlTemplate: z.string().max(2000000).optional(),
-  category: z.enum(['welcome', 'reservation', 'payment', 'review', 'notification', 'custom']).optional(),
-  isActive: z.boolean().optional(),
+  category: z.string().max(100).optional(),
+  status: z.enum(['draft', 'active']).optional(),
 })
 
 // ============================================================================
@@ -92,7 +92,7 @@ export async function PUT(
     if (parsed.data.subjectTemplate !== undefined) updates.subject_template = parsed.data.subjectTemplate
     if (parsed.data.htmlTemplate !== undefined) updates.html_template = parsed.data.htmlTemplate
     if (parsed.data.category !== undefined) updates.category = parsed.data.category
-    if (parsed.data.isActive !== undefined) updates.is_active = parsed.data.isActive
+    if (parsed.data.status !== undefined) updates.status = parsed.data.status
 
     const { data: template, error: updateError } = await db
       .from('email_templates')

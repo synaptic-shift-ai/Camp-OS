@@ -19,7 +19,7 @@ const CreateEmailTemplateSchema = z.object({
   description: z.string().max(1000).optional(),
   subjectTemplate: z.string().max(500),
   htmlTemplate: z.string().max(2000000),
-  category: z.enum(['welcome', 'reservation', 'payment', 'review', 'notification', 'custom']).optional(),
+  category: z.string().max(100).optional(),
 })
 
 // ============================================================================
@@ -116,8 +116,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) return error(ErrorCodes.AUTH_001, request)
 
     const body = await request.json()
+    console.log('[POST email-templates] body:', JSON.stringify(body))
     const parsed = CreateEmailTemplateSchema.safeParse(body)
     if (!parsed.success) {
+      console.log('[POST email-templates] parse FAILED:', parsed.error.flatten())
       return error(ErrorCodes.VAL_001, request, {
         message: 'Validation failed',
         details: parsed.error.flatten(),
@@ -125,6 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data
+    console.log('[POST email-templates] parsed data:', JSON.stringify(data))
     const propertyId = data.propertyId
     if (propertyId) {
       const access = await requirePropertyAccess(supabase as any, user.id, {
@@ -148,12 +151,18 @@ export async function POST(request: NextRequest) {
         html_template: data.htmlTemplate,
         category: data.category ?? 'custom',
         is_system_default: false,
-        is_active: true,
+        status: 'draft',
       })
       .select('*')
       .single()
 
+    console.log('[POST email-templates] insert result:', {
+      template: template ? 'present' : 'null',
+      error: insertError ? { message: insertError.message, code: insertError.code, details: insertError.details } : null,
+    })
+
     if (insertError) {
+      console.log('[POST email-templates] returning error response')
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: insertError.message })
     }
 
@@ -173,8 +182,10 @@ export async function POST(request: NextRequest) {
       console.error('[Email Templates] Failed to log activity:', logError)
     }
 
+    console.log('[POST email-templates] success, returning template:', template?.id)
     return success({ emailTemplate: template }, request)
   } catch (err: unknown) {
+    console.log('[POST email-templates] caught error:', err instanceof Error ? err.message : err)
     const message = err instanceof Error ? err.message : 'Unknown error'
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })
   }

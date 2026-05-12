@@ -155,7 +155,7 @@ export function createActionRegistry(): ActionHandlerMap {
             .eq('company_id', companyId)
             .eq('property_id', propertyId)
             .eq('slug', templateSlug)
-            .eq('is_active', true)
+            .eq('status', 'active')
             .limit(1)
             .single()
           if (data) template = data
@@ -168,7 +168,7 @@ export function createActionRegistry(): ActionHandlerMap {
             .eq('company_id', companyId)
             .is('property_id', null)
             .eq('slug', templateSlug)
-            .eq('is_active', true)
+            .eq('status', 'active')
             .limit(1)
             .single()
           if (data) template = data
@@ -179,10 +179,21 @@ export function createActionRegistry(): ActionHandlerMap {
           return
         }
 
-        // Resolve recipient email
-        const guestEmail = context.guest?.email as string | undefined
-        if (!guestEmail) {
-          console.error('[send_email] No guest.email in event context')
+        // Resolve recipient email based on recipient_source
+        const recipientSource = (config.recipient_source as string) ?? 'guest'
+        let recipientEmail: string | undefined
+
+        if (recipientSource === 'staff') {
+          recipientEmail = context.staff?.email as string | undefined
+        } else if (recipientSource === 'vendor') {
+          recipientEmail = context.vendor?.email as string | undefined
+        } else {
+          // Default: guest
+          recipientEmail = context.guest?.email as string | undefined
+        }
+
+        if (!recipientEmail) {
+          console.error(`[send_email] No recipient email resolved (source: ${recipientSource})`)
           return
         }
 
@@ -195,7 +206,7 @@ export function createActionRegistry(): ActionHandlerMap {
 
         const result = await sendEmail({
           from: getFrom(),
-          to: guestEmail,
+          to: recipientEmail,
           subject,
           html,
           text,
@@ -204,7 +215,7 @@ export function createActionRegistry(): ActionHandlerMap {
         if (!result.success) {
           console.error(`[send_email] Failed to send "${templateSlug}":`, result.error)
         } else {
-          console.log(`[send_email] Sent "${templateSlug}" to ${guestEmail} (id: ${result.id})`)
+          console.log(`[send_email] Sent "${templateSlug}" to ${recipientEmail} (id: ${result.id})`)
         }
       } catch (err) {
         console.error(`[send_email] Error sending template "${templateSlug}":`, err)

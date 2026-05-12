@@ -44,7 +44,10 @@ import {
   Maximize2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { isFullEmailDocument } from "@/lib/email/template-renderer"
+import {
+  isFullEmailDocument,
+  requiresEmailTemplateSourceEditing,
+} from "@/lib/email/template-renderer"
 
 // ============================================================================
 // Types
@@ -202,8 +205,8 @@ function inferSettingsFromHtml(html: string): Partial<EmailSettings> | null {
     widthRaw === "100%"
       ? "full"
       : widthRaw && /^\d{3,4}$/.test(widthRaw)
-      ? widthRaw
-      : undefined
+        ? widthRaw
+        : undefined
 
   const inferred: Partial<EmailSettings> = {}
   if (bgColor) inferred.bgColor = bgColor
@@ -284,7 +287,9 @@ export function RichEditor({
   const [settings, setSettings] = useState<EmailSettings>(
     savedSettings ?? (inferredSettings ? { ...DEFAULT_SETTINGS, ...inferredSettings } : DEFAULT_SETTINGS)
   )
-  const [sourceMode, setSourceMode] = useState(false)
+  const [sourceMode, setSourceMode] = useState(() =>
+    requiresEmailTemplateSourceEditing(stripSettings(value)),
+  )
   const [sourceValue, setSourceValue] = useState("")
 
   // Link dialog
@@ -300,34 +305,40 @@ export function RichEditor({
 
   // Pure content (without settings comment)
   const contentOnly = stripSettings(value)
-  const isFullTemplate = isFullEmailDocument(contentOnly)
+  const needsSourceOnly = requiresEmailTemplateSourceEditing(contentOnly)
+  const isWideEmailLayout = isFullEmailDocument(contentOnly)
 
-  // Initialize editor on mount
+  // Seed source textarea from initial value (visual body syncs in the effect below).
   useEffect(() => {
-    if (editorRef.current && !mountedRef.current) {
-      mountedRef.current = true
-      if (contentOnly) {
-        editorRef.current.innerHTML = contentOnly
-      }
-    }
-    setSourceValue(contentOnly)
+    setSourceValue(stripSettings(value))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Sync external value changes
   useEffect(() => {
-    if (sourceMode) {
-      setSourceValue(stripSettings(value))
+    const newContent = stripSettings(value)
+    const locked = requiresEmailTemplateSourceEditing(newContent)
+
+    if (locked && !sourceMode) {
+      setSourceValue(newContent)
+      setSourceMode(true)
       return
     }
-    if (!mountedRef.current) return
-    if (document.activeElement === editorRef.current) return
-    const newContent = stripSettings(value)
-    if (editorRef.current && editorRef.current.innerHTML !== newContent) {
-      editorRef.current.innerHTML = newContent
+
+    if (sourceMode) {
+      setSourceValue(newContent)
+      return
+    }
+
+    if (editorRef.current) {
+      if (!mountedRef.current) mountedRef.current = true
+      if (document.activeElement === editorRef.current) return
+      if (editorRef.current.innerHTML !== newContent) {
+        editorRef.current.innerHTML = newContent
+      }
     }
     const metadataSettings = extractSettings(value)
-    const inferred = inferSettingsFromHtml(stripSettings(value))
+    const inferred = inferSettingsFromHtml(newContent)
     const newSettings =
       metadataSettings ??
       (inferred ? { ...DEFAULT_SETTINGS, ...inferred } : DEFAULT_SETTINGS)
@@ -401,9 +412,11 @@ export function RichEditor({
     handleBlur()
   }, [linkUrl, linkText, handleBlur])
 
-  // Re-save content when settings change (e.g. width, bg color, center)
+  // Re-save content when settings change (e.g. width, bg color, center).
+  // Skip when source-only markup is active — it manages its own internal layout.
   useEffect(() => {
     if (!mountedRef.current) return
+    if (needsSourceOnly) return
     save(getContent())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings])
@@ -416,10 +429,9 @@ export function RichEditor({
   // -- Source mode toggle --
   const toggleSourceMode = useCallback(() => {
     if (sourceMode) {
-      if (editorRef.current) {
-        editorRef.current.innerHTML = sourceValue
-        save(sourceValue)
-      }
+      const trimmed = sourceValue.trim()
+      if (requiresEmailTemplateSourceEditing(trimmed)) return
+      save(trimmed)
       setSourceMode(false)
     } else {
       setSourceValue(getContent())
@@ -537,6 +549,16 @@ export function RichEditor({
           Center
         </Button>
       </div>
+
+      {needsSourceOnly && (
+        <div className="border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground leading-snug">
+          <span className="font-medium text-foreground/80">HTML only</span>
+          {' — '}
+          To use <span className="font-medium text-foreground/80">Visual</span> editing, clear this HTML. Save, then open{' '}
+          <span className="font-medium text-foreground/80">Visual</span> and check{' '}
+          <span className="font-medium text-foreground/80">Preview</span>.
+        </div>
+      )}
 
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 px-1.5 py-1">
@@ -672,9 +694,19 @@ export function RichEditor({
           size="xs"
           className="h-7 text-xs gap-1"
           onClick={toggleSourceMode}
+          disabled={sourceMode && requiresEmailTemplateSourceEditing(sourceValue)}
+          title={
+            sourceMode && requiresEmailTemplateSourceEditing(sourceValue)
+              ? "Clear this HTML, save, then Visual."
+              : undefined
+          }
         >
           {sourceMode ? (
-            <><Code className="h-3.5 w-3.5" /> Visual</>
+            requiresEmailTemplateSourceEditing(sourceValue) ? (
+              <><CodeXml className="h-3.5 w-3.5" /> HTML</>
+            ) : (
+              <><Code className="h-3.5 w-3.5" /> Visual</>
+            )
           ) : (
             <><CodeXml className="h-3.5 w-3.5" /> HTML</>
           )}
@@ -693,13 +725,13 @@ export function RichEditor({
           }}
         />
       ) : (
-        <div className={cn("overflow-y-auto", isFullTemplate ? "p-0" : "p-4")} style={{ backgroundColor: settings.bgColor }}>
+        <div className={cn("overflow-y-auto", isWideEmailLayout ? "p-0" : "p-4")} style={{ backgroundColor: settings.bgColor }}>
           <div
             style={{
               ...wrapperStyle(settings),
               color: '#000000',
               minHeight: `calc(${minHeight} - 2rem)`,
-              padding: isFullTemplate ? "0" : "24px",
+              padding: isWideEmailLayout ? "0" : "24px",
               fontFamily: "sans-serif",
               transition: "max-width 0.2s, background-color 0.2s",
             }}

@@ -26,8 +26,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RichEditor, VariableSelect } from "@/components/ui/rich-editor"
 import { VARIABLE_GROUPS } from "@/lib/email/variable-definitions"
 import { EmailTemplatePreview } from "./email-template-preview"
+import { toast } from "sonner"
 import { Save, Loader2, Braces } from "lucide-react"
 import { usePermissions } from "@/hooks/use-permissions"
+import { cn } from "@/lib/utils"
 
 type EmailTemplateFormDialogProps = {
   template: Record<string, unknown> | null
@@ -59,6 +61,7 @@ export function EmailTemplateFormDialog({
   template,
   open,
   onOpenChange,
+  propertyId,
   companyId,
   onSaved,
 }: EmailTemplateFormDialogProps) {
@@ -72,8 +75,11 @@ export function EmailTemplateFormDialog({
   const [category, setCategory] = useState("")
   const [subject, setSubject] = useState("")
   const [htmlBody, setHtmlBody] = useState("")
+  const [templateStatus, setTemplateStatus] = useState<string>("draft")
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState("edit")
+  const [customCategory, setCustomCategory] = useState("")
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Track which textarea is focused for variable insertion
   const subjectRef = useRef<HTMLTextAreaElement>(null)
@@ -88,14 +94,18 @@ export function EmailTemplateFormDialog({
       setCategory((template.category as string) ?? "")
       setSubject((template.subject_template as string) ?? "")
       setHtmlBody((template.html_template as string) ?? "")
+      setTemplateStatus((template.status as string) ?? "draft")
     } else {
       setName("")
       setSlug("")
       setCategory("")
+      setCustomCategory("")
       setSubject("")
       setHtmlBody("")
+      setTemplateStatus("draft")
     }
     setTab("edit")
+    setErrors({})
   }, [template, open])
 
   // Auto-generate slug from name on create
@@ -127,6 +137,21 @@ export function EmailTemplateFormDialog({
   }, [])
 
   async function handleSave() {
+    // Client-side validation
+    const newErrors: Record<string, string> = {}
+    if (!name.trim()) newErrors.name = "Template name is required"
+    if (!slug.trim()) newErrors.slug = "Slug is required"
+    if (!category) newErrors.category = "Category is required"
+    if (category === "custom" && !customCategory.trim()) newErrors.customCategory = "Custom category name is required"
+    if (!subject.trim()) newErrors.subject = "Subject line is required"
+    if (!htmlBody.trim()) newErrors.htmlBody = "Email body is required"
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      toast.error("Please fill in all required fields")
+      return
+    }
+    setErrors({})
+
     setSaving(true)
     try {
       const body: Record<string, unknown> = {
@@ -134,9 +159,12 @@ export function EmailTemplateFormDialog({
         slug,
         subjectTemplate: subject,
         htmlTemplate: htmlBody,
-        category,
+        category: category === "custom" ? customCategory.trim() : category,
         companyId,
+        ...(propertyId && { propertyId }),
       }
+
+      console.log('[handleSave] isEdit:', isEdit, 'body:', body)
 
       if (isEdit && template?.id) {
         // Update — omit read-only fields for system defaults
@@ -150,25 +178,32 @@ export function EmailTemplateFormDialog({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         })
+        console.log('[handleSave] PUT response status:', res.status)
+        const resData = await res.json()
+        console.log('[handleSave] PUT response data:', resData)
         if (!res.ok) {
- const errData = await res.json().catch(() => null)
- throw new Error(errData?.message ?? `Save failed (${res.status})`)
- }
-        await res.json()
+          throw new Error(resData?.message ?? `Save failed (${res.status})`)
+        }
       } else {
         const res = await fetch("/api/v1/automations/email-templates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         })
-        if (!res.ok) throw new Error(`Create failed (${res.status})`)
-        await res.json()
+        console.log('[handleSave] POST response status:', res.status)
+        const resData = await res.json()
+        console.log('[handleSave] POST response data:', resData)
+        if (!res.ok) {
+          const message = resData?.error?.message || resData?.details || `Create failed (${res.status})`
+          throw new Error(message)
+        }
       }
       onSaved()
       onOpenChange(false)
+      toast.success(isEdit ? "Template updated" : "Template created")
     } catch (e) {
-      // TODO: surface error to user
-      console.error(e)
+      const message = e instanceof Error ? e.message : "Something went wrong"
+      toast.error(message)
     } finally {
       setSaving(false)
     }
@@ -183,15 +218,15 @@ export function EmailTemplateFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent wide className="sm:max-w-3xl">
+      <DialogContent wide className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Email Template" : "Create Email Template"}</DialogTitle>
           <DialogDescription>
             {isSystemDefault
               ? "System templates: name, slug, and category are read-only."
               : isEdit
-              ? "Update the template fields below."
-              : "Fill in the fields to create a new email template."}
+                ? "Update the template fields below."
+                : "Fill in the fields to create a new email template."}
           </DialogDescription>
         </DialogHeader>
 
@@ -203,53 +238,93 @@ export function EmailTemplateFormDialog({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="edit" className="space-y-4 pt-2">
+          <TabsContent value="edit" className="w-full space-y-4 pt-2">
             {/* Name & Slug row */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="tmpl-name">Name</Label>
+                <Label htmlFor="tmpl-name">Name <span className="text-red-500">*</span></Label>
                 <Input
                   id="tmpl-name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    if (errors.name) setErrors(prev => ({ ...prev, name: "" }))
+                  }}
                   disabled={isSystemDefault}
                   placeholder="Welcome Email"
+                  required
+                  className={cn(errors.name && "border-red-500 focus-visible:ring-red-500")}
                 />
+                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="tmpl-slug">Slug</Label>
+                <Label htmlFor="tmpl-slug">Slug <span className="text-red-500">*</span></Label>
                 <Input
                   id="tmpl-slug"
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => {
+                    setSlug(e.target.value)
+                    if (errors.slug) setErrors(prev => ({ ...prev, slug: "" }))
+                  }}
                   disabled={isEdit}
                   placeholder="welcome-email"
-                  className="font-mono"
+                  className={cn("font-mono", errors.slug && "border-red-500 focus-visible:ring-red-500")}
+                  required
                 />
+                {errors.slug && <p className="text-xs text-red-500 mt-1">{errors.slug}</p>}
               </div>
             </div>
 
-            {/* Category */}
-            <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={setCategory} disabled={isSystemDefault}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Category & Status row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Category <span className="text-red-500">*</span></Label>
+                <Select value={category} onValueChange={(v) => { setCategory(v); if (errors.category) setErrors(prev => ({ ...prev, category: "" })) }} disabled={isSystemDefault}>
+                  <SelectTrigger className={cn(errors.category && "border-red-500 focus-visible:ring-red-500")}>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category && <p className="text-xs text-red-500 mt-1">{errors.category}</p>}
+                {category === "custom" && (
+                  <div className="mt-2">
+                    <Input
+                      value={customCategory}
+                      onChange={(e) => {
+                        setCustomCategory(e.target.value)
+                        if (errors.customCategory) setErrors(prev => ({ ...prev, customCategory: "" }))
+                      }}
+                      placeholder="Enter custom category name"
+                      className={cn(errors.customCategory && "border-red-500 focus-visible:ring-red-500")}
+                    />
+                    {errors.customCategory && <p className="text-xs text-red-500 mt-1">{errors.customCategory}</p>}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={templateStatus} onValueChange={setTemplateStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Subject */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="tmpl-subject">Subject</Label>
+                <Label htmlFor="tmpl-subject">Subject <span className="text-red-500">*</span></Label>
                 <Select onValueChange={(v) => insertVariable(v)}>
                   <SelectTrigger className="w-[200px] h-8 text-xs">
                     <Braces className="h-3.5 w-3.5 mr-1" />
@@ -273,16 +348,22 @@ export function EmailTemplateFormDialog({
                 id="tmpl-subject"
                 ref={subjectRef}
                 value={subject}
-                onChange={(e) => setSubject(e.target.value)}
+                onChange={(e) => {
+                  setSubject(e.target.value)
+                  if (errors.subject) setErrors(prev => ({ ...prev, subject: "" }))
+                }}
                 onFocus={() => { activeFieldRef.current = "subject" }}
                 placeholder="Welcome to {{property.name}}!"
+                required
+                className={cn(errors.subject && "border-red-500 focus-visible:ring-red-500")}
               />
+              {errors.subject && <p className="text-xs text-red-500 mt-1">{errors.subject}</p>}
             </div>
 
             {/* Email Body */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>Email Body</Label>
+                <Label>Email Body <span className="text-red-500">*</span></Label>
                 <VariableSelect
                   onInsert={(path) => {
                     const insertion = `{{${path}}}`
@@ -311,14 +392,18 @@ export function EmailTemplateFormDialog({
               </div>
               <RichEditor
                 value={htmlBody}
-                onChange={setHtmlBody}
+                onChange={(val) => {
+                  setHtmlBody(val)
+                  if (errors.htmlBody) setErrors(prev => ({ ...prev, htmlBody: "" }))
+                }}
                 placeholder="Write your email content here..."
                 minHeight="300px"
               />
+              {errors.htmlBody && <p className="text-xs text-red-500 mt-1">{errors.htmlBody}</p>}
             </div>
           </TabsContent>
 
-          <TabsContent value="preview">
+          <TabsContent value="preview" className="w-full">
             <EmailTemplatePreview template={currentTemplate} />
           </TabsContent>
         </Tabs>

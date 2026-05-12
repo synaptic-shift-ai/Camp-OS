@@ -24,6 +24,25 @@ export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
   centered: true,
 }
 
+/** True when content starts with a full HTML document wrapper (DOCTYPE or root `html` element). */
+export function isHtmlDocumentShell(html: string): boolean {
+  const t = html.trimStart()
+  return /^<!DOCTYPE\s+html/i.test(t) || /^<html[\s>]/i.test(t)
+}
+
+/**
+ * Markup that must not be round-tripped through a browser contentEditable (rich text) editor.
+ * - Full document shells are invalid inside a div and are edited in source mode.
+ * - A merge tag as the first child of `tbody` is invalid HTML; the parser "foster parents"
+ *   it outside the table and corrupts the template.
+ */
+export function requiresEmailTemplateSourceEditing(html: string): boolean {
+  const t = html.trimStart()
+  if (isHtmlDocumentShell(t)) return true
+  if (/<tbody[^>]*>\s*\{\{[^}]+\}\}/i.test(t)) return true
+  return false
+}
+
 /** True when template is already a complete HTML document (system / migration templates). */
 export function isFullEmailDocument(html: string): boolean {
   const t = html.trimStart()

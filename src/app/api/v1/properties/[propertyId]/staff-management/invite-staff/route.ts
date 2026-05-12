@@ -13,6 +13,7 @@ import { resolveDashboardAccess, canManageStaffRoster } from '@/lib/rbac/dashboa
 import { sendEmail } from '@/lib/email/emailit'
 import { buildStaffInviteLinkEmailHtml } from '@/lib/email/templates/staff-invite-link'
 import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
+import { triggerStaffAutomations } from '@/lib/automations/run-pipeline'
 
 const STAFF_INVITE_TOKEN_EXPIRY_DAYS = 7
 
@@ -219,25 +220,53 @@ export async function POST(
 
       const baseUrl = getInviteBaseUrl()
       const inviteUrl = `${baseUrl}/staff-invite?token=${encodeURIComponent(inviteToken)}&uid=${encodeURIComponent(newUserId)}`
-      const html = await buildStaffInviteLinkEmailHtml(
-        inviteUrl,
-        undefined,
-        `${STAFF_INVITE_TOKEN_EXPIRY_DAYS} days`,
-      )
-      const emailResult = await sendEmail({
-        to: parsed.data.email,
-        subject: "You're invited to CampOS — complete your registration",
-        html,
-        text: `You've been invited to join a property on CampOS. Create your password here (link expires in ${STAFF_INVITE_TOKEN_EXPIRY_DAYS} days):\n${inviteUrl}\n`,
-      })
 
-      if (!emailResult.success) {
-        console.error('[StaffManagementInviteStaff] Invite email failed', {
-          error: emailResult.error,
-        })
-        return error(ErrorCodes.INTERNAL_ERROR, request, {
-          message: emailResult.error,
-        })
+      // Primary: trigger automation pipeline for staff invite email
+      // Falls back to hardcoded React Email component on pipeline failure
+      let emailSent = false
+      try {
+        const pipelineResult = await triggerStaffAutomations(
+          'staff.invited',
+          propertyId,
+          access.companyId!,
+          {
+            email: parsed.data.email,
+            inviteUrl,
+            inviterName: user.email ?? 'A property admin',
+            expiryDays: STAFF_INVITE_TOKEN_EXPIRY_DAYS,
+          },
+        )
+        emailSent = pipelineResult !== null && pipelineResult.executed > 0
+      } catch (pipelineErr) {
+        console.error('[StaffManagementInviteStaff] Pipeline failed, falling back to direct send', pipelineErr)
+      }
+
+      // Fallback: use the hardcoded React Email component if pipeline didn't send
+      if (!emailSent) {
+        try {
+          const html = await buildStaffInviteLinkEmailHtml(
+            inviteUrl,
+            undefined,
+            `${STAFF_INVITE_TOKEN_EXPIRY_DAYS} days`,
+          )
+          const emailResult = await sendEmail({
+            to: parsed.data.email,
+            subject: "You're invited to CampOS — complete your registration",
+            html,
+            text: `You've been invited to join a property on CampOS. Create your password here (link expires in ${STAFF_INVITE_TOKEN_EXPIRY_DAYS} days):\n${inviteUrl}\n`,
+          })
+
+          if (!emailResult.success) {
+            console.error('[StaffManagementInviteStaff] Fallback invite email failed', {
+              error: emailResult.error,
+            })
+            // Non-blocking: don't fail the invite if the fallback email also fails
+          } else {
+            emailSent = true
+          }
+        } catch (fallbackErr) {
+          console.error('[StaffManagementInviteStaff] Fallback email send failed', fallbackErr)
+        }
       }
 
       if (access.companyId) {
@@ -251,7 +280,7 @@ export async function POST(
         }, { failOpen: false })
       }
 
-      return success({ ...result, emailSent: true }, request)
+      return success({ ...result, emailSent }, request)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       return error(ErrorCodes.INTERNAL_ERROR, request, { message })

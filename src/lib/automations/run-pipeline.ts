@@ -189,6 +189,395 @@ async function buildReservationEventContext(
 }
 
 /**
+ * Trigger automations for a staff event.
+ * Builds the event context from supplied data, then runs the pipeline.
+ *
+ * Falls back gracefully — pipeline failures do NOT propagate.
+ */
+export async function triggerStaffAutomations(
+  triggerType: TriggerType,
+  propertyId: string,
+  companyId: string,
+  staffContext: {
+    email: string
+    name?: string
+    inviteUrl: string
+    inviterName: string
+    expiryDays: number
+  },
+): Promise<PipelineRunSummary | null> {
+  console.log(`[Automation Pipeline] Triggering: ${triggerType} for staff invite`)
+
+  try {
+    const context = await buildStaffEventContext(
+      triggerType,
+      propertyId,
+      companyId,
+      staffContext,
+    )
+
+    const result = await runPipelineForTrigger(triggerType, propertyId, companyId, context)
+
+    console.log(`[Automation Pipeline] Completed: ${triggerType} for staff invite`, {
+      matched: result.matched,
+      passed: result.passed,
+      executed: result.executed,
+    })
+
+    return result
+  } catch (err) {
+    console.error(
+      `[Automation Pipeline] Failed: ${triggerType} for staff invite`,
+      err instanceof Error ? err.message : String(err),
+    )
+    return null
+  }
+}
+
+/**
+ * Build an EventContext for staff-related events.
+ * Enriches property details from the DB and merges supplied staff context.
+ */
+async function buildStaffEventContext(
+  triggerType: TriggerType,
+  propertyId: string,
+  companyId: string,
+  staffContext: {
+    email: string
+    name?: string
+    inviteUrl: string
+    inviterName: string
+    expiryDays: number
+  },
+): Promise<EventContext> {
+  const supabase = createServiceRoleClient()
+
+  const context: EventContext = {
+    event: {
+      type: triggerType,
+      timestamp: new Date(),
+    },
+    propertyId,
+    companyId,
+  }
+
+  try {
+    // Fetch property
+    const { data: property } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', propertyId)
+      .single()
+    if (property) context.property = property as Record<string, unknown>
+  } catch (err) {
+    console.error(
+      '[Automation Pipeline] buildStaffEventContext property fetch failed',
+      err instanceof Error ? err.message : String(err),
+    )
+  }
+
+  // Build staff context — used for recipient resolution and template variables
+  context.staff = {
+    email: staffContext.email,
+    name: staffContext.name ?? staffContext.email,
+  }
+
+  // Expose invite-specific variables at top level for template rendering
+  // The template-renderer's replaceVariables() resolves dotted paths,
+  // so {{invite_url}}, {{inviter_name}}, etc. work via these top-level keys.
+  ;(context as unknown as Record<string, unknown>).invite_url = staffContext.inviteUrl
+  ;(context as unknown as Record<string, unknown>).inviter_name = staffContext.inviterName
+  ;(context as unknown as Record<string, unknown>).expiry_days = staffContext.expiryDays
+
+  return context
+}
+
+/**
+ * Trigger automations for a maintenance event.
+ * Builds the event context from supplied data, then runs the pipeline.
+ *
+ * Should only be called when a vendor is assigned (vendor_id IS NOT NULL).
+ * Falls back gracefully — pipeline failures do NOT propagate.
+ */
+export async function triggerMaintenanceAutomations(
+  triggerType: TriggerType,
+  propertyId: string,
+  companyId: string,
+  maintenanceContext: {
+    vendorId: string
+    vendorName: string
+    vendorEmail: string
+    workOrderNumber: string
+    taskTitle: string
+    category: string
+    priority: string
+    siteLabel: string
+    description: string
+    estimatedLaborCost: number | null
+    propertyName: string
+    propertyAddress: string
+    propertyEmail: string
+  },
+): Promise<PipelineRunSummary | null> {
+  console.log(`[Automation Pipeline] Triggering: ${triggerType} for vendor work order ${maintenanceContext.workOrderNumber}`)
+
+  try {
+    const context = await buildMaintenanceEventContext(
+      triggerType,
+      propertyId,
+      companyId,
+      maintenanceContext,
+    )
+
+    const result = await runPipelineForTrigger(triggerType, propertyId, companyId, context)
+
+    console.log(`[Automation Pipeline] Completed: ${triggerType} for vendor work order ${maintenanceContext.workOrderNumber}`, {
+      matched: result.matched,
+      passed: result.passed,
+      executed: result.executed,
+    })
+
+    return result
+  } catch (err) {
+    console.error(
+      `[Automation Pipeline] Failed: ${triggerType} for vendor work order`,
+      err instanceof Error ? err.message : String(err),
+    )
+    return null
+  }
+}
+
+/**
+ * Build an EventContext for maintenance-related events.
+ * Enriches property details from the DB and merges supplied vendor + maintenance context.
+ */
+async function buildMaintenanceEventContext(
+  triggerType: TriggerType,
+  propertyId: string,
+  companyId: string,
+  maintenanceContext: {
+    vendorId: string
+    vendorName: string
+    vendorEmail: string
+    workOrderNumber: string
+    taskTitle: string
+    category: string
+    priority: string
+    siteLabel: string
+    description: string
+    estimatedLaborCost: number | null
+    propertyName: string
+    propertyAddress: string
+    propertyEmail: string
+  },
+): Promise<EventContext> {
+  const supabase = createServiceRoleClient()
+
+  const context: EventContext = {
+    event: {
+      type: triggerType,
+      timestamp: new Date(),
+    },
+    propertyId,
+    companyId,
+  }
+
+  try {
+    // Fetch property
+    const { data: property } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', propertyId)
+      .single()
+    if (property) context.property = property as Record<string, unknown>
+  } catch (err) {
+    console.error(
+      '[Automation Pipeline] buildMaintenanceEventContext property fetch failed',
+      err instanceof Error ? err.message : String(err),
+    )
+  }
+
+  // Build vendor context — used for recipient resolution and template variables
+  context.vendor = {
+    id: maintenanceContext.vendorId,
+    name: maintenanceContext.vendorName,
+    email: maintenanceContext.vendorEmail,
+  }
+
+  // Build maintenance context
+  context.maintenance = {
+    wo_number: maintenanceContext.workOrderNumber,
+    title: maintenanceContext.taskTitle,
+    category: maintenanceContext.category,
+    priority: maintenanceContext.priority,
+    site_label: maintenanceContext.siteLabel,
+    description: maintenanceContext.description,
+    estimated_labor_cost: maintenanceContext.estimatedLaborCost,
+  }
+
+  // Expose template variables at top level for easy {{variable}} resolution
+  const ctx = context as unknown as Record<string, unknown>
+  ctx.vendor_name = maintenanceContext.vendorName
+  ctx.property_name = maintenanceContext.propertyName
+  ctx.property_address = maintenanceContext.propertyAddress
+  ctx.property_email = maintenanceContext.propertyEmail
+  ctx.work_order_number = maintenanceContext.workOrderNumber
+  ctx.task_title = maintenanceContext.taskTitle
+  ctx.category = maintenanceContext.category
+  ctx.priority = maintenanceContext.priority
+  ctx.site_label = maintenanceContext.siteLabel
+  ctx.description = maintenanceContext.description
+  ctx.estimated_labor_cost = maintenanceContext.estimatedLaborCost != null
+    ? `$${maintenanceContext.estimatedLaborCost.toFixed(2)}`
+    : 'Not provided'
+
+  return context
+}
+
+/**
+ * Trigger automations for a payment event.
+ * Builds the event context from supplied data, then runs the pipeline.
+ *
+ * Falls back gracefully — pipeline failures do NOT propagate.
+ */
+export async function triggerPaymentAutomations(
+  triggerType: TriggerType,
+  propertyId: string,
+  companyId: string,
+  paymentContext: {
+    guestEmail: string
+    guestName: string
+    receiptNumber: string
+    confirmationNumber: string
+    receiptDate: string
+    lineItemsHtml: string
+    subtotal: string
+    amountPaid: string
+    remainingBalance: string
+    paymentMethodLabel: string
+    paymentSourceLabel: string
+    propertyName: string
+    propertyAddress: string
+    propertyAddressLinesHtml: string
+    propertyContactInfo: string
+    billedTo: string
+    documentTitle: string
+    reservationTotalsNote: string
+  },
+): Promise<PipelineRunSummary | null> {
+  console.log(`[Automation Pipeline] Triggering: ${triggerType} for receipt ${paymentContext.receiptNumber}`)
+
+  try {
+    const context = await buildPaymentEventContext(
+      triggerType,
+      propertyId,
+      companyId,
+      paymentContext,
+    )
+
+    const result = await runPipelineForTrigger(triggerType, propertyId, companyId, context)
+
+    console.log(`[Automation Pipeline] Completed: ${triggerType} for receipt ${paymentContext.receiptNumber}`, {
+      matched: result.matched,
+      passed: result.passed,
+      executed: result.executed,
+    })
+
+    return result
+  } catch (err) {
+    console.error(
+      `[Automation Pipeline] Failed: ${triggerType} for receipt`,
+      err instanceof Error ? err.message : String(err),
+    )
+    return null
+  }
+}
+
+/**
+ * Build an EventContext for payment-related events.
+ * Enriches property details from the DB and merges supplied payment context.
+ */
+async function buildPaymentEventContext(
+  triggerType: TriggerType,
+  propertyId: string,
+  companyId: string,
+  paymentContext: {
+    guestEmail: string
+    guestName: string
+    receiptNumber: string
+    confirmationNumber: string
+    receiptDate: string
+    lineItemsHtml: string
+    subtotal: string
+    amountPaid: string
+    remainingBalance: string
+    paymentMethodLabel: string
+    paymentSourceLabel: string
+    propertyName: string
+    propertyAddress: string
+    propertyAddressLinesHtml: string
+    propertyContactInfo: string
+    billedTo: string
+    documentTitle: string
+    reservationTotalsNote: string
+  },
+): Promise<EventContext> {
+  const supabase = createServiceRoleClient()
+
+  const context: EventContext = {
+    event: {
+      type: triggerType,
+      timestamp: new Date(),
+    },
+    propertyId,
+    companyId,
+  }
+
+  try {
+    // Fetch property
+    const { data: property } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', propertyId)
+      .single()
+    if (property) context.property = property as Record<string, unknown>
+  } catch (err) {
+    console.error(
+      '[Automation Pipeline] buildPaymentEventContext property fetch failed',
+      err instanceof Error ? err.message : String(err),
+    )
+  }
+
+  // Build guest context — used for recipient resolution
+  context.guest = {
+    email: paymentContext.guestEmail,
+    name: paymentContext.guestName,
+  }
+
+  // Expose template variables at top level for easy {{variable}} resolution
+  const ctx = context as unknown as Record<string, unknown>
+  ctx.guest_name = paymentContext.guestName
+  ctx.receipt_number = paymentContext.receiptNumber
+  ctx.confirmation_number = paymentContext.confirmationNumber
+  ctx.receipt_date = paymentContext.receiptDate
+  ctx.line_items_html = paymentContext.lineItemsHtml
+  ctx.subtotal = paymentContext.subtotal
+  ctx.amount_paid = paymentContext.amountPaid
+  ctx.remaining_balance = paymentContext.remainingBalance
+  ctx.payment_method_label = paymentContext.paymentMethodLabel
+  ctx.payment_source_label = paymentContext.paymentSourceLabel
+  ctx.property_name = paymentContext.propertyName
+  ctx.property_address = paymentContext.propertyAddress
+  ctx.property_address_lines_html = paymentContext.propertyAddressLinesHtml
+  ctx.property_contact_info = paymentContext.propertyContactInfo
+  ctx.billed_to = paymentContext.billedTo
+  ctx.document_title = paymentContext.documentTitle
+  ctx.reservation_totals_note = paymentContext.reservationTotalsNote
+
+  return context
+}
+
+/**
  * Run the automation pipeline directly for a synthetic trigger.
  *
  * Matches the same flow as subscriber.ts but without an EventBus:

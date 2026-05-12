@@ -44,6 +44,7 @@ export type TriggerType =
   // Guest events
   | 'guest.updated'
   // Payment events
+  | 'payment.received'
   | 'refund.processed'
   // Site / property events
   | 'site.status_changed'
@@ -53,6 +54,8 @@ export type TriggerType =
   | 'housekeeping.task_completed'
   | 'maintenance.task_created'
   | 'maintenance.task_completed'
+  // Staff events
+  | 'staff.invited'
   // System / scheduled
   | 'system.scheduled'
   | 'system.check_in_reminder'
@@ -136,6 +139,8 @@ export interface EventContext {
   payment?: Record<string, unknown>
   housekeeping?: Record<string, unknown>
   maintenance?: Record<string, unknown>
+  staff?: Record<string, unknown>
+  vendor?: Record<string, unknown>
 }
 
 // ============================================================================

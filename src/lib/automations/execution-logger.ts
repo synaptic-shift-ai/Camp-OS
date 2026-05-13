@@ -56,6 +56,7 @@ export async function logAutomationExecution(
 function extractEntityType(context: EventContext): string | undefined {
   const eventType = context.event.type.toLowerCase()
   if (eventType.startsWith('reservation')) return 'reservation'
+  if (eventType.startsWith('system.') && context.reservation?.id) return 'reservation'
   if (eventType.startsWith('guest')) return 'guest'
   if (eventType.startsWith('payment') || eventType.startsWith('refund')) return 'payment'
   if (eventType.startsWith('site')) return 'site'
@@ -81,6 +82,9 @@ function extractEntityId(context: EventContext): string | undefined {
   }
   if (eventType.startsWith('site') && site) {
     return (site.id as string) ?? undefined
+  }
+  if (eventType.startsWith('system.') && reservation?.id) {
+    return (reservation.id as string) ?? undefined
   }
   return undefined
 }

@@ -518,6 +518,195 @@ export type Database = {
           },
         ]
       }
+      communication_branding: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          logo_url: string | null
+          property_id: string
+          reply_to_email: string | null
+          sender_email: string | null
+          sender_name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          property_id: string
+          reply_to_email?: string | null
+          sender_email?: string | null
+          sender_name?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          property_id?: string
+          reply_to_email?: string | null
+          sender_email?: string | null
+          sender_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_branding_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_branding_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_log: {
+        Row: {
+          bounce_type: string | null
+          channel: string
+          clicked_at: string | null
+          company_id: string
+          created_at: string
+          delivered_at: string | null
+          failure_reason: string | null
+          guest_id: string | null
+          id: string
+          opened_at: string | null
+          property_id: string
+          recipient_address: string
+          reservation_id: string | null
+          retry_count: number
+          status: string
+          subject: string | null
+          template_id: string | null
+        }
+        Insert: {
+          bounce_type?: string | null
+          channel?: string
+          clicked_at?: string | null
+          company_id: string
+          created_at?: string
+          delivered_at?: string | null
+          failure_reason?: string | null
+          guest_id?: string | null
+          id?: string
+          opened_at?: string | null
+          property_id: string
+          recipient_address: string
+          reservation_id?: string | null
+          retry_count?: number
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          bounce_type?: string | null
+          channel?: string
+          clicked_at?: string | null
+          company_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          failure_reason?: string | null
+          guest_id?: string | null
+          id?: string
+          opened_at?: string | null
+          property_id?: string
+          recipient_address?: string
+          reservation_id?: string | null
+          retry_count?: number
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_opt_outs: {
+        Row: {
+          channel: string
+          company_id: string
+          guest_id: string
+          id: string
+          opted_out_at: string
+          source: string
+        }
+        Insert: {
+          channel: string
+          company_id: string
+          guest_id: string
+          id?: string
+          opted_out_at?: string
+          source: string
+        }
+        Update: {
+          channel?: string
+          company_id?: string
+          guest_id?: string
+          id?: string
+          opted_out_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_opt_outs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_opt_outs_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           billing_cycle: string | null

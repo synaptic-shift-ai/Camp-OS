@@ -35,6 +35,7 @@ export const TriggerTypeSchema = z.enum([
   'maintenance.task_completed',
   'system.scheduled',
   'system.check_in_reminder',
+  'system.pre_arrival_reminder',
   'system.check_out_reminder',
 ])
 

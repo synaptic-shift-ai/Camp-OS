@@ -74,7 +74,12 @@ const TRIGGER_GROUPS: Array<{ label: string; triggers: TriggerType[] }> = [
   },
   {
     label: "System",
-    triggers: ["system.scheduled", "system.check_in_reminder", "system.check_out_reminder"],
+    triggers: [
+      "system.scheduled",
+      "system.check_in_reminder",
+      "system.pre_arrival_reminder",
+      "system.check_out_reminder",
+    ],
   },
 ]
 

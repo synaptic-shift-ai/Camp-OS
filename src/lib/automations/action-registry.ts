@@ -132,7 +132,13 @@ export function createActionRegistry(): ActionHandlerMap {
       try {
         const { createServiceRoleClient } = await import('@/lib/supabase/service-role')
         const { sendEmail, getFrom } = await import('@/lib/email/emailit')
-        const { renderWithContext } = await import('@/lib/email/template-renderer')
+        const { enrichContext, renderWithContext, replaceVariables } = await import(
+          '@/lib/email/template-renderer'
+        )
+        const { render } = await import('@react-email/components')
+        const { PreArrivalEmail, buildPreArrivalEmailPropsFromEventContext } = await import(
+          '@/lib/email/templates/pre-arrival'
+        )
 
         const supabase = createServiceRoleClient()
 
@@ -236,21 +242,65 @@ export function createActionRegistry(): ActionHandlerMap {
           }
         }
 
-        // ── Render with branding ─────────────────────────────────────────────
-        const { subject, html, text } = renderWithContext(
-          template.subject_template,
-          template.html_template,
-          context as unknown as Record<string, unknown>,
-          branding
-            ? {
-                logoUrl: branding.logoUrl,
-                primaryColor: branding.primaryColor,
-                secondaryColor: branding.secondaryColor,
-                senderName: branding.senderName,
-                propertyName: branding.propertyName,
-              }
-            : undefined,
-        )
+        // ── Render body: React template for pre_arrival; merge-field HTML otherwise ──
+        const ctxRecord = context as unknown as Record<string, unknown>
+        let subject: string
+        let html: string
+        let text: string
+
+        if (templateSlug === 'pre_arrival') {
+          const preArrivalBranding = branding
+            ? { logoUrl: branding.logoUrl, primaryColor: branding.primaryColor }
+            : null
+          const preArrivalProps = buildPreArrivalEmailPropsFromEventContext(ctxRecord, preArrivalBranding)
+          if (preArrivalProps) {
+            const enriched = enrichContext(ctxRecord)
+            subject = replaceVariables(template.subject_template, enriched)
+            html = await render(PreArrivalEmail(preArrivalProps))
+            text = html
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<\/p>/gi, '\n\n')
+              .replace(/<[^>]+>/g, '')
+              .replace(/\n{3,}/g, '\n\n')
+              .trim()
+          } else {
+            const rendered = renderWithContext(
+              template.subject_template,
+              template.html_template,
+              ctxRecord,
+              branding
+                ? {
+                    logoUrl: branding.logoUrl,
+                    primaryColor: branding.primaryColor,
+                    secondaryColor: branding.secondaryColor,
+                    senderName: branding.senderName,
+                    propertyName: branding.propertyName,
+                  }
+                : undefined,
+            )
+            subject = rendered.subject
+            html = rendered.html
+            text = rendered.text
+          }
+        } else {
+          const rendered = renderWithContext(
+            template.subject_template,
+            template.html_template,
+            ctxRecord,
+            branding
+              ? {
+                  logoUrl: branding.logoUrl,
+                  primaryColor: branding.primaryColor,
+                  secondaryColor: branding.secondaryColor,
+                  senderName: branding.senderName,
+                  propertyName: branding.propertyName,
+                }
+              : undefined,
+          )
+          subject = rendered.subject
+          html = rendered.html
+          text = rendered.text
+        }
 
         // ── Generate unsubscribe URL & inject ────────────────────────────────
         let finalHtml = html

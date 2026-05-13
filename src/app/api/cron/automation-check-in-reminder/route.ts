@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       // Fetch property to get company_id
       const { data: property } = await supabase
         .from('properties')
-        .select('id, company_id, name')
+        .select('*')
         .eq('id', propertyId)
         .single()
 

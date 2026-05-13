@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   isFullEmailDocument,
   isHtmlDocumentShell,
+  renderWithContext,
+  renderWithSampleData,
   requiresEmailTemplateSourceEditing,
+  wrapWithEmailLayout,
 } from './template-renderer'
 
 describe('isHtmlDocumentShell', () => {
@@ -56,5 +59,84 @@ describe('isFullEmailDocument', () => {
     const legacy =
       '<meta charset="utf-8"><table role="presentation" width="100%" style="width:100%"><tr><td>x</td></tr></table>'
     expect(isFullEmailDocument(legacy)).toBe(true)
+  })
+})
+
+describe('wrapWithEmailLayout', () => {
+  it('renders a footer with property name, address, and unsubscribe link', () => {
+    const propertyName = 'Pine Ridge Campground'
+    const propertyAddress = '123 Camp Road, Lakeview, TX 75001'
+    const unsubscribeUrl = 'https://example.com/unsubscribe/token'
+
+    const html = wrapWithEmailLayout(
+      '<p>Reservation details</p>',
+      { width: '600', bgColor: '#ffffff', centered: true },
+      { propertyName, propertyAddress, unsubscribeUrl },
+    )
+
+    expect(html).toContain(
+      `${propertyName} &middot; ${propertyAddress} &middot; <a href="${unsubscribeUrl}" target="_blank" style="color:#888888;">Unsubscribe</a>`,
+    )
+  })
+})
+
+describe('renderWithContext', () => {
+  it('derives the email footer property address from event context', () => {
+    const propertyName = 'Pine Ridge Campground'
+    const address = '123 Camp Road'
+    const city = 'Lakeview'
+    const state = 'TX'
+    const zipCode = '75001'
+
+    const result = renderWithContext(
+      'Welcome to {{property.name}}',
+      '<p>Hello {{guest.first_name}}</p>',
+      {
+        guest: { first_name: 'Riley', last_name: 'Guest' },
+        property: {
+          name: propertyName,
+          address,
+          city,
+          state,
+          zip_code: zipCode,
+        },
+      },
+      { propertyName },
+    )
+
+    expect(result.html).toContain(
+      `${propertyName} &middot; ${address}, ${city}, ${state}, ${zipCode} &middot; <a href="{{unsubscribe_url}}" target="_blank" style="color:#888888;">Unsubscribe</a>`,
+    )
+  })
+
+  it('adds the email footer to complete HTML document templates', () => {
+    const propertyName = 'Pine Ridge Campground'
+    const propertyAddress = '123 Camp Road, Lakeview, TX 75001'
+
+    const result = renderWithContext(
+      'Document template',
+      '<!DOCTYPE html><html><body><p>Body content</p></body></html>',
+      {
+        property: {
+          name: propertyName,
+          address: propertyAddress,
+        },
+      },
+      { propertyName },
+    )
+
+    expect(result.html).toContain(
+      `${propertyName} &middot; ${propertyAddress} &middot; <a href="{{unsubscribe_url}}" target="_blank" style="color:#888888;">Unsubscribe</a></div></body>`,
+    )
+  })
+})
+
+describe('renderWithSampleData', () => {
+  it('renders the sample property footer in email template previews', () => {
+    const result = renderWithSampleData('Preview', '<p>Sample body</p>')
+
+    expect(result.html).toContain(
+      'Pine Ridge Campground &middot; 123 Camp Road, Lakeview, TX 75001 &middot; <a href="{{unsubscribe_url}}" target="_blank" style="color:#888888;">Unsubscribe</a>',
+    )
   })
 })

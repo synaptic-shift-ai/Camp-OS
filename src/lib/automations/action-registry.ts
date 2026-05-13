@@ -309,7 +309,7 @@ export function createActionRegistry(): ActionHandlerMap {
           try {
             const { generateUnsubscribeToken } = await import('@/lib/communications/unsubscribe')
             const token = generateUnsubscribeToken(guestId, propertyId)
-            const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.camposapp.com'}/api/v1/public/unsubscribe/${token}`
+            const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.camposapp.com'}/api/public/unsubscribe/${token}`
             finalHtml = html.replace(/\{\{unsubscribe_url\}\}/g, unsubscribeUrl)
             finalText = text.replace(/\{\{unsubscribe_url\}\}/g, unsubscribeUrl)
           } catch (tokenErr) {

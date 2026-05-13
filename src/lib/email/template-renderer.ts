@@ -90,7 +90,39 @@ export interface EmailBranding {
   secondaryColor?: string | null
   senderName?: string
   propertyName?: string
+  propertyAddress?: string | null
   unsubscribeUrl?: string
+}
+
+function getStringValue(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function buildEmailFooterHtml(branding: EmailBranding): string {
+  const footerLink = branding.unsubscribeUrl
+    ? `<a href="${branding.unsubscribeUrl}" target="_blank" style="color:#888888;">Unsubscribe</a>`
+    : '<a href="{{unsubscribe_url}}" target="_blank" style="color:#888888;">Unsubscribe</a>'
+
+  const footerParts = [
+    getStringValue(branding.propertyName) ?? 'CampOS',
+    getStringValue(branding.propertyAddress),
+    footerLink,
+  ].filter((part): part is string => part !== null)
+
+  return `
+<div style="border-top:1px solid #e0e0e0;margin-top:32px;padding-top:16px;text-align:center;font-size:12px;color:#888888;line-height:1.5;">
+  ${footerParts.join(' &middot; ')}
+</div>`
+}
+
+function appendEmailFooterToRenderedHtml(html: string, branding: EmailBranding): string {
+  const footerHtml = buildEmailFooterHtml(branding)
+  if (/<\/body\s*>/i.test(html)) {
+    return html.replace(/<\/body\s*>/i, `${footerHtml}</body>`)
+  }
+  return `${html}${footerHtml}`
 }
 
 /**
@@ -123,18 +155,7 @@ export function wrapWithEmailLayout(content: string, settings: EmailSettings, br
 
   // ── CAN-SPAM footer ──────────────────────────────────────────────────────
   if (branding) {
-    const footerLink = branding.unsubscribeUrl
-      ? `<a href="${branding.unsubscribeUrl}" target="_blank" style="color:#888888;">Unsubscribe</a>`
-      : '{{unsubscribe_url}}'
-
-    const propertyName = branding.propertyName || 'CampOS'
-
-    bodyContent += `
-<div style="border-top:1px solid #e0e0e0;margin-top:32px;padding-top:16px;text-align:center;font-size:12px;color:#888888;line-height:1.5;">
-  ${footerLink}
-  <br />
-  &copy; ${propertyName}. All rights reserved.
-</div>`
+    bodyContent += buildEmailFooterHtml(branding)
   }
 
   const centerHTML = settings.centered
@@ -296,11 +317,20 @@ export function renderWithSampleData(subject: string, html: string): {
   const content = stripEmailSettings(html)
   const renderedContent = replaceVariables(content, sample)
   const full = isFullEmailDocument(renderedContent)
+  const property = sample.property as Record<string, unknown> | undefined
+  const samplePropertyAddress = getStringValue(property?.address)
+  const sampleBranding: EmailBranding = {
+    propertyName: getStringValue(property?.name) ?? 'CampOS',
+    ...(samplePropertyAddress !== null ? { propertyAddress: samplePropertyAddress } : {}),
+  }
   return {
     subject: replaceVariables(subject, sample),
     html: full
-      ? applyLegacyBackgroundOverride(renderedContent, settings)
-      : wrapWithEmailLayout(renderedContent, settings),
+      ? appendEmailFooterToRenderedHtml(
+          applyLegacyBackgroundOverride(renderedContent, settings),
+          sampleBranding,
+        )
+      : wrapWithEmailLayout(renderedContent, settings, sampleBranding),
   }
 }
 
@@ -324,9 +354,31 @@ export function renderWithContext(
   const content = stripEmailSettings(html)
   const renderedContent = replaceVariables(content, enriched)
   const full = isFullEmailDocument(renderedContent)
+  const property = enriched.property as Record<string, unknown> | undefined
+  const contextPropertyName = getStringValue(property?.name)
+  const contextPropertyAddress = getStringValue(property?.address)
+  const propertyName = branding?.propertyName ?? contextPropertyName
+  const propertyAddress = branding?.propertyAddress ?? contextPropertyAddress
+  const effectiveBranding = branding
+    ? {
+        ...branding,
+        ...(propertyName !== null ? { propertyName } : {}),
+        ...(propertyAddress !== null ? { propertyAddress } : {}),
+      }
+    : contextPropertyName !== null
+      ? {
+          propertyName: contextPropertyName,
+          ...(contextPropertyAddress !== null ? { propertyAddress: contextPropertyAddress } : {}),
+        }
+      : undefined
   const renderedHtml = full
-    ? applyLegacyBackgroundOverride(renderedContent, settings)
-    : wrapWithEmailLayout(renderedContent, settings, branding)
+    ? effectiveBranding
+      ? appendEmailFooterToRenderedHtml(
+          applyLegacyBackgroundOverride(renderedContent, settings),
+          effectiveBranding,
+        )
+      : applyLegacyBackgroundOverride(renderedContent, settings)
+    : wrapWithEmailLayout(renderedContent, settings, effectiveBranding)
   const renderedText = renderedContent
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')

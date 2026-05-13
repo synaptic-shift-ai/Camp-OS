@@ -8,7 +8,6 @@ import {
 } from "./guest-communication-view-switcher"
 import { SmsInboxPanel } from "./sms-inbox-panel"
 import { GuestDeliveryPanel } from "./guest-delivery-panel"
-import { EmailBrandingPanel } from "./email-branding-panel"
 import { OptOutsPanel } from "./opt-outs-panel"
 
 type GuestCommunicationPageContentProps = {
@@ -46,8 +45,6 @@ export function GuestCommunicationPageContent({
         </div>
       ) : viewMode === "guest_delivery" ? (
         <GuestDeliveryPanel propertyId={propertyId} />
-      ) : viewMode === "branding" ? (
-        <EmailBrandingPanel propertyId={propertyId} propertyName={propertyName} />
       ) : viewMode === "opt_outs" ? (
         <OptOutsPanel propertyId={propertyId} />
       ) : null}

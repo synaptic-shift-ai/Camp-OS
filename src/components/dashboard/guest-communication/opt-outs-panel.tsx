@@ -72,52 +72,20 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
         propertyId,
         limit: String(PAGE_SIZE),
         offset: String(offset),
-        status: "skipped",
       })
-      const res = await fetch(`/api/v1/communications/log?${params}`)
+      const res = await fetch(`/api/v1/communications/opt-outs?${params}`)
       const json = await res.json()
       if (!json.success) return
 
-      const logs = json.data.data ?? []
-      setTotalCount(json.data.count ?? logs.length)
-
-      const mapped: OptOutRecord[] = logs.map((row: Record<string, unknown>) => {
-        const guest = row.guest as Record<string, unknown> | null
-        const firstName = (guest?.first_name as string) ?? ""
-        const lastName = (guest?.last_name as string) ?? ""
-        return {
-          id: row.id as string,
-          guestName: [firstName, lastName].filter(Boolean).join(" ") || "Unknown",
-          guestEmail: (guest?.email as string) ?? (row.recipient_address as string) ?? "",
-          channel: (row.channel as string) ?? "EMAIL",
-          optedOutAt: row.created_at as string,
-          source: (row.bounce_type as string) ?? "manual",
-        }
-      })
-      setRecords(mapped)
+      setRecords((json.data.data ?? []) as OptOutRecord[])
+      setTotalCount(json.data.count ?? 0)
+      setSkippedCount(json.data.counts?.email ?? 0)
     } catch {
       // silent
     } finally {
       setLoading(false)
     }
   }, [propertyId, page])
-
-  // Fetch skipped count for summary cards
-  useEffect(() => {
-    let cancelled = false
-    async function fetchStats() {
-      try {
-        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&groupBy=status`)
-        const json = await res.json()
-        if (cancelled || !json.success) return
-        setSkippedCount(json.data.counts?.skipped ?? 0)
-      } catch {
-        // silent
-      }
-    }
-    fetchStats()
-    return () => { cancelled = true }
-  }, [propertyId])
 
   useEffect(() => {
     fetchRecords()
@@ -137,7 +105,7 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
     if (!deleteTarget) return
     try {
       setDeleting(true)
-      // The opt-out records come from communication_log (status=skipped).
+      // The opt-out records come from the communication_opt_outs registry.
       // There's no dedicated delete endpoint, so we just dismiss the dialog.
       // In a future phase, a dedicated opt-outs endpoint will handle removal.
       toast({ title: "Not yet available", description: "Opt-out removal will be available in a future update.", variant: "default" })

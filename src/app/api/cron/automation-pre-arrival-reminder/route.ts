@@ -1,16 +1,18 @@
 /**
- * Automation Check-Out Reminder Cron
+ * Automation Pre-Arrival Reminder Cron
  *
- * POST /api/cron/automation-check-out-reminder
+ * POST /api/cron/automation-pre-arrival-reminder
  *
- * Daily cron (8am) that fires `system.check_out_reminder` automations
- * for reservations checking out today.
+ * Daily cron (8am UTC) that fires `system.pre_arrival_reminder` automations for
+ * confirmed reservations whose check-in date is exactly two calendar days after
+ * "today" (same UTC date convention as automation-check-in-reminder).
  *
  * For each reservation:
- * 1. Build a full EventContext (reservation, guest, property, site)
- * 2. Deduplication: skip if an execution_log already exists for this
- *    reservation + trigger type + today
- * 3. Run the automation pipeline directly
+ * 1. Build EventContext (reservation, guest, property, site)
+ * 2. Deduplication: skip if execution_log already exists for this reservation +
+ *    trigger type + today
+ * 3. Run the automation pipeline (send_email with template `pre_arrival` uses
+ *    the React template in src/lib/email/templates/pre-arrival.tsx)
  *
  * Security: Requires CRON_SECRET via Authorization header.
  */
@@ -20,14 +22,30 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
 import type { EventContext } from '@/lib/automations/types'
 
-/** Start of today in YYYY-MM-DD (local server time) */
-function todayDateString(): string {
+const TRIGGER = 'system.pre_arrival_reminder' as const
+
+/** Today in YYYY-MM-DD (UTC), matching automation-check-in-reminder */
+function todayDateStringUtc(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+function addCalendarDaysIso(isoDate: string, days: number): string {
+  const [ys, mos, das] = isoDate.split('-')
+  if (!ys || !mos || !das) {
+    throw new Error(`Invalid ISO date: ${isoDate}`)
+  }
+  const y = parseInt(ys, 10)
+  const mo = parseInt(mos, 10)
+  const da = parseInt(das, 10)
+  if (Number.isNaN(y) || Number.isNaN(mo) || Number.isNaN(da)) {
+    throw new Error(`Invalid ISO date: ${isoDate}`)
+  }
+  const t = new Date(Date.UTC(y, mo - 1, da + days))
+  return t.toISOString().slice(0, 10)
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify cron secret
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
@@ -36,19 +54,19 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceRoleClient()
-    const today = todayDateString()
+    const today = todayDateStringUtc()
+    const targetCheckIn = addCalendarDaysIso(today, 2)
 
-    console.log(`[Check-Out Reminder] Running for date=${today}`)
+    console.log(`[Pre-Arrival Reminder] Running for run_date=${today} target_check_in=${targetCheckIn}`)
 
-    // Find checked-in reservations checking out today
     const { data: reservations, error: resError } = await supabase
       .from('reservations')
-      .select('id, property_id, guest_id, site_id, confirmation_number, check_out_date, status')
-      .eq('check_out_date', today)
-      .eq('status', 'checked_in')
+      .select('*')
+      .eq('check_in_date', targetCheckIn)
+      .eq('status', 'confirmed')
 
     if (resError) {
-      console.error('[Check-Out Reminder] Failed to fetch reservations:', resError)
+      console.error('[Pre-Arrival Reminder] Failed to fetch reservations:', resError)
       return NextResponse.json(
         { error: 'Database error', details: resError.message },
         { status: 500 },
@@ -56,15 +74,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!reservations || reservations.length === 0) {
-      console.log('[Check-Out Reminder] No checked-in reservations checking out today')
+      console.log('[Pre-Arrival Reminder] No confirmed reservations checking in in 2 days')
       return NextResponse.json({
         success: true,
+        targetCheckInDate: targetCheckIn,
         reservationsProcessed: 0,
         totalAutomationsExecuted: 0,
       })
     }
 
-    console.log(`[Check-Out Reminder] Found ${reservations.length} reservations checking out today`)
+    console.log(`[Pre-Arrival Reminder] Found ${reservations.length} reservations for ${targetCheckIn}`)
 
     let totalExecuted = 0
     let skipped = 0
@@ -72,11 +91,10 @@ export async function POST(request: NextRequest) {
     for (const reservation of reservations) {
       const propertyId = reservation.property_id
       if (!propertyId) {
-        console.warn(`[Check-Out Reminder] Skipping reservation ${reservation.id} — no property_id`)
+        console.warn(`[Pre-Arrival Reminder] Skipping reservation ${reservation.id} — no property_id`)
         continue
       }
 
-      // Fetch property to get company_id
       const { data: property } = await supabase
         .from('properties')
         .select('*')
@@ -85,16 +103,15 @@ export async function POST(request: NextRequest) {
 
       const companyId = property?.company_id
       if (!companyId) {
-        console.warn(`[Check-Out Reminder] Skipping reservation ${reservation.id} — no company_id on property`)
+        console.warn(`[Pre-Arrival Reminder] Skipping reservation ${reservation.id} — no company_id on property`)
         continue
       }
 
-      // Deduplication: check if we already processed this reservation + trigger today
       const { data: existingLogs } = await supabase
         .from('automation_execution_log')
         .select('id')
         .eq('property_id', propertyId)
-        .eq('event_type', 'system.check_out_reminder')
+        .eq('event_type', TRIGGER)
         .eq('entity_id', reservation.id)
         .gte('created_at', `${today}T00:00:00`)
         .lte('created_at', `${today}T23:59:59`)
@@ -105,7 +122,6 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // Fetch guest
       const { data: guest } = reservation.guest_id
         ? await supabase
             .from('guests')
@@ -115,7 +131,6 @@ export async function POST(request: NextRequest) {
             .then((r) => ({ data: r.data }))
         : { data: null }
 
-      // Fetch site
       const { data: site } = reservation.site_id
         ? await supabase
             .from('sites')
@@ -125,10 +140,9 @@ export async function POST(request: NextRequest) {
             .then((r) => ({ data: r.data }))
         : { data: null }
 
-      // Build EventContext
       const context: EventContext = {
         event: {
-          type: 'system.check_out_reminder',
+          type: TRIGGER,
           timestamp: new Date(),
         },
         propertyId,
@@ -140,34 +154,33 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const result = await runPipelineForTrigger(
-          'system.check_out_reminder',
-          propertyId,
-          companyId,
-          context,
-        )
+        const result = await runPipelineForTrigger(TRIGGER, propertyId, companyId, context)
 
         totalExecuted += result.executed
 
         if (result.matched > 0) {
-          console.log(`[Check-Out Reminder] Reservation ${reservation.id}: matched=${result.matched} passed=${result.passed} executed=${result.executed}`)
+          console.log(
+            `[Pre-Arrival Reminder] Reservation ${reservation.id}: matched=${result.matched} passed=${result.passed} executed=${result.executed}`,
+          )
         }
       } catch (err) {
-        console.error(`[Check-Out Reminder] Pipeline failed for reservation ${reservation.id}:`, err)
-        // Continue processing other reservations
+        console.error(`[Pre-Arrival Reminder] Pipeline failed for reservation ${reservation.id}:`, err)
       }
     }
 
-    console.log(`[Check-Out Reminder] Complete: ${reservations.length} reservations, ${skipped} deduplicated, ${totalExecuted} actions executed`)
+    console.log(
+      `[Pre-Arrival Reminder] Complete: ${reservations.length} reservations, ${skipped} deduplicated, ${totalExecuted} actions executed`,
+    )
 
     return NextResponse.json({
       success: true,
+      targetCheckInDate: targetCheckIn,
       reservationsProcessed: reservations.length,
       deduplicated: skipped,
       totalAutomationsExecuted: totalExecuted,
     })
   } catch (error) {
-    console.error('[Check-Out Reminder] Unexpected error:', error)
+    console.error('[Pre-Arrival Reminder] Unexpected error:', error)
     return NextResponse.json(
       {
         error: 'An unexpected error occurred',
@@ -178,7 +191,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Allow manual GET for testing
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const secret = searchParams.get('secret')

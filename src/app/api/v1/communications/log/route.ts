@@ -58,7 +58,13 @@ export async function GET(request: NextRequest) {
     const channel = sp.get('channel')
     const dateFrom = sp.get('dateFrom')
     const dateTo = sp.get('dateTo')
-    const limit = Math.min(Math.max(parseInt(sp.get('limit') ?? '20', 10) || 20, 1), 100)
+    const aggregate =
+      sp.get('aggregate') === '1' ||
+      sp.get('aggregate') === 'true'
+
+    const parsedLimit = parseInt(sp.get('limit') ?? '20', 10) || 20
+    const maxLimit = aggregate && dateFrom ? 10_000 : 100
+    const limit = Math.min(Math.max(parsedLimit, 1), maxLimit)
     const offset = Math.max(parseInt(sp.get('offset') ?? '0', 10) || 0, 0)
 
     let query = db

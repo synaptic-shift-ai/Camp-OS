@@ -8,7 +8,6 @@ import {
   Preview,
   Section,
   Text,
-  Hr,
 } from '@react-email/components'
 
 import { enrichContext } from '@/lib/email/template-renderer'
@@ -273,7 +272,6 @@ export function PreArrivalEmail({
               )}
               {(propertyPhone || propertyEmail || propertyAddress) && (
                 <>
-                  {(checkInTime || checkOutTime) ? <Hr style={hr} /> : null}
                   <table style={detailsTable}>
                     <tbody>
                       {propertyPhone ? (
@@ -300,8 +298,7 @@ export function PreArrivalEmail({
               )}
               {directions ? (
                 <>
-                  <Hr style={hr} />
-                  <Text style={labelText}>Directions</Text>
+                  <Text style={{ ...labelText, marginTop: '16px' }}>Directions</Text>
                   <Text style={noteText}>{directions}</Text>
                 </>
               ) : null}
@@ -317,9 +314,7 @@ export function PreArrivalEmail({
             </Section>
           ) : null}
 
-          <Hr style={hr} />
-
-          <Text style={footerText}>
+          <Text style={{ ...footerText, marginTop: '24px' }}>
             We are glad you chose {propertyName}. If you need to update your arrival time or have questions, reply
             to this email or call the number above.
           </Text>
@@ -433,7 +428,3 @@ const valueCell = {
   verticalAlign: 'top' as const,
 }
 
-const hr = {
-  borderColor: '#e5e7eb',
-  margin: '20px 40px',
-}

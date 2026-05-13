@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   Mail,
   MessageSquare,
@@ -9,9 +9,7 @@ import {
   ChevronUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import {
   Table,
@@ -58,7 +56,8 @@ const STATUS_OPTIONS: { value: StatusOption; label: string }[] = [
   { value: "queued", label: "Queued" },
 ]
 
-const CHANNEL_OPTIONS = ["all", "EMAIL", "SMS"] as const
+const CHANNEL_OPTIONS = ["all", "email", "sms"] as const
+type ChannelOption = typeof CHANNEL_OPTIONS[number]
 
 const PAGE_SIZE = 20
 
@@ -119,11 +118,15 @@ export function CommunicationsTab({
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [channelFilter, setChannelFilter] = useState<string>("all")
+  const [channelFilter, setChannelFilter] = useState<ChannelOption>("all")
   const [statusFilter, setStatusFilter] = useState<StatusOption>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
+  useEffect(() => {
+    setPage(1)
+  }, [channelFilter, statusFilter])
 
   const fetchLogs = useCallback(async () => {
     const offset = (page - 1) * PAGE_SIZE
@@ -136,6 +139,12 @@ export function CommunicationsTab({
         limit: String(PAGE_SIZE),
         offset: String(offset),
       })
+      if (channelFilter !== "all") {
+        params.set("channel", channelFilter)
+      }
+      if (statusFilter !== "all") {
+        params.set("status", statusFilter)
+      }
       const res = await fetch(`/api/v1/communications/log?${params}`)
       const json = await res.json()
       if (!json.success) {
@@ -148,22 +157,13 @@ export function CommunicationsTab({
     } finally {
       setLoading(false)
     }
-  }, [propertyId, reservationId, page])
+  }, [propertyId, reservationId, page, channelFilter, statusFilter])
 
   useEffect(() => {
     void fetchLogs()
   }, [fetchLogs])
 
-  const filteredLogs = useMemo(() => {
-    let result = logs
-    if (channelFilter !== "all") {
-      result = result.filter((l) => l.channel === channelFilter)
-    }
-    if (statusFilter !== "all") {
-      result = result.filter((l) => l.status.toLowerCase() === statusFilter)
-    }
-    return result
-  }, [logs, channelFilter, statusFilter])
+  const filteredLogs = logs
 
   return (
     <PermissionGate
@@ -193,9 +193,9 @@ export function CommunicationsTab({
               >
                 {ch === "all"
                   ? "All"
-                  : ch === "EMAIL"
-                    ? "Email"
-                    : "SMS"}
+                  : ch === "email"
+                    ? "email"
+                    : "sms"}
               </Button>
             ))}
 

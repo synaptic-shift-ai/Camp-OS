@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
-  Filter,
   Mail,
+  Search,
   Smartphone,
 } from "lucide-react"
 import {
@@ -20,6 +20,13 @@ import {
 } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -37,7 +44,6 @@ const PANEL =
 const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
 const GREEN = "border-l-[hsl(142.1,76.2%,32%)]"
-const AMBER = "border-l-amber-500"
 
 type ActivityRow = {
   id: string
@@ -45,9 +51,32 @@ type ActivityRow = {
   guest: string
   template: string
   channel: "EMAIL" | "SMS"
-  status: "Delivered" | "Opened" | "Bounced" | "Skipped" | "Queued"
+  status: string
   reservation: string
 }
+
+type ActivityChannelFilter = "all" | "email" | "sms"
+
+type ActivityStatusFilter =
+  | "all"
+  | "queued"
+  | "sent"
+  | "delivered"
+  | "opened"
+  | "bounced"
+  | "failed"
+  | "skipped"
+
+const ACTIVITY_STATUS_FILTER_OPTIONS: { value: ActivityStatusFilter; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "queued", label: "Queued" },
+  { value: "sent", label: "Sent" },
+  { value: "delivered", label: "Delivered" },
+  { value: "opened", label: "Opened" },
+  { value: "bounced", label: "Bounced" },
+  { value: "failed", label: "Failed" },
+  { value: "skipped", label: "Skipped" },
+]
 
 type StatusCounts = {
   counts: Record<string, number>
@@ -72,24 +101,93 @@ type ChartDataPoint = {
   SMS: number
 }
 
-function StatusBadge({ status }: { status: ActivityRow["status"] }) {
-  const styles: Record<ActivityRow["status"], string> = {
+const AGGREGATE_PAGE_SIZE = 10_000
+const AGGREGATE_FETCH_MAX_ROWS = 500_000
+
+function formatLocalDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+function startOfLocalToday(): Date {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+function localDateKeyFromIso(iso: string): string {
+  return formatLocalDateKey(new Date(iso))
+}
+
+function formatChartAxisLabel(isoDateKey: string): string {
+  const parts = isoDateKey.split("-").map((x) => Number(x))
+  const y = parts[0]
+  const m = parts[1]
+  const d = parts[2]
+  if (!y || !m || !d) return isoDateKey
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+async function fetchAllCommunicationLogsForAggregate(
+  propertyId: string,
+  dateFrom: string,
+  options?: { signal?: AbortSignal },
+): Promise<LogEntry[]> {
+  const out: LogEntry[] = []
+  let offset = 0
+  let total: number | null = null
+
+  for (;;) {
+    const params = new URLSearchParams({
+      propertyId,
+      dateFrom,
+      limit: String(AGGREGATE_PAGE_SIZE),
+      offset: String(offset),
+      aggregate: "1",
+    })
+    const res = await fetch(
+      `/api/v1/communications/log?${params}`,
+      options?.signal !== undefined ? { signal: options.signal } : {},
+    )
+    const json = await res.json()
+    if (!json.success) break
+    const batch: LogEntry[] = json.data.data ?? []
+    if (offset === 0 && typeof json.data.count === "number") {
+      total = json.data.count
+    }
+    out.push(...batch)
+    if (batch.length < AGGREGATE_PAGE_SIZE) break
+    if (total !== null && out.length >= total) break
+    offset += AGGREGATE_PAGE_SIZE
+    if (out.length >= AGGREGATE_FETCH_MAX_ROWS) break
+  }
+  return out
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
     Delivered:
       "border-emerald-700/30 bg-emerald-50 text-emerald-900 dark:border-emerald-600/40 dark:bg-emerald-950/50 dark:text-emerald-100",
     Opened:
       "border-teal-600/30 bg-teal-50 text-teal-900 dark:border-teal-600/40 dark:bg-teal-950/40 dark:text-teal-100",
+    Sent:
+      "border-blue-600/30 bg-blue-50 text-blue-900 dark:border-blue-600/40 dark:bg-blue-950/40 dark:text-blue-100",
     Bounced:
       "border-red-600/30 bg-red-50 text-red-900 dark:border-red-600/40 dark:bg-red-950/50 dark:text-red-100",
     Skipped:
       "border-amber-600/30 bg-amber-50 text-amber-950 dark:border-amber-600/40 dark:bg-amber-950/40 dark:text-amber-100",
     Queued:
       "border-stone-300 bg-stone-100 text-stone-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200",
+    Failed:
+      "border-red-600/30 bg-red-50 text-red-900 dark:border-red-600/40 dark:bg-red-950/50 dark:text-red-100",
   }
+  const cls = styles[status] ?? styles.Queued
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase",
-        styles[status],
+        cls,
       )}
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-80" aria-hidden />
@@ -151,8 +249,19 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
     sms: 0,
     total: 0,
   })
+  const [activityChannelFilter, setActivityChannelFilter] =
+    useState<ActivityChannelFilter>("all")
+  const [activityStatusFilter, setActivityStatusFilter] =
+    useState<ActivityStatusFilter>("all")
 
   const pageSize = 10
+
+  const activityFiltersActive =
+    activityChannelFilter !== "all" || activityStatusFilter !== "all"
+
+  useEffect(() => {
+    setLogPage(1)
+  }, [activityChannelFilter, activityStatusFilter])
 
   // Fetch status counts (KPIs)
   useEffect(() => {
@@ -176,71 +285,58 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
     return () => { cancelled = true }
   }, [propertyId])
 
-  // Fetch channel mix (last 7 days)
+  // Channel mix (last 7 days) + send volume (last 14 days): one paginated aggregate fetch
   useEffect(() => {
+    const ac = new AbortController()
     let cancelled = false
-    async function fetchChannelMix() {
-      try {
-        const sevenDaysAgo = new Date()
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-        const from = sevenDaysAgo.toISOString().split("T")[0]
-        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&dateFrom=${from}&limit=10000`)
-        const json = await res.json()
-        if (cancelled || !json.success) return
-
-        const entries: LogEntry[] = json.data.data ?? []
-        let email = 0
-        let sms = 0
-        for (const e of entries) {
-          if (e.channel === "EMAIL") email++
-          else if (e.channel === "SMS") sms++
-        }
-        const total = email + sms
-        setChannelMix({ email, sms, total })
-      } catch {
-        // silent
-      }
-    }
-    fetchChannelMix()
-    return () => { cancelled = true }
-  }, [propertyId])
-
-  // Fetch chart data (last 14 days)
-  useEffect(() => {
-    let cancelled = false
-    async function fetchChartData() {
+    async function fetchDeliveryAggregates() {
       try {
         setLoadingChart(true)
-        const fourteenDaysAgo = new Date()
-        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13)
-        const from = fourteenDaysAgo.toISOString().split("T")[0]
-        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&dateFrom=${from}&limit=10000`)
-        const json = await res.json()
-        if (cancelled || !json.success) return
+        const today = startOfLocalToday()
+        const fourteenAgo = new Date(today)
+        fourteenAgo.setDate(fourteenAgo.getDate() - 13)
+        const from14 = formatLocalDateKey(fourteenAgo)
 
-        const entries: LogEntry[] = json.data.data ?? []
+        const sevenAgo = new Date(today)
+        sevenAgo.setDate(sevenAgo.getDate() - 7)
+        const from7 = formatLocalDateKey(sevenAgo)
+
+        const entries = await fetchAllCommunicationLogsForAggregate(propertyId, from14, { signal: ac.signal })
+        if (cancelled) return
+
         const dayMap: Record<string, { EMAIL: number; SMS: number }> = {}
-
-        for (let i = 0; i < 14; i++) {
-          const d = new Date()
-          d.setDate(d.getDate() - (13 - i))
-          const key = d.toISOString().split("T")[0] ?? ""
-          dayMap[key] = { EMAIL: 0, SMS: 0 }
+        for (let i = 13; i >= 0; i--) {
+          const d = new Date(today)
+          d.setDate(d.getDate() - i)
+          dayMap[formatLocalDateKey(d)] = { EMAIL: 0, SMS: 0 }
         }
 
+        let email7 = 0
+        let sms7 = 0
         for (const e of entries) {
-          const day = e.created_at ? e.created_at.split("T")[0] : undefined
-          if (day && dayMap[day]) {
-            if (e.channel === "EMAIL") dayMap[day].EMAIL++
-            else if (e.channel === "SMS") dayMap[day].SMS++
+          const ch = e.channel?.toUpperCase()
+          const dayKey = localDateKeyFromIso(e.created_at)
+          if (dayKey >= from7) {
+            if (ch === "EMAIL") email7++
+            else if (ch === "SMS") sms7++
+          }
+          if (dayMap[dayKey]) {
+            if (ch === "EMAIL") dayMap[dayKey].EMAIL++
+            else if (ch === "SMS") dayMap[dayKey].SMS++
           }
         }
 
-        const points: ChartDataPoint[] = Object.entries(dayMap).map(([date, counts]) => ({
-          date: new Date(date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-          ...counts,
-        }))
+        const orderedKeys = Object.keys(dayMap).sort()
+        const points: ChartDataPoint[] = orderedKeys.map((key) => {
+          const counts = dayMap[key] ?? { EMAIL: 0, SMS: 0 }
+          return {
+            date: formatChartAxisLabel(key),
+            EMAIL: counts.EMAIL,
+            SMS: counts.SMS,
+          }
+        })
 
+        setChannelMix({ email: email7, sms: sms7, total: email7 + sms7 })
         setChartData(points)
       } catch {
         // silent
@@ -248,8 +344,11 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
         if (!cancelled) setLoadingChart(false)
       }
     }
-    fetchChartData()
-    return () => { cancelled = true }
+    fetchDeliveryAggregates()
+    return () => {
+      cancelled = true
+      ac.abort()
+    }
   }, [propertyId])
 
   // Fetch activity logs
@@ -259,7 +358,18 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
       try {
         setLoadingLogs(true)
         const offset = (logPage - 1) * pageSize
-        const res = await fetch(`/api/v1/communications/log?propertyId=${propertyId}&limit=${pageSize}&offset=${offset}`)
+        const params = new URLSearchParams({
+          propertyId,
+          limit: String(pageSize),
+          offset: String(offset),
+        })
+        if (activityChannelFilter !== "all") {
+          params.set("channel", activityChannelFilter)
+        }
+        if (activityStatusFilter !== "all") {
+          params.set("status", activityStatusFilter)
+        }
+        const res = await fetch(`/api/v1/communications/log?${params.toString()}`)
         const json = await res.json()
         if (cancelled || !json.success) return
         setLogs(json.data.data ?? [])
@@ -272,7 +382,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
     }
     fetchLogs()
     return () => { cancelled = true }
-  }, [propertyId, logPage])
+  }, [propertyId, logPage, activityChannelFilter, activityStatusFilter])
 
   // Compute KPIs
   const kpis = useMemo(() => {
@@ -281,20 +391,12 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
     const delivered = (c.delivered ?? 0) + (c.opened ?? 0)
     const bounced = c.bounced ?? 0
     const failed = c.failed ?? 0
-    const opened = c.opened ?? 0
-    const total = statusCounts?.total ?? 0
 
     const deliveryRate = (delivered + bounced + failed) > 0
       ? ((delivered / (delivered + bounced + failed)) * 100).toFixed(1)
       : "—"
-    const openRate = delivered > 0
-      ? ((opened / delivered) * 100).toFixed(1)
-      : "—"
-    const bounceRate = total > 0
-      ? ((bounced / total) * 100).toFixed(1)
-      : "—"
 
-    return { sent, deliveryRate, openRate, bounceRate }
+    return { sent, deliveryRate }
   }, [statusCounts])
 
   // Map log entries to activity rows
@@ -305,13 +407,16 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
       const lastName = guest?.last_name ?? ""
       const guestName = [firstName, lastName].filter(Boolean).join(" ") || "Unknown"
 
+      const rawChannel = entry.channel?.toUpperCase()
+      const channel: ActivityRow["channel"] = rawChannel === "SMS" ? "SMS" : "EMAIL"
+
       return {
         id: entry.id,
         when: formatRelativeTime(entry.created_at),
         guest: guestName,
         template: entry.template?.name ?? "—",
-        channel: (entry.channel as "EMAIL" | "SMS") ?? "EMAIL",
-        status: capitalize(entry.status) as ActivityRow["status"],
+        channel,
+        status: capitalize(entry.status),
         reservation: entry.reservation?.confirmation_number
           ? `#${entry.reservation.confirmation_number}`
           : "—",
@@ -330,7 +435,22 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
     )
   }, [query, activityRows])
 
+  const emptyActivityMessage = useMemo(() => {
+    if (logCount === 0 && activityFiltersActive) {
+      return "No activity matches these filters."
+    }
+    if (activityRows.length > 0 && filteredRows.length === 0 && query.trim()) {
+      return "No results match your search."
+    }
+    return "No activity recorded yet."
+  }, [logCount, activityFiltersActive, activityRows.length, filteredRows.length, query])
+
   const totalPages = Math.max(1, Math.ceil(logCount / pageSize))
+
+  const chartVolumeTotal14 = useMemo(
+    () => chartData.reduce((sum, d) => sum + d.EMAIL + d.SMS, 0),
+    [chartData],
+  )
 
   // Channel mix percentages
   const emailPct = channelMix.total > 0 ? Math.round((channelMix.email / channelMix.total) * 100) : 0
@@ -353,7 +473,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
       </header>
 
       {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className={cn(CARD, "border-l-4", GREEN)}>
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
@@ -382,30 +502,6 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
           </p>
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email + SMS combined</p>
         </div>
-
-        <div className={cn(CARD, "border-l-4", GREEN)}>
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-              Open rate
-            </p>
-          </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
-            {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : `${kpis.openRate}%`}
-          </p>
-          <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email only · 24h</p>
-        </div>
-
-        <div className={cn(CARD, "border-l-4", AMBER)}>
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-              Bounce rate
-            </p>
-          </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
-            {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : `${kpis.bounceRate}%`}
-          </p>
-          <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Within 2% target</p>
-        </div>
       </div>
 
       {/* Channel mix + Send volume */}
@@ -415,7 +511,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
             <h3 className="text-sm font-semibold text-stone-900 dark:text-zinc-50">Channel mix</h3>
             <span className="text-xs text-stone-500 dark:text-zinc-400">Last 7 days</span>
           </div>
-          {channelMix.total === 0 && !loadingKpi ? (
+          {channelMix.total === 0 && !loadingChart ? (
             <p className="py-4 text-center text-sm text-stone-400 dark:text-zinc-500">No data yet</p>
           ) : (
             <div className="space-y-3">
@@ -426,7 +522,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     Email
                   </span>
                   <span className="tabular-nums text-stone-500 dark:text-zinc-400">
-                    {loadingKpi ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.email.toLocaleString()} · ${emailPct}%`}
+                    {loadingChart ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.email.toLocaleString()} · ${emailPct}%`}
                   </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
@@ -443,12 +539,12 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     SMS
                   </span>
                   <span className="tabular-nums text-stone-500 dark:text-zinc-400">
-                    {loadingKpi ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.sms.toLocaleString()} · ${smsPct}%`}
+                    {loadingChart ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.sms.toLocaleString()} · ${smsPct}%`}
                   </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
                   <div
-                    className="h-full w-[22%] rounded-full bg-amber-500 dark:bg-amber-600 transition-all duration-500"
+                    className="h-full rounded-full bg-amber-500 dark:bg-amber-600 transition-all duration-500"
                     style={{ width: `${smsPct}%` }}
                   />
                 </div>
@@ -463,7 +559,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
               Send volume · last 14 days
             </h3>
             <span className="text-xs text-stone-500 dark:text-zinc-400">
-              {loadingChart ? "" : `${channelMix.total} total`}
+              {loadingChart ? "" : `${chartVolumeTotal14.toLocaleString()} total`}
             </span>
           </div>
           {loadingChart ? (
@@ -525,30 +621,103 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
       </div>
 
       {/* Recent activity */}
-      <div className={cn(CARD, "space-y-4 p-0")}>
-        <div className="flex flex-col gap-3 border-b border-stone-100 px-4 py-4 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+      <div className={cn(CARD, "space-y-0 p-0")}>
+        <div className="space-y-4 border-b border-stone-100 px-4 py-4 dark:border-zinc-800">
           <div>
             <h3 className="text-sm font-semibold text-stone-900 dark:text-zinc-50">Recent activity</h3>
             <p className="text-xs text-stone-500 dark:text-zinc-400">
               Every send is logged and linked to a reservation.
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search guest or reservation…"
-              className="h-9 border-stone-200 bg-white text-stone-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 border-stone-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <Filter className="h-4 w-4" aria-hidden />
-              Filter
-            </Button>
+
+          <div className="border border-border/80 bg-card/50 p-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+              <div className="min-w-0 space-y-1 sm:col-span-2 lg:col-span-1">
+                <label
+                  htmlFor="delivery-activity-search"
+                  className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  Search
+                </label>
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <Input
+                    id="delivery-activity-search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search by guest, reservation, or template…"
+                    className="h-9 rounded-none bg-card/50 pl-8 text-sm"
+                    aria-label="Search delivery activity"
+                  />
+                </div>
+              </div>
+
+              <div className="min-w-0 space-y-1">
+                <label
+                  htmlFor="delivery-channel-filter"
+                  className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  Channel
+                </label>
+                <Select
+                  value={activityChannelFilter}
+                  onValueChange={(v) => setActivityChannelFilter(v as ActivityChannelFilter)}
+                >
+                  <SelectTrigger id="delivery-channel-filter" className="h-9 w-full rounded-none bg-card/50">
+                    <SelectValue placeholder="Channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All channels</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="sms">SMS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="min-w-0 space-y-1">
+                <label
+                  htmlFor="delivery-status-filter"
+                  className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  Status
+                </label>
+                <Select
+                  value={activityStatusFilter}
+                  onValueChange={(v) => setActivityStatusFilter(v as ActivityStatusFilter)}
+                >
+                  <SelectTrigger id="delivery-status-filter" className="h-9 w-full rounded-none bg-card/50">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {ACTIVITY_STATUS_FILTER_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {activityFiltersActive ? (
+              <div className="mt-3 flex justify-end border-t border-border/60 pt-3">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-muted-foreground"
+                  onClick={() => {
+                    setActivityChannelFilter("all")
+                    setActivityStatusFilter("all")
+                  }}
+                >
+                  Clear filters
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
         <Table>
@@ -589,7 +758,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
             ) : filteredRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
-                  No activity recorded yet.
+                  {emptyActivityMessage}
                 </TableCell>
               </TableRow>
             ) : (

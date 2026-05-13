@@ -507,6 +507,8 @@ export async function POST(request: NextRequest) {
           if (rbacCompanyId) {
             try {
               const receiptCtx = buildPaymentPipelineContext({
+                guestId: targetGuestId!,
+                reservationId: reservation_id ?? null,
                 guestEmail,
                 lineItems,
                 chargesSubtotalCents,
@@ -660,6 +662,8 @@ function buildPropertyAddressLinesHtml(addressLines: string[]): string {
 
 /** Build the pipeline context for payment receipt automation */
 function buildPaymentPipelineContext(params: {
+  guestId: string
+  reservationId: string | null
   guestEmail: string
   lineItems: PaymentReceiptLineItem[]
   chargesSubtotalCents: number
@@ -676,6 +680,8 @@ function buildPaymentPipelineContext(params: {
   paymentMethodLabel: string
   paymentSourceLabel: string
 }): {
+  guestId: string
+  reservationId: string | null
   guestEmail: string
   guestName: string
   receiptNumber: string
@@ -732,6 +738,8 @@ function buildPaymentPipelineContext(params: {
     : params.amountPaidCents
 
   return {
+    guestId: params.guestId,
+    reservationId: params.reservationId,
     guestEmail: params.guestEmail,
     guestName: params.guestName,
     receiptNumber,

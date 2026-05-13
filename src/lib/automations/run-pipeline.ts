@@ -445,6 +445,8 @@ export async function triggerPaymentAutomations(
   propertyId: string,
   companyId: string,
   paymentContext: {
+    guestId: string
+    reservationId: string | null
     guestEmail: string
     guestName: string
     receiptNumber: string
@@ -502,6 +504,8 @@ async function buildPaymentEventContext(
   propertyId: string,
   companyId: string,
   paymentContext: {
+    guestId: string
+    reservationId: string | null
     guestEmail: string
     guestName: string
     receiptNumber: string
@@ -550,8 +554,16 @@ async function buildPaymentEventContext(
 
   // Build guest context — used for recipient resolution
   context.guest = {
+    id: paymentContext.guestId,
     email: paymentContext.guestEmail,
     name: paymentContext.guestName,
+  }
+
+  if (paymentContext.reservationId) {
+    context.reservation = {
+      id: paymentContext.reservationId,
+      confirmation_number: paymentContext.confirmationNumber,
+    } as Record<string, unknown>
   }
 
   // Expose template variables at top level for easy {{variable}} resolution

@@ -19,6 +19,7 @@ export interface BrandingConfig {
   senderEmail: string | null
   replyToEmail: string | null
   propertyName: string
+  propertyAddress: string | null
 }
 
 // ============================================================================
@@ -48,7 +49,7 @@ export async function getPropertyBranding(
 
   const { data: property, error: propError } = await supabase
     .from('properties')
-    .select('name, logo_url, brand_color_primary, brand_color_secondary')
+    .select('name, logo_url, brand_color_primary, brand_color_secondary, address, city, state, zip_code')
     .eq('id', propertyId)
     .single()
 
@@ -62,10 +63,19 @@ export async function getPropertyBranding(
       senderEmail: data?.sender_email ?? null,
       replyToEmail: data?.reply_to_email ?? null,
       propertyName: 'CampOS',
+      propertyAddress: null,
     }
   }
 
   const propertyName = (property as Record<string, unknown>).name as string || 'CampOS'
+  const propertyAddress = [
+    (property as Record<string, unknown>).address,
+    (property as Record<string, unknown>).city,
+    (property as Record<string, unknown>).state,
+    (property as Record<string, unknown>).zip_code,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .join(', ') || null
 
   return {
     logoUrl: data?.logo_url ?? (property as Record<string, unknown>).logo_url as string ?? null,
@@ -75,5 +85,6 @@ export async function getPropertyBranding(
     senderEmail: data?.sender_email ?? null,
     replyToEmail: data?.reply_to_email ?? null,
     propertyName,
+    propertyAddress,
   }
 }

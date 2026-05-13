@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Pencil, Copy, Trash2, Plus, Search, Loader2, Send } from "lucide-react"
+import { Pencil, Copy, Trash2, Plus, Search, Loader2, Send, Palette } from "lucide-react"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import {
   Dialog,
@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils"
 import { EmailTemplateFormDialog } from "./email-template-form-dialog"
 import { EmailTemplatePreviewDialog } from "./email-template-preview-dialog"
+import { EmailBrandingDialog } from "./email-branding-dialog"
 import { usePermissions } from "@/hooks/use-permissions"
 
 type EmailTemplatesListProps = {
@@ -79,6 +80,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
   const [testSending, setTestSending] = useState(false)
   const [testError, setTestError] = useState<string | null>(null)
   const [testSuccess, setTestSuccess] = useState(false)
+  const [brandingDialogOpen, setBrandingDialogOpen] = useState(false)
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true)
@@ -244,12 +246,20 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
             </SelectContent>
           </Select>
         </div>
-        <PermissionGate permission="automations.add_email_templates">
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Create Template
-          </Button>
-        </PermissionGate>
+        <div className="flex items-center gap-2">
+          <PermissionGate permission="guest_comms.configure_branding">
+            <Button variant="outline" onClick={() => setBrandingDialogOpen(true)}>
+              <Palette className="h-4 w-4" />
+              Set Branding
+            </Button>
+          </PermissionGate>
+          <PermissionGate permission="automations.add_email_templates">
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Create Template
+            </Button>
+          </PermissionGate>
+        </div>
       </div>
 
       {/* Table */}
@@ -491,6 +501,12 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
         propertyId={propertyId}
         companyId={companyId}
         onSaved={fetchTemplates}
+      />
+
+      <EmailBrandingDialog
+        open={brandingDialogOpen}
+        onOpenChange={setBrandingDialogOpen}
+        propertyId={propertyId}
       />
 
       {/* Preview dialog */}

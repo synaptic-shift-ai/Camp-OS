@@ -318,6 +318,17 @@ export function PreArrivalEmail({
             We are glad you chose {propertyName}. If you need to update your arrival time or have questions, reply
             to this email or call the number above.
           </Text>
+
+          <Section style={complianceFooterSection}>
+            <Text style={complianceFooterText}>
+              {propertyName}
+              {propertyAddress ? <> · {propertyAddress}</> : null}
+              {' · '}
+              <a href="{{unsubscribe_url}}" style={complianceFooterLink}>
+                Unsubscribe
+              </a>
+            </Text>
+          </Section>
         </Container>
       </Body>
     </Html>
@@ -395,6 +406,24 @@ const footerText = {
   lineHeight: '24px',
   padding: '0 40px',
   marginTop: '8px',
+}
+
+const complianceFooterSection = {
+  borderTop: '1px solid #e0e0e0',
+  margin: '32px 40px 0',
+  paddingTop: '16px',
+  textAlign: 'center' as const,
+}
+
+const complianceFooterText = {
+  color: '#888888',
+  fontSize: '12px',
+  lineHeight: '18px',
+  margin: '0',
+}
+
+const complianceFooterLink = {
+  color: '#888888',
 }
 
 const detailsSection = {

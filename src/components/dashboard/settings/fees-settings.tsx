@@ -10,7 +10,7 @@
  * @module components/dashboard/settings/fees-settings
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
@@ -153,6 +154,15 @@ export function FeesSettings({
 
   // User-defined fees state
   const [fees, setFees] = useState<UserDefinedFee[]>(initialConfig?.user_defined_fees || [])
+
+  const isDirty = useMemo(() => {
+    const initialFees = initialConfig?.user_defined_fees || []
+    return (
+      taxRatePercentage !== (initialConfig?.tax_rate ? initialConfig.tax_rate * 100 : 0) ||
+      taxName !== (initialConfig?.tax_name || 'Tax') ||
+      JSON.stringify(fees) !== JSON.stringify(initialFees)
+    )
+  }, [taxRatePercentage, taxName, fees, initialConfig])
 
   // Form for adding/editing fees
   const feeForm = useForm<FeeFormInput>({
@@ -307,6 +317,11 @@ export function FeesSettings({
     }
   }
 
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: handleSave,
+    message: 'You have unsaved changes to fee settings.',
+  })
+
   const getFeeTypeLabel = (type: UserDefinedFeeType) => {
     return FEE_TYPE_OPTIONS.find(opt => opt.value === type)?.label || type
   }
@@ -347,6 +362,7 @@ export function FeesSettings({
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Tax Configuration */}
       <Card>
@@ -700,5 +716,7 @@ export function FeesSettings({
       </div>
       )}
     </div>
+    <UnsavedChangesDialog />
+    </>
   )
 }

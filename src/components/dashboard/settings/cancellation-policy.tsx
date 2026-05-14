@@ -10,7 +10,7 @@
  * @module components/dashboard/settings/cancellation-policy
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, FileText, ShieldAlert, Plus, Pencil, Trash2 } from 'lucide-react'
 import {
@@ -127,7 +128,18 @@ export function CancellationPolicySettings({
         }
     }
 
+    const rulesDirty = useMemo(() => {
+      return JSON.stringify(cancellationRules) !== JSON.stringify(initialCancellationRules ?? [])
+    }, [cancellationRules, initialCancellationRules])
+
+    const hasUnsavedChanges = isDirty || rulesDirty
+    const { UnsavedChangesDialog } = useUnsavedChangesGuard(hasUnsavedChanges, {
+      onSave: handleSubmit(onSubmit),
+      message: 'You have unsaved changes to cancellation policy.',
+    })
+
     return (
+      <>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -309,5 +321,7 @@ export function CancellationPolicySettings({
         </div>
         )}
       </div>
+      <UnsavedChangesDialog />
+      </>
     )
 }

@@ -27,6 +27,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { Loader2, Info } from 'lucide-react'
 import { depositConfigFormSchema, type DepositConfigFormInput } from '@/lib/config/schemas'
 import type { DepositConfig, BookingType } from '@/lib/config/types'
@@ -156,7 +157,13 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
     }
   }
 
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: handleSubmit(onSubmit),
+    message: 'You have unsaved changes to deposit settings.',
+  })
+
   return (
+    <>
     <form
       onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(onSubmit)}
       className="space-y-6"
@@ -383,5 +390,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
         </div>
       )}
     </form>
+    <UnsavedChangesDialog />
+    </>
   )
 }

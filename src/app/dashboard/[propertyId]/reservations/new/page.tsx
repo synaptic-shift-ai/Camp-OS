@@ -927,7 +927,7 @@ export default function NewReservationPage() {
         <div className="lg:col-span-2">
           <FormProvider {...methods}>
             <AlertDialog open={existingGuestDialogOpen} onOpenChange={setExistingGuestDialogOpen}>
-              <AlertDialogContent className="max-h-[85dvh] overflow-y-auto mx-4 sm:mx-0 rounded-lg">
+              <AlertDialogContent className="max-h-[85dvh] overflow-y-auto mx-4 sm:mx-0 rounded-lg sm:max-w-lg max-w-[calc(100vw-2rem)]">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Has this guest stayed with us before?</AlertDialogTitle>
                   <AlertDialogDescription>

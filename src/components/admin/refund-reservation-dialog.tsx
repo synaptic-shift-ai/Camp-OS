@@ -316,7 +316,7 @@ export function RefundReservationDialog({
       <SheetTrigger asChild>
         {trigger ?? <Button variant="outline" size="sm">Issue Refund</Button>}
       </SheetTrigger>
-      <SheetContent className="w-[90vw] max-w-[90vw] flex flex-col">
+      <SheetContent className="w-[90vw] max-w-[90vw] flex flex-col overflow-hidden">
         <SheetHeader>
           <SheetTitle>Issue Refund</SheetTitle>
           <SheetDescription>

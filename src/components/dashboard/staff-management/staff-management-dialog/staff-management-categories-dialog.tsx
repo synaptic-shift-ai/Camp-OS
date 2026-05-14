@@ -291,7 +291,11 @@ export function StaffManagementCategoriesDialog({
           </Button>
           <Button
             type="button"
-            className="rounded-lg bg-[#1d63ed] hover:bg-[#1d63ed]/90"
+            className={cn(
+              'rounded-lg border-0 px-4 font-semibold text-white shadow-sm',
+              'bg-[#F02849] hover:bg-[#d91f3d] active:bg-[#c41b36]',
+              'focus-visible:ring-2 focus-visible:ring-[#F02849]/40 focus-visible:ring-offset-2',
+            )}
             onClick={handleSave}
             disabled={isLoading}
           >

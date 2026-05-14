@@ -20,16 +20,16 @@ import type { PaymentStatus } from "@/contracts/booking"
 import type { DashboardPayment, TransactionType, RecognitionStatus } from "@/lib/dashboard/queries"
 
 const statusTextColors: Record<PaymentStatus, string> = {
-  pending: "text-yellow-500",
-  completed: "text-green-500",
+  pending: "text-amber-600",
+  completed: "text-emerald-600",
   failed: "text-red-500",
-  refunded: "text-gray-500",
+  refunded: "text-muted-foreground",
 }
 
 const TYPE_BADGE_STYLES: Record<TransactionType, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
   charge: { variant: "outline", className: "border-orange-300 text-orange-700 bg-orange-50" },
-  payment: { variant: "default" },
-  refund: { variant: "destructive" },
+  payment: { variant: "outline", className: "border-green-300 text-green-700 bg-green-50" },
+  refund: { variant: "outline", className: "border-red-300 text-red-700 bg-red-50" },
   deposit: { variant: "secondary" },
   deposit_release: { variant: "secondary", className: "text-blue-700 bg-blue-50" },
   deposit_deduction: { variant: "destructive", className: "bg-orange-100 text-orange-800 border-orange-200" },

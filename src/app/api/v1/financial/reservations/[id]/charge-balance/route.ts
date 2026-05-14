@@ -8,12 +8,13 @@
  *
  * Flow:
  * 1. Auth + RBAC check (staff, financial.record_payment)
- * 2. Idempotency check — skip if a recent balance charge exists (last 60s)
+ * 2. Idempotency check — skip if a recent balance payment exists (last 60s)
  * 3. Fetch reservation + property config
  * 4. Compute outstanding balance from financial_transactions
  * 5. Look up guest's stored payment method
  * 6. Create off-session PaymentIntent via IPaymentProcessor (confirm=true)
- * 7. Only record CHARGE + PAYMENT when PaymentIntent status is 'succeeded'
+ * 7. Record a single PAYMENT ledger row when PaymentIntent status is 'succeeded'
+ *    (outstanding balance is already represented by existing charges; no mirror CHARGE)
  * 8. Update reservation paid_amount / payment_status
  */
 
@@ -35,6 +36,7 @@ import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyA
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { z } from 'zod'
 import { summarizeReservationFinancialTransactions } from '@/lib/financial/reservation-amount-due'
+import { queuePaymentReceiptEmail } from '@/modules/Financial/application/queuePaymentReceiptEmail'
 
 const BodySchema = z.object({
   payment_method_id: z.string().optional(),
@@ -103,7 +105,9 @@ export async function POST(
     // Fetch reservation
     const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
-      .select('id, property_id, guest_id, total_amount, paid_amount, status, payment_status')
+      .select(
+        'id, property_id, guest_id, total_amount, paid_amount, status, payment_status, confirmation_number',
+      )
       .eq('id', reservationId)
       .single()
 
@@ -194,30 +198,30 @@ export async function POST(
     }
 
     // ── C1: Idempotency check ──────────────────────────────────────────────
-    // Check if a balance charge was already recorded in the last 60 seconds
+    // Check if a balance payment was already recorded in the last 60 seconds
     const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString()
-    const { data: recentCharge } = await serviceRole
+    const { data: recentPayment } = await serviceRole
       .from('financial_transactions')
       .select('id, amount_cents, processor_event_id, created_at')
       .eq('reservation_id', reservationId)
-      .eq('type', 'charge')
+      .eq('type', 'payment')
       .eq('amount_cents', chargeCents)
       .eq('source', 'system')
-      .ilike('notes', '%balance charge%')
+      .ilike('notes', '%balance payment%')
       .gte('created_at', sixtySecondsAgo)
       .limit(1)
       .single()
 
-    if (recentCharge) {
-      console.log('[Charge Balance] Idempotent — returning existing charge', {
-        id: recentCharge.id,
-        amount: recentCharge.amount_cents,
+    if (recentPayment) {
+      console.log('[Charge Balance] Idempotent — returning existing payment', {
+        id: recentPayment.id,
+        amount: recentPayment.amount_cents,
       })
       return success({
         idempotent: true,
-        transaction_id: recentCharge.id,
-        payment_intent_id: recentCharge.processor_event_id,
-        amount_charged: recentCharge.amount_cents,
+        transaction_id: recentPayment.id,
+        payment_intent_id: recentPayment.processor_event_id,
+        amount_charged: recentPayment.amount_cents,
       })
     }
 
@@ -302,29 +306,12 @@ export async function POST(
         source: 'balance_charge',
         idempotency_key: idempotencyKey,
       },
-      description: `Balance charge for reservation ${reservationId}`,
+      description: `Balance payment for reservation ${reservationId}`,
     })
 
     // ── C2: Only record transactions when PaymentIntent succeeded ─────────
     if (paymentIntent.status === 'succeeded') {
       const repo = new SupabaseTransactionRepository(serviceRole)
-
-      const charge = Transaction.create(
-        randomUUID(),
-        reservation.property_id,
-        reservationId,
-        TransactionType.CHARGE,
-        MoneyAmount.create(chargeCents),
-        PaymentMethod.STRIPE,
-        user.id,
-        null,
-        'Balance charge (off-session)',
-        TransactionSource.SYSTEM,
-        paymentIntent.paymentIntentId,
-        guest.id,
-      )
-      charge.complete(paymentIntent.paymentIntentId)
-      await repo.save(charge)
 
       const payment = Transaction.create(
         randomUUID(),
@@ -342,6 +329,25 @@ export async function POST(
       )
       payment.complete(paymentIntent.paymentIntentId)
       await repo.save(payment)
+
+      const receiptReservationTotals = {
+        total_amount: (reservation.total_amount as number) ?? 0,
+        paid_amount: (reservation.paid_amount as number | null) ?? 0,
+        confirmation_number:
+          typeof reservation.confirmation_number === 'string' ? reservation.confirmation_number : '',
+      }
+      void queuePaymentReceiptEmail({
+        serviceRole,
+        propertyId: reservation.property_id,
+        reservationId,
+        guestId: guest.id,
+        amountCents: chargeCents,
+        paymentRecordId: payment.id,
+        paymentMethodForLabel: 'stripe',
+        sourceForLabel: 'manual',
+        rbacCompanyId: access.companyId ?? null,
+        reservationTotals: receiptReservationTotals,
+      })
 
       // Update reservation snapshot amounts
       const previousPaid = (reservation.paid_amount as number) ?? 0

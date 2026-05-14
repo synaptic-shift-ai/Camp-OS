@@ -118,7 +118,7 @@ export function SmsInboxPanel() {
       id="guest-comm-panel-sms"
       role="tabpanel"
       aria-labelledby="guest-comm-tab-sms"
-      className="rounded-xl border border-stone-200/90 bg-[#f7f5f0] p-5 text-stone-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+      className="rounded-xl border border-stone-200/90 p-5 text-stone-900 dark:border-zinc-800 dark:text-zinc-100"
     >
       <div className="grid min-h-[min(520px,calc(100vh-16rem))] grid-cols-1 gap-4 lg:grid-cols-[minmax(260px,300px)_1fr]">
         {/* Conversation list */}

@@ -31,7 +31,7 @@ export function GuestCommunicationPageContent({
 
       {viewMode === "sms_inbox" ? (
         <div className="space-y-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          {/* <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-heading font-bold tracking-tight sm:text-2xl">
                 SMS inbox — {propertyName}
@@ -40,7 +40,7 @@ export function GuestCommunicationPageContent({
                 Two-way conversations linked to reservations.
               </p>
             </div>
-          </div>
+          </div> */}
           <SmsInboxPanel />
         </div>
       ) : viewMode === "guest_delivery" ? (

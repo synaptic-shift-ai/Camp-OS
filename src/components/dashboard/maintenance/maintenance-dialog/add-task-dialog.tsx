@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { format, startOfDay } from "date-fns"
 import { AlertTriangle, CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+import { StyledCalendar } from "@/components/guest/booking-date-range-picker"
 import {
   Dialog,
   DialogContent,
@@ -745,24 +745,31 @@ export function AddTaskDialog({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
-                    defaultMonth={form.scheduledStart ? new Date(form.scheduledStart) : new Date()}
-                    disabled={(date: Date) => date < startOfDay(new Date())}
-                    onSelect={(date) => {
-                      if (date) {
-                        const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
-                        const [h, m] = time.split(":").map(Number)
-                        setForm((prev) => ({
-                          ...prev,
-                          scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
-                        }))
-                      }
-                    }}
-                  />
-                  <div className="border-t p-3">
+                <PopoverContent
+                  className="z-[100] w-auto min-w-[20rem] max-w-[min(calc(100vw-2rem),24rem)] rounded-2xl border border-border bg-popover p-0 text-popover-foreground shadow-lg"
+                  align="start"
+                >
+                  <div className="px-4 pt-3 pb-2">
+                    <StyledCalendar
+                      variant="dashboard"
+                      mode="single"
+                      selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
+                      defaultMonth={form.scheduledStart ? new Date(form.scheduledStart) : new Date()}
+                      disabled={(date: Date) => date < startOfDay(new Date())}
+                      weekStartsOn={1}
+                      onSelect={(date) => {
+                        if (date) {
+                          const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
+                          const [h, m] = time.split(":").map(Number)
+                          setForm((prev) => ({
+                            ...prev,
+                            scheduledStart: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                          }))
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="border-t border-border px-4 py-3">
                     <Input
                       type="time"
                       value={form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"}
@@ -806,24 +813,31 @@ export function AddTaskDialog({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.dueDate ? new Date(form.dueDate) : undefined}
-                    defaultMonth={form.dueDate ? new Date(form.dueDate) : new Date()}
-                    disabled={(date: Date) => date < startOfDay(new Date())}
-                    onSelect={(date) => {
-                      if (date) {
-                        const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
-                        const [h, m] = time.split(":").map(Number)
-                        setForm((prev) => ({
-                          ...prev,
-                          dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
-                        }))
-                      }
-                    }}
-                  />
-                  <div className="border-t p-3">
+                <PopoverContent
+                  className="z-[100] w-auto min-w-[20rem] max-w-[min(calc(100vw-2rem),24rem)] rounded-2xl border border-border bg-popover p-0 text-popover-foreground shadow-lg"
+                  align="start"
+                >
+                  <div className="px-4 pt-3 pb-2">
+                    <StyledCalendar
+                      variant="dashboard"
+                      mode="single"
+                      selected={form.dueDate ? new Date(form.dueDate) : undefined}
+                      defaultMonth={form.dueDate ? new Date(form.dueDate) : new Date()}
+                      disabled={(date: Date) => date < startOfDay(new Date())}
+                      weekStartsOn={1}
+                      onSelect={(date) => {
+                        if (date) {
+                          const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
+                          const [h, m] = time.split(":").map(Number)
+                          setForm((prev) => ({
+                            ...prev,
+                            dueDate: new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).toISOString(),
+                          }))
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="border-t border-border px-4 py-3">
                     <Input
                       type="time"
                       value={form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"}

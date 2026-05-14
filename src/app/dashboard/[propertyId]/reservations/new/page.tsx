@@ -51,6 +51,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 
 type ExistingGuestMatch = {
   id: string
@@ -293,11 +294,15 @@ export default function NewReservationPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
     watch,
     trigger,
   } = methods
+
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    message: 'You have unsaved changes to this reservation.',
+  })
 
   const [existingGuestDialogOpen, setExistingGuestDialogOpen] = useState(false)
   const [existingGuests, setExistingGuests] = useState<ExistingGuestMatch[]>([])
@@ -910,6 +915,7 @@ export default function NewReservationPage() {
   }
 
   return (
+    <>
     <div className="max-w-7xl mx-auto">
       <div className="mb-4 sm:mb-6">
         <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Create Manual Reservation</h1>
@@ -1790,5 +1796,7 @@ export default function NewReservationPage() {
         </div>
       </div>
     </div>
+    <UnsavedChangesDialog />
+    </>
   )
 }

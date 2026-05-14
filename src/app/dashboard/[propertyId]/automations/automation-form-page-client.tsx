@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Loader2, Save, Shield, DollarSign, FileCheck, Wrench, Mail, ScrollText, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -166,10 +166,6 @@ export function AutomationFormPageClient({
     )
   }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions])
 
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
-  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
-  const isIntentionalNavigationRef = useRef(false)
-
   // ── Reset actions when phase changes ─────────────────────────────────
   useEffect(() => {
     if (phaseInitialized.current) {
@@ -233,20 +229,9 @@ export function AutomationFormPageClient({
     }
   }, [router, propertyId, systemMode])
 
-  // ── Navigate to an arbitrary URL ───────────────────────────────────────
-  const navigateTo = useCallback((href: string) => {
-    router.push(href)
-  }, [router])
-
-  // ── Navigate back with dirty check ──────────────────────────────────────
   const handleBack = useCallback(() => {
-    if (isDirty) {
-      setPendingNavigation(() => () => navigateBack())
-      setShowDiscardDialog(true)
-      return
-    }
     navigateBack()
-  }, [navigateBack, isDirty])
+  }, [navigateBack])
 
   // ── Validate ──────────────────────────────────────────────────────────
   const validate = useCallback((): string[] => {
@@ -371,88 +356,10 @@ export function AutomationFormPageClient({
     }
   }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, navigateBack, toast])
 
-  // ── Discard dialog handlers (after handleSave) ──────────────────────────
-  const handleSaveAndLeave = useCallback(async () => {
-    isIntentionalNavigationRef.current = true
-    setShowDiscardDialog(false)
-    await handleSave()
-  }, [handleSave])
-
-  const handleDiscard = useCallback(() => {
-    isIntentionalNavigationRef.current = true
-    setShowDiscardDialog(false)
-    if (pendingNavigation) {
-      pendingNavigation()
-      setPendingNavigation(null)
-    } else {
-      navigateBack()
-    }
-  }, [pendingNavigation, navigateBack])
-
-  const handleCancelDiscard = useCallback(() => {
-    setShowDiscardDialog(false)
-    setPendingNavigation(null)
-  }, [])
-
-  // ── Browser tab close / refresh warning ──────────────────────────────────
-  useEffect(() => {
-    if (!isDirty) return
-    const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ""
-    }
-    window.addEventListener("beforeunload", handler)
-    return () => window.removeEventListener("beforeunload", handler)
-  }, [isDirty])
-
-  // ── Intercept browser back/forward when form is dirty ────────────────────
-  useEffect(() => {
-    if (!isDirty) return
-
-    // Push an extra history entry so browser back doesn't leave the page
-    window.history.pushState(null, '', window.location.href)
-
-    const handlePopState = () => {
-      // Skip if we're intentionally navigating away
-      if (isIntentionalNavigationRef.current) return
-
-      // Push another entry to prevent actual back navigation
-      window.history.pushState(null, '', window.location.href)
-
-      // Show discard dialog
-      setPendingNavigation(() => null)
-      setShowDiscardDialog(true)
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [isDirty])
-
-
-
-  // ── Intercept in-app link clicks (sidebar, nav, etc.) when dirty ─────────
-  useEffect(() => {
-    if (!isDirty) return
-
-    const handleClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest('a')
-      if (!target) return
-
-      const href = target.getAttribute('href')
-      if (!href || href.startsWith('http') || href.startsWith('//')) return
-      if (href.startsWith('#') || href === window.location.pathname) return
-
-      e.preventDefault()
-      e.stopPropagation()
-      setPendingNavigation(() => () => navigateTo(href))
-      setShowDiscardDialog(true)
-    }
-
-    document.addEventListener('click', handleClick, true)
-    return () => document.removeEventListener('click', handleClick, true)
-  }, [isDirty, navigateTo])
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: handleSave,
+    message: 'You have unsaved changes to this automation.',
+  })
 
   return (
     <div className="space-y-6">
@@ -713,26 +620,7 @@ export function AutomationFormPageClient({
         </Tabs>
       )}
 
-      {/* ── Discard warning dialog ─────────────────────────────────────── */}
-      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes to this automation. Would you like to save before leaving?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDiscard}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDiscard}>
-              Discard
-            </AlertDialogAction>
-            <AlertDialogAction onClick={handleSaveAndLeave}>
-              Save &amp; Leave
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UnsavedChangesDialog />
     </div>
   )
 }

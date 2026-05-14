@@ -99,11 +99,6 @@ export function useUnsavedChangesGuard(
   }, [])
 
   // ── Handlers ─────────────────────────────────────────────────────────
-  const handleCancel = useCallback(() => {
-    setShowDialog(false)
-    pendingNavigationRef.current = null
-  }, [])
-
   const handleDiscard = useCallback(() => {
     isIntentionalNavigationRef.current = true
     setShowDialog(false)
@@ -171,7 +166,7 @@ export function useUnsavedChangesGuard(
         onOpenChange={setShowDialog}
         message={message}
         onDiscard={handleDiscard}
-        onSaveAndLeave={onSave ? handleSaveAndLeave : undefined}
+        {...(onSave ? { onSaveAndLeave: handleSaveAndLeave } : {})}
         isSaving={isSaving}
       />
     )

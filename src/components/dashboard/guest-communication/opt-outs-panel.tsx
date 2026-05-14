@@ -36,8 +36,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
-const PANEL =
-  "rounded-xl bg-[#f7f5f0] text-stone-900 dark:bg-zinc-950 dark:text-zinc-100"
+const PANEL = "text-stone-900 dark:text-zinc-100"
 const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
 type OptOutRecord = {
@@ -119,14 +118,14 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
 
   return (
     <div className={cn("space-y-6", PANEL)} id="guest-comm-panel-opt-outs" role="tabpanel" aria-labelledby="guest-comm-tab-opt-outs">
-      <header className="space-y-1">
+      {/* <header className="space-y-1">
         <h2 className="font-heading text-2xl font-semibold tracking-tight text-stone-900 dark:text-zinc-50 sm:text-3xl">
           Opt-outs
         </h2>
         <p className="text-sm text-stone-500 dark:text-zinc-400">
           Guests who have opted out of communications.
         </p>
-      </header>
+      </header> */}
 
       <PermissionGate permission="guest_comms.view_opt_out_list">
         {/* Summary cards */}

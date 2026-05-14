@@ -39,8 +39,7 @@ import {
 import { Pagination } from "@/components/ui/pagination"
 import { cn } from "@/lib/utils"
 
-const PANEL =
-  "rounded-xl bg-[#f7f5f0] text-stone-900 dark:bg-zinc-950 dark:text-zinc-100"
+const PANEL = "text-stone-900 dark:text-zinc-100"
 const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
 const GREEN = "border-l-[hsl(142.1,76.2%,32%)]"
@@ -463,14 +462,14 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
       aria-labelledby="guest-comm-tab-delivery"
       className={cn("space-y-6", PANEL)}
     >
-      <header className="space-y-1">
+      {/* <header className="space-y-1">
         <h2 className="font-heading text-2xl font-semibold tracking-tight text-stone-900 dark:text-zinc-50 sm:text-3xl">
           Delivery overview
         </h2>
         <p className="text-sm text-stone-500 dark:text-zinc-400">
           How your guest communications are performing today.
         </p>
-      </header>
+      </header> */}
 
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2">

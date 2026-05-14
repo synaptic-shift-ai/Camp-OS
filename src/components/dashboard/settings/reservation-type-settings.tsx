@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import {
   Dialog,
   DialogContent,
@@ -222,6 +223,11 @@ export function ReservationTypeSettings({
     }
   }
 
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: handleSaveConfig,
+    message: 'You have unsaved changes to reservation type settings.',
+  })
+
   // Seasonal period handlers
   const openAddSeasonDialog = () => {
     setEditingPeriod({
@@ -347,6 +353,7 @@ export function ReservationTypeSettings({
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Reservation Types Configuration */}
       <Card>
@@ -707,5 +714,7 @@ export function ReservationTypeSettings({
       </Dialog>
       )}
     </div>
+    <UnsavedChangesDialog />
+    </>
   )
 }

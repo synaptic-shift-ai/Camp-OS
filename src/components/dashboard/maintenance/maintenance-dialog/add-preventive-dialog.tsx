@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
+import { format, startOfDay } from "date-fns"
+import { CalendarIcon, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -412,12 +412,25 @@ export function AddPreventiveDialog({
                             type="button"
                             variant="outline"
                             disabled={isSubmitting}
-                            className="h-9 w-full justify-start text-left font-normal"
+                            className="relative h-9 w-full justify-start text-left font-normal"
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {form.scheduleDate
-                              ? format(new Date(form.scheduleDate), "MMM dd, yyyy")
+                            {form.scheduleDate && anchorDate
+                              ? format(anchorDate, "MMM dd, yyyy")
                               : "Pick a date"}
+                            {form.scheduleDate && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setForm((prev) => ({ ...prev, scheduleDate: null }))
+                                }}
+                                className="ml-auto mr-1 inline-flex h-4 w-4 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+                                aria-label="Clear date"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="end">
@@ -430,7 +443,8 @@ export function AddPreventiveDialog({
                                 scheduleDate: date ? format(date, "yyyy-MM-dd") : null,
                               }))
                             }
-                            disabled={isSubmitting}
+                            disabled={(date) => date < startOfDay(new Date()) || isSubmitting}
+                            defaultMonth={anchorDate ?? new Date()}
                           />
                         </PopoverContent>
                       </Popover>

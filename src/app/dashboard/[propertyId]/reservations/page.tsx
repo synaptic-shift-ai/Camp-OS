@@ -13,6 +13,9 @@ import { ReservationsViewSwitcher } from "@/components/dashboard/reservations/re
 import { ReservationsPageHeader } from "@/components/dashboard/reservations/reservations-page-header"
 import { ReservationFilters as ReservationFiltersBar } from "@/components/dashboard/reservations/reservation-filters"
 
+/** Default list page size when `pageSize` is omitted from the URL. */
+const RESERVATIONS_LIST_DEFAULT_PAGE_SIZE = 50
+
 type PageProps = {
   params: Promise<{ propertyId: string }>
   searchParams: Promise<{
@@ -219,7 +222,7 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
     Number.isNaN(Number(pageSizeParam)) || !pageSizeParam
       ? undefined
       : Number(pageSizeParam)
-  const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : 10
+  const pageSize = parsedPageSize && parsedPageSize > 0 ? parsedPageSize : RESERVATIONS_LIST_DEFAULT_PAGE_SIZE
 
   const effectivePage = isTimelineView ? 1 : currentPage
   // Grid needs enough data to render the selected period without relying on list pagination.

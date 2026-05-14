@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 
 const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
@@ -241,6 +242,7 @@ export function PropertySettings({
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors, isDirty },
   } = useForm<PropertyDetailsFormData>({
     resolver: zodResolver(propertyDetailsSchema),
@@ -309,6 +311,16 @@ export function PropertySettings({
       setIsSaving(false)
     }
   }
+
+  const hasUnsavedChanges = isDirty || openPeriodDirty
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(hasUnsavedChanges, {
+    onSave: async () => {
+      const valid = await trigger()
+      if (!valid) throw new Error('Validation failed')
+      await handleSubmit(onSubmit)()
+    },
+    message: 'You have unsaved changes to property details.',
+  })
 
   return (
     <>
@@ -620,6 +632,7 @@ export function PropertySettings({
           )}
         </CardContent>
       </Card>
+      <UnsavedChangesDialog />
     </>
   )
 }

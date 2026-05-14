@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { Loader2, Info } from 'lucide-react'
 import { pricingConfigFormSchema, type PricingConfigFormInput } from '@/lib/config/schemas'
 import type { PricingConfig } from '@/lib/config/types'
@@ -51,6 +52,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors, isDirty },
   } = useForm<PricingConfigFormInput>({
     resolver: zodResolver(pricingConfigFormSchema),
@@ -149,7 +151,17 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
     }
   }
 
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: async () => {
+      const valid = await trigger()
+      if (!valid) throw new Error('Validation failed')
+      await handleSubmit(onSubmit)()
+    },
+    message: 'You have unsaved changes to pricing settings.',
+  })
+
   return (
+    <>
     <form
       onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(onSubmit)}
       className="space-y-6"
@@ -412,5 +424,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
         </div>
       )}
     </form>
+    <UnsavedChangesDialog />
+    </>
   )
 }

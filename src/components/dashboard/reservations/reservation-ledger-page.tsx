@@ -11,6 +11,7 @@ import { Eye, DollarSign, ArrowUp, ArrowDown, CreditCard, Undo2, CircleDashed, M
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommunicationsTab } from "@/components/dashboard/reservations/communications-tab"
 import type { MoneyCents } from "@/contracts/booking"
+import { differenceInDays, parseISO } from "date-fns"
 import { usePermissions } from "@/hooks/use-permissions"
 import { ManualPaymentDialog } from "@/components/admin/manual-payment-dialog"
 import { RefundReservationDialog } from "@/components/admin/refund-reservation-dialog"
@@ -222,7 +223,13 @@ export function ReservationLedgerPage({
 
   const guestName = reservation ? normalizeGuestName(reservation) : "Guest"
 
-  const headerDates = reservation ? `${formatDate(reservation.check_in_date)} - ${formatDate(reservation.check_out_date)}` : ""
+  const headerDates = reservation
+    ? `${formatDate(reservation.check_in_date)} — ${formatDate(reservation.check_out_date)}`
+    : ""
+
+  const nightsCount = reservation
+    ? differenceInDays(parseISO(reservation.check_out_date), parseISO(reservation.check_in_date))
+    : 0
 
   return (
     <Tabs defaultValue="ledger" className="space-y-4 sm:space-y-6">
@@ -242,15 +249,31 @@ export function ReservationLedgerPage({
             <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl truncate">
               {reservation ? reservation.confirmation_number : "Reservation"}
             </h1>
-            {reservation ? (
-              <Badge variant="outline" className="capitalize">
-                {reservation.status.replaceAll("_", " ")}
-              </Badge>
-            ) : null}
+            {reservation ? (() => {
+              const s = reservation.status.toLowerCase().replace(/_/g, " ")
+              const statusColors: Record<string, string> = {
+                pending: "border-yellow-300 text-yellow-700 bg-yellow-50",
+                confirmed: "border-blue-300 text-blue-700 bg-blue-50",
+                checked_in: "border-green-300 text-green-700 bg-green-50",
+                checked_out: "border-gray-300 text-gray-600 bg-gray-50",
+                cancelled: "border-red-300 text-red-700 bg-red-50",
+                no_show: "border-orange-300 text-orange-700 bg-orange-50",
+              }
+              const color = statusColors[reservation.status] ?? ""
+              return (
+                <Badge variant="outline" className={`capitalize ${color}`}>
+                  {s}
+                </Badge>
+              )
+            })() : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground sm:text-base">
             {headerDates ? headerDates : <Skeleton className="h-4 w-72" />}
-            {reservation ? ` · ${guestName}` : null}
+            {reservation ? (
+              <>
+                {" · "}{nightsCount} night{nightsCount !== 1 ? "s" : ""}{" · "}{guestName}
+              </>
+            ) : null}
           </p>
         </div>
 
@@ -354,7 +377,7 @@ export function ReservationLedgerPage({
       </div>
 
       <div className="grid gap-3 md:grid-cols-5 items-stretch">
-        <Card className="md:col-span-2 h-full">
+        <Card className="md:col-span-2 h-full bg-muted/60">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
             <div className="min-w-0">
               <div className="text-sm text-muted-foreground">Computed Balance</div>

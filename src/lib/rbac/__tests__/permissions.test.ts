@@ -29,6 +29,7 @@ describe('permissions', () => {
       expect(perms.has('financial.refund')).toBe(true)
       expect(perms.has('reservations.refund')).toBe(true)
       expect(perms.has('financial.switch_processor')).toBe(true)
+      expect(perms.has('automations.view_dashboard')).toBe(false)
       // Admin should NOT have billing access
       expect(perms.has('global.view_billing')).toBe(false)
     })
@@ -45,6 +46,7 @@ describe('permissions', () => {
       expect(perms.has('financial.view_processor_config')).toBe(false)
       expect(perms.has('global.manage_property_settings')).toBe(false)
       expect(perms.has('global.invite_staff')).toBe(false)
+      expect(perms.has('automations.view_dashboard')).toBe(false)
     })
 
     it('staff has only minimal permissions', () => {

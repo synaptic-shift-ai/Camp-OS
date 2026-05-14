@@ -222,7 +222,7 @@ function StyledDayButton({
 }
 
 /* ── Inner calendar ──────────────────────────────────────── */
-function StyledCalendar({
+export function StyledCalendar({
   variant,
   className,
   ...props

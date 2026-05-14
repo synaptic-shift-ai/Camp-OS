@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { format } from 'date-fns'
 import { Loader2, Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
@@ -99,6 +100,7 @@ export function BookingRulesSettings({
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors, isDirty },
   } = useForm<BookingRulesSettingsFormInput>({
     resolver: zodResolver(bookingRulesSettingsFormSchema),
@@ -202,6 +204,15 @@ export function BookingRulesSettings({
       setIsSaving(false)
     }
   }
+
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: async () => {
+      const valid = await trigger()
+      if (!valid) throw new Error('Validation failed')
+      await handleSubmit(onSubmit)()
+    },
+    message: 'You have unsaved changes to booking rules.',
+  })
 
   return (
     <>
@@ -552,6 +563,7 @@ export function BookingRulesSettings({
         }}
       />
       )}
+      <UnsavedChangesDialog />
     </>
   )
 }

@@ -368,7 +368,7 @@ export function ReservationsTable({
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {reservation.confirmationNumber}
+                    {reservation.confirmationNumber} · {formatDate(reservation.checkIn)} — {formatDate(reservation.checkOut)} · {reservation.numNights}n · {reservation.guestName}
                   </p>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">

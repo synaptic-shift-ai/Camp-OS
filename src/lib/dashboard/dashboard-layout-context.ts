@@ -55,7 +55,12 @@ function fallbackModuleViewForRoleCategory(
 ): boolean {
   const category = categoryName.trim().toLowerCase()
 
-  if (role === 'owner' || role === 'admin') return true
+  if (role === 'owner') return true
+
+  if (role === 'admin') {
+    if (moduleKey === 'automations') return false
+    return true
+  }
 
   if (role === 'manager' && category === 'front desk') {
     return (
@@ -64,8 +69,7 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'reservations' ||
       moduleKey === 'sites' ||
       moduleKey === 'guests' ||
-      moduleKey === 'guest-communication' ||
-      moduleKey === 'automations'
+      moduleKey === 'guest-communication'
     )
   }
   if (role === 'manager' && category === 'housekeeping') {
@@ -73,8 +77,7 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'overview' ||
       moduleKey === 'staff-management' ||
       moduleKey === 'sites' ||
-      moduleKey === 'housekeeping' ||
-      moduleKey === 'automations'
+      moduleKey === 'housekeeping'
     )
   }
   if (role === 'manager' && category === 'maintenance') {
@@ -82,8 +85,7 @@ function fallbackModuleViewForRoleCategory(
       moduleKey === 'overview' ||
       moduleKey === 'staff-management' ||
       moduleKey === 'sites' ||
-      moduleKey === 'maintenance' ||
-      moduleKey === 'automations'
+      moduleKey === 'maintenance'
     )
   }
 
@@ -103,7 +105,7 @@ function fallbackModuleViewForRoleCategory(
   }
 
   if (role === 'manager') {
-    return moduleKey === 'overview' || moduleKey === 'account-profile' || moduleKey === 'automations'
+    return moduleKey === 'overview' || moduleKey === 'account-profile'
   }
 
   return false

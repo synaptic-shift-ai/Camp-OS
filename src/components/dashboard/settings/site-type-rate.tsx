@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import {
   Dialog,
   DialogContent,
@@ -411,6 +412,11 @@ export function SiteTypeRateSettings({
     }
   }
 
+  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+    onSave: handleSaveConfig,
+    message: 'You have unsaved changes to site type rates.',
+  })
+
   const handleSaveSeasonalPeriod = async () => {
     if (!editingPeriod) return
 
@@ -521,6 +527,7 @@ export function SiteTypeRateSettings({
     })
 
   return (
+    <>
     <div className="space-y-6">
         <Card>
             <CardHeader>
@@ -1026,5 +1033,7 @@ export function SiteTypeRateSettings({
       </Dialog>
       )}
     </div>
+    <UnsavedChangesDialog />
+    </>
   )
 }

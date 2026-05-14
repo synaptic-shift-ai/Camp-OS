@@ -203,12 +203,6 @@ export function buildDefaultAccessForRoleCategory(
       analytics: { view: true },
       auditing: { view: true },
       settings: { view: true, edit: true },
-      automations: {
-        'view-dashboard': true, 'view-execution-log': true, 'view-validation': true,
-        'view-email-templates': true, 'add-email-templates': true, 'edit-email-templates': true, 'delete-email-templates': true,
-        'view-system-automations': true,
-        'view-automations': true, 'add-automations': true, 'edit-automations': true, 'delete-automations': true,
-      },
     }
   }
 
@@ -222,7 +216,6 @@ export function buildDefaultAccessForRoleCategory(
       },
       'staff-management': { view: true },
       reservations: { view: true, 'check-in': true, 'check-out': true },
-      automations: { 'view-dashboard': true, 'view-execution-log': true, 'view-validation': true, 'view-email-templates': true, 'view-system-automations': true, 'view-automations': true },
     }
   }
 
@@ -236,7 +229,6 @@ export function buildDefaultAccessForRoleCategory(
       },
       'staff-management': { view: true },
       housekeeping: { view: true, create: true, update: true, delete: true },
-      automations: { 'view-dashboard': true, 'view-execution-log': true, 'view-validation': true, 'view-email-templates': true, 'view-system-automations': true, 'view-automations': true },
     }
   }
 
@@ -262,7 +254,6 @@ export function buildDefaultAccessForRoleCategory(
         'manage-pm-schedules': true,
         'view-cost-reports': true,
       },
-      automations: { 'view-dashboard': true, 'view-execution-log': true, 'view-validation': true, 'view-email-templates': true, 'view-system-automations': true, 'view-automations': true },
     }
   }
 

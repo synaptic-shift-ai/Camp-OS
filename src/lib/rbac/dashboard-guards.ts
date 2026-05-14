@@ -9,7 +9,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ResolvedAccess } from '@/lib/rbac/resolve-access'
 import { resolveUserPropertyAccess } from '@/lib/rbac/resolve-access'
-import { isManagerOrAbove, isAdminOrAbove } from '@/lib/rbac/roles'
+import { isAdminOrAbove, isManagerOrAbove } from '@/lib/rbac/roles'
 import { hasPermission } from '@/lib/rbac/permissions'
 import { staffHasPermission } from '@/lib/rbac/staff-categories'
 
@@ -64,11 +64,12 @@ export function canAccessHousekeepingModule(access: ResolvedAccess): boolean {
 }
 
 /**
- * Automations dashboard: owner/admin/manager, or staff with automations permission.
+ * Automations dashboard: company/property owner only by default.
+ * Admin, manager, and staff need explicit `automations.view_dashboard` (e.g. from staff access / categories).
  */
 export function canAccessAutomationsModule(access: ResolvedAccess): boolean {
   if (!access.role) return false
-  if (isManagerOrAbove(access.role)) return true
+  if (access.isOwner) return true
   return hasPermission(access.role, 'automations.view_dashboard')
 }
 

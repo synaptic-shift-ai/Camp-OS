@@ -230,11 +230,6 @@ const ADMIN_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   // Dynamic pricing
   'dynamic_pricing.view_config', 'dynamic_pricing.update_config', 'dynamic_pricing.enable_disable',
   'dynamic_pricing.view_revenue', 'dynamic_pricing.view_audit_log',
-  // Automations
-  'automations.view_dashboard', 'automations.view_automations', 'automations.view_execution_log', 'automations.view_validation',
-  'automations.view_email_templates', 'automations.add_email_templates', 'automations.edit_email_templates', 'automations.delete_email_templates',
-  'automations.view_system_automations',
-  'automations.add_automations', 'automations.edit_automations', 'automations.delete_automations',
 ])
 
 /** Manager permissions: elevated operational access, no pricing/financial config. */
@@ -273,9 +268,6 @@ const MANAGER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   'docs.view_guest', 'docs.view_staff_sops', 'docs.override_acknowledgment',
   // Dynamic pricing
   'dynamic_pricing.view_config', 'dynamic_pricing.view_revenue',
-  // Automations
-  'automations.view_dashboard', 'automations.view_automations', 'automations.view_execution_log', 'automations.view_validation',
-  'automations.view_email_templates', 'automations.view_system_automations',
 ])
 
 /**

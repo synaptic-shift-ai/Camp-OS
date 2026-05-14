@@ -10,6 +10,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
+import { summarizeReservationFinancialTransactions } from '@/lib/financial/reservation-amount-due'
 
 /**
  * GET /api/v1/financial/reservations/[id]/balance
@@ -77,46 +78,38 @@ export async function GET(
       )
     }
 
-    let chargesTotal = 0
-    let paymentsTotal = 0
-    let refundsTotal = 0
-    let guestCreditBalance = 0
-
-    for (const txn of transactions ?? []) {
-      const amt = txn.amount_cents
-      if (txn.type === 'charge') {
-        chargesTotal += amt
-      } else if (txn.type === 'payment') {
-        paymentsTotal += amt
-        // Track guest credit payments for balance calculation
-        if (txn.source === 'guest_credit') {
-          guestCreditBalance -= amt
-        }
-      } else if (txn.type === 'refund') {
-        refundsTotal += amt
-        // Track guest credit refunds for balance calculation
-        if (txn.source === 'guest_credit' || txn.handling === 'guest_credit') {
-          guestCreditBalance += amt
-        }
-      }
-    }
-
-    const ledgerBalance = chargesTotal - paymentsTotal - refundsTotal
     const reservationTotalAmount = (reservation.total_amount as number | null) ?? 0
     const reservationPaidAmount = (reservation.paid_amount as number | null) ?? 0
-    const reservationBalance = Math.max(0, reservationTotalAmount - reservationPaidAmount)
+    const sums = summarizeReservationFinancialTransactions(
+      transactions ?? [],
+      reservationTotalAmount,
+      reservationPaidAmount,
+    )
 
-    // Use the larger of ledger vs reservation snapshot so pending reservations
-    // without ledger rows still show the correct balance due.
-    const balance = Math.max(ledgerBalance, reservationBalance)
+    if (sums.ledgerBalance !== sums.reservationBalance) {
+      console.warn('[Reservation Balance] Ledger vs reservation snapshot differ', {
+        reservation_id: reservationId,
+        property_id: reservation.property_id,
+        ledger_balance_cents: sums.ledgerBalance,
+        reservation_snapshot_due_cents: sums.reservationBalance,
+        returned_balance_cents: sums.balanceDueCents,
+        charges_total_cents: sums.chargesTotal,
+        payments_total_cents: sums.paymentsTotal,
+        refunds_total_cents: sums.refundsTotal,
+        reservation_total_cents: reservationTotalAmount,
+        reservation_paid_cents: reservationPaidAmount,
+        rule:
+          'Field `balance` is reservation total minus paid when total_amount > 0 (authoritative contract). Ledger totals are informational; when they diverge, snapshot wins. If total_amount is 0, balance uses max(0, ledger, snapshot).',
+      })
+    }
 
     return success({
       reservation_id: reservationId,
-      charges_total: chargesTotal,
-      payments_total: paymentsTotal,
-      refunds_total: refundsTotal,
-      balance,
-      guest_credit_balance: Math.max(0, guestCreditBalance),
+      charges_total: sums.chargesTotal,
+      payments_total: sums.paymentsTotal,
+      refunds_total: sums.refundsTotal,
+      balance: sums.balanceDueCents,
+      guest_credit_balance: Math.max(0, sums.guestCreditBalance),
     })
   } catch (err: any) {
     console.error('[Financial API v1] Get reservation balance error:', err)

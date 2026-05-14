@@ -185,9 +185,12 @@ export function ManualPaymentDialog({
   const { toast } = useToast()
   const isDarkMode = resolvedTheme === "dark"
 
-  // Prefer the financial ledger balance when available; fall back to the reservation snapshot.
   const snapshotOutstandingCents = Math.max(0, totalAmountCents - paidAmountCents)
-  const outstandingBalance = apiBalance ?? snapshotOutstandingCents
+  // Prefer API balance when loaded; max() avoids showing $0 if API returned 0 before (?? keeps 0). Props may lag DB.
+  const outstandingBalance =
+    apiBalance === null
+      ? snapshotOutstandingCents
+      : Math.max(snapshotOutstandingCents, apiBalance)
   const balanceInDollars = (outstandingBalance / 100).toFixed(2)
   const hasBalance = outstandingBalance > 0
 
@@ -265,7 +268,37 @@ export function ManualPaymentDialog({
       const json = await res.json()
       if (json.success && json.data) {
         const data: BalanceData = json.data
-        setApiBalance(Math.max(0, data.balance))
+        const apiBal = Math.max(0, data.balance)
+        const snapshotFromProps = Math.max(0, totalAmountCents - paidAmountCents)
+        const ledgerLineSumCents = data.charges_total - data.payments_total - data.refunds_total
+        const displayedOutstandingCents = Math.max(snapshotFromProps, apiBal)
+
+        if (
+          displayedOutstandingCents !== snapshotFromProps ||
+          data.balance !== snapshotFromProps ||
+          ledgerLineSumCents !== snapshotFromProps
+        ) {
+          console.warn('[ManualPaymentDialog] Outstanding balance breakdown', {
+            reservationId,
+            charges_total_cents: data.charges_total,
+            payments_total_cents: data.payments_total,
+            refunds_total_cents: data.refunds_total,
+            ledger_line_sum_cents: ledgerLineSumCents,
+            server_balance_cents: data.balance,
+            dialog_parent_props_snapshot_due_cents: snapshotFromProps,
+            displayed_outstanding_cents: displayedOutstandingCents,
+            note:
+              ledgerLineSumCents !== data.balance
+                ? 'Ledger line sum can exceed reservation total_amount (duplicate or extra charge rows). Amount due from API uses reservation total minus paid when total_amount > 0.'
+                : undefined,
+            props_may_be_stale:
+              snapshotFromProps !== data.balance
+                ? 'API balance differs from dialog props snapshot; parent totalAmountCents/paidAmountCents may not match DB yet.'
+                : undefined,
+          })
+        }
+
+        setApiBalance(apiBal)
       }
       const resProp = await fetch(`/api/v1/reservations/${reservationId}`, { credentials: "include" })
       const jsonProp = await resProp.json().catch(() => null)
@@ -278,7 +311,7 @@ export function ManualPaymentDialog({
     } finally {
       setBalanceLoading(false)
     }
-  }, [reservationId])
+  }, [reservationId, totalAmountCents, paidAmountCents])
 
   const fetchSavedCards = useCallback(async () => {
     if (!guestId) return
@@ -337,7 +370,10 @@ export function ManualPaymentDialog({
   // Pre-fill amount once balance is available (single-field mode only)
   useEffect(() => {
     if (!open || useGuestCredit) return
-    const balance = apiBalance ?? snapshotOutstandingCents
+    const balance =
+      apiBalance === null
+        ? snapshotOutstandingCents
+        : Math.max(snapshotOutstandingCents, apiBalance)
     if (balance > 0 && !amountDollars) {
       setAmountDollars((balance / 100).toFixed(2))
     }
@@ -600,15 +636,12 @@ export function ManualPaymentDialog({
       }
 
       if (isStripeSavedCardPayment) {
-        if (cashToCollect !== outstandingBalance) {
-          setError(`Card on file charges must match the full outstanding balance ($${balanceInDollars})`)
-          return
-        }
         const response = await fetch(`/api/v1/financial/reservations/${reservationId}/charge-balance`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
+            amount_cents: cashToCollect,
             ...(selectedSavedCardId ? { payment_method_id: selectedSavedCardId } : {}),
           }),
         })
@@ -918,7 +951,7 @@ export function ManualPaymentDialog({
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Charging a saved card will charge the full outstanding balance.
+                        Enter the amount to charge below (up to the outstanding balance of ${balanceInDollars}).
                       </p>
                     </div>
                   ) : null}
@@ -1004,7 +1037,7 @@ export function ManualPaymentDialog({
                   placeholder="$ 0.00"
                   value={amountDollars}
                   onChange={(e) => setAmountDollars(e.target.value)}
-                  disabled={loading || isStripeSavedCardPayment}
+                  disabled={loading}
                 />
               </div>
               </div>

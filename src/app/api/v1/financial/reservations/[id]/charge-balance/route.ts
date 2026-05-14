@@ -34,10 +34,34 @@ import { PaymentMethod } from '@/modules/Financial/domain/value-objects/PaymentM
 import { MoneyAmount } from '@/modules/BookingEngine/domain/value-objects/MoneyAmount'
 import { SupabaseTransactionRepository } from '@/modules/Financial/infrastructure/SupabaseTransactionRepository'
 import { z } from 'zod'
+import { summarizeReservationFinancialTransactions } from '@/lib/financial/reservation-amount-due'
 
 const BodySchema = z.object({
   payment_method_id: z.string().optional(),
+  /** When set, charge this many cents (must be ≤ computed amount due). Defaults to full amount due. */
+  amount_cents: z.number().int().positive().optional(),
 })
+
+const VAL = ErrorCodes.VALIDATION_ERROR
+const RES404 = ErrorCodes.RESOURCE_NOT_FOUND
+const AUTH = ErrorCodes.AUTH_001
+const INT = ErrorCodes.INTERNAL_ERROR
+
+function logChargeBalance(reason: string, data: Record<string, unknown>) {
+  console.warn('[Charge Balance]', { reason, ...data })
+}
+
+function stripeFailureFields(err: unknown): Record<string, string | undefined> | null {
+  if (!err || typeof err !== 'object') return null
+  const e = err as Record<string, unknown>
+  if (typeof e.type !== 'string') return null
+  return {
+    stripe_type: e.type,
+    stripe_code: typeof e.code === 'string' ? e.code : undefined,
+    decline_code: typeof e.decline_code === 'string' ? e.decline_code : undefined,
+    stripe_message: typeof e.message === 'string' ? e.message : undefined,
+  }
+}
 
 /**
  * POST /api/v1/financial/reservations/[id]/charge-balance
@@ -46,12 +70,22 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let reservationId: string | undefined
   try {
-    const { id: reservationId } = await params
+    reservationId = (await params).id
     const supabase = await createClient()
     const body = BodySchema.safeParse(await request.json().catch(() => null))
+    if (!body.success) {
+      logChargeBalance('request_body_invalid', {
+        reservationId,
+        issues: body.error.issues,
+      })
+      return error(VAL.code, 'Invalid request body', VAL.status, request, {
+        issues: body.error.flatten(),
+      })
+    }
     const requestedPaymentMethodId =
-      body.success && typeof body.data.payment_method_id === 'string' && body.data.payment_method_id.length > 0
+      typeof body.data.payment_method_id === 'string' && body.data.payment_method_id.length > 0
         ? body.data.payment_method_id
         : null
 
@@ -62,7 +96,8 @@ export async function POST(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return error(ErrorCodes.AUTH_001, 'Unauthorized')
+      logChargeBalance('unauthorized', { reservationId, authError: authError?.message })
+      return error(AUTH.code, 'Unauthorized', AUTH.status, request)
     }
 
     // Fetch reservation
@@ -73,7 +108,11 @@ export async function POST(
       .single()
 
     if (reservationError || !reservation) {
-      return error(ErrorCodes.RESOURCE_NOT_FOUND, 'Reservation not found')
+      logChargeBalance('reservation_not_found', {
+        reservationId,
+        dbMessage: reservationError?.message,
+      })
+      return error(RES404.code, 'Reservation not found', RES404.status, request)
     }
 
     // RBAC: require financial.record_payment permission
@@ -88,30 +127,70 @@ export async function POST(
     const serviceRole = createServiceRoleClient()
     const { data: transactions, error: txnError } = await serviceRole
       .from('financial_transactions')
-      .select('type, amount_cents')
+      .select('type, amount_cents, source, handling')
       .eq('reservation_id', reservationId)
       .neq('is_voided', true)
       .eq('status', 'completed')
 
     if (txnError) {
-      console.error('[Charge Balance] Balance query error:', txnError)
-      return error(ErrorCodes.INTERNAL_ERROR, 'Failed to query transactions', { message: txnError.message })
+      logChargeBalance('ledger_query_failed', {
+        reservationId,
+        message: txnError.message,
+      })
+      return error(INT.code, 'Failed to query transactions', INT.status, request, {
+        message: txnError.message,
+      })
     }
 
-    let chargesTotal = 0
-    let paymentsTotal = 0
-    let refundsTotal = 0
+    const reservationTotalAmount = (reservation.total_amount as number | null) ?? 0
+    const reservationPaidAmount = (reservation.paid_amount as number | null) ?? 0
+    const sums = summarizeReservationFinancialTransactions(
+      transactions ?? [],
+      reservationTotalAmount,
+      reservationPaidAmount,
+    )
+    const {
+      chargesTotal,
+      paymentsTotal,
+      refundsTotal,
+      ledgerBalance,
+      reservationBalance,
+      balanceDueCents: maxDueCents,
+    } = sums
 
-    for (const txn of transactions ?? []) {
-      if (txn.type === 'charge') chargesTotal += txn.amount_cents
-      else if (txn.type === 'payment') paymentsTotal += txn.amount_cents
-      else if (txn.type === 'refund') refundsTotal += txn.amount_cents
+    if (maxDueCents <= 0) {
+      logChargeBalance('no_outstanding_balance', {
+        reservationId,
+        chargesTotal,
+        paymentsTotal,
+        refundsTotal,
+        ledgerBalance,
+        reservationTotalAmount,
+        reservationPaidAmount,
+        reservationBalance,
+        balance: maxDueCents,
+      })
+      return error(VAL.code, 'No outstanding balance', VAL.status, request)
     }
 
-    const balance = chargesTotal - paymentsTotal - refundsTotal
-
-    if (balance <= 0) {
-      return error(ErrorCodes.VALIDATION_ERROR, 'No outstanding balance')
+    const requestedAmountCents = body.data.amount_cents
+    let chargeCents = maxDueCents
+    if (requestedAmountCents !== undefined) {
+      if (requestedAmountCents > maxDueCents || requestedAmountCents < 1) {
+        logChargeBalance('amount_cents_out_of_range', {
+          reservationId,
+          requestedAmountCents,
+          maxDueCents,
+        })
+        return error(
+          VAL.code,
+          `amount_cents must be between 1 and ${maxDueCents} (current amount due in cents)`,
+          VAL.status,
+          request,
+          { max_due_cents: maxDueCents, requested_cents: requestedAmountCents },
+        )
+      }
+      chargeCents = requestedAmountCents
     }
 
     // ── C1: Idempotency check ──────────────────────────────────────────────
@@ -122,6 +201,7 @@ export async function POST(
       .select('id, amount_cents, processor_event_id, created_at')
       .eq('reservation_id', reservationId)
       .eq('type', 'charge')
+      .eq('amount_cents', chargeCents)
       .eq('source', 'system')
       .ilike('notes', '%balance charge%')
       .gte('created_at', sixtySecondsAgo)
@@ -155,7 +235,12 @@ export async function POST(
       processor = getProcessor(processorType, property?.stripe_account_id ?? undefined)
     } catch (procErr: unknown) {
       const msg = procErr instanceof Error ? procErr.message : 'Payment processor not configured'
-      return error(ErrorCodes.VALIDATION_ERROR, msg)
+      logChargeBalance('processor_unavailable', {
+        reservationId,
+        processorType,
+        message: msg,
+      })
+      return error(VAL.code, msg, VAL.status, request)
     }
 
     // Look up guest's stored payment method
@@ -167,13 +252,23 @@ export async function POST(
       .single()
 
     if (!guest?.stripe_customer_id) {
-      return error(ErrorCodes.VALIDATION_ERROR, 'No card on file for this guest')
+      logChargeBalance('guest_missing_stripe_customer', {
+        reservationId,
+        guestId: reservation.guest_id,
+        propertyId: reservation.property_id,
+      })
+      return error(VAL.code, 'No card on file for this guest', VAL.status, request)
     }
 
     // Find the most recent payment method from the processor
     const paymentMethods = await processor.listPaymentMethods(guest.stripe_customer_id)
     if (!paymentMethods.length) {
-      return error(ErrorCodes.VALIDATION_ERROR, 'No card on file for this guest')
+      logChargeBalance('no_saved_payment_methods', {
+        reservationId,
+        guestId: guest.id,
+        stripeCustomerIdPrefix: `${guest.stripe_customer_id.slice(0, 8)}…`,
+      })
+      return error(VAL.code, 'No card on file for this guest', VAL.status, request)
     }
 
     const paymentMethod =
@@ -181,15 +276,20 @@ export async function POST(
         ? paymentMethods.find((pm) => pm.id === requestedPaymentMethodId)
         : paymentMethods[0]
     if (paymentMethod === undefined) {
-      return error(ErrorCodes.VALIDATION_ERROR, 'Selected card is not available for this guest')
+      logChargeBalance('selected_payment_method_not_found', {
+        reservationId,
+        requestedPaymentMethodId,
+        availableMethodIds: paymentMethods.map((pm) => pm.id),
+      })
+      return error(VAL.code, 'Selected card is not available for this guest', VAL.status, request)
     }
 
     // ── C2: Create off-session, confirmed PaymentIntent ────────────────────
-    // Generate Stripe Idempotency-Key: reservation_id + balance rounded to minute
-    const idempotencyKey = `balance-${reservationId}-${balance}-${Math.floor(Date.now() / 60_000)}`
+    // Generate Stripe Idempotency-Key: reservation_id + charge amount rounded to minute
+    const idempotencyKey = `balance-${reservationId}-${chargeCents}-${Math.floor(Date.now() / 60_000)}`
 
     const paymentIntent = await processor.createPaymentIntent({
-      amountCents: balance,
+      amountCents: chargeCents,
       currency: 'usd',
       customerId: guest.stripe_customer_id,
       paymentMethod: paymentMethod.id,
@@ -214,7 +314,7 @@ export async function POST(
         reservation.property_id,
         reservationId,
         TransactionType.CHARGE,
-        MoneyAmount.create(balance),
+        MoneyAmount.create(chargeCents),
         PaymentMethod.STRIPE,
         user.id,
         null,
@@ -231,7 +331,7 @@ export async function POST(
         reservation.property_id,
         reservationId,
         TransactionType.PAYMENT,
-        MoneyAmount.create(balance),
+        MoneyAmount.create(chargeCents),
         PaymentMethod.STRIPE,
         user.id,
         null,
@@ -245,7 +345,7 @@ export async function POST(
 
       // Update reservation snapshot amounts
       const previousPaid = (reservation.paid_amount as number) ?? 0
-      const nextPaid = previousPaid + balance
+      const nextPaid = previousPaid + chargeCents
       const totalAmount = (reservation.total_amount as number) ?? 0
       const nextPaymentStatus =
         nextPaid >= totalAmount ? 'paid' : nextPaid > 0 ? 'partial' : 'pending'
@@ -277,7 +377,7 @@ export async function POST(
         idempotent: false,
         payment_intent_id: paymentIntent.paymentIntentId,
         status: paymentIntent.status,
-        amount_charged: balance,
+        amount_charged: chargeCents,
         payment_method: paymentMethod.card
           ? `${paymentMethod.card.brand} •••• ${paymentMethod.card.last4}`
           : paymentMethod.type,
@@ -285,17 +385,37 @@ export async function POST(
     }
 
     if (paymentIntent.status === 'requires_payment_method') {
+      logChargeBalance('payment_intent_requires_payment_method', {
+        reservationId,
+        paymentIntentId: paymentIntent.paymentIntentId,
+        status: paymentIntent.status,
+        chargeCents,
+      })
       return error(
-        ErrorCodes.VALIDATION_ERROR,
+        VAL.code,
         'Card on file is no longer valid. Please update the payment method.',
+        VAL.status,
+        request,
+        { payment_intent_id: paymentIntent.paymentIntentId },
       )
     }
 
     if (paymentIntent.status === 'requires_action') {
+      logChargeBalance('payment_intent_requires_action', {
+        reservationId,
+        paymentIntentId: paymentIntent.paymentIntentId,
+        status: paymentIntent.status,
+        chargeCents,
+      })
       return error(
-        ErrorCodes.VALIDATION_ERROR,
+        VAL.code,
         'Additional authentication required (3D Secure). Forward the client_secret to the guest.',
-        { client_secret: paymentIntent.clientSecret, payment_intent_id: paymentIntent.paymentIntentId },
+        VAL.status,
+        request,
+        {
+          client_secret: paymentIntent.clientSecret,
+          payment_intent_id: paymentIntent.paymentIntentId,
+        },
       )
     }
 
@@ -305,24 +425,46 @@ export async function POST(
         idempotent: false,
         payment_intent_id: paymentIntent.paymentIntentId,
         status: paymentIntent.status,
-        amount_charged: balance,
+        amount_charged: chargeCents,
         note: 'Payment is processing. The webhook will confirm and record the transaction.',
       })
     }
 
     if (paymentIntent.status === 'canceled') {
-      return error(ErrorCodes.VALIDATION_ERROR, 'Payment was canceled.')
+      logChargeBalance('payment_intent_canceled', {
+        reservationId,
+        paymentIntentId: paymentIntent.paymentIntentId,
+        chargeCents,
+      })
+      return error(VAL.code, 'Payment was canceled.', VAL.status, request, {
+        payment_intent_id: paymentIntent.paymentIntentId,
+      })
     }
 
     // Catch-all for unexpected statuses
+    logChargeBalance('payment_intent_unexpected_status', {
+      reservationId,
+      paymentIntentId: paymentIntent.paymentIntentId,
+      status: paymentIntent.status,
+      chargeCents,
+      maxDueCents,
+    })
     return error(
-      ErrorCodes.INTERNAL_ERROR,
+      INT.code,
       `Unexpected PaymentIntent status: ${paymentIntent.status}`,
+      INT.status,
+      request,
       { payment_intent_id: paymentIntent.paymentIntentId, status: paymentIntent.status },
     )
   } catch (err: unknown) {
-    console.error('[Charge Balance] Error:', err)
+    const stripe = stripeFailureFields(err)
     const message = err instanceof Error ? err.message : 'Failed to charge balance'
-    return error(ErrorCodes.INTERNAL_ERROR, 'Failed to charge balance', { message })
+    console.error('[Charge Balance] charge failed', {
+      reservationId,
+      message,
+      stripe,
+      err,
+    })
+    return error(INT.code, 'Failed to charge balance', INT.status, request, { message })
   }
 }

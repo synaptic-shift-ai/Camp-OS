@@ -749,6 +749,8 @@ export function AddTaskDialog({
                   <Calendar
                     mode="single"
                     selected={form.scheduledStart ? new Date(form.scheduledStart) : undefined}
+                    defaultMonth={form.scheduledStart ? new Date(form.scheduledStart) : new Date()}
+                    disabled={(date: Date) => date < startOfDay(new Date())}
                     onSelect={(date) => {
                       if (date) {
                         const time = form.scheduledStart ? format(new Date(form.scheduledStart), "HH:mm") : "08:00"
@@ -759,8 +761,6 @@ export function AddTaskDialog({
                         }))
                       }
                     }}
-                    disabled={(date) => date < startOfDay(new Date())}
-                    defaultMonth={form.scheduledStart ? new Date(form.scheduledStart) : new Date()}
                   />
                   <div className="border-t p-3">
                     <Input
@@ -810,6 +810,8 @@ export function AddTaskDialog({
                   <Calendar
                     mode="single"
                     selected={form.dueDate ? new Date(form.dueDate) : undefined}
+                    defaultMonth={form.dueDate ? new Date(form.dueDate) : new Date()}
+                    disabled={(date: Date) => date < startOfDay(new Date())}
                     onSelect={(date) => {
                       if (date) {
                         const time = form.dueDate ? format(new Date(form.dueDate), "HH:mm") : "17:00"
@@ -820,8 +822,6 @@ export function AddTaskDialog({
                         }))
                       }
                     }}
-                    disabled={(date) => date < startOfDay(new Date())}
-                    defaultMonth={form.dueDate ? new Date(form.dueDate) : new Date()}
                   />
                   <div className="border-t p-3">
                     <Input

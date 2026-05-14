@@ -354,7 +354,7 @@ export function ReservationLedgerPage({
       </div>
 
       <div className="grid gap-3 md:grid-cols-5 items-stretch">
-        <Card className="md:col-span-2 h-full">
+        <Card className="md:col-span-2 h-full bg-muted/40">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
             <div className="min-w-0">
               <div className="text-sm text-muted-foreground">Computed Balance</div>

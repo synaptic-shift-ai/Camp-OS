@@ -370,6 +370,9 @@ export function ReservationsTable({
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                     {reservation.confirmationNumber}
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(reservation.checkIn)} — {formatDate(reservation.checkOut)} · {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'} · {reservation.guestName}
+                  </p>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1">

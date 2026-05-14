@@ -72,6 +72,7 @@ export function CancellationPolicySettings({
     const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors, isDirty },
     } = useForm<CancellationPolicyFormData>({
     resolver: zodResolver(cancellationPolicySchema),
@@ -134,7 +135,11 @@ export function CancellationPolicySettings({
 
     const hasUnsavedChanges = isDirty || rulesDirty
     const { UnsavedChangesDialog } = useUnsavedChangesGuard(hasUnsavedChanges, {
-      onSave: handleSubmit(onSubmit),
+      onSave: async () => {
+        const valid = await trigger()
+        if (!valid) throw new Error('Validation failed')
+        await handleSubmit(onSubmit)()
+      },
       message: 'You have unsaved changes to cancellation policy.',
     })
 

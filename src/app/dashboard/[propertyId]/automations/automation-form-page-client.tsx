@@ -357,7 +357,6 @@ export function AutomationFormPageClient({
   }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, navigateBack, toast])
 
   const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
-    onSave: handleSave,
     message: 'You have unsaved changes to this automation.',
   })
 

@@ -242,6 +242,7 @@ export function PropertySettings({
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors, isDirty },
   } = useForm<PropertyDetailsFormData>({
     resolver: zodResolver(propertyDetailsSchema),
@@ -313,7 +314,11 @@ export function PropertySettings({
 
   const hasUnsavedChanges = isDirty || openPeriodDirty
   const { UnsavedChangesDialog } = useUnsavedChangesGuard(hasUnsavedChanges, {
-    onSave: handleSubmit(onSubmit),
+    onSave: async () => {
+      const valid = await trigger()
+      if (!valid) throw new Error('Validation failed')
+      await handleSubmit(onSubmit)()
+    },
     message: 'You have unsaved changes to property details.',
   })
 

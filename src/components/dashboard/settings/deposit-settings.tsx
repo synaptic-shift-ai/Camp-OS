@@ -61,6 +61,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors, isDirty },
   } = useForm<DepositConfigFormInput>({
     resolver: zodResolver(depositConfigFormSchema),
@@ -158,7 +159,11 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
   }
 
   const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
-    onSave: handleSubmit(onSubmit),
+    onSave: async () => {
+      const valid = await trigger()
+      if (!valid) throw new Error('Validation failed')
+      await handleSubmit(onSubmit)()
+    },
     message: 'You have unsaved changes to deposit settings.',
   })
 

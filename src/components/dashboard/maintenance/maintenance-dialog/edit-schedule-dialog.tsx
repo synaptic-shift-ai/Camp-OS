@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Loader2 } from "lucide-react"
-import { format } from "date-fns"
+import { useEffect, useMemo, useState } from "react"
+import { CalendarIcon, Loader2, X } from "lucide-react"
+import { format, startOfDay } from "date-fns"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 
 // ---------------------------------------------------------------------------
 // Shared input type used by both Add & Edit schedule dialogs
@@ -109,6 +111,14 @@ export function EditScheduleDialog({
 }: EditScheduleDialogProps) {
   const [form, setForm] = useState<AddPreventiveScheduleInput>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
+
+  const anchorDate = useMemo(() => {
+    const raw = form.schedule_date?.trim()
+    if (!raw) return undefined
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+    if (!m) return undefined
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  }, [form.schedule_date])
 
   // Pre-fill form when dialog opens with schedule data
   useEffect(() => {
@@ -344,16 +354,47 @@ export function EditScheduleDialog({
                     <span className="text-xs text-muted-foreground">of the month</span>
                   </div>
                 ) : (
-                  <Input
-                    type="date"
-                    value={form.schedule_date ?? ""}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        schedule_date: event.target.value || null,
-                      }))
-                    }
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="relative h-9 w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.schedule_date && anchorDate
+                          ? format(anchorDate, "MMM dd, yyyy")
+                          : "Pick a date"}
+                        {form.schedule_date && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setForm((prev) => ({ ...prev, schedule_date: null }))
+                            }}
+                            className="ml-auto mr-1 inline-flex h-4 w-4 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+                            aria-label="Clear date"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={anchorDate}
+                        onSelect={(date: Date | undefined) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            schedule_date: date ? format(date, "yyyy-MM-dd") : null,
+                          }))
+                        }
+                        disabled={(date: Date) => date < startOfDay(new Date())}
+                        defaultMonth={anchorDate ?? new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 )}
               </div>
             )}

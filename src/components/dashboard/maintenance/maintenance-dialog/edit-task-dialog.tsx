@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { CalendarIcon, Upload, X } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -543,10 +543,23 @@ export function EditTaskDialog({
                   <Button
                     variant="outline"
                     type="button"
-                    className={cn("w-full justify-start text-left font-normal", !form.scheduledStart && "text-muted-foreground")}
+                    className={cn("relative w-full justify-start text-left font-normal", !form.scheduledStart && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {form.scheduledStart ? format(new Date(form.scheduledStart), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                    {form.scheduledStart && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setForm((prev) => ({ ...prev, scheduledStart: null }))
+                        }}
+                        className="ml-auto mr-1 inline-flex h-4 w-4 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+                        aria-label="Clear date"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -563,6 +576,8 @@ export function EditTaskDialog({
                         }))
                       }
                     }}
+                    disabled={(date) => date < startOfDay(new Date())}
+                    defaultMonth={form.scheduledStart ? new Date(form.scheduledStart) : new Date()}
                   />
                   <div className="border-t p-3">
                     <Input
@@ -589,10 +604,23 @@ export function EditTaskDialog({
                   <Button
                     variant="outline"
                     type="button"
-                    className={cn("w-full justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}
+                    className={cn("relative w-full justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {form.dueDate ? format(new Date(form.dueDate), "MMM dd, yyyy HH:mm") : "Pick a date & time"}
+                    {form.dueDate && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setForm((prev) => ({ ...prev, dueDate: null }))
+                        }}
+                        className="ml-auto mr-1 inline-flex h-4 w-4 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+                        aria-label="Clear date"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -609,6 +637,8 @@ export function EditTaskDialog({
                         }))
                       }
                     }}
+                    disabled={(date) => date < startOfDay(new Date())}
+                    defaultMonth={form.dueDate ? new Date(form.dueDate) : new Date()}
                   />
                   <div className="border-t p-3">
                     <Input

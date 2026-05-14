@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2 } from "lucide-react"
-import { format } from "date-fns"
+import { Loader2, CalendarIcon } from "lucide-react"
+import { format, startOfDay } from "date-fns"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -344,16 +346,34 @@ export function EditScheduleDialog({
                     <span className="text-xs text-muted-foreground">of the month</span>
                   </div>
                 ) : (
-                  <Input
-                    type="date"
-                    value={form.schedule_date ?? ""}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        schedule_date: event.target.value || null,
-                      }))
-                    }
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.schedule_date
+                          ? format(new Date(form.schedule_date), "MMM dd, yyyy")
+                          : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={form.schedule_date ? new Date(form.schedule_date) : undefined}
+                        defaultMonth={form.schedule_date ? new Date(form.schedule_date) : new Date()}
+                        disabled={(date: Date) => date < startOfDay(new Date())}
+                        onSelect={(date) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            schedule_date: date ? format(date, "yyyy-MM-dd") : null,
+                          }))
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
                 )}
               </div>
             )}

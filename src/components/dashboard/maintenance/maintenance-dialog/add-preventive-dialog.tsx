@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -424,13 +424,14 @@ export function AddPreventiveDialog({
                           <Calendar
                             mode="single"
                             selected={anchorDate}
+                            defaultMonth={anchorDate ?? new Date()}
+                            disabled={(date: Date) => date < startOfDay(new Date())}
                             onSelect={(date) =>
                               setForm((prev) => ({
                                 ...prev,
                                 scheduleDate: date ? format(date, "yyyy-MM-dd") : null,
                               }))
                             }
-                            disabled={isSubmitting}
                           />
                         </PopoverContent>
                       </Popover>

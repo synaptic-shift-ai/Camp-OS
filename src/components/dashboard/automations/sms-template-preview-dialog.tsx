@@ -91,7 +91,7 @@ export function SmsTemplatePreviewDialog({ open, onOpenChange, template }: SmsTe
                 />
                 <DetailField
                   label="System Default"
-                  value={template.system_default ? 'Yes' : null}
+                  value={template.is_system_default ? 'Yes' : null}
                 />
                 <DetailField
                   label="Updated"

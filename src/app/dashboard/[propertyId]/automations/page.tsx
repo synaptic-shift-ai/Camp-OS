@@ -138,15 +138,17 @@ export default async function AutomationsPage({
 
     // ── SMS Templates tab ──────────────────────────────────────────────
     if (tab === "sms-templates") {
+        const companyId = property.company_id
         let smsTemplates: Array<Record<string, unknown>> = []
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/automations/sms-templates?propertyId=${propertyId}`, { cache: 'no-store' })
-            if (res.ok) {
-                const payload = await res.json()
-                smsTemplates = (payload.data?.templates ?? []) as Array<Record<string, unknown>>
-            }
-        } catch {
-            // stub API — return empty on failure
+        if (companyId) {
+            const { data } = await supabase
+                .from('sms_templates')
+                .select('*')
+                .eq('company_id', companyId)
+                .or(`property_id.is.null,property_id.eq.${propertyId}`)
+                .order('is_system_default', { ascending: false })
+                .order('name', { ascending: true })
+            smsTemplates = (data ?? []) as Array<Record<string, unknown>>
         }
         return (
             <AutomationsPageClient
@@ -159,7 +161,7 @@ export default async function AutomationsPage({
                 recentLogs={[]}
                 activeTab="sms-templates"
                 propertyId={propertyId}
-                companyId={property.company_id ?? ''}
+                companyId={companyId ?? ''}
                 smsTemplates={smsTemplates}
             />
         )

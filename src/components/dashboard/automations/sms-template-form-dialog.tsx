@@ -83,7 +83,7 @@ export function SmsTemplateFormDialog({
   const { can } = usePermissions()
   const canSave = can("automations.add_sms_templates") || can("automations.edit_sms_templates")
   const isEdit = template !== null
-  const isSystemDefault = (template?.system_default as boolean) ?? false
+  const isSystemDefault = (template?.is_system_default as boolean) ?? false
 
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
@@ -182,6 +182,7 @@ export function SmsTemplateFormDialog({
         slug,
         body,
         category: category === "custom" ? customCategory.trim() : category,
+        status: templateStatus,
         companyId,
         ...(propertyId && { propertyId }),
       }
@@ -192,21 +193,27 @@ export function SmsTemplateFormDialog({
           delete requestBody.slug
           delete requestBody.category
         }
-        const res = await fetch(`/api/v1/automations/sms-templates/${template.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        })
+        const res = await fetch(
+          `/api/v1/automations/sms-templates/${template.id}?propertyId=${propertyId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          },
+        )
         if (!res.ok) {
           const resData = await res.json()
-          throw new Error(resData?.message ?? `Save failed (${res.status})`)
+          throw new Error(resData?.error?.message ?? `Save failed (${res.status})`)
         }
       } else {
-        const res = await fetch("/api/v1/automations/sms-templates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        })
+        const res = await fetch(
+          `/api/v1/automations/sms-templates?propertyId=${propertyId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          },
+        )
         if (!res.ok) {
           const resData = await res.json()
           const message = resData?.error?.message || resData?.details || `Create failed (${res.status})`

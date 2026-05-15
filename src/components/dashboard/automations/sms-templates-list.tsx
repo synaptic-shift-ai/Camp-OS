@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -65,6 +66,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function SmsTemplatesList({ templates: initialTemplates, propertyId, companyId }: SmsTemplatesListProps) {
+  const router = useRouter()
   const { can } = usePermissions()
   const canEdit = can("automations.edit_sms_templates")
   const [templates, setTemplates] = useState(initialTemplates)
@@ -120,9 +122,10 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
     if (!deleteTemplate) return
     setActionLoading(deleteTemplate.id as string)
     try {
-      const res = await fetch(`/api/v1/automations/sms-templates/${deleteTemplate.id}`, {
-        method: "DELETE",
-      })
+      const res = await fetch(
+        `/api/v1/automations/sms-templates/${deleteTemplate.id}?propertyId=${propertyId}`,
+        { method: "DELETE" },
+      )
       if (!res.ok) throw new Error(`Delete failed (${res.status})`)
       setDeleteTemplate(null)
       await fetchTemplates()
@@ -133,15 +136,81 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
     }
   }
 
+  async function handleClone(t: Record<string, unknown>, e: React.MouseEvent) {
+    e.stopPropagation()
+    setActionLoading(t.id as string)
+    try {
+      const sourceSlug = t.slug as string
+      let slug = `${sourceSlug}-copy`
+      const existingSlugs = new Set(templates.map((tmpl) => tmpl.slug as string))
+      if (existingSlugs.has(slug)) {
+        let counter = 2
+        while (existingSlugs.has(`${sourceSlug}-copy-${counter}`)) counter++
+        slug = `${sourceSlug}-copy-${counter}`
+      }
+
+      const smsBody = String(t.body ?? "").trim()
+      if (!smsBody) {
+        throw new Error("Cannot duplicate a template with an empty message body")
+      }
+
+      const sourcePropertyId = t.property_id as string | null | undefined
+
+      const res = await fetch(
+        `/api/v1/automations/sms-templates?propertyId=${propertyId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyId,
+            ...(sourcePropertyId ? { propertyId: sourcePropertyId } : {}),
+            slug,
+            name: (t.name as string).replace(/ \(Copy\)$/, "") + " (Copy)",
+            description: t.description ?? null,
+            body: smsBody,
+            category: (t.category as string) ?? "custom",
+            status: "draft",
+          }),
+        },
+      )
+      const resData = await res.json()
+      if (!res.ok) {
+        const message =
+          resData?.error?.message ||
+          (typeof resData?.error?.details === "string" ? resData.error.details : null) ||
+          `Clone failed (${res.status})`
+        throw new Error(message)
+      }
+
+      const created = resData?.data?.smsTemplate as Record<string, unknown> | undefined
+      if (created) {
+        setTemplates((prev) => [...prev, created])
+      } else {
+        await fetchTemplates()
+      }
+      router.refresh()
+      toast.success("Template duplicated")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to duplicate template"
+      toast.error(message)
+      console.error(err)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   async function handleToggleStatus(t: Record<string, unknown>) {
     setActionLoading(t.id as string)
     try {
       const newStatus = (t.status as string) === 'active' ? 'draft' : 'active'
-      const res = await fetch(`/api/v1/automations/sms-templates/${t.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      })
+      const res = await fetch(
+        `/api/v1/automations/sms-templates/${t.id}?propertyId=${propertyId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        },
+      )
       if (!res.ok) throw new Error(`Toggle failed (${res.status})`)
       await fetchTemplates()
     } catch (e) {
@@ -243,7 +312,7 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
               filtered.map((t) => {
                 const id = t.id as string
                 const status = (t.status as string) ?? 'draft'
-                const isSystem = (t.system_default as boolean) ?? false
+                const isSystem = (t.is_system_default as boolean) ?? false
                 const isLoading = actionLoading === id
                 const cat = (t.category as string) ?? "custom"
 
@@ -325,7 +394,7 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
                                 size="xs"
                                 aria-label="Clone template"
                                 className="h-8 w-8 p-0"
-                                onClick={() => openEdit(t)}
+                                onClick={(e) => handleClone(t, e)}
                               >
                                 <Copy className="h-4 w-4" />
                               </Button>

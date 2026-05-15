@@ -3250,6 +3250,72 @@ export type Database = {
           },
         ]
       }
+      sms_templates: {
+        Row: {
+          body: string
+          category: string
+          company_id: string
+          created_at: string
+          default_version: number | null
+          description: string | null
+          id: string
+          is_modified: boolean | null
+          is_system_default: boolean
+          name: string
+          property_id: string | null
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          category?: string
+          company_id: string
+          created_at?: string
+          default_version?: number | null
+          description?: string | null
+          id?: string
+          is_modified?: boolean | null
+          is_system_default?: boolean
+          name: string
+          property_id?: string | null
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          company_id?: string
+          created_at?: string
+          default_version?: number | null
+          description?: string | null
+          id?: string
+          is_modified?: boolean | null
+          is_system_default?: boolean
+          name?: string
+          property_id?: string | null
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_templates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_events: {
         Row: {
           company_id: string | null

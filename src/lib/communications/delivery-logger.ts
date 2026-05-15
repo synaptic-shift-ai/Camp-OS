@@ -41,6 +41,8 @@ export type UpdateDeliveryStatusParams = {
   bounceType?: 'hard' | 'soft' | null
   failureReason?: string | null
   deliveredAt?: string | null
+  /** SMTP delivery retries (excludes the first send attempt). Matches `communication_log.retry_count`. */
+  retryCount?: number
 }
 
 export type CommunicationLogRow = {
@@ -107,7 +109,7 @@ export async function logDelivery(
 export async function updateDeliveryStatus(
   params: UpdateDeliveryStatusParams,
 ): Promise<CommunicationLogRow | null> {
-  const { supabase, logId, status, bounceType, failureReason, deliveredAt } = params
+  const { supabase, logId, status, bounceType, failureReason, deliveredAt, retryCount } = params
 
   const update: Record<string, unknown> = { status }
 
@@ -119,6 +121,9 @@ export async function updateDeliveryStatus(
   }
   if (deliveredAt) {
     update.delivered_at = deliveredAt
+  }
+  if (retryCount !== undefined) {
+    update.retry_count = retryCount
   }
 
   const { data, error } = await supabase

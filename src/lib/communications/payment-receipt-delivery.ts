@@ -16,8 +16,8 @@ export type RecordPaymentReceiptEmailDeliveryParams = {
   recipientEmail: string
   subject: string
   sendResult:
-    | { success: true }
-    | { success: false; error: string }
+    | { success: true; attempts?: number }
+    | { success: false; error: string; attempts?: number }
   logDeliveryFn?: typeof logDelivery
   updateDeliveryStatusFn?: typeof updateDeliveryStatus
 }
@@ -55,11 +55,17 @@ export async function recordPaymentReceiptEmailDelivery(
   if (!initial) return null
 
   const finalStatus: Exclude<DeliveryStatus, 'queued'> = sendResult.success ? 'sent' : 'failed'
+  const smtpRetryCount =
+    typeof sendResult.attempts === 'number'
+      ? Math.max(0, sendResult.attempts - 1)
+      : undefined
+
   const updated = await updateDeliveryStatusFn({
     supabase,
     logId: initial.id,
     status: finalStatus,
     failureReason: sendResult.success ? null : sendResult.error,
+    ...(smtpRetryCount !== undefined ? { retryCount: smtpRetryCount } : {}),
   })
 
   return updated ?? initial

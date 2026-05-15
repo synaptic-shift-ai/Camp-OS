@@ -19,8 +19,7 @@ import {
 } from "@/lib/email/template-renderer"
 import { getSampleData } from "@/lib/email/variable-definitions"
 
-const PANEL =
-  "rounded-xl bg-[#f7f5f0] text-stone-900 dark:bg-zinc-950 dark:text-zinc-100"
+const PANEL = "text-stone-900 dark:text-zinc-100"
 const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
 type BrandingForm = {

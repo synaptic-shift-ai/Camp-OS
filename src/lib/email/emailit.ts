@@ -1,6 +1,15 @@
 import { randomUUID } from "crypto"
 import nodemailer from "nodemailer"
 
+const SMTP_SEND_MAX_ATTEMPTS = 4
+const SMTP_RETRY_BASE_DELAY_MS = 500
+
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}
+
 function getSmtpConfig() {
     const host = process.env.SMTP_HOST
     const port = process.env.SMTP_PORT
@@ -88,8 +97,8 @@ function convertDataUrisToCid(
 }
 
 export type EmailitSendResult =
-    | { success: true; id: string }
-    | { success: false; error: string }
+    | { success: true; id: string; attempts: number }
+    | { success: false; error: string; attempts: number }
 
 export async function sendEmail(params: {
     to: string | string[]
@@ -101,35 +110,56 @@ export async function sendEmail(params: {
     const from = params.from ?? getFrom()
     const toList = Array.isArray(params.to) ? params.to : [params.to]
 
-    try {
-        let html = params.html
-        let attachments: Array<{ filename: string; content: Buffer; cid: string }> = []
+    let html = params.html
+    let attachments: Array<{ filename: string; content: Buffer; cid: string }> = []
 
-        if (html.includes("data:image/")) {
-            const cidResult = convertDataUrisToCid(html)
-            html = cidResult.html
-            attachments = cidResult.attachments
-        }
+    if (html.includes("data:image/")) {
+        const cidResult = convertDataUrisToCid(html)
+        html = cidResult.html
+        attachments = cidResult.attachments
+    }
 
-        const transport = getTransporter()
-        const info = await transport.sendMail({
-            from,
-            to: toList,
-            subject: params.subject,
-            html,
-            ...(params.text && { text: params.text }),
-            ...(attachments.length > 0 && { attachments }),
-        })
+    const mailOptions = {
+        from,
+        to: toList,
+        subject: params.subject,
+        html,
+        ...(params.text && { text: params.text }),
+        ...(attachments.length > 0 && { attachments }),
+    }
 
-        return {
-            success: true,
-            id: info.messageId ?? "",
+    let lastError = "Failed to send email"
+    let attemptsUsed = 0
+
+    for (let attempt = 0; attempt < SMTP_SEND_MAX_ATTEMPTS; attempt++) {
+        try {
+            attemptsUsed = attempt + 1
+            const transport = getTransporter()
+            const info = await transport.sendMail(mailOptions)
+
+            return {
+                success: true,
+                id: info.messageId ?? "",
+                attempts: attemptsUsed,
+            }
+        } catch (error) {
+            lastError =
+                error instanceof Error ? error.message : "Failed to send email"
+            console.error(
+                `[Emailit] SMTP send failed (attempt ${attempt + 1}/${SMTP_SEND_MAX_ATTEMPTS}):`,
+                error
+            )
+
+            const isLastAttempt = attempt === SMTP_SEND_MAX_ATTEMPTS - 1
+            if (!isLastAttempt) {
+                await delay(SMTP_RETRY_BASE_DELAY_MS * 2 ** attempt)
+            }
         }
-    } catch (error) {
-        console.error("[Emailit] SMTP send failed:", error)
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Failed to send email",
-        }
+    }
+
+    return {
+        success: false,
+        error: lastError,
+        attempts: attemptsUsed,
     }
 }

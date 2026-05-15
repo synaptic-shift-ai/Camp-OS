@@ -10,6 +10,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
+import { buttonVariants } from "@/components/ui/button"
 
 interface UnsavedChangesDialogProps {
   open: boolean
@@ -39,7 +40,10 @@ export function UnsavedChangesDialog({
           <AlertDialogCancel onClick={() => onOpenChange(false)}>
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction onClick={onDiscard} className="text-red-600 hover:text-red-700">
+          <AlertDialogAction
+            onClick={onDiscard}
+            className={buttonVariants({ variant: "destructive" })}
+          >
             Discard
           </AlertDialogAction>
           {onSaveAndLeave && (

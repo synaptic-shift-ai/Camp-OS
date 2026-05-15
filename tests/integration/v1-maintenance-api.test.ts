@@ -71,7 +71,7 @@ vi.mock('@/lib/dashboard/maintenance/maintenance-queries', () => ({
 // Avoid side effects (email, activity logs, automations)
 vi.mock('@/lib/supabase/service-role', () => ({ createServiceRoleClient: vi.fn() }))
 vi.mock('@/shared/activity-log/record-activity-log', () => ({ recordActivityLog: vi.fn(async () => null) }))
-vi.mock('@/lib/email/emailit', () => ({ sendEmail: vi.fn(async () => ({ success: true })), getFrom: vi.fn(() => 'test@example.com') }))
+vi.mock('@/lib/email/emailit', () => ({ sendEmail: vi.fn(async () => ({ success: true, id: 'mock-id', attempts: 1 })), getFrom: vi.fn(() => 'test@example.com') }))
 vi.mock('@/lib/email/template-renderer', () => ({ renderWithContext: vi.fn(() => ({ subject: 'x', html: '<div />', text: 'x' })) }))
 vi.mock('@/lib/email/templates/vendor-work-order-assigned', () => ({ buildVendorWorkOrderAssignedEmailHtml: vi.fn(async () => '<div />') }))
 vi.mock('@/modules/Maintenance/domain/events', () => ({

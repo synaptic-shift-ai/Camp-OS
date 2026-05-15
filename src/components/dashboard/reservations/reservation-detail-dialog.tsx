@@ -248,7 +248,7 @@ export function ReservationDetailDialog({
                 />
               </div>
               <DialogDescription className="capitalize">
-                {formatDate(reservation.checkIn)} — {formatDate(reservation.checkOut)} · {reservation.numNights} {reservation.numNights === 1 ? 'night' : 'nights'} · {reservation.guestName}
+                {formatDate(reservation.checkIn)} — {formatDate(reservation.checkOut)} · {reservation.numNights} {reservation.numNights === 1 ? "night" : "nights"} · {reservation.guestName}
               </DialogDescription>
             </DialogHeader>
 

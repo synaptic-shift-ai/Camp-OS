@@ -29,8 +29,8 @@ export type PaymentReceivedInvoiceEmailInput = {
 }
 
 export type SendPaymentReceivedInvoiceResult =
-  | { success: true; id: string }
-  | { success: false; error: string }
+  | { success: true; id: string; attempts: number }
+  | { success: false; error: string; attempts: number }
 
 export function paymentMethodToLabel(method: string): string {
   const labels: Record<string, string> = {
@@ -169,13 +169,14 @@ export async function sendPaymentReceivedInvoiceEmail(
     })
 
     return result.success
-      ? { success: true, id: result.id }
-      : { success: false, error: result.error }
+      ? { success: true, id: result.id, attempts: result.attempts }
+      : { success: false, error: result.error, attempts: result.attempts }
   } catch (err) {
     console.error('[Email] Failed to send payment receipt:', err)
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Failed to send email',
+      attempts: 0,
     }
   }
 }

@@ -927,78 +927,75 @@ export default function NewReservationPage() {
         <div className="lg:col-span-2">
           <FormProvider {...methods}>
             <AlertDialog open={existingGuestDialogOpen} onOpenChange={setExistingGuestDialogOpen}>
-              <AlertDialogContent className="max-h-[85dvh] overflow-y-auto mx-4 sm:mx-0">
-                <AlertDialogHeader>
+              <AlertDialogContent className="mx-4 flex max-h-[85dvh] max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-hidden rounded-lg sm:mx-0 sm:max-w-lg">
+                <AlertDialogHeader className="shrink-0 space-y-2 text-left">
                   <AlertDialogTitle>Has this guest stayed with us before?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {existingGuests.length > 0 ? (
-                      <div className="mt-3 space-y-2 text-sm text-foreground">
-                        {existingGuests.length > 1 ? (
-                          <p className="text-xs text-muted-foreground">
-                            We found {existingGuests.length} guest profiles with this email. Please select the correct one.
-                          </p>
-                        ) : null}
-
-                        <RadioGroup
-                          value={selectedExistingGuestId ?? undefined}
-                          onValueChange={(value) => setSelectedExistingGuestId(value)}
-                          className="gap-2"
-                        >
-                          {existingGuests.map((g) => {
-                            const addressParts = [
-                              g.addressStreet?.trim() ? g.addressStreet : null,
-                              g.addressCity?.trim() ? g.addressCity : null,
-                              g.addressState?.trim() ? g.addressState : null,
-                              g.addressZipCode?.trim() ? g.addressZipCode : null,
-                              // Intentionally optional: show address even when country is null
-                              g.addressCountry?.trim() ? g.addressCountry : null,
-                            ]
-                            const addressLine = addressParts.filter(Boolean).join(', ') || null
-
-                            return (
-                              <label
-                                key={g.id}
-                                className="flex items-start gap-3 rounded-md border p-3 hover:bg-muted/30 cursor-pointer"
-                              >
-                                <RadioGroupItem value={g.id} className="mt-1" />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="font-medium">{g.fullName}</div>
-                                  </div>
-                                  <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
-                                    <div className="truncate">
-                                      <span className="text-muted-foreground">Email:</span>{' '}
-                                      <span className="font-medium">{g.email}</span>
-                                    </div>
-                                    <div className="truncate">
-                                      <span className="text-muted-foreground">Phone:</span>{' '}
-                                      <span className="font-medium">{g.phone ?? '—'}</span>
-                                    </div>
-                                    <div className="truncate sm:col-span-2">
-                                      <span className="text-muted-foreground">Guest credit:</span>{' '}
-                                      <span className="font-medium tabular-nums">
-                                        {formatMoney(g.guestCreditCents)}
-                                      </span>
-                                    </div>
-                                    {addressLine ? (
-                                      <div className="sm:col-span-2 truncate">
-                                        <span className="text-muted-foreground">Address:</span>{' '}
-                                        <span className="font-medium">{addressLine}</span>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </label>
-                            )
-                          })}
-                        </RadioGroup>
-                      </div>
-                    ) : (
-                      'We found an existing guest with this email.'
-                    )}
+                    {existingGuests.length === 0
+                      ? 'We found an existing guest with this email.'
+                      : existingGuests.length > 1
+                        ? `We found ${existingGuests.length} guest profiles with this email. Please select the correct one below.`
+                        : 'Select the guest profile that matches this reservation.'}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
+                {existingGuests.length > 0 ? (
+                  <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [-webkit-overflow-scrolling:touch]">
+                    <RadioGroup
+                      value={selectedExistingGuestId ?? undefined}
+                      onValueChange={(value) => setSelectedExistingGuestId(value)}
+                      className="gap-2 text-sm text-foreground"
+                    >
+                      {existingGuests.map((g) => {
+                        const addressParts = [
+                          g.addressStreet?.trim() ? g.addressStreet : null,
+                          g.addressCity?.trim() ? g.addressCity : null,
+                          g.addressState?.trim() ? g.addressState : null,
+                          g.addressZipCode?.trim() ? g.addressZipCode : null,
+                          // Intentionally optional: show address even when country is null
+                          g.addressCountry?.trim() ? g.addressCountry : null,
+                        ]
+                        const addressLine = addressParts.filter(Boolean).join(', ') || null
+
+                        return (
+                          <label
+                            key={g.id}
+                            className="flex items-start gap-3 rounded-md border p-3 hover:bg-muted/30 cursor-pointer"
+                          >
+                            <RadioGroupItem value={g.id} className="mt-1" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="font-medium">{g.fullName}</div>
+                              </div>
+                              <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                                <div className="truncate">
+                                  <span className="text-muted-foreground">Email:</span>{' '}
+                                  <span className="font-medium">{g.email}</span>
+                                </div>
+                                <div className="truncate">
+                                  <span className="text-muted-foreground">Phone:</span>{' '}
+                                  <span className="font-medium">{g.phone ?? '—'}</span>
+                                </div>
+                                <div className="truncate sm:col-span-2">
+                                  <span className="text-muted-foreground">Guest credit:</span>{' '}
+                                  <span className="font-medium tabular-nums">
+                                    {formatMoney(g.guestCreditCents)}
+                                  </span>
+                                </div>
+                                {addressLine ? (
+                                  <div className="sm:col-span-2 truncate">
+                                    <span className="text-muted-foreground">Address:</span>{' '}
+                                    <span className="font-medium">{addressLine}</span>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </RadioGroup>
+                  </div>
+                ) : null}
+                <AlertDialogFooter className="shrink-0">
                   <AlertDialogCancel
                     onClick={() => {
                       const currentEmail = typeof guestEmail === 'string' ? guestEmail.trim().toLowerCase() : null

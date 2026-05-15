@@ -346,6 +346,8 @@ export function createActionRegistry(): ActionHandlerMap {
           text: finalText,
         })
 
+        const smtpRetryCount = Math.max(0, result.attempts - 1)
+
         // ── Update delivery status (non-blocking) ────────────────────────────
         if (deliveryLog) {
           try {
@@ -356,6 +358,7 @@ export function createActionRegistry(): ActionHandlerMap {
                 logId: deliveryLog.id,
                 status: 'delivered',
                 deliveredAt: new Date().toISOString(),
+                retryCount: smtpRetryCount,
               })
             } else {
               await updateDeliveryStatus({
@@ -363,6 +366,7 @@ export function createActionRegistry(): ActionHandlerMap {
                 logId: deliveryLog.id,
                 status: 'failed',
                 failureReason: result.error,
+                retryCount: smtpRetryCount,
               })
             }
           } catch (statusErr) {

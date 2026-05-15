@@ -473,7 +473,9 @@ export async function queuePaymentReceiptEmail(input: QueuePaymentReceiptEmailIn
       guestId: targetGuestId,
       recipientEmail: guestEmail,
       subject: receiptSubject,
-      sendResult: receiptResult.success ? { success: true } : { success: false, error: receiptResult.error },
+      sendResult: receiptResult.success
+        ? { success: true, attempts: receiptResult.attempts }
+        : { success: false, error: receiptResult.error, attempts: receiptResult.attempts },
     })
   } catch (e) {
     console.error('[Financial] Payment receipt email: threw (non-blocking)', e)

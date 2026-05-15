@@ -21,7 +21,7 @@ describe('recordPaymentReceiptEmailDelivery', () => {
       guestId: 'guest-1',
       recipientEmail: 'guest@example.com',
       subject: 'Payment receipt #ABC',
-      sendResult: { success: true },
+      sendResult: { success: true, attempts: 1 },
       logDeliveryFn,
       updateDeliveryStatusFn,
     })
@@ -44,10 +44,32 @@ describe('recordPaymentReceiptEmailDelivery', () => {
         logId: 'log-1',
         status: 'sent',
         failureReason: null,
+        retryCount: 0,
       }),
     )
 
     expect(result).toEqual(expect.objectContaining({ id: 'log-1' }))
+  })
+
+  it('does not set retryCount when sendResult omits attempts', async () => {
+    const supabase = {} as any
+    const logDeliveryFn = vi.fn().mockResolvedValue({ id: 'log-x' })
+    const updateDeliveryStatusFn = vi.fn().mockResolvedValue({ id: 'log-x' })
+
+    await recordPaymentReceiptEmailDelivery({
+      supabase,
+      companyId: 'c',
+      propertyId: 'p',
+      recipientEmail: 'a@b.com',
+      subject: 'S',
+      sendResult: { success: true },
+      logDeliveryFn,
+      updateDeliveryStatusFn,
+    })
+
+    const payload = updateDeliveryStatusFn.mock.calls[0]?.[0] as Record<string, unknown> | undefined
+    expect(payload).toBeDefined()
+    expect(payload).not.toHaveProperty('retryCount')
   })
 
   it('logs queued then updates to failed with failure reason on error', async () => {
@@ -70,7 +92,7 @@ describe('recordPaymentReceiptEmailDelivery', () => {
       guestId: 'guest-2',
       recipientEmail: 'guest2@example.com',
       subject: 'Payment receipt #DEF',
-      sendResult: { success: false, error: 'SMTP down' },
+      sendResult: { success: false, error: 'SMTP down', attempts: 4 },
       logDeliveryFn,
       updateDeliveryStatusFn,
     })
@@ -80,6 +102,7 @@ describe('recordPaymentReceiptEmailDelivery', () => {
         logId: 'log-2',
         status: 'failed',
         failureReason: 'SMTP down',
+        retryCount: 3,
       }),
     )
   })

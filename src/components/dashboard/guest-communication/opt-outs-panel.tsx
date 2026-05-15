@@ -5,7 +5,6 @@ import {
   Mail,
   Shield,
   Smartphone,
-  Trash2,
   Search,
   Loader2,
 } from "lucide-react"
@@ -24,7 +23,6 @@ import {
 } from "@/components/ui/table"
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -57,8 +55,8 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
-  const [deleteTarget, setDeleteTarget] = useState<OptOutRecord | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [subscribeTarget, setSubscribeTarget] = useState<OptOutRecord | null>(null)
+  const [subscribing, setSubscribing] = useState(false)
   const [skippedCount, setSkippedCount] = useState(0)
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
@@ -100,19 +98,29 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
     )
   }, [records, search])
 
-  const handleRemove = async () => {
-    if (!deleteTarget) return
+  const handleSubscribe = async () => {
+    if (!subscribeTarget) return
     try {
-      setDeleting(true)
-      // The opt-out records come from the communication_opt_outs registry.
-      // There's no dedicated delete endpoint, so we just dismiss the dialog.
-      // In a future phase, a dedicated opt-outs endpoint will handle removal.
-      toast({ title: "Not yet available", description: "Opt-out removal will be available in a future update.", variant: "default" })
+      setSubscribing(true)
+      const params = new URLSearchParams({ propertyId, id: subscribeTarget.id })
+      const res = await fetch(`/api/v1/communications/opt-outs?${params}`, { method: "DELETE" })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        const description =
+          typeof json.error?.message === "string" ? json.error.message : "Could not restore guest subscription."
+        toast({ title: "Error", description, variant: "destructive" })
+        return
+      }
+      toast({
+        title: "Guest subscribed",
+        description: `${subscribeTarget.guestName} can receive ${subscribeTarget.channel.toLowerCase()} communications again.`,
+      })
+      setSubscribeTarget(null)
+      await fetchRecords()
     } catch {
-      toast({ title: "Error", description: "Could not remove opt-out record.", variant: "destructive" })
+      toast({ title: "Error", description: "Could not restore guest subscription.", variant: "destructive" })
     } finally {
-      setDeleting(false)
-      setDeleteTarget(null)
+      setSubscribing(false)
     }
   }
 
@@ -255,12 +263,12 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
                         <PermissionGate permission="guest_comms.configure_branding" fallback={null}>
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="h-8 text-stone-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
-                            onClick={() => setDeleteTarget(row)}
+                            className="h-8"
+                            onClick={() => setSubscribeTarget(row)}
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden />
+                            Subscribe
                           </Button>
                         </PermissionGate>
                       </TableCell>
@@ -283,25 +291,21 @@ export function OptOutsPanel({ propertyId }: { propertyId: string }) {
         </div>
       </PermissionGate>
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog open={!!subscribeTarget} onOpenChange={(open) => !open && !subscribing && setSubscribeTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove opt-out record?</AlertDialogTitle>
+            <AlertDialogTitle>Subscribe this guest?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will allow {deleteTarget?.guestName ?? "this guest"} to receive communications again. They can re-opt-out at any time.
+              {subscribeTarget?.guestName ?? "This guest"} will be able to receive{" "}
+              {subscribeTarget?.channel.toLowerCase() ?? "channel"} messages again. They can unsubscribe at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRemove}
-              disabled={deleting}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Remove
-            </AlertDialogAction>
+            <AlertDialogCancel disabled={subscribing}>Cancel</AlertDialogCancel>
+            <Button type="button" disabled={subscribing} onClick={handleSubscribe}>
+              {subscribing && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+              Subscribe
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

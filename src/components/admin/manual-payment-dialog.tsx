@@ -401,8 +401,7 @@ export function ManualPaymentDialog({
   ])
 
   useEffect(() => {
-    if (!open || !useGuestCredit || !guestId || !resolvedPropertyId) {
-      if (!useGuestCredit) setGuestCreditBalanceCents(null)
+    if (!open || !guestId || !resolvedPropertyId) {
       return
     }
     let cancelled = false
@@ -430,7 +429,7 @@ export function ManualPaymentDialog({
     return () => {
       cancelled = true
     }
-  }, [open, useGuestCredit, guestId, resolvedPropertyId])
+  }, [open, guestId, resolvedPropertyId])
 
   const fetchStripePaymentIntent = useCallback(
     async (amountCents: number) => {
@@ -779,34 +778,30 @@ export function ManualPaymentDialog({
                     <p className="text-xs text-muted-foreground">
                       Apply available guest credit toward this balance (store credit payment).
                     </p>
-                    {useGuestCredit ? (
-                      <p className="text-xs font-medium text-foreground">
-                        {guestCreditBalanceLoading ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Loading guest credit…
-                          </span>
-                        ) : typeof guestCreditBalanceCents === "number" ? (
-                          <>
-                            Available:{" "}
-                            <span className="tabular-nums">
-                              ${(guestCreditBalanceCents / 100).toFixed(2)}
-                            </span>
-                            {guestCreditAppliedCents > 0 ? (
-                              <>
-                                {" "}
-                                · Applying from guest credit:{" "}
-                                <span className="tabular-nums">
-                                  ${(guestCreditAppliedCents / 100).toFixed(2)}
-                                </span>
-                              </>
-                            ) : null}
-                          </>
-                        ) : (
-                          "Unable to load guest credit."
-                        )}
-                      </p>
-                    ) : null}
+                    <p className="text-xs font-medium text-foreground">
+                      {!resolvedPropertyId || guestCreditBalanceLoading ? (
+                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                          Loading guest credit…
+                        </span>
+                      ) : typeof guestCreditBalanceCents === "number" ? (
+                        <>
+                          Guest credit:{" "}
+                          <span className="tabular-nums">${(guestCreditBalanceCents / 100).toFixed(2)}</span>
+                          {useGuestCredit && guestCreditAppliedCents > 0 ? (
+                            <>
+                              {" "}
+                              <span className="text-muted-foreground">·</span> Applying:{" "}
+                              <span className="tabular-nums">
+                                ${(guestCreditAppliedCents / 100).toFixed(2)}
+                              </span>
+                            </>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Unable to load guest credit.</span>
+                      )}
+                    </p>
                   </div>
                   <Switch
                     id="manual-payment-use-guest-credit"

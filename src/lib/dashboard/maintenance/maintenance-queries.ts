@@ -14,6 +14,29 @@ import {
 type MaintenanceTaskRow = Database['public']['Tables']['maintenance_tasks']['Row']
 type SiteRow = Database['public']['Tables']['sites']['Row']
 
+type MaintenanceTaskCostRow = Pick<
+    MaintenanceTaskRow,
+    'actual_labor_cost' | 'actual_parts_cost' | 'estimated_labor_cost' | 'estimated_parts_cost'
+>
+
+type MaintenanceTaskActualCostRow = Pick<
+    MaintenanceTaskRow,
+    'actual_labor_cost' | 'actual_parts_cost'
+>
+
+/** Sum of recorded actual labor + parts only (no estimate fallback). */
+export function maintenanceTaskActualSpend(row: MaintenanceTaskActualCostRow): number {
+    return (row.actual_labor_cost ?? 0) + (row.actual_parts_cost ?? 0)
+}
+
+/** Prefer recorded actual costs; fall back to estimates (e.g. spend-limit checks). */
+export function maintenanceTaskSpend(row: MaintenanceTaskCostRow): number {
+    return (
+        (row.actual_labor_cost ?? row.estimated_labor_cost ?? 0) +
+        (row.actual_parts_cost ?? row.estimated_parts_cost ?? 0)
+    )
+}
+
 export async function generateWoNumber(
     propertyId: string,
     supabase: SupabaseClient,
@@ -645,13 +668,16 @@ export class MaintenanceQueries {
         activeWorkOrders: number
         completedWorkOrders: number
         totalEstimatedCost: number
+        totalActualCost: number
         byStatus: Array<{ status: string; count: number }>
         byCategory: Array<{ category: string; count: number }>
         byPriority: Array<{ priority: string; count: number }>
     }> {
         let query = this.supabase
             .from('maintenance_tasks')
-            .select('status, category, priority, estimated_labor_cost, estimated_parts_cost')
+            .select(
+                'status, category, priority, estimated_labor_cost, estimated_parts_cost, actual_labor_cost, actual_parts_cost',
+            )
             .eq('property_id', propertyId)
 
         if (dateRange?.from) {
@@ -678,6 +704,7 @@ export class MaintenanceQueries {
         const byCategoryMap: Record<string, number> = {}
         const byPriorityMap: Record<string, number> = {}
         let totalEstimatedCost = 0
+        let totalActualCost = 0
         let activeWorkOrders = 0
         let completedWorkOrders = 0
 
@@ -691,6 +718,7 @@ export class MaintenanceQueries {
             byPriorityMap[priority] = (byPriorityMap[priority] ?? 0) + 1
 
             totalEstimatedCost += (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+            totalActualCost += maintenanceTaskActualSpend(row)
 
             if (status === 'open' || status === 'in_progress') {
                 activeWorkOrders++
@@ -705,6 +733,7 @@ export class MaintenanceQueries {
             activeWorkOrders,
             completedWorkOrders,
             totalEstimatedCost,
+            totalActualCost,
             byStatus: Object.entries(byStatusMap).map(([status, count]) => ({ status, count })),
             byCategory: Object.entries(byCategoryMap).map(([category, count]) => ({ category, count })),
             byPriority: Object.entries(byPriorityMap).map(([priority, count]) => ({ priority, count })),
@@ -1465,9 +1494,7 @@ export class MaintenanceQueries {
 
         if (!data || data.length === 0) return 0
 
-        return data.reduce((sum, row) => {
-            return sum + (row.actual_labor_cost ?? row.estimated_labor_cost ?? 0) + (row.actual_parts_cost ?? row.estimated_parts_cost ?? 0)
-        }, 0)
+        return data.reduce((sum, row) => sum + maintenanceTaskSpend(row), 0)
     }
 
     // ── Maintenance Guide CRUD ──

@@ -184,6 +184,7 @@ export type MaintenanceReportResponse = {
     activeWorkOrders: number
     completedWorkOrders: number
     totalEstimatedCost: number
+    totalActualCost: number
     byStatus: Array<{ status: string; count: number }>
     byCategory: Array<{ category: string; count: number }>
     byPriority: Array<{ priority: string; count: number }>

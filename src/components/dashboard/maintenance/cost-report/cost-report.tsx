@@ -40,6 +40,7 @@ interface ReportData {
   activeWorkOrders: number
   completedWorkOrders: number
   totalEstimatedCost: number
+  totalActualCost: number
   byStatus: Array<{ status: string; count: number }>
   byCategory: Array<{ category: string; count: number }>
   byPriority: Array<{ priority: string; count: number }>
@@ -187,7 +188,7 @@ export function CostReport({
   }, [reportData])
 
   const formattedCost = useMemo(() => {
-    const dollars = reportData?.totalEstimatedCost ?? 0
+    const dollars = reportData?.totalActualCost ?? 0
     return `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
   }, [reportData])
 
@@ -206,6 +207,7 @@ export function CostReport({
     rows.push({ Section: 'Summary', Metric: 'Total Work Orders', Value: reportData.totalWorkOrders })
     rows.push({ Section: 'Summary', Metric: 'Active Work Orders', Value: reportData.activeWorkOrders })
     rows.push({ Section: 'Summary', Metric: 'Completed Work Orders', Value: reportData.completedWorkOrders })
+    rows.push({ Section: 'Summary', Metric: 'Total Actual Cost', Value: reportData.totalActualCost })
     rows.push({ Section: 'Summary', Metric: 'Total Estimated Cost', Value: reportData.totalEstimatedCost })
 
     // Vendor breakdown
@@ -271,7 +273,7 @@ export function CostReport({
 
       <Card className="p-2 sm:p-4">
         <CardHeader className="p-2 pb-1 sm:p-4 sm:pb-2 flex flex-row items-center justify-between">
-          <span className="text-[9px] sm:text-sm text-muted-foreground">Total Cost</span>
+          <span className="text-[9px] sm:text-sm text-muted-foreground">Total Actual Cost</span>
           <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
         </CardHeader>
         <CardContent className="p-2 pt-0 pb-2 sm:p-4">

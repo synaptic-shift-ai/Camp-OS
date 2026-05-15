@@ -136,6 +136,35 @@ export default async function AutomationsPage({
         )
     }
 
+    // ── SMS Templates tab ──────────────────────────────────────────────
+    if (tab === "sms-templates") {
+        let smsTemplates: Array<Record<string, unknown>> = []
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/automations/sms-templates?propertyId=${propertyId}`, { cache: 'no-store' })
+            if (res.ok) {
+                const payload = await res.json()
+                smsTemplates = (payload.data?.templates ?? []) as Array<Record<string, unknown>>
+            }
+        } catch {
+            // stub API — return empty on failure
+        }
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={0}
+                activeCount={0}
+                inactiveCount={0}
+                phaseDistribution={[]}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="sms-templates"
+                propertyId={propertyId}
+                companyId={property.company_id ?? ''}
+                smsTemplates={smsTemplates}
+            />
+        )
+    }
+
     // ── Execution Logs tab ────────────────────────────────────────────────
     if (tab === "execution-log") {
         const currentPage = Number.isNaN(Number(sp.page)) || !sp.page ? 1 : Math.max(1, Number(sp.page))

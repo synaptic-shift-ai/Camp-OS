@@ -96,6 +96,10 @@ export const ROLE_CATEGORY_MODULE_PERMISSION_TO_RBAC: Partial<
     'add-email-templates': 'automations.add_email_templates',
     'edit-email-templates': 'automations.edit_email_templates',
     'delete-email-templates': 'automations.delete_email_templates',
+    'view-sms-templates': 'automations.view_sms_templates',
+    'add-sms-templates': 'automations.add_sms_templates',
+    'edit-sms-templates': 'automations.edit_sms_templates',
+    'delete-sms-templates': 'automations.delete_sms_templates',
     'view-system-automations': 'automations.view_system_automations',
     'add-system-automations': 'automations.add_system_automations',
     'edit-system-automations': 'automations.edit_system_automations',
@@ -162,6 +166,7 @@ export function buildDefaultAccessForRoleCategory(
       automations: {
         'view-dashboard': true, 'view-execution-log': true, 'view-validation': true,
         'view-email-templates': true, 'add-email-templates': true, 'edit-email-templates': true, 'delete-email-templates': true,
+        'view-sms-templates': true, 'add-sms-templates': true, 'edit-sms-templates': true, 'delete-sms-templates': true,
         'view-system-automations': true, 'add-system-automations': true, 'edit-system-automations': true, 'delete-system-automations': true,
         'view-automations': true, 'add-automations': true, 'edit-automations': true, 'delete-automations': true,
       },

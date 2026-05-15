@@ -131,6 +131,11 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'add-email-templates', name: 'Add email templates', group: 'Email Templates' },
     { id: 'edit-email-templates', name: 'Edit email templates', group: 'Email Templates' },
     { id: 'delete-email-templates', name: 'Delete email templates', group: 'Email Templates' },
+    // SMS Templates
+    { id: 'view-sms-templates', name: 'View SMS templates', group: 'SMS Templates' },
+    { id: 'add-sms-templates', name: 'Add SMS templates', group: 'SMS Templates' },
+    { id: 'edit-sms-templates', name: 'Edit SMS templates', group: 'SMS Templates' },
+    { id: 'delete-sms-templates', name: 'Delete SMS templates', group: 'SMS Templates' },
     // System Automations
     { id: 'view-system-automations', name: 'View system automations', group: 'System Automations' },
     { id: 'add-system-automations', name: 'Add system automations', group: 'System Automations' },

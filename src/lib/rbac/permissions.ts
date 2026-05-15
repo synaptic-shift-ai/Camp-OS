@@ -117,6 +117,10 @@ export type PermissionKey =
   | 'automations.add_email_templates'
   | 'automations.edit_email_templates'
   | 'automations.delete_email_templates'
+  | 'automations.view_sms_templates'
+  | 'automations.add_sms_templates'
+  | 'automations.edit_sms_templates'
+  | 'automations.delete_sms_templates'
   | 'automations.view_system_automations'
   | 'automations.add_system_automations'
   | 'automations.edit_system_automations'
@@ -178,6 +182,7 @@ const OWNER_PERMISSIONS: ReadonlySet<PermissionKey> = new Set<PermissionKey>([
   // Automations
   'automations.view_dashboard', 'automations.view_automations', 'automations.view_execution_log', 'automations.view_validation',
   'automations.view_email_templates', 'automations.add_email_templates', 'automations.edit_email_templates', 'automations.delete_email_templates',
+  'automations.view_sms_templates', 'automations.add_sms_templates', 'automations.edit_sms_templates', 'automations.delete_sms_templates',
   'automations.view_system_automations', 'automations.add_system_automations', 'automations.edit_system_automations', 'automations.delete_system_automations',
   'automations.add_automations', 'automations.edit_automations', 'automations.delete_automations',
 ])

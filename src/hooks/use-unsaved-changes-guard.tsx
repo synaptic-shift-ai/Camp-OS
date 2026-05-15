@@ -11,6 +11,7 @@ interface UseUnsavedChangesGuardOptions {
 interface UseUnsavedChangesGuardReturn {
   UnsavedChangesDialog: React.FC
   markClean: () => void
+  requestNavigation: (navigate: () => void) => void
 }
 
 export function useUnsavedChangesGuard(
@@ -29,6 +30,8 @@ export function useUnsavedChangesGuard(
   useEffect(() => {
     if (!isDirty) return
     const handler = (event: BeforeUnloadEvent) => {
+      // Save & leave / discard already persisted — skip native "Leave site?" prompt
+      if (isIntentionalNavigationRef.current) return
       event.preventDefault()
       event.returnValue = ""
     }
@@ -43,9 +46,11 @@ export function useUnsavedChangesGuard(
       window.history.pushState(null, "", window.location.href)
       pushedHistoryEntryRef.current = true
     } else if (pushedHistoryEntryRef.current) {
-      // isDirty flipped back to false — remove the phantom entry once
+      // isDirty flipped back to false — remove the phantom entry once (skip during save & leave / discard nav)
       pushedHistoryEntryRef.current = false
-      window.history.back()
+      if (!isIntentionalNavigationRef.current) {
+        window.history.back()
+      }
     }
 
     if (!isDirty) return
@@ -91,13 +96,6 @@ export function useUnsavedChangesGuard(
     return () => document.removeEventListener("click", handleClick, true)
   }, [isDirty])
 
-  // ── Clean up intentional navigation flag ─────────────────────────────
-  useEffect(() => {
-    return () => {
-      isIntentionalNavigationRef.current = false
-    }
-  }, [])
-
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleDiscard = useCallback(() => {
     isIntentionalNavigationRef.current = true
@@ -117,11 +115,6 @@ export function useUnsavedChangesGuard(
         window.history.back()
       })
     }
-
-    // Reset intentional flag after one animation frame
-    requestAnimationFrame(() => {
-      isIntentionalNavigationRef.current = false
-    })
   }, [])
 
   const handleSaveAndLeave = useCallback(async () => {
@@ -144,12 +137,10 @@ export function useUnsavedChangesGuard(
         })
       }
     } catch {
-      // Caller handles error toast — just unset saving state
+      // Caller handles error toast — allow beforeunload again on failed save
+      isIntentionalNavigationRef.current = false
     } finally {
       setIsSaving(false)
-      requestAnimationFrame(() => {
-        isIntentionalNavigationRef.current = false
-      })
     }
   }, [onSave])
 
@@ -174,8 +165,18 @@ export function useUnsavedChangesGuard(
     return Comp
   }, [showDialog, message, handleDiscard, handleSaveAndLeave, onSave, isSaving])
 
+  const requestNavigation = useCallback((navigate: () => void) => {
+    if (!isDirty) {
+      navigate()
+      return
+    }
+    pendingNavigationRef.current = navigate
+    setShowDialog(true)
+  }, [isDirty])
+
   return {
     UnsavedChangesDialog: DialogComponent,
     markClean,
+    requestNavigation,
   }
 }

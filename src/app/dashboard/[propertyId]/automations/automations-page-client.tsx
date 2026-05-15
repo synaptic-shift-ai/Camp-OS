@@ -13,6 +13,7 @@ import { RecentExecutionActivity } from '@/components/dashboard/automations/rece
 import { ExecutionLogViewer } from '@/components/dashboard/automations/execution-log-viewer'
 import { AutomationBuilder } from '@/components/dashboard/automations/automation-builder'
 import { EmailTemplatesList } from '@/components/dashboard/automations/email-templates-list'
+import { SmsTemplatesList } from '@/components/dashboard/automations/sms-templates-list'
 import { ValidationTab } from '@/components/dashboard/automations/validation-tab'
 import type { ExecutionLogRow } from '@/lib/automations/queries'
 import type { AutomationExecutionLogRow, AutomationPhase, AutomationRow } from '@/lib/automations/types'
@@ -51,6 +52,7 @@ type AutomationsPageClientProps = AutomationsDashboardData & {
   companyId?: string
   automationsList?: AutomationRow[]
   emailTemplates?: Array<Record<string, unknown>>
+  smsTemplates?: Array<Record<string, unknown>>
   systemAutomationsList?: AutomationRow[]
 }
 
@@ -60,6 +62,7 @@ const TAB_ITEMS = [
   { value: 'execution-log', label: 'Execution Logs', permission: 'automations.view_execution_log' },
   { value: 'validation', label: 'Validation', permission: 'automations.view_validation' },
   { value: 'email-templates', label: 'Email Templates', permission: 'automations.view_email_templates' },
+  { value: 'sms-templates', label: 'SMS Templates', permission: 'automations.view_sms_templates' },
   { value: 'system-automations', label: 'System Automations', permission: 'automations.view_system_automations' },
 ] as const
 
@@ -341,6 +344,22 @@ export function AutomationsPageClient(data: AutomationsPageClientProps) {
           ) : (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
               <p>Loading email templates…</p>
+            </div>
+          )}
+        </TabsContent>
+        )}
+
+        {visibleTabs.some(t => t.value === 'sms-templates') && (
+        <TabsContent value="sms-templates" className={navigating ? 'hidden' : undefined}>
+          {data.propertyId && data.companyId ? (
+            <SmsTemplatesList
+              templates={(data.smsTemplates as any[]) ?? []}
+              propertyId={data.propertyId}
+              companyId={data.companyId}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-muted-foreground">
+              <p>Loading SMS templates…</p>
             </div>
           )}
         </TabsContent>

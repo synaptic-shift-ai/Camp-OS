@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 const amenityPresets = [
   "Fire Pit",
@@ -49,12 +50,14 @@ export function AddAmenitiesDialog({
   const [preset, setPreset] = useState<AmenityPreset | "">("")
   const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (open) return
     setPreset("")
     setCustomName("")
     setDescription("")
+    cleanFormRef.current = JSON.stringify({ preset: "", customName: "", description: "" })
   }, [open])
 
   const name = useMemo(() => {
@@ -64,6 +67,10 @@ export function AddAmenitiesDialog({
   }, [customName, preset])
 
   const canSave = name.length > 0
+
+  const isDirty = JSON.stringify({ preset, customName, description }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   const existingSet = useMemo(() => {
     return new Set(
@@ -76,7 +83,8 @@ export function AddAmenitiesDialog({
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Site Amenity</DialogTitle>
@@ -132,7 +140,7 @@ export function AddAmenitiesDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -143,7 +151,7 @@ export function AddAmenitiesDialog({
                 name,
                 description: description.trim(),
               })
-              onOpenChange(false)
+              guardedOnOpenChange(false)
             }}
           >
             Add Site Amenity
@@ -151,5 +159,7 @@ export function AddAmenitiesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

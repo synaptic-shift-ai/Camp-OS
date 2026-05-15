@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { CalendarIcon, Loader2, X } from "lucide-react"
 import { format, startOfDay } from "date-fns"
 import {
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { Calendar } from "@/components/ui/calendar"
 
 // ---------------------------------------------------------------------------
@@ -111,6 +112,7 @@ export function EditScheduleDialog({
 }: EditScheduleDialogProps) {
   const [form, setForm] = useState<AddPreventiveScheduleInput>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   const anchorDate = useMemo(() => {
     const raw = form.schedule_date?.trim()
@@ -126,11 +128,12 @@ export function EditScheduleDialog({
 
     if (!schedule) {
       setForm(EMPTY_FORM)
+      cleanFormRef.current = JSON.stringify(EMPTY_FORM)
       setError(null)
       return
     }
 
-    setForm({
+    const newForm = {
       name: schedule.name ?? "",
       description: schedule.description ?? null,
       site_id: schedule.site_id ?? "",
@@ -138,9 +141,19 @@ export function EditScheduleDialog({
       frequency: (schedule.frequency as AddPreventiveScheduleInput["frequency"]) ?? "weekly",
       days: schedule.days ?? null,
       schedule_date: schedule.schedule_date ?? null,
-    })
+    }
+    setForm(newForm)
+    cleanFormRef.current = JSON.stringify(newForm)
     setError(null)
   }, [open, schedule])
+
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -186,7 +199,8 @@ export function EditScheduleDialog({
     form.site_id && siteOptions.some((site) => site.id === form.site_id) ? form.site_id : ""
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit schedule</DialogTitle>
@@ -404,7 +418,7 @@ export function EditScheduleDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => guardedOnOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
@@ -423,5 +437,7 @@ export function EditScheduleDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

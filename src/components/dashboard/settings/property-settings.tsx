@@ -243,6 +243,7 @@ export function PropertySettings({
     register,
     handleSubmit,
     trigger,
+    reset,
     formState: { errors, isDirty },
   } = useForm<PropertyDetailsFormData>({
     resolver: zodResolver(propertyDetailsSchema),
@@ -295,6 +296,7 @@ export function PropertySettings({
         from: openFrom,
         until: openUntil,
       }
+      reset(data)
       toast({
         title: 'Property details saved',
         description: 'Your property settings were updated successfully.',

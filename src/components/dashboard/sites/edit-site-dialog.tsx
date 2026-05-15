@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { SiteForm, type PropertyDefaults, type SiteTypeConfig } from '@/components/dashboard/setup-wizard/site-form'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 
 interface EditSiteDialogProps {
   open: boolean
@@ -23,6 +24,11 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
   const { toast } = useToast()
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
   const [siteTypeConfig, setSiteTypeConfig] = useState<SiteTypeConfig | undefined>(undefined)
+  const [isSiteDirty, setIsSiteDirty] = useState(false)
+
+  const handleSiteDirtyChange = useCallback((dirty: boolean) => {
+    setIsSiteDirty(dirty)
+  }, [])
 
   // Track the latest site data locally so SiteForm always gets fresh data
   const [currentSite, setCurrentSite] = useState<any>(site)
@@ -84,6 +90,12 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
     }
   }, [open, fetchPropertyDefaults, fetchSiteTypeConfig])
 
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: isSiteDirty,
+    open,
+    onOpenChange,
+  })
+
   const handleSave = async (updatedSite: any) => {
     // Set flag BEFORE setCurrentSite so the prop-sync useEffect skips one cycle
     justSavedRef.current = true
@@ -102,7 +114,8 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="space-y-1">
           <DialogTitle>Edit Site {currentSite?.site_number}</DialogTitle>
@@ -117,8 +130,11 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
           siteTypeConfig={siteTypeConfig}
           onSave={handleSave}
           onCancel={handleCancel}
+          onDirtyChange={handleSiteDirtyChange}
         />
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

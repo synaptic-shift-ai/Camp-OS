@@ -9,7 +9,7 @@
  * @module components/dashboard/settings/cancellation-rule-dialog
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { v4 as uuidv4 } from 'uuid'
 
 function numOrUndefined(val: unknown): number | undefined {
@@ -91,6 +92,7 @@ export function CancellationRuleDialog({
   })
 
   const isSubmitting = form.formState.isSubmitting
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (open) {
@@ -98,8 +100,16 @@ export function CancellationRuleDialog({
         refundPercentage: initialValues?.refund_percentage ?? defaultValues.refundPercentage,
         daysBeforeReservation: initialValues?.days_before_reservation ?? defaultValues.daysBeforeReservation,
       })
+      cleanFormRef.current = JSON.stringify({
+        refundPercentage: initialValues?.refund_percentage ?? defaultValues.refundPercentage,
+        daysBeforeReservation: initialValues?.days_before_reservation ?? defaultValues.daysBeforeReservation,
+      })
     }
   }, [open, initialValues?.refund_percentage, initialValues?.days_before_reservation, form])
+
+  const isDirty = form.formState.isDirty && cleanFormRef.current !== ""
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   const handleOpenChange = (next: boolean) => {
     if (!next) form.reset(defaultValues)
@@ -132,7 +142,8 @@ export function CancellationRuleDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -194,7 +205,7 @@ export function CancellationRuleDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleOpenChange(false)}
+              onClick={() => guardedOnOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
@@ -213,5 +224,7 @@ export function CancellationRuleDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

@@ -136,6 +136,37 @@ export default async function AutomationsPage({
         )
     }
 
+    // ── SMS Templates tab ──────────────────────────────────────────────
+    if (tab === "sms-templates") {
+        const companyId = property.company_id
+        let smsTemplates: Array<Record<string, unknown>> = []
+        if (companyId) {
+            const { data } = await supabase
+                .from('sms_templates')
+                .select('*')
+                .eq('company_id', companyId)
+                .or(`property_id.is.null,property_id.eq.${propertyId}`)
+                .order('is_system_default', { ascending: false })
+                .order('name', { ascending: true })
+            smsTemplates = (data ?? []) as Array<Record<string, unknown>>
+        }
+        return (
+            <AutomationsPageClient
+                propertyName={property.name}
+                totalAutomations={0}
+                activeCount={0}
+                inactiveCount={0}
+                phaseDistribution={[]}
+                executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
+                recentLogs={[]}
+                activeTab="sms-templates"
+                propertyId={propertyId}
+                companyId={companyId ?? ''}
+                smsTemplates={smsTemplates}
+            />
+        )
+    }
+
     // ── Execution Logs tab ────────────────────────────────────────────────
     if (tab === "execution-log") {
         const currentPage = Number.isNaN(Number(sp.page)) || !sp.page ? 1 : Math.max(1, Number(sp.page))

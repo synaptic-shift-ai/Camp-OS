@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { SiteForm, type PropertyDefaults, type SiteTypeConfig } from '@/components/dashboard/setup-wizard/site-form'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 
 interface AddSiteDialogProps {
   open: boolean
@@ -34,6 +35,11 @@ export function AddSiteDialog({
   const { toast } = useToast()
   const [propertyDefaults, setPropertyDefaults] = useState<PropertyDefaults | undefined>(undefined)
   const [siteTypeConfig, setSiteTypeConfig] = useState<SiteTypeConfig | undefined>(undefined)
+  const [isSiteDirty, setIsSiteDirty] = useState(false)
+
+  const handleSiteDirtyChange = useCallback((dirty: boolean) => {
+    setIsSiteDirty(dirty)
+  }, [])
 
   // Fetch property defaults for reservation types
   const fetchPropertyDefaults = useCallback(async () => {
@@ -80,6 +86,12 @@ export function AddSiteDialog({
     }
   }, [open, fetchPropertyDefaults, fetchSiteTypeConfig])
 
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: isSiteDirty,
+    open,
+    onOpenChange,
+  })
+
   const handleSave = (site: any) => {
     toast({
       title: 'Site Created',
@@ -95,7 +107,8 @@ export function AddSiteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="space-y-1">
           <DialogTitle>Add New Site</DialogTitle>
@@ -111,8 +124,11 @@ export function AddSiteDialog({
           siteTypeConfig={siteTypeConfig}
           onSave={handleSave}
           onCancel={handleCancel}
+          onDirtyChange={handleSiteDirtyChange}
         />
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

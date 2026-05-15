@@ -5,7 +5,7 @@ import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { error, success } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { MaintenanceReportQuerySchema } from '@/types/api/v1/schemas/maintenance'
-import { MaintenanceQueries } from '@/lib/dashboard/maintenance/maintenance-queries'
+import { MaintenanceQueries, maintenanceTaskActualSpend } from '@/lib/dashboard/maintenance/maintenance-queries'
 
 export async function GET(
     request: NextRequest,
@@ -52,7 +52,9 @@ export async function GET(
         // Vendor breakdown: SUM of costs grouped by vendor name
         const { data: vendorRows } = await supabase
             .from('maintenance_tasks')
-            .select('vendor_id, estimated_labor_cost, estimated_parts_cost')
+            .select(
+                'vendor_id, estimated_labor_cost, estimated_parts_cost, actual_labor_cost, actual_parts_cost',
+            )
             .eq('property_id', propertyId)
             .gte('created_at', parsed.data.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
             .lte('created_at', parsed.data.to ?? new Date().toISOString().split('T')[0])
@@ -74,7 +76,7 @@ export async function GET(
         const vendorCostMap: Record<string, number> = {}
         for (const row of vendorRows ?? []) {
             const vid = row.vendor_id ?? 'unassigned'
-            vendorCostMap[vid] = (vendorCostMap[vid] ?? 0) + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+            vendorCostMap[vid] = (vendorCostMap[vid] ?? 0) + maintenanceTaskActualSpend(row)
         }
         const vendorBreakdown = Object.entries(vendorCostMap).map(([vendorId, totalCost]) => ({
             vendorName: vendorId === 'unassigned' ? 'Unassigned' : (vendorMap[vendorId] ?? 'Unknown'),
@@ -84,7 +86,9 @@ export async function GET(
         // Monthly trend: SUM of costs grouped by YYYY-MM
         const { data: monthlyRows } = await supabase
             .from('maintenance_tasks')
-            .select('created_at, estimated_labor_cost, estimated_parts_cost')
+            .select(
+                'created_at, estimated_labor_cost, estimated_parts_cost, actual_labor_cost, actual_parts_cost',
+            )
             .eq('property_id', propertyId)
             .gte('created_at', parsed.data.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
             .lte('created_at', parsed.data.to ?? new Date().toISOString().split('T')[0])
@@ -92,7 +96,7 @@ export async function GET(
         const monthlyMap: Record<string, number> = {}
         for (const row of monthlyRows ?? []) {
             const month = row.created_at?.slice(0, 7) ?? 'unknown'
-            monthlyMap[month] = (monthlyMap[month] ?? 0) + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+            monthlyMap[month] = (monthlyMap[month] ?? 0) + maintenanceTaskActualSpend(row)
         }
         const monthlyTrend = Object.entries(monthlyMap)
             .sort(([a], [b]) => a.localeCompare(b))
@@ -110,7 +114,9 @@ export async function GET(
             const dateTo = parsed.data.to ?? new Date().toISOString().split('T')[0]
             const { data: spendRows } = await supabase
                 .from('maintenance_tasks')
-                .select('category, estimated_labor_cost, estimated_parts_cost')
+                .select(
+                    'category, estimated_labor_cost, estimated_parts_cost, actual_labor_cost, actual_parts_cost',
+                )
                 .eq('property_id', propertyId)
                 .gte('created_at', dateFrom)
                 .lte('created_at', dateTo)
@@ -118,7 +124,7 @@ export async function GET(
             const spendByCategory: Record<string, number> = {}
             for (const row of spendRows ?? []) {
                 const cat = row.category ?? 'other'
-                spendByCategory[cat] = (spendByCategory[cat] ?? 0) + (row.estimated_labor_cost ?? 0) + (row.estimated_parts_cost ?? 0)
+                spendByCategory[cat] = (spendByCategory[cat] ?? 0) + maintenanceTaskActualSpend(row)
             }
 
             for (const budget of budgets) {

@@ -166,6 +166,10 @@ export function AutomationFormPageClient({
     )
   }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions])
 
+  const { UnsavedChangesDialog, requestNavigation } = useUnsavedChangesGuard(isDirty, {
+    message: 'You have unsaved changes to this automation.',
+  })
+
   // ── Reset actions when phase changes ─────────────────────────────────
   useEffect(() => {
     if (phaseInitialized.current) {
@@ -230,8 +234,8 @@ export function AutomationFormPageClient({
   }, [router, propertyId, systemMode])
 
   const handleBack = useCallback(() => {
-    navigateBack()
-  }, [navigateBack])
+    requestNavigation(navigateBack)
+  }, [requestNavigation, navigateBack])
 
   // ── Validate ──────────────────────────────────────────────────────────
   const validate = useCallback((): string[] => {
@@ -355,10 +359,6 @@ export function AutomationFormPageClient({
       setSaving(false)
     }
   }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, navigateBack, toast])
-
-  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
-    message: 'You have unsaved changes to this automation.',
-  })
 
   return (
     <div className="space-y-6">

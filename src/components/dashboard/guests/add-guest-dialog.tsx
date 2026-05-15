@@ -7,7 +7,7 @@
  * Required: firstName, lastName, email, phone. Optional: emergency contact, notes.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { Loader2 } from 'lucide-react'
 
 interface AddGuestDialogProps {
@@ -59,6 +60,20 @@ export function AddGuestDialog({
       setError(null)
     }
   }, [open])
+
+  const cleanFormRef = useRef("")
+  useEffect(() => {
+    if (open) {
+      cleanFormRef.current = JSON.stringify(initialForm)
+    }
+  }, [open])
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleChange = (field: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -116,7 +131,8 @@ export function AddGuestDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Guest</DialogTitle>
@@ -235,5 +251,7 @@ export function AddGuestDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

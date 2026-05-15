@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type ReassignTaskDialogProps = {
@@ -32,12 +33,22 @@ export function ReassignTaskDialog({
 }: ReassignTaskDialogProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
+  const cleanFormRef = useRef("")
 
   useEffect(() => {
     if (!open) return
     setSelectedUserId(currentUserId ?? "")
     setError(null)
+    cleanFormRef.current = JSON.stringify({ selectedUserId: currentUserId ?? "" })
   }, [open, currentUserId])
+
+  const isDirty = JSON.stringify({ selectedUserId }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -58,7 +69,8 @@ export function ReassignTaskDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Reassign Task</DialogTitle>
@@ -99,5 +111,7 @@ export function ReassignTaskDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

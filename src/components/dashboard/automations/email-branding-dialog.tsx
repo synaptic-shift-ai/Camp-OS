@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 type EmailBrandingDialogProps = {
   open: boolean
@@ -93,6 +94,14 @@ export function EmailBrandingDialog({
   }, [open, propertyId])
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(originalForm)
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+    message: "You have unsaved changes. Would you like to save before leaving?",
+  })
+
   const canSave = form.senderName.trim() !== "" && form.senderEmail.trim() !== ""
 
   async function handleSave() {
@@ -145,7 +154,8 @@ export function EmailBrandingDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Set Branding</DialogTitle>
@@ -215,7 +225,7 @@ export function EmailBrandingDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => guardedOnOpenChange(false)}
             disabled={saving}
           >
             Cancel
@@ -235,5 +245,7 @@ export function EmailBrandingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

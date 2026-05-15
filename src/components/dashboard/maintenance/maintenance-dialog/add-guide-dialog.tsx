@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useId, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { GripVertical, Plus, X } from "lucide-react"
@@ -56,15 +57,26 @@ export function AddGuideDialog({
   const [steps, setSteps] = useState<GuideStepRow[]>(() => [newStepRow()])
   const [error, setError] = useState<string | null>(null)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open) return
+    const initialSteps = [newStepRow()]
     setGuideName("")
     setDescription("")
-    setSteps([newStepRow()])
+    setSteps(initialSteps)
     setError(null)
     setDraggedIndex(null)
+    cleanFormRef.current = JSON.stringify({ guideName: "", description: "", steps: initialSteps })
   }, [open])
+
+  const isDirty = JSON.stringify({ guideName, description, steps }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const addStepRow = useCallback(() => {
     setSteps((prev) => [...prev, newStepRow()])
@@ -158,7 +170,8 @@ export function AddGuideDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="space-y-1 border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Create maintenance guide</DialogTitle>
@@ -286,7 +299,7 @@ export function AddGuideDialog({
               type="button"
               variant="ghost"
               className="font-medium text-foreground"
-              onClick={() => onOpenChange(false)}
+              onClick={() => guardedOnOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
@@ -302,5 +315,7 @@ export function AddGuideDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

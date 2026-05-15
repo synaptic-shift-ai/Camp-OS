@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 const amenityPresets = [
   "Fire Pit",
@@ -63,19 +64,25 @@ export function EditPropertyAmenitiesDialog({
   const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
   const [iconUrl, setIconUrl] = useState("")
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open || !amenityToEdit) return
     const matchingPreset = amenityPresets.find((option) => option === amenityToEdit.name)
+    let initialPreset: AmenityPreset
+    let initialCustomName: string
     if (matchingPreset) {
-      setPreset(matchingPreset)
-      setCustomName("")
+      initialPreset = matchingPreset
+      initialCustomName = ""
     } else {
-      setPreset("Other")
-      setCustomName(amenityToEdit.name)
+      initialPreset = "Other"
+      initialCustomName = amenityToEdit.name
     }
+    setPreset(initialPreset)
+    setCustomName(initialCustomName)
     setDescription(amenityToEdit.description ?? "")
     setIconUrl(amenityToEdit.icon_url ?? "")
+    cleanFormRef.current = JSON.stringify({ preset: initialPreset, customName: initialCustomName, description: amenityToEdit.description ?? "", iconUrl: amenityToEdit.icon_url ?? "" })
   }, [open, amenityToEdit])
 
   const name = useMemo(() => {
@@ -85,14 +92,13 @@ export function EditPropertyAmenitiesDialog({
   }, [customName, preset])
 
   const canSave = name.trim().length > 0
+  const isDirty = JSON.stringify({ preset, customName, description, iconUrl }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) onOpenChange(false)
-      }}
-    >
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Property Amenity</DialogTitle>
@@ -171,7 +177,7 @@ export function EditPropertyAmenitiesDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -182,7 +188,7 @@ export function EditPropertyAmenitiesDialog({
                 description: description.trim(),
                 icon_url: iconUrl.trim() || null,
               })
-              onOpenChange(false)
+              guardedOnOpenChange(false)
             }}
             disabled={!canSave}
           >
@@ -191,5 +197,7 @@ export function EditPropertyAmenitiesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

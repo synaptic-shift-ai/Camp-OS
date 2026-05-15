@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Loader2, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import {
   Dialog,
   DialogContent,
@@ -45,11 +46,13 @@ export function AssignVendorDialog({
   const [selectedVendorId, setSelectedVendorId] = useState<string>("")
   const [isLoadingVendors, setIsLoadingVendors] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open) return
     setError(null)
     setSelectedVendorId("")
+    cleanFormRef.current = JSON.stringify({ selectedVendorId: "" })
     setIsLoadingVendors(true)
 
     fetch(`/api/v1/properties/${propertyId}/vendors`)
@@ -67,6 +70,14 @@ export function AssignVendorDialog({
       })
   }, [open, propertyId])
 
+  const isDirty = JSON.stringify({ selectedVendorId }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
+
   const handleSubmit = async () => {
     if (!selectedVendorId) return
     setError(null)
@@ -80,7 +91,8 @@ export function AssignVendorDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -137,7 +149,7 @@ export function AssignVendorDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => guardedOnOpenChange(false)}
             disabled={isSubmitting}
           >
             Cancel
@@ -159,5 +171,7 @@ export function AssignVendorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Dialog, 
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 
 type InviteStaffDialogProps = {
@@ -56,6 +57,7 @@ export default function InviteStaffDialog({
     const [isInviting, setIsInviting] = useState(false)
     const [categoriesByRole, setCategoriesByRole] = useState<CategoriesByRole>({})
     const [selectedRoleCategoryIds, setSelectedRoleCategoryIds] = useState<string[]>([])
+    const cleanFormRef = useRef<string>("")
 
     const categoryRole = role === 'admin' || role === 'manager' || role === 'staff' ? role : null
 
@@ -78,6 +80,7 @@ export default function InviteStaffDialog({
       setRole('')
       setSelectedRoleCategoryIds([])
       setCategoriesByRole({})
+      cleanFormRef.current = JSON.stringify({ email: '', role: '', selectedRoleCategoryIds: [] })
 
       void (async () => {
         try {
@@ -112,6 +115,10 @@ export default function InviteStaffDialog({
         }
       })()
     }, [open, propertyId, toast])
+
+    const isDirty = JSON.stringify({ email, role, selectedRoleCategoryIds }) !== cleanFormRef.current
+
+    const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
     const handleInvite = async () => {
       if (isInviting) return
@@ -257,7 +264,8 @@ export default function InviteStaffDialog({
     )
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <>
+        <Dialog open={open} onOpenChange={guardedOnOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Invite Staff Member</DialogTitle>
@@ -329,12 +337,14 @@ export default function InviteStaffDialog({
                 )}
 
                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)}>Cancel</Button>
                     <Button type="button" onClick={handleInvite} disabled={isInviting}>
                       {isInviting ? 'Inviting…' : 'Invite'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        {unsavedChangesDialog}
+        </>
     )
 }

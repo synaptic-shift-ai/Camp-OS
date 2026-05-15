@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 const propertyAmenityPresets = [
   "Free Wifi",
@@ -49,6 +50,7 @@ export function AddPropertyAmenitiesDialog({
   const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
   const [iconUrl, setIconUrl] = useState("")
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (open) return
@@ -56,6 +58,7 @@ export function AddPropertyAmenitiesDialog({
     setCustomName("")
     setDescription("")
     setIconUrl("")
+    cleanFormRef.current = JSON.stringify({ preset: "", customName: "", description: "", iconUrl: "" })
   }, [open])
 
   const name = useMemo(() => {
@@ -65,6 +68,9 @@ export function AddPropertyAmenitiesDialog({
   }, [customName, preset])
 
   const canSave = name.length > 0
+  const isDirty = JSON.stringify({ preset, customName, description, iconUrl }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   const existingSet = useMemo(() => {
     return new Set(existingPropertyAmenityNames.map((n) => n.trim().toLowerCase()).filter(Boolean))
@@ -75,7 +81,8 @@ export function AddPropertyAmenitiesDialog({
   }, [existingSet])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Property Amenity</DialogTitle>
@@ -154,7 +161,7 @@ export function AddPropertyAmenitiesDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -166,7 +173,7 @@ export function AddPropertyAmenitiesDialog({
                 description: description.trim(),
                 icon_url: iconUrl.trim() || null,
               })
-              onOpenChange(false)
+              guardedOnOpenChange(false)
             }}
           >
             Add Property Amenity
@@ -174,5 +181,7 @@ export function AddPropertyAmenitiesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { useRouter } from "next/navigation"
 import { BookingDateRangePicker, type DateRangeValue } from "@/components/guest/booking-date-range-picker"
 import { resolveBookingRulesConfig } from "@/lib/config/resolution"
@@ -112,6 +113,8 @@ export function EditReservationDialog({
     specialRequests: specialRequests ?? "",
   })
 
+  const cleanFormRef = useRef("")
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
@@ -124,8 +127,24 @@ export function EditReservationDialog({
         specialRequests: specialRequests ?? "",
       })
       setError(null)
+      cleanFormRef.current = JSON.stringify({
+        checkInDate: checkIn,
+        checkOutDate: checkOut,
+        numAdults,
+        numChildren,
+        numPets,
+        specialRequests: specialRequests ?? "",
+      })
     }
   }, [open, checkIn, checkOut, numAdults, numChildren, numPets, specialRequests])
+
+  const isDirty = JSON.stringify(formData) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: setOpen,
+  })
 
   useEffect(() => {
     if (!open) return
@@ -272,7 +291,8 @@ export function EditReservationDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>
         {trigger || <Button variant="outline" size="sm">Edit Reservation</Button>}
       </SheetTrigger>
@@ -421,5 +441,7 @@ export function EditReservationDialog({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }

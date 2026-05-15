@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -32,12 +33,22 @@ export function StatusChangeReasonDialog({
 }: StatusChangeReasonDialogProps) {
   const [reason, setReason] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open) return
     setReason("")
+    cleanFormRef.current = JSON.stringify("")
     setError(null)
   }, [open])
+
+  const isDirty = JSON.stringify(reason) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleSubmit = () => {
     const trimmed = reason.trim()
@@ -49,7 +60,8 @@ export function StatusChangeReasonDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <AlertDialog open={open} onOpenChange={guardedOnOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -90,5 +102,7 @@ export function StatusChangeReasonDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

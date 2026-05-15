@@ -7,7 +7,7 @@
  * Displays reservation details, handles damage reporting, and calls check-out API.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -45,6 +45,7 @@ import {
 import { ManualPaymentDialog } from '@/components/admin/manual-payment-dialog'
 import { PostCheckoutTasksDialog } from '@/components/dashboard/reservations/post-checkout-tasks-dialog'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { AlertCircle, Loader2, LogOut, DollarSign, Calendar, Users, Home, AlertTriangle } from 'lucide-react'
 import type { Reservation } from '@/lib/booking/types'
@@ -112,6 +113,22 @@ export function CheckOutDialog({
     Array<{ id: string; label: string }>
   >([])
   const [vendorOptions, setVendorOptions] = useState<Array<{ id: string; label: string }>>([])
+
+  // Track dirty form state for close guard
+  const cleanFormRef = useRef("")
+  useEffect(() => {
+    if (open) {
+      cleanFormRef.current = JSON.stringify({ checkOutNotes, hasDamages })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+  const isDirty = JSON.stringify({ checkOutNotes, hasDamages }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const todayStr = asYyyyMmDd(new Date())
   const reservationEndStr = normalizeDateString(reservation.check_out_date)
@@ -484,7 +501,7 @@ export function CheckOutDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={guardedOnOpenChange}>
         <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -688,6 +705,7 @@ export function CheckOutDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {unsavedChangesDialog}
       <AlertDialog open={showLateCheckOutWarning} onOpenChange={setShowLateCheckOutWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>

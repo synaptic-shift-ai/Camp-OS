@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import {
   DASHBOARD_ROLE_ACCESS_MODULES,
@@ -130,6 +131,11 @@ const PERMISSIONS_BY_ROLE_ACCESS_MODULE: Record<RoleAccessControlModuleKey, Perm
     { id: 'add-email-templates', name: 'Add email templates', group: 'Email Templates' },
     { id: 'edit-email-templates', name: 'Edit email templates', group: 'Email Templates' },
     { id: 'delete-email-templates', name: 'Delete email templates', group: 'Email Templates' },
+    // SMS Templates
+    { id: 'view-sms-templates', name: 'View SMS templates', group: 'SMS Templates' },
+    { id: 'add-sms-templates', name: 'Add SMS templates', group: 'SMS Templates' },
+    { id: 'edit-sms-templates', name: 'Edit SMS templates', group: 'SMS Templates' },
+    { id: 'delete-sms-templates', name: 'Delete SMS templates', group: 'SMS Templates' },
     // System Automations
     { id: 'view-system-automations', name: 'View system automations', group: 'System Automations' },
     { id: 'add-system-automations', name: 'Add system automations', group: 'System Automations' },
@@ -375,6 +381,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
   > | null>(null)
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [isSavingAccess, setIsSavingAccess] = useState(false)
+  const cleanFormRef = useRef<string>("")
 
   const selectedModule = useMemo(
     () =>
@@ -508,53 +515,31 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       const isStaffRole = selectedRole === 'staff'
       const isManagerRole = selectedRole === 'manager'
       const isAdminRole = selectedRole === 'admin'
+      let newPermissions: Record<string, boolean>
 
       if (isAdminRole) {
-        setPermissionEnabled(buildAdminFallbackPermissionState())
-        return
+        newPermissions = buildAdminFallbackPermissionState()
+      } else if (isStaffRole && normalizedCategoryName === 'housekeeping') {
+        newPermissions = buildStaffHousekeepingFallbackPermissionState()
+      } else if (isStaffRole && normalizedCategoryName === 'maintenance') {
+        newPermissions = buildStaffMaintenanceFallbackPermissionState()
+      } else if (isStaffRole && normalizedCategoryName === 'front desk') {
+        newPermissions = buildStaffFrontDeskFallbackPermissionState()
+      } else if (isStaffRole) {
+        newPermissions = buildOverviewAndFullProfileDefaultPermissionState()
+      } else if (isManagerRole && normalizedCategoryName === 'front desk') {
+        newPermissions = buildManagerFrontDeskFallbackPermissionState()
+      } else if (isManagerRole && normalizedCategoryName === 'housekeeping') {
+        newPermissions = buildManagerHousekeepingFallbackPermissionState()
+      } else if (isManagerRole && normalizedCategoryName === 'maintenance') {
+        newPermissions = buildManagerMaintenanceFallbackPermissionState()
+      } else if (isManagerRole) {
+        newPermissions = buildOverviewAndFullProfileDefaultPermissionState()
+      } else {
+        newPermissions = buildOverviewAndFullProfileDefaultPermissionState()
       }
-
-      if (isStaffRole && normalizedCategoryName === 'housekeeping') {
-        setPermissionEnabled(buildStaffHousekeepingFallbackPermissionState())
-        return
-      }
-
-      if (isStaffRole && normalizedCategoryName === 'maintenance') {
-        setPermissionEnabled(buildStaffMaintenanceFallbackPermissionState())
-        return
-      }
-
-      if (isStaffRole && normalizedCategoryName === 'front desk') {
-        setPermissionEnabled(buildStaffFrontDeskFallbackPermissionState())
-        return
-      }
-
-      if (isStaffRole) {
-        setPermissionEnabled(buildOverviewAndFullProfileDefaultPermissionState())
-        return
-      }
-
-      if (isManagerRole && normalizedCategoryName === 'front desk') {
-        setPermissionEnabled(buildManagerFrontDeskFallbackPermissionState())
-        return
-      }
-
-      if (isManagerRole && normalizedCategoryName === 'housekeeping') {
-        setPermissionEnabled(buildManagerHousekeepingFallbackPermissionState())
-        return
-      }
-
-      if (isManagerRole && normalizedCategoryName === 'maintenance') {
-        setPermissionEnabled(buildManagerMaintenanceFallbackPermissionState())
-        return
-      }
-
-      if (isManagerRole) {
-        setPermissionEnabled(buildOverviewAndFullProfileDefaultPermissionState())
-        return
-      }
-
-      setPermissionEnabled(buildOverviewAndFullProfileDefaultPermissionState())
+      setPermissionEnabled(newPermissions)
+      cleanFormRef.current = JSON.stringify(newPermissions)
       return
     }
 
@@ -569,7 +554,12 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       }
     }
     setPermissionEnabled(nextPermissions)
+    cleanFormRef.current = JSON.stringify(nextPermissions)
   }, [selectedCategory, selectedRole])
+
+  const isDirty = JSON.stringify(permissionEnabled) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   const togglePermission = useCallback(
     (moduleKey: RoleAccessControlModuleKey, permissionId: string, checked: boolean) => {
@@ -671,7 +661,8 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
     : selectedRole
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent
         wide
         className={cn(
@@ -838,7 +829,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
           </section>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" className="rounded-lg" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" className="rounded-lg" onClick={() => guardedOnOpenChange(false)}>
             Cancel
           </Button>
           <Button type="button" onClick={handleSaveAccess} disabled={isSavingAccess || !selectedCategory}>
@@ -847,5 +838,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

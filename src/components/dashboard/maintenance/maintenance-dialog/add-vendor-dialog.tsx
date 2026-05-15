@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import {
   Dialog,
   DialogContent,
@@ -53,12 +54,23 @@ export function AddVendorDialog({
 }: AddVendorDialogProps) {
   const [form, setForm] = useState<AddVendorInput>(INITIAL_FORM)
   const [error, setError] = useState<string | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open) return
-    setForm(initialValues ?? INITIAL_FORM)
+    const newForm = initialValues ?? INITIAL_FORM
+    setForm(newForm)
+    cleanFormRef.current = JSON.stringify(newForm)
     setError(null)
   }, [open, initialValues])
+
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -89,7 +101,8 @@ export function AddVendorDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
         <DialogContent className="max-w-md">
             <DialogHeader>
                 <DialogTitle>{title}</DialogTitle>
@@ -161,7 +174,7 @@ export function AddVendorDialog({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => guardedOnOpenChange(false)}
                         disabled={isSubmitting}
                     >
                         Cancel
@@ -173,5 +186,7 @@ export function AddVendorDialog({
             </form>
         </DialogContent>
     </Dialog>
+      {unsavedChangesDialog}
+    </>
   )
 }

@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { format, startOfDay } from "date-fns"
 import { CalendarIcon, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import {
   Dialog,
   DialogContent,
@@ -89,15 +90,26 @@ export function AddPreventiveDialog({
 }: AddPreventiveDialogProps) {
   const [form, setForm] = useState<AddPreventiveScheduleInput>(INITIAL_FORM)
   const [error, setError] = useState<string | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open) return
-    setForm((prev) => ({
+    const newForm = {
       ...INITIAL_FORM,
       siteId: siteOptions[0]?.id ?? "",
-    }))
+    }
+    setForm(newForm)
+    cleanFormRef.current = JSON.stringify(newForm)
     setError(null)
   }, [open, siteOptions])
+
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const siteSelectValue = form.siteId && siteOptions.some((s) => s.id === form.siteId) ? form.siteId : ""
 
@@ -188,7 +200,8 @@ export function AddPreventiveDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent
         className="max-w-lg"
         onPointerDownOutside={(event) => {
@@ -460,7 +473,7 @@ export function AddPreventiveDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => guardedOnOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
@@ -472,5 +485,7 @@ export function AddPreventiveDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
+    </>
   )
 }

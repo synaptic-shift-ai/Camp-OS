@@ -230,8 +230,8 @@ export function AutomationFormPageClient({
   }, [router, propertyId, systemMode])
 
   const handleBack = useCallback(() => {
-    navigateBack()
-  }, [navigateBack])
+    requestNavigation(navigateBack)
+  }, [requestNavigation, navigateBack])
 
   // ── Validate ──────────────────────────────────────────────────────────
   const validate = useCallback((): string[] => {
@@ -356,7 +356,7 @@ export function AutomationFormPageClient({
     }
   }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, navigateBack, toast])
 
-  const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
+  const { UnsavedChangesDialog, requestNavigation } = useUnsavedChangesGuard(isDirty, {
     message: 'You have unsaved changes to this automation.',
   })
 

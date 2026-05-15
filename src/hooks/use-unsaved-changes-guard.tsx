@@ -11,6 +11,7 @@ interface UseUnsavedChangesGuardOptions {
 interface UseUnsavedChangesGuardReturn {
   UnsavedChangesDialog: React.FC
   markClean: () => void
+  requestNavigation: (navigate: () => void) => void
 }
 
 export function useUnsavedChangesGuard(
@@ -174,8 +175,18 @@ export function useUnsavedChangesGuard(
     return Comp
   }, [showDialog, message, handleDiscard, handleSaveAndLeave, onSave, isSaving])
 
+  const requestNavigation = useCallback((navigate: () => void) => {
+    if (!isDirty) {
+      navigate()
+      return
+    }
+    pendingNavigationRef.current = navigate
+    setShowDialog(true)
+  }, [isDirty])
+
   return {
     UnsavedChangesDialog: DialogComponent,
     markClean,
+    requestNavigation,
   }
 }

@@ -11,7 +11,7 @@
  * @module components/dashboard/settings/reservation-type-settings
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import {
   Dialog,
   DialogContent,
@@ -179,6 +180,12 @@ export function SiteTypeRateSettings({
   const [editingPeriod, setEditingPeriod] = useState<SeasonalPeriodFormData | null>(null)
   const [seasonFormError, setSeasonFormError] = useState<string | null>(null)
   const [isSeasonSaving, setIsSeasonSaving] = useState(false)
+  const cleanPeriodFormRef = useRef<string>("")
+
+  useEffect(() => {
+    if (!isSeasonDialogOpen) return
+    cleanPeriodFormRef.current = JSON.stringify(editingPeriod)
+  }, [isSeasonDialogOpen, editingPeriod])
 
   // Track if form is dirty
   const [isDirty, setIsDirty] = useState(false)
@@ -415,6 +422,14 @@ export function SiteTypeRateSettings({
   const { UnsavedChangesDialog } = useUnsavedChangesGuard(isDirty, {
     onSave: handleSaveConfig,
     message: 'You have unsaved changes to site type rates.',
+  })
+
+  const periodDialogIsDirty = isSeasonDialogOpen && editingPeriod !== null && JSON.stringify(editingPeriod) !== cleanPeriodFormRef.current
+
+  const { guardedOnOpenChange: guardedSeasonDialogOpenChange, unsavedChangesDialog: seasonUnsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: periodDialogIsDirty,
+    open: isSeasonDialogOpen,
+    onOpenChange: setIsSeasonDialogOpen,
   })
 
   const handleSaveSeasonalPeriod = async () => {
@@ -878,7 +893,7 @@ export function SiteTypeRateSettings({
 
       {/* Seasonal Period Dialog */}
       {canEdit && (
-      <Dialog open={isSeasonDialogOpen} onOpenChange={setIsSeasonDialogOpen}>
+      <Dialog open={isSeasonDialogOpen} onOpenChange={guardedSeasonDialogOpenChange}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
@@ -1021,7 +1036,7 @@ export function SiteTypeRateSettings({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSeasonDialogOpen(false)}>
+            <Button variant="outline" onClick={() => guardedSeasonDialogOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveSeasonalPeriod} disabled={isSeasonSaving}>
@@ -1030,6 +1045,7 @@ export function SiteTypeRateSettings({
             </Button>
           </DialogFooter>
         </DialogContent>
+        {seasonUnsavedChangesDialog}
       </Dialog>
       )}
     </div>

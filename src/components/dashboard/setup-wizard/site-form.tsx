@@ -65,9 +65,10 @@ interface SiteFormProps {
   siteTypeConfig?: SiteTypeConfig | undefined
   onSave: (site: any) => void
   onCancel: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, onSave, onCancel }: SiteFormProps) {
+export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, onSave, onCancel, onDirtyChange }: SiteFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isEditMode = !!site
@@ -158,7 +159,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
     getValues,
     watch,
@@ -265,6 +266,11 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       reset(values as SiteFormData)
     }
   }, [isEditMode, site, reset])
+
+  // Notify parent when dirty state changes
+  useEffect(() => {
+    onDirtyChange?.(isDirty)
+  }, [isDirty, onDirtyChange])
 
   // Property amenities (from Settings → Property Amenities) control which site amenity checkboxes are shown.
   // We map known property amenity names to the site amenity keys used by this form.

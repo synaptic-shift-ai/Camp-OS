@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useId, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { MaintenanceGuideListItem } from "@/lib/dashboard/maintenance/maintenance-queries"
 import { GripVertical, Plus, X } from "lucide-react"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import type { AddGuideInput } from "./add-guide-dialog"
 
 export type EditGuideInput = AddGuideInput & {
@@ -67,15 +68,26 @@ export function EditGuideDialog({
   const [steps, setSteps] = useState<GuideStepRow[]>(() => [newStepRow()])
   const [error, setError] = useState<string | null>(null)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const cleanFormRef = useRef<string>("")
 
   useEffect(() => {
     if (!open || !guide) return
+    const initialSteps = stepsToRows(guide.steps)
     setGuideName(guide.name)
     setDescription(guide.description?.trim() ?? "")
-    setSteps(stepsToRows(guide.steps))
+    setSteps(initialSteps)
     setError(null)
     setDraggedIndex(null)
+    cleanFormRef.current = JSON.stringify({ guideName: guide.name, description: guide.description?.trim() ?? "", steps: initialSteps })
   }, [open, guide])
+
+  const isDirty = JSON.stringify({ guideName, description, steps }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const addStepRow = useCallback(() => {
     setSteps((prev) => [...prev, newStepRow()])
@@ -164,7 +176,7 @@ export function EditGuideDialog({
   }
 
   return (
-    <Dialog open={open && guide !== null} onOpenChange={onOpenChange}>
+    <Dialog open={open && guide !== null} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="space-y-1 border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Edit guide</DialogTitle>
@@ -292,7 +304,7 @@ export function EditGuideDialog({
               type="button"
               variant="ghost"
               className="font-medium text-foreground"
-              onClick={() => onOpenChange(false)}
+              onClick={() => guardedOnOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
@@ -308,5 +320,6 @@ export function EditGuideDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

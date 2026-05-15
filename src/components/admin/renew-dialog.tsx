@@ -8,7 +8,7 @@
  * Used for seasonal and long-term rental renewals.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +34,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useRouter } from 'next/navigation'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 
 interface RenewDialogProps {
   reservationId: string
@@ -150,6 +151,8 @@ export function RenewDialog({
   const [depositPercent, setDepositPercent] = useState('30')
   const [notes, setNotes] = useState('')
 
+  const cleanFormRef = useRef("")
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
@@ -166,8 +169,31 @@ export function RenewDialog({
       setDepositPercent('30')
       setNotes('')
       setError(null)
+      cleanFormRef.current = JSON.stringify({
+        nextPeriodStart: defaultPeriod.startDate,
+        nextPeriodEnd: defaultPeriod.endDate,
+        seasonName: defaultPeriod.season,
+        renewalDeadline: deadline.toISOString().split('T')[0]!,
+        depositPercent: '30',
+        notes: '',
+      })
     }
   }, [open, currentCheckOut, bookingType])
+
+  const isDirty = JSON.stringify({
+    nextPeriodStart,
+    nextPeriodEnd,
+    seasonName,
+    renewalDeadline,
+    depositPercent,
+    notes,
+  }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: setOpen,
+  })
 
   // Calculate pricing
   const pricingDetails = useMemo(() => {
@@ -266,7 +292,8 @@ export function RenewDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
@@ -481,5 +508,7 @@ export function RenewDialog({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }

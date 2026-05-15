@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, Save } from 'lucide-react'
 import {
@@ -23,6 +23,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 
 export type EditStaffDialogStaff = {
@@ -112,6 +113,7 @@ export function EditStaffDialog({
   const [categoriesByRole, setCategoriesByRole] = useState<CategoriesByRole>({})
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const cleanFormRef = useRef<string>("")
 
   const categoryRole: PatchRole | null =
     role === 'admin' || role === 'manager' || role === 'staff' ? role : null
@@ -150,6 +152,7 @@ export function EditStaffDialog({
         const initial = applyInitialCategorySelection(staffSnapshot, list)
         setAllCategories(initial.allCategories)
         setSelectedRoleCategoryIds(initial.ids)
+        cleanFormRef.current = JSON.stringify({ role: r, allCategories: initial.allCategories, selectedRoleCategoryIds: initial.ids })
       } catch (err: unknown) {
         if (isAccessDeniedError(err)) {
           toast({
@@ -157,6 +160,7 @@ export function EditStaffDialog({
             description: "You don't have permission to view categories. Contact your property administrator if you believe this is an error.",
             variant: 'destructive',
           })
+          cleanFormRef.current = JSON.stringify({ role: uiRoleToPatchRole(staffSnapshot.role), allCategories: true, selectedRoleCategoryIds: [] })
           return
         }
         const message = err instanceof Error ? err.message : 'Failed to load categories'
@@ -170,11 +174,16 @@ export function EditStaffDialog({
         const initial = applyInitialCategorySelection(staffSnapshot, list)
         setAllCategories(initial.allCategories)
         setSelectedRoleCategoryIds(initial.ids)
+        cleanFormRef.current = JSON.stringify({ role: r, allCategories: initial.allCategories, selectedRoleCategoryIds: initial.ids })
       } finally {
         setIsLoadingCategories(false)
       }
     })()
   }, [open, propertyId, staff, toast])
+
+  const isDirty = JSON.stringify({ role, allCategories, selectedRoleCategoryIds }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   const showConfigureCategoriesHint =
     !isLoadingCategories &&
@@ -312,7 +321,7 @@ export function EditStaffDialog({
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg gap-0 overflow-y-auto p-6 sm:rounded-lg">
         {staff ? (
           <>
@@ -383,7 +392,7 @@ export function EditStaffDialog({
                 type="button"
                 variant="outline"
                 className="rounded-lg"
-                onClick={() => onOpenChange(false)}
+                onClick={() => guardedOnOpenChange(false)}
               >
                 Cancel
               </Button>
@@ -401,5 +410,6 @@ export function EditStaffDialog({
         ) : null}
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

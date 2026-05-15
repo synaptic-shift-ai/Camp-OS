@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast"
 import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 import { useProperty } from "@/components/property-context"
 import { PermissionButton } from "@/components/ui/permission-button"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,6 +77,7 @@ export function PosTransactionDialog() {
   const [reservations, setReservations] = useState<ReservationOption[]>([])
   const [selectedReservationId, setSelectedReservationId] = useState<string>("")
   const [reservationsLoading, setReservationsLoading] = useState(false)
+  const cleanFormRef = useRef<string>("")
 
   const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
   const selectedReservation = reservations.find((r) => r.id === selectedReservationId)
@@ -84,6 +86,10 @@ export function PosTransactionDialog() {
     description.trim().length > 0 &&
     amountCents >= 1 &&
     (linkage === "standalone" || selectedReservationId !== "")
+
+  const isDirty = JSON.stringify({ linkage, description, amountDollars, selectedReservationId }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange: setOpen })
 
   // Reset form on open/close
   useEffect(() => {
@@ -95,6 +101,7 @@ export function PosTransactionDialog() {
     setSelectedReservationId("")
     setReservationSearch("")
     setReservations([])
+    cleanFormRef.current = JSON.stringify({ linkage: "standalone", description: "", amountDollars: "", selectedReservationId: "" })
   }, [open])
 
   // Fetch active reservations when linked mode is selected
@@ -244,7 +251,7 @@ export function PosTransactionDialog() {
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <PermissionButton permission="financial.record_payment" variant="outline" size="sm">
         <SheetTrigger asChild>
           <button type="button" className="inline-flex items-center gap-2">
@@ -375,7 +382,7 @@ export function PosTransactionDialog() {
         </div>
 
         <SheetFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => guardedOnOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !isFormValid}>
@@ -385,5 +392,6 @@ export function PosTransactionDialog() {
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
   )
 }

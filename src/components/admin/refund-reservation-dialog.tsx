@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, DollarSign, Info, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { IssueRefundRequest } from "@/types/api/v1/schemas/reservations"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 const REFUND_REASONS: { value: IssueRefundRequest["reason"]; label: string }[] = [
   { value: "partial_cancellation", label: "Partial cancellation" },
@@ -77,6 +78,15 @@ export function RefundReservationDialog({
   const [paymentId, setPaymentId] = useState<string | null>(null)
 
   const router = useRouter()
+
+  // Track dirty form state for close guard (excludes async-prefilled amountDollars)
+  const cleanFormRef = useRef("")
+  useEffect(() => {
+    if (open) {
+      cleanFormRef.current = JSON.stringify({ reason: "", refundPaymentMethod: "", handling: "original_method" as const })
+    }
+  }, [open])
+  const isDirty = JSON.stringify({ reason, refundPaymentMethod, handling }) !== cleanFormRef.current
 
   const maxRefundDollars = maxRefundableCents > 0 ? (maxRefundableCents / 100).toFixed(2) : "0.00"
 
@@ -133,6 +143,12 @@ export function RefundReservationDialog({
       setAmountDollars(formatCentsToDollars(maxRefundableCents))
     }
   }
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: handleOpenChange,
+  })
 
   // Fetch guest credit balance when handling changes to guest_credit
   useEffect(() => {
@@ -312,7 +328,8 @@ export function RefundReservationDialog({
     parseFloat(amountDollars || "0") > 0
 
   return (
-    <Sheet open={open} onOpenChange={(nextOpen) => { void handleOpenChange(nextOpen) }}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>
         {trigger ?? <Button variant="outline" size="sm">Issue Refund</Button>}
       </SheetTrigger>
@@ -494,5 +511,7 @@ export function RefundReservationDialog({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }

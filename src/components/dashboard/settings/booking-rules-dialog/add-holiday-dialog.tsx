@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Loader2 } from 'lucide-react'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -119,6 +120,7 @@ export function AddHolidayDialog({
   })
 
   const isSubmitting = form.formState.isSubmitting
+  const cleanFormRef = useRef<string>("")
   const dateRange = form.watch('dateRange') as DateRange
   const enabled = form.watch('enabled')
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false)
@@ -144,7 +146,19 @@ export function AddHolidayDialog({
       maxStayNights: initialValues?.max_stay_nights ?? defaultValues.maxStayNights,
       enabled: initialValues?.enabled ?? defaultValues.enabled,
     })
+    const initialData = {
+      title: initialValues?.title ?? defaultValues.title,
+      dateRange: initialDateRange,
+      minStayNights: initialValues?.min_stay_nights ?? defaultValues.minStayNights,
+      maxStayNights: initialValues?.max_stay_nights ?? defaultValues.maxStayNights,
+      enabled: initialValues?.enabled ?? defaultValues.enabled,
+    }
+    cleanFormRef.current = JSON.stringify(initialData)
   }, [open, form, initialValues])
+
+  const isDirty = form.formState.isDirty && cleanFormRef.current !== ""
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   const handleOpenChange = (next: boolean) => {
     if (!next) form.reset(defaultValues)
@@ -176,7 +190,7 @@ export function AddHolidayDialog({
   const maxStayError = form.formState.errors.maxStayNights?.message
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -324,7 +338,7 @@ export function AddHolidayDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleOpenChange(false)}
+              onClick={() => guardedOnOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
@@ -343,5 +357,6 @@ export function AddHolidayDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

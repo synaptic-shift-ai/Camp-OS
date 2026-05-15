@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { format, startOfDay } from "date-fns"
 import { CalendarIcon, Upload, X } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { PermissionGate } from "@/components/ui/permission-gate"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { useToast } from "@/hooks/use-toast"
 import {
   MaintenanceCategoryPicker,
@@ -95,6 +96,8 @@ export function EditTaskDialog({
   const [customCategory, setCustomCategory] = useState("")
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
+  const cleanFormRef = useRef<string>("")
+
   const clearLocalImages = () => {
     setLocalImages((prev) => {
       prev.forEach((item) => URL.revokeObjectURL(item.previewUrl))
@@ -107,6 +110,7 @@ export function EditTaskDialog({
     if (!task) {
       setForm(EMPTY_FORM)
       setCustomCategory("")
+      cleanFormRef.current = JSON.stringify({ form: EMPTY_FORM, customCategory: "" })
       return
     }
 
@@ -118,7 +122,7 @@ export function EditTaskDialog({
     if (!task.vendorId && status === "In Progress (Vendor)") {
       status = "In Progress"
     }
-    setForm({
+    const newForm = {
       siteId: task.siteId ?? "",
       siteName: task.siteName,
       task: task.task,
@@ -137,10 +141,21 @@ export function EditTaskDialog({
       scheduledStart: task.scheduledStart ?? null,
       dueDate: task.dueDate ?? null,
       sla: task.sla ?? null,
-    })
-    setCustomCategory(parsedCategory === "other" ? task.category ?? "" : "")
+    }
+    setForm(newForm)
+    const newCustomCategory = parsedCategory === "other" ? task.category ?? "" : ""
+    setCustomCategory(newCustomCategory)
+    cleanFormRef.current = JSON.stringify({ form: newForm, customCategory: newCustomCategory })
     clearLocalImages()
   }, [open, task])
+
+  const isDirty = JSON.stringify({ form, customCategory }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleImageSelection = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -246,7 +261,7 @@ export function EditTaskDialog({
       : SITE_PLACEHOLDER_VALUE
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit maintenance task</DialogTitle>
@@ -792,7 +807,7 @@ export function EditTaskDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -802,5 +817,6 @@ export function EditTaskDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

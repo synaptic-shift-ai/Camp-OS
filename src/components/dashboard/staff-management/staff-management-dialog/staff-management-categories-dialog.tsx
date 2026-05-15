@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { Plus, Tag, Trash2 } from 'lucide-react'
 
@@ -75,6 +76,7 @@ export function StaffManagementCategoriesDialog({
   )
   const [newName, setNewName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const cleanFormRef = useRef<string>("")
 
   const mergeFromDb = useCallback((payload: Record<RoleId, { name: string }[]>) => {
     const defaultsByRole = INITIAL_CATEGORIES
@@ -104,9 +106,11 @@ export function StaffManagementCategoriesDialog({
 
   useEffect(() => {
     if (!open) return
-    setByRole(structuredClone(INITIAL_CATEGORIES))
+    const initialByRole = structuredClone(INITIAL_CATEGORIES)
+    setByRole(initialByRole)
     setActiveRole('staff')
     setNewName('')
+    cleanFormRef.current = JSON.stringify(initialByRole)
 
     void (async () => {
       try {
@@ -125,7 +129,9 @@ export function StaffManagementCategoriesDialog({
           | undefined
 
         if (categoriesByRole) {
-          setByRole(mergeFromDb(categoriesByRole))
+          const merged = mergeFromDb(categoriesByRole)
+          setByRole(merged)
+          cleanFormRef.current = JSON.stringify(merged)
         }
       } catch (err: unknown) {
         if (isAccessDeniedError(err)) {
@@ -151,6 +157,10 @@ export function StaffManagementCategoriesDialog({
       }
     })()
   }, [open, propertyId, mergeFromDb, toast])
+
+  const isDirty = JSON.stringify(byRole) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
   useEffect(() => {
     setNewName('')
@@ -196,7 +206,7 @@ export function StaffManagementCategoriesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg gap-0 p-6 sm:rounded-lg">
         <DialogHeader className="space-y-2 pb-4 text-left">
           <DialogTitle className="text-lg font-semibold">Manage Categories</DialogTitle>
@@ -286,7 +296,7 @@ export function StaffManagementCategoriesDialog({
         </div>
 
         <DialogFooter className="mt-6 flex w-full flex-row justify-end gap-2 sm:gap-2">
-          <Button type="button" variant="outline" className="rounded-lg" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" className="rounded-lg" onClick={() => guardedOnOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -304,5 +314,6 @@ export function StaffManagementCategoriesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

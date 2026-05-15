@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 import { useRouter } from "next/navigation"
 import { DollarSign } from "lucide-react"
@@ -87,6 +88,15 @@ export function CancelReservationDialog({
   } | null>(null)
   const router = useRouter()
   const { toast } = useToast()
+
+  // Track dirty form state for close guard (excludes async-prefilled refundAmountDollars)
+  const cleanFormRef = useRef("")
+  useEffect(() => {
+    if (open) {
+      cleanFormRef.current = JSON.stringify({ reason: "", refundPaymentMethod: "" })
+    }
+  }, [open])
+  const isDirty = JSON.stringify({ reason, refundPaymentMethod }) !== cleanFormRef.current
 
   const maxRefundDollars = paidAmountCents != null ? (paidAmountCents / 100).toFixed(2) : null
   const suggestedRefundDollars =
@@ -249,6 +259,12 @@ export function CancelReservationDialog({
     setOpen(nextOpen)
   }
 
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: handleOpenChange,
+  })
+
   const isRefundable = suggestedRefundCents != null && suggestedRefundCents > 0
 
   const refundMessage =
@@ -261,7 +277,8 @@ export function CancelReservationDialog({
       : null
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>
         {trigger || <Button variant="destructive" size="sm">Cancel Reservation</Button>}
       </SheetTrigger>
@@ -430,5 +447,7 @@ export function CancelReservationDialog({
         </div>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }

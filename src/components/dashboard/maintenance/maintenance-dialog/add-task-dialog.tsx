@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { format, startOfDay } from "date-fns"
 import { AlertTriangle, CalendarIcon, Droplets, Sparkles, Upload, Wrench, X, Zap } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { PermissionGate } from "@/components/ui/permission-gate"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { useToast } from "@/hooks/use-toast"
 
 export const MAINTENANCE_CATEGORY_OPTIONS = [
@@ -283,6 +284,8 @@ export function AddTaskDialog({
   const [customCategory, setCustomCategory] = useState("")
   const [localImages, setLocalImages] = useState<LocalImageItem[]>([])
 
+  const cleanFormRef = useRef<string>("")
+
   const clearLocalImages = () => {
     setLocalImages((prev) => {
       prev.forEach((item) => URL.revokeObjectURL(item.previewUrl))
@@ -295,15 +298,26 @@ export function AddTaskDialog({
     clearLocalImages()
     setCustomCategory("")
     if (!canAssignWorkOrder) {
-      setForm({
+      const newForm = {
         ...INITIAL_FORM,
         assigneeId: selfAssigneeStaffId,
         assignee: selfAssigneeLabel,
-      })
+      }
+      setForm(newForm)
+      cleanFormRef.current = JSON.stringify(newForm)
     } else {
       setForm(INITIAL_FORM)
+      cleanFormRef.current = JSON.stringify(INITIAL_FORM)
     }
   }, [open, canAssignWorkOrder, selfAssigneeStaffId, selfAssigneeLabel])
+
+  const isDirty = JSON.stringify({ ...form, customCategory }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleImageSelection = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -407,7 +421,7 @@ export function AddTaskDialog({
       : SITE_PLACEHOLDER_VALUE
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent
         className="max-w-lg"
         onPointerDownOutside={(event) => {
@@ -983,7 +997,7 @@ export function AddTaskDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -993,5 +1007,6 @@ export function AddTaskDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

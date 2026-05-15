@@ -7,7 +7,7 @@
  * Displays reservation details, handles balance payment, and calls check-in API.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { loadStripe } from '@stripe/stripe-js'
@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { AlertCircle, Loader2, CheckCircle, DollarSign, Calendar, Users, Home, Banknote, CreditCard, FileText, AlertTriangle, Shield } from 'lucide-react'
 import {
@@ -343,6 +344,22 @@ export function CheckInDialog({
     setIncidentalsChoice(hasBookablePaymentMethod ? 'booking-card' : 'skip')
   }, [open])
 
+  // Track dirty form state for close guard
+  const cleanFormRef = useRef("")
+  useEffect(() => {
+    if (open) {
+      cleanFormRef.current = JSON.stringify({ checkInNotes, paymentMethod, incidentalsChoice })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+  const isDirty = JSON.stringify({ checkInNotes, paymentMethod, incidentalsChoice }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
+
   const handleCheckIn = async (forceProceed = false) => {
     setIsProcessing(true)
     setError(null)
@@ -460,7 +477,7 @@ export function CheckInDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={guardedOnOpenChange}>
         <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -833,6 +850,7 @@ export function CheckInDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {unsavedChangesDialog}
       <AlertDialog open={showEarlyCheckInWarning} onOpenChange={setShowEarlyCheckInWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>

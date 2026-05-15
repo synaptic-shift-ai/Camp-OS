@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -86,6 +87,7 @@ export function EmailTemplateFormDialog({
   const activeFieldRef = useRef<"subject" | null>(null)
 
   // Populate on mount / template change
+  const cleanFormRef = useRef("")
   useEffect(() => {
     if (!open) return
     if (template) {
@@ -106,6 +108,16 @@ export function EmailTemplateFormDialog({
     }
     setTab("edit")
     setErrors({})
+    // Baseline for dirty tracking
+    cleanFormRef.current = JSON.stringify({
+      name: template ? (template.name as string) ?? "" : "",
+      slug: template ? (template.slug as string) ?? "" : "",
+      category: template ? (template.category as string) ?? "" : "",
+      customCategory: template ? "" : "",
+      subject: template ? (template.subject_template as string) ?? "" : "",
+      htmlBody: template ? (template.html_template as string) ?? "" : "",
+      templateStatus: template ? (template.status as string) ?? "draft" : "draft",
+    })
   }, [template, open])
 
   // Auto-generate slug from name on create
@@ -114,6 +126,14 @@ export function EmailTemplateFormDialog({
       setSlug(slugify(name))
     }
   }, [name, isEdit])
+
+  const isDirty = JSON.stringify({ name, slug, category, customCategory, subject, htmlBody, templateStatus }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const insertVariable = useCallback((path: string) => {
     // Only handle subject field textarea insertion here
@@ -217,7 +237,7 @@ export function EmailTemplateFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent wide className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Email Template" : "Create Email Template"}</DialogTitle>
@@ -422,5 +442,6 @@ export function EmailTemplateFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

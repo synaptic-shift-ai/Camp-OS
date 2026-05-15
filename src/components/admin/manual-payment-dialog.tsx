@@ -25,6 +25,7 @@ import { AlertCircle, Banknote, CreditCard, DollarSign, FileText, Loader2 } from
 import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import { isAccessDeniedError } from "@/lib/utils/is-access-denied-error"
 import { loadStripe, type Stripe } from "@stripe/stripe-js"
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
@@ -182,6 +183,7 @@ export function ManualPaymentDialog({
   const [guestCreditBalanceCents, setGuestCreditBalanceCents] = useState<number | null>(null)
   const [guestCreditBalanceLoading, setGuestCreditBalanceLoading] = useState(false)
   const guestCreditSplitPrefilledRef = useRef(false)
+  const cleanFormRef = useRef("")
   const { toast } = useToast()
   const isDarkMode = resolvedTheme === "dark"
 
@@ -360,12 +362,38 @@ export function ManualPaymentDialog({
     setGuestCreditBalanceCents(null)
     setGuestCreditBalanceLoading(false)
 
+    // Set baseline for dirty tracking (sync fields only, excluding async-prefilled amountDollars)
+    cleanFormRef.current = JSON.stringify({
+      paymentMethod: defaultPaymentMethod ?? "",
+      reference: "",
+      processor: defaultProcessor ?? "none",
+      useCardOnFile: defaultUseCardOnFile ?? false,
+      selectedSavedCardId: "",
+      useGuestCredit: false,
+    })
+
     // Fetch balance and pre-fill amount
     fetchBalance().then(() => {
       // Will be set after fetchBalance completes and apiBalance is updated
     })
     void fetchSavedCards()
   }, [open, fetchBalance, fetchSavedCards, defaultPaymentMethod, defaultProcessor, defaultUseCardOnFile])
+
+  // Dirty tracking for close guard (excludes async-prefilled amountDollars)
+  const isDirty = JSON.stringify({
+    paymentMethod,
+    reference,
+    processor,
+    useCardOnFile,
+    selectedSavedCardId,
+    useGuestCredit,
+  }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: setOpen,
+  })
 
   // Pre-fill amount once balance is available (single-field mode only)
   useEffect(() => {
@@ -724,7 +752,8 @@ export function ManualPaymentDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>
         {trigger}
       </SheetTrigger>
@@ -1085,5 +1114,7 @@ export function ManualPaymentDialog({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }

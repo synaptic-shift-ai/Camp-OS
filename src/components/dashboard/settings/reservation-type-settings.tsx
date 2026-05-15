@@ -11,7 +11,7 @@
  * @module components/dashboard/settings/reservation-type-settings
  */
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import {
   Dialog,
   DialogContent,
@@ -134,6 +135,7 @@ export function ReservationTypeSettings({
   const [editingPeriod, setEditingPeriod] = useState<SeasonalPeriodFormData | null>(null)
   const [seasonFormError, setSeasonFormError] = useState<string | null>(null)
   const [isSeasonSaving, setIsSeasonSaving] = useState(false)
+  const cleanPeriodFormRef = useRef<string>("")
 
   // Track if form is dirty
   const [isDirty, setIsDirty] = useState(false)
@@ -228,9 +230,17 @@ export function ReservationTypeSettings({
     message: 'You have unsaved changes to reservation type settings.',
   })
 
+  const periodDialogIsDirty = editingPeriod !== null && JSON.stringify(editingPeriod) !== cleanPeriodFormRef.current
+
+  const { guardedOnOpenChange: guardedSeasonDialogOpenChange, unsavedChangesDialog: seasonUnsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: periodDialogIsDirty,
+    open: isSeasonDialogOpen,
+    onOpenChange: setIsSeasonDialogOpen,
+  })
+
   // Seasonal period handlers
   const openAddSeasonDialog = () => {
-    setEditingPeriod({
+    const newPeriod = {
       name: '',
       start_month: 6,
       start_day: 1,
@@ -238,13 +248,15 @@ export function ReservationTypeSettings({
       end_day: 31,
       base_rate_cents: 0,
       recurring: true,
-    })
+    }
+    setEditingPeriod(newPeriod)
+    cleanPeriodFormRef.current = JSON.stringify(newPeriod)
     setSeasonFormError(null)
     setIsSeasonDialogOpen(true)
   }
 
   const openEditSeasonDialog = (period: SeasonalPeriod) => {
-    setEditingPeriod({
+    const newPeriod = {
       id: period.id,
       name: period.name,
       start_month: period.start_month,
@@ -253,7 +265,9 @@ export function ReservationTypeSettings({
       end_day: period.end_day,
       base_rate_cents: period.base_rate_cents,
       recurring: period.recurring,
-    })
+    }
+    setEditingPeriod(newPeriod)
+    cleanPeriodFormRef.current = JSON.stringify(newPeriod)
     setSeasonFormError(null)
     setIsSeasonDialogOpen(true)
   }
@@ -559,7 +573,7 @@ export function ReservationTypeSettings({
 
       {/* Seasonal Period Dialog */}
       {canEdit && (
-      <Dialog open={isSeasonDialogOpen} onOpenChange={setIsSeasonDialogOpen}>
+      <Dialog open={isSeasonDialogOpen} onOpenChange={guardedSeasonDialogOpenChange}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
@@ -702,7 +716,7 @@ export function ReservationTypeSettings({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSeasonDialogOpen(false)}>
+            <Button variant="outline" onClick={() => guardedSeasonDialogOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveSeasonalPeriod} disabled={isSeasonSaving}>
@@ -711,6 +725,7 @@ export function ReservationTypeSettings({
             </Button>
           </DialogFooter>
         </DialogContent>
+        {seasonUnsavedChangesDialog}
       </Dialog>
       )}
     </div>

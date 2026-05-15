@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, DollarSign, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
 export type AddChargeDialogProps = {
   reservationId: string
@@ -35,6 +36,7 @@ export function AddChargeDialog({
   const amountCents = Math.round(parseFloat(amountDollars || "0") * 100)
   const isFormValid = description.trim().length > 0 && Number.isFinite(amountCents) && amountCents > 0
 
+  const cleanFormRef = useRef("")
   const resetState = useCallback(() => {
     setDescription("")
     setAmountDollars("")
@@ -44,8 +46,18 @@ export function AddChargeDialog({
   useEffect(() => {
     if (!open) {
       resetState()
+    } else {
+      cleanFormRef.current = JSON.stringify({ description: "", amountDollars: "" })
     }
   }, [open, resetState])
+
+  const isDirty = JSON.stringify({ description, amountDollars }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: setOpen,
+  })
 
   const handleSubmit = async () => {
     if (!isFormValid) return
@@ -89,7 +101,8 @@ export function AddChargeDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent className="w-[90vw] max-w-[90vw] overflow-y-auto sm:max-w-[480px]">
         <SheetHeader>
@@ -158,6 +171,8 @@ export function AddChargeDialog({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }
 

@@ -7,7 +7,7 @@
  * Submits to PATCH /api/v1/guests/[id].
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { Loader2 } from 'lucide-react'
 import type { DashboardGuest } from '@/lib/dashboard/queries'
 
@@ -36,6 +37,7 @@ const SEASON_ALERT_TOAST_CLASS =
 export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const cleanFormRef = useRef("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -50,15 +52,25 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
   useEffect(() => {
     if (open) {
       const parts = guest.name.split(' ')
-      setForm({
+      const resetForm = {
         firstName: parts[0] ?? '',
         lastName: parts.slice(1).join(' ') ?? '',
         email: guest.email,
         phone: guest.phone ?? '',
-      })
+      }
+      setForm(resetForm)
+      cleanFormRef.current = JSON.stringify(resetForm)
       setFormError(null)
     }
   }, [open, guest])
+
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleChange = (field: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement>
@@ -116,7 +128,7 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Guest</DialogTitle>
@@ -200,5 +212,6 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

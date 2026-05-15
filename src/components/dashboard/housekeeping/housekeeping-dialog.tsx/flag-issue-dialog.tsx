@@ -7,7 +7,7 @@
  * Submits the issue type and description to the PATCH endpoint.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, AlertTriangle } from 'lucide-react'
 import {
   Dialog,
@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 
 type FlagIssueDialogProps = {
   open: boolean
@@ -46,6 +47,13 @@ export function FlagIssueDialog({
   const [issueType, setIssueType] = useState<IssueType | null>(null)
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const cleanFormRef = useRef("")
+
+  useEffect(() => {
+    if (open) {
+      cleanFormRef.current = JSON.stringify({ issueType: null, description: '' })
+    }
+  }, [open])
 
   const isValid =
     issueType !== null && description.trim().length >= 10
@@ -106,8 +114,16 @@ export function FlagIssueDialog({
     onOpenChange(nextOpen)
   }
 
+  const isDirty = JSON.stringify({ issueType, description }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange: handleOpenChange,
+  })
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -187,5 +203,6 @@ export function FlagIssueDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

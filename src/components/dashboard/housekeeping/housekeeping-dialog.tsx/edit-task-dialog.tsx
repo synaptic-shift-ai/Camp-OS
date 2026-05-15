@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   Dialog,
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import {
   buildDatetimeIfComplete,
   formatLocalDateKey,
@@ -76,6 +77,7 @@ export function EditTaskDialog({
   onSubmit,
 }: EditTaskDialogProps) {
   const [form, setForm] = useState<AddHousekeepingTaskInput>(EMPTY_FORM)
+  const cleanFormRef = useRef("")
   const [checklistItems, setChecklistItems] = useState<
     Array<{ id: string; label: string; notes: string | null; checked: boolean }>
   >([])
@@ -95,10 +97,11 @@ export function EditTaskDialog({
     if (!open) return
     if (!task) {
       setForm(EMPTY_FORM)
+      cleanFormRef.current = JSON.stringify(EMPTY_FORM)
       return
     }
 
-    setForm({
+    const newForm = {
       siteId: task.siteId ?? "",
       siteName: task.siteName,
       task: task.task,
@@ -114,9 +117,19 @@ export function EditTaskDialog({
       dueDate: task.dueDateValue ?? "",
       dueTime: task.dueTime,
       zone: task.zone ?? "",
-    })
+    }
+    setForm(newForm)
     setError(null)
+    cleanFormRef.current = JSON.stringify(newForm)
   }, [open, task])
+
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   useEffect(() => {
     const checklistId = form.checklistTemplateId
@@ -224,7 +237,7 @@ export function EditTaskDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Edit Housekeeping Task</DialogTitle>
@@ -526,5 +539,6 @@ export function EditTaskDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

@@ -10,7 +10,7 @@
  * @module components/dashboard/settings/fees-settings
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
@@ -222,6 +223,8 @@ export function FeesSettings({
     setIsAddDialogOpen(true)
   }
 
+  const feeDialogIsDirty = feeForm.formState.isDirty
+
   const handleFeeSubmit = (data: FeeFormInput) => {
     // Build trigger conditions based on trigger type
     let triggerConditions: UserDefinedFee['trigger_conditions']
@@ -322,6 +325,12 @@ export function FeesSettings({
     message: 'You have unsaved changes to fee settings.',
   })
 
+  const { guardedOnOpenChange: guardedFeeDialogOpenChange, unsavedChangesDialog: feeUnsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: feeDialogIsDirty,
+    open: isAddDialogOpen,
+    onOpenChange: setIsAddDialogOpen,
+  })
+
   const getFeeTypeLabel = (type: UserDefinedFeeType) => {
     return FEE_TYPE_OPTIONS.find(opt => opt.value === type)?.label || type
   }
@@ -417,7 +426,7 @@ export function FeesSettings({
                 Configure charges applied to reservations (cleaning, service, pet fees, etc.)
               </CardDescription>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={guardedFeeDialogOpenChange}>
               {canEdit && (
               <DialogTrigger asChild>
                 <Button onClick={openAddDialog} className="w-full shrink-0 sm:w-auto" size="sm">
@@ -618,7 +627,7 @@ export function FeesSettings({
                   )}
 
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => guardedFeeDialogOpenChange(false)}>
                       Cancel
                     </Button>
                     <Button type="submit" size="sm">
@@ -627,6 +636,7 @@ export function FeesSettings({
                   </DialogFooter>
                 </form>
               </DialogContent>
+              {feeUnsavedChangesDialog}
             </Dialog>
           </div>
         </CardHeader>

@@ -8,7 +8,7 @@
  * Shows pricing changes and conflicts before submission.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast'
 import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
@@ -312,6 +313,12 @@ export function ExtendDialog({
 
   // Check if dates have changed
   const hasChanges = newCheckIn !== currentCheckIn || newCheckOut !== currentCheckOut
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: hasChanges,
+    open,
+    onOpenChange: setOpen,
+  })
 
   // Base-only pricing impact (fallback when full preview not available)
   const pricingImpact = useMemo(() => {
@@ -621,7 +628,8 @@ export function ExtendDialog({
   }, [rateDiscountsConfig])
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
+    <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <SheetTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
@@ -923,7 +931,7 @@ export function ExtendDialog({
         </div>
 
         <SheetFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => guardedOnOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleExtend} disabled={!canSubmit}>
@@ -933,5 +941,7 @@ export function ExtendDialog({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    {unsavedChangesDialog}
+    </>
   )
 }

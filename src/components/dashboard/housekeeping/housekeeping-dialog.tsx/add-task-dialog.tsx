@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   HousekeepingQueries,
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import {
   formatLocalDateKey,
   formatLocalTimeHM,
@@ -100,6 +101,7 @@ export function AddTaskDialog({
   isSubmitting = false,
 }: AddTaskDialogProps) {
   const [form, setForm] = useState<AddHousekeepingTaskInput>(INITIAL_FORM)
+  const cleanFormRef = useRef("")
   const [checklistItems, setChecklistItems] = useState<
     Array<{ id: string; label: string; notes: string | null }>
   >([])
@@ -138,7 +140,16 @@ export function AddTaskDialog({
     setDueTimeInput(initialDueParts.time)
     setChecklistItems([])
     setError(null)
+    cleanFormRef.current = JSON.stringify({ ...INITIAL_FORM, ...initialValues })
   }, [open, initialValues])
+
+  const isDirty = JSON.stringify(form) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -199,7 +210,7 @@ export function AddTaskDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Add Housekeeping Task</DialogTitle>
@@ -547,5 +558,6 @@ export function AddTaskDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

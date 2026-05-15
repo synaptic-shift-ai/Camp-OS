@@ -10,7 +10,7 @@
  * @module components/dashboard/settings/discounts-settings
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
@@ -208,6 +209,8 @@ export function DiscountsSettings({
     setIsAddDialogOpen(true)
   }
 
+  const discountDialogIsDirty = discountForm.formState.isDirty
+
   const handleDiscountSubmit = (data: DiscountFormInput) => {
     // Build trigger conditions based on trigger type
     let triggerConditions: UserDefinedDiscount['trigger_conditions']
@@ -307,6 +310,12 @@ export function DiscountsSettings({
     message: 'You have unsaved changes to discount settings.',
   })
 
+  const { guardedOnOpenChange: guardedDiscountDialogOpenChange, unsavedChangesDialog: discountUnsavedChangesDialog } = useDialogCloseGuard({
+    isDirty: discountDialogIsDirty,
+    open: isAddDialogOpen,
+    onOpenChange: setIsAddDialogOpen,
+  })
+
   const getDiscountTypeLabel = (type: UserDefinedDiscountType) => {
     return DISCOUNT_TYPE_OPTIONS.find(opt => opt.value === type)?.label || type
   }
@@ -359,7 +368,7 @@ export function DiscountsSettings({
                 Configure discounts that can be applied automatically or manually to reservations
               </CardDescription>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={guardedDiscountDialogOpenChange}>
               {canEdit && (
               <DialogTrigger asChild>
                 <Button onClick={openAddDialog} className="w-full shrink-0 sm:w-auto">
@@ -562,7 +571,7 @@ export function DiscountsSettings({
                   </div>
 
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => guardedDiscountDialogOpenChange(false)}>
                       Cancel
                     </Button>
                     <Button type="submit">
@@ -571,6 +580,7 @@ export function DiscountsSettings({
                   </DialogFooter>
                 </form>
               </DialogContent>
+              {discountUnsavedChangesDialog}
             </Dialog>
           </div>
         </CardHeader>

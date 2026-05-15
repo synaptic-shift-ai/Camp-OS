@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useId, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 import {
   parseChecklistTemplateLines,
   type PropertyChecklistListItem,
@@ -70,15 +71,26 @@ export function EditChecklistDialog({
   const [items, setItems] = useState<ChecklistItemRow[]>(() => [newItemRow()])
   const [error, setError] = useState<string | null>(null)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const cleanFormRef = useRef("")
 
   useEffect(() => {
     if (!open || !checklist) return
+    const newItems = templateLinesToRows(parseChecklistTemplateLines(checklist.item))
     setTemplateName(checklist.name)
     setDescription(checklist.description?.trim() ?? "")
-    setItems(templateLinesToRows(parseChecklistTemplateLines(checklist.item)))
+    setItems(newItems)
     setError(null)
     setDraggedIndex(null)
+    cleanFormRef.current = JSON.stringify({ templateName: checklist.name, description: checklist.description?.trim() ?? "", items: newItems })
   }, [open, checklist])
+
+  const isDirty = JSON.stringify({ templateName, description, items }) !== cleanFormRef.current
+
+  const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({
+    isDirty,
+    open,
+    onOpenChange,
+  })
 
   const addItemRow = useCallback(() => {
     setItems((prev) => [...prev, newItemRow()])
@@ -167,7 +179,7 @@ export function EditChecklistDialog({
   }
 
   return (
-    <Dialog open={open && checklist !== null} onOpenChange={onOpenChange}>
+    <Dialog open={open && checklist !== null} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="space-y-1 border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Edit template</DialogTitle>
@@ -311,5 +323,6 @@ export function EditChecklistDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {unsavedChangesDialog}
   )
 }

@@ -95,3 +95,64 @@ export async function GET(request: NextRequest) {
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })
   }
 }
+
+// ============================================================================
+// DELETE — Remove opt-out (guest may receive that channel again)
+// ============================================================================
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { supabase, user, error: authError } = await createSupabaseClientForApiRoute(request)
+    if (authError || !user) return error(ErrorCodes.AUTH_001, request)
+
+    const sp = request.nextUrl.searchParams
+    const propertyId = sp.get('propertyId')
+    const optOutId = sp.get('id')
+    if (!propertyId) {
+      return error(ErrorCodes.VAL_002, request, { message: 'propertyId query parameter is required' })
+    }
+    if (!optOutId) {
+      return error(ErrorCodes.VAL_002, request, { message: 'id query parameter is required' })
+    }
+
+    const access = await requirePropertyAccess(supabase, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+      permission: 'guest_comms.configure_branding',
+    })
+    if (isDenied(access)) return access
+    if (!access.companyId) {
+      return error(ErrorCodes.PROP_001, request)
+    }
+
+    const db = createServiceRoleClient()
+
+    const { data: row, error: fetchError } = await db
+      .from('communication_opt_outs')
+      .select('id, company_id')
+      .eq('id', optOutId)
+      .maybeSingle()
+
+    if (fetchError) {
+      return error(ErrorCodes.INTERNAL_ERROR, request, { message: fetchError.message })
+    }
+    if (!row || row.company_id !== access.companyId) {
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, request, { message: 'Opt-out record not found' })
+    }
+
+    const { error: deleteError } = await db
+      .from('communication_opt_outs')
+      .delete()
+      .eq('id', optOutId)
+      .eq('company_id', access.companyId)
+
+    if (deleteError) {
+      return error(ErrorCodes.INTERNAL_ERROR, request, { message: deleteError.message })
+    }
+
+    return success({ deleted: true }, request)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return error(ErrorCodes.INTERNAL_ERROR, request, { message })
+  }
+}

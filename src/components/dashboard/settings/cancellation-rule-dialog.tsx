@@ -142,6 +142,7 @@ export function CancellationRuleDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
@@ -224,5 +225,6 @@ export function CancellationRuleDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

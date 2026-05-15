@@ -131,6 +131,7 @@ export function AddGuestDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -251,5 +252,6 @@ export function AddGuestDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

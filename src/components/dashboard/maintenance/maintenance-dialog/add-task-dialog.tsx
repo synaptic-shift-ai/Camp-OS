@@ -421,6 +421,7 @@ export function AddTaskDialog({
       : SITE_PLACEHOLDER_VALUE
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent
         className="max-w-lg"
@@ -1008,5 +1009,6 @@ export function AddTaskDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

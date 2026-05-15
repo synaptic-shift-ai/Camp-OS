@@ -69,6 +69,7 @@ export function ReassignTaskDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -111,5 +112,6 @@ export function ReassignTaskDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

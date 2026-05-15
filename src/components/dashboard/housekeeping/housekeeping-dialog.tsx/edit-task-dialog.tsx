@@ -237,6 +237,7 @@ export function EditTaskDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg overflow-x-hidden">
         <DialogHeader>
@@ -540,5 +541,6 @@ export function EditTaskDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

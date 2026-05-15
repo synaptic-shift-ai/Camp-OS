@@ -190,6 +190,7 @@ export function AddHolidayDialog({
   const maxStayError = form.formState.errors.maxStayNights?.message
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -358,5 +359,6 @@ export function AddHolidayDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

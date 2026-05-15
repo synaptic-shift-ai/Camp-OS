@@ -206,6 +206,7 @@ export function StaffManagementCategoriesDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg gap-0 p-6 sm:rounded-lg">
         <DialogHeader className="space-y-2 pb-4 text-left">
@@ -315,5 +316,6 @@ export function StaffManagementCategoriesDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

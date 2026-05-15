@@ -264,6 +264,7 @@ export default function InviteStaffDialog({
     )
 
     return (
+        <>
         <Dialog open={open} onOpenChange={guardedOnOpenChange}>
             <DialogContent>
                 <DialogHeader>
@@ -344,5 +345,6 @@ export default function InviteStaffDialog({
             </DialogContent>
         </Dialog>
         {unsavedChangesDialog}
+        </>
     )
 }

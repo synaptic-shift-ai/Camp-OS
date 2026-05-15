@@ -95,8 +95,8 @@ export function useDialogCloseGuard({
           onOpenChange={setShowWarning}
           message={message}
           onDiscard={handleDiscard}
-          onSaveAndLeave={onSave ? handleSaveAndLeave : undefined}
-          isSaving={isSaving}
+          {...(onSave ? { onSaveAndLeave: handleSaveAndLeave } : {})}
+          {...(isSaving ? { isSaving } : {})}
         />
       ) : null,
     [open, showWarning, message, handleDiscard, handleSaveAndLeave, onSave, isSaving]

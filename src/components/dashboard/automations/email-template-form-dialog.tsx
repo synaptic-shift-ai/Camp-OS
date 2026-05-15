@@ -237,6 +237,7 @@ export function EmailTemplateFormDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent wide className="sm:max-w-5xl">
         <DialogHeader>
@@ -443,5 +444,6 @@ export function EmailTemplateFormDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

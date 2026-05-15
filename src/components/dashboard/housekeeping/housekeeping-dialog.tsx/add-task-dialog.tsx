@@ -210,6 +210,7 @@ export function AddTaskDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg overflow-x-hidden">
         <DialogHeader>
@@ -559,5 +560,6 @@ export function AddTaskDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

@@ -101,6 +101,7 @@ export function AddVendorDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
         <DialogContent className="max-w-md">
             <DialogHeader>
@@ -185,5 +186,7 @@ export function AddVendorDialog({
             </form>
         </DialogContent>
     </Dialog>
+      {unsavedChangesDialog}
+    </>
   )
 }

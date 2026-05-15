@@ -176,6 +176,7 @@ export function EditGuideDialog({
   }
 
   return (
+    <>
     <Dialog open={open && guide !== null} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="space-y-1 border-b border-border px-6 py-4 text-left">
@@ -321,5 +322,6 @@ export function EditGuideDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

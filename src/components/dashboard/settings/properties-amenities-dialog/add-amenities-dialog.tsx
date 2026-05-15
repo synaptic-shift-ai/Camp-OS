@@ -83,6 +83,7 @@ export function AddAmenitiesDialog({
   )
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -159,5 +160,6 @@ export function AddAmenitiesDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

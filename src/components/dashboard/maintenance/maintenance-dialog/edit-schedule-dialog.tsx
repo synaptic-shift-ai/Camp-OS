@@ -199,6 +199,7 @@ export function EditScheduleDialog({
     form.site_id && siteOptions.some((site) => site.id === form.site_id) ? form.site_id : ""
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -437,5 +438,6 @@ export function EditScheduleDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

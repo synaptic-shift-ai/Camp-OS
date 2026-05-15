@@ -60,6 +60,7 @@ export function StatusChangeReasonDialog({
   }
 
   return (
+    <>
     <AlertDialog open={open} onOpenChange={guardedOnOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -102,5 +103,6 @@ export function StatusChangeReasonDialog({
       </AlertDialogContent>
     </AlertDialog>
     {unsavedChangesDialog}
+    </>
   )
 }

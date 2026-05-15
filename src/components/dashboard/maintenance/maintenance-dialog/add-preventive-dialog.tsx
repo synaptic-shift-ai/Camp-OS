@@ -200,6 +200,7 @@ export function AddPreventiveDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent
         className="max-w-lg"
@@ -485,5 +486,6 @@ export function AddPreventiveDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

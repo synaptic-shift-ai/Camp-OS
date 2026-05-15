@@ -261,6 +261,7 @@ export function EditTaskDialog({
       : SITE_PLACEHOLDER_VALUE
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -818,5 +819,6 @@ export function EditTaskDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

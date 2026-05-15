@@ -114,6 +114,7 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="space-y-1">
@@ -134,5 +135,6 @@ export function EditSiteDialog({ open, onOpenChange, site }: EditSiteDialogProps
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

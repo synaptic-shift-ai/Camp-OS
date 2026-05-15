@@ -321,6 +321,7 @@ export function EditStaffDialog({
   )
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg gap-0 overflow-y-auto p-6 sm:rounded-lg">
         {staff ? (
@@ -411,5 +412,6 @@ export function EditStaffDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

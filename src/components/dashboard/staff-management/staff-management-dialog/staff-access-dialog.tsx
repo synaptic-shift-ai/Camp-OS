@@ -656,6 +656,7 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
     : selectedRole
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent
         wide
@@ -833,5 +834,6 @@ export function StaffAccessDialog({ open, onOpenChange, propertyId }: StaffAcces
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

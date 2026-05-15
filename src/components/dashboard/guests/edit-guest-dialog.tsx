@@ -128,6 +128,7 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -213,5 +214,6 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

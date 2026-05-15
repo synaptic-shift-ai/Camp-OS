@@ -123,6 +123,7 @@ export function FlagIssueDialog({
   })
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -204,5 +205,6 @@ export function FlagIssueDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

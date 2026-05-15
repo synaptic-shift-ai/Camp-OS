@@ -179,6 +179,7 @@ export function EditChecklistDialog({
   }
 
   return (
+    <>
     <Dialog open={open && checklist !== null} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="space-y-1 border-b border-border px-6 py-4 text-left">
@@ -324,5 +325,6 @@ export function EditChecklistDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

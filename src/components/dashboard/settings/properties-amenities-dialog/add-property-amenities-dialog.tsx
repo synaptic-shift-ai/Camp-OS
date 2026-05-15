@@ -81,6 +81,7 @@ export function AddPropertyAmenitiesDialog({
   }, [existingSet])
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -181,5 +182,6 @@ export function AddPropertyAmenitiesDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

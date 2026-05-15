@@ -154,6 +154,7 @@ export function EmailBrandingDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -245,5 +246,6 @@ export function EmailBrandingDialog({
       </DialogContent>
     </Dialog>
     {unsavedChangesDialog}
+    </>
   )
 }

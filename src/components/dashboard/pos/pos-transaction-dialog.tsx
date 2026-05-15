@@ -251,6 +251,7 @@ export function PosTransactionDialog() {
   }
 
   return (
+    <>
     <Sheet open={open} onOpenChange={guardedOnOpenChange}>
       <PermissionButton permission="financial.record_payment" variant="outline" size="sm">
         <SheetTrigger asChild>
@@ -393,5 +394,6 @@ export function PosTransactionDialog() {
       </SheetContent>
     </Sheet>
     {unsavedChangesDialog}
+    </>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,7 +31,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { EmailTemplateFormDialog } from "./email-template-form-dialog"
 import { EmailTemplatePreviewDialog } from "./email-template-preview-dialog"
 import { EmailBrandingDialog } from "./email-branding-dialog"
 import { usePermissions } from "@/hooks/use-permissions"
@@ -66,14 +66,13 @@ function formatDate(dateStr: string): string {
 }
 
 export function EmailTemplatesList({ templates: initialTemplates, propertyId, companyId }: EmailTemplatesListProps) {
+  const router = useRouter()
   const { can } = usePermissions()
   const canEdit = can("automations.edit_email_templates")
   const [templates, setTemplates] = useState(initialTemplates)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<Record<string, unknown> | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [testDialogTemplate, setTestDialogTemplate] = useState<Record<string, unknown> | null>(null)
   const [testEmail, setTestEmail] = useState("")
@@ -107,16 +106,6 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
       return matchesSearch && matchesCategory
     })
   }, [templates, search, categoryFilter])
-
-  function openCreate() {
-    setEditingTemplate(null)
-    setDialogOpen(true)
-  }
-
-  function openEdit(t: Record<string, unknown>) {
-    setEditingTemplate(t)
-    setDialogOpen(true)
-  }
 
   function openTestSend(t: Record<string, unknown>) {
     setTestDialogTemplate(t)
@@ -254,7 +243,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
             </Button>
           </PermissionGate>
           <PermissionGate permission="automations.add_email_templates">
-            <Button onClick={openCreate}>
+            <Button onClick={() => router.push(`/dashboard/${propertyId}/automations/email-templates/new`)}>
               <Plus className="h-4 w-4" />
               Create Template
             </Button>
@@ -383,7 +372,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
                                 size="xs"
                                 aria-label="Edit template"
                                 className="h-8 w-8 p-0"
-                                onClick={() => openEdit(t)}
+                                onClick={() => router.push(`/dashboard/${propertyId}/automations/email-templates/${t.id}/edit`)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -492,16 +481,6 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Form dialog */}
-      <EmailTemplateFormDialog
-        template={editingTemplate}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        propertyId={propertyId}
-        companyId={companyId}
-        onSaved={fetchTemplates}
-      />
 
       <EmailBrandingDialog
         open={brandingDialogOpen}

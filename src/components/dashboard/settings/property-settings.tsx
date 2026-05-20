@@ -18,10 +18,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { OpenPeriodDatePicker } from '@/components/dashboard/settings/open-period-date-picker'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
 
 const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
@@ -72,6 +74,8 @@ export type PropertyDetailsInitial = {
   email?: string | null
   checkInTime?: string | null
   checkOutTime?: string | null
+  /** IANA timezone string (e.g. "America/New_York") */
+  timezone?: string | null
   /** ISO YYYY-MM-DD from property.settings */
   openPeriodFrom?: string | null
   openPeriodUntil?: string | null
@@ -116,6 +120,11 @@ export function PropertySettings({
     parseIsoDateOnly(initial.openPeriodUntil ?? undefined),
   )
 
+  const [timezone, setTimezone] = useState<string>(
+    initial.timezone ?? 'UTC',
+  )
+  const initialTimezoneRef = useRef<string>(initial.timezone ?? 'UTC')
+
   const initialOpenPeriodRef = useRef<{ from: Date | undefined; until: Date | undefined }>({
     from: parseIsoDateOnly(initial.openPeriodFrom ?? undefined),
     until: parseIsoDateOnly(initial.openPeriodUntil ?? undefined),
@@ -127,6 +136,10 @@ export function PropertySettings({
       !isSameCalendarDate(openFrom, from) || !isSameCalendarDate(openUntil, until)
     )
   }, [openFrom, openUntil])
+
+  const timezoneDirty = useMemo(() => {
+    return timezone !== initialTimezoneRef.current
+  }, [timezone])
 
   const handleOpenFromSelect = (d: Date | undefined) => {
     setOpenFrom(d)
@@ -276,10 +289,17 @@ export function PropertySettings({
         checkInTime: data.checkInTime?.trim() || null,
         checkOutTime: data.checkOutTime?.trim() || null,
       }
-      if (openPeriodDirty) {
+      if (openPeriodDirty || timezoneDirty) {
         payload.settings = {
-          openPeriodFrom: toIsoDateOnly(openFrom),
-          openPeriodUntil: toIsoDateOnly(openUntil),
+          ...(openPeriodDirty
+            ? {
+                openPeriodFrom: toIsoDateOnly(openFrom),
+                openPeriodUntil: toIsoDateOnly(openUntil),
+              }
+            : {}),
+          ...(timezoneDirty
+            ? { timezone }
+            : {}),
         }
       }
 
@@ -296,6 +316,7 @@ export function PropertySettings({
         from: openFrom,
         until: openUntil,
       }
+      initialTimezoneRef.current = timezone
       reset(data)
       toast({
         title: 'Property details saved',
@@ -314,7 +335,7 @@ export function PropertySettings({
     }
   }
 
-  const hasUnsavedChanges = isDirty || openPeriodDirty
+  const hasUnsavedChanges = isDirty || openPeriodDirty || timezoneDirty
   const { UnsavedChangesDialog } = useUnsavedChangesGuard(hasUnsavedChanges, {
     onSave: async () => {
       const valid = await trigger()
@@ -516,10 +537,29 @@ export function PropertySettings({
               )}
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="property-timezone">Timezone</Label>
+              <p className="text-sm text-muted-foreground">
+                Used for scheduling automations and displaying times to guests.
+              </p>
+              <Select value={timezone} onValueChange={setTimezone} disabled={readOnly}>
+                <SelectTrigger id="property-timezone" className="w-full max-w-xs">
+                  <SelectValue placeholder="Select timezone..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  {TIMEZONE_OPTIONS.map(tz => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {canEdit && (
               <Button
                 type="submit"
-                disabled={isSaving || (!isDirty && !openPeriodDirty)}
+                disabled={isSaving || (!isDirty && !openPeriodDirty && !timezoneDirty)}
               >
                 {isSaving ? (
                   <>

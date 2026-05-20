@@ -218,17 +218,6 @@ export const ScheduledTriggerConfigSchema = z.object({
     },
     { message: 'Schedule must be a valid 5-field cron expression (minute hour day month weekday)' },
   ),
-  timezone: z.string().refine(
-    (val) => {
-      try {
-        new Intl.DateTimeFormat(undefined, { timeZone: val })
-        return true
-      } catch {
-        return false
-      }
-    },
-    { message: 'Must be a valid IANA timezone (e.g. "America/New_York")' },
-  ),
   target: z.enum(['reservations', 'guests', 'sites', 'property']),
   dateField: z.enum(ALLOWED_DATE_FIELDS).optional(),
   offsetDays: z.number().int().optional(),

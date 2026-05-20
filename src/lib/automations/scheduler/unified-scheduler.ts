@@ -25,11 +25,11 @@ import { evaluateConditions } from '../condition-evaluator'
 import { executePipeline } from '../pipeline'
 import { createActionRegistry, type ActionHandlerMap } from '../action-registry'
 import { logAutomationExecution } from '../execution-logger'
-import type { TriggerType, EventContext, ScheduledTriggerConfig } from '../types'
+import type { TriggerType, ScheduledTriggerConfig } from '../types'
 import type { MatchedAutomation } from '../trigger-matcher'
 import { ScheduledTriggerConfigSchema } from '../schemas'
 import { evaluateCron, getTimezoneOffset } from './cron-evaluator'
-import { resolveTargets, type ResolvedTarget } from './target-resolver'
+import { resolveTargets } from './target-resolver'
 import { getAlreadyProcessedEntityIds } from './dedupe'
 import { buildEntityContext } from './entity-context-builder'
 
@@ -81,7 +81,7 @@ export async function runUnifiedScheduler(): Promise<SchedulerRunResult> {
   // 1. Fetch all active properties
   const { data: properties, error: propsError } = await supabase
     .from('properties')
-    .select('id, company_id, name')
+    .select('id, company_id, name, settings, timezone')
     .eq('status', 'active')
 
   if (propsError) {
@@ -107,7 +107,12 @@ export async function runUnifiedScheduler(): Promise<SchedulerRunResult> {
     }
 
     try {
-      await processProperty(propertyId, companyId, property.name, supabase, result)
+      const propertySettings = property.settings as Record<string, unknown> | null
+      const propertyTimezone =
+        (typeof propertySettings?.timezone === 'string' && propertySettings.timezone)
+          ? propertySettings.timezone
+          : (property.timezone ?? 'UTC')
+      await processProperty(propertyId, companyId, property.name, propertyTimezone, supabase, result)
     } catch (err) {
       console.error(`[Unified Scheduler] Fatal error processing property ${propertyId}:`, err)
       result.errors++
@@ -131,6 +136,7 @@ async function processProperty(
   propertyId: string,
   companyId: string,
   propertyName: string,
+  propertyTimezone: string,
   supabase: ReturnType<typeof createServiceRoleClient>,
   result: SchedulerRunResult,
 ): Promise<void> {
@@ -163,7 +169,7 @@ async function processProperty(
 
   for (const automation of allAutomations) {
     try {
-      await processAutomation(automation, propertyId, companyId, propertyName, supabase, result)
+      await processAutomation(automation, propertyId, companyId, propertyName, propertyTimezone, supabase, result)
     } catch (err) {
       console.error(
         `[Unified Scheduler] Error processing automation ${automation.id} "${automation.name}":`,
@@ -182,6 +188,7 @@ async function processAutomation(
   propertyId: string,
   companyId: string,
   propertyName: string,
+  propertyTimezone: string,
   supabase: ReturnType<typeof createServiceRoleClient>,
   result: SchedulerRunResult,
 ): Promise<void> {
@@ -205,20 +212,24 @@ async function processAutomation(
 
   const config = parseResult.data as ScheduledTriggerConfig
 
+  // Use the property timezone while processing both property-scoped and system-scoped automations
+  let effectiveTimezone = propertyTimezone || 'UTC'
+
   // Evaluate cron expression against current time (with timezone offset)
   const now = new Date()
   let evalTime: Date
 
   try {
-    const offsetMinutes = getTimezoneOffset(config.timezone, now)
+    const offsetMinutes = getTimezoneOffset(effectiveTimezone, now)
     // Shift the evaluation time so the cron evaluator (which works in UTC)
     // sees the "local" time for the configured timezone
     evalTime = new Date(now.getTime() + offsetMinutes * 60 * 1000)
-  } catch (err) {
+  } catch {
     console.warn(
-      `[Unified Scheduler] Invalid timezone "${config.timezone}" for automation ${automationId}, using UTC`,
+      `[Unified Scheduler] Invalid timezone "${effectiveTimezone}" for automation ${automationId}, using UTC`,
     )
     evalTime = now
+    effectiveTimezone = 'UTC'
   }
 
   let cronResult: { isDue: boolean; humanReadable: string }
@@ -242,7 +253,7 @@ async function processAutomation(
   )
 
   // Resolve target entities
-  const targets = await resolveTargets(config, propertyId, companyId, supabase)
+  const targets = await resolveTargets(config, propertyId, companyId, supabase, effectiveTimezone)
 
   if (targets.length === 0) {
     return

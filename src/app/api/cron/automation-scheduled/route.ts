@@ -13,14 +13,14 @@
  * The unified scheduler reads per-automation `trigger_config` to determine
  * cron schedule, target entities, and deduplication behavior.
  *
- * Security: Requires CRON_SECRET via Authorization header.
+ * Security: If CRON_SECRET is set, requires a matching Authorization header.
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { runUnifiedScheduler } from '@/lib/automations/scheduler/unified-scheduler'
 
 export async function POST(request: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret when configured
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 
@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const secret = searchParams.get('secret')
 
-  if (secret !== process.env.CRON_SECRET) {
+  const cronSecret = process.env.CRON_SECRET
+
+  if (cronSecret && secret !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

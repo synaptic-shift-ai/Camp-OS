@@ -211,7 +211,6 @@ export interface AutomationBranchRow {
 
 export interface ScheduledTriggerConfig {
   schedule: string        // Cron expression, e.g. "0 8 * * *"
-  timezone: string        // IANA timezone, e.g. "America/New_York"
   target: 'reservations' | 'guests' | 'sites' | 'property'
   dateField?: string      // Column to match (e.g. "check_in_date")
   offsetDays?: number     // Shift match date (negative = before)

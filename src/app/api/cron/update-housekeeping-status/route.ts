@@ -28,7 +28,7 @@ function wallClockInTimeZone(now: Date, timeZone: string): string {
 }
 
 export async function POST(request: NextRequest) {
-    // Verify cron secret
+    // Verify cron secret when configured
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
@@ -237,7 +237,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const secret = searchParams.get('secret')
 
-    if (secret !== process.env.CRON_SECRET) {
+    const cronSecret = process.env.CRON_SECRET
+
+    if (cronSecret && secret !== cronSecret) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

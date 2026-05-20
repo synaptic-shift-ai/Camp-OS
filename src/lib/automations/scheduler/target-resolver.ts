@@ -38,9 +38,27 @@ function getAllowedDateFields(target: string): ReadonlySet<string> {
 /**
  * Compute the target date string (YYYY-MM-DD) applying offsetDays to today.
  */
-function computeTargetDate(offsetDays: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + offsetDays)
+function zonedDateParts(date: Date, timezone: string): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+
+  return {
+    year: Number(value('year')),
+    month: Number(value('month')),
+    day: Number(value('day')),
+  }
+}
+
+function computeTargetDate(offsetDays: number, timezone: string): string {
+  const parts = zonedDateParts(new Date(), timezone)
+  const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + offsetDays))
   return d.toISOString().slice(0, 10)
 }
 
@@ -86,16 +104,17 @@ export async function resolveTargets(
   propertyId: string,
   companyId: string,
   supabase: SupabaseClient,
+  timezone: string,
 ): Promise<ResolvedTarget[]> {
   const { target } = config
 
   switch (target) {
     case 'reservations':
-      return resolveReservationTargets(config, propertyId, supabase)
+      return resolveReservationTargets(config, propertyId, supabase, timezone)
     case 'guests':
-      return resolveGuestTargets(config, propertyId, supabase)
+      return resolveGuestTargets(config, propertyId, supabase, timezone)
     case 'sites':
-      return resolveSiteTargets(config, propertyId, supabase)
+      return resolveSiteTargets(config, propertyId, supabase, timezone)
     case 'property':
       return resolvePropertyTargets(propertyId, supabase)
     default:
@@ -111,6 +130,7 @@ async function resolveReservationTargets(
   config: ScheduledTriggerConfig,
   propertyId: string,
   supabase: SupabaseClient,
+  timezone: string,
 ): Promise<ResolvedTarget[]> {
   const dateField = config.dateField ?? 'check_in_date'
   const offsetDays = config.offsetDays ?? 0
@@ -122,7 +142,7 @@ async function resolveReservationTargets(
     return []
   }
 
-  const targetDate = computeTargetDate(offsetDays)
+  const targetDate = computeTargetDate(offsetDays, timezone)
 
   let query = supabase
     .from('reservations')
@@ -158,6 +178,7 @@ async function resolveGuestTargets(
   config: ScheduledTriggerConfig,
   propertyId: string,
   supabase: SupabaseClient,
+  timezone: string,
 ): Promise<ResolvedTarget[]> {
   const dateField = config.dateField
   const offsetDays = config.offsetDays ?? 0
@@ -175,7 +196,7 @@ async function resolveGuestTargets(
     .eq('property_id', propertyId)
 
   if (dateField) {
-    const targetDate = computeTargetDate(offsetDays)
+    const targetDate = computeTargetDate(offsetDays, timezone)
     query = applyDateFilter(query, dateField, targetDate)
   }
 
@@ -206,6 +227,7 @@ async function resolveSiteTargets(
   config: ScheduledTriggerConfig,
   propertyId: string,
   supabase: SupabaseClient,
+  timezone: string,
 ): Promise<ResolvedTarget[]> {
   const dateField = config.dateField
   const offsetDays = config.offsetDays ?? 0
@@ -223,7 +245,7 @@ async function resolveSiteTargets(
     .eq('property_id', propertyId)
 
   if (dateField) {
-    const targetDate = computeTargetDate(offsetDays)
+    const targetDate = computeTargetDate(offsetDays, timezone)
     query = applyDateFilter(query, dateField, targetDate)
   }
 

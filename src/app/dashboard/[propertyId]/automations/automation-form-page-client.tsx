@@ -22,6 +22,7 @@ import { PHASE_COLORS } from "@/lib/automations/templates"
 import { CreateAutomationSchema } from "@/lib/automations/schemas"
 import { flattenTree, hydrateTree, type ConditionGroupNode } from "@/lib/automations/condition-tree"
 import { cn } from "@/lib/utils"
+import { useProperty } from "@/components/property-context"
 
 // ============================================================================
 // Constants
@@ -119,6 +120,8 @@ export function AutomationFormPageClient({
   const router = useRouter()
   const { toast } = useToast()
   const isEdit = mode === "edit"
+  const { selectedProperty } = useProperty()
+  const propertyTimezone = selectedProperty?.settings?.timezone ?? "UTC"
 
   // ── Form state ─────────────────────────────────────────────────────────
   const [name, setName] = useState(initialData?.name ?? "")
@@ -634,6 +637,8 @@ export function AutomationFormPageClient({
               <ScheduleConfig
                 triggerConfig={triggerConfig}
                 onTriggerConfigChange={setTriggerConfig}
+                propertyTimezone={propertyTimezone}
+                propertyId={propertyId}
               />
             )}
           </TabsContent>

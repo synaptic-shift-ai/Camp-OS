@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
@@ -28,19 +29,6 @@ const SCHEDULE_PRESETS: Array<{ label: string; cron: string }> = [
   { label: "Every Monday 9am", cron: "0 9 * * 1" },
   { label: "First of month", cron: "0 0 1 * *" },
   { label: "Every 5 minutes", cron: "*/5 * * * *" },
-]
-
-const TIMEZONES = [
-  { value: "UTC", label: "UTC" },
-  { value: "America/New_York", label: "Eastern (New York)" },
-  { value: "America/Chicago", label: "Central (Chicago)" },
-  { value: "America/Denver", label: "Mountain (Denver)" },
-  { value: "America/Los_Angeles", label: "Pacific (Los Angeles)" },
-  { value: "America/Anchorage", label: "Alaska (Anchorage)" },
-  { value: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
-  { value: "Europe/London", label: "London" },
-  { value: "Europe/Berlin", label: "Berlin" },
-  { value: "Australia/Sydney", label: "Sydney" },
 ]
 
 const TARGET_OPTIONS: Array<{ value: ScheduledTriggerConfig["target"]; label: string }> = [
@@ -89,6 +77,7 @@ interface ScheduleConfigProps {
   triggerConfig: Record<string, unknown>
   onTriggerConfigChange: (config: Record<string, unknown>) => void
   propertyTimezone?: string
+  propertyId?: string
 }
 
 // ============================================================================
@@ -97,7 +86,6 @@ interface ScheduleConfigProps {
 
 function parseConfig(raw: Record<string, unknown>): {
   schedule: string
-  timezone: string
   target: ScheduledTriggerConfig["target"]
   dateField: string
   offsetDays: number
@@ -108,10 +96,6 @@ function parseConfig(raw: Record<string, unknown>): {
   const offsetRaw = typeof raw.offsetDays === "number" ? raw.offsetDays : 0
   return {
     schedule: typeof raw.schedule === "string" ? raw.schedule : "0 8 * * *",
-    timezone:
-      typeof raw.timezone === "string"
-        ? raw.timezone
-        : "UTC",
     target: ["reservations", "guests", "sites", "property"].includes(raw.target as string)
       ? (raw.target as ScheduledTriggerConfig["target"])
       : "reservations",
@@ -138,14 +122,12 @@ function arraysEqual(a: string[], b: string[]) {
 export function ScheduleConfig({
   triggerConfig,
   onTriggerConfigChange,
-  propertyTimezone,
+  propertyTimezone = "UTC",
+  propertyId,
 }: ScheduleConfigProps) {
   const parsed = useMemo(() => parseConfig(triggerConfig), [triggerConfig])
 
   const [schedule, setSchedule] = useState(parsed.schedule)
-  const [timezone, setTimezone] = useState(
-    parsed.timezone !== "UTC" ? parsed.timezone : (propertyTimezone ?? "UTC")
-  )
   const [target, setTarget] = useState(parsed.target)
   const [dateField, setDateField] = useState(parsed.dateField)
   const [offsetDays, setOffsetDays] = useState(parsed.offsetDays)
@@ -154,18 +136,36 @@ export function ScheduleConfig({
   const [dedupeWindow, setDedupeWindow] = useState<"hour" | "day">(parsed.dedupeWindow)
 
   // Sync from prop changes (edit mode load)
+  const isSyncingFromProps = useRef(false)
+
   useEffect(() => {
-    const nextTimezone = parsed.timezone !== "UTC" ? parsed.timezone : (propertyTimezone ?? "UTC")
+    const willSync =
+      schedule !== parsed.schedule ||
+      target !== parsed.target ||
+      dateField !== parsed.dateField ||
+      offsetDays !== parsed.offsetDays ||
+      offsetDirection !== parsed.offsetDirection ||
+      !arraysEqual(statuses, parsed.statuses) ||
+      dedupeWindow !== parsed.dedupeWindow
+
+    if (willSync) {
+      isSyncingFromProps.current = true
+    }
 
     setSchedule(prev => prev === parsed.schedule ? prev : parsed.schedule)
-    setTimezone(prev => prev === nextTimezone ? prev : nextTimezone)
     setTarget(prev => prev === parsed.target ? prev : parsed.target)
     setDateField(prev => prev === parsed.dateField ? prev : parsed.dateField)
     setOffsetDays(prev => prev === parsed.offsetDays ? prev : parsed.offsetDays)
     setOffsetDirection(prev => prev === parsed.offsetDirection ? prev : parsed.offsetDirection)
     setStatuses(prev => arraysEqual(prev, parsed.statuses) ? prev : parsed.statuses)
     setDedupeWindow(prev => prev === parsed.dedupeWindow ? prev : parsed.dedupeWindow)
-  }, [parsed, propertyTimezone])
+    // Only run when triggerConfig props are parsed again; local field edits emit upward separately.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsed])
+
+  // Skip first render emit so we don't push defaults on mount and
+  // falsely trigger the parent's dirty detection.
+  const isFirstRender = useRef(true)
 
   // Build the config and push it up on every field change
   const emitConfig = useCallback(() => {
@@ -174,7 +174,6 @@ export function ScheduleConfig({
 
     const config: Record<string, unknown> = {
       schedule,
-      timezone,
       target,
       dateField: target !== "property" ? dateField || undefined : undefined,
       offsetDays: target !== "property" && effectiveOffset !== 0 ? effectiveOffset : undefined,
@@ -184,13 +183,21 @@ export function ScheduleConfig({
     }
 
     onTriggerConfigChange(config)
-  }, [schedule, timezone, target, dateField, offsetDays, offsetDirection, statuses, dedupeWindow, onTriggerConfigChange])
+  }, [schedule, target, dateField, offsetDays, offsetDirection, statuses, dedupeWindow, onTriggerConfigChange])
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return // Skip emit on mount — don't overwrite loaded/default config
+    }
+    if (isSyncingFromProps.current) {
+      isSyncingFromProps.current = false
+      return // Skip emit while hydrating/edit-loading config from props
+    }
     emitConfig()
     // Only re-emit when actual field values change, not emitConfig ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedule, timezone, target, dateField, offsetDays, offsetDirection, statuses, dedupeWindow])
+  }, [schedule, target, dateField, offsetDays, offsetDirection, statuses, dedupeWindow])
 
   // Cron preview
   const cronPreview = useMemo(() => {
@@ -262,21 +269,20 @@ export function ScheduleConfig({
           ))}
         </div>
 
-        {/* ── Timezone ───────────────────────────────────────────────── */}
+        {/* ── Timezone (read-only, from property settings) ──────────── */}
         <div className="space-y-2">
-          <Label htmlFor="schedule-timezone">Timezone</Label>
-          <Select value={timezone} onValueChange={setTimezone}>
-            <SelectTrigger id="schedule-timezone">
-              <SelectValue placeholder="Select timezone..." />
-            </SelectTrigger>
-            <SelectContent>
-              {TIMEZONES.map(tz => (
-                <SelectItem key={tz.value} value={tz.value}>
-                  {tz.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Timezone</Label>
+          <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">{propertyTimezone}</span>
+            {propertyId && (
+              <Link
+                href={`/dashboard/${propertyId}/settings`}
+                className="text-xs text-primary hover:underline"
+              >
+                Change in Settings
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* ── Target Entity ──────────────────────────────────────────── */}

@@ -1,3 +1,17 @@
+/**
+ * Standalone node-cron runner (FALLBACK / DEVELOPMENT ONLY)
+ *
+ * In production, Supabase Cron (pg_cron + pg_net) is the primary scheduling
+ * mechanism. Register jobs via:
+ *   SELECT setup_cron_jobs('https://your-app.com', 'your-cron-secret');
+ *
+ * This file is kept as a fallback for local development where pg_cron may not
+ * be available, or for Docker/self-hosted deployments that prefer an in-process
+ * scheduler.
+ *
+ * Usage: npx tsx cron.ts
+ */
+
 import cron from 'node-cron'
 import 'dotenv/config'
 
@@ -20,39 +34,66 @@ if (!cronSecret) {
   )
 }
 
-// cron.schedule(
-//   '* * * * *',
-//   async () => {
-//     try {
-//       const res = await fetch(`${baseUrl}/api/cron/update-housekeeping-status`, {
-//         method: 'POST', // or GET
-//         headers: cronHeaders(),
-//       })
-
-//       const body = await res.json()
-//       console.log('[Cron] update-housekeeping-status:', res.status, body)
-//     } catch (error) {
-//       console.error('[Cron] Failed to call housekeeping endpoint:', error)
-//     }
-//   },
-//   {
-//     timezone: 'UTC',
-//   },
-// )
+console.log(
+  '[Cron] NOTE: In production, use Supabase Cron (pg_cron) instead of this standalone runner.',
+)
+console.log(
+  '[Cron]       Register jobs via: SELECT setup_cron_jobs(\'https://your-app.com\', \'your-cron-secret\');',
+)
 
 cron.schedule(
-  '* * * * *',
+  '*/5 * * * *',
   async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/cron/automation-pre-arrival-reminder`, {
+      const res = await fetch(`${baseUrl}/api/cron/automation-scheduled`, {
         method: 'POST',
         headers: cronHeaders(),
       })
 
       const body = await res.json()
-      console.log('[Cron] automation-pre-arrival-reminder:', res.status, body)
+      console.log('[Cron] automation-scheduled:', res.status, body)
     } catch (error) {
-      console.error('[Cron] Failed to call automation-pre-arrival-reminder endpoint:', error)
+      console.error('[Cron] Failed to call automation-scheduled endpoint:', error)
+    }
+  },
+  {
+    timezone: 'UTC',
+  },
+)
+
+cron.schedule(
+  '*/5 * * * *',
+  async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/cron/cleanup-expired-reservations`, {
+        method: 'POST',
+        headers: cronHeaders(),
+      })
+
+      const body = await res.json()
+      console.log('[Cron] cleanup-expired-reservations:', res.status, body)
+    } catch (error) {
+      console.error('[Cron] Failed to call cleanup-expired-reservations endpoint:', error)
+    }
+  },
+  {
+    timezone: 'UTC',
+  },
+)
+
+cron.schedule(
+  '0 0 * * *',
+  async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/cron/update-housekeeping-status`, {
+        method: 'POST',
+        headers: cronHeaders(),
+      })
+
+      const body = await res.json()
+      console.log('[Cron] update-housekeeping-status:', res.status, body)
+    } catch (error) {
+      console.error('[Cron] Failed to call update-housekeeping-status endpoint:', error)
     }
   },
   {

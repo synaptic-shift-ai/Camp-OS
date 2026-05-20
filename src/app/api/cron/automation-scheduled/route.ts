@@ -1,111 +1,39 @@
 /**
- * Automation Scheduled Cron
+ * Unified Scheduler Cron
  *
  * POST /api/cron/automation-scheduled
  *
- * Hourly cron that fires `system.scheduled` automations for all active properties.
- * Because Vercel serverless functions run in isolated processes, in-memory EventBus
- * subscribers are not available. This route calls the automation pipeline directly.
+ * Replaces the previous hourly system.scheduled cron with the unified
+ * scheduler that handles all 4 scheduled trigger types:
+ * - system.scheduled
+ * - system.check_in_reminder
+ * - system.pre_arrival_reminder
+ * - system.check_out_reminder
+ *
+ * The unified scheduler reads per-automation `trigger_config` to determine
+ * cron schedule, target entities, and deduplication behavior.
  *
  * Security: Requires CRON_SECRET via Authorization header.
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { runPipelineForTrigger } from '@/lib/automations/run-pipeline'
-import type { EventContext } from '@/lib/automations/types'
+import { runUnifiedScheduler } from '@/lib/automations/scheduler/unified-scheduler'
 
 export async function POST(request: NextRequest) {
+  // Verify cron secret
+  const authHeader = request.headers.get('authorization')
+  const cronSecret = process.env.CRON_SECRET
+
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
-    // Verify cron secret
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const supabase = createServiceRoleClient()
-
-    // Fetch all active properties
-    const { data: properties, error: propsError } = await supabase
-      .from('properties')
-      .select('id, company_id, name')
-      .eq('status', 'active')
-
-    if (propsError) {
-      console.error('[Automation Scheduled] Failed to fetch properties:', propsError)
-      return NextResponse.json(
-        { error: 'Database error', details: propsError.message },
-        { status: 500 },
-      )
-    }
-
-    if (!properties || properties.length === 0) {
-      console.log('[Automation Scheduled] No active properties found')
-      return NextResponse.json({
-        success: true,
-        propertiesProcessed: 0,
-        totalAutomationsExecuted: 0,
-      })
-    }
-
-    console.log(`[Automation Scheduled] Processing ${properties.length} active properties`)
-
-    let totalExecuted = 0
-
-    for (const property of properties) {
-      const propertyId = property.id
-      const companyId = property.company_id
-
-      if (!companyId) {
-        console.warn(`[Automation Scheduled] Skipping property ${propertyId} — no company_id`)
-        continue
-      }
-
-      // Build minimal EventContext for scheduled trigger
-      const context: EventContext = {
-        event: {
-          type: 'system.scheduled',
-          timestamp: new Date(),
-        },
-        propertyId,
-        companyId,
-        property: {
-          id: propertyId,
-          company_id: companyId,
-          name: property.name,
-        },
-      }
-
-      try {
-        const result = await runPipelineForTrigger(
-          'system.scheduled',
-          propertyId,
-          companyId,
-          context,
-        )
-
-        totalExecuted += result.executed
-
-        if (result.matched > 0) {
-          console.log(`[Automation Scheduled] Property ${propertyId}: matched=${result.matched} passed=${result.passed} executed=${result.executed}`)
-        }
-      } catch (err) {
-        console.error(`[Automation Scheduled] Pipeline failed for property ${propertyId}:`, err)
-        // Continue processing other properties
-      }
-    }
-
-    console.log(`[Automation Scheduled] Complete: ${properties.length} properties, ${totalExecuted} actions executed`)
-
-    return NextResponse.json({
-      success: true,
-      propertiesProcessed: properties.length,
-      totalAutomationsExecuted: totalExecuted,
-    })
+    const result = await runUnifiedScheduler()
+    console.log('[Unified Scheduler] Complete:', result)
+    return NextResponse.json({ success: true, ...result })
   } catch (error) {
-    console.error('[Automation Scheduled] Unexpected error:', error)
+    console.error('[Unified Scheduler] Fatal error:', error)
     return NextResponse.json(
       {
         error: 'An unexpected error occurred',

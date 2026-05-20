@@ -310,6 +310,7 @@ export async function seedDefaultEmailAutomations(
     await updateAutomationWithDetails(existingId, {
       name: def.name,
       ...(def.description ? { description: def.description } : { description: null }),
+      triggerConfig: def.trigger_config ?? {},
       sortOrder: def.sort_order,
       actions,
     })

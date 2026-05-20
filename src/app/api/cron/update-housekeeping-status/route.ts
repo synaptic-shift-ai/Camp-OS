@@ -27,7 +27,15 @@ function wallClockInTimeZone(now: Date, timeZone: string): string {
     return `${v('year')}-${v('month')}-${v('day')}T${v('hour')}:${v('minute')}`
 }
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
+    // Verify cron secret
+    const authHeader = request.headers.get('authorization')
+    const cronSecret = process.env.CRON_SECRET
+
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     try {
         const supabase = createServiceRoleClient()
         const nowDate = new Date()
@@ -224,6 +232,14 @@ export async function POST(_request: NextRequest) {
     }
 }
 
+// Allow manual GET for testing
 export async function GET(request: NextRequest) {
+    const searchParams = request.nextUrl.searchParams
+    const secret = searchParams.get('secret')
+
+    if (secret !== process.env.CRON_SECRET) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return POST(request)
 }

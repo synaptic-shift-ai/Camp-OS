@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { GuestCommunicationPageHeader } from "./guest-communication-page-header"
 import {
   GuestCommunicationViewSwitcher,
@@ -9,17 +10,33 @@ import {
 import { SmsInboxPanel } from "./sms-inbox-panel"
 import { GuestDeliveryPanel } from "./guest-delivery-panel"
 import { OptOutsPanel } from "./opt-outs-panel"
+import { CampaignsPanel } from "./campaigns-panel"
 
 type GuestCommunicationPageContentProps = {
   propertyId: string
   propertyName: string
 }
 
-export function GuestCommunicationPageContent({
+export function GuestCommunicationPageContent(props: GuestCommunicationPageContentProps) {
+  return (
+    <Suspense>
+      <GuestCommunicationPageContentInner {...props} />
+    </Suspense>
+  )
+}
+
+function GuestCommunicationPageContentInner({
   propertyId,
   propertyName,
 }: GuestCommunicationPageContentProps) {
-  const [viewMode, setViewMode] = useState<GuestCommunicationViewMode>("sms_inbox")
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get("tab")
+  const [viewMode, setViewMode] = useState<GuestCommunicationViewMode>(() => {
+    if (initialTab === "campaigns") return "campaigns"
+    if (initialTab === "guest_delivery") return "guest_delivery"
+    if (initialTab === "opt_outs") return "opt_outs"
+    return "sms_inbox"
+  })
 
   return (
     <div className="space-y-4 sm:space-y-6" data-property-id={propertyId}>
@@ -41,12 +58,14 @@ export function GuestCommunicationPageContent({
               </p>
             </div>
           </div> */}
-          <SmsInboxPanel />
+          <SmsInboxPanel propertyId={propertyId} />
         </div>
       ) : viewMode === "guest_delivery" ? (
         <GuestDeliveryPanel propertyId={propertyId} />
       ) : viewMode === "opt_outs" ? (
         <OptOutsPanel propertyId={propertyId} />
+      ) : viewMode === "campaigns" ? (
+        <CampaignsPanel propertyId={propertyId} />
       ) : null}
     </div>
   )

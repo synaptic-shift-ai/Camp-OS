@@ -31,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { SiteType } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
+import { formatTime } from "@/lib/utils/format-time"
 import type { BookingRulesConfig, HolidayRule } from "@/lib/config/types"
 import { BookingDateRangePicker, type DateRangeValue } from "@/components/guest/booking-date-range-picker"
 import { useToast } from "@/hooks/use-toast"
@@ -245,17 +246,6 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     availableSiteTypeValues.includes(opt.value)
   )
 
-  const formatTime = (time: string | undefined | null) => {
-    if (!time) return ""
-    const parts = time.split(":")
-    const hours = parts[0]
-    const minutes = parts[1]
-    if (!hours || !minutes) return ""
-    const hour = Number.parseInt(hours, 10)
-    const ampm = hour >= 12 ? "PM" : "AM"
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-    return `${displayHour}:${minutes} ${ampm}`
-  }
 
   const getHolidayMinStayViolation = (
     holidays: HolidayRule[] | undefined,

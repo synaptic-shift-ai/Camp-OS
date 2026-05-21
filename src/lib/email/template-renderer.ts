@@ -7,6 +7,7 @@
  */
 
 import { getSampleData } from './variable-definitions'
+import { formatTime } from '@/lib/utils/format-time'
 
 // ============================================================================
 // Email Layout Settings
@@ -244,6 +245,14 @@ export function enrichContext(raw: Record<string, unknown>): Record<string, unkn
     if (parts.length > 0) {
       property.address = parts.join(', ')
     }
+
+    // property.formatted_check_in_time / formatted_check_out_time
+    if (typeof property.check_in_time === 'string') {
+      property.formatted_check_in_time = formatTime(property.check_in_time)
+    }
+    if (typeof property.check_out_time === 'string') {
+      property.formatted_check_out_time = formatTime(property.check_out_time)
+    }
   }
 
   // payment.formatted_amount — DB column is amount_cents, legacy may use amount
@@ -327,9 +336,9 @@ export function renderWithSampleData(subject: string, html: string): {
     subject: replaceVariables(subject, sample),
     html: full
       ? appendEmailFooterToRenderedHtml(
-          applyLegacyBackgroundOverride(renderedContent, settings),
-          sampleBranding,
-        )
+        applyLegacyBackgroundOverride(renderedContent, settings),
+        sampleBranding,
+      )
       : wrapWithEmailLayout(renderedContent, settings, sampleBranding),
   }
 }
@@ -361,22 +370,22 @@ export function renderWithContext(
   const propertyAddress = branding?.propertyAddress ?? contextPropertyAddress
   const effectiveBranding = branding
     ? {
-        ...branding,
-        ...(propertyName !== null ? { propertyName } : {}),
-        ...(propertyAddress !== null ? { propertyAddress } : {}),
-      }
+      ...branding,
+      ...(propertyName !== null ? { propertyName } : {}),
+      ...(propertyAddress !== null ? { propertyAddress } : {}),
+    }
     : contextPropertyName !== null
       ? {
-          propertyName: contextPropertyName,
-          ...(contextPropertyAddress !== null ? { propertyAddress: contextPropertyAddress } : {}),
-        }
+        propertyName: contextPropertyName,
+        ...(contextPropertyAddress !== null ? { propertyAddress: contextPropertyAddress } : {}),
+      }
       : undefined
   const renderedHtml = full
     ? effectiveBranding
       ? appendEmailFooterToRenderedHtml(
-          applyLegacyBackgroundOverride(renderedContent, settings),
-          effectiveBranding,
-        )
+        applyLegacyBackgroundOverride(renderedContent, settings),
+        effectiveBranding,
+      )
       : applyLegacyBackgroundOverride(renderedContent, settings)
     : wrapWithEmailLayout(renderedContent, settings, effectiveBranding)
   const renderedText = renderedContent

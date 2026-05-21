@@ -9,6 +9,7 @@ import {
   Text,
   Hr,
 } from '@react-email/components'
+import { formatTime } from '@/lib/utils/format-time'
 
 interface BookingConfirmationEmailProps {
   guestName: string
@@ -69,17 +70,6 @@ export function BookingConfirmationEmail({
     })
   }
 
-  const formatTime = (time: string | undefined) => {
-    if (!time) return ''
-    const parts = time.split(':')
-    const hours = parts[0]
-    const minutes = parts[1]
-    if (!hours || !minutes) return ''
-    const hour = parseInt(hours, 10)
-    const ampm = hour >= 12 ? 'PM' : 'AM'
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-    return `${displayHour}:${minutes} ${ampm}`
-  }
 
   const balanceDue = totalAmount - paidAmount
 

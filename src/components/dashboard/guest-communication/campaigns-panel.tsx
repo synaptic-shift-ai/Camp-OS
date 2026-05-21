@@ -155,7 +155,7 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
         <Button
           type="button"
           onClick={() => router.push(`/dashboard/${propertyId}/guest-communication/campaigns/new`)}
-          className="inline-flex items-center gap-2 rounded-lg bg-[hsl(0,84.2%,60.2%)] px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-90 dark:bg-[hsl(0,72%,51%)]"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" aria-hidden />
           New Campaign

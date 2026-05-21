@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils"
 const PANEL = "text-stone-900 dark:text-zinc-100"
 const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
-const RED = "border-l-[hsl(0,84.2%,60.2%)]"
+const RED = "border-l-primary"
 
 type ActivityRow = {
   id: string
@@ -526,7 +526,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
                   <div
-                    className="h-full rounded-full bg-[hsl(0,84.2%,60.2%)] dark:bg-[hsl(0,72%,51%)] transition-all duration-500"
+                    className="h-full rounded-full bg-primary transition-all duration-500"
                     style={{ width: `${emailPct}%` }}
                   />
                 </div>
@@ -598,7 +598,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     dataKey="EMAIL"
                     name="Email"
                     stackId="a"
-                    fill="hsl(0, 84.2%, 60.2%)"
+                    fill="#e11c48"
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar

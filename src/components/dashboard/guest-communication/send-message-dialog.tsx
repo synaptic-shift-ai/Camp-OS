@@ -168,7 +168,7 @@ export function SendMessageDialog({
             type="button"
             onClick={handleSend}
             disabled={!canSend || sending}
-            className="gap-1 bg-[hsl(0,84.2%,60.2%)] text-white hover:opacity-90 dark:bg-[hsl(0,72%,51%)]"
+            className="gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

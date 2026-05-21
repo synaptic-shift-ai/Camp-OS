@@ -66,6 +66,20 @@ export function SignupClient() {
         return
       }
 
+      try {
+        window.localStorage.setItem(
+          "signup_company_details",
+          JSON.stringify({
+            companyName: data.companyName,
+            propertyCount: "",
+            properties: [],
+            totalSites: 0,
+          })
+        )
+      } catch {
+        // Auth metadata is still used as a fallback after sign-in.
+      }
+
       // Send verification email while we may have a brief session
       if (authData.session) {
         const verifyRes = await fetch('/api/auth/send-verification', { method: 'POST' })
@@ -98,58 +112,58 @@ export function SignupClient() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Tent className="w-8 h-8 text-white" />
-            <span className="text-2xl font-bold text-white">CampOS</span>
+            <Tent className="w-8 h-8 text-foreground" />
+            <span className="text-2xl font-bold text-foreground">CampOS</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Get Started with CampOS</h1>
-          <p className="text-gray-400">Join thousands of outdoor hospitality properties</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Get Started with CampOS</h1>
+          <p className="text-muted-foreground">Join thousands of outdoor hospitality properties</p>
         </div>
 
-        <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">
+        <div className="bg-card rounded-lg p-8 border border-border">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white mb-1">Create Account</h2>
-            <p className="text-sm text-gray-400">Get started with CampOS in minutes</p>
+            <h2 className="text-xl font-bold text-foreground mb-1">Create Account</h2>
+            <p className="text-sm text-muted-foreground">Get started with CampOS in minutes</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-sm text-red-400">{error}</p>
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <Label htmlFor="companyName" className="text-white mb-2 block">
+              <Label htmlFor="companyName" className="text-foreground mb-2 block">
                 Company Name
               </Label>
               <Input
                 id="companyName"
                 placeholder="Outdoor Adventures Inc."
                 {...register("companyName")}
-                className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+                className="focus:border-primary"
               />
-              {errors.companyName && <p className="text-sm text-red-400 mt-1">{errors.companyName.message}</p>}
+              {errors.companyName && <p className="text-sm text-destructive mt-1">{errors.companyName.message}</p>}
             </div>
 
             <div>
-              <Label htmlFor="fullName" className="text-white mb-2 block">
+              <Label htmlFor="fullName" className="text-foreground mb-2 block">
                 Full Name
               </Label>
               <Input
                 id="fullName"
                 placeholder="John Smith"
                 {...register("fullName")}
-                className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+                className="focus:border-primary"
               />
-              {errors.fullName && <p className="text-sm text-red-400 mt-1">{errors.fullName.message}</p>}
+              {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
             </div>
 
             <div>
-              <Label htmlFor="email" className="text-white mb-2 block">
+              <Label htmlFor="email" className="text-foreground mb-2 block">
                 Email
               </Label>
               <Input
@@ -157,13 +171,13 @@ export function SignupClient() {
                 type="email"
                 placeholder="you@example.com"
                 {...register("email")}
-                className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+                className="focus:border-primary"
               />
-              {errors.email && <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>}
+              {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-white mb-2 block">
+              <Label htmlFor="password" className="text-foreground mb-2 block">
                 Password
               </Label>
               <div className="relative">
@@ -172,21 +186,21 @@ export function SignupClient() {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   {...register("password")}
-                  className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500 pr-10"
+                  className="focus:border-primary pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>}
+              {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword" className="text-white mb-2 block">
+              <Label htmlFor="confirmPassword" className="text-foreground mb-2 block">
                 Confirm Password
               </Label>
               <div className="relative">
@@ -195,17 +209,17 @@ export function SignupClient() {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
                   {...register("confirmPassword")}
-                  className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500 pr-10"
+                  className="focus:border-primary pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.confirmPassword && <p className="text-sm text-red-400 mt-1">{errors.confirmPassword.message}</p>}
+              {errors.confirmPassword && <p className="text-sm text-destructive mt-1">{errors.confirmPassword.message}</p>}
             </div>
 
             <Button
@@ -223,22 +237,22 @@ export function SignupClient() {
               )}
             </Button>
 
-            <p className="text-sm text-center text-gray-400">
+            <p className="text-sm text-center text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-red-500 hover:text-red-400 transition-colors">
+              <Link href="/login" className="text-primary hover:text-primary/80 transition-colors">
                 Sign in
               </Link>
             </p>
           </form>
         </div>
 
-        <p className="text-xs text-center text-gray-500 mt-6">
+        <p className="text-xs text-center text-muted-foreground mt-6">
           By creating an account, you agree to our{" "}
-          <Link href="/terms" className="text-red-500 hover:text-red-400 transition-colors">
+          <Link href="/terms" className="text-primary hover:text-primary/80 transition-colors">
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href="/privacy" className="text-red-500 hover:text-red-400 transition-colors">
+          <Link href="/privacy" className="text-primary hover:text-primary/80 transition-colors">
             Privacy Policy
           </Link>
         </p>

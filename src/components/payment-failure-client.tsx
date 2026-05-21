@@ -40,10 +40,10 @@ export function PaymentFailureClient() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-red-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Confirming your payment...</p>
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Confirming your payment...</p>
         </div>
       </div>
     )
@@ -51,27 +51,27 @@ export function PaymentFailureClient() {
 
   // Error/Failure state
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Tent className="w-8 h-8 text-white" />
-            <span className="text-2xl font-bold text-white">CampOS</span>
+            <Tent className="w-8 h-8 text-foreground" />
+            <span className="text-2xl font-bold text-foreground">CampOS</span>
           </div>
         </div>
 
-        <Card className="bg-zinc-900 border-zinc-800 p-8 text-center">
+        <Card className="bg-card border-border p-8 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, type: "spring" }}
-            className="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6"
+            className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6"
           >
-            <XCircle className="w-10 h-10 text-red-500" />
+            <XCircle className="w-10 h-10 text-destructive" />
           </motion.div>
 
-          <h1 className="text-2xl font-bold text-white mb-2">Payment Failed</h1>
-          <p className="text-gray-400 mb-6">
+          <h1 className="text-2xl font-bold text-foreground mb-2">Payment Failed</h1>
+          <p className="text-muted-foreground mb-6">
             {error || "We were unable to process your payment. Please try again or contact support."}
           </p>
 
@@ -85,7 +85,6 @@ export function PaymentFailureClient() {
             <Button
               variant="outline"
               onClick={() => router.push("/choose-plan")}
-              className="bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
             >
               Back to Plans
             </Button>

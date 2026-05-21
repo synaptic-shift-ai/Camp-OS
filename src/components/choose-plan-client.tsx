@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Check, ArrowLeft, Loader2, Sparkles } from "lucide-react"
-import Link from "next/link"
+import { Check, Loader2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -98,22 +97,22 @@ export function ChoosePlanClient() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
           {/* <Link
             href="/"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
           </Link> */}
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Choose Your Plan</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Choose Your Plan</h1>
           {siteCount > 0 && (
-            <p className="text-gray-400 text-lg">
-              Based on your <span className="text-white font-semibold">{siteCount}</span> sites, we recommend the{" "}
-              <span className="text-red-500 font-semibold">{recommendedPlan.name}</span> plan.
+            <p className="text-muted-foreground text-lg">
+              Based on your <span className="text-foreground font-semibold">{siteCount}</span> sites, we recommend the{" "}
+              <span className="text-primary font-semibold">{recommendedPlan.name}</span> plan.
             </p>
           )}
         </div>
@@ -121,23 +120,23 @@ export function ChoosePlanClient() {
         {/* Billing Cycle Toggle */}
         <div className="flex flex-col items-center gap-3 mb-12">
           <Tabs value={billingCycle} onValueChange={(value) => setBillingCycle(value as BillingCycle)}>
-            <TabsList className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors">
+            <TabsList className="bg-card border border-border hover:border-border/80 transition-colors">
               <TabsTrigger
                 value="monthly"
-                className="text-gray-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-pink-600 data-[state=active]:text-white hover:text-gray-200 transition-all cursor-pointer px-6 py-2 font-medium"
+                className="text-muted-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-pink-600 data-[state=active]:text-white hover:text-foreground transition-all cursor-pointer px-6 py-2 font-medium"
               >
                 Monthly
               </TabsTrigger>
               <TabsTrigger
                 value="annual"
-                className="text-gray-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-pink-600 data-[state=active]:text-white hover:text-gray-200 transition-all cursor-pointer px-6 py-2 font-medium"
+                className="text-muted-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-pink-600 data-[state=active]:text-white hover:text-foreground transition-all cursor-pointer px-6 py-2 font-medium"
               >
                 Annual
               </TabsTrigger>
             </TabsList>
           </Tabs>
           {billingCycle === "annual" && (
-            <p className="text-sm text-emerald-400">Save {annualSavings}% with annual billing</p>
+            <p className="text-sm text-emerald-500">Save {annualSavings}% with annual billing</p>
           )}
         </div>
 
@@ -158,7 +157,7 @@ export function ChoosePlanClient() {
 
             const cardContent = (
               <Card
-                className={`relative p-6 bg-zinc-900 border-zinc-800 h-full flex flex-col transition-all duration-300 ${isBestMatch ? "border-glow-red" : ""
+                className={`relative p-6 bg-card border-border h-full flex flex-col transition-all duration-300 ${isBestMatch ? "border-glow-red" : ""
                   }`}
               >
                 {/* Badges */}
@@ -174,29 +173,29 @@ export function ChoosePlanClient() {
 
                 {/* Plan Name & Description */}
                 <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                  <p className="text-sm text-gray-400">{plan.description}</p>
+                  <h3 className="text-2xl font-bold text-foreground mb-2">{plan.name}</h3>
+                  <p className="text-sm text-muted-foreground">{plan.description}</p>
                   {isRecommended && siteCount > 0 && (
-                    <p className="text-xs text-emerald-400 mt-2">Perfect fit for {siteCount} sites</p>
+                    <p className="text-xs text-emerald-500 mt-2">Perfect fit for {siteCount} sites</p>
                   )}
                 </div>
 
                 {/* Pricing */}
                 <div className="mb-6">
                   {plan.isEnterprise ? (
-                    <div className="text-3xl font-bold text-white">Custom</div>
+                    <div className="text-3xl font-bold text-foreground">Custom</div>
                   ) : (
                     <>
-                      <div className="text-3xl font-bold text-white">
+                      <div className="text-3xl font-bold text-foreground">
                         ${billingCycle === "monthly" ? price.total : price.total.toLocaleString()}
-                        <span className="text-lg font-normal text-gray-400">
+                        <span className="text-lg font-normal text-muted-foreground">
                           /{billingCycle === "monthly" ? "mo" : "yr"}
                         </span>
                       </div>
                       {billingCycle === "annual" && (
-                        <p className="text-sm text-gray-400 mt-1">Equivalent to ${price.monthly}/mo</p>
+                        <p className="text-sm text-muted-foreground mt-1">Equivalent to ${price.monthly}/mo</p>
                       )}
-                      <p className="text-xs text-gray-500 mt-1">billed {billingCycle}</p>
+                      <p className="text-xs text-muted-foreground mt-1">billed {billingCycle}</p>
                     </>
                   )}
                 </div>
@@ -207,7 +206,7 @@ export function ChoosePlanClient() {
                     {plan.features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-300">{feature}</span>
+                        <span className="text-sm text-foreground/80">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -220,7 +219,7 @@ export function ChoosePlanClient() {
                     disabled={isLoadingPlan}
                     className={`w-full h-11 font-medium ${isBestMatch
                       ? "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
+                      : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
                       }`}
                   >
                     {isLoadingPlan ? (

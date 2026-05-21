@@ -11,6 +11,7 @@ import {
 } from '@react-email/components'
 
 import { enrichContext } from '@/lib/email/template-renderer'
+import { formatTime } from '@/lib/utils/format-time'
 
 export type PreArrivalEmailBranding = {
   logoUrl?: string | null
@@ -46,17 +47,6 @@ function formatDate(dateString: string): string {
   })
 }
 
-function formatTime(time: string | undefined): string {
-  if (!time) return ''
-  const parts = time.split(':')
-  const hours = parts[0]
-  const minutes = parts[1]
-  if (!hours || !minutes) return ''
-  const hour = parseInt(hours, 10)
-  const ampm = hour >= 12 ? 'PM' : 'AM'
-  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-  return `${displayHour}:${minutes} ${ampm}`
-}
 
 function optionalTrimmedString(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined

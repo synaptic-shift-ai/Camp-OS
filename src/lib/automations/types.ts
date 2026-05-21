@@ -205,6 +205,20 @@ export interface AutomationBranchRow {
   created_at: string
 }
 
+// ============================================================================
+// Scheduled Trigger Config
+// ============================================================================
+
+export interface ScheduledTriggerConfig {
+  schedule: string        // Cron expression, e.g. "0 8 * * *"
+  target: 'reservations' | 'guests' | 'sites' | 'property'
+  dateField?: string      // Column to match (e.g. "check_in_date")
+  offsetDays?: number     // Shift match date (negative = before)
+  status?: string         // Legacy: single status filter
+  statuses?: string[]     // Preferred: array of statuses to match
+  dedupeWindow: 'hour' | 'day'  // Deduplication granularity
+}
+
 export interface AutomationExecutionLogRow {
   id: string
   automation_id: string | null

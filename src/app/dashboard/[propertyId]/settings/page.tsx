@@ -174,6 +174,11 @@ export default async function SettingsPage({ params }: PageProps) {
               email: property.email,
               checkInTime: property.check_in_time,
               checkOutTime: property.check_out_time,
+              timezone: (() => {
+                const s = property.settings as Record<string, unknown> | null | undefined
+                const tz = s?.timezone
+                return typeof tz === "string" ? tz : null
+              })(),
               ...(() => {
                 const s = property.settings as Record<string, unknown> | null | undefined
                 const from = s?.openPeriodFrom ?? s?.open_period_from

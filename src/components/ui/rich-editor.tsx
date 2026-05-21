@@ -1,6 +1,15 @@
 "use client"
 
-import { useRef, useCallback, useEffect, useState, Fragment } from "react"
+import {
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+  Fragment,
+  forwardRef,
+  useImperativeHandle,
+  type ReactNode,
+} from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -53,12 +62,18 @@ import {
 // Types
 // ============================================================================
 
+export type RichEditorHandle = {
+  insertVariable: (text: string) => void
+}
+
 type RichEditorProps = {
   value: string
   onChange: (html: string) => void
   placeholder?: string
   className?: string
   minHeight?: string
+  /** Rendered at the right end of the email settings bar (e.g. mobile variables trigger) */
+  toolbarEnd?: ReactNode
 }
 
 type EmailSettings = {
@@ -271,15 +286,50 @@ function wrapperStyle(settings: EmailSettings): React.CSSProperties {
 // RichEditor
 // ============================================================================
 
-export function RichEditor({
+export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEditor({
   value,
   onChange,
   placeholder = "Write your email content here...",
   className,
   minHeight = "250px",
-}: RichEditorProps) {
+  toolbarEnd,
+}, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(false)
+  const lastRangeRef = useRef<Range | null>(null)
+
+  // Expose imperative insertVariable method
+  useImperativeHandle(ref, () => ({
+    insertVariable: (text: string) => {
+      const editorEl = editorRef.current
+      if (!editorEl) return
+
+      editorEl.focus()
+
+      // Try to restore saved range
+      if (lastRangeRef.current) {
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+        sel?.addRange(lastRangeRef.current)
+      }
+
+      // Insert text at cursor
+      const selection = window.getSelection()
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0)
+        range.deleteContents()
+        const textNode = document.createTextNode(text)
+        range.insertNode(textNode)
+        range.setStartAfter(textNode)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+
+      // Trigger onChange
+      const html = editorEl.innerHTML
+      onChange?.(html)
+    },
+  }))
 
   // Parse existing settings from value
   const savedSettings = extractSettings(value)
@@ -369,6 +419,11 @@ export function RichEditor({
   }, [getContent, save])
 
   const handleBlur = useCallback(() => {
+    // Save current selection range for later restoration (variable insertion)
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      lastRangeRef.current = selection.getRangeAt(0).cloneRange()
+    }
     save(getContent())
   }, [getContent, save])
 
@@ -471,7 +526,6 @@ export function RichEditor({
   // Pre-load first 10 Google fonts on mount
   useEffect(() => {
     GOOGLE_FONTS.slice(0, 10).forEach((f) => loadGoogleFont(f.name))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // -- Toolbar button --
@@ -504,50 +558,56 @@ export function RichEditor({
     <div className={cn("border rounded-md overflow-hidden", className)}>
       {/* ── Email Settings Bar ── */}
       <div className="flex flex-wrap items-center gap-3 border-b bg-muted/20 px-3 py-1.5">
-        <span className="text-xs font-medium text-muted-foreground">Email</span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          <span className="text-xs font-medium text-muted-foreground">Email</span>
 
-        {/* Width */}
-        <Select
-          value={settings.width}
-          onValueChange={(v) => updateSettings({ width: v })}
-        >
-          <SelectTrigger className="h-7 w-[90px] text-xs">
-            <Maximize2 className="h-3 w-3 mr-1" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {WIDTH_OPTIONS.map((w) => (
-              <SelectItem key={w.value} value={w.value} className="text-xs">
-                {w.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Width */}
+          <Select
+            value={settings.width}
+            onValueChange={(v) => updateSettings({ width: v })}
+          >
+            <SelectTrigger className="h-7 w-[90px] text-xs">
+              <Maximize2 className="h-3 w-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {WIDTH_OPTIONS.map((w) => (
+                <SelectItem key={w.value} value={w.value} className="text-xs">
+                  {w.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Background color */}
-        <div className="flex items-center gap-1.5">
-          <Label className="text-xs text-muted-foreground">BG</Label>
-          <input
-            type="color"
-            value={settings.bgColor}
-            className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
-            title="Email Background Color"
-            onChange={(e) => updateSettings({ bgColor: e.target.value })}
-          />
+          {/* Background color */}
+          <div className="flex items-center gap-1.5">
+            <Label className="text-xs text-muted-foreground">BG</Label>
+            <input
+              type="color"
+              value={settings.bgColor}
+              className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
+              title="Email Background Color"
+              onChange={(e) => updateSettings({ bgColor: e.target.value })}
+            />
+          </div>
+
+          {/* Center toggle */}
+          <Button
+            type="button"
+            variant={settings.centered ? "secondary" : "ghost"}
+            size="xs"
+            className="h-7 gap-1 text-xs"
+            onClick={() => updateSettings({ centered: !settings.centered })}
+            title="Center email in viewport"
+          >
+            <AlignCenter className="h-3.5 w-3.5" />
+            Center
+          </Button>
         </div>
 
-        {/* Center toggle */}
-        <Button
-          type="button"
-          variant={settings.centered ? "secondary" : "ghost"}
-          size="xs"
-          className="h-7 text-xs gap-1"
-          onClick={() => updateSettings({ centered: !settings.centered })}
-          title="Center email in viewport"
-        >
-          <AlignCenter className="h-3.5 w-3.5" />
-          Center
-        </Button>
+        {toolbarEnd ? (
+          <div className="ml-auto shrink-0">{toolbarEnd}</div>
+        ) : null}
       </div>
 
       {needsSourceOnly && (
@@ -716,8 +776,8 @@ export function RichEditor({
       {/* ── Editor Area ── */}
       {sourceMode ? (
         <textarea
-          className="w-full font-mono text-xs p-3 focus:outline-none resize-y bg-gray-50"
-          style={{ minHeight, color: '#000000' }}
+          className="w-full flex-1 min-h-0 font-mono text-xs p-3 focus:outline-none resize-none bg-gray-50"
+          style={{ color: '#000000' }}
           value={sourceValue}
           onChange={(e) => {
             setSourceValue(e.target.value)
@@ -725,12 +785,11 @@ export function RichEditor({
           }}
         />
       ) : (
-        <div className={cn("overflow-y-auto", isWideEmailLayout ? "p-0" : "p-4")} style={{ backgroundColor: settings.bgColor }}>
+        <div className={cn("flex-1 min-h-0 overflow-y-auto", isWideEmailLayout ? "p-0" : "p-4")} style={{ backgroundColor: settings.bgColor }}>
           <div
             style={{
               ...wrapperStyle(settings),
               color: '#000000',
-              minHeight: `calc(${minHeight} - 2rem)`,
               padding: isWideEmailLayout ? "0" : "24px",
               fontFamily: "sans-serif",
               transition: "max-width 0.2s, background-color 0.2s",
@@ -797,7 +856,7 @@ export function RichEditor({
       </Dialog>
     </div>
   )
-}
+})
 
 // ============================================================================
 // VariableSelect (unchanged)

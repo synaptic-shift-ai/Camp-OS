@@ -12,7 +12,7 @@
  * - Manual trigger for testing
  *
  * Security:
- * - Requires CRON_SECRET header to prevent unauthorized calls
+ * - If CRON_SECRET is set, requires a matching Authorization header
  * - Uses service role client for database operations
  */
 
@@ -21,7 +21,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify cron secret (prevents unauthorized cleanup calls)
+    // Verify cron secret when configured
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
@@ -135,7 +135,9 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const secret = searchParams.get('secret')
 
-  if (secret !== process.env.CRON_SECRET) {
+  const cronSecret = process.env.CRON_SECRET
+
+  if (cronSecret && secret !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

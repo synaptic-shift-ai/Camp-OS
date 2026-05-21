@@ -16,11 +16,13 @@ import { ArrowLeft, Loader2, Save, Shield, DollarSign, FileCheck, Wrench, Mail, 
 import { useToast } from "@/hooks/use-toast"
 import { ConditionsSection } from "@/components/dashboard/automations/conditions-section"
 import { ActionsSection } from "@/components/dashboard/automations/actions-section"
+import { ScheduleConfig } from "@/components/dashboard/automations/schedule-config"
 import { PHASE_ORDER, type AutomationPhase, type TriggerType, type ActionType, type DelayUnit } from "@/lib/automations/types"
 import { PHASE_COLORS } from "@/lib/automations/templates"
 import { CreateAutomationSchema } from "@/lib/automations/schemas"
 import { flattenTree, hydrateTree, type ConditionGroupNode } from "@/lib/automations/condition-tree"
 import { cn } from "@/lib/utils"
+import { useProperty } from "@/components/property-context"
 
 // ============================================================================
 // Constants
@@ -118,6 +120,8 @@ export function AutomationFormPageClient({
   const router = useRouter()
   const { toast } = useToast()
   const isEdit = mode === "edit"
+  const { selectedProperty } = useProperty()
+  const propertyTimezone = selectedProperty?.settings?.timezone ?? "UTC"
 
   // ── Form state ─────────────────────────────────────────────────────────
   const [name, setName] = useState(initialData?.name ?? "")
@@ -129,6 +133,7 @@ export function AutomationFormPageClient({
   const [sortOrder, setSortOrder] = useState(initialData?.sort_order ?? 0)
   const [conditionGroups, setConditionGroups] = useState<ConditionGroupNode[]>([])
   const [actions, setActions] = useState<AutomationActionFormData[]>([])
+  const [triggerConfig, setTriggerConfig] = useState<Record<string, unknown>>({})
 
   // ── Initial values snapshot for dirty tracking ─────────────────────────
   const initialValuesRef = useRef({
@@ -141,6 +146,7 @@ export function AutomationFormPageClient({
     sortOrder: initialData?.sort_order ?? 0,
     conditionGroups: [] as ConditionGroupNode[],
     actions: [] as AutomationActionFormData[],
+    triggerConfig: {} as Record<string, unknown>,
   })
 
   // ── UI state ───────────────────────────────────────────────────────────
@@ -162,9 +168,10 @@ export function AutomationFormPageClient({
       isTerminal !== initial.isTerminal ||
       sortOrder !== initial.sortOrder ||
       JSON.stringify(conditionGroups) !== JSON.stringify(initial.conditionGroups) ||
-      JSON.stringify(actions) !== JSON.stringify(initial.actions)
+      JSON.stringify(actions) !== JSON.stringify(initial.actions) ||
+      JSON.stringify(triggerConfig) !== JSON.stringify(initial.triggerConfig)
     )
-  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions])
+  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, triggerConfig])
 
   const { UnsavedChangesDialog, requestNavigation } = useUnsavedChangesGuard(isDirty, {
     message: 'You have unsaved changes to this automation.',
@@ -204,6 +211,9 @@ export function AutomationFormPageClient({
           : []
         setConditionGroups(loadedConditions)
         setActions(loadedActions)
+        const automationData = data.automation ?? data
+        const loadedTriggerConfig = automationData.trigger_config ?? automationData.triggerConfig ?? {}
+        setTriggerConfig(loadedTriggerConfig)
         // Snapshot initial values after loading edit data
         initialValuesRef.current = {
           name: initialData?.name ?? "",
@@ -215,6 +225,7 @@ export function AutomationFormPageClient({
           sortOrder: initialData?.sort_order ?? 0,
           conditionGroups: loadedConditions,
           actions: loadedActions,
+          triggerConfig: loadedTriggerConfig,
         }
       })
       .catch(() => {
@@ -256,6 +267,12 @@ export function AutomationFormPageClient({
         isTerminal,
         sortOrder,
         ...(systemMode ? { scope: 'system' } : {}),
+        triggerConfig: [
+          'system.scheduled',
+          'system.check_in_reminder',
+          'system.pre_arrival_reminder',
+          'system.check_out_reminder',
+        ].includes(triggerType) ? triggerConfig : undefined,
         conditionGroups: flattenTree(conditionGroups),
         actions: actions.map((a, _i) => ({
           actionType: a.actionType,
@@ -271,7 +288,7 @@ export function AutomationFormPageClient({
     }
 
     return errs
-  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, propertyId, systemMode])
+  }, [name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, triggerConfig, companyId, propertyId, systemMode])
 
   // ── Save ──────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -312,6 +329,12 @@ export function AutomationFormPageClient({
           isActive,
           isTerminal,
           sortOrder,
+          triggerConfig: [
+            'system.scheduled',
+            'system.check_in_reminder',
+            'system.pre_arrival_reminder',
+            'system.check_out_reminder',
+          ].includes(triggerType) ? triggerConfig : undefined,
           conditionGroups: flatGroups,
           actions: actionPayload,
         }
@@ -326,6 +349,12 @@ export function AutomationFormPageClient({
           isActive,
           isTerminal,
           sortOrder,
+          triggerConfig: [
+            'system.scheduled',
+            'system.check_in_reminder',
+            'system.pre_arrival_reminder',
+            'system.check_out_reminder',
+          ].includes(triggerType) ? triggerConfig : undefined,
           conditionGroups: flatGroups,
           actions: actionPayload,
         }
@@ -346,6 +375,7 @@ export function AutomationFormPageClient({
         name, description, phase, triggerType, isActive, isTerminal, sortOrder,
         conditionGroups: [...conditionGroups],
         actions: [...actions],
+        triggerConfig: { ...triggerConfig },
       }
       toast({
         title: isEdit ? "Automation updated" : "Automation created",
@@ -358,7 +388,7 @@ export function AutomationFormPageClient({
     } finally {
       setSaving(false)
     }
-  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, companyId, systemMode, validate, navigateBack, toast])
+  }, [isEdit, automationId, propertyId, name, description, phase, triggerType, isActive, isTerminal, sortOrder, conditionGroups, actions, triggerConfig, companyId, systemMode, validate, navigateBack, toast])
 
   return (
     <div className="space-y-6">
@@ -445,7 +475,7 @@ export function AutomationFormPageClient({
           </TabsList>
 
           {/* ── Details Tab — Two-column layout ─────────────────────────── */}
-          <TabsContent value="details" className="mt-6">
+          <TabsContent value="details" className="mt-6 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left: General */}
               <Card>
@@ -596,6 +626,21 @@ export function AutomationFormPageClient({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Schedule Configuration — for all system scheduled trigger types */}
+            {[
+              'system.scheduled',
+              'system.check_in_reminder',
+              'system.pre_arrival_reminder',
+              'system.check_out_reminder',
+            ].includes(triggerType) && (
+              <ScheduleConfig
+                triggerConfig={triggerConfig}
+                onTriggerConfigChange={setTriggerConfig}
+                propertyTimezone={propertyTimezone}
+                propertyId={propertyId}
+              />
+            )}
           </TabsContent>
 
           {/* ── Conditions Tab ──────────────────────────────────────────── */}

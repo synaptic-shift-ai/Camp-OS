@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Pencil, Copy, Trash2, Plus, Search, Loader2, MessageSquare } from "lucide-react"
+import { Pencil, Copy, Trash2, Plus, Search, Loader2, MessageSquare, ExternalLink } from "lucide-react"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import {
   Dialog,
@@ -30,7 +30,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { SmsTemplateFormDialog } from "./sms-template-form-dialog"
 import { SmsTemplatePreviewDialog } from "./sms-template-preview-dialog"
 import { usePermissions } from "@/hooks/use-permissions"
 import { toast } from "sonner"
@@ -73,8 +72,6 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<Record<string, unknown> | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteTemplate, setDeleteTemplate] = useState<Record<string, unknown> | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<Record<string, unknown> | null>(null)
@@ -109,13 +106,11 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
   }, [templates, search, categoryFilter])
 
   function openCreate() {
-    setEditingTemplate(null)
-    setDialogOpen(true)
+    router.push(`/dashboard/${propertyId}/automations/sms-templates/new`)
   }
 
   function openEdit(t: Record<string, unknown>) {
-    setEditingTemplate(t)
-    setDialogOpen(true)
+    router.push(`/dashboard/${propertyId}/automations/sms-templates/${t.id}/edit`)
   }
 
   async function handleDelete() {
@@ -257,6 +252,7 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Create Template
+              <ExternalLink className="ml-1 h-3 w-3" />
             </Button>
           </PermissionGate>
         </div>
@@ -481,16 +477,6 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Form dialog */}
-      <SmsTemplateFormDialog
-        template={editingTemplate}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        propertyId={propertyId}
-        companyId={companyId}
-        onSaved={fetchTemplates}
-      />
 
       {/* Preview dialog */}
       <SmsTemplatePreviewDialog

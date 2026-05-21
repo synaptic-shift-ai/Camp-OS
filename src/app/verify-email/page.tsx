@@ -99,13 +99,13 @@ function VerifyEmailContent() {
 
   if (confirmed) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-zinc-900 rounded-lg p-8 border border-zinc-800 text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-card rounded-lg p-8 border border-border text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Email Verified!</h1>
-          <p className="text-gray-400">
+          <h1 className="text-2xl font-bold text-foreground mb-2">Email Verified!</h1>
+          <p className="text-muted-foreground">
             {redirectTarget === "login"
               ? "Redirecting you to the login page..."
               : "Redirecting you to your account..."}
@@ -118,18 +118,18 @@ function VerifyEmailContent() {
   const isExpired = linkError === "expired" && !isConfirmed
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-zinc-900 rounded-lg p-8 border border-zinc-800">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-card rounded-lg p-8 border border-border">
         <div className="text-center">
           {isExpired ? (
             <>
               <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-6">
                 <Clock className="w-10 h-10 text-amber-500" />
               </div>
-              <h1 className="text-2xl font-bold text-white mb-2">
+              <h1 className="text-2xl font-bold text-foreground mb-2">
                 Link expired
               </h1>
-              <p className="text-gray-400 mb-6">
+              <p className="text-muted-foreground mb-6">
                 This verification link has expired. Please try logging in again to resend a verification email.
               </p>
             </>
@@ -138,31 +138,31 @@ function VerifyEmailContent() {
               <div className="mx-auto w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-6">
                 <Mail className="w-10 h-10 text-blue-500" />
               </div>
-              <h1 className="text-2xl font-bold text-white mb-2">
+              <h1 className="text-2xl font-bold text-foreground mb-2">
                 Check your email
               </h1>
-              <p className="text-gray-400 mb-6">
+              <p className="text-muted-foreground mb-6">
                 We sent a verification link to
               </p>
             </>
           )}
 
           {email && (
-            <div className="mb-6 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
-              <p className="text-white font-medium text-sm">{email}</p>
+            <div className="mb-6 p-3 bg-muted rounded-lg border border-border">
+              <p className="text-foreground font-medium text-sm">{email}</p>
             </div>
           )}
 
           {error && !isExpired && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-red-400 text-left">{error}</p>
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+              <p className="text-sm text-destructive text-left">{error}</p>
             </div>
           )}
 
           {!isExpired && (
             <div className="space-y-3 mb-6">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Click the link in the email to verify your address. Check your spam folder if you don&apos;t see it.
               </p>
             </div>
@@ -179,10 +179,10 @@ function VerifyEmailContent() {
             <>
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-zinc-700" />
+                  <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-zinc-900 text-gray-500">
+                  <span className="px-2 bg-card text-muted-foreground">
                     didn&apos;t receive it?
                   </span>
                 </div>
@@ -206,7 +206,7 @@ function VerifyEmailContent() {
               </Button>
 
               {resent && (
-                <p className="text-sm text-emerald-400 mt-3">
+                <p className="text-sm text-emerald-500 mt-3">
                   New verification email sent! Check your inbox.
                 </p>
               )}
@@ -222,8 +222,8 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-black flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-foreground animate-spin" />
         </div>
       }
     >

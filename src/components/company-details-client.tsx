@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useLayoutEffect } from "react"
+import { useState, useEffect } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Tent, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,28 +31,56 @@ const EMPTY_DEFAULTS: CompanyDetailsFormData = {
   properties: [],
 }
 
-function getStoredDefaultValues(): CompanyDetailsFormData {
+type StoredCompanyDetails = {
+  companyName?: string
+  propertyCount?: string | number
+  properties?: Array<{ name?: string; siteCount?: number }>
+}
+
+function normalizeCompanyDetails(data: StoredCompanyDetails): CompanyDetailsFormData {
+  const properties = Array.isArray(data.properties) ? data.properties : []
+  const countStr = data.propertyCount != null ? String(data.propertyCount) : properties.length > 0 ? String(properties.length) : ""
+
+  return {
+    companyName: data.companyName ?? "",
+    propertyCount: countStr,
+    properties: properties.map((p) => ({
+      name: p.name ?? "",
+      siteCount: Number(p.siteCount) || 0,
+    })),
+  }
+}
+
+function getStoredDefaultValues(): CompanyDetailsFormData | null {
   if (typeof window === "undefined") return EMPTY_DEFAULTS
   try {
     const raw = window.localStorage.getItem("signup_company_details")
-    if (!raw) return EMPTY_DEFAULTS
-    const data = JSON.parse(raw) as {
-      companyName?: string
-      propertyCount?: string | number
-      properties: Array<{ name?: string; siteCount?: number }>
-    }
-    if (!Array.isArray(data.properties) || data.properties.length === 0) return EMPTY_DEFAULTS
-    const countStr = data.propertyCount != null ? String(data.propertyCount) : String(data.properties.length)
-    return {
-      companyName: data.companyName ?? "",
-      propertyCount: countStr,
-      properties: data.properties.map((p) => ({
-        name: p.name ?? "",
-        siteCount: Number(p.siteCount) || 0,
-      })),
-    }
+    if (!raw) return null
+    return normalizeCompanyDetails(JSON.parse(raw) as StoredCompanyDetails)
   } catch {
-    return EMPTY_DEFAULTS
+    return null
+  }
+}
+
+async function getDefaultValues(): Promise<CompanyDetailsFormData> {
+  const stored = getStoredDefaultValues()
+  if (stored?.companyName || stored?.properties.length || stored?.propertyCount) {
+    return stored
+  }
+
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const companyName =
+    typeof user?.user_metadata?.company_name === "string"
+      ? user.user_metadata.company_name
+      : ""
+
+  return {
+    ...EMPTY_DEFAULTS,
+    companyName,
   }
 }
 
@@ -59,8 +88,20 @@ export function CompanyDetailsClient() {
   const [initialValues, setInitialValues] = useState<CompanyDetailsFormData | null>(null)
   const [hasCompany, setHasCompany] = useState<boolean | null>(null)
 
-  useLayoutEffect(() => {
-    setInitialValues(getStoredDefaultValues())
+  useEffect(() => {
+    let cancelled = false
+
+    getDefaultValues()
+      .then((values) => {
+        if (!cancelled) setInitialValues(values)
+      })
+      .catch(() => {
+        if (!cancelled) setInitialValues(EMPTY_DEFAULTS)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -80,8 +121,8 @@ export function CompanyDetailsClient() {
 
   if (initialValues === null || hasCompany === null) {
     return (
-      <div className="min-h-screen w-[480px] bg-black flex items-center justify-center p-4">
-        <div className="flex items-center gap-2 text-white">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="flex items-center gap-2 text-foreground">
           <Tent className="h-6 w-6 animate-pulse" />
           <span>Loading...</span>
         </div>
@@ -186,96 +227,96 @@ function CompanyDetailsForm({
   }
 
   return (
-    <div className="min-h-screen w-[480px] bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Tent className="w-8 h-8 text-white" />
-            <span className="text-2xl font-bold text-white">CampOS</span>
+            <Tent className="w-8 h-8 text-foreground" />
+            <span className="text-2xl font-bold text-foreground">CampOS</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Company Details</h1>
-          <p className="text-gray-400">Tell us about your properties</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Company Details</h1>
+          <p className="text-muted-foreground">Tell us about your properties</p>
         </div>
 
-        <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">
+        <div className="bg-card rounded-lg p-8 border border-border">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white mb-1">Property Information</h2>
-            <p className="text-sm text-gray-400">Add details for each of your properties</p>
+            <h2 className="text-xl font-bold text-foreground mb-1">Property Information</h2>
+            <p className="text-sm text-muted-foreground">Add details for each of your properties</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Company Name */}
             <div>
-              <Label htmlFor="companyName" className="text-white mb-2 block">
+              <Label htmlFor="companyName" className="text-foreground mb-2 block">
                 Company Name
               </Label>
               <Input
                 id="companyName"
                 placeholder="Campgrounds Unlimited, LLC"
                 {...register("companyName")}
-                className="bg-black border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+                className="focus:border-primary"
               />
-              {errors.companyName && <p className="text-sm text-red-400 mt-1">{errors.companyName.message}</p>}
-              <p className="text-xs text-gray-500 mt-1">Legal entity name for billing purposes</p>
+              {errors.companyName && <p className="text-sm text-destructive mt-1">{errors.companyName.message}</p>}
+              <p className="text-xs text-muted-foreground mt-1">Legal entity name for billing purposes</p>
             </div>
 
             {/* Number of Properties Dropdown */}
             <div>
-              <Label htmlFor="propertyCount" className="text-white mb-2 block">
+              <Label htmlFor="propertyCount" className="text-foreground mb-2 block">
                 # of Properties
               </Label>
               <Select
                 value={propertyCount}
                 onValueChange={(value) => setValue("propertyCount", value, { shouldValidate: true })}
               >
-                <SelectTrigger className="bg-black border-zinc-700 text-white focus:border-red-500">
+                <SelectTrigger className="focus:border-primary">
                   <SelectValue placeholder="Select number of properties" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-700">
+                <SelectContent>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <SelectItem key={num} value={num.toString()} className="text-white hover:bg-zinc-800">
+                    <SelectItem key={num} value={num.toString()}>
                       {num} {num === 1 ? "Property" : "Properties"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.propertyCount && <p className="text-sm text-red-400 mt-1">{errors.propertyCount.message}</p>}
+              {errors.propertyCount && <p className="text-sm text-destructive mt-1">{errors.propertyCount.message}</p>}
             </div>
 
             {/* Dynamic Property Fields */}
             {fields.length > 0 && (
-              <div className="space-y-6 pt-4 border-t border-zinc-800">
+              <div className="space-y-6 pt-4 border-t border-border">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Property Details</h3>
-                  <span className="text-sm text-gray-400">
+                  <h3 className="text-lg font-semibold text-foreground">Property Details</h3>
+                  <span className="text-sm text-muted-foreground">
                     {fields.length} {fields.length === 1 ? "property" : "properties"}
                   </span>
                 </div>
 
                 {fields.map((field, index) => (
-                  <div key={field.id} className="p-4 bg-black rounded-lg border border-zinc-800 space-y-4">
+                  <div key={field.id} className="p-4 bg-muted/40 rounded-lg border border-border space-y-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-md font-medium text-white">Property {index + 1}</h4>
+                      <h4 className="text-md font-medium text-foreground">Property {index + 1}</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor={`properties.${index}.name`} className="text-white mb-2 block">
+                        <Label htmlFor={`properties.${index}.name`} className="text-foreground mb-2 block">
                           Property Name
                         </Label>
                         <Input
                           id={`properties.${index}.name`}
                           placeholder="Pine Valley Campground"
                           {...register(`properties.${index}.name`)}
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+                          className="focus:border-primary"
                         />
                         {errors.properties?.[index]?.name && (
-                          <p className="text-sm text-red-400 mt-1">{errors.properties[index]?.name?.message}</p>
+                          <p className="text-sm text-destructive mt-1">{errors.properties[index]?.name?.message}</p>
                         )}
                       </div>
 
                       <div>
-                        <Label htmlFor={`properties.${index}.siteCount`} className="text-white mb-2 block">
+                        <Label htmlFor={`properties.${index}.siteCount`} className="text-foreground mb-2 block">
                           # of Sites
                         </Label>
                         <Input
@@ -283,10 +324,10 @@ function CompanyDetailsForm({
                           type="number"
                           placeholder="50"
                           {...register(`properties.${index}.siteCount`)}
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-gray-500 focus:border-red-500"
+                          className="focus:border-primary"
                         />
                         {errors.properties?.[index]?.siteCount && (
-                          <p className="text-sm text-red-400 mt-1">{errors.properties[index]?.siteCount?.message}</p>
+                          <p className="text-sm text-destructive mt-1">{errors.properties[index]?.siteCount?.message}</p>
                         )}
                       </div>
                     </div>
@@ -313,7 +354,7 @@ function CompanyDetailsForm({
           </form>
         </div>
 
-        <p className="text-xs text-center text-gray-500 mt-6">You can add more properties later from your dashboard</p>
+        <p className="text-xs text-center text-muted-foreground mt-6">You can add more properties later from your dashboard</p>
       </div>
     </div>
   )

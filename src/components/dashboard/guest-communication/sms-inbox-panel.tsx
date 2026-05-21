@@ -33,8 +33,8 @@ type ChatMessage = {
   time: string
 }
 
-const SMS_GREEN =
-  "bg-[hsl(142.1,76.2%,32%)] text-[hsl(0,0%,98%)] dark:bg-[hsl(142.1,55%,38%)] dark:text-[hsl(0,0%,98%)]"
+const SMS_ACCENT =
+  "bg-primary text-primary-foreground hover:bg-primary/90"
 
 const CONVERSATIONS: Conversation[] = [
   {
@@ -287,7 +287,7 @@ export function SmsInboxPanel({ propertyId }: SmsInboxPanelProps) {
                         <span
                           className={cn(
                             "flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white",
-                            SMS_GREEN,
+                            SMS_ACCENT,
                           )}
                           aria-label={`${c.unreadCount} unread`}
                         >
@@ -331,7 +331,7 @@ export function SmsInboxPanel({ propertyId }: SmsInboxPanelProps) {
                   <div
                     className={cn(
                       "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm leading-relaxed shadow-sm",
-                      SMS_GREEN,
+                      SMS_ACCENT,
                     )}
                   >
                     {m.body}
@@ -367,7 +367,7 @@ export function SmsInboxPanel({ propertyId }: SmsInboxPanelProps) {
                 type="button"
                 onClick={handleSend}
                 disabled={!draft.trim()}
-                className={cn("h-11 shrink-0 rounded-lg px-4 font-medium text-white shadow-sm", SMS_GREEN, "hover:opacity-90")}
+                className={cn("h-11 shrink-0 rounded-lg px-4 font-medium shadow-sm", SMS_ACCENT)}
               >
                 <Send className="h-4 w-4" aria-hidden />
                 Send
@@ -483,7 +483,7 @@ export function SmsInboxPanel({ propertyId }: SmsInboxPanelProps) {
               type="button"
               onClick={handleComposeSend}
               disabled={!selectedGuest || !composeBody.trim() || sending}
-              className={cn("gap-1 text-white hover:opacity-90", SMS_GREEN)}
+              className={cn("gap-1", SMS_ACCENT)}
             >
               {sending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

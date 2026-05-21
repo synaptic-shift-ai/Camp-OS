@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     let query = db
       .from('message_campaigns')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('property_id', propertyId)
 
     const status = sp.get('status')
@@ -54,13 +54,18 @@ export async function GET(request: NextRequest) {
 
     query = query.order('created_at', { ascending: false })
 
-    const { data: campaigns, error: queryError } = await query
+    // Pagination
+    const limit = Math.min(Math.max(Number(sp.get('limit') || 10), 1), 100)
+    const offset = Math.max(Number(sp.get('offset') || 0), 0)
+    query = query.range(offset, offset + limit - 1)
+
+    const { data: campaigns, count, error: queryError } = await query
 
     if (queryError) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: queryError.message })
     }
 
-    return success({ campaigns: campaigns ?? [] }, request)
+    return success({ campaigns: campaigns ?? [], count: count ?? 0 }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

@@ -332,7 +332,7 @@ export function CampaignCreateDialog({
               className={cn(
                 "h-1.5 flex-1 rounded-full transition-colors",
                 s <= step
-                  ? "bg-[hsl(142.1,76.2%,32%)] dark:bg-[hsl(142.1,55%,38%)]"
+                  ? "bg-primary"
                   : "bg-stone-200 dark:bg-zinc-700",
               )}
             />
@@ -372,14 +372,14 @@ export function CampaignCreateDialog({
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
                       form.channel === ch.value
-                        ? "border-[hsl(142.1,76.2%,32%)] bg-emerald-50 dark:border-[hsl(142.1,55%,38%)] dark:bg-emerald-950/30"
+                        ? "border-primary bg-red-50 dark:border-primary dark:bg-red-950/30"
                         : "border-stone-200 bg-white hover:border-stone-300 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600",
                     )}
                   >
                     <ch.icon className={cn(
                       "h-6 w-6",
                       form.channel === ch.value
-                        ? "text-[hsl(142.1,76.2%,32%)] dark:text-emerald-400"
+                        ? "text-primary dark:text-red-400"
                         : "text-stone-400 dark:text-zinc-500",
                     )} aria-hidden />
                     <span className="text-sm font-semibold">{ch.label}</span>
@@ -503,7 +503,7 @@ export function CampaignCreateDialog({
             ) : (
               <>
                 <div className={cn(CARD, "flex items-center gap-4")}>
-                  <Users className="h-6 w-6 text-[hsl(142.1,76.2%,32%)] dark:text-emerald-400" aria-hidden />
+                  <Users className="h-6 w-6 text-primary dark:text-red-400" aria-hidden />
                   <div>
                     <p className="text-2xl font-semibold tabular-nums">
                       {preview?.recipient_count.toLocaleString() ?? 0}
@@ -632,7 +632,7 @@ export function CampaignCreateDialog({
                 type="button"
                 onClick={handleNext}
                 disabled={!canAdvance() || loading}
-                className="gap-1 bg-[hsl(142.1,76.2%,32%)] text-white hover:opacity-90 dark:bg-[hsl(142.1,55%,38%)]"
+                className="gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {step === 3 ? (
                   loading ? (
@@ -669,7 +669,7 @@ export function CampaignCreateDialog({
                   type="button"
                   onClick={handleSendNow}
                   disabled={loading || sending}
-                  className="gap-1 bg-[hsl(142.1,76.2%,32%)] text-white hover:opacity-90 dark:bg-[hsl(142.1,55%,38%)]"
+                  className="gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
                   Send Now

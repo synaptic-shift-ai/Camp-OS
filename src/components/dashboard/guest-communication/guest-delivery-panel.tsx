@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils"
 const PANEL = "text-stone-900 dark:text-zinc-100"
 const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
-const GREEN = "border-l-[hsl(142.1,76.2%,32%)]"
+const RED = "border-l-primary"
 
 type ActivityRow = {
   id: string
@@ -167,7 +167,7 @@ async function fetchAllCommunicationLogsForAggregate(
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     Delivered:
-      "border-emerald-700/30 bg-emerald-50 text-emerald-900 dark:border-emerald-600/40 dark:bg-emerald-950/50 dark:text-emerald-100",
+      "border-red-700/30 bg-red-50 text-red-900 dark:border-red-600/40 dark:bg-red-950/50 dark:text-red-100",
     Opened:
       "border-teal-600/30 bg-teal-50 text-teal-900 dark:border-teal-600/40 dark:bg-teal-950/40 dark:text-teal-100",
     Sent:
@@ -219,7 +219,7 @@ function TrendArrow({ direction, value }: { direction: "up" | "down"; value: str
       className={cn(
         "inline-flex items-center gap-0.5 text-xs font-semibold",
         isGood
-          ? "text-emerald-700 dark:text-emerald-400"
+          ? "text-red-700 dark:text-red-400"
           : "text-red-600 dark:text-red-400",
       )}
     >
@@ -473,7 +473,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
 
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className={cn(CARD, "border-l-4", GREEN)}>
+        <div className={cn(CARD, "border-l-4", RED)}>
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
               Sent today
@@ -490,7 +490,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email + SMS combined</p>
         </div>
 
-        <div className={cn(CARD, "border-l-4", GREEN)}>
+        <div className={cn(CARD, "border-l-4", RED)}>
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
               Delivery rate
@@ -517,7 +517,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
               <div>
                 <div className="mb-1 flex items-center justify-between text-xs text-stone-600 dark:text-zinc-300">
                   <span className="inline-flex items-center gap-1.5 font-medium">
-                    <Mail className="h-3.5 w-3.5 text-emerald-800 dark:text-emerald-400" aria-hidden />
+                    <Mail className="h-3.5 w-3.5 text-red-800 dark:text-red-400" aria-hidden />
                     Email
                   </span>
                   <span className="tabular-nums text-stone-500 dark:text-zinc-400">
@@ -526,7 +526,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
                   <div
-                    className="h-full rounded-full bg-[hsl(142.1,76.2%,32%)] dark:bg-[hsl(142.1,55%,40%)] transition-all duration-500"
+                    className="h-full rounded-full bg-primary transition-all duration-500"
                     style={{ width: `${emailPct}%` }}
                   />
                 </div>
@@ -598,7 +598,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     dataKey="EMAIL"
                     name="Email"
                     stackId="a"
-                    fill="hsl(142.1, 76.2%, 32%)"
+                    fill="#e11c48"
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar
@@ -790,7 +790,7 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     ) : (
                       <button
                         type="button"
-                        className="text-sm font-medium text-emerald-800 underline-offset-4 hover:underline dark:text-emerald-400"
+                        className="text-sm font-medium text-red-800 underline-offset-4 hover:underline dark:text-red-400"
                       >
                         {row.reservation}
                       </button>

@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Pencil, Copy, Trash2, Plus, Search, Loader2, Send, Palette } from "lucide-react"
+import { Pencil, Copy, Trash2, Plus, Search, Loader2, Send } from "lucide-react"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import {
   Dialog,
@@ -238,8 +238,7 @@ export function EmailTemplatesList({ templates: initialTemplates, propertyId, co
         <div className="flex items-center gap-2">
           <PermissionGate permission="guest_comms.configure_branding">
             <Button variant="outline" onClick={() => setBrandingDialogOpen(true)}>
-              <Palette className="h-4 w-4" />
-              Set Branding
+              Set Reply To
             </Button>
           </PermissionGate>
           <PermissionGate permission="automations.add_email_templates">

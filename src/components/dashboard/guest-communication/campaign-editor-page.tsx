@@ -604,7 +604,7 @@ export function CampaignEditorPage({
               </span>
             </Button>
             <Button
-              className="w-full sm:w-auto bg-[hsl(142.1,76.2%,32%)] text-white hover:opacity-90 dark:bg-[hsl(142.1,55%,38%)]"
+              className="w-full sm:w-auto bg-[hsl(0,84.2%,60.2%)] text-white hover:opacity-90 dark:bg-[hsl(0,72%,51%)]"
               onClick={handleSendNow}
               disabled={busy}
             >
@@ -1277,7 +1277,7 @@ export function CampaignEditorPage({
                       handleSendNow()
                     }}
                     disabled={busy}
-                    className="gap-1 bg-[hsl(142.1,76.2%,32%)] text-white hover:opacity-90 dark:bg-[hsl(142.1,55%,38%)]"
+                    className="gap-1 bg-[hsl(0,84.2%,60.2%)] text-white hover:opacity-90 dark:bg-[hsl(0,72%,51%)]"
                   >
                     {sending ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

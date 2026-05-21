@@ -120,7 +120,7 @@ export function CampaignResultsDialog({
               icon={CheckCircle}
               label="Delivered"
               value={stats.delivered}
-              color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+              color="bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
             />
             <StatCard
               icon={XCircle}

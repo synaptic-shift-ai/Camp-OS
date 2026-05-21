@@ -34,7 +34,7 @@ type ChatMessage = {
 }
 
 const SMS_GREEN =
-  "bg-[hsl(142.1,76.2%,32%)] text-[hsl(0,0%,98%)] dark:bg-[hsl(142.1,55%,38%)] dark:text-[hsl(0,0%,98%)]"
+  "bg-[hsl(0,84.2%,60.2%)] text-[hsl(0,0%,98%)] dark:bg-[hsl(0,72%,51%)] dark:text-[hsl(0,0%,98%)]"
 
 const CONVERSATIONS: Conversation[] = [
   {

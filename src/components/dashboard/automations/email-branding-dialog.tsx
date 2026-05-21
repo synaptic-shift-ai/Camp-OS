@@ -102,7 +102,7 @@ export function EmailBrandingDialog({
     message: "You have unsaved changes. Would you like to save before leaving?",
   })
 
-  const canSave = form.senderName.trim() !== "" && form.senderEmail.trim() !== ""
+  const canSave = form.replyToEmail.trim() !== ""
 
   async function handleSave() {
     if (!canSave) return
@@ -115,8 +115,6 @@ export function EmailBrandingDialog({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          senderName: form.senderName.trim(),
-          senderEmail: form.senderEmail.trim(),
           replyToEmail: form.replyToEmail.trim() || null,
         }),
       })
@@ -135,8 +133,8 @@ export function EmailBrandingDialog({
       setForm(saved)
       setOriginalForm(saved)
       toast({
-        title: "Branding saved",
-        description: "Email sender branding has been updated.",
+        title: "Reply-to saved",
+        description: "Reply-to email has been updated.",
         variant: "success",
       })
       onOpenChange(false)
@@ -158,47 +156,18 @@ export function EmailBrandingDialog({
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Set Branding</DialogTitle>
+          <DialogTitle>Set Reply To</DialogTitle>
           <DialogDescription>
-            Configure the sender details guests see on automated emails.
+            Configure the reply-to email address guests use to respond to automated emails.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="space-y-4 py-2">
             <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="automation-branding-sender-name">Sender name</Label>
-              <Input
-                id="automation-branding-sender-name"
-                value={form.senderName}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  senderName: event.target.value,
-                }))}
-                placeholder="Campground name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="automation-branding-sender-email">Sender email</Label>
-              <Input
-                id="automation-branding-sender-email"
-                type="email"
-                value={form.senderEmail}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  senderEmail: event.target.value,
-                }))}
-                placeholder="hello@example.com"
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="automation-branding-reply-to">
                 Reply-to email <span className="text-xs text-muted-foreground">(optional)</span>

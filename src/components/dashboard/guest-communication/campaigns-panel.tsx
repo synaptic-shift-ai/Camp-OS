@@ -9,7 +9,6 @@ import {
   Plus,
   Eye,
   Users,
-  MoreHorizontal,
   Send,
   Pencil,
   Trash2,
@@ -18,7 +17,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -27,20 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Pagination } from "@/components/ui/pagination"
+import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { CampaignResultsDialog } from "./campaign-results-dialog"
-
-const PANEL = "text-stone-900 dark:text-zinc-100"
-const CARD = "rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90"
 
 type Campaign = {
   id: string
@@ -52,8 +41,6 @@ type Campaign = {
   recipient_count: number
   created_at: string
 }
-
-const PAGE_SIZE = 10
 
 function ChannelBadge({ channel }: { channel: string }) {
   const config: Record<string, string> = {
@@ -78,7 +65,7 @@ function ChannelBadge({ channel }: { channel: string }) {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     draft:
-      "border-stone-300 bg-stone-100 text-stone-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+      "border-border bg-muted text-muted-foreground",
     scheduled:
       "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-600/40 dark:bg-blue-950/40 dark:text-blue-200",
     sending:
@@ -88,7 +75,7 @@ function StatusBadge({ status }: { status: string }) {
     failed:
       "border-red-300 bg-red-50 text-red-800 dark:border-red-600/40 dark:bg-red-950/40 dark:text-red-200",
     cancelled:
-      "border-stone-300 bg-stone-100 text-stone-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+      "border-border bg-muted text-muted-foreground",
   }
   const cls = config[status] ?? config.draft
   return (
@@ -110,45 +97,85 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [resultsCampaignId, setResultsCampaignId] = useState<string | null>(null)
   const [sendingId, setSendingId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const startIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
+  const endIndex = Math.min(totalCount, page * pageSize)
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    setPageSize(nextPageSize)
+    setPage(1)
+  }
+
+  const goToPage = (p: number) => setPage(p)
 
   const fetchCampaigns = useCallback(async () => {
     try {
       setLoading(true)
-      const offset = (page - 1) * PAGE_SIZE
+      const offset = (page - 1) * pageSize
       const params = new URLSearchParams({
         propertyId,
-        limit: String(PAGE_SIZE),
+        limit: String(pageSize),
         offset: String(offset),
       })
       const res = await fetch(`/api/v1/message-campaigns?${params}`)
       const json = await res.json()
       if (!json.success) return
       setCampaigns(json.data.campaigns ?? [])
-      setTotalCount(json.data.campaigns?.length ?? 0)
+      setTotalCount(json.data.count ?? json.data.campaigns?.length ?? 0)
     } catch {
       // silent
     } finally {
       setLoading(false)
     }
-  }, [propertyId, page])
+  }, [propertyId, page, pageSize])
 
   useEffect(() => {
     fetchCampaigns()
   }, [fetchCampaigns])
 
+  if (!loading && campaigns.length === 0) {
+    return (
+      <div
+        id="guest-comm-panel-campaigns"
+        role="tabpanel"
+        aria-labelledby="guest-comm-tab-campaigns"
+        className="space-y-6"
+      >
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={() => router.push(`/dashboard/${propertyId}/guest-communication/campaigns/new`)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            New Campaign
+          </Button>
+        </div>
+        <div className="rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center min-h-[calc(100vh-14rem)] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Megaphone className="h-10 w-10" />
+            </div>
+            <h3 className="text-lg font-semibold">No campaigns yet</h3>
+            <p className="text-sm text-muted-foreground">Create your first campaign to start messaging guests.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
       id="guest-comm-panel-campaigns"
       role="tabpanel"
       aria-labelledby="guest-comm-tab-campaigns"
-      className={cn("space-y-6", PANEL)}
+      className="space-y-6"
     >
       {/* New Campaign button */}
       <div className="flex justify-end">
@@ -163,106 +190,88 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
       </div>
 
       {/* Table */}
-      <div className={cn(CARD, "space-y-0 p-0")}>
-        {loading ? (
-          <div className="space-y-2 p-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
+      <div className="relative">
+        {loading && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center bg-background/60"
+            aria-busy="true"
+            aria-label="Loading campaigns"
+          >
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : campaigns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <Megaphone className="h-12 w-12 text-stone-300 dark:text-zinc-600" aria-hidden />
-            <p className="text-sm font-medium text-stone-600 dark:text-zinc-300">No campaigns yet</p>
-            <p className="text-xs text-stone-400 dark:text-zinc-500">
-              Create your first campaign to send messages to your guests.
-            </p>
-          </div>
-        ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow className="border-stone-100 hover:bg-transparent dark:border-zinc-800">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Name
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Channel
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Status
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Segment
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Sent Date
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Recipients
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-zinc-400">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaigns.map((campaign) => (
-                  <TableRow
-                    key={campaign.id}
-                    className="border-stone-100 dark:border-zinc-800 dark:hover:bg-zinc-800/40"
+        )}
+        <div className="hidden border border-border/80 bg-card/50 md:block">
+          <Table className="text-xs">
+            <TableHeader className="bg-red-50 dark:bg-red-950/30 sticky top-0 z-10">
+              <TableRow className="h-8 hover:bg-transparent data-[state=selected]:bg-transparent">
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  Name
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  Channel
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  Status
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  Segment
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  Sent Date
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  Recipients
+                </TableHead>
+                <TableHead className="py-1.5 text-right dark:text-white/90 text-black/90 font-medium">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {campaigns.map((campaign) => (
+                <TableRow
+                  key={campaign.id}
+                  className="h-8 cursor-pointer hover:bg-muted/60"
+                >
+                  <TableCell className="py-1.5 font-medium whitespace-nowrap">
+                    {campaign.name}
+                  </TableCell>
+                  <TableCell className="py-1.5">
+                    <ChannelBadge channel={campaign.channel} />
+                  </TableCell>
+                  <TableCell className="py-1.5">
+                    <StatusBadge status={campaign.status} />
+                  </TableCell>
+                  <TableCell className="py-1.5 text-muted-foreground">
+                    {formatSegmentLabel(campaign.segment_type)}
+                  </TableCell>
+                  <TableCell className="py-1.5 whitespace-nowrap text-muted-foreground">
+                    {campaign.sent_at
+                      ? new Date(campaign.sent_at).toLocaleDateString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="py-1.5 tabular-nums text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                      {(campaign.recipient_count ?? 0).toLocaleString()}
+                    </span>
+                  </TableCell>
+                  <TableCell
+                    className="py-0.5"
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    <TableCell className="font-semibold text-stone-900 dark:text-zinc-50">
-                      {campaign.name}
-                    </TableCell>
-                    <TableCell>
-                      <ChannelBadge channel={campaign.channel} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={campaign.status} />
-                    </TableCell>
-                    <TableCell className="text-sm text-stone-600 dark:text-zinc-300">
-                      {formatSegmentLabel(campaign.segment_type)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-stone-600 dark:text-zinc-300">
-                      {campaign.sent_at
-                        ? new Date(campaign.sent_at).toLocaleDateString()
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums text-stone-600 dark:text-zinc-300">
-                      <span className="inline-flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5 text-stone-400 dark:text-zinc-500" aria-hidden />
-                        {(campaign.recipient_count ?? 0).toLocaleString()}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            disabled={sendingId === campaign.id}
-                          >
-                            {sendingId === campaign.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                            ) : (
-                              <MoreHorizontal className="h-4 w-4" aria-hidden />
-                            )}
-                            <span className="sr-only">Actions for {campaign.name}</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                    <div className="flex items-center justify-end gap-2">
+                      {sendingId === campaign.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+                      ) : (
+                        <>
                           {(campaign.status === "sent" || campaign.status === "failed") && (
-                            <DropdownMenuItem onClick={() => setResultsCampaignId(campaign.id)}>
-                              <Eye className="mr-2 h-4 w-4" aria-hidden />
-                              View Results
-                            </DropdownMenuItem>
+                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="View Results" onClick={() => setResultsCampaignId(campaign.id)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
                           )}
                           {(campaign.status === "draft" || campaign.status === "scheduled") && (
-                            <DropdownMenuItem
-                              disabled={sendingId !== null}
+                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Send Now"
                               onClick={async () => {
                                 setSendingId(campaign.id)
                                 try {
@@ -287,60 +296,50 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                                 }
                               }}
                             >
-                              <Send className="mr-2 h-4 w-4" aria-hidden />
-                              Send Now
-                            </DropdownMenuItem>
+                              <Send className="h-4 w-4" />
+                            </Button>
                           )}
                           {campaign.status === "draft" && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                router.push(`/dashboard/${propertyId}/guest-communication/campaigns/${campaign.id}/edit`)
-                              }
+                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Edit"
+                              onClick={() => router.push(`/dashboard/${propertyId}/guest-communication/campaigns/${campaign.id}/edit`)}
                             >
-                              <Pencil className="mr-2 h-4 w-4" aria-hidden />
-                              Edit
-                            </DropdownMenuItem>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                           )}
                           {campaign.status === "draft" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-                                onClick={() => toast({ title: "Coming soon", description: "Campaign deletion is not yet available." })}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" aria-hidden />
-                                Delete
-                              </DropdownMenuItem>
-                            </>
+                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0 text-red-500 hover:text-red-600" aria-label="Delete"
+                              onClick={() => toast({ title: "Coming soon", description: "Campaign deletion is not yet available." })}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
                           {campaign.status === "scheduled" && (
-                            <DropdownMenuItem
-                              className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Cancel"
                               onClick={() => toast({ title: "Coming soon", description: "Campaign cancellation is not yet available." })}
                             >
-                              <Ban className="mr-2 h-4 w-4" aria-hidden />
-                              Cancel
-                            </DropdownMenuItem>
+                              <Ban className="h-4 w-4" />
+                            </Button>
                           )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-end border-t border-stone-100 px-4 py-3 dark:border-zinc-800">
-                <Pagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  onPageChange={setPage}
-                />
-              </div>
-            )}
-          </>
-        )}
+      {/* Pagination footer — outside table container */}
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+          <div>Showing <span className="font-medium">{startIndex}–{endIndex}</span> of <span className="font-medium">{totalCount}</span> campaigns</div>
+          <PageSizeSelector value={pageSize} onChange={handlePageSizeChange} />
+        </div>
+        <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={goToPage} windowSize={2} />
+        </div>
       </div>
 
       {/* Results dialog */}

@@ -120,7 +120,6 @@ export function EmailTemplateEditorPage({
   }, [])
 
   // ── Populate from template ──
-  const cleanFormRef = useRef("")
   useEffect(() => {
     if (template) {
       setName((template.name as string) ?? "")
@@ -139,16 +138,6 @@ export function EmailTemplateEditorPage({
       setTemplateStatus("draft")
     }
     setErrors({})
-    // Baseline for dirty tracking
-    cleanFormRef.current = JSON.stringify({
-      name: template ? (template.name as string) ?? "" : "",
-      slug: template ? (template.slug as string) ?? "" : "",
-      category: template ? (template.category as string) ?? "" : "",
-      customCategory: template ? "" : "",
-      subject: template ? (template.subject_template as string) ?? "" : "",
-      htmlBody: template ? (template.html_template as string) ?? "" : "",
-      templateStatus: template ? (template.status as string) ?? "draft" : "draft",
-    })
   }, [template])
 
   // ── Auto-generate slug from name on create ──
@@ -159,7 +148,11 @@ export function EmailTemplateEditorPage({
   }, [name, isEdit])
 
   // ── Dirty tracking ──
-  const isDirty = JSON.stringify({
+  // Snapshot the "clean" form on the next animation frame after mount so that
+  // child components (e.g. RichEditor wraps body with email-settings metadata
+  // on mount) can settle their initial onChange callbacks first. Without this,
+  // the form appears dirty before the user has typed anything.
+  const currentFormJson = JSON.stringify({
     name,
     slug,
     category,
@@ -167,7 +160,22 @@ export function EmailTemplateEditorPage({
     subject,
     htmlBody,
     templateStatus,
-  }) !== cleanFormRef.current
+  })
+  const [cleanForm, setCleanForm] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCleanForm(null)
+  }, [template])
+
+  useEffect(() => {
+    if (cleanForm !== null) return
+    const id = requestAnimationFrame(() => {
+      setCleanForm(currentFormJson)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [currentFormJson, cleanForm])
+
+  const isDirty = cleanForm !== null && currentFormJson !== cleanForm
 
   usePageLeaveGuard(isDirty)
 
@@ -272,16 +280,7 @@ export function EmailTemplateEditorPage({
         }
       }
 
-      // Update clean baseline so dirty tracking resets
-      cleanFormRef.current = JSON.stringify({
-        name,
-        slug,
-        category,
-        customCategory,
-        subject,
-        htmlBody,
-        templateStatus,
-      })
+      setCleanForm(currentFormJson)
 
       toast.success(isEdit ? "Template updated" : "Template created")
       router.push(
@@ -393,7 +392,7 @@ export function EmailTemplateEditorPage({
       {/* Main content + variable side panel */}
       <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
         {/* Main form area */}
-        <div className="flex flex-col gap-3 px-4 py-3 pb-8 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-3">
+        <div className="flex flex-col gap-3 px-4 py-3 pb-8 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-5 lg:pb-6">
           <div className="shrink-0 space-y-3">
           {isSystemDefault && (
             <div className="rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
@@ -560,12 +559,12 @@ export function EmailTemplateEditorPage({
           </div>
 
           {/* Email Body */}
-          <div className="flex flex-col gap-1.5 lg:min-h-0 lg:flex-1">
+          <div className="flex flex-col gap-1.5 lg:min-h-[520px] lg:flex-1">
             <Label>
               Email Body <span className="text-red-500">*</span>
             </Label>
             <div
-              className="h-[min(380px,52vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(420px,55vh)] lg:h-auto lg:min-h-0 lg:flex-1"
+              className="h-[min(380px,52vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(420px,55vh)] lg:h-auto lg:min-h-[480px] lg:flex-1"
               onFocus={() => setActiveField("body")}
             >
               <RichEditor

@@ -143,7 +143,6 @@ export function SmsTemplateEditorPage({
   }, [])
 
   // ── Populate from template ──
-  const cleanFormRef = useRef("")
   useEffect(() => {
     if (template) {
       setName((template.name as string) ?? "")
@@ -160,15 +159,6 @@ export function SmsTemplateEditorPage({
       setTemplateStatus("draft")
     }
     setErrors({})
-    // Baseline for dirty tracking
-    cleanFormRef.current = JSON.stringify({
-      name: template ? (template.name as string) ?? "" : "",
-      slug: template ? (template.slug as string) ?? "" : "",
-      category: template ? (template.category as string) ?? "" : "",
-      customCategory: template ? "" : "",
-      body: template ? (template.body as string) ?? "" : "",
-      templateStatus: template ? (template.status as string) ?? "draft" : "draft",
-    })
   }, [template])
 
   // ── Auto-generate slug from name on create ──
@@ -179,15 +169,32 @@ export function SmsTemplateEditorPage({
   }, [name, isEdit])
 
   // ── Dirty tracking ──
-  const isDirty =
-    JSON.stringify({
-      name,
-      slug,
-      category,
-      customCategory,
-      body,
-      templateStatus,
-    }) !== cleanFormRef.current
+  // Snapshot the "clean" form on the next animation frame after mount so that
+  // initial state hydration (from the template prop) settles before we capture
+  // the baseline. Without this, the form briefly appears dirty on first render.
+  const currentFormJson = JSON.stringify({
+    name,
+    slug,
+    category,
+    customCategory,
+    body,
+    templateStatus,
+  })
+  const [cleanForm, setCleanForm] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCleanForm(null)
+  }, [template])
+
+  useEffect(() => {
+    if (cleanForm !== null) return
+    const id = requestAnimationFrame(() => {
+      setCleanForm(currentFormJson)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [currentFormJson, cleanForm])
+
+  const isDirty = cleanForm !== null && currentFormJson !== cleanForm
 
   usePageLeaveGuard(isDirty)
 
@@ -282,15 +289,7 @@ export function SmsTemplateEditorPage({
         }
       }
 
-      // Update clean baseline so dirty tracking resets
-      cleanFormRef.current = JSON.stringify({
-        name,
-        slug,
-        category,
-        customCategory,
-        body,
-        templateStatus,
-      })
+      setCleanForm(currentFormJson)
 
       toast.success(isEdit ? "Template updated" : "Template created")
       router.push(
@@ -407,7 +406,7 @@ export function SmsTemplateEditorPage({
       {/* Main content + variable side panel */}
       <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
         {/* Main form area */}
-        <div className="flex flex-col gap-3 px-4 py-3 pb-8 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-3">
+        <div className="flex flex-col gap-3 px-4 py-3 pb-8 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-5 lg:pb-6">
           <div className="shrink-0 space-y-3">
             {isSystemDefault && (
               <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400">
@@ -553,7 +552,7 @@ export function SmsTemplateEditorPage({
           </div>
 
           {/* SMS Body */}
-          <div className="flex flex-col gap-1.5 lg:min-h-0 lg:flex-1">
+          <div className="flex flex-col gap-1.5 lg:min-h-[480px] lg:flex-1">
             <div className="flex items-center justify-between">
               <Label>
                 SMS Body <span className="text-red-500">*</span>
@@ -569,7 +568,7 @@ export function SmsTemplateEditorPage({
                 Variables
               </Button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-[180px] flex-1 flex-col lg:min-h-[420px]">
               <Textarea
                 ref={bodyRef}
                 value={body}
@@ -581,7 +580,7 @@ export function SmsTemplateEditorPage({
                 placeholder="Hi {{guest.first_name}}, welcome to {{property.name}}!"
                 required
                 className={cn(
-                  "min-h-[180px] flex-1 resize-none lg:min-h-0",
+                  "min-h-[180px] flex-1 resize-none lg:min-h-[420px]",
                   errors.body && "border-red-500 focus-visible:ring-red-500"
                 )}
               />

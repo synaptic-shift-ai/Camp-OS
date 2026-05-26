@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { ShieldCheckIcon, Tag, UserPlusIcon } from 'lucide-react'
+import { PersonStanding, ShieldCheckIcon, Tag, UserPlusIcon } from 'lucide-react'
 import { PermissionGate } from '@/components/ui/permission-gate'
 import { usePermissions } from '@/hooks/use-permissions'
 
@@ -10,6 +10,7 @@ type StaffManagementPageHeaderProps = {
   onAccessClick?: () => void
   onCategoriesClick?: () => void
   onInviteStaffClick?: () => void
+  onAddStaffClick?: () => void
 }
 
 export default function StaffManagementPageHeader({
@@ -17,6 +18,7 @@ export default function StaffManagementPageHeader({
   onAccessClick,
   onCategoriesClick,
   onInviteStaffClick,
+  onAddStaffClick,
 }: StaffManagementPageHeaderProps) {
     const { can, isRole, isLoading } = usePermissions()
     const showAccessButton =
@@ -43,6 +45,14 @@ export default function StaffManagementPageHeader({
                       <Button type="button" variant="outline" onClick={onCategoriesClick}>
                           <Tag className="h-4 w-4" />
                           Categories
+                      </Button>
+                    </PermissionGate>
+                ) : null}
+                {onAddStaffClick ? (
+                    <PermissionGate permission="global.invite_staff">
+                      <Button type="button" variant="outline" onClick={onAddStaffClick}>
+                          <PersonStanding className="h-4 w-4" />
+                          Add Staff
                       </Button>
                     </PermissionGate>
                 ) : null}

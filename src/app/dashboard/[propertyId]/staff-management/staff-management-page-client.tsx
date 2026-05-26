@@ -10,6 +10,7 @@ import {
 } from '@/components/dashboard/staff-management/staff-management-dialog/staff-management-categories-dialog'
 import { useToast } from '@/hooks/use-toast'
 import InviteStaffDialog from '@/components/dashboard/staff-management/staff-management-dialog/invite-staff-dialog'
+import AddStaffDialog from '@/components/dashboard/staff-management/staff-management-dialog/add-staff-dialog'
 import { StaffAccessDialog } from '@/components/dashboard/staff-management/staff-management-dialog/staff-access-dialog'
 import {
   EditStaffDialog,
@@ -68,6 +69,7 @@ export default function StaffManagementStaffPageClient({
   const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [staffAccessOpen, setStaffAccessOpen] = useState(false)
   const [inviteStaffOpen, setInviteStaffOpen] = useState(false)
+  const [addStaffOpen, setAddStaffOpen] = useState(false)
   const [staffDetailsOpen, setStaffDetailsOpen] = useState(false)
   const [staffDetailsTarget, setStaffDetailsTarget] = useState<StaffDetailsDialogTarget | null>(null)
   const [editStaffOpen, setEditStaffOpen] = useState(false)
@@ -76,6 +78,26 @@ export default function StaffManagementStaffPageClient({
   const [deactivateStaffTarget, setDeactivateStaffTarget] =
     useState<DeactivateStaffDialogTarget | null>(null)
   const [isSavingCategories, setIsSavingCategories] = useState(false)
+
+  const handleResendSetupEmail = useCallback(
+    async (target: { id: string; name: string }) => {
+      try {
+        const res = await fetch(
+          `/api/v1/properties/${propertyId}/staff-management/staff/${target.id}/resend-invite`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' } },
+        )
+        const json = await res.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } }
+        if (!res.ok || json.success !== true) {
+          throw new Error(json.error?.message ?? 'Failed to resend setup email')
+        }
+        toast({ title: 'Setup email resent', description: `A new setup email has been sent.` })
+        router.refresh()
+      } catch (err) {
+        toast({ title: 'Failed to resend setup email', variant: 'destructive' })
+      }
+    },
+    [propertyId, router, toast],
+  )
 
   const handleReactivateStaff = useCallback(
     async (target: { id: string; name: string }) => {
@@ -165,6 +187,7 @@ export default function StaffManagementStaffPageClient({
           onAccessClick={() => setStaffAccessOpen(true)}
           onCategoriesClick={() => setCategoriesOpen(true)}
           onInviteStaffClick={() => setInviteStaffOpen(true)}
+          onAddStaffClick={() => setAddStaffOpen(true)}
         />
 
         <StaffManagementFilter
@@ -197,6 +220,7 @@ export default function StaffManagementStaffPageClient({
             setDeactivateStaffOpen(true)
           }}
           onReactivateStaff={handleReactivateStaff}
+          onResendSetupEmail={handleResendSetupEmail}
         />
       </div>
 
@@ -218,6 +242,13 @@ export default function StaffManagementStaffPageClient({
         onOpenChange={setInviteStaffOpen}
         propertyId={propertyId}
         onInviteSent={() => router.refresh()}
+      />
+
+      <AddStaffDialog
+        open={addStaffOpen}
+        onOpenChange={setAddStaffOpen}
+        propertyId={propertyId}
+        onSuccess={() => router.refresh()}
       />
 
       <StaffDetailsDialog

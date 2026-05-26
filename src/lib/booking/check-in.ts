@@ -167,12 +167,15 @@ export async function performCheckIn(
       })
 
       // Update reservation paid amount
-      const newPaidAmount = typedReservation.paid_amount + input.balance_amount
+      const newPaidAmountRaw = typedReservation.paid_amount + input.balance_amount
+      const newPaymentStatus = newPaidAmountRaw >= typedReservation.total_amount ? 'paid' : 'partial'
+      // When fully paid, cap paid_amount at total_amount (not cash received)
+      const newPaidAmount = newPaymentStatus === 'paid' ? typedReservation.total_amount : newPaidAmountRaw
       await supabase
         .from('reservations')
         .update({
           paid_amount: newPaidAmount,
-          payment_status: newPaidAmount >= typedReservation.total_amount ? 'paid' : 'partial',
+          payment_status: newPaymentStatus,
         })
         .eq('id', input.reservation_id)
 

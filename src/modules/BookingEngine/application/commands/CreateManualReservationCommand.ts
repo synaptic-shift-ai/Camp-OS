@@ -333,7 +333,7 @@ export class CreateManualReservationCommandHandler {
         .update({
           status: reservationStatus,
           payment_status: paymentStatus,
-          paid_amount: totalPaidCents,
+          paid_amount: isFullyPaid ? totalAmountCents : totalPaidCents,
           notes: paymentNotesForReservation,
         })
         .eq('id', reservation.id)

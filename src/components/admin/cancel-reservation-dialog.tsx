@@ -57,7 +57,6 @@ function PaymentCardLogo({ brand }: { brand: string }) {
 interface CancelReservationDialogProps {
   reservationId: string
   confirmationNumber: string
-  guestName: string
   paidAmountCents: number
   trigger?: React.ReactNode
 }
@@ -68,7 +67,6 @@ const SEASON_ALERT_TOAST_CLASS =
 export function CancelReservationDialog({
   reservationId,
   confirmationNumber,
-  guestName,
   paidAmountCents,
   trigger,
 }: CancelReservationDialogProps) {
@@ -296,10 +294,6 @@ export function CancelReservationDialog({
             <div className="text-sm">
               <span className="font-medium">Confirmation:</span>{" "}
               <span className="text-muted-foreground">{confirmationNumber}</span>
-            </div>
-            <div className="text-sm">
-              <span className="font-medium">Guest:</span>{" "}
-              <span className="text-muted-foreground">{guestName}</span>
             </div>
             <div className="flex flex-nowrap items-center gap-2 text-sm">
               <span className="font-medium shrink-0">Payment card:</span>

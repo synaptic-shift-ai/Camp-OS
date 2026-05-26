@@ -150,7 +150,7 @@ export function ReservationsPageHeader({
           Reservations
         </h1>
         <p className="text-sm text-muted-foreground sm:text-base">
-          Manage all your property bookings
+          View ledger and transaction details for all bookings
         </p>
       </div>
       <div className="flex items-center gap-2 self-end sm:self-auto">

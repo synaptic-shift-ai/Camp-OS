@@ -326,6 +326,7 @@ export function ReservationActions({
             <CancelReservationDialog
               reservationId={reservationId}
               confirmationNumber={confirmationNumber}
+              guestName={guestName}
               paidAmountCents={paidAmount}
               trigger={
                 <DropdownMenuItem

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, CalendarPlus2, Moon } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, CalendarPlus2, Moon, Users } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -15,7 +15,6 @@ import { ReservationActions } from "@/components/admin/reservation-actions"
 import { Pagination } from "@/components/ui/pagination"
 import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import type { ReservationStatus } from "@/contracts/booking"
 import type { DashboardGuest, DashboardReservation } from "@/lib/dashboard/queries"
 import { GuestReservationsSheet } from "@/components/dashboard/guests/guest-reservations-sheet"
@@ -29,20 +28,6 @@ const statusTextColors: Record<ReservationStatus, string> = {
   checked_out: "text-gray-600",
   cancelled: "text-red-600",
   no_show: "text-orange-600",
-}
-
-const paymentStatusColors: Record<string, string> = {
-  unpaid: "bg-red-500/10 text-red-500 border-red-500/20",
-  partial: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  paid: "bg-green-500/10 text-green-500 border-green-500/20",
-  refunded: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-}
-
-const paymentStatusLabel: Record<string, string> = {
-  unpaid: "Unpaid",
-  partial: "Partial",
-  paid: "Paid",
-  refunded: "Refunded",
 }
 
 function formatMoney(cents: number): string {
@@ -398,6 +383,11 @@ export function ReservationsTable({
                     <Moon className="h-3.5 w-3.5" />
                     {reservation.numNights} {reservation.numNights === 1 ? "Night" : "Nights"}
                   </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {reservation.numAdults + reservation.numChildren}{" "}
+                    {reservation.numAdults + reservation.numChildren === 1 ? "Guest" : "Guests"}
+                  </span>
                 </div>
                 <div className="mt-2 flex items-start gap-4 border-t border-border/70 pt-2 text-xs">
                   <div>
@@ -436,6 +426,18 @@ export function ReservationsTable({
                   </button>
                 </TableHead>
                 <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("guest")}>
+                    Primary Guest
+                    <SortIcon column="guest" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("site")}>
+                    Site
+                    <SortIcon column="site" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("checkIn")}>
                     Check-in
                     <SortIcon column="checkIn" />
@@ -454,6 +456,12 @@ export function ReservationsTable({
                   </button>
                 </TableHead>
                 <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("guests")}>
+                    Total Guests
+                    <SortIcon column="guests" />
+                  </button>
+                </TableHead>
+                <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("totalAmount")}>
                     Total Amount
                     <SortIcon column="totalAmount" />
@@ -467,12 +475,15 @@ export function ReservationsTable({
                 </TableHead>
                 <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("balanceOwed")}>
-                    Balance Due
+                    Balance Owed
                     <SortIcon column="balanceOwed" />
                   </button>
                 </TableHead>
                 <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
-                  Payment Status
+                  <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("refundedAmount")}>
+                    Refunded Amount
+                    <SortIcon column="refundedAmount" />
+                  </button>
                 </TableHead>
                 <TableHead className="py-1.5 dark:text-white/90 text-black/90 font-medium">
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => handleSort("status")}>
@@ -514,6 +525,12 @@ export function ReservationsTable({
                     <TableCell className="py-1.5 font-medium whitespace-nowrap">
                       {reservation.confirmationNumber}
                     </TableCell>
+                    <TableCell className="py-1.5 whitespace-nowrap capitalize">
+                      {reservation.guestName}
+                    </TableCell>
+                    <TableCell className="py-1.5 whitespace-nowrap">
+                      {reservation.siteName}
+                    </TableCell>
                     <TableCell className="py-1.5">
                       {formatDate(reservation.checkIn)}
                     </TableCell>
@@ -521,6 +538,9 @@ export function ReservationsTable({
                       {formatDate(reservation.checkOut)}
                     </TableCell>
                     <TableCell className="py-1.5">{reservation.numNights}</TableCell>
+                    <TableCell className="py-1.5">
+                      {reservation.numAdults + reservation.numChildren}
+                    </TableCell>
                     <TableCell className="py-1.5">
                       {formatMoney(reservation.totalAmount)}
                     </TableCell>
@@ -531,9 +551,7 @@ export function ReservationsTable({
                       {formatMoney(balanceCents)}
                     </TableCell>
                     <TableCell className="py-1.5">
-                      <Badge variant="outline" className={paymentStatusColors[reservation.paymentStatus] ?? "bg-gray-500/10 text-gray-500 border-gray-500/20"}>
-                        {paymentStatusLabel[reservation.paymentStatus] ?? reservation.paymentStatus}
-                      </Badge>
+                      {formatMoney(reservation.refundAmount)}
                     </TableCell>
                     <TableCell className="py-1.5">
                       <span

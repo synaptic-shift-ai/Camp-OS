@@ -758,7 +758,7 @@ function getBoxPaddingElement(box: HTMLElement): HTMLElement {
 function readBoxBg(box: HTMLElement): string {
   return toHexColor(
     readElementColorValue(box, "background") ??
-      (typeof window !== "undefined" ? readComputedColorValue(box, "background") : null),
+    (typeof window !== "undefined" ? readComputedColorValue(box, "background") : null),
     DEFAULT_BOX_BG,
   )
 }
@@ -1359,11 +1359,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       if (!range.collapsed) {
         cell.appendChild(range.extractContents())
       } else {
-        cell.innerHTML = '<p style="margin:0;color:#52525b;font-size:14px;line-height:22px;">New content box</p>'
+        cell.innerHTML = '<p style="margin:0;color:#52525b;font-size:14px;line-height:22px;">New empty card</p>'
       }
       range.insertNode(table)
     } else {
-      cell.innerHTML = '<p style="margin:0;color:#52525b;font-size:14px;line-height:22px;">New content box</p>'
+      cell.innerHTML = '<p style="margin:0;color:#52525b;font-size:14px;line-height:22px;">New empty card</p>'
       editor.appendChild(table)
     }
 
@@ -1998,7 +1998,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
             />
             <ToolbarBtn
               icon={SquarePlus}
-              label="Insert Form"
+              label="Insert Empty Card"
               onClick={insertEmailBox}
               active={selectedBoxActive}
             />

@@ -945,12 +945,12 @@ export function CampaignEditorPage({
                   )}
                 </div>
                 {/* Email body */}
-                <div className="flex flex-col gap-1.5 lg:min-h-[520px] lg:flex-1">
+                <div className="flex flex-col gap-1.5 lg:min-h-[700px] lg:flex-1">
                   <Label htmlFor="campaign-body">
                     Email Body <span className="text-red-500">*</span>
                   </Label>
                   <div
-                    className="h-[min(380px,52vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(420px,55vh)] lg:h-auto lg:min-h-[480px] lg:flex-1"
+                    className="h-[min(560px,72vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(640px,74vh)] lg:h-auto lg:min-h-[660px] lg:flex-1"
                     onFocus={() => setActiveField("body")}
                   >
                     <RichEditor
@@ -1046,7 +1046,7 @@ export function CampaignEditorPage({
               </div>
               {isEmailChannel ? (
                 <div
-                  className="h-[min(380px,52vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(420px,55vh)] lg:min-h-[480px]"
+                  className="h-[min(560px,72vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(640px,74vh)] lg:min-h-[660px]"
                   onFocus={() => setActiveField("body")}
                 >
                   <RichEditor

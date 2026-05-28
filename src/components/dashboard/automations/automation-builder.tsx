@@ -229,7 +229,7 @@ export function AutomationBuilder({ automations: initialAutomations, propertyId,
             >
               All ({initialAutomations.length})
             </button>
-            {PHASE_ORDER.map(phase => {
+            {PHASE_ORDER.filter(phase => phase === 'COMMUNICATE').map(phase => {
               const count = initialAutomations.filter(a => a.phase === phase).length
               if (count === 0) return null
               return (

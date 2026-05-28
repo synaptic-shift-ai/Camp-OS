@@ -126,7 +126,7 @@ export function AutomationFormPageClient({
   // ── Form state ─────────────────────────────────────────────────────────
   const [name, setName] = useState(initialData?.name ?? "")
   const [description, setDescription] = useState(initialData?.description ?? "")
-  const [phase, setPhase] = useState<AutomationPhase>(initialData?.phase ?? "GUARD")
+  const [phase, setPhase] = useState<AutomationPhase>(initialData?.phase ?? "COMMUNICATE")
   const [triggerType, setTriggerType] = useState<TriggerType>(initialData?.trigger_type ?? "reservation.created")
   const [isActive, setIsActive] = useState(initialData?.is_active ?? false)
   const [isTerminal, setIsTerminal] = useState(initialData?.is_terminal ?? false)
@@ -139,7 +139,7 @@ export function AutomationFormPageClient({
   const initialValuesRef = useRef({
     name: initialData?.name ?? "",
     description: initialData?.description ?? "",
-    phase: (initialData?.phase ?? "GUARD") as AutomationPhase,
+    phase: (initialData?.phase ?? "COMMUNICATE") as AutomationPhase,
     triggerType: (initialData?.trigger_type ?? "reservation.created") as TriggerType,
     isActive: initialData?.is_active ?? false,
     isTerminal: initialData?.is_terminal ?? false,
@@ -218,7 +218,7 @@ export function AutomationFormPageClient({
         initialValuesRef.current = {
           name: initialData?.name ?? "",
           description: initialData?.description ?? "",
-          phase: initialData?.phase ?? "GUARD",
+          phase: initialData?.phase ?? "COMMUNICATE",
           triggerType: initialData?.trigger_type ?? "reservation.created",
           isActive: initialData?.is_active ?? false,
           isTerminal: initialData?.is_terminal ?? false,
@@ -531,7 +531,7 @@ export function AutomationFormPageClient({
                       {isEdit && <span className="text-muted-foreground font-normal ml-1">(set on creation)</span>}
                     </Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {PHASE_ORDER.map(p => {
+                      {PHASE_ORDER.filter(p => p === 'COMMUNICATE').map(p => {
                         const meta = PHASE_META[p]
                         const Icon = meta.icon
                         const selected = phase === p

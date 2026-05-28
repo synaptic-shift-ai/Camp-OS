@@ -115,7 +115,7 @@ export function TriggerSection({
       <div className="space-y-2">
         <Label>Phase {isEdit && <span className="text-muted-foreground font-normal">(set on creation)</span>}</Label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {PHASE_ORDER.map(p => {
+          {PHASE_ORDER.filter(p => p === 'COMMUNICATE').map(p => {
             const meta = PHASE_META[p]
             const Icon = meta.icon
             const selected = phase === p

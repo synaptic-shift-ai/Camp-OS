@@ -63,6 +63,12 @@ const CATEGORIES = [
   { value: "custom", label: "Custom" },
 ]
 
+const DEFAULT_NEW_TEMPLATE_BODY = `<h2 style="color:#333333;font-size:22px;font-weight:bold;margin:0 0 16px;">Hello {{guest.first_name}},</h2>
+<p style="color:#333333;font-size:15px;line-height:1.6;margin:0 0 12px;">Thank you for your reservation at <strong>{{property.name}}</strong>. We're looking forward to welcoming you!</p>
+<p style="color:#333333;font-size:15px;line-height:1.6;margin:0 0 12px;">Write your message content here. You can use the toolbar above to format text, add links, and insert variables from the panel on the right.</p>
+<hr style="border:none;border-top:1px solid #e6ebf1;margin:24px 0;" />
+<p style="color:#888888;font-size:13px;line-height:1.5;margin:0;">Best regards,<br /><strong>The {{property.name}} Team</strong></p>`
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -91,7 +97,7 @@ export function EmailTemplateEditorPage({
   const [slug, setSlug] = useState("")
   const [category, setCategory] = useState("")
   const [subject, setSubject] = useState("")
-  const [htmlBody, setHtmlBody] = useState("")
+  const [htmlBody, setHtmlBody] = useState(() => (template ? "" : DEFAULT_NEW_TEMPLATE_BODY))
   const [templateStatus, setTemplateStatus] = useState<string>("draft")
   const [saving, setSaving] = useState(false)
   const [customCategory, setCustomCategory] = useState("")
@@ -134,7 +140,7 @@ export function EmailTemplateEditorPage({
       setCategory("")
       setCustomCategory("")
       setSubject("")
-      setHtmlBody("")
+      setHtmlBody(DEFAULT_NEW_TEMPLATE_BODY)
       setTemplateStatus("draft")
     }
     setErrors({})
@@ -559,12 +565,12 @@ export function EmailTemplateEditorPage({
           </div>
 
           {/* Email Body */}
-          <div className="flex flex-col gap-1.5 lg:min-h-[520px] lg:flex-1">
+          <div className="flex flex-col gap-1.5 lg:min-h-[700px] lg:flex-1">
             <Label>
               Email Body <span className="text-red-500">*</span>
             </Label>
             <div
-              className="h-[min(380px,52vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(420px,55vh)] lg:h-auto lg:min-h-[480px] lg:flex-1"
+              className="h-[min(560px,72vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(640px,74vh)] lg:h-auto lg:min-h-[660px] lg:flex-1"
               onFocus={() => setActiveField("body")}
             >
               <RichEditor

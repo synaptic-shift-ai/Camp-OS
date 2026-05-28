@@ -86,6 +86,14 @@ export async function POST(
     }
 
     const userId = staffRow.user_id
+    if (!userId) {
+      return errorFlatMessage(
+        'This pending staff member is missing a linked auth user.',
+        ErrorCodes.RESOURCE_NOT_FOUND.status,
+        request,
+      )
+    }
+
     const service = createServiceRoleClient()
 
     // Fetch the auth user to get email + existing metadata

@@ -484,9 +484,9 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
               <TrendArrow direction="up" value="—" />
             )}
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
+          <div className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
             {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : kpis.sent.toLocaleString()}
-          </p>
+          </div>
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email + SMS combined</p>
         </div>
 
@@ -496,9 +496,9 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
               Delivery rate
             </p>
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
+          <div className="mt-2 text-2xl font-semibold tabular-nums text-stone-900 dark:text-zinc-50">
             {loadingKpi ? <Skeleton className="inline-block h-8 w-20" /> : `${kpis.deliveryRate}%`}
-          </p>
+          </div>
           <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">Email + SMS combined</p>
         </div>
       </div>
@@ -520,9 +520,9 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     <Mail className="h-3.5 w-3.5 text-red-800 dark:text-red-400" aria-hidden />
                     Email
                   </span>
-                  <span className="tabular-nums text-stone-500 dark:text-zinc-400">
+                  <div className="tabular-nums text-stone-500 dark:text-zinc-400">
                     {loadingChart ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.email.toLocaleString()} · ${emailPct}%`}
-                  </span>
+                  </div>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
                   <div
@@ -537,9 +537,9 @@ export function GuestDeliveryPanel({ propertyId }: { propertyId: string }) {
                     <Smartphone className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
                     SMS
                   </span>
-                  <span className="tabular-nums text-stone-500 dark:text-zinc-400">
+                  <div className="tabular-nums text-stone-500 dark:text-zinc-400">
                     {loadingChart ? <Skeleton className="inline-block h-4 w-20" /> : `${channelMix.sms.toLocaleString()} · ${smsPct}%`}
-                  </span>
+                  </div>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-zinc-800">
                   <div

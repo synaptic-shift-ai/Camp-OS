@@ -356,8 +356,11 @@ export async function POST(
       const nextPaymentStatus =
         nextPaid >= totalAmount ? 'paid' : nextPaid > 0 ? 'partial' : 'pending'
 
+      // When fully paid, cap paid_amount at total_amount (not cash received)
+      const cappedPaid = nextPaymentStatus === 'paid' ? totalAmount : nextPaid
+
       const reservationUpdate: Record<string, unknown> = {
-        paid_amount: nextPaid,
+        paid_amount: cappedPaid,
         payment_status: nextPaymentStatus,
         updated_at: new Date().toISOString(),
       }

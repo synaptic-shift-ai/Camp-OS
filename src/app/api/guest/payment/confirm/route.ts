@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       .update({
         status: 'confirmed',
         payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
-        paid_amount: paidAmountCents,
+        paid_amount: isDepositPayment ? paidAmountCents : reservation.total_amount,
         reserved_until: null, // Clear checkout timer - payment completed
         notes: `Online payment via Stripe${isDepositPayment ? ' (deposit)' : ''}. PaymentIntent: ${validatedInput.payment_intent_id}`,
         updated_at: new Date().toISOString(),

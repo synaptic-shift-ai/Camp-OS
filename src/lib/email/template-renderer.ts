@@ -226,6 +226,11 @@ export function enrichContext(raw: Record<string, unknown>): Record<string, unkn
     reservation.cancellation_date = new Date(String(reservation.cancelled_at)).toLocaleDateString()
   }
 
+  // reservation.formatted_paid_amount = paid_amount / 100
+  if (reservation && reservation.paid_amount !== undefined && reservation.paid_amount !== null) {
+    reservation.formatted_paid_amount = `$${(Number(reservation.paid_amount) / 100).toFixed(2)}`
+  }
+
   // reservation.balance_due = total_amount - paid_amount
   if (reservation?.total_amount !== undefined && reservation?.paid_amount !== undefined) {
     const balanceCents = Number(reservation.total_amount) - Number(reservation.paid_amount)

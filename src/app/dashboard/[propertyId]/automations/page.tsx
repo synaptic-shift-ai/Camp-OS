@@ -55,7 +55,7 @@ export default async function AutomationsPage({
                 totalAutomations={automations.length}
                 activeCount={automations.filter(a => a.is_active).length}
                 inactiveCount={automations.length - automations.filter(a => a.is_active).length}
-                phaseDistribution={PHASE_ORDER.map(phase => ({ phase, count: automations.filter(a => a.phase === phase).length }))}
+                phaseDistribution={PHASE_ORDER.filter(phase => phase === 'COMMUNICATE').map(phase => ({ phase, count: automations.filter(a => a.phase === phase).length }))}
                 executionSummary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}
                 recentLogs={[]}
                 activeTab="automations"
@@ -256,7 +256,7 @@ export default async function AutomationsPage({
     const activeCount = automations.filter(a => a.is_active).length
     const inactiveCount = totalAutomations - activeCount
 
-    const phaseDistribution = PHASE_ORDER.map(phase => ({
+    const phaseDistribution = PHASE_ORDER.filter(phase => phase === 'COMMUNICATE').map(phase => ({
         phase,
         count: automations.filter(a => a.phase === phase).length,
     }))

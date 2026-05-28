@@ -66,6 +66,7 @@ export default function ConfirmationPage() {
   const [hasAttemptedConfirmation, setHasAttemptedConfirmation] = useState(false)
   const [_confirmationError, setConfirmationError] = useState<string | null>(null)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const [serverTotalAmountCents, setServerTotalAmountCents] = useState<number | null>(null)
 
   // Helper to format cents as dollars
   const formatCurrency = (cents: number) => {
@@ -96,6 +97,10 @@ export default function ConfirmationPage() {
               console.log("[Confirmation] Payment already finalized (idempotent)")
             } else {
               console.log("[Confirmation] Payment confirmed successfully")
+              // Capture server-side total_amount for accurate Total Paid display
+              if (result.success && result.data.total_amount_cents) {
+                setServerTotalAmountCents(result.data.total_amount_cents)
+              }
             }
             router.replace(`/book/${slug}/confirmation`)
           } else {
@@ -122,6 +127,23 @@ export default function ConfirmationPage() {
         })
     }
   }, [searchParams, checkoutData.reservationId, checkoutData.confirmationNumber, toast, hasAttemptedConfirmation, router, slug])
+
+  // Fetch server-side total_amount when page loads without going through
+  // the confirm flow (e.g., returning to an already-confirmed booking).
+  useEffect(() => {
+    if (!checkoutData.reservationId || serverTotalAmountCents !== null) return
+
+    fetch(`/api/guest/reservation-total?reservation_id=${checkoutData.reservationId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.total_amount_cents != null) {
+          setServerTotalAmountCents(data.total_amount_cents)
+        }
+      })
+      .catch(() => {
+        // Non-critical — will fall back to priceBreakdown.total
+      })
+  }, [checkoutData.reservationId, serverTotalAmountCents])
 
   useEffect(() => {
     // Wait for sessionStorage to hydrate before checking
@@ -219,6 +241,9 @@ export default function ConfirmationPage() {
       totalPetFeeCents
   }
 
+  // Use server-fetched total_amount when available, fallback to computed total
+  const totalPaidCents = serverTotalAmountCents ?? priceBreakdown.total
+
   function handleDownloadPdf() {
     setIsDownloadingPdf(true)
     try {
@@ -252,7 +277,7 @@ export default function ConfirmationPage() {
         ...(petFee > 0 && { petFeeCents: petFee }),
         ...(discountCents > 0 && { discountCents }),
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
-        totalCents: priceBreakdown.total,
+        totalCents: totalPaidCents,
       })
 
       const filename = `${checkoutData.confirmationNumber!.toUpperCase()}.pdf`
@@ -467,7 +492,7 @@ export default function ConfirmationPage() {
                       )}
                       <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
                         <span className="text-foreground">Total Paid</span>
-                        <span className="text-[#2D5A27] dark:text-emerald-400">${formatCurrency(priceBreakdown.total)}</span>
+                        <span className="text-[#2D5A27] dark:text-emerald-400">${formatCurrency(totalPaidCents)}</span>
                       </div>
                     </div>
                   </div>

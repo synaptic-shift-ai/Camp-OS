@@ -56,6 +56,7 @@ export type TriggerType =
   | 'maintenance.task_completed'
   // Staff events
   | 'staff.invited'
+  | 'staff.created'
   // System / scheduled
   | 'system.scheduled'
   | 'system.check_in_reminder'

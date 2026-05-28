@@ -376,7 +376,7 @@ export function ReservationLedgerPage({
         ) : null}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-5 items-stretch">
+      <div className="grid gap-3 md:grid-cols-6 items-stretch">
         <Card className="md:col-span-2 h-full bg-muted/60">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
             <div className="min-w-0">
@@ -395,6 +395,15 @@ export function ReservationLedgerPage({
             <p className="text-xs text-muted-foreground">
               Amount left to pay (reservation total minus paid amount).
             </p>
+          </CardContent>
+        </Card>
+
+        <Card className="h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="text-sm text-muted-foreground">Guest Credit</div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{loading ? <Skeleton className="h-8 w-24" /> : formatMoney(balance?.guest_credit_balance ?? 0)}</div>
           </CardContent>
         </Card>
 

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Eye, MoreVertical, Pencil, UserCheck, UserMinus } from "lucide-react"
+import { Eye, Mail, MoreVertical, Pencil, UserCheck, UserMinus } from "lucide-react"
 import type { EditStaffDialogStaff } from "@/components/dashboard/staff-management/staff-management-dialog/edit-staff-dialog"
 import type { DeactivateStaffDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/deactivate-staff-dialog"
 import type { StaffDetailsDialogTarget } from "@/components/dashboard/staff-management/staff-management-dialog/staff-details-dialog"
@@ -38,6 +38,7 @@ type StaffManagementTableProps = {
   onViewStaff?: (staff: StaffDetailsDialogTarget) => void
   onDeactivateStaff?: (staff: DeactivateStaffDialogTarget) => void
   onReactivateStaff?: (staff: { id: string; name: string }) => void
+  onResendSetupEmail?: (staff: { id: string; name: string }) => void
 }
 
 function initialsFromName(name: string): string {
@@ -116,6 +117,7 @@ export function StaffManagementTable({
   onViewStaff,
   onDeactivateStaff,
   onReactivateStaff,
+  onResendSetupEmail,
 }: StaffManagementTableProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -259,6 +261,14 @@ export function StaffManagementTable({
                             <Eye className="mr-2 h-4 w-4" />
                             View
                           </DropdownMenuItem>
+                          {row.status === "Pending" && (
+                            <DropdownMenuItem
+                              onClick={() => onResendSetupEmail?.({ id: row.id, name: row.name })}
+                            >
+                              <Mail className="mr-2 h-4 w-4" />
+                              Resend Setup Email
+                            </DropdownMenuItem>
+                          )}
                           <PermissionGate permission="global.change_staff_role">
                             <DropdownMenuItem
                               disabled={row.role === "Owner"}

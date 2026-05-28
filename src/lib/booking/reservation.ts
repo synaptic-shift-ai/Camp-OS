@@ -223,6 +223,16 @@ export async function confirmReservationPayment(
 ): Promise<BookingResult<Reservation>> {
   const supabase = createServiceRoleClient()
 
+  // Fetch reservation to get total_amount for correct paid_amount
+  const { data: existingReservation } = await supabase
+    .from('reservations')
+    .select('total_amount')
+    .eq('id', reservationId)
+    .single()
+
+  // When fully paid, paid_amount = total_amount (not cash received)
+  const paidAmount = existingReservation?.total_amount ?? paymentDetails.amount
+
   // Update reservation status
   const { data: reservation, error: updateError } = await supabase
     .from('reservations')
@@ -230,7 +240,7 @@ export async function confirmReservationPayment(
       status: 'confirmed',
       payment_status: 'paid',
       // Phase 2c: Write directly to BIGINT column (already in cents)
-      paid_amount: paymentDetails.amount,
+      paid_amount: paidAmount,
     })
     .eq('id', reservationId)
     .select('*')

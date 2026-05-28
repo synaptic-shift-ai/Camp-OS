@@ -53,10 +53,7 @@ import {
   Maximize2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-  isFullEmailDocument,
-  requiresEmailTemplateSourceEditing,
-} from "@/lib/email/template-renderer"
+import { isFullEmailDocument } from "@/lib/email/template-renderer"
 
 // ============================================================================
 // Types
@@ -267,6 +264,67 @@ function wrapWithSettings(content: string, settings: EmailSettings): string {
   return `<!--email-settings:${encoded}-->${content}`
 }
 
+// ----------------------------------------------------------------------------
+// Document-shell extraction (for visual editing of full <!DOCTYPE html> templates)
+// ----------------------------------------------------------------------------
+
+/** Placeholder embedded in the original document shell where the editable body lives. */
+const DOCUMENT_BODY_PLACEHOLDER = "<!--__camp_os_editable_body__-->"
+
+/** True when the HTML opens with a full document shell (DOCTYPE / <html>). */
+function isHtmlDocumentShell(html: string): boolean {
+  const t = html.trimStart()
+  return /^<!DOCTYPE\s+html/i.test(t) || /^<html[\s>]/i.test(t)
+}
+
+/**
+ * Foster-parenting hazard: a merge tag as the first child of <tbody> is invalid
+ * HTML and gets reparented outside the table by contentEditable, corrupting the
+ * template. These templates must stay in source mode.
+ */
+function hasMalformedTbodyMergeTag(html: string): boolean {
+  return /<tbody[^>]*>\s*\{\{[^}]+\}\}/i.test(html.trimStart())
+}
+
+/**
+ * Parse a full HTML document, extracting the body's inner HTML and a "shell"
+ * string with a placeholder where the body content originally was. The shell is
+ * later reassembled via `reconstructWithShell` so the document <head>, <style>,
+ * and outer body wrapping are preserved across edits.
+ */
+function parseDocumentShell(
+  html: string,
+): { bodyContent: string; shell: string } | null {
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return null
+  }
+  if (!isHtmlDocumentShell(html)) return null
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, "text/html")
+    const body = doc.body
+    if (!body) return null
+
+    const bodyContent = body.innerHTML
+    body.innerHTML = DOCUMENT_BODY_PLACEHOLDER
+
+    const doctype = doc.doctype
+      ? `<!DOCTYPE ${doc.doctype.name}>`
+      : "<!DOCTYPE html>"
+    const shell = doctype + doc.documentElement.outerHTML
+
+    return { bodyContent, shell }
+  } catch {
+    return null
+  }
+}
+
+/** Insert edited body content back into the original document shell. */
+function reconstructWithShell(bodyContent: string, shell: string): string {
+  return shell.replace(DOCUMENT_BODY_PLACEHOLDER, bodyContent)
+}
+
 /** Build wrapper div style from settings */
 function wrapperStyle(settings: EmailSettings): React.CSSProperties {
   const style: React.CSSProperties = {
@@ -297,8 +355,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const editorRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(false)
   const lastRangeRef = useRef<Range | null>(null)
+  // Routed through a ref so the imperative handle always uses the latest save
+  // closure (which captures documentShell, settings, etc. defined below).
+  const saveRef = useRef<(html: string) => void>(() => {})
 
-  // Expose imperative insertVariable method
   useImperativeHandle(ref, () => ({
     insertVariable: (text: string) => {
       const editorEl = editorRef.current
@@ -306,14 +366,12 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
       editorEl.focus()
 
-      // Try to restore saved range
       if (lastRangeRef.current) {
         const sel = window.getSelection()
         sel?.removeAllRanges()
         sel?.addRange(lastRangeRef.current)
       }
 
-      // Insert text at cursor
       const selection = window.getSelection()
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0)
@@ -325,9 +383,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         selection.addRange(range)
       }
 
-      // Trigger onChange
-      const html = editorEl.innerHTML
-      onChange?.(html)
+      saveRef.current(editorEl.innerHTML)
     },
   }))
 
@@ -337,10 +393,19 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const [settings, setSettings] = useState<EmailSettings>(
     savedSettings ?? (inferredSettings ? { ...DEFAULT_SETTINGS, ...inferredSettings } : DEFAULT_SETTINGS)
   )
+  // Only force source mode for genuinely un-editable markup (malformed tbody+{{).
+  // Full HTML documents are handled via body extraction so they open in visual mode.
   const [sourceMode, setSourceMode] = useState(() =>
-    requiresEmailTemplateSourceEditing(stripSettings(value)),
+    hasMalformedTbodyMergeTag(stripSettings(value)),
   )
   const [sourceValue, setSourceValue] = useState("")
+  // When the incoming value is a full HTML document, we edit only its <body>
+  // contents in visual mode and keep the surrounding <html>/<head>/<body>
+  // wrapper here so we can reassemble it on save.
+  const [documentShell, setDocumentShell] = useState<string | null>(() => {
+    const parsed = parseDocumentShell(stripSettings(value))
+    return parsed?.shell ?? null
+  })
 
   // Link dialog
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
@@ -355,7 +420,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
   // Pure content (without settings comment)
   const contentOnly = stripSettings(value)
-  const needsSourceOnly = requiresEmailTemplateSourceEditing(contentOnly)
+  const needsSourceOnly = hasMalformedTbodyMergeTag(contentOnly)
   const isWideEmailLayout = isFullEmailDocument(contentOnly)
 
   // Seed source textarea from initial value (visual body syncs in the effect below).
@@ -367,9 +432,9 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   // Sync external value changes
   useEffect(() => {
     const newContent = stripSettings(value)
-    const locked = requiresEmailTemplateSourceEditing(newContent)
+    const malformed = hasMalformedTbodyMergeTag(newContent)
 
-    if (locked && !sourceMode) {
+    if (malformed && !sourceMode) {
       setSourceValue(newContent)
       setSourceMode(true)
       return
@@ -380,11 +445,18 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       return
     }
 
+    // Visual mode: if the value is a full HTML document, extract its body
+    // content into the contentEditable area and keep the shell aside so save()
+    // can reassemble it. Otherwise, render the value directly.
+    const parsed = parseDocumentShell(newContent)
+    setDocumentShell(parsed?.shell ?? null)
+    const visualContent = parsed?.bodyContent ?? newContent
+
     if (editorRef.current) {
       if (!mountedRef.current) mountedRef.current = true
       if (document.activeElement === editorRef.current) return
-      if (editorRef.current.innerHTML !== newContent) {
-        editorRef.current.innerHTML = newContent
+      if (editorRef.current.innerHTML !== visualContent) {
+        editorRef.current.innerHTML = visualContent
       }
     }
     const metadataSettings = extractSettings(value)
@@ -400,14 +472,43 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     return editorRef.current?.innerHTML ?? ""
   }, [])
 
-  /** Save content + settings to parent */
+  /** Save body-only content from the visual editor (reassembles with shell). */
   const save = useCallback((html: string) => {
     let clean = html.replace(/^\s+|\s+$/g, "")
+    if (documentShell) {
+      // Visual-mode edit of a full HTML document: wrap body content back into
+      // the preserved shell before persisting.
+      const reassembled = reconstructWithShell(clean, documentShell)
+      onChange(wrapWithSettings(reassembled, settings))
+      return
+    }
+    if (isFullEmailDocument(clean)) {
+      clean = applyLegacyShellBg(clean, settings.bgColor)
+    }
+    onChange(wrapWithSettings(clean, settings))
+  }, [onChange, settings, documentShell])
+
+  /**
+   * Save raw source-mode HTML. We don't reassemble with the existing shell —
+   * the user is editing the full document directly — but we do refresh the
+   * tracked shell so that toggling back into visual mode extracts the latest
+   * body content cleanly.
+   */
+  const saveSource = useCallback((html: string) => {
+    let clean = html.replace(/^\s+|\s+$/g, "")
+    const parsed = parseDocumentShell(clean)
+    setDocumentShell(parsed?.shell ?? null)
     if (isFullEmailDocument(clean)) {
       clean = applyLegacyShellBg(clean, settings.bgColor)
     }
     onChange(wrapWithSettings(clean, settings))
   }, [onChange, settings])
+
+  // Keep saveRef in sync so the imperative insertVariable picks up the latest
+  // save() closure (which depends on documentShell + settings).
+  useEffect(() => {
+    saveRef.current = save
+  }, [save])
 
   const execCommand = useCallback((command: string, cmdValue?: string) => {
     editorRef.current?.focus()
@@ -485,14 +586,33 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const toggleSourceMode = useCallback(() => {
     if (sourceMode) {
       const trimmed = sourceValue.trim()
-      if (requiresEmailTemplateSourceEditing(trimmed)) return
-      save(trimmed)
+      // Malformed tbody+{{ still forces staying in source mode
+      if (hasMalformedTbodyMergeTag(trimmed)) return
+
+      // If source contains a full HTML doc, extract the body for visual
+      // editing and keep the shell.
+      const parsed = parseDocumentShell(trimmed)
+      if (parsed) {
+        setDocumentShell(parsed.shell)
+        if (editorRef.current) {
+          editorRef.current.innerHTML = parsed.bodyContent
+        }
+        onChange(wrapWithSettings(trimmed, settings))
+      } else {
+        setDocumentShell(null)
+        save(trimmed)
+      }
       setSourceMode(false)
     } else {
-      setSourceValue(getContent())
+      // Show the full (reassembled) HTML document in source mode if we have a shell.
+      const visualBody = getContent()
+      const sourceFull = documentShell
+        ? reconstructWithShell(visualBody, documentShell)
+        : visualBody
+      setSourceValue(sourceFull)
       setSourceMode(true)
     }
-  }, [sourceMode, sourceValue, getContent, save])
+  }, [sourceMode, sourceValue, getContent, save, documentShell, onChange, settings])
 
   // -- Color --
   const handleColorChange = useCallback((color: string) => {
@@ -614,9 +734,9 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         <div className="border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground leading-snug">
           <span className="font-medium text-foreground/80">HTML only</span>
           {' — '}
-          To use <span className="font-medium text-foreground/80">Visual</span> editing, clear this HTML. Save, then open{' '}
-          <span className="font-medium text-foreground/80">Visual</span> and check{' '}
-          <span className="font-medium text-foreground/80">Preview</span>.
+          This template contains markup that can&apos;t be edited visually. Fix the{' '}
+          <span className="font-mono text-foreground/80">{'<tbody>{{...}}'}</span> pattern (wrap the
+          merge tag in a <span className="font-mono text-foreground/80">{'<tr><td>'}</span>) to enable Visual editing.
         </div>
       )}
 
@@ -754,15 +874,15 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
           size="xs"
           className="h-7 text-xs gap-1"
           onClick={toggleSourceMode}
-          disabled={sourceMode && requiresEmailTemplateSourceEditing(sourceValue)}
+          disabled={sourceMode && hasMalformedTbodyMergeTag(sourceValue)}
           title={
-            sourceMode && requiresEmailTemplateSourceEditing(sourceValue)
-              ? "Clear this HTML, save, then Visual."
+            sourceMode && hasMalformedTbodyMergeTag(sourceValue)
+              ? "Fix the malformed table markup before switching to Visual."
               : undefined
           }
         >
           {sourceMode ? (
-            requiresEmailTemplateSourceEditing(sourceValue) ? (
+            hasMalformedTbodyMergeTag(sourceValue) ? (
               <><CodeXml className="h-3.5 w-3.5" /> HTML</>
             ) : (
               <><Code className="h-3.5 w-3.5" /> Visual</>
@@ -781,7 +901,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
           value={sourceValue}
           onChange={(e) => {
             setSourceValue(e.target.value)
-            save(e.target.value)
+            saveSource(e.target.value)
           }}
         />
       ) : (

@@ -47,10 +47,10 @@ export function PropertyAmenitiesSection({ propertyId }: Props) {
         const next = Array.isArray(db) ? db : []
         setAmenities(next)
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId])
 
   const handleAdd = (amenity: { name: string; description: string }) => {

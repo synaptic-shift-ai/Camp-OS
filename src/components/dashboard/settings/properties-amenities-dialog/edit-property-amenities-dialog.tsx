@@ -188,7 +188,7 @@ export function EditPropertyAmenitiesDialog({
                 description: description.trim(),
                 icon_url: iconUrl.trim() || null,
               })
-              guardedOnOpenChange(false)
+              onOpenChange(false)
             }}
             disabled={!canSave}
           >

@@ -200,6 +200,7 @@ export function CampaignEditorPage({
   const bodyRef = useRef<HTMLTextAreaElement>(null)
   const smsBodyRef = useRef<HTMLTextAreaElement>(null)
   const richEditorRef = useRef<RichEditorHandle>(null)
+  const bodyInteractionRef = useRef(false)
 
   // ── Preview sheet ──
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -264,32 +265,60 @@ export function CampaignEditorPage({
   }, [])
 
   // ── Dirty tracking ──
-  // Snapshot the "clean" form state on the next animation frame after mount
-  // so that child components (e.g. RichEditor wraps body with email-settings
-  // metadata on mount) can settle their initial onChange callbacks first.
-  // Without this, the form appears dirty before the user has typed anything.
+  // The RichEditor wraps the body with email-settings metadata on mount,
+  // which fires onChange right after we mount. To avoid showing "Unsaved"
+  // before the user has actually edited anything, we keep updating the
+  // "clean" snapshot until the user takes a real action (markUserEdited).
   const [cleanForm, setCleanForm] = useState<string | null>(null)
+  const [hasUserEdited, setHasUserEdited] = useState(false)
 
   useEffect(() => {
     setCleanForm(null)
+    setHasUserEdited(false)
+    bodyInteractionRef.current = false
   }, [campaign])
 
   useEffect(() => {
-    if (cleanForm !== null) return
-    const id = requestAnimationFrame(() => {
+    if (hasUserEdited) return
+    const id = window.setTimeout(() => {
       setCleanForm(JSON.stringify(form))
-    })
-    return () => cancelAnimationFrame(id)
-  }, [form, cleanForm])
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [form, hasUserEdited])
 
-  const isDirty = cleanForm !== null && JSON.stringify(form) !== cleanForm
+  const markUserEdited = useCallback(() => {
+    setHasUserEdited(true)
+  }, [])
+
+  const markBodyInteracted = useCallback(() => {
+    bodyInteractionRef.current = true
+  }, [])
+
+  const isDirty =
+    hasUserEdited && cleanForm !== null && JSON.stringify(form) !== cleanForm
 
   const { UnsavedChangesDialog, markClean, requestNavigation } = useUnsavedChangesGuard(isDirty)
+
+  const resetDirty = useCallback(() => {
+    setCleanForm(JSON.stringify(form))
+    setHasUserEdited(false)
+    bodyInteractionRef.current = false
+    markClean()
+  }, [form, markClean])
 
   const updateForm = useCallback(<K extends keyof CampaignForm>(key: K, value: CampaignForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }))
-  }, [errors])
+    markUserEdited()
+  }, [errors, markUserEdited])
+
+  const updateBodyFromEditor = useCallback((val: string) => {
+    setForm((prev) => ({ ...prev, body: val }))
+    if (errors.body) setErrors((prev) => ({ ...prev, body: "" }))
+    if (bodyInteractionRef.current) {
+      markUserEdited()
+    }
+  }, [errors.body, markUserEdited])
 
   // ── Variable insertion ──
   const insertVariable = useCallback(
@@ -426,7 +455,7 @@ export function CampaignEditorPage({
     try {
       await saveCampaign(isEdit ? undefined : "draft")
       toast.success(isEdit ? "Changes saved" : "Draft saved", { description: isEdit ? "Your campaign has been updated." : "Your campaign has been saved as a draft." })
-      markClean()
+      resetDirty()
       router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save draft")
@@ -452,7 +481,7 @@ export function CampaignEditorPage({
         throw new Error(sendJson.error?.message ?? "Could not send campaign")
       }
       toast.success("Campaign sent!", { description: "Your campaign is now being delivered." })
-      markClean()
+      resetDirty()
       router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not send campaign")
@@ -484,7 +513,7 @@ export function CampaignEditorPage({
         throw new Error(scheduleJson.error?.message ?? "Could not schedule campaign")
       }
       toast.success("Campaign scheduled", { description: "Your campaign has been scheduled." })
-      markClean()
+      resetDirty()
       router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not schedule campaign")
@@ -952,11 +981,14 @@ export function CampaignEditorPage({
                   <div
                     className="h-[min(560px,72vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(640px,74vh)] lg:h-auto lg:min-h-[660px] lg:flex-1"
                     onFocus={() => setActiveField("body")}
+                    onKeyDown={markBodyInteracted}
+                    onPaste={markBodyInteracted}
+                    onPointerDown={markBodyInteracted}
                   >
                     <RichEditor
                       ref={richEditorRef}
                       value={form.body}
-                      onChange={(val) => updateForm("body", val)}
+                      onChange={updateBodyFromEditor}
                       placeholder="Write your email content here…"
                       minHeight="100%"
                       className="h-full flex flex-col"
@@ -1048,11 +1080,14 @@ export function CampaignEditorPage({
                 <div
                   className="h-[min(560px,72vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(640px,74vh)] lg:min-h-[660px]"
                   onFocus={() => setActiveField("body")}
+                  onKeyDown={markBodyInteracted}
+                  onPaste={markBodyInteracted}
+                  onPointerDown={markBodyInteracted}
                 >
                   <RichEditor
                     ref={richEditorRef}
                     value={form.body}
-                    onChange={(val) => updateForm("body", val)}
+                    onChange={updateBodyFromEditor}
                     placeholder="Write your email content here…"
                     minHeight="100%"
                     className="h-full flex flex-col"

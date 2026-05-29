@@ -97,28 +97,43 @@ export function SiteAmenitiesSection({ propertyId }: Props) {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       ) : amenities.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className="rounded-md border border-dashed border-border/80 py-6 text-center text-muted-foreground">
           <p className="text-sm">No amenities added yet.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/80 bg-card/50">
           {amenities.map((amenity) => (
-            <div key={amenity.id} className="rounded-md border border-border/80 bg-card/50 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">{amenity.name}</p>
-                  {amenity.description && (
-                    <p className="mt-1 text-xs text-muted-foreground">{amenity.description}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button type="button" variant="ghost" size="icon" onClick={() => { setEditTarget(amenity); setIsEditOpen(true) }} aria-label={`Edit ${amenity.name}`}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => { setDeleteTarget(amenity); setIsDeleteOpen(true) }} aria-label={`Delete ${amenity.name}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+            <div
+              key={amenity.id}
+              className="group flex items-center justify-between gap-3 px-3 py-2 transition-colors hover:bg-accent/40"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium leading-tight">{amenity.name}</p>
+                {amenity.description && (
+                  <p className="truncate text-xs text-muted-foreground">{amenity.description}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => { setEditTarget(amenity); setIsEditOpen(true) }}
+                  aria-label={`Edit ${amenity.name}`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={() => { setDeleteTarget(amenity); setIsDeleteOpen(true) }}
+                  aria-label={`Delete ${amenity.name}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
           ))}

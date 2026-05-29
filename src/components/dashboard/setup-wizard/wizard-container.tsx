@@ -23,6 +23,9 @@ import { WizardPropertyDetailsSections } from "./wizard-property-details-section
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
+import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
+import { getDetectedTimezone, validatePostalCode } from '@/lib/postal-code'
+import { getTimezoneCountry } from '@/lib/timezone-to-country'
 
 type PropertySection =
   | "location"
@@ -62,21 +65,13 @@ const STEP_SECTION_MAP: Record<WizardStep, Array<{ id: string; label: string }>>
   review_launch: [{ id: "review", label: "Review" }],
 }
 
-const US_TIMEZONES = [
-  { value: "America/New_York", label: "Eastern Time (ET)" },
-  { value: "America/Chicago", label: "Central Time (CT)" },
-  { value: "America/Denver", label: "Mountain Time (MT)" },
-  { value: "America/Phoenix", label: "Mountain Time - Arizona (MT)" },
-  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
-  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
-  { value: "Pacific/Honolulu", label: "Hawaii Time (HT)" },
-]
+
 
 const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
-  zipCode: z.string().min(5, "ZIP code is required"),
+  zipCode: z.string().min(1, "ZIP code is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number is required").optional().or(z.literal("")),
   description: z.string().optional(),
@@ -89,7 +84,22 @@ const propertyDetailsSchema = z.object({
   minStayNights: z.coerce.number().int().min(1).default(1),
   maxStayNights: z.coerce.number().int().min(1).optional().or(z.literal("")),
   bookingLeadTimeDays: z.coerce.number().int().min(0).default(365),
-})
+}).superRefine((data, ctx) => {
+  // Validate ZIP/postal code against country from timezone
+  if (data.zipCode && data.zipCode.trim() !== '') {
+    const countryCode = getTimezoneCountry(data.timezone);
+    if (countryCode) {
+      const result = validatePostalCode(countryCode, data.zipCode);
+      if (result !== true) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone',
+          path: ['zipCode'],
+        });
+      }
+    }
+  }
+});
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
 
@@ -255,6 +265,16 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
   })
 
   const timezone = watch("timezone")
+
+  // Auto-detect timezone from browser on mount (only when property has no saved timezone)
+  useEffect(() => {
+    if (!selectedProperty?.settings?.timezone) {
+      const detected = getDetectedTimezone();
+      if (detected) {
+        setValue("timezone", detected);
+      }
+    }
+  }, [setValue, selectedProperty?.settings?.timezone]);
 
   useEffect(() => {
     if (!selectedProperty) return
@@ -745,6 +765,13 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
         return `${fields.slice(0, -1).join(", ")}, and ${fields[fields.length - 1]!}`
       }
 
+      const isZipInvalidForCountry = (zip: string | undefined | null, tz: string | undefined | null): boolean => {
+        if (!zip || zip.trim().length === 0) return true
+        const cc = tz ? getTimezoneCountry(tz) : null
+        if (!cc) return false
+        return validatePostalCode(cc, zip.trim()) !== true
+      }
+
       for (const property of propertiesToCheck) {
         const missingFields: string[] = []
         if (property.id === selectedPropertyId) {
@@ -752,17 +779,18 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           if (!v.address?.trim()) missingFields.push("Street Address")
           if (!v.city?.trim()) missingFields.push("City")
           if (!v.state?.trim()) missingFields.push("State")
-          if (!v.zipCode || v.zipCode.trim().length < 5) missingFields.push("ZIP")
+          if (isZipInvalidForCountry(v.zipCode, v.timezone || timezone)) missingFields.push("ZIP")
         } else {
           const draft = getDraft(property.id)
           const address = draft?.address ?? property.address
           const city = draft?.city ?? property.city
           const state = draft?.state ?? property.state
           const zipCode = draft?.zipCode ?? property.zipCode
+          const tz = draft?.timezone ?? property.settings?.timezone
           if (!address?.trim()) missingFields.push("Street Address")
           if (!city?.trim()) missingFields.push("City")
           if (!state?.trim()) missingFields.push("State")
-          if (!zipCode || zipCode.trim().length < 5) missingFields.push("ZIP")
+          if (isZipInvalidForCountry(zipCode, tz)) missingFields.push("ZIP")
         }
         if (missingFields.length > 0) {
           propertiesMissingFields.push({
@@ -781,7 +809,17 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           if (!v.address?.trim()) setError("address", { type: "manual", message: "Address is required" })
           if (!v.city?.trim()) setError("city", { type: "manual", message: "City is required" })
           if (!v.state?.trim()) setError("state", { type: "manual", message: "State is required" })
-          if (!v.zipCode || v.zipCode.trim().length < 5) setError("zipCode", { type: "manual", message: "ZIP code is required" })
+          if (!v.zipCode || v.zipCode.trim().length === 0) {
+            setError("zipCode", { type: "manual", message: "ZIP code is required" })
+          } else {
+            const countryCode = getTimezoneCountry(v.timezone || timezone);
+            if (countryCode) {
+              const result = validatePostalCode(countryCode, v.zipCode.trim());
+              if (result !== true) {
+                setError("zipCode", { type: "manual", message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' })
+              }
+            }
+          }
           setCurrentSection("location")
         }
         setFooterError(null)
@@ -804,7 +842,14 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       const formData = await new Promise<PropertyDetailsFormData | null>((resolve) => {
         handleSubmit(
           (data) => resolve(data),
-          () => resolve(null)
+          (errs) => {
+            // Navigate to the section that contains the first error
+            const locationFields = ["address", "city", "state", "zipCode"] as const
+            if (locationFields.some((f) => f in errs)) {
+              setCurrentSection("location")
+            }
+            resolve(null)
+          }
         )()
       })
       if (!formData) return
@@ -1241,7 +1286,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                     errors={errors}
                     setValue={setValue}
                     timezone={timezone}
-                    usTimezones={US_TIMEZONES}
+                    usTimezones={TIMEZONE_OPTIONS}
                     pricingConfig={pricingConfig}
                     reservationTypeConfigRaw={reservationTypeConfigRaw}
                     enabledReservationTypesRaw={enabledReservationTypesRaw}

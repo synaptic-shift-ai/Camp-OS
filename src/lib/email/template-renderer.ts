@@ -13,16 +13,36 @@ import { formatTime } from '@/lib/utils/format-time'
 // Email Layout Settings
 // ============================================================================
 
+export type EmailAlign = 'left' | 'center' | 'right'
+
 export type EmailSettings = {
   width: string
   bgColor: string
   centered: boolean
+  align?: EmailAlign
 }
 
 export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
   width: '600',
   bgColor: '#ffffff',
   centered: true,
+  align: 'center',
+}
+
+function normalizeEmailAlign(settings: Partial<EmailSettings> | null | undefined): EmailAlign {
+  const align = settings?.align
+  if (align === 'left' || align === 'center' || align === 'right') return align
+  return settings?.centered === false ? 'left' : 'center'
+}
+
+function normalizeEmailSettings(settings: Partial<EmailSettings> | null | undefined): EmailSettings {
+  const align = normalizeEmailAlign(settings)
+  return {
+    ...DEFAULT_EMAIL_SETTINGS,
+    ...settings,
+    align,
+    centered: align === 'center',
+  }
 }
 
 /** True when content starts with a full HTML document wrapper (DOCTYPE or root `html` element). */
@@ -70,7 +90,7 @@ export function extractEmailSettings(html: string): EmailSettings | null {
   if (!encoded) return null
   try {
     const decoded = atob(encoded)
-    return JSON.parse(decoded) as EmailSettings
+    return normalizeEmailSettings(JSON.parse(decoded) as Partial<EmailSettings>)
   } catch {
     return null
   }
@@ -79,6 +99,40 @@ export function extractEmailSettings(html: string): EmailSettings | null {
 /** Strip the email-settings comment from HTML */
 export function stripEmailSettings(html: string): string {
   return html.replace(/<!--email-settings:.*?-->/, '')
+}
+
+export function repairTbodyMergeTagPlacement(html: string): string {
+  let next = html
+  for (let i = 0; i < 3; i += 1) {
+    const repaired = next
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<table\b[^>]*>[\s\S]*?<thead\b[\s\S]*?<\/thead>\s*<tbody\b[^>]*>)\s*(<\/tbody>)/gi,
+        '$2$1$3',
+      )
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<thead\b[\s\S]*?<\/thead>\s*<tbody\b[^>]*>)\s*(<\/tbody>)/gi,
+        '$2$1$3',
+      )
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<table\b[^>]*>[\s\S]*?<tbody\b[^>]*>\s*<tr\b(?=[^>]*>[\s\S]*?<th\b)[\s\S]*?<\/tr>)/gi,
+        '$2$1',
+      )
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<tbody\b[^>]*>\s*<tr\b(?=[^>]*>[\s\S]*?<th\b)[\s\S]*?<\/tr>)/gi,
+        '$2$1',
+      )
+      .replace(
+        /(<\/thead>\s*)(\{\{[\w.]+_html\}\})(\s*<tbody\b[^>]*>)\s*(<\/tbody>)/gi,
+        '$1$3$2$4',
+      )
+      .replace(
+        /(<tbody\b[^>]*>)\s*(<\/tbody>)\s*(\{\{[\w.]+_html\}\})/gi,
+        '$1$3$2',
+      )
+    if (repaired === next) break
+    next = repaired
+  }
+  return next
 }
 
 /**
@@ -135,7 +189,10 @@ function appendEmailFooterToRenderedHtml(html: string, branding: EmailBranding):
  * When omitted, renders exactly as before (backward compatible).
  */
 export function wrapWithEmailLayout(content: string, settings: EmailSettings, branding?: EmailBranding): string {
-  const width = settings.width === 'full' ? '100%' : `${settings.width}px`
+  const normalizedSettings = normalizeEmailSettings(settings)
+  const width = normalizedSettings.width === 'full' ? '100%' : `${normalizedSettings.width}px`
+  const align = normalizedSettings.align
+  const margin = align === 'center' ? '0 auto' : align === 'right' ? '0 0 0 auto' : '0 auto 0 0'
 
   let bodyContent = content
 
@@ -159,15 +216,11 @@ export function wrapWithEmailLayout(content: string, settings: EmailSettings, br
     bodyContent += buildEmailFooterHtml(branding)
   }
 
-  const centerHTML = settings.centered
-    ? `<table role="presentation" align="center" width="${width}" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;background-color:${settings.bgColor};max-width:${width};">
-  <tr><td style="padding:24px;font-family:sans-serif;">${bodyContent}</td></tr>
-</table>`
-    : `<table role="presentation" width="${width}" cellpadding="0" cellspacing="0" border="0" style="background-color:${settings.bgColor};max-width:${width};">
+  const centerHTML = `<table role="presentation" align="${align}" width="${width}" cellpadding="0" cellspacing="0" border="0" style="margin:${margin};background-color:${normalizedSettings.bgColor};max-width:${width};">
   <tr><td style="padding:24px;font-family:sans-serif;">${bodyContent}</td></tr>
 </table>`
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>html,body{margin:0;padding:0;min-height:100%;background:${settings.bgColor};}img{max-width:100%;height:auto;}</style></head><body>${centerHTML}</body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>html,body{margin:0;padding:0;min-height:100%;background:${normalizedSettings.bgColor};}img{max-width:100%;height:auto;}</style></head><body>${centerHTML}</body></html>`
 }
 
 /**
@@ -176,7 +229,7 @@ export function wrapWithEmailLayout(content: string, settings: EmailSettings, br
  * so preview/test-send stay consistent with the selected setting.
  */
 function applyLegacyBackgroundOverride(html: string, settings: EmailSettings): string {
-  const bg = settings.bgColor
+  const bg = normalizeEmailSettings(settings).bgColor
   return html
     .replace(/background-color\s*:\s*#f6f9fc/gi, `background-color:${bg}`)
     .replace(/background\s*:\s*#f6f9fc/gi, `background:${bg}`)
@@ -328,7 +381,7 @@ export function renderWithSampleData(subject: string, html: string): {
 } {
   const sample = getSampleData()
   const settings = extractEmailSettings(html) ?? DEFAULT_EMAIL_SETTINGS
-  const content = stripEmailSettings(html)
+  const content = repairTbodyMergeTagPlacement(stripEmailSettings(html))
   const renderedContent = replaceVariables(content, sample)
   const full = isFullEmailDocument(renderedContent)
   const property = sample.property as Record<string, unknown> | undefined
@@ -365,7 +418,7 @@ export function renderWithContext(
 } {
   const enriched = enrichContext(context)
   const settings = extractEmailSettings(html) ?? DEFAULT_EMAIL_SETTINGS
-  const content = stripEmailSettings(html)
+  const content = repairTbodyMergeTagPlacement(stripEmailSettings(html))
   const renderedContent = replaceVariables(content, enriched)
   const full = isFullEmailDocument(renderedContent)
   const property = enriched.property as Record<string, unknown> | undefined

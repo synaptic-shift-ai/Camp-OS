@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useMemo } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,6 +23,7 @@ import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { useCheckout } from "@/lib/booking/checkout-context"
+import { validatePostalCode, getDetectedCountryCode, getDetectedTimezone } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn } from "@/lib/utils"
@@ -133,36 +134,11 @@ const petSchema = z.object({
   notes: z.string().optional(),
 })
 
-const guestFormSchema = z.object({
-  first_name: z.string().min(2, "First name is required"),
-  last_name: z.string().min(2, "Last name is required"),
-  email: z.string().email("Valid email is required"),
-  phone: z.string().min(10, "Valid phone number is required"),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip_code: z.string().optional(),
-  country: z.string().optional(),
-  emergency_contact_name: z.string().optional(),
-  emergency_contact_phone: z.string().optional(),
-  spouse: spouseSchema.optional(),
-  children: z.array(childSchema).optional(),
-  pets: z.array(petSchema).optional(),
-  num_vehicles: z.string().optional(),
-  vehicles: z.array(guestVehicleScehema).optional(),
-  special_requests: z.string().optional(),
-  agree_terms: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the terms and conditions",
-  }),
-  agree_cancellation: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the cancellation policy",
-  }),
-})
-
-type GuestFormData = z.infer<typeof guestFormSchema>
 const getGuestDraftStorageKey = (slug: string) => `campground-guest-draft:${slug}`
 
-const countValidPets = (pets: GuestFormData["pets"] | undefined): number => {
+type PetInput = z.infer<typeof petSchema>
+
+const countValidPets = (pets: PetInput[] | undefined): number => {
   if (!pets || pets.length === 0) return 0
   return pets.filter((pet) => {
     if (!pet) return false
@@ -183,6 +159,45 @@ export default function GuestInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
     checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+  const [detectedCountry] = useState(() => getDetectedCountryCode())
+  const [detectedTimezone] = useState(() => getDetectedTimezone())
+
+  const guestFormSchema = useMemo(() => z.object({
+    first_name: z.string().min(2, "First name is required"),
+    last_name: z.string().min(2, "Last name is required"),
+    email: z.string().email("Valid email is required"),
+    phone: z.string().min(10, "Valid phone number is required"),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip_code: z.string().optional().refine((val) => {
+      if (!val || val.trim() === '') return true;
+      if (!detectedCountry) return true;
+      const result = validatePostalCode(detectedCountry, val);
+      return result === true;
+    }, (val) => {
+      if (!detectedCountry) return { message: 'Zip code is not valid in your timezone' };
+      const result = validatePostalCode(detectedCountry, val || '');
+      return { message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' };
+    }),
+    country: z.string().optional(),
+    emergency_contact_name: z.string().optional(),
+    emergency_contact_phone: z.string().optional(),
+    spouse: spouseSchema.optional(),
+    children: z.array(childSchema).optional(),
+    pets: z.array(petSchema).optional(),
+    num_vehicles: z.string().optional(),
+    vehicles: z.array(guestVehicleScehema).optional(),
+    special_requests: z.string().optional(),
+    agree_terms: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the terms and conditions",
+    }),
+    agree_cancellation: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the cancellation policy",
+    }),
+  }), [detectedCountry])
+
+  type GuestFormData = z.infer<typeof guestFormSchema>
   const [cancellationPolicyData, setCancellationPolicyData] =
     useState<GuestCancellationPolicyApiData | null>(null)
   const [termsAndConditionsText, setTermsAndConditionsText] = useState<string | null>(null)
@@ -871,7 +886,13 @@ export default function GuestInfoPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="zip_code">Zip Code</Label>
-                        <Input id="zip_code" {...form.register("zip_code")} />
+                        <Input id="zip_code" {...form.register("zip_code")} className={form.formState.errors.zip_code ? "border-red-500" : ""} />
+                        {form.formState.errors.zip_code && (
+                          <p className="text-sm text-red-500">{form.formState.errors.zip_code.message}</p>
+                        )}
+                        {detectedTimezone && (
+                          <p className="text-xs text-muted-foreground">🕐 Detected timezone: {detectedTimezone}</p>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-2">

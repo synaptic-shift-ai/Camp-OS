@@ -7,6 +7,7 @@ import { ImagesSection } from "./sections/images-section"
 import { OperatingHoursSection } from "./sections/operating-hours-section"
 import { BookingRulesSection } from "./sections/booking-rules-section"
 import { PropertyAmenitiesSection } from "./sections/property-amenities-section"
+import { SiteAmenitiesSection } from "./sections/site-amenities-section"
 import { TaxesSection } from "./sections/taxes-section"
 import { AdditionalChargesSection } from "./sections/additional-charges-section"
 import { RateTypesSection } from "./sections/rate-types-section"
@@ -76,6 +77,10 @@ export function WizardPropertyDetailsSections({
 
   if (currentSection === "property_amenities") {
     return <PropertyAmenitiesSection propertyId={selectedProperty.id} />
+  }
+
+  if (currentSection === "site_amenities") {
+    return <SiteAmenitiesSection propertyId={selectedProperty.id} />
   }
 
   if (currentSection === "taxes") {

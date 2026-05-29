@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { usePageLeaveGuard, useGuardedNavigate } from "@/hooks/use-page-leave-guard"
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -107,6 +107,7 @@ export function EmailTemplateEditorPage({
   const [activeField, setActiveField] = useState<"subject" | "body">("subject")
   const subjectRef = useRef<HTMLTextAreaElement>(null)
   const richEditorRef = useRef<RichEditorHandle>(null)
+  const bodyInteractionRef = useRef(false)
 
   // ── Preview sheet ──
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -154,10 +155,6 @@ export function EmailTemplateEditorPage({
   }, [name, isEdit])
 
   // ── Dirty tracking ──
-  // Snapshot the "clean" form on the next animation frame after mount so that
-  // child components (e.g. RichEditor wraps body with email-settings metadata
-  // on mount) can settle their initial onChange callbacks first. Without this,
-  // the form appears dirty before the user has typed anything.
   const currentFormJson = JSON.stringify({
     name,
     slug,
@@ -168,26 +165,44 @@ export function EmailTemplateEditorPage({
     templateStatus,
   })
   const [cleanForm, setCleanForm] = useState<string | null>(null)
+  const [hasUserEdited, setHasUserEdited] = useState(false)
 
   useEffect(() => {
     setCleanForm(null)
+    setHasUserEdited(false)
+    bodyInteractionRef.current = false
   }, [template])
 
   useEffect(() => {
-    if (cleanForm !== null) return
-    const id = requestAnimationFrame(() => {
+    if (hasUserEdited) return
+    const id = window.setTimeout(() => {
       setCleanForm(currentFormJson)
-    })
-    return () => cancelAnimationFrame(id)
-  }, [currentFormJson, cleanForm])
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [currentFormJson, hasUserEdited])
 
-  const isDirty = cleanForm !== null && currentFormJson !== cleanForm
+  const markUserEdited = useCallback(() => {
+    setHasUserEdited(true)
+  }, [])
 
-  usePageLeaveGuard(isDirty)
+  const markBodyInteracted = useCallback(() => {
+    bodyInteractionRef.current = true
+  }, [])
+
+  const isDirty =
+    hasUserEdited && cleanForm !== null && currentFormJson !== cleanForm
+
+  const { UnsavedChangesDialog, requestNavigation } = useUnsavedChangesGuard(
+    isDirty,
+    {
+      message: "You have unsaved changes to this email template.",
+    }
+  )
 
   // ── Variable insertion ──
   const insertVariable = useCallback(
     (path: string) => {
+      markUserEdited()
       const insertion = `{{${path}}}`
 
       if (activeField === "subject") {
@@ -219,7 +234,7 @@ export function EmailTemplateEditorPage({
         }
       }
     },
-    [activeField]
+    [activeField, markUserEdited]
   )
 
   // ── Save ──
@@ -287,6 +302,8 @@ export function EmailTemplateEditorPage({
       }
 
       setCleanForm(currentFormJson)
+      setHasUserEdited(false)
+      bodyInteractionRef.current = false
 
       toast.success(isEdit ? "Template updated" : "Template created")
       router.push(
@@ -311,7 +328,11 @@ export function EmailTemplateEditorPage({
   )
 
   // ── Back handler with dirty guard ──
-  const goBack = useGuardedNavigate(isDirty)
+  const handleBack = useCallback(() => {
+    requestNavigation(() => {
+      router.push(`/dashboard/${propertyId}/automations?tab=email-templates`)
+    })
+  }, [requestNavigation, router, propertyId])
 
   return (
     <div className="flex flex-col lg:h-full lg:overflow-hidden">
@@ -323,11 +344,7 @@ export function EmailTemplateEditorPage({
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0"
-              onClick={() =>
-                goBack(
-                  `/dashboard/${propertyId}/automations?tab=email-templates`
-                )
-              }
+              onClick={handleBack}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -416,6 +433,7 @@ export function EmailTemplateEditorPage({
                 id="tmpl-name"
                 value={name}
                 onChange={(e) => {
+                  markUserEdited()
                   setName(e.target.value)
                   if (errors.name) setErrors((prev) => ({ ...prev, name: "" }))
                 }}
@@ -439,6 +457,7 @@ export function EmailTemplateEditorPage({
                 id="tmpl-slug"
                 value={slug}
                 onChange={(e) => {
+                  markUserEdited()
                   setSlug(e.target.value)
                   if (errors.slug) setErrors((prev) => ({ ...prev, slug: "" }))
                 }}
@@ -465,6 +484,7 @@ export function EmailTemplateEditorPage({
               <Select
                 value={category}
                 onValueChange={(v) => {
+                  markUserEdited()
                   setCategory(v)
                   if (errors.category)
                     setErrors((prev) => ({ ...prev, category: "" }))
@@ -493,7 +513,13 @@ export function EmailTemplateEditorPage({
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={templateStatus} onValueChange={setTemplateStatus}>
+              <Select
+                value={templateStatus}
+                onValueChange={(value) => {
+                  markUserEdited()
+                  setTemplateStatus(value)
+                }}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -513,6 +539,7 @@ export function EmailTemplateEditorPage({
                 id="tmpl-custom-category"
                 value={customCategory}
                 onChange={(e) => {
+                  markUserEdited()
                   setCustomCategory(e.target.value)
                   if (errors.customCategory)
                     setErrors((prev) => ({
@@ -547,6 +574,7 @@ export function EmailTemplateEditorPage({
               value={subject}
               rows={2}
               onChange={(e) => {
+                markUserEdited()
                 setSubject(e.target.value)
                 if (errors.subject)
                   setErrors((prev) => ({ ...prev, subject: "" }))
@@ -571,12 +599,20 @@ export function EmailTemplateEditorPage({
             </Label>
             <div
               className="h-[min(560px,72vh)] shrink-0 overflow-hidden rounded-md sm:h-[min(640px,74vh)] lg:h-auto lg:min-h-[660px] lg:flex-1"
-              onFocus={() => setActiveField("body")}
+              onFocus={() => {
+                setActiveField("body")
+              }}
+              onKeyDown={markBodyInteracted}
+              onPaste={markBodyInteracted}
+              onPointerDown={markBodyInteracted}
             >
               <RichEditor
                 ref={richEditorRef}
                 value={htmlBody}
                 onChange={(val) => {
+                  if (bodyInteractionRef.current && val !== htmlBody) {
+                    markUserEdited()
+                  }
                   setHtmlBody(val)
                   if (errors.htmlBody)
                     setErrors((prev) => ({ ...prev, htmlBody: "" }))
@@ -659,6 +695,8 @@ export function EmailTemplateEditorPage({
           </div>
         </SheetContent>
       </Sheet>
+
+      <UnsavedChangesDialog />
     </div>
   )
 }

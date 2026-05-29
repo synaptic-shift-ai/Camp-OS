@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useCheckout } from "@/lib/booking/checkout-context"
+import { validatePostalCode, getDetectedCountryCode, getDetectedTimezone } from '@/lib/postal-code'
 import type { SiteType } from "@/lib/booking/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -99,36 +100,48 @@ const US_STATES = [
 
 const COUNTRIES = ["United States", "Canada", "Mexico", "United Kingdom", "Australia", "Other"]
 
-const guestFormSchema = z.object({
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  address: z.string().optional(),
-  address_line_2: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip_code: z.string().optional(),
-  country: z.string().default("United States"),
-  special_requests: z.string().optional(),
-  email_preferences: z.boolean().default(false),
-})
-
-type GuestFormData = z.infer<typeof guestFormSchema>
-
-const steps = [
-  { id: 1, name: "Site Selection", status: "complete" },
-  { id: 2, name: "Guest Info", status: "current" },
-  { id: 3, name: "Payment", status: "upcoming" },
-  { id: 4, name: "Confirmation", status: "upcoming" },
-]
-
 export function CheckoutClient() {
   const router = useRouter()
   const { toast } = useToast()
   const { checkoutData, setCheckoutData } = useCheckout()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [_error, setError] = useState<string | null>(null)
+  const [detectedCountry] = useState(() => getDetectedCountryCode())
+  const [detectedTimezone] = useState(() => getDetectedTimezone())
+
+  // Make the schema dynamic based on detected country
+  const guestFormSchema = useMemo(() => z.object({
+    first_name: z.string().min(1, "First name is required"),
+    last_name: z.string().min(1, "Last name is required"),
+    email: z.string().email("Invalid email address"),
+    phone: z.string().min(10, "Phone number must be at least 10 digits"),
+    address: z.string().optional(),
+    address_line_2: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip_code: z.string().optional().refine((val) => {
+      if (!val || val.trim() === '') return true;
+      if (!detectedCountry) return true;
+      const result = validatePostalCode(detectedCountry, val);
+      return result === true;
+    }, (val) => {
+      if (!detectedCountry) return { message: 'Zip code is not valid in your timezone' };
+      const result = validatePostalCode(detectedCountry, val || '');
+      return { message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' };
+    }),
+    country: z.string().default("United States"),
+    special_requests: z.string().optional(),
+    email_preferences: z.boolean().default(false),
+  }), [detectedCountry])
+
+  type GuestFormData = z.infer<typeof guestFormSchema>
+
+  const steps = [
+    { id: 1, name: "Site Selection", status: "complete" },
+    { id: 2, name: "Guest Info", status: "current" },
+    { id: 3, name: "Payment", status: "upcoming" },
+    { id: 4, name: "Confirmation", status: "upcoming" },
+  ]
 
   const {
     register,
@@ -529,7 +542,11 @@ export function CheckoutClient() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="zip_code">ZIP/Postal Code</Label>
-                      <Input id="zip_code" {...register("zip_code")} placeholder="94102" />
+                      <Input id="zip_code" {...register("zip_code")} placeholder="94102" className={cn(errors.zip_code && "border-destructive")} />
+                      {errors.zip_code && <p className="text-sm text-destructive">{errors.zip_code.message}</p>}
+                      {detectedTimezone && (
+                        <p className="text-xs text-muted-foreground">🕐 Detected timezone: {detectedTimezone}</p>
+                      )}
                     </div>
                   </div>
 

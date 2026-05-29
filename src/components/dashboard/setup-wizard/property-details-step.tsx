@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, forwardRef, useImperativeHandle } from "react"
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -9,19 +9,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building2, Save } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
+import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
+import { getDetectedTimezone } from '@/lib/postal-code'
+import { validatePostalCode } from '@/lib/postal-code'
+import { getTimezoneCountry } from '@/lib/timezone-to-country'
+import { TimezoneSelectField } from '@/components/dashboard/timezone-select-field'
 
 const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
-  zipCode: z.string().min(5, "ZIP code is required"),
+  zipCode: z.string().min(1, "ZIP code is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number is required").optional().or(z.literal("")),
   description: z.string().optional(),
@@ -33,7 +37,22 @@ const propertyDetailsSchema = z.object({
   minStayNights: z.coerce.number().int().min(1).default(1),
   maxStayNights: z.coerce.number().int().min(1).optional().or(z.literal("")),
   bookingLeadTimeDays: z.coerce.number().int().min(0).default(365),
-})
+}).superRefine((data, ctx) => {
+  // Validate ZIP/postal code against country from timezone
+  if (data.zipCode && data.zipCode.trim() !== '') {
+    const countryCode = getTimezoneCountry(data.timezone);
+    if (countryCode) {
+      const result = validatePostalCode(countryCode, data.zipCode);
+      if (result !== true) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone',
+          path: ['zipCode'],
+        });
+      }
+    }
+  }
+});
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
 
@@ -49,15 +68,7 @@ interface PropertyDetailsStepProps {
   onPropertyDetailsSaved?: (propertyId: string) => void
 }
 
-const US_TIMEZONES = [
-  { value: "America/New_York", label: "Eastern Time (ET)" },
-  { value: "America/Chicago", label: "Central Time (CT)" },
-  { value: "America/Denver", label: "Mountain Time (MT)" },
-  { value: "America/Phoenix", label: "Mountain Time - Arizona (MT)" },
-  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
-  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
-  { value: "Pacific/Honolulu", label: "Hawaii Time (HT)" },
-]
+
 
 // ─── PropertyDetailsStep ──────────────────────────────────────────────────────
 
@@ -99,6 +110,16 @@ const PropertyDetailsStepComponent = (
   })
 
   const timezone = watch("timezone")
+
+  // Auto-detect timezone from browser on mount (only when property has no saved timezone)
+  useEffect(() => {
+    if (!property.settings?.timezone) {
+      const detected = getDetectedTimezone();
+      if (detected) {
+        setValue("timezone", detected);
+      }
+    }
+  }, [setValue, property.settings?.timezone]);
 
   const buildRequestBody = (data: PropertyDetailsFormData) => ({
     address: data.address,
@@ -299,15 +320,12 @@ const PropertyDetailsStepComponent = (
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="timezone">Timezone</Label>
-              <Select value={timezone} onValueChange={(value) => setValue("timezone", value)}>
-                <SelectTrigger id="timezone"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {US_TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TimezoneSelectField
+                id="timezone"
+                value={timezone}
+                onChange={(tz) => setValue("timezone", tz)}
+                options={TIMEZONE_OPTIONS}
+              />
             </div>
             <div>
               <Label htmlFor="checkInTime">Check-in Time</Label>

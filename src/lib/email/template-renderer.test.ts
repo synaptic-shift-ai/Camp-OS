@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isFullEmailDocument,
   isHtmlDocumentShell,
+  repairTbodyMergeTagPlacement,
   renderWithContext,
   renderWithSampleData,
   requiresEmailTemplateSourceEditing,
@@ -51,6 +52,48 @@ describe('requiresEmailTemplateSourceEditing', () => {
         '<table><tbody><tr><td>{{line_items_html}}</td></tr></tbody></table>',
       ),
     ).toBe(false)
+  })
+})
+
+describe('repairTbodyMergeTagPlacement', () => {
+  it('keeps generated table rows inside the table body', () => {
+    const repaired = repairTbodyMergeTagPlacement(
+      '<table>{{line_items_html}}<thead><tr><th>QTY</th></tr></thead><tbody></tbody></table>',
+    )
+
+    expect(repaired).toBe(
+      '<table><thead><tr><th>QTY</th></tr></thead><tbody>{{line_items_html}}</tbody></table>',
+    )
+  })
+
+  it('repairs a placeholder that was serialized before the table', () => {
+    const repaired = repairTbodyMergeTagPlacement(
+      '{{line_items_html}}<table><thead><tr><th>QTY</th></tr></thead><tbody></tbody></table>',
+    )
+
+    expect(repaired).toBe(
+      '<table><thead><tr><th>QTY</th></tr></thead><tbody>{{line_items_html}}</tbody></table>',
+    )
+  })
+
+  it('repairs a placeholder before a header row when the table has no thead', () => {
+    const repaired = repairTbodyMergeTagPlacement(
+      '{{line_items_html}}<table><tbody><tr><th>QTY</th></tr></tbody></table>',
+    )
+
+    expect(repaired).toBe(
+      '<table><tbody><tr><th>QTY</th></tr>{{line_items_html}}</tbody></table>',
+    )
+  })
+
+  it('repairs a placeholder that was serialized after an empty table body', () => {
+    const repaired = repairTbodyMergeTagPlacement(
+      '<table><thead><tr><th>QTY</th></tr></thead><tbody></tbody>{{line_items_html}}</table>',
+    )
+
+    expect(repaired).toBe(
+      '<table><thead><tr><th>QTY</th></tr></thead><tbody>{{line_items_html}}</tbody></table>',
+    )
   })
 })
 

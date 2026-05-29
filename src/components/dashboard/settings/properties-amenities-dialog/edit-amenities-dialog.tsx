@@ -162,7 +162,7 @@ export function EditAmenitiesDialog({
                 name: name.trim(),
                 description: description.trim(),
               })
-              guardedOnOpenChange(false)
+              onOpenChange(false)
             }}
             disabled={!canSave}
           >

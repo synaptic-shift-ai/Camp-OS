@@ -8,6 +8,8 @@
  */
 
 import { useMemo, useRef, useState } from 'react'
+import { validatePostalCode } from '@/lib/postal-code'
+import { getTimezoneCountry } from '@/lib/timezone-to-country'
 import { format, parse } from 'date-fns'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -18,30 +20,31 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { OpenPeriodDatePicker } from '@/components/dashboard/settings/open-period-date-picker'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { getApiFailureMessage } from '@/lib/api/get-api-failure-message'
 import { Loader2, Building2, CreditCard, CheckCircle2, PlugZap, Unplug } from 'lucide-react'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
+import { TimezoneSelectField } from '@/components/dashboard/timezone-select-field'
 
 const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-const propertyDetailsSchema = z.object({
+// Schema is created dynamically so zipCode validation can reference the timezone from component state.
+// This constant serves as the shape reference; the actual schema used by the form is the useMemo below.
+const _propertyDetailsSchemaShape = {
   name: z.string().min(1, 'Name is required').max(255),
   description: z.string().max(2000).optional(),
   address: z.string().max(255).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
-  zipCode: z.string().max(20).optional(),
   phone: z.string().max(50).optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   checkInTime: z.string().max(50).optional(),
   checkOutTime: z.string().max(50).optional(),
-})
+}
 
-type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
+// Forward declaration — the actual type is inferred from the memoized schema inside the component.
 
 function isSameCalendarDate(a: Date | undefined, b: Date | undefined): boolean {
   if (a === undefined && b === undefined) return true
@@ -123,6 +126,32 @@ export function PropertySettings({
   const [timezone, setTimezone] = useState<string>(
     initial.timezone ?? 'UTC',
   )
+
+  const propertyDetailsSchema = useMemo(() => z.object({
+    name: z.string().min(1, 'Name is required').max(255),
+    description: z.string().max(2000).optional(),
+    address: z.string().max(255).optional(),
+    city: z.string().max(100).optional(),
+    state: z.string().max(50).optional(),
+    zipCode: z.string().optional().refine((val) => {
+      if (!val || val.trim() === '') return true;
+      const countryCode = getTimezoneCountry(timezone);
+      if (!countryCode) return true;
+      const result = validatePostalCode(countryCode, val);
+      return result === true;
+    }, (val) => {
+      const countryCode = getTimezoneCountry(timezone);
+      if (!countryCode) return { message: 'Zip code is not valid in your timezone' };
+      const result = validatePostalCode(countryCode, val || '');
+      return { message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' };
+    }),
+    phone: z.string().max(50).optional(),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    checkInTime: z.string().max(50).optional(),
+    checkOutTime: z.string().max(50).optional(),
+  }), [timezone])
+
+  type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
   const initialTimezoneRef = useRef<string>(initial.timezone ?? 'UTC')
 
   const initialOpenPeriodRef = useRef<{ from: Date | undefined; until: Date | undefined }>({
@@ -537,24 +566,15 @@ export function PropertySettings({
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="property-timezone">Timezone</Label>
-              <p className="text-sm text-muted-foreground">
-                Used for scheduling automations and displaying times to guests.
-              </p>
-              <Select value={timezone} onValueChange={setTimezone} disabled={readOnly}>
-                <SelectTrigger id="property-timezone" className="w-full max-w-xs">
-                  <SelectValue placeholder="Select timezone..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-80">
-                  {TIMEZONE_OPTIONS.map(tz => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <TimezoneSelectField
+              id="property-timezone"
+              value={timezone}
+              onChange={setTimezone}
+              options={TIMEZONE_OPTIONS}
+              disabled={readOnly}
+              selectTriggerClassName="w-full max-w-xs"
+              description="Used for scheduling automations and displaying times to guests."
+            />
 
             {canEdit && (
               <Button

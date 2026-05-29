@@ -50,7 +50,9 @@ export function AddPropertyAmenitiesDialog({
   const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
   const [iconUrl, setIconUrl] = useState("")
-  const cleanFormRef = useRef<string>("")
+  const cleanFormRef = useRef<string>(
+    JSON.stringify({ preset: "", customName: "", description: "", iconUrl: "" })
+  )
 
   useEffect(() => {
     if (open) return
@@ -173,7 +175,7 @@ export function AddPropertyAmenitiesDialog({
                 description: description.trim(),
                 icon_url: iconUrl.trim() || null,
               })
-              guardedOnOpenChange(false)
+              onOpenChange(false)
             }}
           >
             Add Property Amenity

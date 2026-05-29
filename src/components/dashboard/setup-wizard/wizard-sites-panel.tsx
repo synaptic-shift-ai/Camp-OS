@@ -322,12 +322,14 @@ export function useSitesPanelState(args: {
       return
     }
 
+    if (!isActive) return
+
     let cancelled = false
 
     const fetchPropertyAmenities = async () => {
       setAmenitiesLoading(true)
       try {
-        const draftAmenities = getDraft(property.id)?.amenities
+        const draftAmenities = getDraft(property.id)?.site_amenities
         if (Array.isArray(draftAmenities) && draftAmenities.length > 0) {
           setPropertyAmenities(draftAmenities)
           return
@@ -342,7 +344,7 @@ export function useSitesPanelState(args: {
           return
         }
 
-        const dbAmenities = result.data?.amenities
+        const dbAmenities = result.data?.site_amenities
         setPropertyAmenities(Array.isArray(dbAmenities) ? dbAmenities : null)
       } catch {
         if (!cancelled) {
@@ -357,7 +359,7 @@ export function useSitesPanelState(args: {
     return () => {
       cancelled = true
     }
-  }, [property?.id, getDraft])
+  }, [property?.id, getDraft, isActive])
 
   useEffect(() => {
     if (!property?.id) {

@@ -50,7 +50,9 @@ export function AddAmenitiesDialog({
   const [preset, setPreset] = useState<AmenityPreset | "">("")
   const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
-  const cleanFormRef = useRef<string>("")
+  const cleanFormRef = useRef<string>(
+    JSON.stringify({ preset: "", customName: "", description: "" })
+  )
 
   useEffect(() => {
     if (open) return
@@ -151,7 +153,7 @@ export function AddAmenitiesDialog({
                 name,
                 description: description.trim(),
               })
-              guardedOnOpenChange(false)
+              onOpenChange(false)
             }}
           >
             Add Site Amenity

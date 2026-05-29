@@ -22,17 +22,16 @@ import {
 } from "@/components/ui/select"
 import { useDialogCloseGuard } from "@/hooks/use-dialog-close-guard"
 
-const amenityPresets = [
-  "Fire Pit",
-  "Picnic Table",
-  "Grill",
-  "Shade",
-  "Pet Friendly",
-  "Lake View",
-  "Waterfront",
+const propertyAmenityPresets = [
+  "Free Wifi",
+  "Hot Shower",
+  "Fire Pits",
+  "Lake Access",
+  "Camp Store",
+  "Hiking Trails",
 ] as const
 
-type AmenityPreset = (typeof amenityPresets)[number] | "Other"
+type PropertyAmenityPreset = (typeof propertyAmenityPresets)[number] | "Other"
 
 export type PropertyAmenityEditPayload = {
   name: string
@@ -60,7 +59,7 @@ export function EditPropertyAmenitiesDialog({
   amenityToEdit,
   onSave,
 }: EditPropertyAmenitiesDialogProps) {
-  const [preset, setPreset] = useState<AmenityPreset | "">("")
+  const [preset, setPreset] = useState<PropertyAmenityPreset | "">("")
   const [customName, setCustomName] = useState("")
   const [description, setDescription] = useState("")
   const [iconUrl, setIconUrl] = useState("")
@@ -68,8 +67,8 @@ export function EditPropertyAmenitiesDialog({
 
   useEffect(() => {
     if (!open || !amenityToEdit) return
-    const matchingPreset = amenityPresets.find((option) => option === amenityToEdit.name)
-    let initialPreset: AmenityPreset
+    const matchingPreset = propertyAmenityPresets.find((option) => option === amenityToEdit.name)
+    let initialPreset: PropertyAmenityPreset
     let initialCustomName: string
     if (matchingPreset) {
       initialPreset = matchingPreset
@@ -110,13 +109,13 @@ export function EditPropertyAmenitiesDialog({
             <Label htmlFor="edit-property-amenity-name">Name</Label>
             <Select
               value={preset}
-              onValueChange={(value) => setPreset(value as AmenityPreset)}
+              onValueChange={(value) => setPreset(value as PropertyAmenityPreset)}
             >
               <SelectTrigger id="edit-property-amenity-name" className="bg-card/50">
                 <SelectValue placeholder="Select an amenity" />
               </SelectTrigger>
               <SelectContent>
-                {amenityPresets.map((option) => (
+                {propertyAmenityPresets.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
@@ -128,13 +127,13 @@ export function EditPropertyAmenitiesDialog({
             {preset === "Other" && (
               <div className="grid gap-2">
                 <Label htmlFor="edit-property-amenity-custom-name" className="text-xs text-muted-foreground">
-                  New site amenity name
+                  New property amenity name
                 </Label>
                 <Input
                   id="edit-property-amenity-custom-name"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="Enter site amenity name"
+                  placeholder="Enter property amenity name"
                   className="bg-card/50"
                 />
               </div>
@@ -188,7 +187,7 @@ export function EditPropertyAmenitiesDialog({
                 description: description.trim(),
                 icon_url: iconUrl.trim() || null,
               })
-              guardedOnOpenChange(false)
+              onOpenChange(false)
             }}
             disabled={!canSave}
           >

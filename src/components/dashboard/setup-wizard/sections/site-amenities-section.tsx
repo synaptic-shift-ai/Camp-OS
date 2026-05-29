@@ -3,39 +3,35 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, Pencil, Trash2 } from "lucide-react"
-import Image from "next/image"
 import { useWizardFormStore } from "../wizard-form-store"
-import { AddPropertyAmenitiesDialog } from "@/components/dashboard/settings/properties-amenities-dialog/add-property-amenities-dialog"
-import {
-  EditPropertyAmenitiesDialog,
-  type PropertyAmenityEditPayload,
-} from "@/components/dashboard/settings/properties-amenities-dialog/edit-property-amenities-dialog"
-import { DeletePropertyAmenitiesDialog } from "@/components/dashboard/settings/properties-amenities-dialog/delete-property-amenities-dialog"
+import { AddAmenitiesDialog } from "@/components/dashboard/settings/properties-amenities-dialog/add-amenities-dialog"
+import { EditAmenitiesDialog, type AmenityEditPayload } from "@/components/dashboard/settings/properties-amenities-dialog/edit-amenities-dialog"
+import { DeleteAmenitiesConfirmationDialog } from "@/components/dashboard/settings/properties-amenities-dialog/delete-amenities-confirmation-dialog"
 
-type Amenity = { id: string; name: string; description: string | null; icon_url?: string | null }
+type SiteAmenity = { id: string; name: string; description: string | null }
 
 interface Props {
   propertyId: string
 }
 
-export function PropertyAmenitiesSection({ propertyId }: Props) {
+export function SiteAmenitiesSection({ propertyId }: Props) {
   const { saveDraft, getDraft } = useWizardFormStore()
 
-  const [amenities, setAmenities] = useState<Amenity[]>([])
+  const [amenities, setAmenities] = useState<SiteAmenity[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<Amenity | null>(null)
+  const [editTarget, setEditTarget] = useState<SiteAmenity | null>(null)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Amenity | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SiteAmenity | null>(null)
 
-  const pushDraft = (next: Amenity[]) => {
+  const pushDraft = (next: SiteAmenity[]) => {
     const draft = getDraft(propertyId) ?? {}
-    saveDraft(propertyId, { ...draft, amenities: next })
+    saveDraft(propertyId, { ...draft, site_amenities: next })
   }
 
   useEffect(() => {
-    const draftAmenities = getDraft(propertyId)?.amenities
+    const draftAmenities = getDraft(propertyId)?.site_amenities
     if (draftAmenities) {
       setAmenities(draftAmenities)
       return
@@ -47,8 +43,8 @@ export function PropertyAmenitiesSection({ propertyId }: Props) {
       .then((r) => r.json())
       .then((result) => {
         if (cancelled) return
-        const db = result.data?.amenities
-        const next = Array.isArray(db) ? db : []
+        const siteAmenities = result.data?.site_amenities
+        const next = Array.isArray(siteAmenities) ? siteAmenities : []
         setAmenities(next)
       })
       .catch(() => { })
@@ -57,28 +53,19 @@ export function PropertyAmenitiesSection({ propertyId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId])
 
-  const handleAdd = (amenity: { name: string; description: string; icon_url?: string | null }) => {
+  const handleAdd = (amenity: { name: string; description: string }) => {
     const name = amenity.name.trim()
     if (!name) return
-    const next = [...amenities, {
-      id: crypto.randomUUID(),
-      name,
-      description: (amenity.description ?? "").trim() || null,
-      icon_url: amenity.icon_url?.trim() || null,
-    }]
+    const next = [...amenities, { id: crypto.randomUUID(), name, description: (amenity.description ?? "").trim() || null }]
     setAmenities(next)
     pushDraft(next)
   }
 
-  const handleEditSave = (payload: PropertyAmenityEditPayload) => {
+  const handleEditSave = (payload: AmenityEditPayload) => {
     if (!editTarget) return
     const name = payload.name.trim()
     if (!name) return
-    const next = amenities.map((a) =>
-      a.id === editTarget.id
-        ? { ...a, name, description: (payload.description ?? "").trim() || null, icon_url: payload.icon_url?.trim() || null }
-        : a,
-    )
+    const next = amenities.map((a) => a.id === editTarget.id ? { ...a, name, description: (payload.description ?? "").trim() || null } : a)
     setAmenities(next)
     pushDraft(next)
   }
@@ -96,8 +83,8 @@ export function PropertyAmenitiesSection({ propertyId }: Props) {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 space-y-1.5">
-          <h3 className="text-lg font-semibold">Property amenities</h3>
-          <p className="text-sm text-muted-foreground">Configure the amenities available at your property.</p>
+          <h3 className="text-lg font-semibold">Site amenities</h3>
+          <p className="text-sm text-muted-foreground">Configure the amenities available at your sites.</p>
         </div>
         <Button type="button" onClick={() => setIsAddOpen(true)} className="shrink-0">
           <Plus className="h-4 w-4" />
@@ -118,22 +105,11 @@ export function PropertyAmenitiesSection({ propertyId }: Props) {
           {amenities.map((amenity) => (
             <div key={amenity.id} className="rounded-md border border-border/80 bg-card/50 p-3">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
-                  {amenity.icon_url ? (
-                    <Image
-                      src={amenity.icon_url}
-                      alt=""
-                      width={24}
-                      height={24}
-                      className="mt-0.5 shrink-0"
-                    />
-                  ) : null}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{amenity.name}</p>
-                    {amenity.description && (
-                      <p className="mt-1 text-xs text-muted-foreground">{amenity.description}</p>
-                    )}
-                  </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{amenity.name}</p>
+                  {amenity.description && (
+                    <p className="mt-1 text-xs text-muted-foreground">{amenity.description}</p>
+                  )}
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <Button type="button" variant="ghost" size="icon" onClick={() => { setEditTarget(amenity); setIsEditOpen(true) }} aria-label={`Edit ${amenity.name}`}>
@@ -149,19 +125,19 @@ export function PropertyAmenitiesSection({ propertyId }: Props) {
         </div>
       )}
 
-      <AddPropertyAmenitiesDialog
+      <AddAmenitiesDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onAddPropertyAmenity={handleAdd}
-        existingPropertyAmenityNames={amenities.map((a) => a.name)}
+        onAddAmenity={handleAdd}
+        existingAmenityNames={amenities.map((a) => a.name)}
       />
-      <EditPropertyAmenitiesDialog
+      <EditAmenitiesDialog
         open={isEditOpen}
         onOpenChange={(o) => { setIsEditOpen(o); if (!o) setEditTarget(null) }}
         amenityToEdit={editTarget}
         onSave={handleEditSave}
       />
-      <DeletePropertyAmenitiesDialog
+      <DeleteAmenitiesConfirmationDialog
         open={isDeleteOpen}
         onOpenChange={(o) => { setIsDeleteOpen(o); if (!o) setDeleteTarget(null) }}
         amenityName={deleteTarget?.name}

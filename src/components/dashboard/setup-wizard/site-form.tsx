@@ -217,7 +217,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const defaultReservationType = watch("default_reservation_type")
   const amenityOptions = useMemo(() => {
-    const fallback = [
+    const fallback: { key: string; label: string; description?: string }[] = [
       { key: "fire_pit", label: "Fire Pit" },
       { key: "picnic_table", label: "Picnic Table" },
       { key: "grill", label: "Grill" },
@@ -229,7 +229,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
 
     if (!Array.isArray(propertyAmenities)) return fallback
 
-    const options: { key: string; label: string }[] = []
+    const options: { key: string; label: string; description?: string }[] = []
     const seen = new Set<string>()
 
     for (const item of propertyAmenities) {
@@ -244,6 +244,12 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       const trimmed = rawName.trim()
       if (!trimmed) continue
 
+      // Extract description if available.
+      const rawDescription =
+        item && typeof item === "object" && typeof (item as { description?: unknown }).description === "string"
+          ? (item as { description: string }).description.trim()
+          : undefined
+
       // Store site amenities by property amenity id when available.
       const keyFromId =
         item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string"
@@ -254,7 +260,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       if (!key || seen.has(key)) continue
 
       seen.add(key)
-      options.push({ key, label: trimmed })
+      options.push({ key, label: trimmed, ...(rawDescription ? { description: rawDescription } : {}) })
     }
 
     return options.length > 0 ? options : fallback
@@ -280,7 +286,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     const fetchPropertyAmenities = async () => {
       setAmenitiesLoading(true)
       try {
-        const draftAmenities = getDraft(propertyId)?.amenities
+        const draftAmenities = getDraft(propertyId)?.site_amenities
         if (Array.isArray(draftAmenities) && draftAmenities.length > 0) {
           setPropertyAmenities(draftAmenities)
           return
@@ -750,7 +756,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       <Card>
         <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
           <CardTitle>Hookups</CardTitle>
-          <CardDescription>Available utility connections</CardDescription>
+          <CardDescription>Select the hookup types available at this site</CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -773,8 +779,8 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
       {/* Amenities */}
       <Card>
         <CardHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
-          <CardTitle>Amenities</CardTitle>
-          <CardDescription>Site-specific features</CardDescription>
+          <CardTitle>Site Amenities</CardTitle>
+          <CardDescription>Select the amenities available at this site. These are based on the Site Amenities configured in Property Details.</CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
           {amenitiesLoading ? (
@@ -783,19 +789,25 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {amenityOptions.map(({ key, label }) => {
+              {amenityOptions.map(({ key, label, description }) => {
                 const field = `amenities.${key}`
                 const checked = Boolean((amenities as Record<string, boolean> | undefined)?.[key])
                 const id = `amenity_${key}`
 
                 return (
-                  <div key={id} className="flex items-center space-x-2">
+                  <div key={id} className="flex items-start space-x-2">
                     <Checkbox
                       id={id}
                       checked={checked}
                       onCheckedChange={(c) => setValue(field as any, c as boolean)}
+                      className="mt-0.5"
                     />
-                    <Label htmlFor={id} className="font-normal cursor-pointer">{label}</Label>
+                    <div className="grid gap-0.5 leading-none">
+                      <Label htmlFor={id} className="font-normal cursor-pointer">{label}</Label>
+                      {description && (
+                        <p className="text-xs text-muted-foreground">{description}</p>
+                      )}
+                    </div>
                   </div>
                 )
               })}

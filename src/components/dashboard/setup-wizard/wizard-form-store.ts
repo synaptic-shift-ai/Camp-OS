@@ -17,7 +17,8 @@ export type PropertyDetailsDraft = {
   minStayNights?: number | undefined
   maxStayNights?: number | "" | undefined
   bookingLeadTimeDays?: number | undefined
-  amenities?: Array<{ id: string; name: string; description: string }> | undefined
+  amenities?: Array<{ id: string; name: string; description: string | null; icon_url?: string | null }> | undefined
+  site_amenities?: Array<{ id: string; name: string; description: string | null }> | undefined
   pricingConfig?: Record<string, unknown> | undefined
   reservationTypeConfig?: Record<string, unknown> | undefined
   enabledReservationTypes?: string[] | undefined

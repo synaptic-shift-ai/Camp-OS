@@ -30,6 +30,7 @@ type PropertySection =
   | "operating_hours"
   | "booking_rules"
   | "property_amenities"
+  | "site_amenities"
   | "taxes"
   | "additional_charges"
   | "rate_types"
@@ -44,6 +45,7 @@ const PROPERTY_SECTIONS: Array<{ id: PropertySection; label: string }> = [
   { id: "operating_hours", label: "Operating hours" },
   { id: "booking_rules", label: "Booking rules" },
   { id: "property_amenities", label: "Property amenities" },
+  { id: "site_amenities", label: "Site amenities" },
   { id: "taxes", label: "Taxes" },
   { id: "additional_charges", label: "Additional charges" },
   { id: "rate_types", label: "Rate types" },
@@ -563,6 +565,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
             phone: data.phone || null,
             description: data.description || null,
             amenities: propertyDraft?.amenities,
+            site_amenities: propertyDraft?.site_amenities,
             settings: {
               timezone: data.timezone,
               checkInTime: data.checkInTime,

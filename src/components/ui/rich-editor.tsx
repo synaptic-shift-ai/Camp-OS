@@ -50,9 +50,12 @@ import {
   Type,
   Code,
   CodeXml,
+  Table,
   SquarePlus,
   MousePointerClick,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isFullEmailDocument } from "@/lib/email/template-renderer"
@@ -75,10 +78,13 @@ type RichEditorProps = {
   toolbarEnd?: ReactNode
 }
 
+type EmailAlign = "left" | "center" | "right"
+
 type EmailSettings = {
   width: string
   bgColor: string
   centered: boolean
+  align: EmailAlign
 }
 
 // ============================================================================
@@ -168,10 +174,27 @@ function findFontByFamily(family: string): FontOption | undefined {
   return FONT_GROUPS.flatMap((g) => g.fonts).find((f) => f.family === family)
 }
 
+function normalizeEmailAlign(settings: Partial<EmailSettings> | null | undefined): EmailAlign {
+  const align = settings?.align
+  if (align === "left" || align === "center" || align === "right") return align
+  return settings?.centered === false ? "left" : "center"
+}
+
+function normalizeEmailSettings(settings: Partial<EmailSettings> | null | undefined): EmailSettings {
+  const align = normalizeEmailAlign(settings)
+  return {
+    ...DEFAULT_SETTINGS,
+    ...settings,
+    align,
+    centered: align === "center",
+  }
+}
+
 const DEFAULT_SETTINGS: EmailSettings = {
   width: "600",
   bgColor: "#ffffff",
   centered: true,
+  align: "center",
 }
 
 // ============================================================================
@@ -186,7 +209,7 @@ function extractSettings(html: string): EmailSettings | null {
   if (!encoded) return null
   try {
     const decoded = atob(encoded)
-    return JSON.parse(decoded) as EmailSettings
+    return normalizeEmailSettings(JSON.parse(decoded) as Partial<EmailSettings>)
   } catch {
     return null
   }
@@ -229,9 +252,9 @@ function inferSettingsFromHtml(html: string): Partial<EmailSettings> | null {
 function resolveSettingsFromHtml(html: string, saved: EmailSettings | null): EmailSettings {
   const inferred = inferSettingsFromHtml(html)
   if (isFullEmailDocument(html) && inferred) {
-    return { ...DEFAULT_SETTINGS, ...saved, ...inferred }
+    return normalizeEmailSettings({ ...saved, ...inferred })
   }
-  return saved ?? (inferred ? { ...DEFAULT_SETTINGS, ...inferred } : DEFAULT_SETTINGS)
+  return normalizeEmailSettings(saved ?? inferred)
 }
 
 function escapeRegExp(value: string): string {
@@ -260,6 +283,25 @@ function applyLegacyShellBg(html: string, bgColor: string): string {
   return next
 }
 
+function applyLegacyShellAlign(html: string, align: EmailAlign): string {
+  const margin = align === "center" ? "0 auto" : align === "right" ? "0 0 0 auto" : "0 auto 0 0"
+  let next = html
+  next = next.replace(
+    /<table\b(?=[^>]*max-width\s*:\s*\d+px)(?![^>]*\salign=)/i,
+    (match) => `${match} align="${align}"`,
+  )
+  next = next.replace(
+    /(<table\b(?=[^>]*max-width\s*:\s*\d+px)[^>]*\salign=)["'](?:left|center|right)["']/i,
+    `$1"${align}"`,
+  )
+  next = next.replace(
+    /(<table\b(?=[^>]*max-width\s*:\s*\d+px)[^>]*style=["'][^"']*)margin\s*:\s*0\s+auto([^"']*["'])/i,
+    `$1margin:${margin}$2`,
+  )
+  return next
+}
+
+
 /** Strip settings comment from HTML */
 function stripSettings(html: string): string {
   return html.replace(/<!--email-settings:.*?-->\s*/, "")
@@ -284,7 +326,8 @@ function buildTbodyMergePlaceholder(tag: string): string {
 }
 
 function protectTbodyMergeTags(html: string): string {
-  return html.replace(/(<tbody\b[^>]*>)([\s\S]*?)(<\/tbody>)/gi, (_match, open: string, inner: string, close: string) => {
+  const normalized = repairTbodyMergePlacement(html)
+  return normalized.replace(/(<tbody\b[^>]*>)([\s\S]*?)(<\/tbody>)/gi, (_match, open: string, inner: string, close: string) => {
     const protectedInner = inner.replace(
       /(^|<\/tr\s*>\s*)\s*(\{\{[^}]+\}\})(\s*)(?=<tr\b|$)/gi,
       (_innerMatch, prefix: string, tag: string, suffix: string) =>
@@ -294,11 +337,51 @@ function protectTbodyMergeTags(html: string): string {
   })
 }
 
+function repairTbodyMergePlacement(html: string): string {
+  let next = html
+  for (let i = 0; i < 3; i += 1) {
+    const repaired = next
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<table\b[^>]*>[\s\S]*?<thead\b[\s\S]*?<\/thead>\s*<tbody\b[^>]*>)\s*(<\/tbody>)/gi,
+        "$2$1$3",
+      )
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<thead\b[\s\S]*?<\/thead>\s*<tbody\b[^>]*>)\s*(<\/tbody>)/gi,
+        "$2$1$3",
+      )
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<table\b[^>]*>[\s\S]*?<tbody\b[^>]*>\s*<tr\b(?=[^>]*>[\s\S]*?<th\b)[\s\S]*?<\/tr>)/gi,
+        "$2$1",
+      )
+      .replace(
+        /(\{\{[\w.]+_html\}\})(\s*<tbody\b[^>]*>\s*<tr\b(?=[^>]*>[\s\S]*?<th\b)[\s\S]*?<\/tr>)/gi,
+        "$2$1",
+      )
+      .replace(
+        /(<\/thead>\s*)(\{\{[\w.]+_html\}\})(\s*<tbody\b[^>]*>)\s*(<\/tbody>)/gi,
+        "$1$3$2$4",
+      )
+      .replace(
+        /(<tbody\b[^>]*>)\s*(<\/tbody>)\s*(\{\{[\w.]+_html\}\})/gi,
+        "$1$3$2",
+      )
+    if (repaired === next) break
+    next = repaired
+  }
+  return next
+}
+
 function restoreTbodyMergePlaceholders(html: string): string {
-  return html.replace(
-    new RegExp(`<tr\\b(?=[^>]*${TBODY_MERGE_ATTR}=["']true["'])[^>]*>[\\s\\S]*?(\\{\\{[^}]+\\}\\})[\\s\\S]*?<\\/tr>`, "gi"),
-    "$1",
-  )
+  const restored = html
+    .replace(
+      new RegExp(`<tbody\\b([^>]*)>\\s*<tr\\b(?=[^>]*${TBODY_MERGE_ATTR}=["']true["'])[^>]*>[\\s\\S]*?(\\{\\{[^}]+\\}\\})[\\s\\S]*?<\\/tr>\\s*<\\/tbody>`, "gi"),
+      "<tbody$1>$2</tbody>",
+    )
+    .replace(
+      new RegExp(`<tr\\b(?=[^>]*${TBODY_MERGE_ATTR}=["']true["'])[^>]*>[\\s\\S]*?(\\{\\{[^}]+\\}\\})[\\s\\S]*?<\\/tr>`, "gi"),
+      "$1",
+    )
+  return repairTbodyMergePlacement(restored)
 }
 
 /** True when the HTML opens with a full document shell (DOCTYPE / <html>). */
@@ -312,8 +395,8 @@ function isHtmlDocumentShell(html: string): boolean {
  * HTML and gets reparented outside the table by contentEditable, corrupting the
  * template. We protect those merge tags with temporary editable rows.
  */
-function hasMalformedTbodyMergeTag(html: string): boolean {
-  return /<tbody[^>]*>\s*\{\{[^}]+\}\}/i.test(protectTbodyMergeTags(html).trimStart())
+function hasMalformedTbodyMergeTag(_html: string): boolean {
+  return false
 }
 
 /**
@@ -691,12 +774,27 @@ function toHexColor(value: string | null, fallback: string): string {
 
 const EMAIL_BOX_ATTR = "data-email-box"
 const EDITOR_SELECTED_BOX_ATTR = "data-editor-selected-box"
+const EDITOR_SELECTED_TABLE_ATTR = "data-editor-selected-table"
+const EDITOR_SELECTED_CELL_ATTR = "data-editor-selected-cell"
+const EDITOR_SELECTED_LINE_ATTR = "data-editor-selected-line"
+const EDITOR_EMPTY_ATTR = "data-editor-empty"
 const DEFAULT_BOX_BG = "#ffffff"
 const DEFAULT_BOX_PADDING = "32"
 const DEFAULT_BOX_WIDTH = "460"
 const DEFAULT_BOX_RADIUS = "0"
 const DEFAULT_BOX_BORDER_WIDTH = "0"
 const DEFAULT_BOX_BORDER_COLOR = "#e4e4e7"
+
+function maxPaddingPx(style: string): number {
+  const paddingMatches = Array.from(style.matchAll(/padding(?:-[^:]*)?\s*:\s*([^;]+)/gi))
+  return paddingMatches.reduce((max, match) => {
+    const values = Array.from((match[1] ?? "").matchAll(/(\d+(?:\.\d+)?)px/gi))
+    return values.reduce((innerMax, valueMatch) => {
+      const px = Number.parseFloat(valueMatch[1] ?? "0")
+      return Number.isNaN(px) ? innerMax : Math.max(innerMax, px)
+    }, max)
+  }, 0)
+}
 
 function isEmailBoxElement(el: Element | null): el is HTMLElement {
   if (!el || !(el instanceof HTMLElement)) return false
@@ -712,7 +810,8 @@ function isEmailBoxElement(el: Element | null): el is HTMLElement {
   const hasBackground =
     /background(?:-color)?\s*:/i.test(style) ||
     Boolean(el.getAttribute("bgcolor"))
-  const hasPadding = /padding\s*:/i.test(style)
+  const hasPadding = /padding(?:-[^:]*)?\s*:/i.test(style)
+  const hasLargePadding = maxPaddingPx(style) >= 16
   const hasBorderStyle = /border(?:-radius)?\s*:/i.test(style)
 
   if (tag === "TABLE") {
@@ -726,13 +825,93 @@ function isEmailBoxElement(el: Element | null): el is HTMLElement {
     return hasBackground && (hasPadding || hasBorderStyle)
   }
 
-  // Some email builders put the section styling directly on a TD. Only pick it
-  // when it has its own visual treatment, not ordinary layout/table value cells.
+  // Some templates use one padded TD as the white content area around colored
+  // inner sections. Select that larger content cell, while avoiding small
+  // label/value cells in detail tables.
   if (tag === "TD") {
-    return hasBackground && (hasPadding || hasBorderStyle)
+    const isLargeContentCell = hasLargePadding && el.children.length > 1
+    return (hasBackground && (hasPadding || hasBorderStyle)) || isLargeContentCell
   }
 
   return false
+}
+
+function isLargeContentCell(el: HTMLElement): boolean {
+  if (el.tagName !== "TD") return false
+  return maxPaddingPx(el.getAttribute("style") ?? "") >= 16 && el.children.length > 1
+}
+
+function findDirectChild(parent: HTMLElement, target: EventTarget | Node | null): ChildNode | null {
+  let node = target as Node | null
+  while (node && node.parentNode && node.parentNode !== parent) {
+    node = node.parentNode
+  }
+  return node?.parentNode === parent ? (node as ChildNode) : null
+}
+
+function isEmailSectionBoundary(node: ChildNode, container: HTMLElement): boolean {
+  return node.nodeType === Node.ELEMENT_NODE &&
+    node !== container &&
+    isEmailBoxElement(node as Element)
+}
+
+function hasMeaningfulContent(nodes: ChildNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) return true
+    return Boolean(node.textContent?.trim())
+  })
+}
+
+function createSectionBoxFromContentCell(
+  target: EventTarget | Node | null,
+  container: HTMLElement,
+): HTMLElement | null {
+  if (!isLargeContentCell(container)) return null
+
+  const directChild = findDirectChild(container, target)
+  if (!directChild) return null
+  if (isEmailSectionBoundary(directChild, container)) return null
+
+  let start: ChildNode = directChild
+  while (start.previousSibling && !isEmailSectionBoundary(start.previousSibling, container)) {
+    start = start.previousSibling
+  }
+
+  let end: ChildNode = directChild
+  while (end.nextSibling && !isEmailSectionBoundary(end.nextSibling, container)) {
+    end = end.nextSibling
+  }
+
+  const nodes: ChildNode[] = []
+  let current: ChildNode | null = start
+  while (current) {
+    nodes.push(current)
+    if (current === end) break
+    current = current.nextSibling
+  }
+
+  if (!hasMeaningfulContent(nodes)) return null
+
+  const wrapper = document.createElement("div")
+  wrapper.setAttribute(EMAIL_BOX_ATTR, "true")
+  wrapper.setAttribute(
+    "style",
+    [
+      "display:block",
+      "width:100%",
+      `background-color:${readBoxBg(container)}`,
+      "padding:0",
+      "margin:0",
+      "box-sizing:border-box",
+    ].join(";") + ";",
+  )
+
+  container.insertBefore(wrapper, start)
+  for (const node of nodes) {
+    wrapper.appendChild(node)
+  }
+
+  return wrapper
 }
 
 function findEnclosingEmailBox(
@@ -841,12 +1020,74 @@ function applyBoxWidth(box: HTMLElement, width: string): void {
   }
 }
 
+function marginStyleForAlign(align: EmailAlign): { marginLeft: string; marginRight: string } {
+  if (align === "right") return { marginLeft: "auto", marginRight: "0" }
+  if (align === "center") return { marginLeft: "auto", marginRight: "auto" }
+  return { marginLeft: "0", marginRight: "auto" }
+}
+
+function readObjectAlign(el: HTMLElement): EmailAlign {
+  const marginLeft = readInlineStyle(el, "margin-left") ?? ""
+  const marginRight = readInlineStyle(el, "margin-right") ?? ""
+  const alignAttr = el.getAttribute("align")
+  if (alignAttr === "left" || alignAttr === "center" || alignAttr === "right") return alignAttr
+  if (marginLeft === "auto" && marginRight === "auto") return "center"
+  if (marginLeft === "auto") return "right"
+  return "left"
+}
+
+function applyObjectAlign(el: HTMLElement, align: EmailAlign): void {
+  const margins = marginStyleForAlign(align)
+  el.style.marginLeft = margins.marginLeft
+  el.style.marginRight = margins.marginRight
+
+  if (el.tagName === "TABLE") {
+    el.setAttribute("align", align)
+  } else {
+    el.style.display = el.style.display || "block"
+  }
+}
+
 function cleanEditorHtml(editor: HTMLElement): string {
   const clone = editor.cloneNode(true) as HTMLElement
   clone.querySelectorAll(`[${EDITOR_SELECTED_BOX_ATTR}]`).forEach((el) => {
     el.removeAttribute(EDITOR_SELECTED_BOX_ATTR)
   })
+  clone.querySelectorAll(`[${EDITOR_SELECTED_TABLE_ATTR}]`).forEach((el) => {
+    el.removeAttribute(EDITOR_SELECTED_TABLE_ATTR)
+  })
+  clone.querySelectorAll(`[${EDITOR_SELECTED_CELL_ATTR}]`).forEach((el) => {
+    el.removeAttribute(EDITOR_SELECTED_CELL_ATTR)
+  })
+  clone.querySelectorAll(`[${EDITOR_SELECTED_LINE_ATTR}]`).forEach((el) => {
+    el.removeAttribute(EDITOR_SELECTED_LINE_ATTR)
+  })
+
+  const emptyPlaceholder = clone.querySelector(`[${EDITOR_EMPTY_ATTR}="true"]`)
+  if (emptyPlaceholder && clone.children.length === 1 && !clone.textContent?.trim()) {
+    return ""
+  }
+  clone.querySelectorAll(`[${EDITOR_EMPTY_ATTR}]`).forEach((el) => {
+    el.removeAttribute(EDITOR_EMPTY_ATTR)
+  })
   return restoreTbodyMergePlaceholders(clone.innerHTML)
+}
+
+function ensureEditorHasEditableEmptyBlock(editor: HTMLElement | null, focus = false): void {
+  if (!editor) return
+  if ((editor.textContent ?? "").trim() || editor.querySelector("img,table,hr,a,button")) return
+
+  editor.innerHTML = `<p ${EDITOR_EMPTY_ATTR}="true"><br></p>`
+  if (!focus) return
+
+  editor.focus()
+  const target = editor.querySelector(`[${EDITOR_EMPTY_ATTR}="true"]`) ?? editor
+  const range = document.createRange()
+  range.selectNodeContents(target)
+  range.collapse(true)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(range)
 }
 
 function createEmailBox(
@@ -885,12 +1126,446 @@ function createEmailBox(
   return table
 }
 
+function findEditableTable(
+  target: EventTarget | Node | null,
+  root: HTMLElement | null,
+): HTMLTableElement | null {
+  if (!root) return null
+  let el = target as Node | null
+  while (el && el !== root) {
+    if (el.nodeType === 1) {
+      const element = el as HTMLElement
+      if (element.tagName === "TABLE") {
+        const table = element as HTMLTableElement
+        if (table.getAttribute(EMAIL_BOX_ATTR) === "true") return null
+        const style = table.getAttribute("style") ?? ""
+        const hasHeader = tableHasOwnHeader(table)
+        const hasBorder = /border\s*:/i.test(style) || getTableEditableRows(table).some((row) =>
+          Array.from(row.cells).some((cell) => /border\s*:/i.test(cell.getAttribute("style") ?? "")),
+        )
+        const hasManyCells = getTableEditableRows(table).reduce((count, row) => count + row.cells.length, 0) >= 4
+        if ((hasHeader || hasBorder) && hasManyCells) return table
+      }
+    }
+    el = el.parentNode
+  }
+  return null
+}
+
+function findEditableLine(
+  target: EventTarget | Node | null,
+  root: HTMLElement | null,
+): HTMLElement | null {
+  if (!root) return null
+  let el = target as Node | null
+  while (el && el !== root) {
+    if (el.nodeType === 1) {
+      const element = el as HTMLElement
+      if (element.tagName === "HR") return element
+      const style = element.getAttribute("style") ?? ""
+      const hasLineBorder = /border-(?:top|bottom)\s*:/i.test(style)
+      const mostlyEmpty = (element.textContent ?? "").replace(/\u00a0/g, "").trim().length === 0
+      if ((element.tagName === "TD" || element.tagName === "DIV") && hasLineBorder && mostlyEmpty) {
+        return element
+      }
+    }
+    el = el.parentNode
+  }
+  return null
+}
+
+function readLineWidth(line: HTMLElement): string {
+  const raw = readInlineStyle(line, "border-top-width") ??
+    readInlineStyle(line, "border-bottom-width") ??
+    readInlineStyle(line, "height") ??
+    (typeof window !== "undefined"
+      ? window.getComputedStyle(line).getPropertyValue("border-top-width").trim()
+      : "")
+  return raw.match(/\d+/)?.[0] ?? "1"
+}
+
+function readLineColor(line: HTMLElement): string {
+  const rawBorder = readRawInlineStyle(line, "border-top") ?? readRawInlineStyle(line, "border-bottom")
+  const color = rawBorder?.match(/#[0-9a-f]{3,6}\b|rgba?\([^)]*\)/i)?.[0] ??
+    readInlineStyle(line, "border-color") ??
+    readInlineStyle(line, "border-top-color") ??
+    (typeof window !== "undefined"
+      ? window.getComputedStyle(line).getPropertyValue("border-top-color").trim()
+      : "")
+  return toHexColor(color, "#111111")
+}
+
+function applyLineStyle(line: HTMLElement, width: string, color: string): void {
+  const px = Math.max(0, Number.parseInt(width, 10) || 0)
+  if (line.tagName === "HR") {
+    line.style.border = "0"
+    line.style.borderTop = `${px}px solid ${color}`
+    line.style.height = "0"
+    line.style.margin = line.style.margin || "20px 0"
+    return
+  }
+
+  line.style.borderTop = `${px}px solid ${color}`
+}
+
+function readTableBorderWidth(table: HTMLTableElement): string {
+  const raw = readInlineStyle(table, "border-width") ??
+    readInlineStyle(table, "border-top-width") ??
+    (typeof window !== "undefined"
+      ? window.getComputedStyle(table).getPropertyValue("border-top-width").trim()
+      : "")
+  return raw.match(/\d+/)?.[0] ?? "1"
+}
+
+function readTableBorderColor(table: HTMLTableElement): string {
+  const rawBorder = readRawInlineStyle(table, "border")
+  const color = rawBorder?.match(/#[0-9a-f]{3,6}\b|rgba?\([^)]*\)/i)?.[0] ??
+    readInlineStyle(table, "border-color") ??
+    readInlineStyle(table, "border-top-color") ??
+    (typeof window !== "undefined"
+      ? window.getComputedStyle(table).getPropertyValue("border-top-color").trim()
+      : "")
+  return toHexColor(color, "#dddddd")
+}
+
+function readTableHeaderBg(table: HTMLTableElement): string {
+  const header = table.querySelector("th") as HTMLElement | null
+  if (!header) return "#3d3d3d"
+  return toHexColor(readElementColorValue(header, "background"), "#3d3d3d")
+}
+
+function readTableHeaderTextColor(table: HTMLTableElement): string {
+  const header = table.querySelector("th") as HTMLElement | null
+  if (!header) return "#ffffff"
+  return toHexColor(readElementColorValue(header, "text"), "#ffffff")
+}
+
+function applyTableBorder(table: HTMLTableElement, width: string, color: string): void {
+  const px = Math.max(0, Number.parseInt(width, 10) || 0)
+  table.style.border = px > 0 ? `${px}px solid ${color}` : "0"
+  table.style.borderCollapse = "collapse"
+  table.querySelectorAll("td,th").forEach((cell) => {
+    ; (cell as HTMLElement).style.borderBottom = px > 0 ? `${px}px solid ${color}` : "0"
+  })
+}
+
+function applyTableHeaderStyle(table: HTMLTableElement, bg: string, color: string): void {
+  table.querySelectorAll("th").forEach((cell) => {
+    const th = cell as HTMLElement
+    th.style.backgroundColor = bg
+    th.style.color = color
+  })
+}
+
+function createEditableTable(): HTMLTableElement {
+  const table = document.createElement("table")
+  table.setAttribute("role", "presentation")
+  table.setAttribute("width", "100%")
+  table.setAttribute("cellspacing", "0")
+  table.setAttribute("cellpadding", "0")
+  table.setAttribute("border", "0")
+  table.setAttribute("style", "width:100%;border-collapse:collapse;border:1px solid #dddddd;margin:16px 0;")
+  const thead = document.createElement("thead")
+  const headRow = document.createElement("tr")
+    ;["Column 1", "Column 2", "Column 3"].forEach((label) => {
+      const th = document.createElement("th")
+      th.textContent = label
+      th.setAttribute("style", "background-color:#3d3d3d;color:#ffffff;font-size:12px;font-weight:700;padding:10px 12px;text-align:left;border-bottom:1px solid #dddddd;")
+      headRow.appendChild(th)
+    })
+  thead.appendChild(headRow)
+  const tbody = document.createElement("tbody")
+  for (let rowIndex = 0; rowIndex < 2; rowIndex += 1) {
+    const tr = document.createElement("tr")
+    for (let colIndex = 0; colIndex < 3; colIndex += 1) {
+      const td = document.createElement("td")
+      td.textContent = rowIndex === 0 && colIndex === 0 ? "Item" : ""
+      td.setAttribute("style", "color:#333333;font-size:13px;padding:8px 12px;border-bottom:1px solid #dddddd;")
+      tr.appendChild(td)
+    }
+    tbody.appendChild(tr)
+  }
+  table.appendChild(thead)
+  table.appendChild(tbody)
+  return table
+}
+
+function tableHasOwnHeader(table: HTMLTableElement): boolean {
+  if (table.tHead && table.tHead.rows.length > 0) return true
+  return Array.from(table.rows).some((row) =>
+    Array.from(row.cells).some((cell) => cell.tagName === "TH"),
+  )
+}
+
+function isTbodyMergeRow(row: HTMLTableRowElement): boolean {
+  return row.getAttribute(TBODY_MERGE_ATTR) === "true"
+}
+
+function findTableCell(
+  target: EventTarget | Node | null,
+  table: HTMLTableElement,
+): HTMLTableCellElement | null {
+  let node = target as Node | null
+  while (node && node !== table) {
+    if (
+      node.nodeType === Node.ELEMENT_NODE &&
+      ((node as HTMLElement).tagName === "TD" || (node as HTMLElement).tagName === "TH")
+    ) {
+      return node as HTMLTableCellElement
+    }
+    node = node.parentNode
+  }
+  return table.querySelector("th,td") as HTMLTableCellElement | null
+}
+
+function getCellColumnIndex(cell: HTMLTableCellElement | null): number {
+  const row = cell?.parentElement as HTMLTableRowElement | null
+  if (!cell || !row) return 0
+  return Math.max(0, Array.from(row.cells).indexOf(cell))
+}
+
+function getTableEditableRows(table: HTMLTableElement): HTMLTableRowElement[] {
+  return Array.from(table.rows).filter((row) => !isTbodyMergeRow(row))
+}
+
+function getTableColumnCount(table: HTMLTableElement): number {
+  return Math.max(1, ...getTableEditableRows(table).map((row) => row.cells.length))
+}
+
+function getCellAtColumn(table: HTMLTableElement, columnIndex: number): HTMLTableCellElement | null {
+  for (const row of getTableEditableRows(table)) {
+    const cell = row.cells[columnIndex]
+    if (cell) return cell as HTMLTableCellElement
+  }
+  return null
+}
+
+function readTableColumnWidth(table: HTMLTableElement, columnIndex: number): string {
+  const cell = getCellAtColumn(table, columnIndex)
+  const raw = cell
+    ? readInlineStyle(cell, "width") ?? cell.getAttribute("width") ??
+    (typeof window !== "undefined"
+      ? window.getComputedStyle(cell).getPropertyValue("width").trim()
+      : "")
+    : ""
+  return raw.match(/\d+/)?.[0] ?? "120"
+}
+
+function applyTableColumnWidth(table: HTMLTableElement, columnIndex: number, width: string): void {
+  const px = Math.max(1, Number.parseInt(width, 10) || 1)
+  getTableEditableRows(table).forEach((row) => {
+    const cell = row.cells[columnIndex] as HTMLTableCellElement | undefined
+    if (!cell) return
+    cell.style.width = `${px}px`
+    cell.setAttribute("width", String(px))
+  })
+}
+
+function cloneTableCellStyle(
+  source: HTMLTableCellElement | null,
+  target: HTMLTableCellElement,
+): void {
+  const style = source?.getAttribute("style")
+  if (style) {
+    target.setAttribute("style", style)
+    return
+  }
+
+  target.setAttribute(
+    "style",
+    target.tagName === "TH"
+      ? "background-color:#3d3d3d;color:#ffffff;font-size:12px;font-weight:700;padding:10px 12px;text-align:left;border-bottom:1px solid #dddddd;"
+      : "color:#333333;font-size:13px;padding:8px 12px;border-bottom:1px solid #dddddd;",
+  )
+}
+
+function createCellForRow(
+  row: HTMLTableRowElement,
+  source: HTMLTableCellElement | null,
+): HTMLTableCellElement {
+  const isHeaderRow = row.parentElement?.tagName === "THEAD" ||
+    Array.from(row.cells).some((cell) => cell.tagName === "TH")
+  const cell = document.createElement(isHeaderRow ? "th" : "td") as HTMLTableCellElement
+  cloneTableCellStyle(source, cell)
+  cell.textContent = isHeaderRow ? "Column" : ""
+  return cell
+}
+
+function getOrCreateTbody(table: HTMLTableElement): HTMLTableSectionElement {
+  return table.tBodies[0] ?? table.createTBody()
+}
+
+function findTableBodyTemplateCell(
+  table: HTMLTableElement,
+  columnIndex: number,
+): HTMLTableCellElement | null {
+  for (const row of Array.from(table.tBodies).flatMap((tbody) => Array.from(tbody.rows))) {
+    if (isTbodyMergeRow(row)) continue
+    const cell = row.cells[columnIndex]
+    if (cell) return cell as HTMLTableCellElement
+  }
+  return getCellAtColumn(table, columnIndex)
+}
+
+function addTableRowAfterSelection(
+  table: HTMLTableElement,
+  selectedCell: HTMLTableCellElement | null,
+): HTMLTableCellElement | null {
+  const tbody = getOrCreateTbody(table)
+  const columnCount = getTableColumnCount(table)
+  const tr = document.createElement("tr")
+
+  for (let index = 0; index < columnCount; index += 1) {
+    const source = findTableBodyTemplateCell(table, index)
+    const td = document.createElement("td") as HTMLTableCellElement
+    cloneTableCellStyle(source, td)
+    td.textContent = ""
+    tr.appendChild(td)
+  }
+
+  const selectedRow = selectedCell?.parentElement as HTMLTableRowElement | null
+  if (selectedRow && selectedRow.parentElement === tbody && !isTbodyMergeRow(selectedRow)) {
+    tbody.insertBefore(tr, selectedRow.nextSibling)
+  } else {
+    const lastMergeRow = Array.from(tbody.rows).reverse().find(isTbodyMergeRow)
+    tbody.insertBefore(tr, lastMergeRow?.nextSibling ?? null)
+  }
+
+  return tr.cells[0] as HTMLTableCellElement | null
+}
+
+function removeTableRowAtSelection(
+  table: HTMLTableElement,
+  selectedCell: HTMLTableCellElement | null,
+): HTMLTableCellElement | null {
+  const row = selectedCell?.parentElement as HTMLTableRowElement | null
+  const rows = getTableEditableRows(table)
+  if (!row || isTbodyMergeRow(row) || rows.length <= 1) return selectedCell
+
+  const nextRow = row.nextElementSibling as HTMLTableRowElement | null
+  const prevRow = row.previousElementSibling as HTMLTableRowElement | null
+  const columnIndex = getCellColumnIndex(selectedCell)
+  row.remove()
+  const fallbackRow = nextRow && !isTbodyMergeRow(nextRow) ? nextRow : prevRow
+  return (fallbackRow?.cells[columnIndex] as HTMLTableCellElement | undefined) ?? getCellAtColumn(table, columnIndex)
+}
+
+function addTableColumnAfterSelection(
+  table: HTMLTableElement,
+  selectedCell: HTMLTableCellElement | null,
+): HTMLTableCellElement | null {
+  const columnIndex = getCellColumnIndex(selectedCell)
+  let inserted: HTMLTableCellElement | null = null
+
+  getTableEditableRows(table).forEach((row) => {
+    const source = (row.cells[columnIndex] as HTMLTableCellElement | undefined) ??
+      (row.cells[row.cells.length - 1] as HTMLTableCellElement | undefined) ??
+      null
+    const cell = createCellForRow(row, source)
+    row.insertBefore(cell, row.cells[columnIndex + 1] ?? null)
+    if (!inserted) inserted = cell
+  })
+
+  return inserted
+}
+
+function removeTableColumnAtSelection(
+  table: HTMLTableElement,
+  selectedCell: HTMLTableCellElement | null,
+): HTMLTableCellElement | null {
+  const columnCount = getTableColumnCount(table)
+  if (columnCount <= 1) return selectedCell
+
+  const columnIndex = Math.min(getCellColumnIndex(selectedCell), columnCount - 1)
+  getTableEditableRows(table).forEach((row) => {
+    row.cells[columnIndex]?.remove()
+  })
+
+  const nextIndex = Math.max(0, Math.min(columnIndex, getTableColumnCount(table) - 1))
+  return getCellAtColumn(table, nextIndex)
+}
+
+function createTbodyMergePlaceholderRow(tag: string): HTMLTableRowElement {
+  const tr = document.createElement("tr")
+  tr.setAttribute(TBODY_MERGE_ATTR, "true")
+  const td = document.createElement("td")
+  td.setAttribute("colspan", "99")
+  td.setAttribute(
+    "style",
+    "padding:10px 12px;color:#52525b;background-color:#fafafa;font-family:monospace;font-size:12px;line-height:18px;",
+  )
+  td.textContent = tag
+  tr.appendChild(td)
+  return tr
+}
+
+function firstElementInside(node: Node | null): HTMLElement | null {
+  if (!node) return null
+  if (node.nodeType === Node.ELEMENT_NODE) return node as HTMLElement
+  for (const child of Array.from(node.childNodes)) {
+    const found = firstElementInside(child)
+    if (found) return found
+  }
+  return null
+}
+
+function findNextElementAfterNode(node: Node, boundary: HTMLElement): HTMLElement | null {
+  let current: Node | null = node
+  while (current && current !== boundary) {
+    let sibling = current.nextSibling
+    while (sibling) {
+      const found = firstElementInside(sibling)
+      if (found) return found
+      sibling = sibling.nextSibling
+    }
+    current = current.parentNode
+  }
+  return null
+}
+
+function findTbodyMergeTargetTable(start: HTMLElement | null): HTMLTableElement | null {
+  if (!start) return null
+  const candidates = start.tagName === "TABLE"
+    ? [start as HTMLTableElement, ...Array.from(start.querySelectorAll("table"))]
+    : Array.from(start.querySelectorAll("table"))
+  return candidates.find((table) => Boolean(table.tBodies[0]) && tableHasOwnHeader(table)) ?? null
+}
+
+function protectOrphanTbodyMergeText(root: HTMLElement): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const textNodes: Text[] = []
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode as Text)
+  }
+
+  textNodes.forEach((node) => {
+    if (node.parentElement?.closest("tbody")) return
+    const match = node.data.match(/\{\{[\w.]+_html\}\}/)
+    if (!match) return
+
+    const nextElement = findNextElementAfterNode(node, root)
+    const table = findTbodyMergeTargetTable(nextElement)
+    const tbody = table?.tBodies[0]
+    if (!tbody) return
+
+    const tag = match[0]
+    node.data = node.data.replace(tag, "")
+    tbody.appendChild(createTbodyMergePlaceholderRow(tag))
+  })
+}
+
+
 /** Build wrapper div style from settings */
 function wrapperStyle(settings: EmailSettings): React.CSSProperties {
+  const margins = marginStyleForAlign(settings.align)
+  const width = settings.width === "full" ? "100%" : "100%"
+  const maxWidth = settings.width === "full" ? undefined : `${settings.width}px`
   return {
     backgroundColor: settings.bgColor,
-    marginLeft: settings.centered ? "auto" : undefined,
-    marginRight: settings.centered ? "auto" : undefined,
+    width,
+    maxWidth,
+    marginLeft: margins.marginLeft,
+    marginRight: margins.marginRight,
   }
 }
 
@@ -906,10 +1581,16 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   minHeight = "250px",
   toolbarEnd,
 }, ref) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(false)
   const lastRangeRef = useRef<Range | null>(null)
   const settingsSaveTimerRef = useRef<number | null>(null)
+  const historyRef = useRef<{ past: string[]; future: string[] }>({ past: [], future: [] })
+  const currentHistoryRef = useRef<string | null>(null)
+  const isRestoringHistoryRef = useRef(false)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
   // Routed through a ref so the imperative handle always uses the latest save
   // closure (which captures documentShell, settings, etc. defined below).
   const saveRef = useRef<(html: string) => void>(() => { })
@@ -943,21 +1624,19 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   }))
 
   // Parse existing settings from value
-  const initialContent = stripSettings(value)
+  const initialContent = repairTbodyMergePlacement(stripSettings(value))
   const savedSettings = extractSettings(value)
   const [settings, setSettings] = useState<EmailSettings>(() =>
     resolveSettingsFromHtml(initialContent, savedSettings),
   )
   // Full HTML documents and protected tbody merge tags open in visual mode.
-  const [sourceMode, setSourceMode] = useState(() =>
-    hasMalformedTbodyMergeTag(stripSettings(value)),
-  )
+  const [sourceMode, setSourceMode] = useState(false)
   const [sourceValue, setSourceValue] = useState("")
   // When the incoming value is a full HTML document, we edit only its <body>
   // contents in visual mode and keep the surrounding <html>/<head>/<body>
   // wrapper here so we can reassemble it on save.
   const [documentShell, setDocumentShell] = useState<string | null>(() => {
-    const parsed = parseDocumentShell(stripSettings(value))
+    const parsed = parseDocumentShell(initialContent)
     return parsed?.shell ?? null
   })
 
@@ -976,6 +1655,25 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const [selectedBoxRadius, setSelectedBoxRadius] = useState(DEFAULT_BOX_RADIUS)
   const [selectedBoxBorderWidth, setSelectedBoxBorderWidth] = useState(DEFAULT_BOX_BORDER_WIDTH)
   const [selectedBoxBorderColor, setSelectedBoxBorderColor] = useState(DEFAULT_BOX_BORDER_COLOR)
+  const [selectedBoxAlign, setSelectedBoxAlign] = useState<EmailAlign>("center")
+
+  // Table controls
+  const selectedTableRef = useRef<HTMLTableElement | null>(null)
+  const selectedTableCellRef = useRef<HTMLTableCellElement | null>(null)
+  const [selectedTableActive, setSelectedTableActive] = useState(false)
+  const [selectedTableBorderWidth, setSelectedTableBorderWidth] = useState("1")
+  const [selectedTableBorderColor, setSelectedTableBorderColor] = useState("#dddddd")
+  const [selectedTableHeaderBg, setSelectedTableHeaderBg] = useState("#3d3d3d")
+  const [selectedTableHeaderTextColor, setSelectedTableHeaderTextColor] = useState("#ffffff")
+  const [selectedTableColumnWidth, setSelectedTableColumnWidth] = useState("120")
+  const [selectedTableColumnIndex, setSelectedTableColumnIndex] = useState(0)
+  const [selectedTableAlign, setSelectedTableAlign] = useState<EmailAlign>("center")
+
+  // Divider line controls
+  const selectedLineRef = useRef<HTMLElement | null>(null)
+  const [selectedLineActive, setSelectedLineActive] = useState(false)
+  const [selectedLineWidth, setSelectedLineWidth] = useState("1")
+  const [selectedLineColor, setSelectedLineColor] = useState("#111111")
 
   // Button (CTA) dialog
   const [buttonDialogOpen, setButtonDialogOpen] = useState(false)
@@ -999,20 +1697,50 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const fontDropdownRef = useRef<HTMLDivElement>(null)
 
   // Pure content (without settings comment)
-  const contentOnly = stripSettings(value)
-  const needsSourceOnly = hasMalformedTbodyMergeTag(contentOnly)
+  const contentOnly = repairTbodyMergePlacement(stripSettings(value))
+  const needsSourceOnly = false
   const isWideEmailLayout = isFullEmailDocument(contentOnly)
   const canvasBgColor = settings.bgColor
 
   // Seed source textarea from initial value (visual body syncs in the effect below).
   useEffect(() => {
-    setSourceValue(stripSettings(value))
+    setSourceValue(repairTbodyMergePlacement(stripSettings(value)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const updateHistoryControls = useCallback(() => {
+    setCanUndo(historyRef.current.past.length > 0)
+    setCanRedo(historyRef.current.future.length > 0)
+  }, [])
+
+  const recordHistoryContent = useCallback((html: string) => {
+    const normalized = repairTbodyMergePlacement(html)
+    if (isRestoringHistoryRef.current) {
+      currentHistoryRef.current = normalized
+      updateHistoryControls()
+      return
+    }
+
+    const current = currentHistoryRef.current
+    if (current === null) {
+      currentHistoryRef.current = normalized
+      updateHistoryControls()
+      return
+    }
+    if (current === normalized) return
+
+    historyRef.current.past.push(current)
+    if (historyRef.current.past.length > 100) {
+      historyRef.current.past.shift()
+    }
+    historyRef.current.future = []
+    currentHistoryRef.current = normalized
+    updateHistoryControls()
+  }, [updateHistoryControls])
+
   // Sync external value changes
   useEffect(() => {
-    const newContent = stripSettings(value)
+    const newContent = repairTbodyMergePlacement(stripSettings(value))
     const malformed = hasMalformedTbodyMergeTag(newContent)
 
     if (malformed && !sourceMode) {
@@ -1031,21 +1759,34 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     // can reassemble it. Otherwise, render the value directly.
     const parsed = parseDocumentShell(newContent)
     setDocumentShell(parsed?.shell ?? null)
-    const visualContent = protectTbodyMergeTags(parsed?.bodyContent ?? newContent)
+    const bodyContent = parsed?.bodyContent ?? newContent
+    const visualContent = protectTbodyMergeTags(bodyContent)
+    if (currentHistoryRef.current === null) {
+      currentHistoryRef.current = restoreTbodyMergePlaceholders(bodyContent)
+      updateHistoryControls()
+    }
 
     if (editorRef.current) {
       if (!mountedRef.current) mountedRef.current = true
       if (document.activeElement === editorRef.current) return
-      if (cleanEditorHtml(editorRef.current) !== visualContent) {
+      const currentVisualContent = protectTbodyMergeTags(cleanEditorHtml(editorRef.current))
+      if (currentVisualContent !== visualContent) {
         editorRef.current.innerHTML = visualContent
+        protectOrphanTbodyMergeText(editorRef.current)
+        ensureEditorHasEditableEmptyBlock(editorRef.current)
         selectedBoxRef.current?.removeAttribute(EDITOR_SELECTED_BOX_ATTR)
+        selectedTableRef.current?.removeAttribute(EDITOR_SELECTED_TABLE_ATTR)
+        selectedTableCellRef.current?.removeAttribute(EDITOR_SELECTED_CELL_ATTR)
         selectedBoxRef.current = null
+        selectedTableRef.current = null
+        selectedTableCellRef.current = null
         setSelectedBoxActive(false)
+        setSelectedTableActive(false)
       }
     }
     const metadataSettings = extractSettings(value)
     setSettings(resolveSettingsFromHtml(newContent, metadataSettings))
-  }, [value, sourceMode])
+  }, [value, sourceMode, updateHistoryControls])
 
   /** Get raw content from editor */
   const getContent = useCallback(() => {
@@ -1055,14 +1796,18 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
   /** Save body-only content from the visual editor (reassembles with shell). */
   const save = useCallback((html: string) => {
-    let clean = html.replace(/^\s+|\s+$/g, "")
+    let clean = repairTbodyMergePlacement(html.replace(/^\s+|\s+$/g, ""))
+    recordHistoryContent(clean)
     if (documentShell) {
       // Visual-mode edit of a full HTML document: wrap body content back into
       // the preserved shell before persisting, then sync the template canvas
       // background stored in body/table attributes and inline styles.
-      const reassembled = applyLegacyShellBg(
-        reconstructWithShell(clean, documentShell),
-        settings.bgColor,
+      const reassembled = applyLegacyShellAlign(
+        applyLegacyShellBg(
+          reconstructWithShell(clean, documentShell),
+          settings.bgColor,
+        ),
+        settings.align,
       )
       const parsed = parseDocumentShell(reassembled)
       setDocumentShell(parsed?.shell ?? documentShell)
@@ -1070,10 +1815,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       return
     }
     if (isFullEmailDocument(clean)) {
-      clean = applyLegacyShellBg(clean, settings.bgColor)
+      clean = applyLegacyShellAlign(applyLegacyShellBg(clean, settings.bgColor), settings.align)
     }
     onChange(wrapWithSettings(clean, settings))
-  }, [onChange, settings, documentShell])
+  }, [onChange, settings, documentShell, recordHistoryContent])
 
   /**
    * Save raw source-mode HTML. We don't reassemble with the existing shell —
@@ -1082,11 +1827,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
    * body content cleanly.
    */
   const saveSource = useCallback((html: string) => {
-    let clean = html.replace(/^\s+|\s+$/g, "")
+    let clean = repairTbodyMergePlacement(html.replace(/^\s+|\s+$/g, ""))
     const parsed = parseDocumentShell(clean)
     setDocumentShell(parsed?.shell ?? null)
     if (isFullEmailDocument(clean)) {
-      clean = applyLegacyShellBg(clean, settings.bgColor)
+      clean = applyLegacyShellAlign(applyLegacyShellBg(clean, settings.bgColor), settings.align)
     }
     onChange(wrapWithSettings(clean, settings))
   }, [onChange, settings])
@@ -1125,14 +1870,115 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     }, 180)
   }, [getContent, save])
 
+  const clearSelectedTable = useCallback(() => {
+    selectedTableRef.current?.removeAttribute(EDITOR_SELECTED_TABLE_ATTR)
+    selectedTableCellRef.current?.removeAttribute(EDITOR_SELECTED_CELL_ATTR)
+    selectedTableRef.current = null
+    selectedTableCellRef.current = null
+    setSelectedTableActive(false)
+  }, [])
+
+  const clearSelectedLine = useCallback(() => {
+    selectedLineRef.current?.removeAttribute(EDITOR_SELECTED_LINE_ATTR)
+    selectedLineRef.current = null
+    setSelectedLineActive(false)
+  }, [])
+
   const clearSelectedEmailBox = useCallback(() => {
     selectedBoxRef.current?.removeAttribute(EDITOR_SELECTED_BOX_ATTR)
     selectedBoxRef.current = null
     setSelectedBoxActive(false)
   }, [])
 
+  const restoreHistoryContent = useCallback((html: string) => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    isRestoringHistoryRef.current = true
+    try {
+      editor.innerHTML = protectTbodyMergeTags(html)
+      protectOrphanTbodyMergeText(editor)
+      ensureEditorHasEditableEmptyBlock(editor, true)
+      clearSelectedEmailBox()
+      clearSelectedLine()
+      clearSelectedTable()
+      save(html)
+    } finally {
+      isRestoringHistoryRef.current = false
+    }
+  }, [clearSelectedEmailBox, clearSelectedLine, clearSelectedTable, save])
+
+  const undoHistory = useCallback(() => {
+    const previous = historyRef.current.past.pop()
+    if (previous === undefined) return
+
+    const current = currentHistoryRef.current ?? getContent()
+    historyRef.current.future.push(current)
+    currentHistoryRef.current = previous
+    updateHistoryControls()
+    restoreHistoryContent(previous)
+  }, [getContent, restoreHistoryContent, updateHistoryControls])
+
+  const redoHistory = useCallback(() => {
+    const next = historyRef.current.future.pop()
+    if (next === undefined) return
+
+    const current = currentHistoryRef.current ?? getContent()
+    historyRef.current.past.push(current)
+    currentHistoryRef.current = next
+    updateHistoryControls()
+    restoreHistoryContent(next)
+  }, [getContent, restoreHistoryContent, updateHistoryControls])
+
+  const handleHistoryShortcut = useCallback((e: KeyboardEvent | React.KeyboardEvent) => {
+    const isModifier = e.metaKey || e.ctrlKey
+    if (!isModifier || e.altKey) return false
+
+    const key = e.key.toLowerCase()
+    if (key === "z" && !e.shiftKey && historyRef.current.past.length > 0) {
+      e.preventDefault()
+      undoHistory()
+      return true
+    }
+
+    if ((key === "y" || (key === "z" && e.shiftKey)) && historyRef.current.future.length > 0) {
+      e.preventDefault()
+      redoHistory()
+      return true
+    }
+
+    return false
+  }, [redoHistory, undoHistory])
+
+  const handleEditorKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    handleHistoryShortcut(e)
+  }, [handleHistoryShortcut])
+
+  useEffect(() => {
+    if (sourceMode) return
+
+    function handleDocumentKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
+      const root = rootRef.current
+      const target = e.target as Node | null
+      if (!root || !target || !root.contains(target)) return
+
+      const targetEl = target.nodeType === Node.ELEMENT_NODE
+        ? target as HTMLElement
+        : target.parentElement
+      if (targetEl?.closest("input, textarea, select")) return
+
+      handleHistoryShortcut(e)
+    }
+
+    document.addEventListener("keydown", handleDocumentKeyDown)
+    return () => document.removeEventListener("keydown", handleDocumentKeyDown)
+  }, [handleHistoryShortcut, sourceMode])
+
   const selectEmailBox = useCallback((box: HTMLElement | null) => {
     selectedBoxRef.current?.removeAttribute(EDITOR_SELECTED_BOX_ATTR)
+    clearSelectedTable()
+    clearSelectedLine()
 
     if (!box || !editorRef.current?.contains(box)) {
       selectedBoxRef.current = null
@@ -1149,7 +1995,56 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     setSelectedBoxRadius(readBoxRadius(box))
     setSelectedBoxBorderWidth(readBoxBorderWidth(box))
     setSelectedBoxBorderColor(readBoxBorderColor(box))
-  }, [])
+    setSelectedBoxAlign(readObjectAlign(box))
+  }, [clearSelectedLine, clearSelectedTable])
+
+  const selectTable = useCallback((table: HTMLTableElement | null, cell?: HTMLTableCellElement | null) => {
+    selectedTableRef.current?.removeAttribute(EDITOR_SELECTED_TABLE_ATTR)
+    selectedTableCellRef.current?.removeAttribute(EDITOR_SELECTED_CELL_ATTR)
+    clearSelectedEmailBox()
+    clearSelectedLine()
+
+    if (!table || !editorRef.current?.contains(table)) {
+      selectedTableRef.current = null
+      selectedTableCellRef.current = null
+      setSelectedTableActive(false)
+      return
+    }
+
+    const selectedCell = cell && table.contains(cell) ? cell : findTableCell(table, table)
+    const columnIndex = getCellColumnIndex(selectedCell)
+
+    table.setAttribute(EDITOR_SELECTED_TABLE_ATTR, "true")
+    selectedCell?.setAttribute(EDITOR_SELECTED_CELL_ATTR, "true")
+    selectedTableRef.current = table
+    selectedTableCellRef.current = selectedCell
+    setSelectedTableActive(true)
+    setSelectedTableBorderWidth(readTableBorderWidth(table))
+    setSelectedTableBorderColor(readTableBorderColor(table))
+    setSelectedTableHeaderBg(readTableHeaderBg(table))
+    setSelectedTableHeaderTextColor(readTableHeaderTextColor(table))
+    setSelectedTableColumnIndex(columnIndex)
+    setSelectedTableColumnWidth(readTableColumnWidth(table, columnIndex))
+    setSelectedTableAlign(readObjectAlign(table))
+  }, [clearSelectedEmailBox, clearSelectedLine])
+
+  const selectLine = useCallback((line: HTMLElement | null) => {
+    selectedLineRef.current?.removeAttribute(EDITOR_SELECTED_LINE_ATTR)
+    clearSelectedEmailBox()
+    clearSelectedTable()
+
+    if (!line || !editorRef.current?.contains(line)) {
+      selectedLineRef.current = null
+      setSelectedLineActive(false)
+      return
+    }
+
+    line.setAttribute(EDITOR_SELECTED_LINE_ATTR, "true")
+    selectedLineRef.current = line
+    setSelectedLineActive(true)
+    setSelectedLineWidth(readLineWidth(line))
+    setSelectedLineColor(readLineColor(line))
+  }, [clearSelectedEmailBox, clearSelectedTable])
 
   // -- Link dialog --
   const openLinkDialog = useCallback(() => {
@@ -1314,10 +2209,29 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   }, [])
 
   const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    ensureEditorHasEditableEmptyBlock(editorRef.current, true)
     if (findEnclosingButton(e.target, editorRef.current)) return
 
+    const line = findEditableLine(e.target, editorRef.current)
+    if (line) {
+      selectLine(line)
+      return
+    }
+
+    const table = findEditableTable(e.target, editorRef.current)
+    if (table) {
+      selectTable(table, findTableCell(e.target, table))
+      return
+    }
+
     const box = findEnclosingEmailBox(e.target, editorRef.current)
-    selectEmailBox(box)
+    const selectableBox = box && isLargeContentCell(box)
+      ? createSectionBoxFromContentCell(e.target, box) ?? box
+      : box
+    selectEmailBox(selectableBox)
+    if (selectableBox && selectableBox !== box) {
+      save(getContent())
+    }
 
     window.requestAnimationFrame(() => {
       const selection = window.getSelection()
@@ -1333,7 +2247,62 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         placeCaretAfter(anchor)
       }
     })
-  }, [placeCaretAfter, placeCaretBefore, selectEmailBox])
+  }, [getContent, placeCaretAfter, placeCaretBefore, save, selectEmailBox, selectLine, selectTable])
+
+  const insertDividerLine = useCallback(() => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    const line = document.createElement("hr")
+    line.setAttribute("style", "border:0;border-top:1px solid #111111;height:0;margin:20px 0;")
+
+    editor.focus()
+    const selection = window.getSelection()
+    if (lastRangeRef.current && selection) {
+      selection.removeAllRanges()
+      selection.addRange(lastRangeRef.current)
+    }
+
+    const activeSelection = window.getSelection()
+    if (activeSelection && activeSelection.rangeCount > 0 && editor.contains(activeSelection.anchorNode)) {
+      const range = activeSelection.getRangeAt(0)
+      range.deleteContents()
+      range.insertNode(line)
+    } else {
+      editor.appendChild(line)
+    }
+
+    placeCaretAfter(line)
+    selectLine(line)
+    save(getContent())
+  }, [getContent, placeCaretAfter, save, selectLine])
+
+  const insertTable = useCallback(() => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    const table = createEditableTable()
+
+    editor.focus()
+    const selection = window.getSelection()
+    if (lastRangeRef.current && selection) {
+      selection.removeAllRanges()
+      selection.addRange(lastRangeRef.current)
+    }
+
+    const activeSelection = window.getSelection()
+    if (activeSelection && activeSelection.rangeCount > 0 && editor.contains(activeSelection.anchorNode)) {
+      const range = activeSelection.getRangeAt(0)
+      range.deleteContents()
+      range.insertNode(table)
+    } else {
+      editor.appendChild(table)
+    }
+
+    placeCaretAfter(table)
+    selectTable(table)
+    save(getContent())
+  }, [getContent, placeCaretAfter, save, selectTable])
 
   const insertEmailBox = useCallback(() => {
     const editor = editorRef.current
@@ -1463,17 +2432,173 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     scheduleEditorSave()
   }, [scheduleEditorSave, selectedBoxBorderWidth])
 
+  const updateSelectedBoxAlign = useCallback((align: EmailAlign) => {
+    setSelectedBoxAlign(align)
+    const box = selectedBoxRef.current
+    if (!box || !editorRef.current?.contains(box)) return
+
+    applyObjectAlign(box, align)
+    scheduleEditorSave()
+  }, [scheduleEditorSave])
+
+  const updateSelectedLineWidth = useCallback((value: string) => {
+    setSelectedLineWidth(value)
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isNaN(parsed)) return
+
+    const normalized = String(Math.max(0, parsed))
+    const line = selectedLineRef.current
+    if (!line || !editorRef.current?.contains(line)) return
+
+    if (normalized !== value) setSelectedLineWidth(normalized)
+    applyLineStyle(line, normalized, selectedLineColor)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedLineColor])
+
+  const updateSelectedLineColor = useCallback((color: string) => {
+    setSelectedLineColor(color)
+    const line = selectedLineRef.current
+    if (!line || !editorRef.current?.contains(line)) return
+
+    applyLineStyle(line, selectedLineWidth, color)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedLineWidth])
+
+  const removeSelectedLine = useCallback(() => {
+    const line = selectedLineRef.current
+    if (!line || !editorRef.current?.contains(line)) return
+
+    line.remove()
+    clearSelectedLine()
+    save(getContent())
+  }, [clearSelectedLine, getContent, save])
+
+  const updateSelectedTableBorderWidth = useCallback((value: string) => {
+    setSelectedTableBorderWidth(value)
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isNaN(parsed)) return
+
+    const normalized = String(Math.max(0, parsed))
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    if (normalized !== value) setSelectedTableBorderWidth(normalized)
+    applyTableBorder(table, normalized, selectedTableBorderColor)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedTableBorderColor])
+
+  const updateSelectedTableBorderColor = useCallback((color: string) => {
+    setSelectedTableBorderColor(color)
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    applyTableBorder(table, selectedTableBorderWidth, color)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedTableBorderWidth])
+
+  const updateSelectedTableHeaderBg = useCallback((color: string) => {
+    setSelectedTableHeaderBg(color)
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    applyTableHeaderStyle(table, color, selectedTableHeaderTextColor)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedTableHeaderTextColor])
+
+  const updateSelectedTableHeaderTextColor = useCallback((color: string) => {
+    setSelectedTableHeaderTextColor(color)
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    applyTableHeaderStyle(table, selectedTableHeaderBg, color)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedTableHeaderBg])
+
+  const updateSelectedTableColumnWidth = useCallback((value: string) => {
+    setSelectedTableColumnWidth(value)
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isNaN(parsed)) return
+
+    const normalized = String(Math.max(1, parsed))
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    if (normalized !== value) setSelectedTableColumnWidth(normalized)
+    applyTableColumnWidth(table, selectedTableColumnIndex, normalized)
+    scheduleEditorSave()
+  }, [scheduleEditorSave, selectedTableColumnIndex])
+
+  const updateSelectedTableAlign = useCallback((align: EmailAlign) => {
+    setSelectedTableAlign(align)
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    applyObjectAlign(table, align)
+    scheduleEditorSave()
+  }, [scheduleEditorSave])
+
+  const addSelectedTableRow = useCallback(() => {
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    const cell = addTableRowAfterSelection(table, selectedTableCellRef.current)
+    selectTable(table, cell)
+    save(getContent())
+  }, [getContent, save, selectTable])
+
+  const removeSelectedTableRow = useCallback(() => {
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    const cell = removeTableRowAtSelection(table, selectedTableCellRef.current)
+    selectTable(table, cell)
+    save(getContent())
+  }, [getContent, save, selectTable])
+
+  const addSelectedTableColumn = useCallback(() => {
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    const cell = addTableColumnAfterSelection(table, selectedTableCellRef.current)
+    selectTable(table, cell)
+    save(getContent())
+  }, [getContent, save, selectTable])
+
+  const removeSelectedTableColumn = useCallback(() => {
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    const cell = removeTableColumnAtSelection(table, selectedTableCellRef.current)
+    selectTable(table, cell)
+    save(getContent())
+  }, [getContent, save, selectTable])
+
+  const removeSelectedTable = useCallback(() => {
+    const table = selectedTableRef.current
+    if (!table || !editorRef.current?.contains(table)) return
+
+    table.remove()
+    clearSelectedTable()
+    save(getContent())
+  }, [clearSelectedTable, getContent, save])
+
   const removeSelectedBox = useCallback(() => {
     const box = selectedBoxRef.current
     if (!box || !editorRef.current?.contains(box)) return
 
-    const contentRoot = getBoxPaddingElement(box)
-    const fragment = document.createDocumentFragment()
-    while (contentRoot.firstChild) {
-      fragment.appendChild(contentRoot.firstChild)
+    if (box.tagName === "TD") {
+      const table = box.closest("table") as HTMLTableElement | null
+      const isSingleCellTable = table?.rows.length === 1 && table.rows[0]?.cells.length === 1
+      if (table?.getAttribute(EMAIL_BOX_ATTR) === "true" || isSingleCellTable) {
+        table.remove()
+      } else {
+        box.replaceChildren()
+      }
+    } else {
+      box.remove()
     }
-    box.parentNode?.insertBefore(fragment, box)
-    box.remove()
+
+    ensureEditorHasEditableEmptyBlock(editorRef.current, true)
     clearSelectedEmailBox()
     save(getContent())
   }, [clearSelectedEmailBox, getContent, save])
@@ -1634,7 +2759,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
     const editor = editorRef.current
     if (editor && documentShell) {
-      const updatedBody = applyLegacyShellBg(editor.innerHTML, settings.bgColor)
+      const updatedBody = applyLegacyShellAlign(applyLegacyShellBg(editor.innerHTML, settings.bgColor), settings.align)
       if (updatedBody !== editor.innerHTML) {
         editor.innerHTML = updatedBody
       }
@@ -1660,8 +2785,12 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
   // -- Settings changes --
   const updateSettings = useCallback((patch: Partial<EmailSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }))
+    setSettings((prev) => normalizeEmailSettings({ ...prev, ...patch }))
   }, [])
+
+  const updateEmailAlign = useCallback((align: EmailAlign) => {
+    updateSettings({ align, centered: align === "center" })
+  }, [updateSettings])
 
   const flushPendingSettingsSave = useCallback(() => {
     if (!settingsSaveTimerRef.current) return
@@ -1673,7 +2802,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   // -- Source mode toggle --
   const toggleSourceMode = useCallback(() => {
     if (sourceMode) {
-      const trimmed = sourceValue.trim()
+      const trimmed = repairTbodyMergePlacement(sourceValue.trim())
       // Malformed tbody+{{ still forces staying in source mode
       if (hasMalformedTbodyMergeTag(trimmed)) return
 
@@ -1684,6 +2813,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         setDocumentShell(parsed.shell)
         if (editorRef.current) {
           editorRef.current.innerHTML = parsed.bodyContent
+          protectOrphanTbodyMergeText(editorRef.current)
         }
         onChange(wrapWithSettings(trimmed, settings))
       } else {
@@ -1695,7 +2825,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       // Show the full (reassembled) HTML document in source mode if we have a shell.
       const visualBody = getContent()
       const sourceFull = documentShell
-        ? applyLegacyShellBg(reconstructWithShell(visualBody, documentShell), settings.bgColor)
+        ? applyLegacyShellAlign(applyLegacyShellBg(reconstructWithShell(visualBody, documentShell), settings.bgColor), settings.align)
         : visualBody
       setSourceValue(sourceFull)
       setSourceMode(true)
@@ -1742,11 +2872,13 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     label,
     onClick,
     active,
+    disabled,
   }: {
     icon: React.ElementType
     label: string
     onClick: () => void
     active?: boolean
+    disabled?: boolean
   }) {
     return (
       <Button
@@ -1756,6 +2888,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         className={cn("group relative h-7 w-7 overflow-visible", active && "bg-muted text-foreground")}
         onClick={onClick}
         aria-label={label}
+        disabled={disabled}
       >
         <Icon className="h-3.5 w-3.5" />
         <span
@@ -1769,8 +2902,42 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   }
 
   return (
-    <div className={cn("border rounded-md overflow-hidden", className)}>
-      <style>{`.rich-editor-content [${EDITOR_SELECTED_BOX_ATTR}="true"] { outline: 2px solid hsl(var(--primary)); outline-offset: 4px; }`}</style>
+    <div ref={rootRef} className={cn("border rounded-md overflow-hidden", className)}>
+      <style>{`
+        .rich-editor-content h1 {
+          display: block;
+          margin: 0 0 16px;
+          font-size: 32px;
+          line-height: 40px;
+          font-weight: 800;
+        }
+        .rich-editor-content h2 {
+          display: block;
+          margin: 0 0 14px;
+          font-size: 24px;
+          line-height: 32px;
+          font-weight: 750;
+        }
+        .rich-editor-content h3 {
+          display: block;
+          margin: 0 0 12px;
+          font-size: 19px;
+          line-height: 28px;
+          font-weight: 700;
+        }
+        .rich-editor-content p {
+          margin: 0 0 12px;
+        }
+        .rich-editor-content [${EDITOR_SELECTED_BOX_ATTR}="true"],
+        .rich-editor-content [${EDITOR_SELECTED_TABLE_ATTR}="true"],
+        .rich-editor-content [${EDITOR_SELECTED_LINE_ATTR}="true"] {
+          outline: 2px solid hsl(var(--primary));
+          outline-offset: 4px;
+        }
+        .rich-editor-content [${EDITOR_SELECTED_CELL_ATTR}="true"] {
+          box-shadow: inset 0 0 0 2px hsl(var(--primary));
+        }
+      `}</style>
       {/* ── Email Settings Bar ── */}
       <div className="flex flex-wrap items-center gap-3 border-b bg-muted/20 px-3 py-1.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
@@ -1790,22 +2957,75 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
             />
           </div>
 
-          {/* Center toggle */}
-          <Button
-            type="button"
-            variant={settings.centered ? "secondary" : "ghost"}
-            size="xs"
-            className="h-7 gap-1 text-xs"
-            onClick={() => updateSettings({ centered: !settings.centered })}
-            title="Center email in viewport"
-          >
-            <AlignCenter className="h-3.5 w-3.5" />
-            Center
-          </Button>
+          {/* Email alignment */}
+          <div className="flex items-center gap-0.5 rounded-md border bg-background/50 p-0.5" title="Email alignment">
+            <Button
+              type="button"
+              variant={settings.align === "left" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => updateEmailAlign("left")}
+              aria-label="Align email left"
+            >
+              <AlignLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant={settings.align === "center" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => updateEmailAlign("center")}
+              aria-label="Align email center"
+            >
+              <AlignCenter className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant={settings.align === "right" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => updateEmailAlign("right")}
+              aria-label="Align email right"
+            >
+              <AlignRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
 
           {selectedBoxActive && (
-            <div className="flex items-center gap-2 rounded-md border bg-background/70 px-2 py-1">
+            <div className="flex flex-wrap items-center gap-2 rounded-md border bg-background/70 px-2 py-1">
               <span className="text-xs font-medium text-muted-foreground">Box</span>
+              <div className="flex items-center gap-0.5" title="Selected box alignment">
+                <Button
+                  type="button"
+                  variant={selectedBoxAlign === "left" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => updateSelectedBoxAlign("left")}
+                  aria-label="Align selected box left"
+                >
+                  <AlignLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedBoxAlign === "center" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => updateSelectedBoxAlign("center")}
+                  aria-label="Align selected box center"
+                >
+                  <AlignCenter className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedBoxAlign === "right" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => updateSelectedBoxAlign("right")}
+                  aria-label="Align selected box right"
+                >
+                  <AlignRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <input
                 type="color"
                 value={selectedBoxBg}
@@ -1880,6 +3100,175 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
               </Button>
             </div>
           )}
+
+          {selectedTableActive && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border bg-background/70 px-2 py-1">
+              <span className="text-xs font-medium text-muted-foreground">Table</span>
+              <div className="flex items-center gap-0.5" title="Selected table alignment">
+                <Button
+                  type="button"
+                  variant={selectedTableAlign === "left" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => updateSelectedTableAlign("left")}
+                  aria-label="Align selected table left"
+                >
+                  <AlignLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedTableAlign === "center" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => updateSelectedTableAlign("center")}
+                  aria-label="Align selected table center"
+                >
+                  <AlignCenter className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedTableAlign === "right" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => updateSelectedTableAlign("right")}
+                  aria-label="Align selected table right"
+                >
+                  <AlignRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <Label htmlFor="selected-table-border-width" className="text-xs text-muted-foreground">
+                Border
+              </Label>
+              <Input
+                id="selected-table-border-width"
+                type="number"
+                min={0}
+                value={selectedTableBorderWidth}
+                onChange={(e) => updateSelectedTableBorderWidth(e.target.value)}
+                className="h-6 w-14 px-2 text-xs"
+                title="Table border width in pixels"
+              />
+              <input
+                type="color"
+                value={selectedTableBorderColor}
+                className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
+                title="Table Border Color"
+                onChange={(e) => updateSelectedTableBorderColor(e.target.value)}
+              />
+              <Label className="text-xs text-muted-foreground">Head</Label>
+              <input
+                type="color"
+                value={selectedTableHeaderBg}
+                className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
+                title="Header Background Color"
+                onChange={(e) => updateSelectedTableHeaderBg(e.target.value)}
+              />
+              <input
+                type="color"
+                value={selectedTableHeaderTextColor}
+                className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
+                title="Header Text Color"
+                onChange={(e) => updateSelectedTableHeaderTextColor(e.target.value)}
+              />
+              <Label htmlFor="selected-table-column-width" className="text-xs text-muted-foreground">
+                Col {selectedTableColumnIndex + 1}
+              </Label>
+              <Input
+                id="selected-table-column-width"
+                type="number"
+                min={1}
+                value={selectedTableColumnWidth}
+                onChange={(e) => updateSelectedTableColumnWidth(e.target.value)}
+                className="h-6 w-16 px-2 text-xs"
+                title="Selected column width in pixels"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 px-2 text-xs"
+                title="Add row below the selected row"
+                onClick={addSelectedTableRow}
+              >
+                + Row
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 px-2 text-xs"
+                title="Remove selected row"
+                onClick={removeSelectedTableRow}
+              >
+                - Row
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 px-2 text-xs"
+                title="Add column after the selected column"
+                onClick={addSelectedTableColumn}
+              >
+                + Col
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 px-2 text-xs"
+                title="Remove selected column"
+                onClick={removeSelectedTableColumn}
+              >
+                - Col
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive"
+                title="Remove selected table"
+                onClick={removeSelectedTable}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+
+          {selectedLineActive && (
+            <div className="flex items-center gap-2 rounded-md border bg-background/70 px-2 py-1">
+              <span className="text-xs font-medium text-muted-foreground">Line</span>
+              <Label htmlFor="selected-line-width" className="text-xs text-muted-foreground">
+                Thick
+              </Label>
+              <Input
+                id="selected-line-width"
+                type="number"
+                min={0}
+                value={selectedLineWidth}
+                onChange={(e) => updateSelectedLineWidth(e.target.value)}
+                className="h-6 w-14 px-2 text-xs"
+                title="Line thickness in pixels"
+              />
+              <input
+                type="color"
+                value={selectedLineColor}
+                className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
+                title="Line Color"
+                onChange={(e) => updateSelectedLineColor(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive"
+                title="Remove selected line"
+                onClick={removeSelectedLine}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {toolbarEnd ? (
@@ -1901,6 +3290,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 px-1.5 py-1">
         {!sourceMode && (
           <>
+            <ToolbarBtn icon={Undo2} label="Undo (Ctrl+Z)" onClick={undoHistory} disabled={!canUndo} />
+            <ToolbarBtn icon={Redo2} label="Redo (Ctrl+Y)" onClick={redoHistory} disabled={!canRedo} />
+
+            <div className="mx-1 h-4 w-px bg-border" />
+
             <ToolbarBtn icon={Heading1} label="Heading 1" onClick={() => { execCommand("formatBlock", "<h1>"); handleBlur() }} />
             <ToolbarBtn icon={Heading2} label="Heading 2" onClick={() => { execCommand("formatBlock", "<h2>"); handleBlur() }} />
             <ToolbarBtn icon={Heading3} label="Heading 3" onClick={() => { execCommand("formatBlock", "<h3>"); handleBlur() }} />
@@ -1989,7 +3383,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
             <ToolbarBtn icon={List} label="Bullet List" onClick={() => { execCommand("insertUnorderedList"); handleBlur() }} />
             <ToolbarBtn icon={ListOrdered} label="Numbered List" onClick={() => { execCommand("insertOrderedList"); handleBlur() }} />
-            <ToolbarBtn icon={Minus} label="Horizontal Rule" onClick={() => { execCommand("insertHorizontalRule"); handleBlur() }} />
+            <ToolbarBtn icon={Minus} label="Insert Divider Line" onClick={insertDividerLine} active={selectedLineActive} />
+            <ToolbarBtn icon={Table} label="Insert Table" onClick={insertTable} active={selectedTableActive} />
             <ToolbarBtn icon={Link} label="Insert Link" onClick={openLinkDialog} />
             <ToolbarBtn
               icon={MousePointerClick}
@@ -2092,6 +3487,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
               data-placeholder={placeholder}
               onInput={handleInput}
               onBlur={handleBlur}
+              onKeyDown={handleEditorKeyDown}
+              onFocus={() => ensureEditorHasEditableEmptyBlock(editorRef.current, true)}
               onMouseDown={handleEditorMouseDown}
               onClick={handleEditorClick}
             />

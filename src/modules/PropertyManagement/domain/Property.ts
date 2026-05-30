@@ -91,6 +91,7 @@ export type PropertyProps = {
   // Onboarding
   onboardingStatus: OnboardingStatus
   onboardingCompletedAt: Date | null
+  wizardProgress: Record<string, boolean> | null
 
   // Stripe Connect
   stripeConnectInfo: StripeConnectInfo
@@ -201,6 +202,7 @@ export class Property extends AggregateRoot<string> {
         houseRules: options.houseRules || null,
         onboardingStatus: OnboardingStatus.NOT_STARTED,
         onboardingCompletedAt: null,
+        wizardProgress: null,
         stripeConnectInfo: StripeConnectInfo.notConnected(),
       }
     )
@@ -246,6 +248,7 @@ export class Property extends AggregateRoot<string> {
     houseRules: string | null,
     onboardingCompleted: boolean,
     onboardingCompletedAt: Date | null,
+    wizardProgress: Record<string, boolean> | null,
     stripeAccountId: string | null,
     stripeConnectedAt: Date | null,
     createdAt: Date,
@@ -291,6 +294,7 @@ export class Property extends AggregateRoot<string> {
         houseRules,
         onboardingStatus,
     onboardingCompletedAt,
+    wizardProgress,
     stripeConnectInfo,
       },
       createdAt,
@@ -412,6 +416,10 @@ export class Property extends AggregateRoot<string> {
 
   get onboardingCompletedAt(): Date | null {
     return this.props.onboardingCompletedAt
+  }
+
+  get wizardProgress(): Record<string, boolean> | null {
+    return this.props.wizardProgress
   }
 
   get stripeConnectInfo(): StripeConnectInfo {
@@ -764,6 +772,7 @@ export class Property extends AggregateRoot<string> {
       house_rules: this.props.houseRules,
       onboarding_completed: this.isOnboardingComplete(),
       onboarding_completed_at: this.props.onboardingCompletedAt?.toISOString() || null,
+      wizard_progress: this.props.wizardProgress || null,
       stripe_account_id: this.props.stripeConnectInfo.accountId,
       stripe_connected_at: this.props.stripeConnectInfo.connectedAt?.toISOString() || null,
       created_at: this.createdAt.toISOString(),

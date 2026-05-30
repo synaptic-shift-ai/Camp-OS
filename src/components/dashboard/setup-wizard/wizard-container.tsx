@@ -429,7 +429,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
 
   useEffect(() => {
     if (!selectedProperty) return
-    const progress = selectedProperty.wizard_progress ?? {}
+    const progress = selectedProperty.wizardProgress ?? {}
     const backendCompleted = new Set<WizardStep>()
     Object.entries(progress).forEach(([step, isComplete]) => {
       if (isComplete) backendCompleted.add(step as WizardStep)

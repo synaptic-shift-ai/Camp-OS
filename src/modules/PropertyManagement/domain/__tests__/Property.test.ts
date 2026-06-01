@@ -716,6 +716,7 @@ describe('Property', () => {
         'No loud music after 10pm', // houseRules
         true, // onboarding_completed
         new Date('2025-01-01T12:00:00Z'),
+        null, // wizardProgress
         'acct_123',
         new Date('2025-01-01T10:00:00Z'),
         createdAt,

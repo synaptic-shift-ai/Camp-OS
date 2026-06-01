@@ -244,6 +244,7 @@ function createComplexDomainProperty(): Property {
     'Quiet hours 10pm-7am, no fireworks', // houseRules
     true,
     new Date('2025-01-15T10:30:00Z'),
+    null, // wizardProgress
     'acct_9876543210',
     new Date('2025-01-10T09:00:00Z'),
     new Date('2025-01-01T00:00:00Z'),

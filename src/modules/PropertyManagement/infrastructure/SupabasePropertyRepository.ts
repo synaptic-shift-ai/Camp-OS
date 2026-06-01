@@ -374,6 +374,7 @@ export class SupabasePropertyRepository implements IPropertyRepository {
       row.house_rules,
       row.onboarding_completed, // CRITICAL: Must be present
       row.onboarding_completed_at ? new Date(row.onboarding_completed_at) : null,
+      (row.wizard_progress as Record<string, boolean> | null) ?? null,
       row.stripe_account_id,
       row.stripe_connected_at ? new Date(row.stripe_connected_at) : null,
       new Date(row.created_at || new Date()),

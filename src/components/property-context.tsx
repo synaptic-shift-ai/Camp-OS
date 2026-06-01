@@ -46,7 +46,7 @@ export interface Property {
   // Optional site count (not always present in API response)
   siteCount?: number
   // Legacy compatibility - mapped from v1 response
-  wizard_progress?: Record<string, boolean>
+  wizardProgress?: Record<string, boolean>
   heroImageUrl: string | null
   galleryImageUrls: string[] | null
 }

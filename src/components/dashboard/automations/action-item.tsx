@@ -61,10 +61,62 @@ function useEmailTemplates(propertyId: string | undefined) {
   return { templates, loading }
 }
 
+function useSmsTemplates(propertyId: string | undefined) {
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!propertyId) return
+    let cancelled = false
+    setLoading(true)
+    fetch(`/api/v1/automations/sms-templates?propertyId=${propertyId}`)
+      .then(res => res.json())
+      .then(payload => {
+        if (cancelled) return
+        const list = payload?.data?.templates ?? []
+        if (Array.isArray(list)) {
+          setTemplates(
+            list
+              .filter((t: Record<string, unknown>) => t.status === 'active')
+              .map((t: Record<string, unknown>) => ({
+                value: String(t.slug),
+                label: String(t.name),
+              }))
+          )
+        }
+      })
+      .catch(() => { /* empty list on error */ })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [propertyId])
+
+  return { templates, loading }
+}
+
 function EmailTemplateSelector({ propertyId, actionConfig, onUpdate }: { propertyId?: string; actionConfig: Record<string, unknown>; onUpdate: (key: string, value: unknown) => void }) {
   const { templates, loading } = useEmailTemplates(propertyId)
   return (
     <ConfigField label="Email Template">
+      <Select value={String(actionConfig.template ?? "")} onValueChange={v => onUpdate("template", v)}>
+        <SelectTrigger className="h-9 text-sm">
+          <SelectValue placeholder={loading ? "Loading templates..." : "Select a template..."} />
+        </SelectTrigger>
+        <SelectContent>
+          {templates.map(t => (
+            <SelectItem key={t.value} value={t.value} className="text-sm">
+              {t.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </ConfigField>
+  )
+}
+
+function SmsTemplateSelector({ propertyId, actionConfig, onUpdate }: { propertyId?: string; actionConfig: Record<string, unknown>; onUpdate: (key: string, value: unknown) => void }) {
+  const { templates, loading } = useSmsTemplates(propertyId)
+  return (
+    <ConfigField label="SMS Template">
       <Select value={String(actionConfig.template ?? "")} onValueChange={v => onUpdate("template", v)}>
         <SelectTrigger className="h-9 text-sm">
           <SelectValue placeholder={loading ? "Loading templates..." : "Select a template..."} />
@@ -517,17 +569,7 @@ function ActionConfigForm({
       )
 
     case "send_sms":
-      return (
-        <ConfigField label="Message">
-          <Textarea
-            className="text-sm"
-            value={String(actionConfig.message ?? "")}
-            onChange={e => onUpdate("message", e.target.value)}
-            rows={2}
-            placeholder="SMS message content"
-          />
-        </ConfigField>
-      )
+      return <SmsTemplateSelector {...(propertyId != null ? { propertyId } : {})} actionConfig={actionConfig} onUpdate={onUpdate} />
 
     case "log_activity":
     case "create_audit_entry":

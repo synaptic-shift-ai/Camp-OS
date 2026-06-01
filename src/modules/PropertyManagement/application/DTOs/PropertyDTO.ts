@@ -71,6 +71,7 @@ export type PropertyDTO = {
   onboardingStatusLabel: string
   onboardingCompleted: boolean // CRITICAL: Must always be present
   onboardingCompletedAt: string | null
+  wizardProgress: Record<string, boolean> | null
 
   // Stripe Connect (CRITICAL - required for payments)
   stripeAccountId: string | null
@@ -155,6 +156,7 @@ export function toPropertyDTO(property: Property): PropertyDTO {
     onboardingCompletedAt: property.onboardingCompletedAt
       ? property.onboardingCompletedAt.toISOString()
       : null,
+    wizardProgress: property.wizardProgress,
 
     // Stripe Connect
     stripeAccountId: property.stripeConnectInfo.accountId,

@@ -15,7 +15,7 @@ import { ErrorCodes } from '@/lib/api/errors'
 import { requirePropertyAccess, isDenied } from '@/lib/rbac'
 import { PreviewCampaignSchema } from '@/lib/messaging/schemas'
 import { getGuestsBySegment, filterEligibleGuests } from '@/lib/messaging/segmentation'
-import { personalizeMessage, buildPersonalizationData } from '@/lib/messaging/personalization'
+import { buildCampaignGuestContext, personalizeCampaignMessage } from '@/lib/messaging/campaign-context'
 import type { SegmentType } from '@/lib/messaging/messaging-types'
 
 // ============================================================================
@@ -76,19 +76,28 @@ export async function POST(request: NextRequest) {
 
     // Build sample messages (up to 5)
     const sampleGuests = eligibleGuests.slice(0, 5)
-    const sampleMessages = sampleGuests.map((guest) => {
-      const personalizationData = buildPersonalizationData(
-        guest as unknown as Record<string, unknown>,
-      )
-      return {
-        guest_id: guest.id,
-        guest_name: `${guest.first_name} ${guest.last_name}`,
-        personalized_subject: data.subject
-          ? personalizeMessage(data.subject, personalizationData)
-          : null,
-        personalized_body: personalizeMessage(data.body, personalizationData),
-      }
-    })
+    const sampleMessages = await Promise.all(
+      sampleGuests.map(async (guest) => {
+        const context = await buildCampaignGuestContext(
+          serviceClient,
+          propertyId,
+          guest as unknown as Record<string, unknown>,
+        )
+        const personalized = await personalizeCampaignMessage(serviceClient, {
+          propertyId,
+          channel: data.channel,
+          subject: data.subject ?? null,
+          body: data.body,
+          context,
+        })
+        return {
+          guest_id: guest.id,
+          guest_name: `${guest.first_name} ${guest.last_name}`,
+          personalized_subject: personalized.subject,
+          personalized_body: personalized.body,
+        }
+      }),
+    )
 
     // Compute warnings
     const warnings: string[] = []

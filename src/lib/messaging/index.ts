@@ -48,6 +48,12 @@ export {
   buildPersonalizationData,
 } from './personalization'
 
+export {
+  buildCampaignGuestContext,
+  personalizeCampaignMessage,
+} from './campaign-context'
+export type { PersonalizedCampaignMessage } from './campaign-context'
+
 // Send orchestration
 export {
   executeCampaignSend,

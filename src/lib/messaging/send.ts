@@ -15,7 +15,7 @@ import type {
 } from './messaging-types'
 import { sendCampaignEmail } from './providers/email'
 import { sendSMS } from './providers/sms'
-import { personalizeMessage, buildPersonalizationData } from './personalization'
+import { buildCampaignGuestContext, personalizeCampaignMessage } from './campaign-context'
 import { logDelivery } from '@/lib/communications/delivery-logger'
 
 // ============================================================================
@@ -66,24 +66,41 @@ export async function executeCampaignSend(
   // Mark campaign as sending
   await updateCampaignStatus(serviceClient, campaign.id, 'sending')
 
-  // Create recipient records
-  const recipientRows = guests.map((guest) => {
-    const personalizationData = buildPersonalizationData(guest as unknown as Record<string, unknown>)
-    const personalizedSubject = campaign.subject
-      ? personalizeMessage(campaign.subject, personalizationData)
-      : null
-    const personalizedBody = personalizeMessage(campaign.body, personalizationData)
+  const propertyId = campaign.property_id
+  if (!propertyId) {
+    console.error('[messaging/send] Campaign missing property_id:', campaign.id)
+    await updateCampaignStatus(serviceClient, campaign.id, 'failed')
+    summary.failed = guests.length
+    return summary
+  }
 
-    return {
-      campaign_id: campaign.id,
-      guest_id: guest.id,
-      email: guest.email,
-      phone: guest.phone,
-      personalized_subject: personalizedSubject,
-      personalized_body: personalizedBody,
-      status: 'pending' as RecipientStatus,
-    }
-  })
+  // Create recipient records with full template merge-field context
+  const recipientRows = await Promise.all(
+    guests.map(async (guest) => {
+      const context = await buildCampaignGuestContext(
+        serviceClient,
+        propertyId,
+        guest as unknown as Record<string, unknown>,
+      )
+      const personalized = await personalizeCampaignMessage(serviceClient, {
+        propertyId,
+        channel: campaign.channel,
+        subject: campaign.subject,
+        body: campaign.body,
+        context,
+      })
+
+      return {
+        campaign_id: campaign.id,
+        guest_id: guest.id,
+        email: guest.email,
+        phone: guest.phone,
+        personalized_subject: personalized.subject,
+        personalized_body: personalized.body,
+        status: 'pending' as RecipientStatus,
+      }
+    }),
+  )
 
   const { data: recipients, error: insertError } = await serviceClient
     .from('message_recipients')

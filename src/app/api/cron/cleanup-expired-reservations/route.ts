@@ -16,10 +16,10 @@
  * - Uses service role client for database operations
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Verify cron secret when configured
     // const authHeader = request.headers.get('authorization')
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Allow manual GET requests for testing (with secret)
-export async function GET(request: NextRequest) {
+export async function GET() {
   // const searchParams = request.nextUrl.searchParams
   // const secret = searchParams.get('secret')
 
@@ -142,5 +142,5 @@ export async function GET(request: NextRequest) {
   // }
 
   // Forward to POST handler
-  return POST(request)
+  return POST()
 }

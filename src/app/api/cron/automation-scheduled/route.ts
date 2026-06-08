@@ -16,10 +16,10 @@
  * Security: If CRON_SECRET is set, requires a matching Authorization header.
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { runUnifiedScheduler } from '@/lib/automations/scheduler/unified-scheduler'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   // Verify cron secret when configured
   // const authHeader = request.headers.get('authorization')
   // const cronSecret = process.env.CRON_SECRET
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Allow manual GET for testing
-export async function GET(request: NextRequest) {
+export async function GET() {
   // const searchParams = request.nextUrl.searchParams
   // const secret = searchParams.get('secret')
 
@@ -55,5 +55,5 @@ export async function GET(request: NextRequest) {
   //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   // }
 
-  return POST(request)
+  return POST()
 }

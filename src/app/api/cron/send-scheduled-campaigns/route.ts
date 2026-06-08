@@ -9,11 +9,11 @@
  * Security: If CRON_SECRET is set, requires a matching Authorization header.
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { processDueScheduledCampaigns } from '@/lib/messaging/process-due-scheduled-campaigns'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   // const authHeader = request.headers.get('authorization')
   // const cronSecret = process.env.CRON_SECRET
 
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const secret = searchParams.get('secret')
+export async function GET() {
+  // const searchParams = request.nextUrl.searchParams
+  // const secret = searchParams.get('secret')
 
   // const cronSecret = process.env.CRON_SECRET
 
@@ -57,5 +57,5 @@ export async function GET(request: NextRequest) {
   //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   // }
 
-  return POST(request)
+  return POST()
 }

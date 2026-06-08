@@ -36,6 +36,7 @@
     "cron": "tsx cron.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-sns": "^3.1061.0",
     "@emotion/is-prop-valid": "1.2.2",
     "@hookform/resolvers": "3.9.1",
     "@radix-ui/react-accordion": "1.2.2",

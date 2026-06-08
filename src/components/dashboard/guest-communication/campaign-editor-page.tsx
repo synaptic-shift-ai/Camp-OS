@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CampaignVariablePanel } from "./campaign-variable-panel"
+import { CampaignScheduleDialog } from "./campaign-schedule-dialog"
 import { toast } from "sonner"
 import {
   ArrowLeft,
@@ -81,6 +82,41 @@ const INITIAL_FORM: CampaignForm = {
   subject: "",
   body: "",
   smsBody: "",
+}
+
+function resolveTemplateId(
+  channel: CampaignForm["channel"],
+  selectedEmailTemplateId: string,
+  selectedSmsTemplateId: string,
+): string | null {
+  if (channel === "email") {
+    return selectedEmailTemplateId && selectedEmailTemplateId !== "__none__"
+      ? selectedEmailTemplateId
+      : null
+  }
+  if (channel === "sms") {
+    return selectedSmsTemplateId && selectedSmsTemplateId !== "__none__"
+      ? selectedSmsTemplateId
+      : null
+  }
+  return null
+}
+
+function buildCampaignPayload(
+  form: CampaignForm,
+  selectedEmailTemplateId: string,
+  selectedSmsTemplateId: string,
+  statusOverride?: string,
+) {
+  return {
+    name: form.name,
+    channel: form.channel,
+    segment_type: form.segment_type,
+    subject: form.channel === "sms" ? undefined : form.subject,
+    body: form.channel === "sms" ? form.body : form.body,
+    template_id: resolveTemplateId(form.channel, selectedEmailTemplateId, selectedSmsTemplateId),
+    ...(statusOverride ? { status: statusOverride } : {}),
+  }
 }
 
 const SEGMENT_TYPES = [
@@ -174,6 +210,10 @@ export function CampaignEditorPage({
 }: CampaignEditorPageProps) {
   const router = useRouter()
   const isEdit = campaign !== null && campaign !== undefined
+  const [draftCampaignId, setDraftCampaignId] = useState<string | null>(() =>
+    campaign?.id ? String(campaign.id) : null,
+  )
+  const persistedCampaignId = draftCampaignId
 
   // ── Form state ──
   const [form, setForm] = useState<CampaignForm>(() => {
@@ -207,10 +247,20 @@ export function CampaignEditorPage({
   const [previewSheetSide, setPreviewSheetSide] = useState<"bottom" | "right">("right")
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
 
   // ── Template selectors ──
-  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>("")
-  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>("")
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>(() => {
+    if (!campaign?.template_id) return ""
+    const channel = (campaign.channel as CampaignForm["channel"]) ?? "email"
+    return channel === "email" || channel === "both" ? (campaign.template_id as string) : ""
+  })
+  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>(() => {
+    if (!campaign?.template_id) return ""
+    const channel = (campaign.channel as CampaignForm["channel"]) ?? "email"
+    return channel === "sms" || channel === "both" ? (campaign.template_id as string) : ""
+  })
+  const previousChannelRef = useRef(form.channel)
   const [emailTemplates, setEmailTemplates] = useState<{ id: string; name: string; subject_template: string; html_template: string }[]>([])
   const [smsTemplates, setSmsTemplates] = useState<{ id: string; name: string; body: string }[]>([])
 
@@ -218,8 +268,11 @@ export function CampaignEditorPage({
 
   // Fetch templates when channel changes
   useEffect(() => {
-    setSelectedEmailTemplateId("")
-    setSelectedSmsTemplateId("")
+    if (previousChannelRef.current !== form.channel) {
+      setSelectedEmailTemplateId("")
+      setSelectedSmsTemplateId("")
+      previousChannelRef.current = form.channel
+    }
 
     if (isEmailChannel) {
       fetch(`/api/v1/automations/email-templates?propertyId=${propertyId}`)
@@ -297,7 +350,8 @@ export function CampaignEditorPage({
   const isDirty =
     hasUserEdited && cleanForm !== null && JSON.stringify(form) !== cleanForm
 
-  const { UnsavedChangesDialog, markClean, requestNavigation } = useUnsavedChangesGuard(isDirty)
+  const { UnsavedChangesDialog, markClean, beginIntentionalNavigation, requestNavigation } =
+    useUnsavedChangesGuard(isDirty)
 
   const resetDirty = useCallback(() => {
     setCleanForm(JSON.stringify(form))
@@ -305,6 +359,15 @@ export function CampaignEditorPage({
     bodyInteractionRef.current = false
     markClean()
   }, [form, markClean])
+
+  const exitToCampaignsList = useCallback(() => {
+    const target = `/dashboard/${propertyId}/guest-communication?tab=campaigns`
+    beginIntentionalNavigation()
+    resetDirty()
+    requestAnimationFrame(() => {
+      router.replace(target)
+    })
+  }, [beginIntentionalNavigation, resetDirty, router, propertyId])
 
   const updateForm = useCallback(<K extends keyof CampaignForm>(key: K, value: CampaignForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -415,37 +478,37 @@ export function CampaignEditorPage({
   ): Promise<{ id: string } | null> {
     const params = new URLSearchParams({ propertyId })
 
-    if (isEdit && campaign?.id) {
-      // Update existing campaign
-      const res = await fetch(`/api/v1/message-campaigns/${campaign.id}?${params}`, {
+    if (persistedCampaignId) {
+      const res = await fetch(`/api/v1/message-campaigns/${persistedCampaignId}?${params}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          ...(statusOverride ? { status: statusOverride } : {}),
-        }),
+        body: JSON.stringify(
+          buildCampaignPayload(form, selectedEmailTemplateId, selectedSmsTemplateId, statusOverride),
+        ),
       })
       const json = await res.json()
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message ?? `Update failed (${res.status})`)
       }
-      return json.data.campaign ?? { id: campaign.id as string }
+      return json.data.campaign ?? { id: persistedCampaignId }
     }
 
-    // Create new campaign
     const res = await fetch(`/api/v1/message-campaigns?${params}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        ...(statusOverride ? { status: statusOverride } : {}),
-      }),
+      body: JSON.stringify(
+        buildCampaignPayload(form, selectedEmailTemplateId, selectedSmsTemplateId, statusOverride),
+      ),
     })
     const json = await res.json()
     if (!res.ok || !json.success) {
       throw new Error(json.error?.message ?? `Create failed (${res.status})`)
     }
-    return json.data.campaign
+    const created = json.data.campaign as { id: string } | undefined
+    if (created?.id) {
+      setDraftCampaignId(created.id)
+    }
+    return created ?? null
   }
 
   // ── Save Draft ──
@@ -453,13 +516,16 @@ export function CampaignEditorPage({
     if (!validate()) return
     setSaving(true)
     try {
-      await saveCampaign(isEdit ? undefined : "draft")
-      toast.success(isEdit ? "Changes saved" : "Draft saved", { description: isEdit ? "Your campaign has been updated." : "Your campaign has been saved as a draft." })
-      resetDirty()
-      router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
+      const wasPersisted = Boolean(persistedCampaignId)
+      await saveCampaign(wasPersisted ? undefined : "draft")
+      toast.success(wasPersisted ? "Changes saved" : "Draft saved", {
+        description: wasPersisted
+          ? "Your campaign has been updated."
+          : "Your campaign has been saved as a draft.",
+      })
+      exitToCampaignsList()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save draft")
-    } finally {
       setSaving(false)
     }
   }
@@ -481,18 +547,19 @@ export function CampaignEditorPage({
         throw new Error(sendJson.error?.message ?? "Could not send campaign")
       }
       toast.success("Campaign sent!", { description: "Your campaign is now being delivered." })
-      resetDirty()
-      router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
+      exitToCampaignsList()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not send campaign")
-    } finally {
       setSending(false)
     }
   }
 
-  // ── Schedule ──
-  async function handleSchedule() {
+  function openScheduleDialog() {
     if (!validate()) return
+    setScheduleDialogOpen(true)
+  }
+
+  async function confirmSchedule(scheduledAt: string) {
     setSending(true)
     try {
       const saved = await saveCampaign()
@@ -503,21 +570,18 @@ export function CampaignEditorPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scheduled_at: new Date(Date.now() + 3600000).toISOString(),
-          }),
+          body: JSON.stringify({ scheduled_at: scheduledAt }),
         }
       )
       const scheduleJson = await scheduleRes.json()
       if (!scheduleRes.ok || !scheduleJson.success) {
         throw new Error(scheduleJson.error?.message ?? "Could not schedule campaign")
       }
+      setScheduleDialogOpen(false)
       toast.success("Campaign scheduled", { description: "Your campaign has been scheduled." })
-      resetDirty()
-      router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
+      exitToCampaignsList()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not schedule campaign")
-    } finally {
       setSending(false)
     }
   }
@@ -633,6 +697,19 @@ export function CampaignEditorPage({
               </span>
             </Button>
             <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={openScheduleDialog}
+              disabled={busy}
+            >
+              {sending ? (
+                <Loader2 className="mr-1 h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Clock className="mr-1 h-4 w-4 shrink-0" />
+              )}
+              <span className="truncate">Schedule</span>
+            </Button>
+            <Button
               className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={handleSendNow}
               disabled={busy}
@@ -694,12 +771,6 @@ export function CampaignEditorPage({
                       <span className="inline-flex items-center gap-2">
                         <MessageSquare className="h-3.5 w-3.5" aria-hidden />
                         SMS
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="both">
-                      <span className="inline-flex items-center gap-2">
-                        <Send className="h-3.5 w-3.5" aria-hidden />
-                        Email + SMS
                       </span>
                     </SelectItem>
                   </SelectContent>
@@ -1131,7 +1202,7 @@ export function CampaignEditorPage({
             <Button
               type="button"
               variant="outline"
-              onClick={handleSchedule}
+              onClick={openScheduleDialog}
               disabled={busy}
               className="gap-1"
             >
@@ -1176,6 +1247,13 @@ export function CampaignEditorPage({
       </Sheet>
 
       <UnsavedChangesDialog />
+
+      <CampaignScheduleDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        onConfirm={confirmSchedule}
+        isSubmitting={sending}
+      />
 
       {/* Preview sheet — bottom on mobile, side panel on desktop */}
       <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -1293,7 +1371,7 @@ export function CampaignEditorPage({
                     variant="outline"
                     onClick={() => {
                       setPreviewOpen(false)
-                      handleSchedule()
+                      openScheduleDialog()
                     }}
                     disabled={busy}
                     className="gap-1"

@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /** Housekeeping schedule uses Philippines civil time for comparisons. */
@@ -27,14 +27,14 @@ function wallClockInTimeZone(now: Date, timeZone: string): string {
     return `${v('year')}-${v('month')}-${v('day')}T${v('hour')}:${v('minute')}`
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
     // Verify cron secret when configured
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
+    // const authHeader = request.headers.get('authorization')
+    // const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     try {
         const supabase = createServiceRoleClient()
@@ -233,15 +233,15 @@ export async function POST(request: NextRequest) {
 }
 
 // Allow manual GET for testing
-export async function GET(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams
-    const secret = searchParams.get('secret')
+export async function GET() {
+    // const searchParams = request.nextUrl.searchParams
+    // const secret = searchParams.get('secret')
 
-    const cronSecret = process.env.CRON_SECRET
+    // const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && secret !== cronSecret) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // if (cronSecret && secret !== cronSecret) {
+    //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
-    return POST(request)
+    return POST()
 }

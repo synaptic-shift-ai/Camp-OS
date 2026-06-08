@@ -48,11 +48,25 @@ export {
   buildPersonalizationData,
 } from './personalization'
 
+export {
+  buildCampaignGuestContext,
+  personalizeCampaignMessage,
+} from './campaign-context'
+export type { PersonalizedCampaignMessage } from './campaign-context'
+
 // Send orchestration
 export {
   executeCampaignSend,
   executeDirectSend,
 } from './send'
+
+export {
+  processDueScheduledCampaigns,
+} from './process-due-scheduled-campaigns'
+export type {
+  ProcessDueScheduledCampaignsResult,
+  ScheduledCampaignOutcome,
+} from './process-due-scheduled-campaigns'
 
 // Providers (for direct use if needed)
 export { sendCampaignEmail } from './providers/email'

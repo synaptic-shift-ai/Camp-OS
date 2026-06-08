@@ -359,11 +359,10 @@ export function CampaignCreateDialog({
               <label className="text-sm font-medium">
                 Channel <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {([
                   { value: "email" as const, icon: Mail, label: "Email", desc: "Send via email" },
                   { value: "sms" as const, icon: MessageSquare, label: "SMS", desc: "Send via text" },
-                  { value: "both" as const, icon: Send, label: "Both", desc: "Email + SMS" },
                 ]).map((ch) => (
                   <button
                     key={ch.value}

@@ -68,7 +68,6 @@ export function createActionRegistry(): ActionHandlerMap {
     'create_work_order',
     'assign_staff',
     'update_site_status',
-    'send_sms',
     'log_activity',
     'create_audit_entry',
   ]
@@ -381,6 +380,178 @@ export function createActionRegistry(): ActionHandlerMap {
         }
       } catch (err) {
         console.error(`[send_email] Error sending template "${templateSlug}":`, err)
+      }
+    },
+  })
+
+  // send_sms: sends an SMS to the guest via AWS SNS.
+  // Message body comes from an sms_templates slug (config.template — what the
+  // automations UI writes) or an inline config.message string.
+  registry.set('send_sms', {
+    async execute(config, context) {
+      const templateSlug = config.template as string | undefined
+      const inlineMessage = config.message as string | undefined
+      if (!templateSlug && !inlineMessage) {
+        console.error('[send_sms] No template slug or message in action_config')
+        return
+      }
+
+      try {
+        const { createServiceRoleClient } = await import('@/lib/supabase/service-role')
+        const { sendSMS } = await import('@/lib/messaging/providers/sms')
+        const { enrichContext, replaceVariables } = await import(
+          '@/lib/email/template-renderer'
+        )
+
+        const supabase = createServiceRoleClient()
+
+        const companyId = context.property?.company_id as string | undefined
+        if (!companyId) {
+          console.error('[send_sms] Cannot determine company_id from context')
+          return
+        }
+
+        const propertyId = context.property?.id as string | undefined
+        const guestId = context.guest?.id as string | undefined
+
+        // Recipient: guest only. Staff/vendor context has no phone today.
+        const recipientPhone = context.guest?.phone as string | undefined
+        if (!recipientPhone) {
+          console.error('[send_sms] No guest phone number in context')
+          return
+        }
+
+        // Resolve message body: template slug (property-specific → tenant-level)
+        // or inline message
+        let templateId: string | null = null
+        let messageTemplate = inlineMessage ?? ''
+
+        if (templateSlug) {
+          let template: { id: string; body: string } | null = null
+
+          if (propertyId) {
+            const { data } = await supabase
+              .from('sms_templates')
+              .select('id, body')
+              .eq('company_id', companyId)
+              .eq('property_id', propertyId)
+              .eq('slug', templateSlug)
+              .eq('status', 'active')
+              .limit(1)
+              .single()
+            if (data) template = data
+          }
+
+          if (!template) {
+            const { data } = await supabase
+              .from('sms_templates')
+              .select('id, body')
+              .eq('company_id', companyId)
+              .is('property_id', null)
+              .eq('slug', templateSlug)
+              .eq('status', 'active')
+              .limit(1)
+              .single()
+            if (data) template = data
+          }
+
+          if (!template) {
+            console.error(`[send_sms] Template "${templateSlug}" not found for tenant ${companyId}`)
+            return
+          }
+
+          templateId = template.id
+          messageTemplate = template.body
+        }
+
+        // ── Opt-out check (non-blocking) ────────────────────────────────────
+        if (guestId && propertyId) {
+          try {
+            const { isOptedOut } = await import('@/lib/communications/opt-out-checker')
+            const { logDelivery } = await import('@/lib/communications/delivery-logger')
+
+            const optedOut = await isOptedOut(supabase, companyId, guestId, 'sms')
+            if (optedOut) {
+              await logDelivery({
+                supabase,
+                companyId,
+                propertyId,
+                guestId,
+                templateId,
+                channel: 'sms',
+                recipientAddress: recipientPhone,
+                subject: null,
+                status: 'skipped',
+              }).catch(() => {})
+              console.log(`[send_sms] Skipped — guest ${guestId} opted out of SMS`)
+              return
+            }
+          } catch (optOutErr) {
+            console.error('[send_sms] Opt-out check failed, proceeding with send:', optOutErr)
+          }
+        }
+
+        // ── Render message with merge fields ─────────────────────────────────
+        const ctxRecord = context as unknown as Record<string, unknown>
+        const enriched = enrichContext(ctxRecord)
+        const message = replaceVariables(messageTemplate, enriched)
+
+        // ── Log delivery (non-blocking) ──────────────────────────────────────
+        let deliveryLog: { id: string } | null = null
+        try {
+          const { logDelivery } = await import('@/lib/communications/delivery-logger')
+          deliveryLog = await logDelivery({
+            supabase,
+            companyId,
+            propertyId: propertyId ?? '',
+            reservationId: context.reservation?.id as string | null,
+            guestId: guestId ?? null,
+            templateId,
+            channel: 'sms',
+            recipientAddress: recipientPhone,
+            subject: null,
+            status: 'sent',
+          })
+        } catch (logErr) {
+          console.error('[send_sms] Delivery log failed, sending anyway:', logErr)
+        }
+
+        // ── Send SMS ─────────────────────────────────────────────────────────
+        const result = await sendSMS(recipientPhone, message)
+
+        // ── Update delivery status (non-blocking) ────────────────────────────
+        if (deliveryLog) {
+          try {
+            const { updateDeliveryStatus } = await import('@/lib/communications/delivery-logger')
+            if (result.success) {
+              await updateDeliveryStatus({
+                supabase,
+                logId: deliveryLog.id,
+                status: 'delivered',
+                deliveredAt: new Date().toISOString(),
+              })
+            } else {
+              await updateDeliveryStatus({
+                supabase,
+                logId: deliveryLog.id,
+                status: 'failed',
+                failureReason: result.error ?? null,
+              })
+            }
+          } catch (statusErr) {
+            console.error('[send_sms] Delivery status update failed:', statusErr)
+          }
+        }
+
+        if (!result.success) {
+          console.error('[send_sms] Failed to send SMS:', result.error)
+        } else {
+          console.log(
+            `[send_sms] Sent SMS to ${recipientPhone} (id: ${result.providerMessageId})`,
+          )
+        }
+      } catch (err) {
+        console.error('[send_sms] Error sending SMS:', err)
       }
     },
   })

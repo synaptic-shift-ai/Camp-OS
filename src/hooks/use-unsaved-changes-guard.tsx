@@ -11,6 +11,8 @@ interface UseUnsavedChangesGuardOptions {
 interface UseUnsavedChangesGuardReturn {
   UnsavedChangesDialog: React.FC
   markClean: () => void
+  /** Call before programmatic navigation after a successful save so history guards do not block it. */
+  beginIntentionalNavigation: () => void
   requestNavigation: (navigate: () => void) => void
 }
 
@@ -149,6 +151,12 @@ export function useUnsavedChangesGuard(
     pendingNavigationRef.current = null
   }, [])
 
+  const beginIntentionalNavigation = useCallback(() => {
+    isIntentionalNavigationRef.current = true
+    setShowDialog(false)
+    pendingNavigationRef.current = null
+  }, [])
+
   // ── Dialog component ─────────────────────────────────────────────────
   const DialogComponent = useMemo(() => {
     const Comp: React.FC = () => (
@@ -177,6 +185,7 @@ export function useUnsavedChangesGuard(
   return {
     UnsavedChangesDialog: DialogComponent,
     markClean,
+    beginIntentionalNavigation,
     requestNavigation,
   }
 }

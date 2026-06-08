@@ -23,6 +23,7 @@ type ResultStats = {
 
 type CampaignResultsDialogProps = {
   campaignId: string
+  campaignName?: string
   propertyId: string
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -54,6 +55,7 @@ function StatCard({
 
 export function CampaignResultsDialog({
   campaignId,
+  campaignName,
   propertyId,
   open,
   onOpenChange,
@@ -92,7 +94,7 @@ export function CampaignResultsDialog({
         <DialogHeader>
           <DialogTitle className="text-xl font-heading">Campaign Results</DialogTitle>
           <DialogDescription>
-            Delivery results for campaign {campaignId}
+            Delivery results for campaign {campaignName}
           </DialogDescription>
         </DialogHeader>
 

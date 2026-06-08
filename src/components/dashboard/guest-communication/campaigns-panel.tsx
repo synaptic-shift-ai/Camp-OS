@@ -100,6 +100,7 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [resultsCampaignId, setResultsCampaignId] = useState<string | null>(null)
+  const [resultsCampaignName, setResultsCampaignName] = useState<string | null>(null)
   const [sendingId, setSendingId] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -266,7 +267,12 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                       ) : (
                         <>
                           {(campaign.status === "sent" || campaign.status === "failed") && (
-                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="View Results" onClick={() => setResultsCampaignId(campaign.id)}>
+                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="View Results" 
+                              onClick={() => {
+                                setResultsCampaignId(campaign.id)
+                                setResultsCampaignName(campaign.name)
+                              }}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
                           )}
@@ -346,10 +352,14 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
       {resultsCampaignId && (
         <CampaignResultsDialog
           campaignId={resultsCampaignId}
+          campaignName={resultsCampaignName ?? ''}
           propertyId={propertyId}
           open={!!resultsCampaignId}
           onOpenChange={(open) => {
-            if (!open) setResultsCampaignId(null)
+            if (!open) {
+              setResultsCampaignId(null)
+              setResultsCampaignName(null)
+            }
           }}
         />
       )}

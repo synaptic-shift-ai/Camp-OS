@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { GuestCommunicationPageHeader } from "./guest-communication-page-header"
 import {
@@ -35,6 +35,17 @@ function GuestCommunicationPageContentInner({
     if (initialTab === "opt_outs") return "opt_outs"
     return "campaigns"
   })
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "guest_delivery") {
+      setViewMode("guest_delivery")
+    } else if (tab === "opt_outs") {
+      setViewMode("opt_outs")
+    } else {
+      setViewMode("campaigns")
+    }
+  }, [searchParams])
 
   return (
     <div className="space-y-4 sm:space-y-6" data-property-id={propertyId}>

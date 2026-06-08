@@ -209,6 +209,10 @@ export function CampaignEditorPage({
 }: CampaignEditorPageProps) {
   const router = useRouter()
   const isEdit = campaign !== null && campaign !== undefined
+  const [draftCampaignId, setDraftCampaignId] = useState<string | null>(() =>
+    campaign?.id ? String(campaign.id) : null,
+  )
+  const persistedCampaignId = draftCampaignId
 
   // ── Form state ──
   const [form, setForm] = useState<CampaignForm>(() => {
@@ -344,7 +348,8 @@ export function CampaignEditorPage({
   const isDirty =
     hasUserEdited && cleanForm !== null && JSON.stringify(form) !== cleanForm
 
-  const { UnsavedChangesDialog, markClean, requestNavigation } = useUnsavedChangesGuard(isDirty)
+  const { UnsavedChangesDialog, markClean, beginIntentionalNavigation, requestNavigation } =
+    useUnsavedChangesGuard(isDirty)
 
   const resetDirty = useCallback(() => {
     setCleanForm(JSON.stringify(form))
@@ -352,6 +357,15 @@ export function CampaignEditorPage({
     bodyInteractionRef.current = false
     markClean()
   }, [form, markClean])
+
+  const exitToCampaignsList = useCallback(() => {
+    const target = `/dashboard/${propertyId}/guest-communication?tab=campaigns`
+    beginIntentionalNavigation()
+    resetDirty()
+    requestAnimationFrame(() => {
+      router.replace(target)
+    })
+  }, [beginIntentionalNavigation, resetDirty, router, propertyId])
 
   const updateForm = useCallback(<K extends keyof CampaignForm>(key: K, value: CampaignForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -462,9 +476,8 @@ export function CampaignEditorPage({
   ): Promise<{ id: string } | null> {
     const params = new URLSearchParams({ propertyId })
 
-    if (isEdit && campaign?.id) {
-      // Update existing campaign
-      const res = await fetch(`/api/v1/message-campaigns/${campaign.id}?${params}`, {
+    if (persistedCampaignId) {
+      const res = await fetch(`/api/v1/message-campaigns/${persistedCampaignId}?${params}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -475,10 +488,9 @@ export function CampaignEditorPage({
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message ?? `Update failed (${res.status})`)
       }
-      return json.data.campaign ?? { id: campaign.id as string }
+      return json.data.campaign ?? { id: persistedCampaignId }
     }
 
-    // Create new campaign
     const res = await fetch(`/api/v1/message-campaigns?${params}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -490,7 +502,11 @@ export function CampaignEditorPage({
     if (!res.ok || !json.success) {
       throw new Error(json.error?.message ?? `Create failed (${res.status})`)
     }
-    return json.data.campaign
+    const created = json.data.campaign as { id: string } | undefined
+    if (created?.id) {
+      setDraftCampaignId(created.id)
+    }
+    return created ?? null
   }
 
   // ── Save Draft ──
@@ -498,13 +514,16 @@ export function CampaignEditorPage({
     if (!validate()) return
     setSaving(true)
     try {
-      await saveCampaign(isEdit ? undefined : "draft")
-      toast.success(isEdit ? "Changes saved" : "Draft saved", { description: isEdit ? "Your campaign has been updated." : "Your campaign has been saved as a draft." })
-      resetDirty()
-      router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
+      const wasPersisted = Boolean(persistedCampaignId)
+      await saveCampaign(wasPersisted ? undefined : "draft")
+      toast.success(wasPersisted ? "Changes saved" : "Draft saved", {
+        description: wasPersisted
+          ? "Your campaign has been updated."
+          : "Your campaign has been saved as a draft.",
+      })
+      exitToCampaignsList()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save draft")
-    } finally {
       setSaving(false)
     }
   }
@@ -526,11 +545,9 @@ export function CampaignEditorPage({
         throw new Error(sendJson.error?.message ?? "Could not send campaign")
       }
       toast.success("Campaign sent!", { description: "Your campaign is now being delivered." })
-      resetDirty()
-      router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
+      exitToCampaignsList()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not send campaign")
-    } finally {
       setSending(false)
     }
   }
@@ -558,11 +575,9 @@ export function CampaignEditorPage({
         throw new Error(scheduleJson.error?.message ?? "Could not schedule campaign")
       }
       toast.success("Campaign scheduled", { description: "Your campaign has been scheduled." })
-      resetDirty()
-      router.push(`/dashboard/${propertyId}/guest-communication?tab=campaigns`)
+      exitToCampaignsList()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not schedule campaign")
-    } finally {
       setSending(false)
     }
   }

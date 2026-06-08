@@ -65,7 +65,35 @@ export async function GET(request: NextRequest) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: queryError.message })
     }
 
-    return success({ campaigns: campaigns ?? [], count: count ?? 0 }, request)
+    const campaignRows = campaigns ?? []
+    const recipientCountByCampaignId = new Map<string, number>()
+
+    if (campaignRows.length > 0) {
+      const campaignIds = campaignRows.map((c: { id: string }) => c.id)
+      const { data: recipients, error: recipientsError } = await db
+        .from('message_recipients')
+        .select('campaign_id')
+        .in('campaign_id', campaignIds)
+
+      if (recipientsError) {
+        return error(ErrorCodes.INTERNAL_ERROR, request, { message: recipientsError.message })
+      }
+
+      for (const row of recipients ?? []) {
+        const campaignId = row.campaign_id as string
+        recipientCountByCampaignId.set(
+          campaignId,
+          (recipientCountByCampaignId.get(campaignId) ?? 0) + 1,
+        )
+      }
+    }
+
+    const campaignsWithRecipientCounts = campaignRows.map((campaign: { id: string }) => ({
+      ...campaign,
+      recipient_count: recipientCountByCampaignId.get(campaign.id) ?? 0,
+    }))
+
+    return success({ campaigns: campaignsWithRecipientCounts, count: count ?? 0 }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

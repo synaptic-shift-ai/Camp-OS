@@ -83,6 +83,41 @@ const INITIAL_FORM: CampaignForm = {
   smsBody: "",
 }
 
+function resolveTemplateId(
+  channel: CampaignForm["channel"],
+  selectedEmailTemplateId: string,
+  selectedSmsTemplateId: string,
+): string | null {
+  if (channel === "email") {
+    return selectedEmailTemplateId && selectedEmailTemplateId !== "__none__"
+      ? selectedEmailTemplateId
+      : null
+  }
+  if (channel === "sms") {
+    return selectedSmsTemplateId && selectedSmsTemplateId !== "__none__"
+      ? selectedSmsTemplateId
+      : null
+  }
+  return null
+}
+
+function buildCampaignPayload(
+  form: CampaignForm,
+  selectedEmailTemplateId: string,
+  selectedSmsTemplateId: string,
+  statusOverride?: string,
+) {
+  return {
+    name: form.name,
+    channel: form.channel,
+    segment_type: form.segment_type,
+    subject: form.channel === "sms" ? undefined : form.subject,
+    body: form.channel === "sms" ? form.body : form.body,
+    template_id: resolveTemplateId(form.channel, selectedEmailTemplateId, selectedSmsTemplateId),
+    ...(statusOverride ? { status: statusOverride } : {}),
+  }
+}
+
 const SEGMENT_TYPES = [
   { value: "all_guests", label: "All Guests" },
   { value: "specific_guest", label: "Specific Guest" },
@@ -209,8 +244,17 @@ export function CampaignEditorPage({
   const [preview, setPreview] = useState<PreviewData | null>(null)
 
   // ── Template selectors ──
-  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>("")
-  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>("")
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>(() => {
+    if (!campaign?.template_id) return ""
+    const channel = (campaign.channel as CampaignForm["channel"]) ?? "email"
+    return channel === "email" || channel === "both" ? (campaign.template_id as string) : ""
+  })
+  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>(() => {
+    if (!campaign?.template_id) return ""
+    const channel = (campaign.channel as CampaignForm["channel"]) ?? "email"
+    return channel === "sms" || channel === "both" ? (campaign.template_id as string) : ""
+  })
+  const previousChannelRef = useRef(form.channel)
   const [emailTemplates, setEmailTemplates] = useState<{ id: string; name: string; subject_template: string; html_template: string }[]>([])
   const [smsTemplates, setSmsTemplates] = useState<{ id: string; name: string; body: string }[]>([])
 
@@ -218,8 +262,11 @@ export function CampaignEditorPage({
 
   // Fetch templates when channel changes
   useEffect(() => {
-    setSelectedEmailTemplateId("")
-    setSelectedSmsTemplateId("")
+    if (previousChannelRef.current !== form.channel) {
+      setSelectedEmailTemplateId("")
+      setSelectedSmsTemplateId("")
+      previousChannelRef.current = form.channel
+    }
 
     if (isEmailChannel) {
       fetch(`/api/v1/automations/email-templates?propertyId=${propertyId}`)
@@ -420,10 +467,9 @@ export function CampaignEditorPage({
       const res = await fetch(`/api/v1/message-campaigns/${campaign.id}?${params}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          ...(statusOverride ? { status: statusOverride } : {}),
-        }),
+        body: JSON.stringify(
+          buildCampaignPayload(form, selectedEmailTemplateId, selectedSmsTemplateId, statusOverride),
+        ),
       })
       const json = await res.json()
       if (!res.ok || !json.success) {
@@ -436,10 +482,9 @@ export function CampaignEditorPage({
     const res = await fetch(`/api/v1/message-campaigns?${params}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        ...(statusOverride ? { status: statusOverride } : {}),
-      }),
+      body: JSON.stringify(
+        buildCampaignPayload(form, selectedEmailTemplateId, selectedSmsTemplateId, statusOverride),
+      ),
     })
     const json = await res.json()
     if (!res.ok || !json.success) {
@@ -694,12 +739,6 @@ export function CampaignEditorPage({
                       <span className="inline-flex items-center gap-2">
                         <MessageSquare className="h-3.5 w-3.5" aria-hidden />
                         SMS
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="both">
-                      <span className="inline-flex items-center gap-2">
-                        <Send className="h-3.5 w-3.5" aria-hidden />
-                        Email + SMS
                       </span>
                     </SelectItem>
                   </SelectContent>

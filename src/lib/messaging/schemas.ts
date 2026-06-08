@@ -29,7 +29,7 @@ export const CreateCampaignSchema = z
         date_to: z.string().optional(),
       })
       .optional(),
-    template_id: z.string().uuid().optional(),
+    template_id: z.string().uuid().nullable().optional(),
     subject: z.string().optional(),
     body: z.string().min(1, 'Message body is required'),
   })
@@ -48,6 +48,40 @@ export const CreateCampaignSchema = z
   )
 
 export type CreateCampaignInput = z.infer<typeof CreateCampaignSchema>
+
+export const UpdateCampaignSchema = z
+  .object({
+    name: z.string().min(1, 'Campaign name is required').optional(),
+    channel: channelSchema.optional(),
+    segment_type: z.string().optional(),
+    audience_filter: z
+      .object({
+        location: z.string().optional(),
+        season: z.string().optional(),
+        guest_ids: z.array(z.string().uuid()).optional(),
+        date_from: z.string().optional(),
+        date_to: z.string().optional(),
+      })
+      .optional(),
+    template_id: z.string().uuid().nullable().optional(),
+    subject: z.string().nullable().optional(),
+    body: z.string().min(1, 'Message body is required').optional(),
+    status: z.enum(['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled']).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.channel === 'email' || data.channel === 'both') {
+        return data.subject === undefined || (typeof data.subject === 'string' && data.subject.trim().length > 0)
+      }
+      return true
+    },
+    {
+      message: 'Subject is required for email campaigns',
+      path: ['subject'],
+    },
+  )
+
+export type UpdateCampaignInput = z.infer<typeof UpdateCampaignSchema>
 
 export const PreviewCampaignSchema = CreateCampaignSchema
 export type PreviewCampaignInput = z.infer<typeof PreviewCampaignSchema>

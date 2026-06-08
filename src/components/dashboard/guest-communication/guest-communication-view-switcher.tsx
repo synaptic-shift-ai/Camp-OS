@@ -1,8 +1,8 @@
 "use client"
 
-import { Inbox, Package, ShieldOff, Megaphone } from "lucide-react"
+import { Package, ShieldOff, Megaphone } from "lucide-react"
 
-export type GuestCommunicationViewMode = "sms_inbox" | "guest_delivery" | "opt_outs" | "campaigns"
+export type GuestCommunicationViewMode = "guest_delivery" | "opt_outs" | "campaigns"
 
 type GuestCommunicationViewSwitcherProps = {
   mode: GuestCommunicationViewMode
@@ -26,18 +26,6 @@ export function GuestCommunicationViewSwitcher({
         role="tablist"
         aria-label="Guest communication views"
       >
-        <button
-          id="guest-comm-tab-sms"
-          type="button"
-          role="tab"
-          aria-selected={mode === "sms_inbox"}
-          aria-controls="guest-comm-panel-sms"
-          onClick={() => onModeChange("sms_inbox")}
-          className={tabButtonClass(mode === "sms_inbox")}
-        >
-          <Inbox className="h-4 w-4 shrink-0" aria-hidden />
-          SMS Inbox
-        </button>
         <button
           id="guest-comm-tab-campaigns"
           type="button"

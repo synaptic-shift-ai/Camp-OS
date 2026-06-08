@@ -18,6 +18,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -102,6 +111,8 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   const [resultsCampaignId, setResultsCampaignId] = useState<string | null>(null)
   const [resultsCampaignName, setResultsCampaignName] = useState<string | null>(null)
   const [sendingId, setSendingId] = useState<string | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const { toast } = useToast()
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -139,6 +150,35 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     fetchCampaigns()
   }, [fetchCampaigns])
+
+  const handleCancelScheduled = useCallback(async () => {
+    if (!cancelTarget) return
+    setCancelling(true)
+    try {
+      const res = await fetch(
+        `/api/v1/message-campaigns/${cancelTarget.id}/cancel?propertyId=${propertyId}`,
+        { method: "POST" },
+      )
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message ?? "Failed to cancel campaign")
+      }
+      toast({
+        title: "Campaign cancelled",
+        description: `"${cancelTarget.name}" will no longer be sent.`,
+      })
+      setCancelTarget(null)
+      fetchCampaigns()
+    } catch (err) {
+      toast({
+        title: "Failed to cancel",
+        description: err instanceof Error ? err.message : "An unexpected error occurred",
+        variant: "destructive",
+      })
+    } finally {
+      setCancelling(false)
+    }
+  }, [cancelTarget, propertyId, toast, fetchCampaigns])
 
   if (!loading && campaigns.length === 0) {
     return (
@@ -320,8 +360,12 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                             </Button>
                           )}
                           {campaign.status === "scheduled" && (
-                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Cancel"
-                              onClick={() => toast({ title: "Coming soon", description: "Campaign cancellation is not yet available." })}
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="h-8 w-8 p-0"
+                              aria-label="Cancel"
+                              onClick={() => setCancelTarget({ id: campaign.id, name: campaign.name })}
                             >
                               <Ban className="h-4 w-4" />
                             </Button>
@@ -363,6 +407,36 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
           }}
         />
       )}
+
+      <AlertDialog
+        open={!!cancelTarget}
+        onOpenChange={(open) => {
+          if (!open && !cancelling) setCancelTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel scheduled campaign?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget
+                ? `"${cancelTarget.name}" will not be sent at the scheduled time. This cannot be undone.`
+                : "This campaign will not be sent at the scheduled time."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep scheduled</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelling}
+              onClick={() => void handleCancelScheduled()}
+            >
+              {cancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+              Cancel campaign
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

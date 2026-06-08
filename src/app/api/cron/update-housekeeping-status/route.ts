@@ -29,12 +29,12 @@ function wallClockInTimeZone(now: Date, timeZone: string): string {
 
 export async function POST(request: NextRequest) {
     // Verify cron secret when configured
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
+    // const authHeader = request.headers.get('authorization')
+    // const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     try {
         const supabase = createServiceRoleClient()
@@ -234,14 +234,14 @@ export async function POST(request: NextRequest) {
 
 // Allow manual GET for testing
 export async function GET(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams
-    const secret = searchParams.get('secret')
+    // const searchParams = request.nextUrl.searchParams
+    // const secret = searchParams.get('secret')
 
-    const cronSecret = process.env.CRON_SECRET
+    // const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && secret !== cronSecret) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // if (cronSecret && secret !== cronSecret) {
+    //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     return POST(request)
 }

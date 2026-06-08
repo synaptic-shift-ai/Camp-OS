@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CampaignVariablePanel } from "./campaign-variable-panel"
+import { CampaignScheduleDialog } from "./campaign-schedule-dialog"
 import { toast } from "sonner"
 import {
   ArrowLeft,
@@ -246,6 +247,7 @@ export function CampaignEditorPage({
   const [previewSheetSide, setPreviewSheetSide] = useState<"bottom" | "right">("right")
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
 
   // ── Template selectors ──
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>(() => {
@@ -552,9 +554,12 @@ export function CampaignEditorPage({
     }
   }
 
-  // ── Schedule ──
-  async function handleSchedule() {
+  function openScheduleDialog() {
     if (!validate()) return
+    setScheduleDialogOpen(true)
+  }
+
+  async function confirmSchedule(scheduledAt: string) {
     setSending(true)
     try {
       const saved = await saveCampaign()
@@ -565,15 +570,14 @@ export function CampaignEditorPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scheduled_at: new Date(Date.now() + 3600000).toISOString(),
-          }),
+          body: JSON.stringify({ scheduled_at: scheduledAt }),
         }
       )
       const scheduleJson = await scheduleRes.json()
       if (!scheduleRes.ok || !scheduleJson.success) {
         throw new Error(scheduleJson.error?.message ?? "Could not schedule campaign")
       }
+      setScheduleDialogOpen(false)
       toast.success("Campaign scheduled", { description: "Your campaign has been scheduled." })
       exitToCampaignsList()
     } catch (e) {
@@ -691,6 +695,19 @@ export function CampaignEditorPage({
               <span className="truncate">
                 Save Draft
               </span>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={openScheduleDialog}
+              disabled={busy}
+            >
+              {sending ? (
+                <Loader2 className="mr-1 h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Clock className="mr-1 h-4 w-4 shrink-0" />
+              )}
+              <span className="truncate">Schedule</span>
             </Button>
             <Button
               className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
@@ -1185,7 +1202,7 @@ export function CampaignEditorPage({
             <Button
               type="button"
               variant="outline"
-              onClick={handleSchedule}
+              onClick={openScheduleDialog}
               disabled={busy}
               className="gap-1"
             >
@@ -1230,6 +1247,13 @@ export function CampaignEditorPage({
       </Sheet>
 
       <UnsavedChangesDialog />
+
+      <CampaignScheduleDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        onConfirm={confirmSchedule}
+        isSubmitting={sending}
+      />
 
       {/* Preview sheet — bottom on mobile, side panel on desktop */}
       <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -1347,7 +1371,7 @@ export function CampaignEditorPage({
                     variant="outline"
                     onClick={() => {
                       setPreviewOpen(false)
-                      handleSchedule()
+                      openScheduleDialog()
                     }}
                     disabled={busy}
                     className="gap-1"

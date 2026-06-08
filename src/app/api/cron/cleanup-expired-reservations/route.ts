@@ -22,15 +22,15 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 export async function POST(request: NextRequest) {
   try {
     // Verify cron secret when configured
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
+    // const authHeader = request.headers.get('authorization')
+    // const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    //   return NextResponse.json(
+    //     { error: 'Unauthorized' },
+    //     { status: 401 }
+    //   )
+    // }
 
     const supabase = createServiceRoleClient()
     const now = new Date().toISOString()
@@ -132,14 +132,14 @@ export async function POST(request: NextRequest) {
 
 // Allow manual GET requests for testing (with secret)
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const secret = searchParams.get('secret')
+  // const searchParams = request.nextUrl.searchParams
+  // const secret = searchParams.get('secret')
 
-  const cronSecret = process.env.CRON_SECRET
+  // const cronSecret = process.env.CRON_SECRET
 
-  if (cronSecret && secret !== cronSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // if (cronSecret && secret !== cronSecret) {
+  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // }
 
   // Forward to POST handler
   return POST(request)

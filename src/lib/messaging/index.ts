@@ -60,6 +60,14 @@ export {
   executeDirectSend,
 } from './send'
 
+export {
+  processDueScheduledCampaigns,
+} from './process-due-scheduled-campaigns'
+export type {
+  ProcessDueScheduledCampaignsResult,
+  ScheduledCampaignOutcome,
+} from './process-due-scheduled-campaigns'
+
 // Providers (for direct use if needed)
 export { sendCampaignEmail } from './providers/email'
 export { sendSMS } from './providers/sms'

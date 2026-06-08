@@ -100,3 +100,23 @@ cron.schedule(
     timezone: 'UTC',
   },
 )
+
+cron.schedule(
+  '*/5 * * * *',
+  async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/cron/send-scheduled-campaigns`, {
+        method: 'POST',
+        headers: cronHeaders(),
+      })
+
+      const body = await res.json()
+      console.log('[Cron] send-scheduled-campaigns:', res.status, body)
+    } catch (error) {
+      console.error('[Cron] Failed to call send-scheduled-campaigns endpoint:', error)
+    }
+  },
+  {
+    timezone: 'UTC',
+  },
+)

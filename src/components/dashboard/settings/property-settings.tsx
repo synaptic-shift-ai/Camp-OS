@@ -35,9 +35,9 @@ const SEASON_ERROR_TOAST_CLASS =
 const _propertyDetailsSchemaShape = {
   name: z.string().min(1, 'Name is required').max(255),
   description: z.string().max(2000).optional(),
-  address: z.string().max(255).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(50).optional(),
+  address: z.string().min(1, 'Address is required').max(255),
+  city: z.string().min(1, 'City is required').max(100),
+  state: z.string().min(2, 'State is required').max(50),
   phone: z.string().max(50).optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   checkInTime: z.string().max(50).optional(),
@@ -130,10 +130,10 @@ export function PropertySettings({
   const propertyDetailsSchema = useMemo(() => z.object({
     name: z.string().min(1, 'Name is required').max(255),
     description: z.string().max(2000).optional(),
-    address: z.string().max(255).optional(),
-    city: z.string().max(100).optional(),
-    state: z.string().max(50).optional(),
-    zipCode: z.string().optional().refine((val) => {
+    address: z.string().min(1, 'Address is required').max(255),
+    city: z.string().min(1, 'City is required').max(100),
+    state: z.string().min(2, 'State is required').max(50),
+    zipCode: z.string().min(1, 'ZIP code is required').optional().refine((val) => {
       if (!val || val.trim() === '') return true;
       const countryCode = getTimezoneCountry(timezone);
       if (!countryCode) return true;
@@ -309,9 +309,9 @@ export function PropertySettings({
       const payload: Record<string, unknown> = {
         name: data.name.trim() || undefined,
         description: data.description?.trim() || null,
-        address: data.address?.trim() || null,
-        city: data.city?.trim() || null,
-        state: data.state?.trim() || null,
+        address: data.address.trim(),
+        city: data.city.trim(),
+        state: data.state.trim(),
         zipCode: data.zipCode?.trim() || null,
         phone: data.phone?.trim() || null,
         email: data.email?.trim() || null,
@@ -415,7 +415,7 @@ export function PropertySettings({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Street address</Label>
+              <Label htmlFor="address">Street address *</Label>
               <Input
                 id="address"
                 {...register('address', { disabled: readOnly })}
@@ -429,7 +429,7 @@ export function PropertySettings({
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
+                <Label htmlFor="city">City *</Label>
                 <Input
                   id="city"
                   {...register('city', { disabled: readOnly })}
@@ -441,7 +441,7 @@ export function PropertySettings({
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="state">State / Province</Label>
+                <Label htmlFor="state">State / Province *</Label>
                 <Input
                   id="state"
                   {...register('state', { disabled: readOnly })}
@@ -453,7 +453,7 @@ export function PropertySettings({
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="zipCode">ZIP / Postal code</Label>
+                <Label htmlFor="zipCode">ZIP / Postal code *</Label>
                 <Input
                   id="zipCode"
                   {...register('zipCode', { disabled: readOnly })}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, type FormEvent } from "react"
+import { useEffect, useRef, useState, useMemo, type FormEvent } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import { format, differenceInDays } from "date-fns"
@@ -50,6 +50,30 @@ function PaymentFormInner({ slug }: { slug: string }) {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [paymentElementReady, setPaymentElementReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const reservationIdRef = useRef<string | null>(checkoutData.reservationId ?? null)
+  const paymentInProgressRef = useRef(false)
+
+  // Sync reservation ID ref when checkout data changes
+  useEffect(() => {
+    reservationIdRef.current = checkoutData.reservationId ?? null
+  }, [checkoutData.reservationId])
+
+  // Expire reservation if user navigates away while not paying
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (paymentInProgressRef.current) return
+      const id = reservationIdRef.current
+      if (!id) return
+      fetch('/api/guest/reservations/expire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_id: id }),
+        keepalive: true,
+      }).catch(() => {})
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   // Log Stripe/Elements availability when they change (payment element readiness debugging)
   useEffect(() => {
@@ -92,6 +116,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
 
     setIsProcessing(true)
     setErrorMessage(null)
+    paymentInProgressRef.current = true
 
     try {
       const { error } = await stripe.confirmPayment({
@@ -120,6 +145,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
         variant: "destructive",
       })
     } finally {
+      paymentInProgressRef.current = false
       setIsProcessing(false)
     }
   }

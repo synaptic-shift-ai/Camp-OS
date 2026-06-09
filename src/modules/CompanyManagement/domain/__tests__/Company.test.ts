@@ -16,7 +16,7 @@ import { BillingCycle } from '../value-objects/BillingCycle'
 import { CompanyCreatedEvent } from '../events/CompanyCreatedEvent'
 import { CompanyUpdatedEvent } from '../events/CompanyUpdatedEvent'
 import { SubscriptionActivatedEvent } from '../events/SubscriptionActivatedEvent'
-import { SubscriptionCancelledEvent } from '../events/SubscriptionCancelledEvent'
+import { SubscriptionCanceledEvent } from '../events/SubscriptionCanceledEvent'
 import { SubscriptionPlanChangedEvent } from '../events/SubscriptionPlanChangedEvent'
 import { InviteGeneratedEvent } from '../events/InviteGeneratedEvent'
 
@@ -32,8 +32,8 @@ describe('Company', () => {
       expect(company.id).toBe(id)
       expect(company.name.value).toBe(name)
       expect(company.ownerId).toBe(ownerId)
-      expect(company.subscriptionStatus).toBe(SubscriptionStatus.TRIAL)
-      expect(company.subscriptionPlan).toBe(SubscriptionPlan.FREE)
+      expect(company.subscriptionStatus).toBe(SubscriptionStatus.ACTIVE)
+      expect(company.subscriptionPlan).toBe(SubscriptionPlan.STARTER)
       expect(company.billingCycle).toBe(BillingCycle.MONTHLY)
       expect(company.stripeCustomerId).toBeNull()
       expect(company.subscriptionId).toBeNull()
@@ -45,10 +45,10 @@ describe('Company', () => {
         id: 'company-123',
         name: 'Premium Campground',
         ownerId: 'user-456',
-        plan: SubscriptionPlan.STARTER,
+        plan: SubscriptionPlan.GROWTH,
       })
 
-      expect(company.subscriptionPlan).toBe(SubscriptionPlan.STARTER)
+      expect(company.subscriptionPlan).toBe(SubscriptionPlan.GROWTH)
     })
 
     test('should fire CompanyCreatedEvent', () => {
@@ -66,7 +66,7 @@ describe('Company', () => {
       expect(event.companyId).toBe(id)
       expect(event.name).toBe(name)
       expect(event.ownerId).toBe(ownerId)
-      expect(event.subscriptionPlan).toBe('free')
+      expect(event.subscriptionPlan).toBe('starter')
     })
 
     test('should throw error for invalid company name', () => {
@@ -121,22 +121,23 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
+      company.clearDomainEvents()
 
       const stripeCustomerId = 'cus_test123'
       const subscriptionId = 'sub_test456'
 
-      company.clearDomainEvents()
       company.activateSubscription(
         stripeCustomerId,
         subscriptionId,
-        SubscriptionPlan.PROFESSIONAL,
-        BillingCycle.YEARLY
+        SubscriptionPlan.PRO,
+        BillingCycle.ANNUAL
       )
 
       expect(company.stripeCustomerId).toBe(stripeCustomerId)
       expect(company.subscriptionId).toBe(subscriptionId)
-      expect(company.subscriptionPlan).toBe(SubscriptionPlan.PROFESSIONAL)
-      expect(company.billingCycle).toBe(BillingCycle.YEARLY)
+      expect(company.subscriptionPlan).toBe(SubscriptionPlan.PRO)
+      expect(company.billingCycle).toBe(BillingCycle.ANNUAL)
       expect(company.subscriptionStatus).toBe(SubscriptionStatus.ACTIVE)
       expect(company.subscriptionCreatedAt).toBeInstanceOf(Date)
       expect(company.subscriptionCanceledAt).toBeNull()
@@ -148,8 +149,9 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
-
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
       company.clearDomainEvents()
+
       company.activateSubscription(
         'cus_test123',
         'sub_test456',
@@ -175,6 +177,7 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -187,8 +190,8 @@ describe('Company', () => {
         company.activateSubscription(
           'cus_new',
           'sub_new',
-          SubscriptionPlan.PROFESSIONAL,
-          BillingCycle.YEARLY
+          SubscriptionPlan.PRO,
+          BillingCycle.ANNUAL
         )
       ).toThrow('Subscription is already active')
     })
@@ -201,6 +204,7 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -212,16 +216,17 @@ describe('Company', () => {
       company.clearDomainEvents()
       company.cancelSubscription('Moving to competitor')
 
-      expect(company.subscriptionStatus).toBe(SubscriptionStatus.CANCELLED)
+      expect(company.subscriptionStatus).toBe(SubscriptionStatus.CANCELED)
       expect(company.subscriptionCanceledAt).toBeInstanceOf(Date)
     })
 
-    test('should fire SubscriptionCancelledEvent', () => {
+    test('should fire SubscriptionCanceledEvent', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -236,25 +241,25 @@ describe('Company', () => {
 
       const events = company.getDomainEvents()
       expect(events).toHaveLength(1)
-      expect(events[0]).toBeInstanceOf(SubscriptionCancelledEvent)
+      expect(events[0]).toBeInstanceOf(SubscriptionCanceledEvent)
 
-      const event = events[0] as SubscriptionCancelledEvent
+      const event = events[0] as SubscriptionCanceledEvent
       expect(event.companyId).toBe('company-123')
       expect(event.subscriptionId).toBe('sub_test456')
       expect(event.reason).toBe(reason)
     })
 
-    test('should cancel trial subscription', () => {
+    test('should cancel active subscription (create defaults to ACTIVE)', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
         ownerId: 'user-456',
       })
 
-      // Trial status is usable, so should be cancellable
+      // Active status is usable, so should be cancellable
       company.cancelSubscription()
 
-      expect(company.subscriptionStatus).toBe(SubscriptionStatus.CANCELLED)
+      expect(company.subscriptionStatus).toBe(SubscriptionStatus.CANCELED)
     })
 
     test('should throw error if no active subscription', () => {
@@ -281,6 +286,7 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -290,9 +296,9 @@ describe('Company', () => {
       )
 
       company.clearDomainEvents()
-      company.changePlan(SubscriptionPlan.PROFESSIONAL)
+      company.changePlan(SubscriptionPlan.GROWTH)
 
-      expect(company.subscriptionPlan).toBe(SubscriptionPlan.PROFESSIONAL)
+      expect(company.subscriptionPlan).toBe(SubscriptionPlan.GROWTH)
     })
 
     test('should change plan and billing cycle together', () => {
@@ -301,6 +307,7 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -309,10 +316,10 @@ describe('Company', () => {
         BillingCycle.MONTHLY
       )
 
-      company.changePlan(SubscriptionPlan.PROFESSIONAL, BillingCycle.YEARLY)
+      company.changePlan(SubscriptionPlan.GROWTH, BillingCycle.ANNUAL)
 
-      expect(company.subscriptionPlan).toBe(SubscriptionPlan.PROFESSIONAL)
-      expect(company.billingCycle).toBe(BillingCycle.YEARLY)
+      expect(company.subscriptionPlan).toBe(SubscriptionPlan.GROWTH)
+      expect(company.billingCycle).toBe(BillingCycle.ANNUAL)
     })
 
     test('should fire SubscriptionPlanChangedEvent with upgrade flag', () => {
@@ -321,6 +328,7 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -330,7 +338,7 @@ describe('Company', () => {
       )
 
       company.clearDomainEvents()
-      company.changePlan(SubscriptionPlan.PROFESSIONAL)
+      company.changePlan(SubscriptionPlan.GROWTH)
 
       const events = company.getDomainEvents()
       expect(events).toHaveLength(1)
@@ -339,7 +347,7 @@ describe('Company', () => {
       const event = events[0] as SubscriptionPlanChangedEvent
       expect(event.companyId).toBe('company-123')
       expect(event.previousPlan).toBe('starter')
-      expect(event.newPlan).toBe('professional')
+      expect(event.newPlan).toBe('growth')
       expect(event.isUpgrade).toBe(true)
     })
 
@@ -349,11 +357,12 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
         'sub_test456',
-        SubscriptionPlan.PROFESSIONAL,
+        SubscriptionPlan.GROWTH,
         BillingCycle.MONTHLY
       )
 
@@ -371,6 +380,7 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -390,8 +400,9 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.cancelSubscription()
 
-      expect(() => company.changePlan(SubscriptionPlan.PROFESSIONAL)).toThrow(
+      expect(() => company.changePlan(SubscriptionPlan.GROWTH)).toThrow(
         'Cannot change plan without active subscription'
       )
     })
@@ -484,7 +495,7 @@ describe('Company', () => {
         ownerId: 'user-456',
       })
 
-      // Free plan has limit of 1
+      // Starter plan has limit of 1
       expect(company.canAddProperty(0)).toBe(true)
     })
 
@@ -495,7 +506,7 @@ describe('Company', () => {
         ownerId: 'user-456',
       })
 
-      // Free plan has limit of 1
+      // Starter plan has limit of 1
       expect(company.canAddProperty(1)).toBe(false)
     })
 
@@ -505,22 +516,23 @@ describe('Company', () => {
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
         'sub_test456',
-        SubscriptionPlan.PROFESSIONAL,
+        SubscriptionPlan.GROWTH,
         BillingCycle.MONTHLY
       )
 
-      // Professional plan has limit of 3
+      // Growth plan has limit of 3
       expect(company.canAddProperty(2)).toBe(true)
       expect(company.canAddProperty(3)).toBe(false)
     })
   })
 
   describe('query methods', () => {
-    test('hasActiveSubscription returns true for trial', () => {
+    test('hasActiveSubscription returns true for active (default)', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
@@ -530,12 +542,13 @@ describe('Company', () => {
       expect(company.hasActiveSubscription).toBe(true)
     })
 
-    test('hasActiveSubscription returns true for active', () => {
+    test('hasActiveSubscription returns true for activated subscription', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -547,7 +560,7 @@ describe('Company', () => {
       expect(company.hasActiveSubscription).toBe(true)
     })
 
-    test('hasActiveSubscription returns false for cancelled', () => {
+    test('hasActiveSubscription returns false for canceled', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
@@ -559,22 +572,24 @@ describe('Company', () => {
       expect(company.hasActiveSubscription).toBe(false)
     })
 
-    test('isPaid returns false for trial', () => {
+    test('isPaid returns true for active subscription', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
         ownerId: 'user-456',
       })
 
-      expect(company.isPaid).toBe(false)
+      // Default is ACTIVE + STARTER, both paid
+      expect(company.isPaid).toBe(true)
     })
 
-    test('isPaid returns true for active paid subscription', () => {
+    test('isPaid returns true for activated paid subscription', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
         ownerId: 'user-456',
       })
+      company.updateSubscriptionStatus(SubscriptionStatus.TRIAL)
 
       company.activateSubscription(
         'cus_test123',
@@ -585,10 +600,22 @@ describe('Company', () => {
 
       expect(company.isPaid).toBe(true)
     })
+
+    test('isPaid returns false for canceled subscription', () => {
+      const company = Company.create({
+        id: 'company-123',
+        name: 'Test Campground',
+        ownerId: 'user-456',
+      })
+
+      company.cancelSubscription()
+
+      expect(company.isPaid).toBe(false)
+    })
   })
 
   describe('toPersistence', () => {
-    test('should convert to database format', () => {
+    test('should convert to database format with DB-compatible defaults', () => {
       const company = Company.create({
         id: 'company-123',
         name: 'Test Campground',
@@ -600,8 +627,8 @@ describe('Company', () => {
       expect(persistence.id).toBe('company-123')
       expect(persistence.name).toBe('Test Campground')
       expect(persistence.owner_id).toBe('user-456')
-      expect(persistence.subscription_status).toBe('trial')
-      expect(persistence.subscription_plan).toBe('free')
+      expect(persistence.subscription_status).toBe('active')
+      expect(persistence.subscription_plan).toBe('starter')
       expect(persistence.billing_cycle).toBe('monthly')
       expect(persistence.stripe_customer_id).toBeNull()
       expect(persistence.subscription_id).toBeNull()
@@ -623,6 +650,19 @@ describe('Company', () => {
       expect(persistence.onboarding_token).toHaveLength(32)
       expect(persistence.onboarding_token_expires_at).toBeDefined()
       expect(persistence.onboarding_token_used_at).toBeNull()
+    })
+
+    test('should persist canceled status as DB-compatible value', () => {
+      const company = Company.create({
+        id: 'company-123',
+        name: 'Test Campground',
+        ownerId: 'user-456',
+      })
+
+      company.cancelSubscription()
+      const persistence = company.toPersistence()
+
+      expect(persistence.subscription_status).toBe('canceled')
     })
   })
 })

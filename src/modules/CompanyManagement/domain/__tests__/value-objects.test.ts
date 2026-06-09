@@ -49,20 +49,21 @@ describe('CompanyName', () => {
 
 describe('SubscriptionPlan', () => {
   test('should have static instances', () => {
-    expect(SubscriptionPlan.FREE.value).toBe('free')
     expect(SubscriptionPlan.STARTER.value).toBe('starter')
-    expect(SubscriptionPlan.PROFESSIONAL.value).toBe('professional')
+    expect(SubscriptionPlan.GROWTH.value).toBe('growth')
+    expect(SubscriptionPlan.PRO.value).toBe('pro')
     expect(SubscriptionPlan.ENTERPRISE.value).toBe('enterprise')
   })
 
   test('fromString should return correct instance', () => {
-    expect(SubscriptionPlan.fromString('free')).toBe(SubscriptionPlan.FREE)
     expect(SubscriptionPlan.fromString('starter')).toBe(SubscriptionPlan.STARTER)
-    expect(SubscriptionPlan.fromString('PROFESSIONAL')).toBe(SubscriptionPlan.PROFESSIONAL)
+    expect(SubscriptionPlan.fromString('growth')).toBe(SubscriptionPlan.GROWTH)
+    expect(SubscriptionPlan.fromString('pro')).toBe(SubscriptionPlan.PRO)
+    expect(SubscriptionPlan.fromString('PRO')).toBe(SubscriptionPlan.PRO)
   })
 
-  test('fromString should default to FREE for null', () => {
-    expect(SubscriptionPlan.fromString(null)).toBe(SubscriptionPlan.FREE)
+  test('fromString should default to STARTER for null', () => {
+    expect(SubscriptionPlan.fromString(null).value).toBe('starter')
   })
 
   test('fromString should throw for invalid plan', () => {
@@ -72,46 +73,54 @@ describe('SubscriptionPlan', () => {
   })
 
   test('isPaid returns correct value', () => {
-    expect(SubscriptionPlan.FREE.isPaid).toBe(false)
+    // All persistable plans are paid
     expect(SubscriptionPlan.STARTER.isPaid).toBe(true)
-    expect(SubscriptionPlan.PROFESSIONAL.isPaid).toBe(true)
+    expect(SubscriptionPlan.GROWTH.isPaid).toBe(true)
+    expect(SubscriptionPlan.PRO.isPaid).toBe(true)
     expect(SubscriptionPlan.ENTERPRISE.isPaid).toBe(true)
   })
 
   test('canUpgradeTo works correctly', () => {
-    expect(SubscriptionPlan.FREE.canUpgradeTo(SubscriptionPlan.STARTER)).toBe(true)
-    expect(SubscriptionPlan.STARTER.canUpgradeTo(SubscriptionPlan.PROFESSIONAL)).toBe(true)
-    expect(SubscriptionPlan.PROFESSIONAL.canUpgradeTo(SubscriptionPlan.STARTER)).toBe(false)
+    expect(SubscriptionPlan.STARTER.canUpgradeTo(SubscriptionPlan.GROWTH)).toBe(true)
+    expect(SubscriptionPlan.GROWTH.canUpgradeTo(SubscriptionPlan.PRO)).toBe(true)
+    expect(SubscriptionPlan.PRO.canUpgradeTo(SubscriptionPlan.STARTER)).toBe(false)
     expect(SubscriptionPlan.STARTER.canUpgradeTo(SubscriptionPlan.STARTER)).toBe(false)
   })
 
   test('canDowngradeTo works correctly', () => {
-    expect(SubscriptionPlan.PROFESSIONAL.canDowngradeTo(SubscriptionPlan.STARTER)).toBe(true)
-    expect(SubscriptionPlan.STARTER.canDowngradeTo(SubscriptionPlan.FREE)).toBe(true)
-    expect(SubscriptionPlan.STARTER.canDowngradeTo(SubscriptionPlan.PROFESSIONAL)).toBe(false)
+    expect(SubscriptionPlan.PRO.canDowngradeTo(SubscriptionPlan.GROWTH)).toBe(true)
+    expect(SubscriptionPlan.GROWTH.canDowngradeTo(SubscriptionPlan.STARTER)).toBe(true)
+    expect(SubscriptionPlan.STARTER.canDowngradeTo(SubscriptionPlan.PRO)).toBe(false)
   })
 
   test('propertyLimit returns correct values', () => {
-    expect(SubscriptionPlan.FREE.propertyLimit).toBe(1)
     expect(SubscriptionPlan.STARTER.propertyLimit).toBe(1)
-    expect(SubscriptionPlan.PROFESSIONAL.propertyLimit).toBe(3)
+    expect(SubscriptionPlan.GROWTH.propertyLimit).toBe(3)
+    expect(SubscriptionPlan.PRO.propertyLimit).toBe(10)
     expect(SubscriptionPlan.ENTERPRISE.propertyLimit).toBe(Infinity)
   })
 })
 
 describe('SubscriptionStatus', () => {
   test('should have static instances', () => {
-    expect(SubscriptionStatus.TRIAL.value).toBe('trial')
     expect(SubscriptionStatus.ACTIVE.value).toBe('active')
-    expect(SubscriptionStatus.CANCELLED.value).toBe('cancelled')
+    expect(SubscriptionStatus.CANCELED.value).toBe('canceled')
     expect(SubscriptionStatus.PAST_DUE.value).toBe('past_due')
+    expect(SubscriptionStatus.UNPAID.value).toBe('unpaid')
     expect(SubscriptionStatus.INCOMPLETE.value).toBe('incomplete')
+    expect(SubscriptionStatus.TRIAL.value).toBe('trial')
     expect(SubscriptionStatus.PAUSED.value).toBe('paused')
   })
 
   test('fromString should return correct instance', () => {
     expect(SubscriptionStatus.fromString('active')).toBe(SubscriptionStatus.ACTIVE)
-    expect(SubscriptionStatus.fromString('CANCELLED')).toBe(SubscriptionStatus.CANCELLED)
+    expect(SubscriptionStatus.fromString('canceled')).toBe(SubscriptionStatus.CANCELED)
+    expect(SubscriptionStatus.fromString('CANCELED')).toBe(SubscriptionStatus.CANCELED)
+    expect(SubscriptionStatus.fromString('unpaid')).toBe(SubscriptionStatus.UNPAID)
+    expect(SubscriptionStatus.fromString('past_due')).toBe(SubscriptionStatus.PAST_DUE)
+    expect(SubscriptionStatus.fromString('incomplete')).toBe(SubscriptionStatus.INCOMPLETE)
+    expect(SubscriptionStatus.fromString('trial')).toBe(SubscriptionStatus.TRIAL)
+    expect(SubscriptionStatus.fromString('paused')).toBe(SubscriptionStatus.PAUSED)
   })
 
   test('fromString should default to TRIAL for null', () => {
@@ -122,7 +131,7 @@ describe('SubscriptionStatus', () => {
     expect(SubscriptionStatus.TRIAL.isUsable).toBe(true)
     expect(SubscriptionStatus.ACTIVE.isUsable).toBe(true)
     expect(SubscriptionStatus.PAST_DUE.isUsable).toBe(true)
-    expect(SubscriptionStatus.CANCELLED.isUsable).toBe(false)
+    expect(SubscriptionStatus.CANCELED.isUsable).toBe(false)
     expect(SubscriptionStatus.INCOMPLETE.isUsable).toBe(false)
     expect(SubscriptionStatus.PAUSED.isUsable).toBe(false)
   })
@@ -137,43 +146,54 @@ describe('SubscriptionStatus', () => {
     expect(SubscriptionStatus.PAST_DUE.hasBillingIssue).toBe(true)
     expect(SubscriptionStatus.INCOMPLETE.hasBillingIssue).toBe(true)
     expect(SubscriptionStatus.ACTIVE.hasBillingIssue).toBe(false)
-    expect(SubscriptionStatus.CANCELLED.hasBillingIssue).toBe(false)
+    expect(SubscriptionStatus.CANCELED.hasBillingIssue).toBe(false)
   })
 
   test('isTerminated returns correct values', () => {
-    expect(SubscriptionStatus.CANCELLED.isTerminated).toBe(true)
+    expect(SubscriptionStatus.CANCELED.isTerminated).toBe(true)
     expect(SubscriptionStatus.ACTIVE.isTerminated).toBe(false)
+  })
+
+  test('isPersistable returns correct values', () => {
+    expect(SubscriptionStatus.ACTIVE.isPersistable).toBe(true)
+    expect(SubscriptionStatus.CANCELED.isPersistable).toBe(true)
+    expect(SubscriptionStatus.PAST_DUE.isPersistable).toBe(true)
+    expect(SubscriptionStatus.UNPAID.isPersistable).toBe(true)
+    expect(SubscriptionStatus.INCOMPLETE.isPersistable).toBe(true)
+    expect(SubscriptionStatus.TRIAL.isPersistable).toBe(false)
+    expect(SubscriptionStatus.PAUSED.isPersistable).toBe(false)
   })
 })
 
 describe('BillingCycle', () => {
   test('should have static instances', () => {
     expect(BillingCycle.MONTHLY.value).toBe('monthly')
-    expect(BillingCycle.YEARLY.value).toBe('yearly')
+    expect(BillingCycle.ANNUAL.value).toBe('annual')
   })
 
   test('fromString should return correct instance', () => {
     expect(BillingCycle.fromString('monthly')).toBe(BillingCycle.MONTHLY)
-    expect(BillingCycle.fromString('YEARLY')).toBe(BillingCycle.YEARLY)
+    expect(BillingCycle.fromString('annual')).toBe(BillingCycle.ANNUAL)
+    expect(BillingCycle.fromString('ANNUAL')).toBe(BillingCycle.ANNUAL)
   })
 
   test('fromString should default to MONTHLY for null', () => {
     expect(BillingCycle.fromString(null)).toBe(BillingCycle.MONTHLY)
   })
 
-  test('isYearly returns correct value', () => {
-    expect(BillingCycle.MONTHLY.isYearly).toBe(false)
-    expect(BillingCycle.YEARLY.isYearly).toBe(true)
+  test('isAnnual returns correct value', () => {
+    expect(BillingCycle.MONTHLY.isAnnual).toBe(false)
+    expect(BillingCycle.ANNUAL.isAnnual).toBe(true)
   })
 
   test('monthsInPeriod returns correct value', () => {
     expect(BillingCycle.MONTHLY.monthsInPeriod).toBe(1)
-    expect(BillingCycle.YEARLY.monthsInPeriod).toBe(12)
+    expect(BillingCycle.ANNUAL.monthsInPeriod).toBe(12)
   })
 
   test('discountPercentage returns correct value', () => {
     expect(BillingCycle.MONTHLY.discountPercentage).toBe(0)
-    expect(BillingCycle.YEARLY.discountPercentage).toBe(17)
+    expect(BillingCycle.ANNUAL.discountPercentage).toBe(17)
   })
 })
 

@@ -12,11 +12,11 @@ import { z } from 'zod'
 // Enum Schemas
 // ============================================================================
 
-export const SubscriptionPlanSchema = z.enum(['free', 'starter', 'professional', 'enterprise'])
+export const SubscriptionPlanSchema = z.enum(['starter', 'growth', 'pro', 'enterprise'])
 
-export const SubscriptionStatusSchema = z.enum(['inactive', 'active', 'past_due', 'canceled'])
+export const SubscriptionStatusSchema = z.enum(['active', 'canceled', 'past_due', 'unpaid', 'incomplete'])
 
-export const BillingCycleSchema = z.enum(['monthly', 'yearly'])
+export const BillingCycleSchema = z.enum(['monthly', 'annual'])
 
 // ============================================================================
 // Request Schemas

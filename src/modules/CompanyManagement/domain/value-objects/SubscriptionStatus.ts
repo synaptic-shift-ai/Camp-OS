@@ -2,35 +2,59 @@
  * SubscriptionStatus Value Object
  *
  * Represents the current status of a company's subscription.
+ * Persistable types match the DB CHECK constraint.
+ * Domain-only transient states (trial, paused) are valid in the domain
+ * but not stored in the database.
  */
 
 import { ValueObject } from '@/shared/domain/ValueObject'
 
+/** Persistable subscription status values (DB-compatible) */
 export type SubscriptionStatusType =
-  | 'trial'
   | 'active'
-  | 'cancelled'
+  | 'canceled'
   | 'past_due'
+  | 'unpaid'
   | 'incomplete'
+
+/** All subscription status values including domain-only transient states */
+type SubscriptionStatusAll =
+  | SubscriptionStatusType
+  | 'trial'
   | 'paused'
 
 interface SubscriptionStatusProps {
-  value: SubscriptionStatusType
+  value: SubscriptionStatusAll
 }
 
 export class SubscriptionStatus extends ValueObject<SubscriptionStatusProps> {
-  public static readonly TRIAL = new SubscriptionStatus({ value: 'trial' })
   public static readonly ACTIVE = new SubscriptionStatus({ value: 'active' })
-  public static readonly CANCELLED = new SubscriptionStatus({ value: 'cancelled' })
+  public static readonly CANCELED = new SubscriptionStatus({ value: 'canceled' })
   public static readonly PAST_DUE = new SubscriptionStatus({ value: 'past_due' })
+  public static readonly UNPAID = new SubscriptionStatus({ value: 'unpaid' })
   public static readonly INCOMPLETE = new SubscriptionStatus({ value: 'incomplete' })
+  /** Domain-only transient states — not persistable to DB */
+  public static readonly TRIAL = new SubscriptionStatus({ value: 'trial' })
   public static readonly PAUSED = new SubscriptionStatus({ value: 'paused' })
 
   /**
    * Get the status value
    */
-  get value(): SubscriptionStatusType {
+  get value(): SubscriptionStatusAll {
     return this.props.value
+  }
+
+  /**
+   * Whether this status is a DB-compatible persistable value
+   */
+  get isPersistable(): boolean {
+    return (
+      this.props.value === 'active' ||
+      this.props.value === 'canceled' ||
+      this.props.value === 'past_due' ||
+      this.props.value === 'unpaid' ||
+      this.props.value === 'incomplete'
+    )
   }
 
   /**
@@ -45,19 +69,21 @@ export class SubscriptionStatus extends ValueObject<SubscriptionStatusProps> {
       return SubscriptionStatus.TRIAL
     }
 
-    const normalized = status.toLowerCase() as SubscriptionStatusType
+    const normalized = status.toLowerCase() as SubscriptionStatusAll
 
     switch (normalized) {
-      case 'trial':
-        return SubscriptionStatus.TRIAL
       case 'active':
         return SubscriptionStatus.ACTIVE
-      case 'cancelled':
-        return SubscriptionStatus.CANCELLED
+      case 'canceled':
+        return SubscriptionStatus.CANCELED
       case 'past_due':
         return SubscriptionStatus.PAST_DUE
+      case 'unpaid':
+        return SubscriptionStatus.UNPAID
       case 'incomplete':
         return SubscriptionStatus.INCOMPLETE
+      case 'trial':
+        return SubscriptionStatus.TRIAL
       case 'paused':
         return SubscriptionStatus.PAUSED
       default:
@@ -97,7 +123,7 @@ export class SubscriptionStatus extends ValueObject<SubscriptionStatusProps> {
    * Check if subscription is terminated
    */
   get isTerminated(): boolean {
-    return this.props.value === 'cancelled'
+    return this.props.value === 'canceled'
   }
 
   public override toString(): string {

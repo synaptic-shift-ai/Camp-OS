@@ -87,7 +87,6 @@ function formatTaskDate(date: string | null): string {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
   })
 }
 
@@ -95,11 +94,11 @@ function toDatetimeLocalValue(date: string | null): string {
   if (!date) return ""
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return ""
-  const y = parsed.getUTCFullYear()
-  const m = String(parsed.getUTCMonth() + 1).padStart(2, "0")
-  const d = String(parsed.getUTCDate()).padStart(2, "0")
-  const hh = String(parsed.getUTCHours()).padStart(2, "0")
-  const mm = String(parsed.getUTCMinutes()).padStart(2, "0")
+  const y = parsed.getFullYear()
+  const m = String(parsed.getMonth() + 1).padStart(2, "0")
+  const d = String(parsed.getDate()).padStart(2, "0")
+  const hh = String(parsed.getHours()).padStart(2, "0")
+  const mm = String(parsed.getMinutes()).padStart(2, "0")
   return `${y}-${m}-${d}T${hh}:${mm}`
 }
 

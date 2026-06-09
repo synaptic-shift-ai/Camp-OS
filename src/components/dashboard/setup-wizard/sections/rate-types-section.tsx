@@ -236,7 +236,7 @@ export function RateTypesSection({ propertyId, reservationTypeConfigRaw, enabled
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={String(editingPeriod.start_month)} onValueChange={(v) => setEditingPeriod({ ...editingPeriod, start_month: parseInt(v) })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+                      <SelectContent side="top" sideOffset={8} className="max-h-[220px]">{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
                     </Select>
                     <Input type="number" min="1" max="31" value={editingPeriod.start_day} onChange={(e) => setEditingPeriod({ ...editingPeriod, start_day: parseInt(e.target.value) || 1 })} />
                   </div>
@@ -246,7 +246,7 @@ export function RateTypesSection({ propertyId, reservationTypeConfigRaw, enabled
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={String(editingPeriod.end_month)} onValueChange={(v) => setEditingPeriod({ ...editingPeriod, end_month: parseInt(v) })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+                      <SelectContent side="top" sideOffset={8} className="max-h-[220px]">{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
                     </Select>
                     <Input type="number" min="1" max="31" value={editingPeriod.end_day} onChange={(e) => setEditingPeriod({ ...editingPeriod, end_day: parseInt(e.target.value) || 1 })} />
                   </div>

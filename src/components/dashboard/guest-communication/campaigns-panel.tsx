@@ -113,6 +113,8 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [sendNowTarget, setSendNowTarget] = useState<{ id: string; name: string } | null>(null)
+  const [confirmingSend, setConfirmingSend] = useState(false)
   const { toast } = useToast()
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -150,6 +152,44 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     fetchCampaigns()
   }, [fetchCampaigns])
+
+  const handleSendCampaign = useCallback(
+    async (campaignId: string, campaignName: string) => {
+      setSendingId(campaignId)
+      try {
+        const res = await fetch(
+          `/api/v1/message-campaigns/${campaignId}/send?propertyId=${propertyId}`,
+          { method: "POST" },
+        )
+        const json = await res.json()
+        if (!res.ok || !json.success) {
+          throw new Error(json.error?.message || "Failed to send campaign")
+        }
+        toast({
+          title: "Campaign sent",
+          description: `"${campaignName}" is now being sent.`,
+        })
+        setSendNowTarget(null)
+        fetchCampaigns()
+      } catch (err) {
+        toast({
+          title: "Failed to send",
+          description: err instanceof Error ? err.message : "An unexpected error occurred",
+          variant: "destructive",
+        })
+      } finally {
+        setSendingId(null)
+        setConfirmingSend(false)
+      }
+    },
+    [propertyId, toast, fetchCampaigns],
+  )
+
+  const handleConfirmSendNow = useCallback(async () => {
+    if (!sendNowTarget) return
+    setConfirmingSend(true)
+    await handleSendCampaign(sendNowTarget.id, sendNowTarget.name)
+  }, [sendNowTarget, handleSendCampaign])
 
   const handleCancelScheduled = useCallback(async () => {
     if (!cancelTarget) return
@@ -317,29 +357,17 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                             </Button>
                           )}
                           {(campaign.status === "draft" || campaign.status === "scheduled") && (
-                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Send Now"
-                              onClick={async () => {
-                                setSendingId(campaign.id)
-                                try {
-                                  const res = await fetch(
-                                    `/api/v1/message-campaigns/${campaign.id}/send?propertyId=${propertyId}`,
-                                    { method: "POST" }
-                                  )
-                                  const json = await res.json()
-                                  if (!res.ok || !json.success) {
-                                    throw new Error(json.error?.message || "Failed to send campaign")
-                                  }
-                                  toast({ title: "Campaign sent", description: `"${campaign.name}" is now being sent.` })
-                                  fetchCampaigns()
-                                } catch (err) {
-                                  toast({
-                                    title: "Failed to send",
-                                    description: err instanceof Error ? err.message : "An unexpected error occurred",
-                                    variant: "destructive",
-                                  })
-                                } finally {
-                                  setSendingId(null)
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="h-8 w-8 p-0"
+                              aria-label="Send Now"
+                              onClick={() => {
+                                if (campaign.status === "scheduled") {
+                                  setSendNowTarget({ id: campaign.id, name: campaign.name })
+                                  return
                                 }
+                                void handleSendCampaign(campaign.id, campaign.name)
                               }}
                             >
                               <Send className="h-4 w-4" />
@@ -407,6 +435,35 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
           }}
         />
       )}
+
+      <AlertDialog
+        open={!!sendNowTarget}
+        onOpenChange={(open) => {
+          if (!open && !confirmingSend) setSendNowTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send scheduled campaign now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sendNowTarget
+                ? `"${sendNowTarget.name}" is scheduled for a later time. Sending now will deliver it immediately and skip the scheduled send.`
+                : "This campaign will be sent immediately instead of at the scheduled time."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmingSend}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              disabled={confirmingSend}
+              onClick={() => void handleConfirmSendNow()}
+            >
+              {confirmingSend && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+              Confirm
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!cancelTarget}

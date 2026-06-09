@@ -1253,6 +1253,11 @@ export function CampaignEditorPage({
         onOpenChange={setScheduleDialogOpen}
         onConfirm={confirmSchedule}
         isSubmitting={sending}
+        initialScheduledAt={
+          campaign?.status === "scheduled" && campaign.scheduled_at
+            ? String(campaign.scheduled_at)
+            : null
+        }
       />
 
       {/* Preview sheet — bottom on mobile, side panel on desktop */}

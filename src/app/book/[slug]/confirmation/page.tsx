@@ -279,7 +279,7 @@ export default function ConfirmationPage() {
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
         totalCents: totalPaidCents,
         propertyName: displayPropertyName,
-        propertyAddress: checkoutData.propertyAddress,
+        ...(checkoutData.propertyAddress ? { propertyAddress: checkoutData.propertyAddress } : {}),
       })
 
       const filename = `${checkoutData.confirmationNumber!.toUpperCase()}.pdf`

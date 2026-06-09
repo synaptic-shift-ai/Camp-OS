@@ -302,7 +302,7 @@ function AvailabilityResultsContent() {
     setCheckoutData({
       propertyId,
       propertyName: displayPropertyName,
-      propertyAddress: propertyAddress ?? undefined,
+      ...(propertyAddress ? { propertyAddress } : {}),
       site,
       checkInDate: checkIn,
       checkOutDate: checkOut,

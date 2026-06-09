@@ -345,7 +345,7 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                               <Send className="h-4 w-4" />
                             </Button>
                           )}
-                          {campaign.status === "draft" && (
+                          {(campaign.status === "draft" || campaign.status === "scheduled") && (
                             <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Edit"
                               onClick={() => router.push(`/dashboard/${propertyId}/guest-communication/campaigns/${campaign.id}/edit`)}
                             >

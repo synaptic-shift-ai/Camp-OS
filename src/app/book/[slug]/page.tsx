@@ -472,7 +472,7 @@ export default async function PropertyBookingPage({
         ...(discountCondition && { discountCondition }),
       }),
     }
-  })
+  }).filter((s) => s.price > 0)
 
   const { openPeriodFrom, openPeriodUntil } = extractOpenPeriodFromPropertySettings(property.settings)
 

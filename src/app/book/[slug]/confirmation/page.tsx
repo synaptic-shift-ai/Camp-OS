@@ -278,6 +278,8 @@ export default function ConfirmationPage() {
         ...(discountCents > 0 && { discountCents }),
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
         totalCents: totalPaidCents,
+        propertyName: displayPropertyName,
+        propertyAddress: checkoutData.propertyAddress,
       })
 
       const filename = `${checkoutData.confirmationNumber!.toUpperCase()}.pdf`
@@ -418,7 +420,7 @@ export default function ConfirmationPage() {
                       <div>
                         <p className="font-medium text-foreground">Location</p>
                         <p className="text-muted-foreground">{displayPropertyName}</p>
-                        <p className="text-sm text-muted-foreground">123 Forest Road, Pine Valley, CA 95000</p>
+                        <p className="text-sm text-muted-foreground">{checkoutData.propertyAddress}</p>
                       </div>
                     </div>
                   </div>

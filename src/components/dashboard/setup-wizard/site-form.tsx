@@ -396,7 +396,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             (result.error?.details && typeof result.error.details === 'object' && 'message' in result.error.details
               ? (result.error.details as { message?: string }).message
               : null) || result.error?.message
-          throw new Error(msg || "Failed to update site")
+          throw new Error(msg || "Something went wrong while updating the site. Please try again.")
         }
         onSave(result.data)
       } else {
@@ -411,7 +411,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             (result.error?.details && typeof result.error.details === 'object' && 'message' in result.error.details
               ? (result.error.details as { message?: string }).message
               : null) || result.error?.message
-          throw new Error(msg || "Failed to create site")
+          throw new Error(msg || "Something went wrong while saving the site. Please try again.")
         }
         onSave(result.data)
       }
@@ -671,7 +671,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
                       <Label htmlFor="weekly_rate" className="text-xs">Weekly Rate (per night)</Label>
                       <div className="relative mt-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input id="weekly_rate" type="number" step="0.01" min="0" className="pl-7 h-9" {...register("weekly_rate", { valueAsNumber: true })} placeholder="40.00" />
+                        <Input id="weekly_rate" type="number" step="0.01" min="0" className="pl-7 h-9" {...register("weekly_rate")} placeholder="40.00" />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Leave empty to use base rate</p>
                     </div>
@@ -692,7 +692,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
                       <Label htmlFor="monthly_rate" className="text-xs">Monthly Rate (per night)</Label>
                       <div className="relative mt-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input id="monthly_rate" type="number" step="0.01" min="0" className="pl-7 h-9" {...register("monthly_rate", { valueAsNumber: true })} placeholder="35.00" />
+                        <Input id="monthly_rate" type="number" step="0.01" min="0" className="pl-7 h-9" {...register("monthly_rate")} placeholder="35.00" />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Leave empty to use base rate</p>
                     </div>
@@ -713,7 +713,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
                       <Label htmlFor="seasonal_rate" className="text-xs">Seasonal Flat Rate</Label>
                       <div className="relative mt-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input id="seasonal_rate" type="number" step="0.01" min="0" className="pl-7 h-9" {...register("seasonal_rate", { valueAsNumber: true })} placeholder="Use property rate" />
+                        <Input id="seasonal_rate" type="number" step="0.01" min="0" className="pl-7 h-9" {...register("seasonal_rate")} placeholder="Use property rate" />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Leave empty to use property seasonal rates</p>
                     </div>
@@ -833,7 +833,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
                 <Label htmlFor="pet_fee">Pet Fee (one-time)</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input id="pet_fee" type="number" step="0.01" min="0" className="pl-7" {...register("pet_fee", { valueAsNumber: true })} placeholder="15.00" />
+                  <Input id="pet_fee" type="number" step="0.01" min="0" className="pl-7" {...register("pet_fee")} placeholder="15.00" />
                 </div>
                 {errors.pet_fee && <p className="text-sm text-destructive mt-1">{errors.pet_fee.message}</p>}
                 <p className="text-xs text-muted-foreground mt-1">One-time fee (optional, leave empty for no fee)</p>

@@ -90,6 +90,7 @@ export async function getPropertyForUser(propertyId: string): Promise<{
   terms_and_conditions: string | null
   stripe_account_id: string | null
   stripe_connected_at: string | null
+  timezone: string | null
 } | null> {
   const supabase = await createClient()
 
@@ -129,7 +130,8 @@ export async function getPropertyForUser(propertyId: string): Promise<{
       terms_and_conditions,
       stripe_account_id,
       stripe_connected_at,
-      payment_processor
+      payment_processor,
+      timezone
     `)
     .eq("id", propertyId)
     .maybeSingle()

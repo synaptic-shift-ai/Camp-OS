@@ -45,6 +45,8 @@ export function TodaysArrivalsCard({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingReservationId, setLoadingReservationId] = useState<string | null>(null)
   const [bookingPaymentMethodId, setBookingPaymentMethodId] = useState<string | null>(null)
+  type ArrivalFilter = 'all' | 'late' | 'waiting' | 'checked_in'
+  const [activeFilter, setActiveFilter] = useState<ArrivalFilter>('all')
 
   const handleCheckIn = async (reservation: typeof arrivals[0]) => {
     setLoadingReservationId(reservation.id)
@@ -125,6 +127,13 @@ export function TodaysArrivalsCard({
   const completedCheckIns = arrivals.filter((r) => r.status === 'checked_in')
   const pendingCheckIns = [...lateArrivals, ...todaysPendingCheckIns]
 
+  const filters: { key: ArrivalFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: arrivals.length },
+    { key: 'late', label: 'Late', count: lateArrivals.length },
+    { key: 'waiting', label: 'Waiting', count: todaysPendingCheckIns.length },
+    { key: 'checked_in', label: 'Checked In', count: completedCheckIns.length },
+  ]
+
   const getNights = (checkIn: string, checkOut: string) =>
     Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
 
@@ -159,10 +168,23 @@ export function TodaysArrivalsCard({
             </div>
           </div>
         </CardHeader>
+            <div className="flex flex-wrap gap-2 px-4 sm:px-6 pt-3 border-t border-border/50">
+              {filters.map(({ key, label, count }) => (
+                <Button
+                  key={key}
+                  variant={activeFilter === key ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setActiveFilter(key)}
+                >
+                  {label} ({count})
+                </Button>
+              ))}
+            </div>
         <CardContent>
           <div className="space-y-3">
             {/* Late Arrivals - Show first with red styling */}
-            {lateArrivals.map((reservation) => {
+            {activeFilter === 'all' || activeFilter === 'late' ? (lateArrivals.map((reservation) => {
               const outstandingBalance = reservation.total_amount - reservation.paid_amount
               const hasBalance = outstandingBalance > 0
               const checkInDate = new Date(reservation.check_in_date).toLocaleDateString()
@@ -216,10 +238,10 @@ export function TodaysArrivalsCard({
                   ) : null}
                 </div>
               )
-            })}
+            })) : null}
 
             {/* Today's Pending Check-ins */}
-            {todaysPendingCheckIns.map((reservation) => {
+            {activeFilter === 'all' || activeFilter === 'waiting' ? (todaysPendingCheckIns.map((reservation) => {
               const outstandingBalance = reservation.total_amount - reservation.paid_amount
               const hasBalance = outstandingBalance > 0
 
@@ -271,10 +293,10 @@ export function TodaysArrivalsCard({
                   ) : null}
                 </div>
               )
-            })}
+            })) : null}
 
             {/* Completed Check-ins */}
-            {completedCheckIns.map((reservation) => (
+            {activeFilter === 'all' || activeFilter === 'checked_in' ? (completedCheckIns.map((reservation) => (
               <div
                 key={reservation.id}
                 className="flex flex-col gap-3 rounded-lg border border-green-200 bg-green-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-green-900/60 dark:bg-green-950/25"
@@ -302,10 +324,19 @@ export function TodaysArrivalsCard({
                   Checked In
                 </Badge>
               </div>
-            ))}
+            ))) : null}
 
+            {activeFilter === 'late' && lateArrivals.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No late arrivals</div>
+            )}
+            {activeFilter === 'waiting' && todaysPendingCheckIns.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No arrivals waiting for check-in</div>
+            )}
+            {activeFilter === 'checked_in' && completedCheckIns.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No check-ins completed yet</div>
+            )}
             {/* Show message if all check-ins complete */}
-            {pendingCheckIns.length === 0 && completedCheckIns.length > 0 && (
+            {activeFilter === 'all' && pendingCheckIns.length === 0 && completedCheckIns.length > 0 && (
               <div className="flex items-center justify-center gap-2 py-2 text-sm text-green-600">
                 <CheckCircle className="h-4 w-4" />
                 <span>All arrivals checked in!</span>

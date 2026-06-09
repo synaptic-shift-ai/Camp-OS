@@ -10,6 +10,7 @@ import { TodaysArrivalsCard } from "@/components/dashboard/reservations/todays-a
 import type { ReservationStatus } from "@/contracts/booking"
 import { DepartureCheckOutButton } from "@/components/dashboard/reservations/departure-check-out-button"
 import { getPropertyForUser } from "@/lib/dashboard/property-access"
+import { LiveClock } from "@/components/dashboard/live-clock"
 import { resolveDashboardAccess } from "@/lib/rbac/dashboard-guards"
 import { redirect } from "next/navigation"
 
@@ -481,11 +482,14 @@ export default async function DashboardOverviewPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 overflow-x-hidden">
-      <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Dashboard</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          Welcome back! Here&apos;s what&apos;s happening with your property.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-heading font-bold tracking-tight sm:text-3xl">Dashboard</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Welcome back! Here&apos;s what&apos;s happening with your property.
+          </p>
+        </div>
+        <LiveClock timezone={property.timezone ?? ''} />
       </div>
 
       <Suspense

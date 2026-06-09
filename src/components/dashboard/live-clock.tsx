@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Clock } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 
 interface LiveClockProps {
   timezone?: string
@@ -16,27 +16,33 @@ export function LiveClock({ timezone }: LiveClockProps) {
   }, [])
 
   const tz = timezone || undefined
+  const timeOptions = tz ? { timeZone: tz } : {}
+
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    ...timeOptions,
+  })
+
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    ...timeOptions,
+  })
 
   return (
-    <div className="flex items-start gap-1.5 text-right">
-      <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
-      <div className="flex flex-col">
-        <span className="text-sm font-medium tabular-nums" suppressHydrationWarning>
-          {new Intl.DateTimeFormat(tz, {
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZoneName: 'short',
-          }).format(now)}
-        </span>
-        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
-          {new Intl.DateTimeFormat(tz, {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          }).format(now)}
-        </span>
-      </div>
+    <div className="flex items-center gap-3 rounded-full border border-border bg-background px-4 py-2 shadow-sm">
+      <Calendar className="h-4 w-4 shrink-0 text-primary" />
+      <span className="text-sm font-medium whitespace-nowrap" suppressHydrationWarning>
+        {dateFormatter.format(now)}
+      </span>
+      <div className="h-4 w-px shrink-0 bg-border" aria-hidden="true" />
+      <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span className="text-sm font-medium tabular-nums whitespace-nowrap" suppressHydrationWarning>
+        {timeFormatter.format(now)}
+      </span>
     </div>
   )
 }

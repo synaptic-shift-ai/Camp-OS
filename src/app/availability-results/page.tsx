@@ -31,7 +31,7 @@ import type { AvailableSite, SiteType } from "@/lib/booking/types"
 import { calculatePriceBreakdown, getBaseSubtotalAndLabel } from "@/lib/booking/pricing"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import type { RateDiscountsConfig } from "@/lib/config/types"
-import { cn } from "@/lib/utils"
+import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
 type GuestPricingConfig = {
   tax_rate?: number
@@ -320,7 +320,7 @@ function AvailabilityResultsContent() {
     router.push(guestInfoPath)
   }
 
-  const displayPropertyName = propertyName || (slug ? slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ') : "")
+  const displayPropertyName = propertyName || (slug ? capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')) : "")
 
   if (!checkIn || !checkOut || !propertyId) {
     return (

@@ -12,7 +12,7 @@ import { downloadConfirmationPdf } from "@/lib/booking/confirmation-pdf"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
-import { cn } from "@/lib/utils"
+import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
 // API response types
 type ConfirmPaymentResponse =
@@ -177,7 +177,7 @@ export default function ConfirmationPage() {
   }
 
   const displayPropertyName =
-    checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+    checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
 
   const numberOfNights = checkoutData.priceBreakdown?.number_of_nights
     ?? differenceInDays(checkoutData.checkOutDate!, checkoutData.checkInDate!)

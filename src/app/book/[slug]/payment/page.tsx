@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
-import { cn } from "@/lib/utils"
+import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import { DEFAULT_PAYMENT_METHODS, type PaymentMethod } from "@/lib/config/types"
 
 const PAYMENT_METHOD_DISPLAY: Record<PaymentMethod, { title: string; description: string }> = {
@@ -289,7 +289,7 @@ export default function PaymentPage() {
   const [paypalLastName, setPaypalLastName] = useState("")
   const resolvedPaymentProcessor = checkoutData.paymentProcessor ?? 'stripe'
   const displayPropertyName =
-    checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+    checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
 
   const enabledPaymentMethods =
     (Array.isArray(checkoutData.enabledPaymentMethods) && checkoutData.enabledPaymentMethods.length > 0

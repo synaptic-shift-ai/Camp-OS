@@ -26,7 +26,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { validatePostalCode, getDetectedCountryCode, getDetectedTimezone } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
-import { cn } from "@/lib/utils"
+import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import {
   type GuestCancellationPolicyApiData,
 } from "@/lib/guest/guest-cancellation-policy"
@@ -158,7 +158,7 @@ export default function GuestInfoPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
-    checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+    checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
   const [detectedCountry] = useState(() => getDetectedCountryCode())
   const [detectedTimezone] = useState(() => getDetectedTimezone())
 

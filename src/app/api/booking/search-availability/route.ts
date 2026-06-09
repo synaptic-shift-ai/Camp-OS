@@ -4,6 +4,7 @@ import { getActivePromoDisplay } from '@/lib/config/resolution'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { RateDiscountsConfig } from '@/lib/config/types'
 import { z } from 'zod'
+import { capitalizeWordsPreserveSpacing } from '@/lib/utils'
 
 const searchParamsSchema = z.object({
   property_id: z.string().uuid(),
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
         ...result,
         data: {
           ...result.data,
-          property_name: property?.name ?? null,
+          property_name: property?.name ? capitalizeWordsPreserveSpacing(property.name) : null,
           cancellation_policy: property?.cancellation_policy ?? null,
           active_promos: activePromos,
           rate_discounts_config: property?.rate_discounts_config ?? null,

@@ -9,6 +9,7 @@ import { getPricingSourceType } from "@/lib/site-pricing-source"
 import type { BookingRulesConfig, RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
 import { format } from "date-fns"
 import { extractOpenPeriodFromPropertySettings } from "@/lib/booking/open-period"
+import { capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
 export default async function PropertyBookingPage({
   params,
@@ -478,7 +479,7 @@ export default async function PropertyBookingPage({
   // Prepare property data for PropertyBookingPortal component
   const propertyData = {
     id: property.id,
-    name: property.name,
+    name: capitalizeWordsPreserveSpacing(property.name),
     city: property.city || "",
     state: property.state || "",
     description: property.booking_page_description || property.description,
@@ -561,12 +562,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       }
     }
 
+    const formattedName = capitalizeWordsPreserveSpacing(property.name)
     const location = `${property.city || ""}${property.city && property.state ? ", " : ""}${property.state || ""}`
-    const title = `${property.name}${location ? ` - ${location}` : ""} | Campground Reservations`
+    const title = `${formattedName}${location ? ` - ${location}` : ""} | Campground Reservations`
     const description =
       property.booking_page_description ||
       property.booking_page_tagline ||
-      `Book your stay at ${property.name}${location ? ` in ${location}` : ""}. Browse available campsites and make your reservation online.`
+      `Book your stay at ${formattedName}${location ? ` in ${location}` : ""}. Browse available campsites and make your reservation online.`
 
     return {
       title,

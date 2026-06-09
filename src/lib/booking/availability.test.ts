@@ -441,3 +441,125 @@ describe('searchAvailableSites', () => {
     }
   })
 })
+
+describe('searchAvailableSites – zero-rate site filtering', () => {
+  const supabase = createServiceRoleClient()
+  let testData: {
+    property_id: string
+    zeroRateSiteId: string
+    overrideZeroBaseSiteId: string
+    validRateSiteId: string
+  }
+
+  beforeAll(async () => {
+    const property_id = testPropertyId()
+
+    await supabase.from('properties').insert({
+      id: property_id,
+      name: 'Zero-Rate Filter Test',
+      slug: 'zero-rate-filter-' + Date.now(),
+      owner_id: testUUID(),
+      site_type_config: {
+        allowed_site_types: ['rv'],
+        site_type_rates: {
+          rv: {
+            nightly: { rate_cents: 5000 },
+            weekly: { rate_cents: 30000 },
+            monthly: { rate_cents: 100000 },
+          },
+        },
+      },
+    })
+
+    const zeroRateSiteId = testSiteId()
+    await supabase.from('sites').insert({
+      id: zeroRateSiteId,
+      property_id,
+      site_number: '1',
+      site_name: 'Zero Rate Site',
+      site_type: 'rv',
+      max_occupancy: 4,
+      base_price: 0,
+      status: 'available',
+    })
+
+    const overrideZeroBaseSiteId = testSiteId()
+    await supabase.from('sites').insert({
+      id: overrideZeroBaseSiteId,
+      property_id,
+      site_number: '2',
+      site_name: 'Override Zero Base Site',
+      site_type: 'rv',
+      max_occupancy: 4,
+      base_price: 0,
+      pricing_override: { source: 'site_type_default' },
+      status: 'available',
+    })
+
+    const validRateSiteId = testSiteId()
+    await supabase.from('sites').insert({
+      id: validRateSiteId,
+      property_id,
+      site_number: '3',
+      site_name: 'Valid Rate Site',
+      site_type: 'rv',
+      max_occupancy: 4,
+      base_price: 6000,
+      status: 'available',
+    })
+
+    testData = { property_id, zeroRateSiteId, overrideZeroBaseSiteId, validRateSiteId }
+  })
+
+  afterAll(async () => {
+    await supabase.from('sites').delete().eq('property_id', testData.property_id)
+    await supabase.from('properties').delete().eq('id', testData.property_id)
+  })
+
+  test('should exclude site with base_price 0 and no rate overrides', async () => {
+    const { check_in_date, check_out_date } = bookingDateRange(15, 3)
+
+    const result = await searchAvailableSites({
+      property_id: testData.property_id,
+      check_in_date,
+      check_out_date,
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.sites.some((s) => s.id === testData.zeroRateSiteId)).toBe(false)
+    }
+  })
+
+  test('should include site with base_price 0 when site_type_default has positive nightly rate', async () => {
+    const { check_in_date, check_out_date } = bookingDateRange(15, 3)
+
+    const result = await searchAvailableSites({
+      property_id: testData.property_id,
+      check_in_date,
+      check_out_date,
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.sites.some((s) => s.id === testData.overrideZeroBaseSiteId)).toBe(true)
+      const site = result.data.sites.find((s) => s.id === testData.overrideZeroBaseSiteId)
+      expect(site?.base_price_per_night).toBe(5000)
+    }
+  })
+
+  test('should include site with valid base_price greater than 0', async () => {
+    const { check_in_date, check_out_date } = bookingDateRange(15, 3)
+
+    const result = await searchAvailableSites({
+      property_id: testData.property_id,
+      check_in_date,
+      check_out_date,
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.sites.some((s) => s.id === testData.validRateSiteId)).toBe(true)
+    }
+  })
+})

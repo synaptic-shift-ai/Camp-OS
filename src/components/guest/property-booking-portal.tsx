@@ -23,10 +23,12 @@ import {
   Camera,
   Car,
   ImageOff,
+  TriangleAlert,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { SiteType } from "@/lib/booking/types"
@@ -219,7 +221,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
 
   // Clear check-out when it becomes invalid after check-in change
   useEffect(() => {
-    if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
+    if (checkInDate && checkOutDate && checkOutDate < checkInDate) {
       setCheckOutDate(undefined)
     }
   }, [checkInDate, checkOutDate])
@@ -337,11 +339,19 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     }
 
     if (checkOutDate <= checkInDate) {
-      toast({
-        title: "Invalid dates",
-        description: "Check-out date must be after check-in date",
-        variant: "destructive",
-      })
+      if (checkInDate.getTime() === checkOutDate.getTime()) {
+        toast({
+          title: "Same-day booking",
+          description: "Check-in and check-out cannot be on the same day. Please select a different check-out date.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Invalid dates",
+          description: "Check-out date must be after check-in date.",
+          variant: "destructive",
+        })
+      }
       return
     }
 
@@ -599,9 +609,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               </div>
               <div>
                 <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{property.name}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {property.city}, {property.state}
-                </p>
+                {property.city || property.state ? (
+                  <p className="text-sm text-muted-foreground">
+                    {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -740,8 +752,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           <h1 className="text-4xl md:text-6xl font-bold mb-4">{property.tagline || "Create Memories in Nature"}</h1>
           <p className="text-xl md:text-2xl mb-2 opacity-90">{property.name}</p>
           <p className="text-lg mb-8 opacity-80">
-            <MapPin className="inline h-5 w-5 mr-1" />
-            {property.city}, {property.state}
+            {(property.city || property.state) && (
+              <>
+                <MapPin className="inline h-5 w-5 mr-1" />
+                {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+              </>
+            )}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
@@ -816,6 +832,15 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                       : {})}
                     numberOfMonths={1}
                   />
+                  {checkInDate && checkOutDate && checkInDate.getTime() === checkOutDate.getTime() && (
+                    <Alert className="border-yellow-500/50 bg-yellow-500/10">
+                      <TriangleAlert className="h-4 w-4 text-yellow-600" />
+                      <AlertTitle className="text-yellow-700">Same-day check-in and check-out</AlertTitle>
+                      <AlertDescription className="text-yellow-700">
+                        Check-in and check-out dates cannot be the same. Please select a check-out date that is after your check-in date.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 {/* Site Type Filter */}
@@ -1350,9 +1375,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 </div>
                 <span className="text-xl font-bold">{property.name}</span>
               </div>
-              <p className="mb-4 text-emerald-100/90">
-                {property.city}, {property.state}
-              </p>
+              {(property.city || property.state) && (
+                <p className="mb-4 text-emerald-100/90">
+                  {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                </p>
+              )}
             </div>
 
             <div>
@@ -1401,9 +1428,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     <Mail className="h-4 w-4 mr-2" /> {property.email}
                   </p>
                 )}
-                <p className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2" /> {property.city}, {property.state}
-                </p>
+                {(property.city || property.state) && (
+                  <p className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-2" /> {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                  </p>
+                )}
               </div>
             </div>
           </div>

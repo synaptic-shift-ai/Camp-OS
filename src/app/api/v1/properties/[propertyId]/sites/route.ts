@@ -311,45 +311,49 @@ export async function POST(
       locationMap: validatedRequest.locationMap || null,
     })
 
-    // Save reservation type override and rate overrides if provided
-    const siteExtras: Record<string, any> = {}
-    if (validatedRequest.enabledReservationTypesOverride !== undefined) {
-      siteExtras.enabled_reservation_types_override = validatedRequest.enabledReservationTypesOverride
-    }
-    if (validatedRequest.pricingOverride !== undefined) {
-      siteExtras.pricing_override = validatedRequest.pricingOverride
-    }
-    if ((validatedRequest as any).seasonalRateCents !== undefined) {
-      siteExtras.seasonal_rate_cents = (validatedRequest as any).seasonalRateCents
-    }
-    if ((validatedRequest as any).weeklyRateCents !== undefined) {
-      siteExtras.weekly_rate_cents = (validatedRequest as any).weeklyRateCents
-    }
-    if ((validatedRequest as any).monthlyRateCents !== undefined) {
-      siteExtras.monthly_rate_cents = (validatedRequest as any).monthlyRateCents
-    }
-    if ((validatedRequest as any).allowPets !== undefined) {
-      siteExtras.allow_pets = (validatedRequest as any).allowPets
-    }
-    if ((validatedRequest as any).petFee !== undefined) {
-      siteExtras.pet_fee = (validatedRequest as any).petFee
-    }
-    if ((validatedRequest as any).adaAccessible !== undefined) {
-      siteExtras.ada_accessible = (validatedRequest as any).adaAccessible
-    }
-    if ((validatedRequest as any).accessibilityFeatures !== undefined) {
-      siteExtras.accessibility_features = (validatedRequest as any).accessibilityFeatures
-    }
-    if (availabilityRulesFromBody !== undefined) {
-      siteExtras.availability_rules = availabilityRulesFromBody
-    }
+    // Save reservation type override and rate overrides if provided (non-blocking)
+    try {
+      const siteExtras: Record<string, any> = {}
+      if (validatedRequest.enabledReservationTypesOverride !== undefined) {
+        siteExtras.enabled_reservation_types_override = validatedRequest.enabledReservationTypesOverride
+      }
+      if (validatedRequest.pricingOverride !== undefined) {
+        siteExtras.pricing_override = validatedRequest.pricingOverride
+      }
+      if ((validatedRequest as any).seasonalRateCents !== undefined) {
+        siteExtras.seasonal_rate_cents = (validatedRequest as any).seasonalRateCents
+      }
+      if ((validatedRequest as any).weeklyRateCents !== undefined) {
+        siteExtras.weekly_rate_cents = (validatedRequest as any).weeklyRateCents
+      }
+      if ((validatedRequest as any).monthlyRateCents !== undefined) {
+        siteExtras.monthly_rate_cents = (validatedRequest as any).monthlyRateCents
+      }
+      if ((validatedRequest as any).allowPets !== undefined) {
+        siteExtras.allow_pets = (validatedRequest as any).allowPets
+      }
+      if ((validatedRequest as any).petFee !== undefined) {
+        siteExtras.pet_fee = (validatedRequest as any).petFee
+      }
+      if ((validatedRequest as any).adaAccessible !== undefined) {
+        siteExtras.ada_accessible = (validatedRequest as any).adaAccessible
+      }
+      if ((validatedRequest as any).accessibilityFeatures !== undefined) {
+        siteExtras.accessibility_features = (validatedRequest as any).accessibilityFeatures
+      }
+      if (availabilityRulesFromBody !== undefined) {
+        siteExtras.availability_rules = availabilityRulesFromBody
+      }
 
-    if (Object.keys(siteExtras).length > 0) {
-      await supabase
-        .from('sites')
-        .update(siteExtras)
-        .eq('id', siteId)
-        .is('deleted_at', null)
+      if (Object.keys(siteExtras).length > 0) {
+        await supabase
+          .from('sites')
+          .update(siteExtras)
+          .eq('id', siteId)
+          .is('deleted_at', null)
+      }
+    } catch (extrasError) {
+      console.error('[SiteCreation] Extras update failed for site', siteId, extrasError)
     }
 
     if (property.company_id) {

@@ -6,7 +6,7 @@
 
 import { ValueObject } from '@/shared/domain/ValueObject'
 
-export type BillingCycleType = 'monthly' | 'yearly'
+export type BillingCycleType = 'monthly' | 'annual'
 
 interface BillingCycleProps {
   value: BillingCycleType
@@ -14,7 +14,7 @@ interface BillingCycleProps {
 
 export class BillingCycle extends ValueObject<BillingCycleProps> {
   public static readonly MONTHLY = new BillingCycle({ value: 'monthly' })
-  public static readonly YEARLY = new BillingCycle({ value: 'yearly' })
+  public static readonly ANNUAL = new BillingCycle({ value: 'annual' })
 
   /**
    * Get the billing cycle value
@@ -40,33 +40,33 @@ export class BillingCycle extends ValueObject<BillingCycleProps> {
     switch (normalized) {
       case 'monthly':
         return BillingCycle.MONTHLY
-      case 'yearly':
-        return BillingCycle.YEARLY
+      case 'annual':
+        return BillingCycle.ANNUAL
       default:
         throw new Error(`Invalid billing cycle: ${cycle}`)
     }
   }
 
   /**
-   * Check if this is yearly billing
+   * Check if this is annual billing
    */
-  get isYearly(): boolean {
-    return this.props.value === 'yearly'
+  get isAnnual(): boolean {
+    return this.props.value === 'annual'
   }
 
   /**
    * Get the number of months in the billing period
    */
   get monthsInPeriod(): number {
-    return this.props.value === 'yearly' ? 12 : 1
+    return this.props.value === 'annual' ? 12 : 1
   }
 
   /**
-   * Get the discount percentage for yearly billing
+   * Get the discount percentage for annual billing
    * (typically 2 months free = ~17% off)
    */
   get discountPercentage(): number {
-    return this.props.value === 'yearly' ? 17 : 0
+    return this.props.value === 'annual' ? 17 : 0
   }
 
   public override toString(): string {

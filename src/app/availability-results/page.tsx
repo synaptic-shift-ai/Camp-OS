@@ -31,7 +31,7 @@ import type { AvailableSite, SiteType } from "@/lib/booking/types"
 import { calculatePriceBreakdown, getBaseSubtotalAndLabel } from "@/lib/booking/pricing"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import type { RateDiscountsConfig } from "@/lib/config/types"
-import { cn } from "@/lib/utils"
+import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
 type GuestPricingConfig = {
   tax_rate?: number
@@ -71,6 +71,7 @@ function AvailabilityResultsContent() {
   const [activePromos, setActivePromos] = useState<Array<{ discountLabel: string; discountCondition: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [propertyName, setPropertyName] = useState<string>("")
+  const [propertyAddress, setPropertyAddress] = useState<string | null>(null)
   const [cancellationPolicy, setCancellationPolicy] = useState<string | null>(null)
 
   const slug = searchParams.get("slug") || ""
@@ -125,6 +126,9 @@ function AvailabilityResultsContent() {
           setActivePromos(result.data.active_promos ?? [])
           if (typeof result.data.property_name === "string" && result.data.property_name.trim().length > 0) {
             setPropertyName(result.data.property_name)
+          }
+          if (typeof result.data.property_address === "string" && result.data.property_address.trim().length > 0) {
+            setPropertyAddress(result.data.property_address)
           }
           if (typeof result.data.cancellation_policy === "string" && result.data.cancellation_policy.trim().length > 0) {
             setCancellationPolicy(result.data.cancellation_policy)
@@ -298,6 +302,7 @@ function AvailabilityResultsContent() {
     setCheckoutData({
       propertyId,
       propertyName: displayPropertyName,
+      ...(propertyAddress ? { propertyAddress } : {}),
       site,
       checkInDate: checkIn,
       checkOutDate: checkOut,
@@ -320,7 +325,7 @@ function AvailabilityResultsContent() {
     router.push(guestInfoPath)
   }
 
-  const displayPropertyName = propertyName || (slug ? slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ') : "")
+  const displayPropertyName = propertyName || (slug ? capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')) : "")
 
   if (!checkIn || !checkOut || !propertyId) {
     return (

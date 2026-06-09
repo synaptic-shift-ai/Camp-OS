@@ -14,7 +14,7 @@ import { OnboardingToken } from './value-objects/OnboardingToken'
 import { CompanyCreatedEvent } from './events/CompanyCreatedEvent'
 import { CompanyUpdatedEvent } from './events/CompanyUpdatedEvent'
 import { SubscriptionActivatedEvent } from './events/SubscriptionActivatedEvent'
-import { SubscriptionCancelledEvent } from './events/SubscriptionCancelledEvent'
+import { SubscriptionCanceledEvent } from './events/SubscriptionCanceledEvent'
 import { SubscriptionPlanChangedEvent } from './events/SubscriptionPlanChangedEvent'
 import { InviteGeneratedEvent } from './events/InviteGeneratedEvent'
 
@@ -123,7 +123,7 @@ export class Company extends AggregateRoot<string> {
   public static create(props: CreateCompanyProps): Company {
     const now = new Date()
     const name = CompanyName.create(props.name)
-    const plan = props.plan || SubscriptionPlan.FREE
+    const plan = props.plan || SubscriptionPlan.STARTER
 
     const company = new Company(props.id, {
       ownerId: props.ownerId,
@@ -131,7 +131,7 @@ export class Company extends AggregateRoot<string> {
       companyLogoUrl: null,
       stripeCustomerId: null,
       subscriptionId: null,
-      subscriptionStatus: SubscriptionStatus.TRIAL,
+      subscriptionStatus: SubscriptionStatus.ACTIVE,
       subscriptionPlan: plan,
       billingCycle: BillingCycle.MONTHLY,
       subscriptionCreatedAt: null,
@@ -234,16 +234,16 @@ export class Company extends AggregateRoot<string> {
 
     const previousSubscriptionId = this._subscriptionId
 
-    this._subscriptionStatus = SubscriptionStatus.CANCELLED
+    this._subscriptionStatus = SubscriptionStatus.CANCELED
     this._subscriptionCanceledAt = new Date()
     this.touch()
 
     this.addDomainEvent(
-      new SubscriptionCancelledEvent({
+      new SubscriptionCanceledEvent({
         companyId: this.id,
         subscriptionId: previousSubscriptionId || '',
         reason: reason || null,
-        cancelledAt: this._subscriptionCanceledAt,
+        canceledAt: this._subscriptionCanceledAt,
       })
     )
   }
@@ -437,7 +437,7 @@ export class Company extends AggregateRoot<string> {
       owner_id: this._ownerId,
       stripe_customer_id: this._stripeCustomerId,
       subscription_id: this._subscriptionId,
-      subscription_status: this._subscriptionStatus.value,
+      subscription_status: this._subscriptionStatus.isPersistable ? this._subscriptionStatus.value : null,
       subscription_plan: this._subscriptionPlan.value,
       billing_cycle: this._billingCycle.value,
       subscription_created_at: this._subscriptionCreatedAt?.toISOString() || null,

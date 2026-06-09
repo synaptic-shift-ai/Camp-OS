@@ -9,7 +9,7 @@
  * Inspired by airline booking systems (Expedia, Southwest, etc.)
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, Clock } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -24,7 +24,8 @@ interface CheckoutTimerProps {
 export function CheckoutTimer({ reservedUntil, propertySlug, reservationId, onExpired }: CheckoutTimerProps) {
   const router = useRouter()
   const [timeLeft, setTimeLeft] = useState<number>(0)
-  const [isExpired, setIsExpired] = useState(false)
+  const expiredViaTimerRef = useRef(false)
+  const [displayExpired, setDisplayExpired] = useState(false)
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -43,8 +44,9 @@ export function CheckoutTimer({ reservedUntil, propertySlug, reservationId, onEx
       const remaining = calculateTimeLeft()
       setTimeLeft(remaining)
 
-      if (remaining === 0 && !isExpired) {
-        setIsExpired(true)
+      if (remaining === 0 && !expiredViaTimerRef.current) {
+        expiredViaTimerRef.current = true
+        setDisplayExpired(true)
         onExpired?.()
 
         const expireAndRedirect = async () => {
@@ -67,8 +69,18 @@ export function CheckoutTimer({ reservedUntil, propertySlug, reservationId, onEx
       }
     }, 1000)
 
-    return () => clearInterval(interval)
-  }, [reservedUntil, isExpired, router, propertySlug, reservationId, onExpired])
+    return () => {
+      clearInterval(interval)
+      if (!expiredViaTimerRef.current && reservationId) {
+        fetch('/api/guest/reservations/expire', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reservation_id: reservationId }),
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
+  }, [reservedUntil, router, propertySlug, reservationId, onExpired])
 
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
@@ -80,7 +92,7 @@ export function CheckoutTimer({ reservedUntil, propertySlug, reservationId, onEx
   const isUrgent = timeLeft < 300 // Less than 5 minutes
   const isCritical = timeLeft < 60 // Less than 1 minute
 
-  if (isExpired) {
+  if (displayExpired) {
     return (
       <Alert variant="destructive" className="mb-6">
         <AlertCircle className="h-4 w-4" />

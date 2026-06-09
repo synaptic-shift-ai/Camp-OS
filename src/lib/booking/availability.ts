@@ -558,6 +558,35 @@ export async function searchAvailableSites(
   type SiteTypeRatesMap = Record<string, { nightly?: { rate_cents: number | null }; weekly?: { rate_cents: number | null }; monthly?: { rate_cents: number | null }; seasonal?: { rate_cents: number | null } }>
   const siteTypeRatesMap = (property as { site_type_config?: { site_type_rates?: SiteTypeRatesMap } } | null)?.site_type_config?.site_type_rates ?? {}
 
+  function resolveSiteNightlyRate(row: SiteRow): number {
+    const pricingSource = getPricingSourceType(row.pricing_override, row.enabled_reservation_types_override)
+    const override = row.pricing_override?.reservation_type_rates_override ?? null
+    let effectiveOverride: Partial<Record<BookingType, number>> | null = override
+    if (pricingSource === 'site_type_default') {
+      const st = (row.site_type ?? '').toLowerCase()
+      const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (row.site_type ?? '')
+      const rates = key ? siteTypeRatesMap[key] : null
+      if (rates) {
+        effectiveOverride = { ...(override ?? {}) }
+        if (rates.nightly?.rate_cents != null) effectiveOverride.nightly = rates.nightly.rate_cents
+        if (rates.weekly?.rate_cents != null && rates.weekly.rate_cents > 0) effectiveOverride.weekly = rates.weekly.rate_cents
+        if (rates.monthly?.rate_cents != null && rates.monthly.rate_cents > 0) effectiveOverride.monthly = rates.monthly.rate_cents
+        if (rates.seasonal?.rate_cents != null) effectiveOverride.seasonal = rates.seasonal.rate_cents
+      }
+    } else if (pricingSource === 'manual') {
+      effectiveOverride = { ...(override ?? {}), nightly: row.base_price ?? 0 }
+    }
+    return resolveReservationTypeRate(
+      'nightly',
+      propertyEnabledTypes.includes('nightly') ? reservationTypeConfig : null,
+      effectiveOverride,
+      fallbackRates(row),
+    )
+  }
+
+  // Exclude sites whose effective nightly rate is 0
+  filteredSites = filteredSites.filter((site) => resolveSiteNightlyRate(site as SiteRow) > 0)
+
   const availableSites = filteredSites.map((site) => {
     const row = site as SiteRow
     const pricingSource = getPricingSourceType(row.pricing_override, row.enabled_reservation_types_override)
@@ -616,12 +645,7 @@ export async function searchAvailableSites(
           : propertyEnabledTypes.includes('monthly')
 
     
-    const nightlyCents = resolveReservationTypeRate(
-      'nightly',
-      propertyEnabledTypes.includes('nightly') ? reservationTypeConfig : null,
-      effectiveOverride,
-      fallbackRates(row)
-    )
+    const nightlyCents = resolveSiteNightlyRate(row)
 
     if (pricingSource === 'site_type_default' && siteTypeRatesEntry) {
       const r = siteTypeRatesEntry

@@ -24,6 +24,7 @@ type CampaignScheduleDialogProps = {
   onOpenChange: (open: boolean) => void
   onConfirm: (scheduledAt: string) => Promise<void>
   isSubmitting?: boolean
+  initialScheduledAt?: string | null
 }
 
 const MIN_LEAD_MS = 60_000
@@ -41,6 +42,7 @@ export function CampaignScheduleDialog({
   onOpenChange,
   onConfirm,
   isSubmitting = false,
+  initialScheduledAt,
 }: CampaignScheduleDialogProps) {
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
@@ -48,11 +50,20 @@ export function CampaignScheduleDialog({
 
   useEffect(() => {
     if (!open) return
+    if (initialScheduledAt) {
+      const existing = new Date(initialScheduledAt)
+      if (!Number.isNaN(existing.getTime())) {
+        setDate(formatLocalDateKey(existing))
+        setTime(formatLocalTimeHM(existing))
+        setError(null)
+        return
+      }
+    }
     const defaults = getDefaultScheduleParts()
     setDate(defaults.date)
     setTime(defaults.time)
     setError(null)
-  }, [open])
+  }, [open, initialScheduledAt])
 
   const todayKey = formatLocalDateKey(new Date())
   const nowHm = formatLocalTimeHM(new Date())

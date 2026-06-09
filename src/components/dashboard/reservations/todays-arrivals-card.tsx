@@ -10,10 +10,10 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Clock, User, Home, AlertTriangle } from 'lucide-react'
+import { CheckCircle, Clock, Users, Tent, AlertTriangle, LogIn, Moon } from 'lucide-react'
 import { CheckInDialog } from './check-in-dialog'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 import type { Reservation } from '@/lib/booking/types'
 
 interface TodaysArrivalsCardProps {
@@ -30,23 +30,225 @@ interface TodaysArrivalsCardProps {
 const SEASON_ALERT_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
+type ArrivalReservation = TodaysArrivalsCardProps['arrivals'][number]
+type ArrivalFilter = 'all' | 'late' | 'expected' | 'upcoming'
+
+function parseCheckInTimeMinutes(time: string | null | undefined): number | null {
+  if (!time) return null
+  const [hoursRaw, minutesRaw] = time.split(':')
+  const hours = Number(hoursRaw)
+  const minutes = Number(minutesRaw)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  return hours * 60 + minutes
+}
+
+function formatExpectedCheckInTime(time: string | null | undefined): string {
+  const minutes = parseCheckInTimeMinutes(time)
+  if (minutes === null) return 'Expected today'
+
+  const date = new Date()
+  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0)
+  return `Expected ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+}
+
+function getNights(checkIn: string, checkOut: string) {
+  return Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function getSiteLabel(reservation: ArrivalReservation) {
+  if (reservation.site?.site_name) return reservation.site.site_name
+  return `Site ${reservation.site?.site_number ?? '—'}`
+}
+
+function FilterPill({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string
+  count: number
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+        active
+          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+          : 'border border-border bg-background text-foreground hover:bg-muted/50',
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold',
+          active
+            ? 'bg-slate-700 text-white dark:bg-slate-300 dark:text-slate-900'
+            : 'bg-muted text-muted-foreground',
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  )
+}
+
+function SectionHeader({
+  label,
+  count,
+  tone,
+}: {
+  label: string
+  count: number
+  tone: 'late' | 'expected' | 'upcoming'
+}) {
+  const toneStyles = {
+    late: {
+      text: 'text-red-600 dark:text-red-400',
+      badge: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+    },
+    expected: {
+      text: 'text-amber-600 dark:text-amber-400',
+      badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+    },
+    upcoming: {
+      text: 'text-blue-600 dark:text-blue-400',
+      badge: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+    },
+  }[tone]
+
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span className={cn('text-xs font-bold uppercase tracking-wide', toneStyles.text)}>{label}</span>
+      <span
+        className={cn(
+          'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold',
+          toneStyles.badge,
+        )}
+      >
+        {count}
+      </span>
+    </div>
+  )
+}
+
+function ArrivalCard({
+  reservation,
+  variant,
+  checkInTime,
+  canManageCheckInOut,
+  loadingReservationId,
+  onCheckIn,
+}: {
+  reservation: ArrivalReservation
+  variant: 'late' | 'expected' | 'upcoming'
+  checkInTime?: string | null | undefined
+  canManageCheckInOut: boolean
+  loadingReservationId: string | null
+  onCheckIn: (reservation: ArrivalReservation) => void
+}) {
+  const nights = getNights(reservation.check_in_date, reservation.check_out_date)
+  const guestCount = reservation.num_adults + reservation.num_children
+
+  const variantStyles = {
+    late: {
+      container: 'border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/20',
+      icon: AlertTriangle,
+      iconClass: 'text-red-600 dark:text-red-400',
+      badge: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+      label: 'Late',
+    },
+    expected: {
+      container: 'border-amber-200 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/20',
+      icon: Clock,
+      iconClass: 'text-amber-600 dark:text-amber-400',
+      badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+      label: 'Expected',
+    },
+    upcoming: {
+      container: 'border-blue-200 bg-blue-50/60 dark:border-blue-900/50 dark:bg-blue-950/20',
+      icon: Clock,
+      iconClass: 'text-blue-600 dark:text-blue-400',
+      badge: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+      label: 'Upcoming',
+    },
+  }[variant]
+
+  const StatusIcon = variantStyles.icon
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between',
+        variantStyles.container,
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+          <StatusIcon className={cn('h-4 w-4 shrink-0', variantStyles.iconClass)} />
+          <p className="truncate font-semibold capitalize">
+            {reservation.guest?.first_name} {reservation.guest?.last_name}
+          </p>
+          <span
+            className={cn(
+              'rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+              variantStyles.badge,
+            )}
+          >
+            {variantStyles.label}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Tent className="h-3.5 w-3.5" />
+            {getSiteLabel(reservation)}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            {formatExpectedCheckInTime(checkInTime)}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Moon className="h-3.5 w-3.5" />
+            {nights} {nights === 1 ? 'night' : 'nights'}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            {guestCount} {guestCount === 1 ? 'guest' : 'guests'}
+          </span>
+        </div>
+      </div>
+      {canManageCheckInOut ? (
+        <Button
+          size="sm"
+          onClick={() => onCheckIn(reservation)}
+          disabled={loadingReservationId === reservation.id}
+          className="w-full shrink-0 bg-rose-500 text-white hover:bg-rose-600 sm:w-auto"
+        >
+          <LogIn className="mr-1.5 h-4 w-4" />
+          Check In
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 export function TodaysArrivalsCard({
   arrivals,
   checkInTime,
   canManageCheckInOut = true,
 }: TodaysArrivalsCardProps) {
   const { toast } = useToast()
-  const [selectedReservation, setSelectedReservation] = useState<
-    (Reservation & {
-      guest?: { first_name: string; last_name: string; email: string }
-      site?: { site_number: string; site_name: string | null; status?: string | null }
-    }) | null
-  >(null)
+  const [selectedReservation, setSelectedReservation] = useState<ArrivalReservation | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingReservationId, setLoadingReservationId] = useState<string | null>(null)
   const [bookingPaymentMethodId, setBookingPaymentMethodId] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<ArrivalFilter>('all')
 
-  const handleCheckIn = async (reservation: typeof arrivals[0]) => {
+  const handleCheckIn = async (reservation: ArrivalReservation) => {
     setLoadingReservationId(reservation.id)
     try {
       const response = await fetch(`/api/v1/reservations/${reservation.id}`)
@@ -75,17 +277,66 @@ export function TodaysArrivalsCard({
     }
   }
 
-  function formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+  const checkInMinutes = parseCheckInTimeMinutes(checkInTime)
+  const isPastCheckInTime = checkInMinutes !== null && nowMinutes >= checkInMinutes
+  const isExpectedWindow =
+    checkInMinutes !== null && nowMinutes >= checkInMinutes && nowMinutes < checkInMinutes + 60
+
+  const isTodayArrival = (reservation: ArrivalReservation) => {
+    const checkInDate = new Date(reservation.check_in_date)
+    checkInDate.setHours(0, 0, 0, 0)
+    return checkInDate.getTime() === today.getTime()
   }
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const isPastDateArrival = (reservation: ArrivalReservation) => {
+    const checkInDate = new Date(reservation.check_in_date)
+    checkInDate.setHours(0, 0, 0, 0)
+    return checkInDate.getTime() < today.getTime()
   }
+
+  const isLateArrival = (reservation: ArrivalReservation) =>
+    isPastDateArrival(reservation) ||
+    (isTodayArrival(reservation) && isPastCheckInTime && !isExpectedWindow)
+
+  const isExpectedArrival = (reservation: ArrivalReservation) =>
+    isTodayArrival(reservation) && isExpectedWindow
+
+  const isUpcomingArrival = (reservation: ArrivalReservation) =>
+    isTodayArrival(reservation) && !isPastCheckInTime
+
+  const pendingArrivals = arrivals.filter((r) => r.status === 'confirmed')
+  const completedCheckIns = arrivals.filter((r) => r.status === 'checked_in')
+
+  const lateArrivals = pendingArrivals.filter(isLateArrival)
+  const expectedArrivals = pendingArrivals.filter(isExpectedArrival)
+  const upcomingArrivals = pendingArrivals.filter(
+    (r) => !isLateArrival(r) && !isExpectedArrival(r) && isUpcomingArrival(r),
+  )
+
+  const scheduledTodayCount = pendingArrivals.filter((r) => {
+    const checkInDate = new Date(r.check_in_date)
+    checkInDate.setHours(0, 0, 0, 0)
+    return checkInDate.getTime() === today.getTime() || checkInDate.getTime() < today.getTime()
+  }).length
+
+  const filters: { key: ArrivalFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: pendingArrivals.length },
+    { key: 'late', label: 'Late', count: lateArrivals.length },
+    { key: 'expected', label: 'Expected', count: expectedArrivals.length },
+    { key: 'upcoming', label: 'Upcoming', count: upcomingArrivals.length },
+  ]
+
+  const showLate = activeFilter === 'all' || activeFilter === 'late'
+  const showExpected = activeFilter === 'all' || activeFilter === 'expected'
+  const showUpcoming = activeFilter === 'all' || activeFilter === 'upcoming'
+
+  const visibleLate = showLate ? lateArrivals : []
+  const visibleExpected = showExpected ? expectedArrivals : []
+  const visibleUpcoming = showUpcoming ? upcomingArrivals : []
 
   if (arrivals.length === 0) {
     return (
@@ -93,219 +344,116 @@ export function TodaysArrivalsCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-600" />
-            <span className="text-xl font-semibold sm:text-2xl">Today&apos;s Arrivals</span>
+            <span className="text-xl font-semibold sm:text-2xl">Arrivals</span>
           </CardTitle>
-          <CardDescription>Guests checking in today</CardDescription>
+          <CardDescription>0 scheduled today</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <CheckCircle className="h-12 w-12 text-muted-foreground/30 mb-3" />
+            <CheckCircle className="mb-3 h-12 w-12 text-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">No arrivals scheduled for today</p>
-            <p className="text-xs text-muted-foreground mt-1">Check back tomorrow!</p>
+            <p className="mt-1 text-xs text-muted-foreground">Check back tomorrow!</p>
           </div>
         </CardContent>
       </Card>
     )
   }
 
-  // Get today's date for comparison
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // Helper to check if a reservation is a late arrival
-  const isLateArrival = (reservation: typeof arrivals[0]) => {
-    const checkInDate = new Date(reservation.check_in_date)
-    checkInDate.setHours(0, 0, 0, 0)
-    return checkInDate.getTime() < today.getTime()
-  }
-
-  // Separate arrivals by status and late arrivals
-  const lateArrivals = arrivals.filter((r) => r.status === 'confirmed' && isLateArrival(r))
-  const todaysPendingCheckIns = arrivals.filter((r) => r.status === 'confirmed' && !isLateArrival(r))
-  const completedCheckIns = arrivals.filter((r) => r.status === 'checked_in')
-  const pendingCheckIns = [...lateArrivals, ...todaysPendingCheckIns]
-
-  const getNights = (checkIn: string, checkOut: string) =>
-    Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
-
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <CardTitle className="flex items-center gap-2 text-xl font-semibold sm:text-2xl">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                Arrivals
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                {lateArrivals.length > 0 && (
-                  <span className="text-red-600">{lateArrivals.length} late • </span>
-                )}
-                {todaysPendingCheckIns.length} today
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {lateArrivals.length > 0 && (
-                <Badge variant="destructive">
-                  {lateArrivals.length} late
-                </Badge>
-              )}
-              {todaysPendingCheckIns.length > 0 && (
-                <Badge variant="secondary" className="bg-orange-500/10 text-orange-600">
-                  {todaysPendingCheckIns.length} waiting
-                </Badge>
-              )}
-            </div>
+        <CardHeader className="space-y-4">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold sm:text-2xl">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Arrivals
+            </CardTitle>
+            <CardDescription className="text-sm">
+              {scheduledTodayCount} scheduled today
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {filters.map(({ key, label, count }) => (
+              <FilterPill
+                key={key}
+                label={label}
+                count={count}
+                active={activeFilter === key}
+                onClick={() => setActiveFilter(key)}
+              />
+            ))}
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {/* Late Arrivals - Show first with red styling */}
-            {lateArrivals.map((reservation) => {
-              const outstandingBalance = reservation.total_amount - reservation.paid_amount
-              const hasBalance = outstandingBalance > 0
-              const checkInDate = new Date(reservation.check_in_date).toLocaleDateString()
-
-              return (
-                <div
-                  key={reservation.id}
-                  className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/60 dark:bg-red-950/25"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 dark:text-red-400" />
-                      <p className="font-medium truncate capitalize">
-                        {reservation.guest?.first_name} {reservation.guest?.last_name}
-                      </p>
-                      <Badge variant="destructive" className="text-xs">
-                        Late
-                      </Badge>
-                      {hasBalance && (
-                        <Badge variant="outline" className="border-yellow-200 bg-yellow-50 text-xs text-yellow-700 dark:border-yellow-900/60 dark:bg-yellow-950/25 dark:text-yellow-300">
-                          Balance Due
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Home className="h-3 w-3" />
-                        Site {reservation.site?.site_number}
-                      </span>
-                      <span className="text-xs text-red-600 dark:text-red-400">
-                        Expected: {checkInDate}
-                      </span>
-                    </div>
-                    {hasBalance && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                        ${(outstandingBalance / 100).toFixed(2)} balance due
-                      </p>
-                    )}
-                  </div>
-                  {canManageCheckInOut ? (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleCheckIn(reservation)}
-                      disabled={loadingReservationId === reservation.id}
-                      className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Check In
-                    </Button>
-                  ) : null}
-                </div>
-              )
-            })}
-
-            {/* Today's Pending Check-ins */}
-            {todaysPendingCheckIns.map((reservation) => {
-              const outstandingBalance = reservation.total_amount - reservation.paid_amount
-              const hasBalance = outstandingBalance > 0
-
-              return (
-                <div
-                  key={reservation.id}
-                  className="flex flex-col gap-3 rounded-lg border border-orange-200 bg-orange-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-orange-900/60 dark:bg-orange-950/25"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <Clock className="h-4 w-4 text-orange-600 flex-shrink-0 dark:text-orange-400" />
-                      <p className="font-medium truncate capitalize">
-                        {reservation.guest?.first_name} {reservation.guest?.last_name}
-                      </p>
-                      {hasBalance && (
-                        <Badge variant="outline" className="border-yellow-200 bg-yellow-50 text-xs text-yellow-700 dark:border-yellow-900/60 dark:bg-yellow-950/25 dark:text-yellow-300">
-                          Balance Due
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                      <span className="flex min-w-0 items-center gap-1">
-                        <Home className="h-3 w-3" />
-                        <span className="break-words">
-                          {reservation.site?.site_name || `Site ${reservation.site?.site_number}`} • {formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)} • {getNights(reservation.check_in_date, reservation.check_out_date)} {getNights(reservation.check_in_date, reservation.check_out_date) === 1 ? 'night' : 'nights'}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {reservation.num_adults + reservation.num_children} guests
-                      </span>
-                    </div>
-                    {hasBalance && (
-                      <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
-                        ${(outstandingBalance / 100).toFixed(2)} balance due at check-in
-                      </p>
-                    )}
-                  </div>
-                  {canManageCheckInOut ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCheckIn(reservation)}
-                      disabled={loadingReservationId === reservation.id}
-                      className="w-full flex-shrink-0 sm:ml-3 sm:w-auto"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Check In
-                    </Button>
-                  ) : null}
-                </div>
-              )
-            })}
-
-            {/* Completed Check-ins */}
-            {completedCheckIns.map((reservation) => (
-              <div
-                key={reservation.id}
-                className="flex flex-col gap-3 rounded-lg border border-green-200 bg-green-50/30 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-green-900/60 dark:bg-green-950/25"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 dark:text-green-400" />
-                    <p className="font-medium truncate capitalize">
-                      {reservation.guest?.first_name} {reservation.guest?.last_name}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Home className="h-3 w-3" />
-                      Site {reservation.site?.site_number}
-                    </span>
-                    {reservation.checked_in_at && (
-                      <span className="text-xs text-green-600 dark:text-green-400" suppressHydrationWarning>
-                        Checked in at {formatTime(reservation.checked_in_at)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <Badge variant="outline" className="w-fit border-green-200 bg-green-100 text-green-700 dark:border-green-900/60 dark:bg-green-950/35 dark:text-green-300">
-                  Checked In
-                </Badge>
+          <div className="space-y-4">
+            {visibleLate.length > 0 ? (
+              <div className="space-y-2">
+                {activeFilter === 'all' && (
+                  <SectionHeader label="Late" count={visibleLate.length} tone="late" />
+                )}
+                {visibleLate.map((reservation) => (
+                  <ArrivalCard
+                    key={reservation.id}
+                    reservation={reservation}
+                    variant="late"
+                    checkInTime={checkInTime}
+                    canManageCheckInOut={canManageCheckInOut}
+                    loadingReservationId={loadingReservationId}
+                    onCheckIn={handleCheckIn}
+                  />
+                ))}
               </div>
-            ))}
+            ) : null}
 
-            {/* Show message if all check-ins complete */}
-            {pendingCheckIns.length === 0 && completedCheckIns.length > 0 && (
+            {visibleExpected.length > 0 ? (
+              <div className="space-y-2">
+                {activeFilter === 'all' && (
+                  <SectionHeader label="Expected" count={visibleExpected.length} tone="expected" />
+                )}
+                {visibleExpected.map((reservation) => (
+                  <ArrivalCard
+                    key={reservation.id}
+                    reservation={reservation}
+                    variant="expected"
+                    checkInTime={checkInTime}
+                    canManageCheckInOut={canManageCheckInOut}
+                    loadingReservationId={loadingReservationId}
+                    onCheckIn={handleCheckIn}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {visibleUpcoming.length > 0 ? (
+              <div className="space-y-2">
+                {activeFilter === 'all' && (
+                  <SectionHeader label="Upcoming" count={visibleUpcoming.length} tone="upcoming" />
+                )}
+                {visibleUpcoming.map((reservation) => (
+                  <ArrivalCard
+                    key={reservation.id}
+                    reservation={reservation}
+                    variant="upcoming"
+                    checkInTime={checkInTime}
+                    canManageCheckInOut={canManageCheckInOut}
+                    loadingReservationId={loadingReservationId}
+                    onCheckIn={handleCheckIn}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {activeFilter === 'late' && lateArrivals.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No late arrivals</div>
+            )}
+            {activeFilter === 'expected' && expectedArrivals.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No expected arrivals</div>
+            )}
+            {activeFilter === 'upcoming' && upcomingArrivals.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No upcoming arrivals</div>
+            )}
+
+            {pendingArrivals.length === 0 && completedCheckIns.length > 0 && (
               <div className="flex items-center justify-center gap-2 py-2 text-sm text-green-600">
                 <CheckCircle className="h-4 w-4" />
                 <span>All arrivals checked in!</span>
@@ -315,8 +463,7 @@ export function TodaysArrivalsCard({
         </CardContent>
       </Card>
 
-      {/* Check-in Dialog */}
-      {selectedReservation && (
+      {selectedReservation ? (
         <CheckInDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
@@ -324,7 +471,7 @@ export function TodaysArrivalsCard({
           bookingPaymentMethodId={bookingPaymentMethodId}
           checkInTime={checkInTime}
         />
-      )}
+      ) : null}
     </>
   )
 }

@@ -17,7 +17,10 @@ export const siteFormSchema = z.object({
   site_name: z.string().max(255).optional().or(z.literal("")),
   site_type: z.enum(siteTypes, { required_error: "Site type is required" }),
   max_occupancy: z.coerce.number().min(1, "At least 1 person").max(50, "Maximum 50 people"),
-  max_vehicles: z.coerce.number().min(1).max(10).default(1),
+  max_vehicles: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 1 : Number(v)),
+    z.number().min(1).max(10)
+  ),
   size_sqft: z.coerce.number().min(0).optional(),
   status: z.enum(siteStatuses).default("available"),
   description: z.string().max(1000).optional().or(z.literal("")),
@@ -26,11 +29,17 @@ export const siteFormSchema = z.object({
   // Note: min(0) allows property defaults mode; conditional validation via .refine()
   base_price: z.coerce.number().min(0),
   weekend_price: z.preprocess(
-    (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? undefined : Number(v)),
     z.number().min(0).optional()
   ),
-  weekly_rate: z.coerce.number().min(0).optional(), // Weekly per-night rate
-  monthly_rate: z.coerce.number().min(0).optional(), // Monthly per-night rate
+  weekly_rate: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? undefined : Number(v)),
+    z.number().min(0).optional()
+  ),
+  monthly_rate: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? undefined : Number(v)),
+    z.number().min(0).optional()
+  ),
 
   // Hookups (boolean flags)
   hookups: z.object({
@@ -45,7 +54,7 @@ export const siteFormSchema = z.object({
   // Pet-related fields
   allow_pets: z.boolean().default(false),
   pet_fee: z.preprocess(
-    (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? undefined : Number(v)),
     z.number().min(0).optional()
   ), // In dollars, converted to cents for API
 
@@ -78,7 +87,10 @@ export const siteFormSchema = z.object({
   default_reservation_type: z.enum(reservationTypes).optional(),
 
   // Seasonal rate override (in dollars, converted to cents for API)
-  seasonal_rate: z.coerce.number().min(0).optional(),
+  seasonal_rate: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? undefined : Number(v)),
+    z.number().min(0).optional()
+  ),
 }).refine(
   (data) => {
     // Require base_price >= 0.01 only when pricing is manual and nightly is enabled

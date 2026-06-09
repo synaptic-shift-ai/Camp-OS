@@ -274,6 +274,7 @@ export function createActionRegistry(): ActionHandlerMap {
                     secondaryColor: branding.secondaryColor,
                     senderName: branding.senderName,
                     propertyName: branding.propertyName,
+                    propertyAddress: branding.propertyAddress,
                   }
                 : undefined,
             )
@@ -293,6 +294,7 @@ export function createActionRegistry(): ActionHandlerMap {
                   secondaryColor: branding.secondaryColor,
                   senderName: branding.senderName,
                   propertyName: branding.propertyName,
+                  propertyAddress: branding.propertyAddress,
                 }
               : undefined,
           )

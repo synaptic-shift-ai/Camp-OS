@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Eye, Loader2, Menu, Rocket } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Eye, Loader2, LogOut, Menu, Rocket } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useProperty } from "@/components/property-context"
 import { WIZARD_STEPS, type WizardStep } from "./wizard-progress-bar"
@@ -23,6 +23,7 @@ import { WizardPropertyDetailsSections } from "./wizard-property-details-section
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
+import { createClient } from "@/lib/supabase/client"
 import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
 import { getDetectedTimezone, validatePostalCode } from '@/lib/postal-code'
 import { getTimezoneCountry } from '@/lib/timezone-to-country'
@@ -936,6 +937,24 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     }
   }, [currentStep])
 
+  const handleLogout = async () => {
+    const supabase = createClient()
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (token) {
+        await fetch("/api/v1/activity/record-logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      }
+    } catch {
+      /* audit is best-effort */
+    }
+    await supabase.auth.signOut()
+    window.location.href = "/login"
+  }
+
   if (!selectedProperty) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -1026,13 +1045,19 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
       {/* Top header with progress */}
       <header className="flex-shrink-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-4">
-          <div className="mb-3">
-            <h1 className="text-xl sm:text-2xl font-heading font-semibold tracking-tight">
-              Property Setup Wizard
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure your property to start accepting bookings
-            </p>
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-heading font-semibold tracking-tight">
+                Property Setup Wizard
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure your property to start accepting bookings
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
+              <LogOut className="h-4 w-4 mr-1.5" />
+              Log out
+            </Button>
           </div>
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <nav className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
@@ -1107,10 +1132,10 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           <div className="flex-1 min-h-0 rounded-lg border border-border bg-card overflow-hidden flex flex-col md:flex-row">
             {/* Sidebar — hidden on Payment Setup and Review & Launch (single section, not needed) */}
             {currentStep !== "stripe_connect" && currentStep !== "review_launch" && (
-              <aside className="w-60 flex-shrink-0 hidden md:flex border-r border-border">
-                <div className="w-full flex flex-col">
+              <aside className="w-60 flex-shrink-0 hidden md:flex flex-col min-h-0 border-r border-border">
+                <div className="flex min-h-0 flex-1 flex-col">
                   {/* Current property selector */}
-                  <div className="p-4 border-b border-border">
+                  <div className="flex-shrink-0 border-b border-border p-4">
                     <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                       Current Property
                     </p>
@@ -1191,9 +1216,11 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
 
                   {/* Section navigation — sites step uses its own tree */}
                   {currentStep === "sites_setup" ? (
-                    <SitesSidebarTree />
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-rounded">
+                      <SitesSidebarTree />
+                    </div>
                   ) : (
-                    <div className="py-4 flex-1">
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-rounded">
                       <p className="px-4 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                         Sections
                       </p>

@@ -7,7 +7,7 @@
 
 import { ValueObject } from '@/shared/domain/ValueObject'
 
-export type SubscriptionPlanType = 'free' | 'starter' | 'professional' | 'enterprise'
+export type SubscriptionPlanType = 'starter' | 'growth' | 'pro' | 'enterprise'
 
 interface SubscriptionPlanProps {
   value: SubscriptionPlanType
@@ -23,14 +23,6 @@ interface PlanLimits {
 }
 
 const PLAN_LIMITS: Record<SubscriptionPlanType, PlanLimits> = {
-  free: {
-    propertyLimit: 1,
-    sitesPerProperty: 10,
-    staffPerProperty: 1,
-    hasAdvancedReporting: false,
-    hasChannelManagement: false,
-    hasDynamicPricing: false,
-  },
   starter: {
     propertyLimit: 1,
     sitesPerProperty: 50,
@@ -39,13 +31,21 @@ const PLAN_LIMITS: Record<SubscriptionPlanType, PlanLimits> = {
     hasChannelManagement: false,
     hasDynamicPricing: false,
   },
-  professional: {
+  growth: {
     propertyLimit: 3,
     sitesPerProperty: 200,
     staffPerProperty: 10,
     hasAdvancedReporting: true,
     hasChannelManagement: true,
     hasDynamicPricing: false,
+  },
+  pro: {
+    propertyLimit: 10,
+    sitesPerProperty: 500,
+    staffPerProperty: 25,
+    hasAdvancedReporting: true,
+    hasChannelManagement: true,
+    hasDynamicPricing: true,
   },
   enterprise: {
     propertyLimit: Infinity,
@@ -58,9 +58,18 @@ const PLAN_LIMITS: Record<SubscriptionPlanType, PlanLimits> = {
 }
 
 export class SubscriptionPlan extends ValueObject<SubscriptionPlanProps> {
-  public static readonly FREE = new SubscriptionPlan({ value: 'free' })
+  private static _freeFallback: SubscriptionPlan | null = null
+
+  private static get freeFallback(): SubscriptionPlan {
+    if (!SubscriptionPlan._freeFallback) {
+      SubscriptionPlan._freeFallback = new SubscriptionPlan({ value: 'starter' })
+    }
+    return SubscriptionPlan._freeFallback
+  }
+
   public static readonly STARTER = new SubscriptionPlan({ value: 'starter' })
-  public static readonly PROFESSIONAL = new SubscriptionPlan({ value: 'professional' })
+  public static readonly GROWTH = new SubscriptionPlan({ value: 'growth' })
+  public static readonly PRO = new SubscriptionPlan({ value: 'pro' })
   public static readonly ENTERPRISE = new SubscriptionPlan({ value: 'enterprise' })
 
   /**
@@ -79,18 +88,18 @@ export class SubscriptionPlan extends ValueObject<SubscriptionPlanProps> {
    */
   public static fromString(plan: string | null): SubscriptionPlan {
     if (!plan) {
-      return SubscriptionPlan.FREE
+      return SubscriptionPlan.freeFallback
     }
 
     const normalized = plan.toLowerCase() as SubscriptionPlanType
 
     switch (normalized) {
-      case 'free':
-        return SubscriptionPlan.FREE
       case 'starter':
         return SubscriptionPlan.STARTER
-      case 'professional':
-        return SubscriptionPlan.PROFESSIONAL
+      case 'growth':
+        return SubscriptionPlan.GROWTH
+      case 'pro':
+        return SubscriptionPlan.PRO
       case 'enterprise':
         return SubscriptionPlan.ENTERPRISE
       default:
@@ -114,16 +123,17 @@ export class SubscriptionPlan extends ValueObject<SubscriptionPlanProps> {
 
   /**
    * Check if this plan is a paid plan
+   * All persistable plans are paid.
    */
   get isPaid(): boolean {
-    return this.props.value !== 'free'
+    return true
   }
 
   /**
    * Check if this plan can be upgraded to the target plan
    */
   public canUpgradeTo(target: SubscriptionPlan): boolean {
-    const order: SubscriptionPlanType[] = ['free', 'starter', 'professional', 'enterprise']
+    const order: SubscriptionPlanType[] = ['starter', 'growth', 'pro', 'enterprise']
     const currentIndex = order.indexOf(this.props.value)
     const targetIndex = order.indexOf(target.props.value)
     return targetIndex > currentIndex
@@ -133,7 +143,7 @@ export class SubscriptionPlan extends ValueObject<SubscriptionPlanProps> {
    * Check if this plan can be downgraded to the target plan
    */
   public canDowngradeTo(target: SubscriptionPlan): boolean {
-    const order: SubscriptionPlanType[] = ['free', 'starter', 'professional', 'enterprise']
+    const order: SubscriptionPlanType[] = ['starter', 'growth', 'pro', 'enterprise']
     const currentIndex = order.indexOf(this.props.value)
     const targetIndex = order.indexOf(target.props.value)
     return targetIndex < currentIndex

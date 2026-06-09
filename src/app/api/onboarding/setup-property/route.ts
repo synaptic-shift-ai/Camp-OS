@@ -120,6 +120,17 @@ export async function POST(request: NextRequest) {
       property = data
     }
 
+    // Seed default role categories for the new property
+    try {
+      const { seedDefaultPropertyRoleCategoriesIfEmpty } = await import(
+        '@/lib/dashboard/seed-default-property-role-categories'
+      )
+      await seedDefaultPropertyRoleCategoriesIfEmpty(supabaseServiceRole, property.id)
+    } catch (seedError) {
+      console.error('[Onboarding] Failed to seed default role categories:', seedError)
+      // Non-blocking
+    }
+
     return NextResponse.json(
       {
         success: true,

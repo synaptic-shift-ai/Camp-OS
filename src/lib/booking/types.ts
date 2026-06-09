@@ -499,6 +499,7 @@ export interface CheckoutData {
   // Property context
   propertyId?: string
   propertyName?: string
+  propertyAddress?: string
   cancellationPolicy?: string | null
   /** Guest-visible payment methods enabled for this property */
   enabledPaymentMethods?: Array<'card' | 'amazon_pay' | 'cashapp'>

@@ -230,10 +230,23 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     }
 
     console.log('[Webhook] ✅ Properties created:', createdProperties?.length, createdProperties)
+
+    // Seed default role categories for each new property
+    try {
+      const { seedDefaultPropertyRoleCategoriesIfEmpty } = await import(
+        '@/lib/dashboard/seed-default-property-role-categories'
+      )
+      for (const p of createdProperties) {
+        await seedDefaultPropertyRoleCategoriesIfEmpty(supabase, p.id)
+      }
+    } catch (seedError) {
+      console.error('[Stripe Webhook] Failed to seed default role categories (multi-property):', seedError)
+      // Non-blocking
+    }
   } else {
     console.log('[Webhook] Creating default property...')
     // Fallback: create a single default property
-    const { error: propertyError } = await supabase
+    const { data: newProperty, error: propertyError } = await supabase
       .from("properties")
       .insert({
         owner_id: userId,
@@ -243,6 +256,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         site_count: siteCount ? parseInt(siteCount) : null,
         onboarding_completed: false,
       })
+      .select("id")
+      .single()
 
     if (propertyError) {
       console.error('[Webhook] ❌ Error creating default property:', {
@@ -254,6 +269,17 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     }
 
     console.log('[Webhook] ✅ Default property created')
+
+    // Seed default role categories for the new property
+    try {
+      const { seedDefaultPropertyRoleCategoriesIfEmpty } = await import(
+        '@/lib/dashboard/seed-default-property-role-categories'
+      )
+      await seedDefaultPropertyRoleCategoriesIfEmpty(supabase, newProperty.id)
+    } catch (seedError) {
+      console.error('[Stripe Webhook] Failed to seed default role categories (single-property):', seedError)
+      // Non-blocking
+    }
   }
 
   // Log subscription event

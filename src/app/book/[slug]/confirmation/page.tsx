@@ -12,7 +12,7 @@ import { downloadConfirmationPdf } from "@/lib/booking/confirmation-pdf"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
-import { cn } from "@/lib/utils"
+import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
 // API response types
 type ConfirmPaymentResponse =
@@ -177,7 +177,7 @@ export default function ConfirmationPage() {
   }
 
   const displayPropertyName =
-    checkoutData.propertyName || slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')
+    checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
 
   const numberOfNights = checkoutData.priceBreakdown?.number_of_nights
     ?? differenceInDays(checkoutData.checkOutDate!, checkoutData.checkInDate!)
@@ -278,6 +278,8 @@ export default function ConfirmationPage() {
         ...(discountCents > 0 && { discountCents }),
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),
         totalCents: totalPaidCents,
+        propertyName: displayPropertyName,
+        ...(checkoutData.propertyAddress ? { propertyAddress: checkoutData.propertyAddress } : {}),
       })
 
       const filename = `${checkoutData.confirmationNumber!.toUpperCase()}.pdf`
@@ -418,7 +420,7 @@ export default function ConfirmationPage() {
                       <div>
                         <p className="font-medium text-foreground">Location</p>
                         <p className="text-muted-foreground">{displayPropertyName}</p>
-                        <p className="text-sm text-muted-foreground">123 Forest Road, Pine Valley, CA 95000</p>
+                        <p className="text-sm text-muted-foreground">{checkoutData.propertyAddress}</p>
                       </div>
                     </div>
                   </div>

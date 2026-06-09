@@ -609,9 +609,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
               </div>
               <div>
                 <h1 className={cn("text-xl font-bold", "text-[#2D5A27] dark:text-emerald-400")}>{property.name}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {property.city}, {property.state}
-                </p>
+                {property.city || property.state ? (
+                  <p className="text-sm text-muted-foreground">
+                    {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -750,8 +752,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
           <h1 className="text-4xl md:text-6xl font-bold mb-4">{property.tagline || "Create Memories in Nature"}</h1>
           <p className="text-xl md:text-2xl mb-2 opacity-90">{property.name}</p>
           <p className="text-lg mb-8 opacity-80">
-            <MapPin className="inline h-5 w-5 mr-1" />
-            {property.city}, {property.state}
+            {(property.city || property.state) && (
+              <>
+                <MapPin className="inline h-5 w-5 mr-1" />
+                {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+              </>
+            )}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
@@ -1369,9 +1375,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 </div>
                 <span className="text-xl font-bold">{property.name}</span>
               </div>
-              <p className="mb-4 text-emerald-100/90">
-                {property.city}, {property.state}
-              </p>
+              {(property.city || property.state) && (
+                <p className="mb-4 text-emerald-100/90">
+                  {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                </p>
+              )}
             </div>
 
             <div>
@@ -1420,9 +1428,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     <Mail className="h-4 w-4 mr-2" /> {property.email}
                   </p>
                 )}
-                <p className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2" /> {property.city}, {property.state}
-                </p>
+                {(property.city || property.state) && (
+                  <p className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-2" /> {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                  </p>
+                )}
               </div>
             </div>
           </div>

@@ -178,11 +178,11 @@ export const UpdatePropertyRequestSchema = z.object({
   propertyType: PropertyTypeSchema.nullable().optional(),
 
   // Location
-  address: z.string().max(255).nullable().optional(),
-  city: z.string().max(100).nullable().optional(),
-  state: z.string().max(50).nullable().optional(),
-  zipCode: z.string().max(20).nullable().optional(),
-  country: z.string().max(100).nullable().optional(),
+  address: z.string().max(255).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(50).optional(),
+  zipCode: z.string().max(20).optional(),
+  country: z.string().max(100).optional(),
 
   // Contact
   phone: z.string().max(50).nullable().optional(),

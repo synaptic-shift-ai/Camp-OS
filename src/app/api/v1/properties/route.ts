@@ -331,6 +331,19 @@ export async function POST(request: NextRequest) {
       // Non-blocking — property creation still succeeds
     }
 
+    // Seed default role categories for the new property
+    try {
+      const { seedDefaultPropertyRoleCategoriesIfEmpty } = await import(
+        '@/lib/dashboard/seed-default-property-role-categories'
+      )
+      const { createServiceRoleClient } = await import('@/lib/supabase/service-role')
+      const serviceRoleSupabase = createServiceRoleClient()
+      await seedDefaultPropertyRoleCategoriesIfEmpty(serviceRoleSupabase, property.id)
+    } catch (seedError) {
+      console.error('[Properties] Failed to seed default role categories:', seedError)
+      // Non-blocking — property creation still succeeds
+    }
+
     // success() already returns a NextResponse - don't double-wrap with NextResponse.json()
     const response = success(propertyDTO)
     return new NextResponse(response.body, {

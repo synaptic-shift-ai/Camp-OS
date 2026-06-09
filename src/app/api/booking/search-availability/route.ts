@@ -38,17 +38,21 @@ export async function POST(request: NextRequest) {
       const supabase = createServiceRoleClient()
       const { data: property } = await supabase
         .from('properties')
-        .select('name, rate_discounts_config, pricing_config, cancellation_policy')
+        .select('name, address, city, state, zip_code, rate_discounts_config, pricing_config, cancellation_policy')
         .eq('id', propertyId)
         .single()
       const activePromos = getActivePromoDisplay(
         (property?.rate_discounts_config as RateDiscountsConfig | null) ?? null
       )
+      const propertyAddress = [property?.address, property?.city, property?.state, property?.zip_code]
+        .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+        .join(', ') || null
       return NextResponse.json({
         ...result,
         data: {
           ...result.data,
           property_name: property?.name ? capitalizeWordsPreserveSpacing(property.name) : null,
+          property_address: propertyAddress,
           cancellation_policy: property?.cancellation_policy ?? null,
           active_promos: activePromos,
           rate_discounts_config: property?.rate_discounts_config ?? null,

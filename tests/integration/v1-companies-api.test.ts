@@ -99,8 +99,8 @@ describe('Companies API v1 Contract Tests', () => {
       const validRequest = {
         stripeCustomerId: 'cus_123456789',
         subscriptionId: 'sub_987654321',
-        plan: 'professional',
-        billingCycle: 'yearly',
+        plan: 'pro',
+        billingCycle: 'annual',
       }
 
       const result = ActivateSubscriptionRequestSchema.safeParse(validRequest)
@@ -140,7 +140,7 @@ describe('Companies API v1 Contract Tests', () => {
       expect(result.success).toBe(false)
     })
 
-    const validPlans = ['free', 'starter', 'professional', 'enterprise'] as const
+    const validPlans = ['starter', 'growth', 'pro', 'enterprise'] as const
     validPlans.forEach((plan) => {
       it(`should accept valid plan: ${plan}`, () => {
         const request = {
@@ -155,7 +155,7 @@ describe('Companies API v1 Contract Tests', () => {
       })
     })
 
-    const validBillingCycles = ['monthly', 'yearly'] as const
+    const validBillingCycles = ['monthly', 'annual'] as const
     validBillingCycles.forEach((cycle) => {
       it(`should accept valid billing cycle: ${cycle}`, () => {
         const request = {
@@ -183,9 +183,9 @@ describe('Companies API v1 Contract Tests', () => {
         companyLogoUrl: 'https://example.com/company-logo.png',
         ownerId: '660e8400-e29b-41d4-a716-446655440001',
         subscription: {
-          plan: 'professional',
+          plan: 'pro',
           status: 'active',
-          billingCycle: 'yearly',
+          billingCycle: 'annual',
           isActive: true,
           isPaid: true,
           stripeCustomerId: 'cus_123456789',
@@ -209,8 +209,8 @@ describe('Companies API v1 Contract Tests', () => {
         companyLogoUrl: null,
         ownerId: '660e8400-e29b-41d4-a716-446655440001',
         subscription: {
-          plan: 'free',
-          status: 'inactive',
+          plan: 'starter',
+          status: 'active',
           billingCycle: 'monthly',
           isActive: false,
           isPaid: false,
@@ -240,8 +240,8 @@ describe('Companies API v1 Contract Tests', () => {
         companyLogoUrl: null,
         ownerId: '660e8400-e29b-41d4-a716-446655440001',
         subscription: {
-          plan: 'free',
-          status: 'inactive',
+          plan: 'starter',
+          status: 'active',
           billingCycle: 'monthly',
           isActive: false,
           isPaid: false,
@@ -263,9 +263,9 @@ describe('Companies API v1 Contract Tests', () => {
   describe('SubscriptionResponseSchema', () => {
     it('should validate active subscription', () => {
       const activeSubscription: SubscriptionResponse = {
-        plan: 'professional',
+        plan: 'pro',
         status: 'active',
-        billingCycle: 'yearly',
+        billingCycle: 'annual',
         isActive: true,
         isPaid: true,
         stripeCustomerId: 'cus_123',
@@ -293,9 +293,9 @@ describe('Companies API v1 Contract Tests', () => {
       expect(() => SubscriptionResponseSchema.parse(canceledSubscription)).not.toThrow()
     })
 
-    it('should validate free tier (no stripe)', () => {
-      const freeSubscription: SubscriptionResponse = {
-        plan: 'free',
+    it('should validate starter tier (no stripe)', () => {
+      const starterSubscription: SubscriptionResponse = {
+        plan: 'starter',
         status: 'active',
         billingCycle: 'monthly',
         isActive: true,
@@ -306,7 +306,7 @@ describe('Companies API v1 Contract Tests', () => {
         canceledAt: null,
       }
 
-      expect(() => SubscriptionResponseSchema.parse(freeSubscription)).not.toThrow()
+      expect(() => SubscriptionResponseSchema.parse(starterSubscription)).not.toThrow()
     })
   })
 
@@ -338,9 +338,9 @@ describe('Companies API v1 Contract Tests', () => {
 
   describe('Subscription Plan Business Logic', () => {
     const planLimits = {
-      free: { propertyLimit: 1 },
       starter: { propertyLimit: 1 },
-      professional: { propertyLimit: 3 },
+      growth: { propertyLimit: 3 },
+      pro: { propertyLimit: 10 },
       enterprise: { propertyLimit: Infinity },
     }
 

@@ -1,29 +1,29 @@
 /**
- * SubscriptionCancelledEvent Domain Event
+ * SubscriptionCanceledEvent Domain Event
  *
- * Fired when a subscription is cancelled.
+ * Fired when a subscription is canceled.
  */
 
 import { DomainEvent } from '@/shared/domain/DomainEvent'
 
-export interface SubscriptionCancelledEventProps {
+export interface SubscriptionCanceledEventProps {
   companyId: string
   subscriptionId: string
   reason: string | null
-  cancelledAt: Date
+  canceledAt: Date
 }
 
-export class SubscriptionCancelledEvent extends DomainEvent {
+export class SubscriptionCanceledEvent extends DomainEvent {
   public readonly companyId: string
   public readonly subscriptionId: string
   public readonly reason: string | null
-  public readonly cancelledAt: Date
+  public readonly canceledAt: Date
 
-  constructor(props: SubscriptionCancelledEventProps) {
+  constructor(props: SubscriptionCanceledEventProps) {
     super()
     this.companyId = props.companyId
     this.subscriptionId = props.subscriptionId
     this.reason = props.reason
-    this.cancelledAt = props.cancelledAt
+    this.canceledAt = props.canceledAt
   }
 }

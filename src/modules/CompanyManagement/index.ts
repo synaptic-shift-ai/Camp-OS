@@ -20,7 +20,7 @@ export { OnboardingToken } from './domain/value-objects/OnboardingToken'
 export { CompanyCreatedEvent } from './domain/events/CompanyCreatedEvent'
 export { CompanyUpdatedEvent } from './domain/events/CompanyUpdatedEvent'
 export { SubscriptionActivatedEvent } from './domain/events/SubscriptionActivatedEvent'
-export { SubscriptionCancelledEvent } from './domain/events/SubscriptionCancelledEvent'
+export { SubscriptionCanceledEvent } from './domain/events/SubscriptionCanceledEvent'
 export { SubscriptionPlanChangedEvent } from './domain/events/SubscriptionPlanChangedEvent'
 export { InviteGeneratedEvent } from './domain/events/InviteGeneratedEvent'
 

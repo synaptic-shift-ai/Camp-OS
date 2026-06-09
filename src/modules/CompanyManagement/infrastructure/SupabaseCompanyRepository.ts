@@ -38,7 +38,12 @@ export class SupabaseCompanyRepository implements ICompanyRepository {
       return null
     }
 
-    return this.toDomain(data)
+    try {
+      return this.toDomain(data)
+    } catch (err) {
+      console.warn(`SupabaseCompanyRepository.findById: failed to map row to domain`, err)
+      return null
+    }
   }
 
   async findByOwnerId(ownerId: string): Promise<Company | null> {
@@ -52,7 +57,12 @@ export class SupabaseCompanyRepository implements ICompanyRepository {
       return null
     }
 
-    return this.toDomain(data)
+    try {
+      return this.toDomain(data)
+    } catch (err) {
+      console.warn(`SupabaseCompanyRepository.findByOwnerId: failed to map row to domain`, err)
+      return null
+    }
   }
 
   async findByOnboardingToken(token: string): Promise<Company | null> {
@@ -66,7 +76,12 @@ export class SupabaseCompanyRepository implements ICompanyRepository {
       return null
     }
 
-    return this.toDomain(data)
+    try {
+      return this.toDomain(data)
+    } catch (err) {
+      console.warn(`SupabaseCompanyRepository.findByOnboardingToken: failed to map row to domain`, err)
+      return null
+    }
   }
 
   async findByStripeCustomerId(stripeCustomerId: string): Promise<Company | null> {
@@ -80,7 +95,12 @@ export class SupabaseCompanyRepository implements ICompanyRepository {
       return null
     }
 
-    return this.toDomain(data)
+    try {
+      return this.toDomain(data)
+    } catch (err) {
+      console.warn(`SupabaseCompanyRepository.findByStripeCustomerId: failed to map row to domain`, err)
+      return null
+    }
   }
 
   async save(company: Company): Promise<void> {

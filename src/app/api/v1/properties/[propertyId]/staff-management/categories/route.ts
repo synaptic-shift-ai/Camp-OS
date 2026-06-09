@@ -80,9 +80,31 @@ export async function GET(
       )
     }
 
-    const result = await q.getPropertyRoleCategories({
+    let result = await q.getPropertyRoleCategories({
       propertyId,
     })
+
+    // Safety-net: auto-seed default role categories if none exist yet
+    const totalCategories = Object.values(result.categoriesByRole).reduce(
+      (sum, arr) => sum + arr.length,
+      0,
+    )
+    if (totalCategories === 0) {
+      try {
+        const { seedDefaultPropertyRoleCategoriesIfEmpty } = await import(
+          '@/lib/dashboard/seed-default-property-role-categories'
+        )
+        const serviceRoleSupabase = createServiceRoleClient()
+        await seedDefaultPropertyRoleCategoriesIfEmpty(serviceRoleSupabase, propertyId)
+        result = await q.getPropertyRoleCategories({ propertyId })
+      } catch (seedErr) {
+        console.error(
+          '[Categories GET] Failed to auto-seed default role categories:',
+          seedErr,
+        )
+        // Non-blocking — return empty categories rather than fail the request
+      }
+    }
 
     return success(result, request)
   } catch (err: unknown) {

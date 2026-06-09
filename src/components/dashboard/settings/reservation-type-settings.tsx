@@ -611,7 +611,7 @@ export function ReservationTypeSettings({
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="bottom" sideOffset={4} avoidCollisions={false} className="max-h-[220px]">
                         {MONTHS.map((m) => (
                           <SelectItem key={m.value} value={String(m.value)}>
                             {m.label}
@@ -646,7 +646,7 @@ export function ReservationTypeSettings({
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="bottom" sideOffset={4} avoidCollisions={false} className="max-h-[220px]">
                         {MONTHS.map((m) => (
                           <SelectItem key={m.value} value={String(m.value)}>
                             {m.label}

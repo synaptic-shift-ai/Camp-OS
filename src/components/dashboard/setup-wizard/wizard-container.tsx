@@ -1107,10 +1107,10 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           <div className="flex-1 min-h-0 rounded-lg border border-border bg-card overflow-hidden flex flex-col md:flex-row">
             {/* Sidebar — hidden on Payment Setup and Review & Launch (single section, not needed) */}
             {currentStep !== "stripe_connect" && currentStep !== "review_launch" && (
-              <aside className="w-60 flex-shrink-0 hidden md:flex border-r border-border">
-                <div className="w-full flex flex-col">
+              <aside className="w-60 flex-shrink-0 hidden md:flex flex-col min-h-0 border-r border-border">
+                <div className="flex min-h-0 flex-1 flex-col">
                   {/* Current property selector */}
-                  <div className="p-4 border-b border-border">
+                  <div className="flex-shrink-0 border-b border-border p-4">
                     <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                       Current Property
                     </p>
@@ -1191,9 +1191,11 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
 
                   {/* Section navigation — sites step uses its own tree */}
                   {currentStep === "sites_setup" ? (
-                    <SitesSidebarTree />
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-rounded">
+                      <SitesSidebarTree />
+                    </div>
                   ) : (
-                    <div className="py-4 flex-1">
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-rounded">
                       <p className="px-4 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mb-3">
                         Sections
                       </p>

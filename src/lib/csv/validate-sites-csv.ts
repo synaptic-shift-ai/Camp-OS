@@ -108,7 +108,7 @@ function validateSite(site: ParsedSite, rowNumber: number): ParseError[] {
 
   // Validate max_vehicles range
   if (site.max_vehicles !== undefined) {
-    if (site.max_vehicles < 1) {
+    if (site.max_vehicles < 0) {
       errors.push({
         row: rowNumber,
         field: 'max_vehicles',

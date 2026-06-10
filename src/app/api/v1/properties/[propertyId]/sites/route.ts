@@ -303,7 +303,7 @@ export async function POST(
       basePrice: effectiveBasePrice,
       weekendPrice: validatedRequest.weekendPrice || effectiveBasePrice,
       maxOccupancy: validatedRequest.maxOccupancy || null,
-      maxVehicles: validatedRequest.maxVehicles || null,
+      maxVehicles: validatedRequest.maxVehicles ?? null,
       sizeSqft: validatedRequest.sizeSqft || null,
       amenities: validatedRequest.amenities || null,
       hookups: validatedRequest.hookups || null,

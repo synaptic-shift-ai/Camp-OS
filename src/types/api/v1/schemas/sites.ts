@@ -71,7 +71,7 @@ export const SitePricingSchema = z.object({
 
 export const SiteCapacitySchema = z.object({
   maxOccupancy: z.number().int().positive().nullable(),
-  maxVehicles: z.number().int().positive().nullable(),
+  maxVehicles: z.number().int().min(0).nullable(),
 })
 
 // ============================================================================
@@ -123,7 +123,7 @@ export const CreateSiteRequestSchema = z.object({
   basePrice: CurrencyAmountSchema,
   weekendPrice: CurrencyAmountSchema.optional(),
   maxOccupancy: z.number().int().positive().optional(),
-  maxVehicles: z.number().int().positive().optional(),
+  maxVehicles: z.number().int().min(0).optional(),
   sizeSqft: z.number().int().positive().optional(),
   amenities: z.array(z.string()).optional(),
   hookups: z.array(z.string()).optional(),
@@ -169,7 +169,7 @@ export const UpdateSiteRequestSchema = z.object({
   basePrice: CurrencyAmountSchema.optional(),
   weekendPrice: CurrencyAmountSchema.optional(),
   maxOccupancy: z.number().int().positive().optional(),
-  maxVehicles: z.number().int().positive().optional(),
+  maxVehicles: z.number().int().min(0).optional(),
   sizeSqft: z.number().int().positive().optional(),
   amenities: z.array(z.string()).optional(),
   hookups: z.array(z.string()).optional(),

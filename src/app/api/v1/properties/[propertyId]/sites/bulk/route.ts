@@ -182,7 +182,7 @@ export async function POST(
           basePrice: effectiveBasePrice,
           weekendPrice: siteRequest.weekendPrice || effectiveBasePrice,
           maxOccupancy: siteRequest.maxOccupancy || null,
-          maxVehicles: siteRequest.maxVehicles || null,
+          maxVehicles: siteRequest.maxVehicles ?? null,
           sizeSqft: siteRequest.sizeSqft || null,
           amenities: siteRequest.amenities || null,
           hookups: siteRequest.hookups || null,

@@ -59,6 +59,8 @@ export function RateTypesSection({ propertyId, reservationTypeConfigRaw, enabled
   const [isSaving, setIsSaving] = useState(false)
   const [focusedRate, setFocusedRate] = useState<ConfigurableType | null>(null)
   const [rateInput, setRateInput] = useState("")
+  const [isSeasonBaseRateFocused, setIsSeasonBaseRateFocused] = useState(false)
+  const [seasonBaseRateInput, setSeasonBaseRateInput] = useState("")
 
   const pushDraft = (nextConfig: PropertyReservationTypesConfig, nextTypes: BookingType[]) => {
     const draft = getDraft(propertyId) ?? {}
@@ -92,31 +94,61 @@ export function RateTypesSection({ propertyId, reservationTypeConfigRaw, enabled
   const openAddSeason = () => {
     setEditingPeriod({ name: "", start_month: 6, start_day: 1, end_month: 8, end_day: 31, base_rate_cents: 0, recurring: true })
     setSeasonError(null)
+    setIsSeasonBaseRateFocused(false)
+    setSeasonBaseRateInput("")
     setSeasonDialog(true)
   }
   const openEditSeason = (p: SeasonalPeriod) => {
     setEditingPeriod({ id: p.id, name: p.name, start_month: p.start_month, start_day: p.start_day, end_month: p.end_month, end_day: p.end_day, base_rate_cents: p.base_rate_cents, recurring: p.recurring })
     setSeasonError(null)
+    setIsSeasonBaseRateFocused(false)
+    setSeasonBaseRateInput("")
     setSeasonDialog(true)
+  }
+
+  const commitSeasonBaseRateInput = () => {
+    if (!editingPeriod) return
+    const cents = parseDollarsToCents(seasonBaseRateInput)
+    setEditingPeriod({
+      ...editingPeriod,
+      base_rate_cents: cents ?? editingPeriod.base_rate_cents ?? 0,
+    })
+    setIsSeasonBaseRateFocused(false)
   }
 
   const saveSeason = async () => {
     if (!editingPeriod) return
-    if (!editingPeriod.name.trim()) { setSeasonError("Season name is required"); return }
-    if (editingPeriod.base_rate_cents <= 0) { setSeasonError("Base rate must be greater than $0"); return }
+
+    const periodToSave = isSeasonBaseRateFocused
+      ? {
+          ...editingPeriod,
+          base_rate_cents:
+            parseDollarsToCents(seasonBaseRateInput) ?? editingPeriod.base_rate_cents ?? 0,
+        }
+      : editingPeriod
+
+    if (isSeasonBaseRateFocused) {
+      setEditingPeriod(periodToSave)
+      setIsSeasonBaseRateFocused(false)
+    }
+
+    if (!periodToSave.name.trim()) { setSeasonError("Season name is required"); return }
+    if (periodToSave.base_rate_cents <= 0) { setSeasonError("Base rate must be greater than $0"); return }
     setIsSaving(true)
     setSeasonError(null)
     try {
-      const isEditing = !!editingPeriod.id
+      const isEditing = !!periodToSave.id
       const url = isEditing
-        ? `/api/v1/properties/${propertyId}/seasonal-periods/${editingPeriod.id}`
+        ? `/api/v1/properties/${propertyId}/seasonal-periods/${periodToSave.id}`
         : `/api/v1/properties/${propertyId}/seasonal-periods`
-      const res = await fetch(url, { method: isEditing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editingPeriod.name, start_month: editingPeriod.start_month, start_day: editingPeriod.start_day, end_month: editingPeriod.end_month, end_day: editingPeriod.end_day, base_rate_cents: editingPeriod.base_rate_cents, recurring: editingPeriod.recurring }) })
+      const res = await fetch(url, { method: isEditing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: periodToSave.name, start_month: periodToSave.start_month, start_day: periodToSave.start_day, end_month: periodToSave.end_month, end_day: periodToSave.end_day, base_rate_cents: periodToSave.base_rate_cents, recurring: periodToSave.recurring }) })
       if (!res.ok) throw new Error((await res.json()).error?.message ?? "Failed to save")
       const { data: saved } = await res.json()
-      setSeasonalPeriods((prev) => isEditing ? prev.map((p) => (p.id === editingPeriod.id ? saved : p)) : [...prev, saved])
+      setSeasonalPeriods((prev) => isEditing ? prev.map((p) => (p.id === periodToSave.id ? saved : p)) : [...prev, saved])
       setSeasonDialog(false)
       setEditingPeriod(null)
+      setIsSeasonBaseRateFocused(false)
+      setSeasonBaseRateInput("")
     } catch (e) {
       setSeasonError(e instanceof Error ? e.message : "Failed to save")
     } finally { setIsSaving(false) }
@@ -256,7 +288,25 @@ export function RateTypesSection({ propertyId, reservationTypeConfigRaw, enabled
                 <Label htmlFor="base-rate">Base Rate (flat rate for entire season)</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input id="base-rate" type="number" min="0" step="0.01" className="pl-7" value={(editingPeriod.base_rate_cents / 100).toFixed(2)} onChange={(e) => setEditingPeriod({ ...editingPeriod, base_rate_cents: Math.round(parseFloat(e.target.value || "0") * 100) })} />
+                  <Input
+                    id="base-rate"
+                    type="number"
+                    step="1"
+                    min="0"
+                    className="pl-7"
+                    placeholder="Enter rate"
+                    value={
+                      isSeasonBaseRateFocused
+                        ? seasonBaseRateInput
+                        : formatCents(editingPeriod.base_rate_cents)
+                    }
+                    onFocus={() => {
+                      setIsSeasonBaseRateFocused(true)
+                      setSeasonBaseRateInput(formatCents(editingPeriod.base_rate_cents))
+                    }}
+                    onChange={(e) => setSeasonBaseRateInput(e.target.value)}
+                    onBlur={commitSeasonBaseRateInput}
+                  />
                 </div>
                 <p className="text-sm text-muted-foreground">Total price for the season, not per night</p>
               </div>

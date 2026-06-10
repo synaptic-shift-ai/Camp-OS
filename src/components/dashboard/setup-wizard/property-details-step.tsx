@@ -17,15 +17,14 @@ import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 import { PropertyImagesSection } from "@/components/dashboard/property-images-section"
 import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
 import { getDetectedTimezone } from '@/lib/postal-code'
-import { validatePostalCode } from '@/lib/postal-code'
-import { getTimezoneCountry } from '@/lib/timezone-to-country'
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { TimezoneSelectField } from '@/components/dashboard/timezone-select-field'
 
 const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
-  zipCode: z.string().min(1, "ZIP code is required"),
+  zipCode: z.string().min(ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number is required").optional().or(z.literal("")),
   description: z.string().optional(),
@@ -37,21 +36,6 @@ const propertyDetailsSchema = z.object({
   minStayNights: z.coerce.number().int().min(1).default(1),
   maxStayNights: z.coerce.number().int().min(1).optional().or(z.literal("")),
   bookingLeadTimeDays: z.coerce.number().int().min(0).default(365),
-}).superRefine((data, ctx) => {
-  // Validate ZIP/postal code against country from timezone
-  if (data.zipCode && data.zipCode.trim() !== '') {
-    const countryCode = getTimezoneCountry(data.timezone);
-    if (countryCode) {
-      const result = validatePostalCode(countryCode, data.zipCode);
-      if (result !== true) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone',
-          path: ['zipCode'],
-        });
-      }
-    }
-  }
 });
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>

@@ -244,7 +244,7 @@ function transformRow(
   if (maxVehiclesKey && row[maxVehiclesKey]) {
     const vehicles = parseInteger(row[maxVehiclesKey])
     if (vehicles !== null) {
-      if (vehicles < 1 || vehicles > 10) {
+      if (vehicles < 0 || vehicles > 10) {
         errors.push({
           row: rowIndex,
           field: 'max_vehicles',

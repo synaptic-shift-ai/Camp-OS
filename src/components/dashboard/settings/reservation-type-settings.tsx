@@ -141,6 +141,8 @@ export function ReservationTypeSettings({
   const [isDirty, setIsDirty] = useState(false)
   const [focusedRateField, setFocusedRateField] = useState<'nightly' | 'weekly' | 'monthly' | null>(null)
   const [rateInputValue, setRateInputValue] = useState<string>('')
+  const [isSeasonBaseRateFocused, setIsSeasonBaseRateFocused] = useState(false)
+  const [seasonBaseRateInput, setSeasonBaseRateInput] = useState('')
 
   const toggleReservationType = (type: ConfigurableReservationType) => {
     const isEnabled = enabledTypes.includes(type)
@@ -252,6 +254,8 @@ export function ReservationTypeSettings({
     setEditingPeriod(newPeriod)
     cleanPeriodFormRef.current = JSON.stringify(newPeriod)
     setSeasonFormError(null)
+    setIsSeasonBaseRateFocused(false)
+    setSeasonBaseRateInput('')
     setIsSeasonDialogOpen(true)
   }
 
@@ -269,18 +273,43 @@ export function ReservationTypeSettings({
     setEditingPeriod(newPeriod)
     cleanPeriodFormRef.current = JSON.stringify(newPeriod)
     setSeasonFormError(null)
+    setIsSeasonBaseRateFocused(false)
+    setSeasonBaseRateInput('')
     setIsSeasonDialogOpen(true)
+  }
+
+  const commitSeasonBaseRateInput = () => {
+    if (!editingPeriod) return
+    const cents = parseDollarsToCents(seasonBaseRateInput)
+    setEditingPeriod({
+      ...editingPeriod,
+      base_rate_cents: cents ?? editingPeriod.base_rate_cents ?? 0,
+    })
+    setIsSeasonBaseRateFocused(false)
   }
 
   const handleSaveSeasonalPeriod = async () => {
     if (!editingPeriod) return
 
+    const periodToSave = isSeasonBaseRateFocused
+      ? {
+          ...editingPeriod,
+          base_rate_cents:
+            parseDollarsToCents(seasonBaseRateInput) ?? editingPeriod.base_rate_cents ?? 0,
+        }
+      : editingPeriod
+
+    if (isSeasonBaseRateFocused) {
+      setEditingPeriod(periodToSave)
+      setIsSeasonBaseRateFocused(false)
+    }
+
     // Validate
-    if (!editingPeriod.name.trim()) {
+    if (!periodToSave.name.trim()) {
       setSeasonFormError('Season name is required')
       return
     }
-    if (editingPeriod.base_rate_cents <= 0) {
+    if (periodToSave.base_rate_cents <= 0) {
       setSeasonFormError('Base rate must be greater than $0')
       return
     }
@@ -289,22 +318,22 @@ export function ReservationTypeSettings({
     setSeasonFormError(null)
 
     try {
-      const isEditing = !!editingPeriod.id
+      const isEditing = !!periodToSave.id
       const url = isEditing
-        ? `/api/v1/properties/${propertyId}/seasonal-periods/${editingPeriod.id}`
+        ? `/api/v1/properties/${propertyId}/seasonal-periods/${periodToSave.id}`
         : `/api/v1/properties/${propertyId}/seasonal-periods`
 
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: editingPeriod.name,
-          start_month: editingPeriod.start_month,
-          start_day: editingPeriod.start_day,
-          end_month: editingPeriod.end_month,
-          end_day: editingPeriod.end_day,
-          base_rate_cents: editingPeriod.base_rate_cents,
-          recurring: editingPeriod.recurring,
+          name: periodToSave.name,
+          start_month: periodToSave.start_month,
+          start_day: periodToSave.start_day,
+          end_month: periodToSave.end_month,
+          end_day: periodToSave.end_day,
+          base_rate_cents: periodToSave.base_rate_cents,
+          recurring: periodToSave.recurring,
         }),
       })
 
@@ -317,7 +346,7 @@ export function ReservationTypeSettings({
 
       if (isEditing) {
         setSeasonalPeriods((prev) =>
-          prev.map((p) => (p.id === editingPeriod.id ? savedPeriod : p))
+          prev.map((p) => (p.id === periodToSave.id ? savedPeriod : p))
         )
       } else {
         setSeasonalPeriods((prev) => [...prev, savedPeriod])
@@ -325,6 +354,8 @@ export function ReservationTypeSettings({
 
       setIsSeasonDialogOpen(false)
       setEditingPeriod(null)
+      setIsSeasonBaseRateFocused(false)
+      setSeasonBaseRateInput('')
     } catch (error) {
       console.error('Error saving seasonal period:', error)
       setSeasonFormError(error instanceof Error ? error.message : 'Failed to save')
@@ -679,16 +710,21 @@ export function ReservationTypeSettings({
                   <Input
                     id="base-rate"
                     type="number"
+                    step="1"
                     min="0"
-                    step="0.01"
                     className="pl-7"
-                    value={(editingPeriod.base_rate_cents / 100).toFixed(2)}
-                    onChange={(e) =>
-                      setEditingPeriod({
-                        ...editingPeriod,
-                        base_rate_cents: Math.round(parseFloat(e.target.value || '0') * 100),
-                      })
+                    placeholder="Enter rate"
+                    value={
+                      isSeasonBaseRateFocused
+                        ? seasonBaseRateInput
+                        : formatCentsToInput(editingPeriod.base_rate_cents)
                     }
+                    onFocus={() => {
+                      setIsSeasonBaseRateFocused(true)
+                      setSeasonBaseRateInput(formatCentsToInput(editingPeriod.base_rate_cents))
+                    }}
+                    onChange={(e) => setSeasonBaseRateInput(e.target.value)}
+                    onBlur={commitSeasonBaseRateInput}
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">

@@ -95,7 +95,7 @@ export function AddSiteDialog({
   const handleSave = (site: any) => {
     toast({
       title: 'Site Created',
-      description: `Site ${site.site_number} has been created successfully.`,
+      description: `Site ${site.siteNumber ?? site.site_number} has been created successfully.`,
       variant: "success",
     })
     onOpenChange(false)

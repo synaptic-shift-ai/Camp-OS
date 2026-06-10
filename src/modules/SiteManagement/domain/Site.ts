@@ -133,7 +133,7 @@ export class Site extends AggregateRoot<string> {
         description: options.description || null,
         pricing,
         maxOccupancy: options.maxOccupancy || null,
-        maxVehicles: options.maxVehicles || null,
+        maxVehicles: options.maxVehicles ?? null,
         sizeSqft: options.sizeSqft || null,
         status: options.status || SiteStatus.AVAILABLE,
         amenities: options.amenities || null,

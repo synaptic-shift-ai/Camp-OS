@@ -480,7 +480,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
             </div>
             <div>
               <Label htmlFor="max_vehicles">Max Vehicles</Label>
-              <Input id="max_vehicles" type="number" min="1" max="10" {...register("max_vehicles")} placeholder="1" />
+              <Input id="max_vehicles" type="number" min="0" max="10" {...register("max_vehicles")} placeholder="1" />
               {errors.max_vehicles && <p className="text-sm text-destructive mt-1">{errors.max_vehicles.message}</p>}
             </div>
           </div>

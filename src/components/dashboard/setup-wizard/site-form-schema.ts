@@ -19,7 +19,7 @@ export const siteFormSchema = z.object({
   max_occupancy: z.coerce.number().min(1, "At least 1 person").max(50, "Maximum 50 people"),
   max_vehicles: z.preprocess(
     (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 1 : Number(v)),
-    z.number().min(1).max(10)
+    z.number().min(0).max(10)
   ),
   size_sqft: z.coerce.number().min(0).optional(),
   status: z.enum(siteStatuses).default("available"),

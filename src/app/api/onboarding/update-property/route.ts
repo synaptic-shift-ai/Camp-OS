@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { z } from "zod"
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from "@/lib/postal-code"
 
 const propertyUpdateSchema = z.object({
   propertyId: z.string().uuid(),
@@ -13,7 +14,7 @@ const propertyUpdateSchema = z.object({
     .string()
     .length(2, "State must be 2 characters")
     .transform((val) => val.toUpperCase()),
-  zipCode: z.string().min(5, "Zip code is required"),
+  zipCode: z.string().min(ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE),
   phone: z.string().min(10, "Phone number is required"),
   email: z.string().email("Invalid email address"),
   markComplete: z.boolean().optional().default(false),

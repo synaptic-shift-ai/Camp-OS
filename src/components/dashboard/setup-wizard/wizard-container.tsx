@@ -25,8 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 import { createClient } from "@/lib/supabase/client"
 import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
-import { getDetectedTimezone, validatePostalCode } from '@/lib/postal-code'
-import { getTimezoneCountry } from '@/lib/timezone-to-country'
+import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 
 type PropertySection =
   | "location"
@@ -72,7 +71,7 @@ const propertyDetailsSchema = z.object({
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
-  zipCode: z.string().min(1, "ZIP code is required"),
+  zipCode: z.string().min(ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number is required").optional().or(z.literal("")),
   description: z.string().optional(),
@@ -85,21 +84,6 @@ const propertyDetailsSchema = z.object({
   minStayNights: z.coerce.number().int().min(1).default(1),
   maxStayNights: z.coerce.number().int().min(1).optional().or(z.literal("")),
   bookingLeadTimeDays: z.coerce.number().int().min(0).default(365),
-}).superRefine((data, ctx) => {
-  // Validate ZIP/postal code against country from timezone
-  if (data.zipCode && data.zipCode.trim() !== '') {
-    const countryCode = getTimezoneCountry(data.timezone);
-    if (countryCode) {
-      const result = validatePostalCode(countryCode, data.zipCode);
-      if (result !== true) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone',
-          path: ['zipCode'],
-        });
-      }
-    }
-  }
 });
 
 type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
@@ -766,11 +750,8 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
         return `${fields.slice(0, -1).join(", ")}, and ${fields[fields.length - 1]!}`
       }
 
-      const isZipInvalidForCountry = (zip: string | undefined | null, tz: string | undefined | null): boolean => {
-        if (!zip || zip.trim().length === 0) return true
-        const cc = tz ? getTimezoneCountry(tz) : null
-        if (!cc) return false
-        return validatePostalCode(cc, zip.trim()) !== true
+      const isZipMissing = (zip: string | undefined | null): boolean => {
+        return !zip || zip.trim().length < ZIP_CODE_MIN_LENGTH
       }
 
       for (const property of propertiesToCheck) {
@@ -780,18 +761,17 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           if (!v.address?.trim()) missingFields.push("Street Address")
           if (!v.city?.trim()) missingFields.push("City")
           if (!v.state?.trim()) missingFields.push("State")
-          if (isZipInvalidForCountry(v.zipCode, v.timezone || timezone)) missingFields.push("ZIP")
+          if (isZipMissing(v.zipCode)) missingFields.push("ZIP")
         } else {
           const draft = getDraft(property.id)
           const address = draft?.address ?? property.address
           const city = draft?.city ?? property.city
           const state = draft?.state ?? property.state
           const zipCode = draft?.zipCode ?? property.zipCode
-          const tz = draft?.timezone ?? property.settings?.timezone
           if (!address?.trim()) missingFields.push("Street Address")
           if (!city?.trim()) missingFields.push("City")
           if (!state?.trim()) missingFields.push("State")
-          if (isZipInvalidForCountry(zipCode, tz)) missingFields.push("ZIP")
+          if (isZipMissing(zipCode)) missingFields.push("ZIP")
         }
         if (missingFields.length > 0) {
           propertiesMissingFields.push({
@@ -810,16 +790,8 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
           if (!v.address?.trim()) setError("address", { type: "manual", message: "Address is required" })
           if (!v.city?.trim()) setError("city", { type: "manual", message: "City is required" })
           if (!v.state?.trim()) setError("state", { type: "manual", message: "State is required" })
-          if (!v.zipCode || v.zipCode.trim().length === 0) {
-            setError("zipCode", { type: "manual", message: "ZIP code is required" })
-          } else {
-            const countryCode = getTimezoneCountry(v.timezone || timezone);
-            if (countryCode) {
-              const result = validatePostalCode(countryCode, v.zipCode.trim());
-              if (result !== true) {
-                setError("zipCode", { type: "manual", message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' })
-              }
-            }
+          if (isZipMissing(v.zipCode)) {
+            setError("zipCode", { type: "manual", message: ZIP_CODE_MIN_LENGTH_MESSAGE })
           }
           setCurrentSection("location")
         }

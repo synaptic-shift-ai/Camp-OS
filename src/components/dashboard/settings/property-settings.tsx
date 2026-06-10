@@ -8,8 +8,7 @@
  */
 
 import { useMemo, useRef, useState } from 'react'
-import { validatePostalCode } from '@/lib/postal-code'
-import { getTimezoneCountry } from '@/lib/timezone-to-country'
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { format, parse } from 'date-fns'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -30,7 +29,6 @@ import { TimezoneSelectField } from '@/components/dashboard/timezone-select-fiel
 const SEASON_ERROR_TOAST_CLASS =
   'border-[#5f111b] bg-[#5f111b] text-white [&_button[toast-close]]:text-white/90 [&_button[toast-close]]:hover:text-white'
 
-// Schema is created dynamically so zipCode validation can reference the timezone from component state.
 // This constant serves as the shape reference; the actual schema used by the form is the useMemo below.
 const _propertyDetailsSchemaShape = {
   name: z.string().min(1, 'Name is required').max(255),
@@ -133,23 +131,15 @@ export function PropertySettings({
     address: z.string().min(1, 'Address is required').max(255),
     city: z.string().min(1, 'City is required').max(100),
     state: z.string().min(2, 'State is required').max(50),
-    zipCode: z.string().min(1, 'ZIP code is required').optional().refine((val) => {
-      if (!val || val.trim() === '') return true;
-      const countryCode = getTimezoneCountry(timezone);
-      if (!countryCode) return true;
-      const result = validatePostalCode(countryCode, val);
-      return result === true;
-    }, (val) => {
-      const countryCode = getTimezoneCountry(timezone);
-      if (!countryCode) return { message: 'Zip code is not valid in your timezone' };
-      const result = validatePostalCode(countryCode, val || '');
-      return { message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' };
-    }),
+    zipCode: z.string().optional().refine(
+      (val) => !val || val.trim() === '' || val.trim().length >= ZIP_CODE_MIN_LENGTH,
+      { message: ZIP_CODE_MIN_LENGTH_MESSAGE },
+    ),
     phone: z.string().max(50).optional(),
     email: z.string().email('Invalid email address').optional().or(z.literal('')),
     checkInTime: z.string().max(50).optional(),
     checkOutTime: z.string().max(50).optional(),
-  }), [timezone])
+  }), [])
 
   type PropertyDetailsFormData = z.infer<typeof propertyDetailsSchema>
   const initialTimezoneRef = useRef<string>(initial.timezone ?? 'UTC')

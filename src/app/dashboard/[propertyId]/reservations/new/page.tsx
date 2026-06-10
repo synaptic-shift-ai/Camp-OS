@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 
 type ExistingGuestMatch = {
   id: string
@@ -90,7 +91,10 @@ const manualBookingSchema = z.object({
   guestAddress: z.string().optional(),
   guestCity: z.string().optional(),
   guestState: z.string().optional(),
-  guestZipCode: z.string().optional(),
+  guestZipCode: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || val.trim().length >= ZIP_CODE_MIN_LENGTH,
+    { message: ZIP_CODE_MIN_LENGTH_MESSAGE },
+  ),
 
   // Spouse/Partner (optional)
   spouse: z.object({

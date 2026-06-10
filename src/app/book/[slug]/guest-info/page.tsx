@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useMemo } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,7 +23,7 @@ import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { useCheckout } from "@/lib/booking/checkout-context"
-import { validatePostalCode, getDetectedCountryCode, getDetectedTimezone } from '@/lib/postal-code'
+import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
@@ -159,10 +159,9 @@ export default function GuestInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
     checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
-  const [detectedCountry] = useState(() => getDetectedCountryCode())
   const [detectedTimezone] = useState(() => getDetectedTimezone())
 
-  const guestFormSchema = useMemo(() => z.object({
+  const guestFormSchema = z.object({
     first_name: z.string().min(2, "First name is required"),
     last_name: z.string().min(2, "Last name is required"),
     email: z.string().email("Valid email is required"),
@@ -170,16 +169,10 @@ export default function GuestInfoPage() {
     address: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
-    zip_code: z.string().optional().refine((val) => {
-      if (!val || val.trim() === '') return true;
-      if (!detectedCountry) return true;
-      const result = validatePostalCode(detectedCountry, val);
-      return result === true;
-    }, (val) => {
-      if (!detectedCountry) return { message: 'Zip code is not valid in your timezone' };
-      const result = validatePostalCode(detectedCountry, val || '');
-      return { message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' };
-    }),
+    zip_code: z.string().optional().refine(
+      (val) => !val || val.trim() === '' || val.trim().length >= ZIP_CODE_MIN_LENGTH,
+      { message: ZIP_CODE_MIN_LENGTH_MESSAGE },
+    ),
     country: z.string().optional(),
     emergency_contact_name: z.string().optional(),
     emergency_contact_phone: z.string().optional(),
@@ -195,7 +188,7 @@ export default function GuestInfoPage() {
     agree_cancellation: z.boolean().refine((val) => val === true, {
       message: "You must agree to the cancellation policy",
     }),
-  }), [detectedCountry])
+  })
 
   type GuestFormData = z.infer<typeof guestFormSchema>
   const [cancellationPolicyData, setCancellationPolicyData] =

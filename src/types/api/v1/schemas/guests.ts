@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod'
+import { ZIP_CODE_MIN_LENGTH } from '@/lib/postal-code'
 import {
   createSuccessResponseSchema,
   createListResponseSchema,
@@ -25,7 +26,7 @@ export const AddressSchema = z.object({
   street: z.string().min(1),
   city: z.string().min(1),
   state: z.string().min(1),
-  zipCode: z.string().min(1),
+  zipCode: z.string().min(ZIP_CODE_MIN_LENGTH),
   country: z.string().min(1),
 })
 

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from "@/lib/postal-code"
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,9 +38,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "State must be 2 characters" }, { status: 400 })
     }
 
-    // Validate zip code is at least 5 characters
-    if (body.zipCode.length < 5) {
-      return NextResponse.json({ error: "Zip code must be at least 5 characters" }, { status: 400 })
+    if (body.zipCode.length < ZIP_CODE_MIN_LENGTH) {
+      return NextResponse.json({ error: ZIP_CODE_MIN_LENGTH_MESSAGE }, { status: 400 })
     }
 
     // Validate phone is at least 10 characters

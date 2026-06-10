@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useCheckout } from "@/lib/booking/checkout-context"
-import { validatePostalCode, getDetectedCountryCode, getDetectedTimezone } from '@/lib/postal-code'
+import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import type { SiteType } from "@/lib/booking/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -106,11 +106,9 @@ export function CheckoutClient() {
   const { checkoutData, setCheckoutData } = useCheckout()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [_error, setError] = useState<string | null>(null)
-  const [detectedCountry] = useState(() => getDetectedCountryCode())
   const [detectedTimezone] = useState(() => getDetectedTimezone())
 
-  // Make the schema dynamic based on detected country
-  const guestFormSchema = useMemo(() => z.object({
+  const guestFormSchema = z.object({
     first_name: z.string().min(1, "First name is required"),
     last_name: z.string().min(1, "Last name is required"),
     email: z.string().email("Invalid email address"),
@@ -119,20 +117,14 @@ export function CheckoutClient() {
     address_line_2: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
-    zip_code: z.string().optional().refine((val) => {
-      if (!val || val.trim() === '') return true;
-      if (!detectedCountry) return true;
-      const result = validatePostalCode(detectedCountry, val);
-      return result === true;
-    }, (val) => {
-      if (!detectedCountry) return { message: 'Zip code is not valid in your timezone' };
-      const result = validatePostalCode(detectedCountry, val || '');
-      return { message: typeof result === 'string' ? result : 'Zip code is not valid in your timezone' };
-    }),
+    zip_code: z.string().optional().refine(
+      (val) => !val || val.trim() === '' || val.trim().length >= ZIP_CODE_MIN_LENGTH,
+      { message: ZIP_CODE_MIN_LENGTH_MESSAGE },
+    ),
     country: z.string().default("United States"),
     special_requests: z.string().optional(),
     email_preferences: z.boolean().default(false),
-  }), [detectedCountry])
+  })
 
   type GuestFormData = z.infer<typeof guestFormSchema>
 

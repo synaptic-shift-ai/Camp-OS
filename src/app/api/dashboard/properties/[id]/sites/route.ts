@@ -156,7 +156,7 @@ export async function POST(
       site_name: site.site_name || null,
       site_type: site.site_type,
       max_occupancy: site.max_occupancy || 4,
-      max_vehicles: site.max_vehicles || 1,
+      max_vehicles: site.max_vehicles ?? 1,
       size_sqft: site.size_sqft || null,
       status: site.status || "available",
       description: site.description || null,

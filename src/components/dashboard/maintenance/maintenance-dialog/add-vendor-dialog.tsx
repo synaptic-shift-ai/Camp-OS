@@ -13,6 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { normalizePhone } from "@/lib/phone-utils"
 import { Label } from "@/components/ui/label"
 
 export type AddVendorInput = {
@@ -58,7 +60,12 @@ export function AddVendorDialog({
 
   useEffect(() => {
     if (!open) return
-    const newForm = initialValues ?? INITIAL_FORM
+    const newForm = initialValues
+      ? {
+          ...initialValues,
+          phone: normalizePhone(initialValues.phone) || '',
+        }
+      : INITIAL_FORM
     setForm(newForm)
     cleanFormRef.current = JSON.stringify(newForm)
     setError(null)
@@ -146,13 +153,11 @@ export function AddVendorDialog({
 
                 <div className="space-y-2">
                     <Label htmlFor="vendor-phone">Phone</Label>
-                    <Input
-                        id="vendor-phone"
-                        type="tel"
-                        value={form.phone ?? ""}
-                        onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                        placeholder="(555) 123-4567"
-                        disabled={isSubmitting}
+                    <PhoneInput
+                      value={form.phone ?? ''}
+                      onChange={(value) => setForm((prev) => ({ ...prev, phone: value }))}
+                      id="vendor-phone"
+                      disabled={isSubmitting}
                     />
                 </div>
 

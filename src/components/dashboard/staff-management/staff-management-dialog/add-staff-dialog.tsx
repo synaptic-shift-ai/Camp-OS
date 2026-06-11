@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -345,12 +346,10 @@ export default function AddStaffDialog({
 
           <div>
             <Label htmlFor="add-staff-phone">Phone</Label>
-            <Input
-              id="add-staff-phone"
-              type="tel"
-              placeholder="Enter phone number (optional)"
+            <PhoneInput
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(value) => setPhone(value)}
+              id="add-staff-phone"
             />
           </div>
 

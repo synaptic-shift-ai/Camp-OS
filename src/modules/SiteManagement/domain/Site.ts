@@ -457,11 +457,11 @@ export class Site extends AggregateRoot<string> {
    */
   markAsNeedsHousekeeping(): void {
     const oldStatus = this.props.status
-    this.props.status = SiteStatus.NEEDS_HOUSEKEEPING
+    this.props.status = SiteStatus.HOUSEKEEPING
 
     this.touch()
     this.addDomainEvent(
-      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.NEEDS_HOUSEKEEPING)
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.HOUSEKEEPING)
     )
   }
 
@@ -469,7 +469,7 @@ export class Site extends AggregateRoot<string> {
    * Complete housekeeping and mark as available
    */
   completeHousekeeping(): void {
-    if (this.props.status !== SiteStatus.NEEDS_HOUSEKEEPING) {
+    if (this.props.status !== SiteStatus.HOUSEKEEPING) {
       throw new Error('Cannot complete housekeeping - site is not marked as needing housekeeping')
     }
 
@@ -487,11 +487,11 @@ export class Site extends AggregateRoot<string> {
    */
   markAsOutOfService(): void {
     const oldStatus = this.props.status
-    this.props.status = SiteStatus.OUT_OF_SERVICE
+    this.props.status = SiteStatus.UNAVAILABLE
 
     this.touch()
     this.addDomainEvent(
-      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.OUT_OF_SERVICE)
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.UNAVAILABLE)
     )
   }
 
@@ -505,11 +505,11 @@ export class Site extends AggregateRoot<string> {
     initiatedBy: string | null = null
   ): void {
     const oldStatus = this.props.status
-    this.props.status = SiteStatus.OUT_OF_SERVICE
+    this.props.status = SiteStatus.MAINTENANCE
 
     this.touch()
     this.addDomainEvent(
-      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.OUT_OF_SERVICE)
+      new SiteStatusChangedEvent(this.id, this.propertyId, oldStatus, SiteStatus.MAINTENANCE)
     )
     this.addDomainEvent(
       new SiteMaintenanceStartedEvent(
@@ -526,7 +526,7 @@ export class Site extends AggregateRoot<string> {
    * Complete maintenance and return to available
    */
   completeMaintenance(): void {
-    if (this.props.status !== SiteStatus.OUT_OF_SERVICE) {
+    if (this.props.status !== SiteStatus.MAINTENANCE) {
       throw new Error('Cannot complete maintenance - site is not under maintenance')
     }
 

@@ -16,6 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Sheet,
   SheetContent,
@@ -38,8 +41,11 @@ import {
   MessageSquare,
   Send,
   Clock,
+  ChevronDown,
+  Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { SiteType, SiteTypeLabels } from "@/modules/SiteManagement/domain/SiteType"
 
 // ============================================================================
 // Types
@@ -55,9 +61,30 @@ type CampaignForm = {
   name: string
   channel: "email" | "sms" | "both"
   segment_type: string
+  selected_guest_ids: string[]
+  selected_site_ids: string[]
+  selected_site_types: string[]
   subject: string
   body: string
   smsBody: string
+}
+
+type GuestOption = {
+  id: string
+  fullName: string
+  email: string
+}
+
+type SiteOption = {
+  id: string
+  label: string
+  sublabel: string
+}
+
+type AudienceSelectOption = {
+  id: string
+  label: string
+  sublabel?: string
 }
 
 type PreviewData = {
@@ -79,9 +106,75 @@ const INITIAL_FORM: CampaignForm = {
   name: "",
   channel: "email",
   segment_type: "all_guests",
+  selected_guest_ids: [],
+  selected_site_ids: [],
+  selected_site_types: [],
   subject: "",
   body: "",
   smsBody: "",
+}
+
+function normalizeSiteTypeKey(raw: string): string {
+  return raw.trim().toLowerCase()
+}
+
+function buildAllowedSiteTypeOptions(allowedSiteTypes: string[]): AudienceSelectOption[] {
+  const seen = new Set<string>()
+  const options: AudienceSelectOption[] = []
+
+  for (const raw of allowedSiteTypes) {
+    const id = normalizeSiteTypeKey(raw)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+
+    const enumMatch = Object.values(SiteType).find((siteType) => siteType === id)
+    options.push({
+      id,
+      label: enumMatch ? SiteTypeLabels[enumMatch] : raw.trim(),
+    })
+  }
+
+  return options
+}
+
+function toAllowedSiteTypeKeys(allowedSiteTypes: string[]): Set<string> {
+  return new Set(allowedSiteTypes.map(normalizeSiteTypeKey).filter(Boolean))
+}
+
+async function fetchPropertyAllowedSiteTypes(propertyId: string): Promise<string[]> {
+  try {
+    const res = await fetch(`/api/properties/${propertyId}/settings`)
+    const json = await res.json()
+    if (!json.success) return []
+    const allowed = (json.property?.site_type_config as { allowed_site_types?: unknown } | undefined)
+      ?.allowed_site_types
+    return Array.isArray(allowed) ? allowed.filter((value): value is string => typeof value === "string") : []
+  } catch {
+    return []
+  }
+}
+
+function parseAudienceStringIds(
+  campaign: Record<string, unknown> | null | undefined,
+  key: "guest_ids" | "site_ids" | "site_types",
+): string[] {
+  const audienceFilter = campaign?.audience_filter
+  if (!audienceFilter || typeof audienceFilter !== "object") return []
+  const ids = (audienceFilter as Record<string, unknown>)[key]
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []
+}
+
+function buildAudienceFilter(form: CampaignForm) {
+  if (form.segment_type === "specific_guest") {
+    return { guest_ids: form.selected_guest_ids }
+  }
+  if (form.segment_type === "by_site") {
+    return { site_ids: form.selected_site_ids }
+  }
+  if (form.segment_type === "by_site_type") {
+    return { site_types: form.selected_site_types }
+  }
+  return undefined
 }
 
 function resolveTemplateId(
@@ -112,6 +205,7 @@ function buildCampaignPayload(
     name: form.name,
     channel: form.channel,
     segment_type: form.segment_type,
+    audience_filter: buildAudienceFilter(form),
     subject: form.channel === "sms" ? undefined : form.subject,
     body: form.channel === "sms" ? form.body : form.body,
     template_id: resolveTemplateId(form.channel, selectedEmailTemplateId, selectedSmsTemplateId),
@@ -123,6 +217,8 @@ const SEGMENT_TYPES = [
   { value: "all_guests", label: "All Guests" },
   { value: "specific_guest", label: "Specific Guest" },
   { value: "bookings_this_month", label: "Bookings This Month" },
+  { value: "by_site", label: "By Site" },
+  { value: "by_site_type", label: "By Site Type" },
   { value: "by_location", label: "By Location" },
   { value: "by_season", label: "By Season" },
   { value: "upcoming_bookings", label: "Upcoming Bookings" },
@@ -174,6 +270,127 @@ function stripHtml(html: string) {
     .replace(/&gt;/g, '>')
 }
 
+function AudienceMultiSelect({
+  id,
+  label,
+  placeholder,
+  emptyMessage,
+  selectedIds,
+  options,
+  loading,
+  search,
+  onSearchChange,
+  onToggle,
+  error,
+  showSearch = true,
+  open,
+  onOpenChange,
+}: {
+  id: string
+  label: string
+  placeholder: string
+  emptyMessage: string
+  selectedIds: string[]
+  options: AudienceSelectOption[]
+  loading?: boolean
+  search?: string
+  onSearchChange?: (value: string) => void
+  onToggle: (id: string) => void
+  error?: string | undefined
+  showSearch?: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const selectedLabel =
+    selectedIds.length === 0
+      ? placeholder
+      : `${selectedIds.length} selected`
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>
+        {label} <span className="text-red-500">*</span>
+      </Label>
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            className={cn(
+              "h-10 w-full justify-between px-3 font-normal",
+              error && "border-red-500 focus-visible:ring-red-500",
+            )}
+          >
+            <span className="truncate text-left">{selectedLabel}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+        >
+          {showSearch && onSearchChange && (
+            <div className="border-b p-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search ?? ""}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  placeholder="Search…"
+                  className="h-9 pl-8"
+                />
+              </div>
+            </div>
+          )}
+          <div className="max-h-60 overflow-y-auto p-1">
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-3 py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading…
+              </div>
+            ) : options.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                {emptyMessage}
+              </p>
+            ) : (
+              options.map((option) => {
+                const checked = selectedIds.includes(option.id)
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => onToggle(option.id)}
+                    className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left hover:bg-accent"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      className="mt-0.5"
+                      aria-hidden
+                      tabIndex={-1}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {option.label}
+                      </span>
+                      {option.sublabel && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {option.sublabel}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  )
+}
+
 function SmsBodyPreview({ text }: { text: string }) {
   const charCount = text.length
   const segments = Math.ceil(charCount / 160) || 1
@@ -222,6 +439,9 @@ export function CampaignEditorPage({
         name: (campaign.name as string) ?? "",
         channel: (campaign.channel as "email" | "sms" | "both") ?? "email",
         segment_type: (campaign.segment_type as string) ?? "all_guests",
+        selected_guest_ids: parseAudienceStringIds(campaign, "guest_ids"),
+        selected_site_ids: parseAudienceStringIds(campaign, "site_ids"),
+        selected_site_types: parseAudienceStringIds(campaign, "site_types"),
         subject: (campaign.subject as string) ?? "",
         body: (campaign.body as string) ?? "",
         smsBody: (campaign.sms_body as string) ?? "",
@@ -263,8 +483,52 @@ export function CampaignEditorPage({
   const previousChannelRef = useRef(form.channel)
   const [emailTemplates, setEmailTemplates] = useState<{ id: string; name: string; subject_template: string; html_template: string }[]>([])
   const [smsTemplates, setSmsTemplates] = useState<{ id: string; name: string; body: string }[]>([])
+  const [guestOptions, setGuestOptions] = useState<GuestOption[]>([])
+  const [guestsLoading, setGuestsLoading] = useState(false)
+  const [guestSearch, setGuestSearch] = useState("")
+  const [guestPickerOpen, setGuestPickerOpen] = useState(false)
+  const [siteOptions, setSiteOptions] = useState<SiteOption[]>([])
+  const [sitesLoading, setSitesLoading] = useState(false)
+  const [siteSearch, setSiteSearch] = useState("")
+  const [sitePickerOpen, setSitePickerOpen] = useState(false)
+  const [siteTypePickerOpen, setSiteTypePickerOpen] = useState(false)
+  const [siteTypeOptions, setSiteTypeOptions] = useState<AudienceSelectOption[]>([])
+  const [siteTypesLoading, setSiteTypesLoading] = useState(false)
 
   const isEmailChannel = form.channel === "email" || form.channel === "both"
+  const isSpecificGuestAudience = form.segment_type === "specific_guest"
+  const isBySiteAudience = form.segment_type === "by_site"
+  const isBySiteTypeAudience = form.segment_type === "by_site_type"
+
+  const filteredGuestOptions = useMemo(() => {
+    const query = guestSearch.trim().toLowerCase()
+    if (!query) return guestOptions
+    return guestOptions.filter(
+      (guest) =>
+        guest.fullName.toLowerCase().includes(query) ||
+        guest.email.toLowerCase().includes(query),
+    )
+  }, [guestOptions, guestSearch])
+
+  const filteredSiteOptions = useMemo(() => {
+    const query = siteSearch.trim().toLowerCase()
+    if (!query) return siteOptions
+    return siteOptions.filter(
+      (site) =>
+        site.label.toLowerCase().includes(query) ||
+        site.sublabel.toLowerCase().includes(query),
+    )
+  }, [siteOptions, siteSearch])
+
+  const siteAudienceOptions = useMemo(
+    () =>
+      filteredSiteOptions.map((site) => ({
+        id: site.id,
+        label: site.label,
+        sublabel: site.sublabel,
+      })),
+    [filteredSiteOptions],
+  )
 
   // Fetch templates when channel changes
   useEffect(() => {
@@ -303,6 +567,129 @@ export function CampaignEditorPage({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.channel, propertyId])
+
+  useEffect(() => {
+    if (!isSpecificGuestAudience) {
+      setGuestOptions([])
+      setGuestSearch("")
+      setGuestPickerOpen(false)
+      return
+    }
+
+    let cancelled = false
+    setGuestsLoading(true)
+
+    fetch(`/api/v1/properties/${propertyId}/guests?limit=100`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        const items = json.success && Array.isArray(json.data?.items) ? json.data.items : []
+        setGuestOptions(
+          items.map((guest: { id: string; fullName?: string; email?: string; firstName?: string; lastName?: string }) => ({
+            id: guest.id,
+            fullName:
+              guest.fullName?.trim() ||
+              [guest.firstName, guest.lastName].filter(Boolean).join(" ").trim() ||
+              "Unnamed guest",
+            email: guest.email?.trim() || "",
+          })),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setGuestOptions([])
+      })
+      .finally(() => {
+        if (!cancelled) setGuestsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSpecificGuestAudience, propertyId])
+
+  useEffect(() => {
+    if (!isBySiteAudience) {
+      setSiteOptions([])
+      setSiteSearch("")
+      setSitePickerOpen(false)
+      return
+    }
+
+    let cancelled = false
+    setSitesLoading(true)
+
+    Promise.all([
+      fetchPropertyAllowedSiteTypes(propertyId),
+      fetch(`/api/v1/properties/${propertyId}/sites?per_page=100`).then((res) => res.json()),
+    ])
+      .then(([allowedSiteTypes, json]) => {
+        if (cancelled) return
+        const allowedSiteTypeKeys = toAllowedSiteTypeKeys(allowedSiteTypes)
+        const items = json.success && Array.isArray(json.data?.items) ? json.data.items : []
+        const filteredItems =
+          allowedSiteTypeKeys.size === 0
+            ? []
+            : items.filter((site: { siteType?: string }) =>
+                allowedSiteTypeKeys.has(normalizeSiteTypeKey(site.siteType ?? "other")),
+              )
+
+        setSiteOptions(
+          filteredItems.map((site: {
+            id: string
+            siteNumber?: string
+            siteName?: string | null
+            siteTypeLabel?: string
+            siteType?: string
+          }) => {
+            const number = site.siteNumber?.trim() || "—"
+            const name = site.siteName?.trim()
+            const typeLabel = site.siteTypeLabel?.trim() || site.siteType?.trim() || ""
+            return {
+              id: site.id,
+              label: name ? `Site ${number} — ${name}` : `Site ${number}`,
+              sublabel: typeLabel,
+            }
+          }),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setSiteOptions([])
+      })
+      .finally(() => {
+        if (!cancelled) setSitesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isBySiteAudience, propertyId])
+
+  useEffect(() => {
+    if (!isBySiteTypeAudience) {
+      setSiteTypeOptions([])
+      setSiteTypePickerOpen(false)
+      return
+    }
+
+    let cancelled = false
+    setSiteTypesLoading(true)
+
+    fetchPropertyAllowedSiteTypes(propertyId)
+      .then((allowedSiteTypes) => {
+        if (cancelled) return
+        setSiteTypeOptions(buildAllowedSiteTypeOptions(allowedSiteTypes))
+      })
+      .catch(() => {
+        if (!cancelled) setSiteTypeOptions([])
+      })
+      .finally(() => {
+        if (!cancelled) setSiteTypesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isBySiteTypeAudience, propertyId])
 
   // ── Variables bottom sheet (mobile) ──
   const [variablesOpen, setVariablesOpen] = useState(false)
@@ -374,6 +761,60 @@ export function CampaignEditorPage({
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }))
     markUserEdited()
   }, [errors, markUserEdited])
+
+  const updateSegmentType = useCallback((segmentType: string) => {
+    setForm((prev) => ({
+      ...prev,
+      segment_type: segmentType,
+      selected_guest_ids: segmentType === "specific_guest" ? prev.selected_guest_ids : [],
+      selected_site_ids: segmentType === "by_site" ? prev.selected_site_ids : [],
+      selected_site_types: segmentType === "by_site_type" ? prev.selected_site_types : [],
+    }))
+    if (errors.segment_type) setErrors((prev) => ({ ...prev, segment_type: "" }))
+    if (errors.selected_guest_ids) setErrors((prev) => ({ ...prev, selected_guest_ids: "" }))
+    if (errors.selected_site_ids) setErrors((prev) => ({ ...prev, selected_site_ids: "" }))
+    if (errors.selected_site_types) setErrors((prev) => ({ ...prev, selected_site_types: "" }))
+    markUserEdited()
+  }, [
+    errors.segment_type,
+    errors.selected_guest_ids,
+    errors.selected_site_ids,
+    errors.selected_site_types,
+    markUserEdited,
+  ])
+
+  const toggleGuestSelection = useCallback((guestId: string) => {
+    setForm((prev) => {
+      const selected = prev.selected_guest_ids.includes(guestId)
+        ? prev.selected_guest_ids.filter((id) => id !== guestId)
+        : [...prev.selected_guest_ids, guestId]
+      return { ...prev, selected_guest_ids: selected }
+    })
+    if (errors.selected_guest_ids) setErrors((prev) => ({ ...prev, selected_guest_ids: "" }))
+    markUserEdited()
+  }, [errors.selected_guest_ids, markUserEdited])
+
+  const toggleSiteSelection = useCallback((siteId: string) => {
+    setForm((prev) => {
+      const selected = prev.selected_site_ids.includes(siteId)
+        ? prev.selected_site_ids.filter((id) => id !== siteId)
+        : [...prev.selected_site_ids, siteId]
+      return { ...prev, selected_site_ids: selected }
+    })
+    if (errors.selected_site_ids) setErrors((prev) => ({ ...prev, selected_site_ids: "" }))
+    markUserEdited()
+  }, [errors.selected_site_ids, markUserEdited])
+
+  const toggleSiteTypeSelection = useCallback((siteType: string) => {
+    setForm((prev) => {
+      const selected = prev.selected_site_types.includes(siteType)
+        ? prev.selected_site_types.filter((type) => type !== siteType)
+        : [...prev.selected_site_types, siteType]
+      return { ...prev, selected_site_types: selected }
+    })
+    if (errors.selected_site_types) setErrors((prev) => ({ ...prev, selected_site_types: "" }))
+    markUserEdited()
+  }, [errors.selected_site_types, markUserEdited])
 
   const updateBodyFromEditor = useCallback((val: string) => {
     setForm((prev) => ({ ...prev, body: val }))
@@ -464,6 +905,15 @@ export function CampaignEditorPage({
       if (!form.subject.trim()) newErrors.subject = "Subject is required for email campaigns"
     }
     if (!form.segment_type) newErrors.segment_type = "Segment type is required"
+    if (form.segment_type === "specific_guest" && form.selected_guest_ids.length === 0) {
+      newErrors.selected_guest_ids = "Select at least one guest"
+    }
+    if (form.segment_type === "by_site" && form.selected_site_ids.length === 0) {
+      newErrors.selected_site_ids = "Select at least one site"
+    }
+    if (form.segment_type === "by_site_type" && form.selected_site_types.length === 0) {
+      newErrors.selected_site_types = "Select at least one site type"
+    }
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) {
       toast.error("Please fill in all required fields")
@@ -597,7 +1047,9 @@ export function CampaignEditorPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form }),
+          body: JSON.stringify(
+            buildCampaignPayload(form, selectedEmailTemplateId, selectedSmsTemplateId),
+          ),
         }
       )
       const json = await res.json()
@@ -786,7 +1238,7 @@ export function CampaignEditorPage({
                 </Label>
                 <Select
                   value={form.segment_type}
-                  onValueChange={(v) => updateForm("segment_type", v)}
+                  onValueChange={updateSegmentType}
                 >
                   <SelectTrigger
                     id="campaign-segment"
@@ -962,6 +1414,139 @@ export function CampaignEditorPage({
                 </div>
               )}
             </div>
+
+            {isSpecificGuestAudience && (
+              <div className="space-y-1.5">
+                <Label htmlFor="campaign-guests">
+                  Select Guests <span className="text-red-500">*</span>
+                </Label>
+                <Popover open={guestPickerOpen} onOpenChange={setGuestPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="campaign-guests"
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "h-10 w-full justify-between px-3 font-normal",
+                        errors.selected_guest_ids && "border-red-500 focus-visible:ring-red-500",
+                      )}
+                    >
+                      <span className="truncate text-left">
+                        {form.selected_guest_ids.length === 0
+                          ? "Select guests…"
+                          : `${form.selected_guest_ids.length} guest${form.selected_guest_ids.length === 1 ? "" : "s"} selected`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                  >
+                    <div className="border-b p-2">
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={guestSearch}
+                          onChange={(e) => setGuestSearch(e.target.value)}
+                          placeholder="Search guests…"
+                          className="h-9 pl-8"
+                        />
+                      </div>
+                    </div>
+                    <ScrollArea className="h-60">
+                      <div className="p-1">
+                        {guestsLoading ? (
+                          <div className="flex items-center justify-center gap-2 px-3 py-6 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading guests…
+                          </div>
+                        ) : filteredGuestOptions.length === 0 ? (
+                          <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                            {guestOptions.length === 0 ? "No guests found" : "No guests match your search"}
+                          </p>
+                        ) : (
+                          filteredGuestOptions.map((guest) => {
+                            const checked = form.selected_guest_ids.includes(guest.id)
+                            return (
+                              <button
+                                key={guest.id}
+                                type="button"
+                                onClick={() => toggleGuestSelection(guest.id)}
+                                className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left hover:bg-accent"
+                              >
+                                <Checkbox
+                                  checked={checked}
+                                  className="mt-0.5"
+                                  aria-hidden
+                                  tabIndex={-1}
+                                />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-medium">
+                                    {guest.fullName}
+                                  </span>
+                                  {guest.email && (
+                                    <span className="block truncate text-xs text-muted-foreground">
+                                      {guest.email}
+                                    </span>
+                                  )}
+                                </span>
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                {errors.selected_guest_ids && (
+                  <p className="mt-1 text-xs text-red-500">{errors.selected_guest_ids}</p>
+                )}
+              </div>
+            )}
+
+            {isBySiteAudience && (
+              <AudienceMultiSelect
+                id="campaign-sites"
+                label="Select Sites"
+                placeholder="Select sites…"
+                emptyMessage={
+                  siteSearch.trim()
+                    ? "No sites match your search"
+                    : "No sites found for your configured site types."
+                }
+                selectedIds={form.selected_site_ids}
+                options={siteAudienceOptions}
+                loading={sitesLoading}
+                search={siteSearch}
+                onSearchChange={setSiteSearch}
+                onToggle={toggleSiteSelection}
+                error={errors.selected_site_ids}
+                open={sitePickerOpen}
+                onOpenChange={setSitePickerOpen}
+              />
+            )}
+
+            {isBySiteTypeAudience && (
+              <AudienceMultiSelect
+                id="campaign-site-types"
+                label="Select Site Types"
+                placeholder="Select site types…"
+                emptyMessage={
+                  siteTypeOptions.length === 0
+                    ? "No site types configured. Add site types in Settings."
+                    : "No site types available"
+                }
+                selectedIds={form.selected_site_types}
+                options={siteTypeOptions}
+                loading={siteTypesLoading}
+                onToggle={toggleSiteTypeSelection}
+                error={errors.selected_site_types}
+                showSearch={false}
+                open={siteTypePickerOpen}
+                onOpenChange={setSiteTypePickerOpen}
+              />
+            )}
 
             {/* ── Subject (email only) ── */}
             {form.channel === "email" && (

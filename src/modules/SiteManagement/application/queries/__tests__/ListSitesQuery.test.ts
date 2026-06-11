@@ -168,18 +168,18 @@ describe('ListSitesQuery', () => {
     it('should filter by OUT_OF_SERVICE status', async () => {
       const result = await handler.execute({
         propertyId: 'prop-1',
-        status: SiteStatus.OUT_OF_SERVICE,
+        status: SiteStatus.UNAVAILABLE,
       })
 
       expect(result.sites).toHaveLength(1)
-      expect(result.sites[0]!.status).toBe(SiteStatus.OUT_OF_SERVICE)
+      expect(result.sites[0]!.status).toBe(SiteStatus.UNAVAILABLE)
       expect(result.sites[0]!.id).toBe('site-3')
     })
 
     it('should return empty array if no sites match status', async () => {
       const result = await handler.execute({
         propertyId: 'prop-1',
-        status: SiteStatus.NEEDS_HOUSEKEEPING,
+        status: SiteStatus.HOUSEKEEPING,
       })
 
       expect(result.sites).toHaveLength(0)
@@ -246,7 +246,7 @@ describe('ListSitesQuery', () => {
         availableOnly: true,
       })
 
-      const outOfServiceSites = result.sites.filter((s) => s.status === SiteStatus.OUT_OF_SERVICE)
+      const outOfServiceSites = result.sites.filter((s) => s.status === SiteStatus.UNAVAILABLE)
       expect(outOfServiceSites).toHaveLength(0)
     })
   })
@@ -453,11 +453,11 @@ describe('ListSitesQuery', () => {
 
       const result = await handler.execute({
         propertyId: 'prop-1',
-        status: SiteStatus.NEEDS_HOUSEKEEPING,
+        status: SiteStatus.HOUSEKEEPING,
       })
 
       expect(result.sites.length).toBeGreaterThan(0)
-      expect(result.sites.every((s) => s.status === SiteStatus.NEEDS_HOUSEKEEPING)).toBe(true)
+      expect(result.sites.every((s) => s.status === SiteStatus.HOUSEKEEPING)).toBe(true)
     })
 
     it('should paginate through all sites for admin panel', async () => {

@@ -225,6 +225,66 @@ export async function getGuestsBySegment(
       return (data as GuestRow[]).filter((g) => !optedOutIds.has(g.id))
     }
 
+    case 'by_site': {
+      const siteIds = audienceFilter?.site_ids ?? []
+      if (siteIds.length === 0) return []
+
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('guest_id, guests!inner(id, property_id, first_name, last_name, email, phone)')
+        .eq('property_id', propertyId)
+        .in('site_id', siteIds)
+        .is('guests.deleted_at', null)
+
+      if (error) {
+        console.error('[segmentation] by_site query failed:', error.message)
+        return []
+      }
+
+      return deduplicateGuests(
+        (data ?? [])
+          .map((r: Record<string, unknown>) => r.guests as unknown as GuestRow)
+          .filter(Boolean),
+      )
+    }
+
+    case 'by_site_type': {
+      const siteTypes = audienceFilter?.site_types ?? []
+      if (siteTypes.length === 0) return []
+
+      const { data: sites, error: sitesError } = await supabase
+        .from('sites')
+        .select('id')
+        .eq('property_id', propertyId)
+        .in('site_type', siteTypes)
+
+      if (sitesError) {
+        console.error('[segmentation] by_site_type sites query failed:', sitesError.message)
+        return []
+      }
+
+      const siteIds = (sites ?? []).map((s: { id: string }) => s.id)
+      if (siteIds.length === 0) return []
+
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('guest_id, guests!inner(id, property_id, first_name, last_name, email, phone)')
+        .eq('property_id', propertyId)
+        .in('site_id', siteIds)
+        .is('guests.deleted_at', null)
+
+      if (error) {
+        console.error('[segmentation] by_site_type reservations query failed:', error.message)
+        return []
+      }
+
+      return deduplicateGuests(
+        (data ?? [])
+          .map((r: Record<string, unknown>) => r.guests as unknown as GuestRow)
+          .filter(Boolean),
+      )
+    }
+
     default: {
       console.warn('[segmentation] Unknown segment type:', segmentType)
       return []

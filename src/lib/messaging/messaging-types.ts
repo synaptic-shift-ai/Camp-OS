@@ -25,6 +25,8 @@ export type SegmentType =
   | 'past_guests'
   | 'email_opt_in'
   | 'sms_opt_in'
+  | 'by_site'
+  | 'by_site_type'
 
 // ============================================================================
 // Interfaces (matching migration table columns)
@@ -36,6 +38,8 @@ export interface AudienceFilter {
   guest_ids?: string[]
   date_from?: string
   date_to?: string
+  site_ids?: string[]
+  site_types?: string[]
 }
 
 export interface MessageCampaign {

@@ -23,7 +23,7 @@ export type CreateSiteDto = {
   maxOccupancy?: number | null
   maxVehicles?: number | null
   sizeSqft?: number | null
-  status?: SiteStatus | 'available' | 'occupied' | 'reserved' | 'needs_housekeeping' | 'out_of_service' | 'booked'
+  status?: SiteStatus | 'available' | 'occupied' | 'reserved' | 'booked' | 'housekeeping' | 'maintenance' | 'unavailable'
   amenities?: string[] | null
   hookups?: string[] | null
   images?: string[] | null

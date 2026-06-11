@@ -10,7 +10,7 @@ import type { SiteStatus } from '../../domain/SiteStatus'
 export type ListSitesDto = {
   propertyId: string
   // Accept string literals from Zod validation or enum values
-  status?: SiteStatus | 'available' | 'occupied' | 'reserved' | 'needs_housekeeping' | 'out_of_service' | 'booked' | undefined
+  status?: SiteStatus | 'available' | 'occupied' | 'reserved' | 'booked' | 'housekeeping' | 'maintenance' | 'unavailable' | undefined
   siteType?: string | undefined
   availableOnly?: boolean | undefined
   limit?: number | undefined

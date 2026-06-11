@@ -980,7 +980,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
-          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full px-1 sm:px-2">
+          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full px-10 sm:px-12 md:px-14 lg:px-16">
             <CarouselContent className="-ml-2 sm:-ml-4">
               {(
                 (siteTypeSummaries?.length
@@ -1081,8 +1081,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 )
               })}
             </CarouselContent>
-            <CarouselPrevious className="-left-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:-left-3 sm:h-10 sm:w-10 md:-left-4 lg:-left-6 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
-            <CarouselNext className="-right-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:-right-3 sm:h-10 sm:w-10 md:-right-4 lg:-right-6 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselPrevious className="left-0 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-1 sm:h-10 sm:w-10 md:left-2 lg:left-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselNext className="right-0 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-1 sm:h-10 sm:w-10 md:right-2 lg:right-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
           </Carousel>
         </div>
       </section>

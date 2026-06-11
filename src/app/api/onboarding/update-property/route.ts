@@ -15,7 +15,7 @@ const propertyUpdateSchema = z.object({
     .length(2, "State must be 2 characters")
     .transform((val) => val.toUpperCase()),
   zipCode: z.string().min(ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE),
-  phone: z.string().min(10, "Phone number is required"),
+  phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Please enter a valid phone number').max(16),
   email: z.string().email("Invalid email address"),
   markComplete: z.boolean().optional().default(false),
 })

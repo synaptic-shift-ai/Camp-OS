@@ -203,13 +203,10 @@ export function AddGuestDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="emergencyContactPhone">Emergency contact phone</Label>
-              <Input
-                id="emergencyContactPhone"
-                type="tel"
+              <PhoneInput
                 value={form.emergencyContactPhone}
-                onChange={handleChange('emergencyContactPhone')}
-                placeholder="(555) 987-6543"
-                maxLength={20}
+                onChange={(value) => setForm(prev => ({ ...prev, emergencyContactPhone: value }))}
+                id="emergencyContactPhone"
               />
             </div>
           </div>

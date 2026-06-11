@@ -9,6 +9,7 @@
 
 import { useFormContext, Controller } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -94,11 +95,16 @@ export function SpousePartnerSection({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="spouse.phone">Phone (Optional)</Label>
-              <Input
-                id="spouse.phone"
-                type="tel"
-                placeholder="(555) 123-4567"
-                {...register('spouse.phone')}
+              <Controller
+                name="spouse.phone"
+                control={control}
+                render={({ field }) => (
+                  <PhoneInput
+                    {...field}
+                    value={field.value ?? ''}
+                    id="spouse.phone"
+                  />
+                )}
               />
             </div>
             <div className="space-y-2">

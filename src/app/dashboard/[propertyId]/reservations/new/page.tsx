@@ -5,12 +5,13 @@ import { useToast } from "@/hooks/use-toast"
 import type { HolidayRule } from "@/lib/config/types"
 import { format } from "date-fns"
 import { useRouter, useParams } from "next/navigation"
-import { useForm, FormProvider } from "react-hook-form"
+import { useForm, FormProvider, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -1457,10 +1458,16 @@ export default function NewReservationPage() {
                       </div>
                       <div>
                         <Label htmlFor="guestPhone">Phone *</Label>
-                        <Input
-                          id="guestPhone"
-                          type="tel"
-                          {...register("guestPhone")}
+                        <Controller
+                          name="guestPhone"
+                          control={methods.control}
+                          render={({ field }) => (
+                            <PhoneInput
+                              {...field}
+                              id="guestPhone"
+                              error={!!errors.guestPhone}
+                            />
+                          )}
                         />
                         {errors.guestPhone && (
                           <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestPhone.message}</p>
@@ -1554,10 +1561,16 @@ export default function NewReservationPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="evacuation_contact_phone">Contact Phone</Label>
-                        <Input
-                          id="evacuation_contact_phone"
-                          type="tel"
-                          {...register("evacuationContact.phone")}
+                        <Controller
+                          name="evacuationContact.phone"
+                          control={methods.control}
+                          render={({ field }) => (
+                            <PhoneInput
+                              {...field}
+                              value={field.value ?? ''}
+                              id="evacuation_contact_phone"
+                            />
+                          )}
                         />
                       </div>
                     </div>

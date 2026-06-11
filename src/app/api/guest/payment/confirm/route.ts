@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       .from('reservations')
       .update({
         status: 'confirmed',
-        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
+        payment_status: isDepositPayment ? 'partial' : 'paid',
         paid_amount: isDepositPayment ? paidAmountCents : reservation.total_amount,
         reserved_until: null, // Clear checkout timer - payment completed
         notes: `Online payment via Stripe${isDepositPayment ? ' (deposit)' : ''}. PaymentIntent: ${validatedInput.payment_intent_id}`,
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
         reservation_id: reservation.id,
         confirmation_number: reservation.confirmation_number,
         status: 'confirmed',
-        payment_status: isDepositPayment ? 'deposit_paid' : 'paid',
+        payment_status: isDepositPayment ? 'partial' : 'paid',
         guest_name: `${reservation.guest.first_name} ${reservation.guest.last_name}`,
         guest_email: reservation.guest.email,
         property_name: reservation.property.name,

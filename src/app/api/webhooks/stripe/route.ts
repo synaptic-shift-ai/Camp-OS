@@ -293,14 +293,11 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
     const previousPaid = (reservationRow?.paid_amount ?? 0) as number
     const nextPaid = Math.min(reservationTotal, Math.max(0, previousPaid + validated.amount))
 
-    const isDepositPayment = previousPaid === 0 && validated.amount < reservationTotal
     const nextPaymentStatus = nextPaid >= reservationTotal
       ? 'paid'
-      : isDepositPayment
-        ? 'deposit_paid'
-        : nextPaid > 0
-          ? 'partial'
-          : 'pending'
+      : nextPaid > 0
+        ? 'partial'
+        : 'pending'
 
     const nextStatus =
       reservationRow?.status === 'pending' && nextPaid >= reservationTotal
@@ -322,6 +319,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
       console.error('Failed to update reservation:', updateReservationError)
       // Don't throw - payment succeeded, customer created, just DB update failed
     } else {
+      const isDepositPayment = previousPaid === 0 && validated.amount < reservationTotal
       console.log(`Reservation ${reservation_id} confirmed via webhook (amount: $${validated.amount / 100}${isDepositPayment ? ', deposit payment' : ''})`)
     }
 

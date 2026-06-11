@@ -24,6 +24,7 @@ import {
   Car,
   ImageOff,
   TriangleAlert,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -67,6 +68,14 @@ const RESERVATION_TYPE_LABELS: Record<BookingType, string> = {
   weekly: 'Weekly Rate',
   monthly: 'Monthly Rate',
   seasonal: 'Seasonal Rate',
+}
+
+function formatGuestPickerLabel(adults: number, children: number, pets: number): string {
+  const parts: string[] = []
+  if (adults > 0) parts.push(`${adults}A`)
+  if (children > 0) parts.push(`${children}C`)
+  if (pets > 0) parts.push(`${pets}P`)
+  return parts.join(', ')
 }
 
 const SITE_TYPE_OPTIONS: { value: SiteType; label: string }[] = [
@@ -869,15 +878,19 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                   <label className={cn("text-sm font-medium", "text-[#2D5A27] dark:text-emerald-400")}>Guests</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between border-2 border-input bg-background whitespace-normal">
-                        <span>
-                          {adults + children} Guest{adults + children !== 1 ? "s" : ""}
-                          {pets > 0 && `, ${pets} Pet${pets !== 1 ? "s" : ""}`}
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex h-10 w-full items-center justify-between rounded-md border-2 border-input bg-background px-3 py-2 text-sm",
+                          "font-normal text-foreground ring-offset-background",
+                          "hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-left">
+                          {formatGuestPickerLabel(adults, children, pets)}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {adults}A {children > 0 && `${children}C`} {pets > 0 && `${pets}P`}
-                        </span>
-                      </Button>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" aria-hidden />
+                      </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64">
                       <div className="space-y-4">

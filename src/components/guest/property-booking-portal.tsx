@@ -1081,8 +1081,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 )
               })}
             </CarouselContent>
-            <CarouselPrevious className="left-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-2 sm:h-10 sm:w-10 md:left-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
-            <CarouselNext className="right-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-2 sm:h-10 sm:w-10 md:right-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselPrevious className="-left-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:-left-3 sm:h-10 sm:w-10 md:-left-4 lg:-left-6 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselNext className="-right-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:-right-3 sm:h-10 sm:w-10 md:-right-4 lg:-right-6 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
           </Carousel>
         </div>
       </section>

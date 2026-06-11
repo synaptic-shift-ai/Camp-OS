@@ -865,11 +865,11 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 </div>
 
                 {/* Guest Count */}
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <label className={cn("text-sm font-medium", "text-[#2D5A27] dark:text-emerald-400")}>Guests</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between border-2 border-input bg-background">
+                      <Button variant="outline" className="w-full justify-between border-2 border-input bg-background whitespace-normal">
                         <span>
                           {adults + children} Guest{adults + children !== 1 ? "s" : ""}
                           {pets > 0 && `, ${pets} Pet${pets !== 1 ? "s" : ""}`}

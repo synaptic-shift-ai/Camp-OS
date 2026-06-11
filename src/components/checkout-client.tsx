@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -112,7 +113,7 @@ export function CheckoutClient() {
     first_name: z.string().min(1, "First name is required"),
     last_name: z.string().min(1, "Last name is required"),
     email: z.string().email("Invalid email address"),
-    phone: z.string().min(10, "Phone number must be at least 10 digits"),
+    phone: z.string().min(1, "Phone number is required"),
     address: z.string().optional(),
     address_line_2: z.string().optional(),
     city: z.string().optional(),
@@ -140,7 +141,7 @@ export function CheckoutClient() {
     handleSubmit,
     formState: { errors },
     setValue,
-    watch,
+    control,
   } = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),
     defaultValues: {
@@ -148,21 +149,6 @@ export function CheckoutClient() {
       email_preferences: false,
     },
   })
-
-  const phoneValue = watch("phone")
-
-  // Auto-format phone number
-  useEffect(() => {
-    if (phoneValue) {
-      const cleaned = phoneValue.replace(/\D/g, "")
-      if (cleaned.length <= 10) {
-        const formatted = cleaned.replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3")
-        if (formatted !== phoneValue && cleaned.length === 10) {
-          setValue("phone", formatted)
-        }
-      }
-    }
-  }, [phoneValue, setValue])
 
   const onSubmit = async (data: GuestFormData) => {
     setIsSubmitting(true)
@@ -190,7 +176,7 @@ export function CheckoutClient() {
           first_name: data.first_name,
           last_name: data.last_name,
           email: data.email,
-          phone: data.phone.replace(/\D/g, ""), // Remove formatting
+          phone: data.phone,
           address: data.address || undefined,
           city: data.city || undefined,
           state: data.state || undefined,
@@ -488,12 +474,16 @@ export function CheckoutClient() {
                       <Label htmlFor="phone">
                         Phone <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        {...register("phone")}
-                        placeholder="(555) 123-4567"
-                        className={cn(errors.phone && "border-destructive")}
+                      <Controller
+                        name="phone"
+                        control={control}
+                        render={({ field }) => (
+                          <PhoneInput
+                            {...field}
+                            id="phone"
+                            error={!!errors.phone}
+                          />
+                        )}
                       />
                       {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
                     </div>

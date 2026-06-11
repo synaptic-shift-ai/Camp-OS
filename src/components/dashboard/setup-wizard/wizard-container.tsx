@@ -221,6 +221,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     register,
     handleSubmit,
     formState: { errors, isDirty },
+    control,
     setValue,
     watch,
     reset,
@@ -1283,6 +1284,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                     selectedProperty={selectedProperty}
                     register={register}
                     errors={errors}
+                    control={control}
                     setValue={setValue}
                     timezone={timezone}
                     usTimezones={TIMEZONE_OPTIONS}

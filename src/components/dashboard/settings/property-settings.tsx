@@ -10,12 +10,14 @@
 import { useMemo, useRef, useState } from 'react'
 import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { format, parse } from 'date-fns'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
+import { normalizePhone } from '@/lib/phone-utils'
 import { Label } from '@/components/ui/label'
 import { OpenPeriodDatePicker } from '@/components/dashboard/settings/open-period-date-picker'
 import { Textarea } from '@/components/ui/textarea'
@@ -286,7 +288,7 @@ export function PropertySettings({
       city: initial.city ?? '',
       state: initial.state ?? '',
       zipCode: initial.zipCode ?? '',
-      phone: initial.phone ?? '',
+      phone: normalizePhone(initial.phone) || '',
       email: initial.email ?? '',
       checkInTime: initial.checkInTime ?? '',
       checkOutTime: initial.checkOutTime ?? '',
@@ -458,12 +460,16 @@ export function PropertySettings({
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                {...register('phone', { disabled: readOnly })}
-                placeholder="(555) 123-4567"
-                className={errors.phone ? 'border-destructive' : ''}
+              <Controller
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    {...field}
+                    value={field.value ?? ''}
+                    id="phone"
+                    disabled={readOnly}
+                  />
+                )}
               />
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>

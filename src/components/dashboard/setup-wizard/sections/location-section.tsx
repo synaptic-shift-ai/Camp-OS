@@ -1,16 +1,19 @@
 "use client"
 
-import type { FieldErrors, UseFormRegister } from "react-hook-form"
+import type { Control, FieldErrors, UseFormRegister } from "react-hook-form"
+import { Controller } from "react-hook-form"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Textarea } from "@/components/ui/textarea"
 
 interface Props {
   register: UseFormRegister<any>
   errors: FieldErrors<any>
+  control: Control<any>
 }
 
-export function LocationSection({ register, errors }: Props) {
+export function LocationSection({ register, errors, control }: Props) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
@@ -57,7 +60,18 @@ export function LocationSection({ register, errors }: Props) {
         </div>
         <div>
           <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" type="tel" {...register("phone")} placeholder="(555) 123-4567" className="mt-1" />
+          <Controller
+            name="phone"
+            control={control}
+            render={({ field }) => (
+              <PhoneInput
+                {...field}
+                value={field.value ?? ''}
+                id="phone"
+                className="mt-1"
+              />
+            )}
+          />
           {errors.phone && (
             <p className="mt-1 text-sm text-destructive dark:text-red-300">{String(errors.phone.message ?? "")}</p>
           )}

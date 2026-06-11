@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useProperty, type Property } from "@/components/property-context"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { normalizePhone } from "@/lib/phone-utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +28,7 @@ const propertyDetailsSchema = z.object({
   state: z.string().min(2, "State is required"),
   zipCode: z.string().min(ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(10, "Phone number is required").optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
   description: z.string().optional(),
   timezone: z.string().default("America/New_York"),
   checkInTime: z.string().default("15:00"),
@@ -80,7 +82,7 @@ const PropertyDetailsStepComponent = (
       state: property.state || "",
       zipCode: property.zipCode || "",
       email: property.email || "",
-      phone: property.phone || "",
+      phone: normalizePhone(property.phone) || "",
       description: property.description || "",
       timezone: property.settings?.timezone || "America/New_York",
       checkInTime: property.settings?.checkInTime || "15:00",
@@ -276,7 +278,16 @@ const PropertyDetailsStepComponent = (
             </div>
             <div>
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" type="tel" {...register("phone")} placeholder="(555) 123-4567" />
+              <Controller
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    {...field}
+                    value={field.value ?? ''}
+                    id="phone"
+                  />
+                )}
+              />
               {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>}
             </div>
           </div>

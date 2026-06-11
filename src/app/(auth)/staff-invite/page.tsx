@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { MotionDiv } from "@/components/ui/motion-wrapper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { normalizePhone } from "@/lib/phone-utils"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Icons } from "@/components/icons"
@@ -83,7 +85,7 @@ function StaffInviteContent() {
           setFirstName(typeof data.firstName === "string" ? data.firstName : "")
           setLastName(typeof data.lastName === "string" ? data.lastName : "")
           setContactPhone(
-            typeof data.contactPhone === "string" ? data.contactPhone : "",
+            normalizePhone(typeof data.contactPhone === "string" ? data.contactPhone : "") || "",
           )
         } else {
           setLinkValid(false)
@@ -267,13 +269,10 @@ function StaffInviteContent() {
 
               <div className="space-y-2">
                 <Label htmlFor="contactPhone">Contact number</Label>
-                <Input
-                  id="contactPhone"
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder="e.g. +1 555 123 4567"
+                <PhoneInput
                   value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
+                  onChange={(value) => setContactPhone(value)}
+                  id="contactPhone"
                   disabled={loading}
                 />
               </div>

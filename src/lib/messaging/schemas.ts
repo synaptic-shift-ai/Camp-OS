@@ -27,6 +27,8 @@ export const CreateCampaignSchema = z
         guest_ids: z.array(z.string().uuid()).optional(),
         date_from: z.string().optional(),
         date_to: z.string().optional(),
+        site_ids: z.array(z.string().uuid()).optional(),
+        site_types: z.array(z.string()).optional(),
       })
       .optional(),
     template_id: z.string().uuid().nullable().optional(),
@@ -61,6 +63,8 @@ export const UpdateCampaignSchema = z
         guest_ids: z.array(z.string().uuid()).optional(),
         date_from: z.string().optional(),
         date_to: z.string().optional(),
+        site_ids: z.array(z.string().uuid()).optional(),
+        site_types: z.array(z.string()).optional(),
       })
       .optional(),
     template_id: z.string().uuid().nullable().optional(),

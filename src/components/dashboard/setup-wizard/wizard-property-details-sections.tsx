@@ -1,6 +1,6 @@
 "use client"
 
-import type { FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-form"
+import type { Control, FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-form"
 import type { Property } from "@/components/property-context"
 import { LocationSection } from "./sections/location-section"
 import { ImagesSection } from "./sections/images-section"
@@ -22,6 +22,7 @@ interface WizardPropertyDetailsSectionsProps {
   selectedProperty: Property
   register: UseFormRegister<any>
   errors: FieldErrors<any>
+  control: Control<any>
   setValue: UseFormSetValue<any>
   timezone: string
   usTimezones: Array<{ value: string; label: string }>
@@ -40,6 +41,7 @@ export function WizardPropertyDetailsSections({
   selectedProperty,
   register,
   errors,
+  control,
   setValue,
   timezone,
   usTimezones,
@@ -53,7 +55,7 @@ export function WizardPropertyDetailsSections({
   rateDiscountsConfig,
 }: WizardPropertyDetailsSectionsProps) {
   if (currentSection === "location") {
-    return <LocationSection register={register} errors={errors} />
+    return <LocationSection register={register} errors={errors} control={control} />
   }
 
   if (currentSection === "images") {

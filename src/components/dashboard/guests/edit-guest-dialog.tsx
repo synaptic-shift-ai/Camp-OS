@@ -20,6 +20,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
+import { normalizePhone } from '@/lib/phone-utils'
 import { useToast } from '@/hooks/use-toast'
 import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { Loader2 } from 'lucide-react'
@@ -46,7 +48,7 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
     firstName: nameParts[0] ?? '',
     lastName: nameParts.slice(1).join(' ') ?? '',
     email: guest.email,
-    phone: guest.phone ?? '',
+    phone: normalizePhone(guest.phone) || '',
   })
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
         firstName: parts[0] ?? '',
         lastName: parts.slice(1).join(' ') ?? '',
         email: guest.email,
-        phone: guest.phone ?? '',
+        phone: normalizePhone(guest.phone) || '',
       }
       setForm(resetForm)
       cleanFormRef.current = JSON.stringify(resetForm)
@@ -180,14 +182,10 @@ export function EditGuestDialog({ open, onOpenChange, guest }: EditGuestDialogPr
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-phone">Phone</Label>
-            <Input
-              id="edit-phone"
-              type="tel"
+            <PhoneInput
               value={form.phone}
-              onChange={handleChange('phone')}
-              placeholder="(555) 123-4567"
-              maxLength={20}
-              required
+              onChange={(value) => setForm(prev => ({ ...prev, phone: value }))}
+              id="edit-phone"
             />
           </div>
           <DialogFooter>

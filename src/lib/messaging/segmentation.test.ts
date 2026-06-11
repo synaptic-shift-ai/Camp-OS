@@ -228,6 +228,74 @@ describe('getGuestsBySegment', () => {
     expect(query.lt).toHaveBeenCalledWith('check_out_date', expect.any(String))
   })
 
+  test('queries reservations with site_ids for by_site segment', async () => {
+    const innerGuest = { id: 'g1', property_id: propertyId, first_name: 'A', last_name: 'B', email: 'a@b.com', phone: null }
+    const query = buildMockQuery([{ guest_id: 'g1', guests: innerGuest }])
+    const supabase = buildMockSupabase()
+    supabase.from.mockReturnValue(query)
+
+    await getGuestsBySegment(
+      supabase as never,
+      propertyId,
+      'by_site',
+      { site_ids: ['site-1', 'site-2'] },
+    )
+
+    expect(supabase.from).toHaveBeenCalledWith('reservations')
+    expect(query.in).toHaveBeenCalledWith('site_id', ['site-1', 'site-2'])
+  })
+
+  test('returns empty array when by_site has no site_ids', async () => {
+    const query = buildMockQuery([])
+    const supabase = buildMockSupabase()
+    supabase.from.mockReturnValue(query)
+
+    const result = await getGuestsBySegment(
+      supabase as never,
+      propertyId,
+      'by_site',
+    )
+    expect(result).toEqual([])
+  })
+
+  test('queries sites then reservations for by_site_type segment', async () => {
+    const sitesQuery = buildMockQuery([{ id: 'site-1' }, { id: 'site-2' }])
+    const innerGuest = { id: 'g1', property_id: propertyId, first_name: 'A', last_name: 'B', email: 'a@b.com', phone: null }
+    const reservationsQuery = buildMockQuery([{ guest_id: 'g1', guests: innerGuest }])
+    const supabase = buildMockSupabase()
+    supabase.from.mockImplementation((table: string) => {
+      if (table === 'sites') return sitesQuery
+      if (table === 'reservations') return reservationsQuery
+      return buildMockQuery([])
+    })
+
+    const result = await getGuestsBySegment(
+      supabase as never,
+      propertyId,
+      'by_site_type',
+      { site_types: ['rv', 'cabin'] },
+    )
+
+    expect(supabase.from).toHaveBeenCalledWith('sites')
+    expect(sitesQuery.in).toHaveBeenCalledWith('site_type', ['rv', 'cabin'])
+    expect(supabase.from).toHaveBeenCalledWith('reservations')
+    expect(reservationsQuery.in).toHaveBeenCalledWith('site_id', ['site-1', 'site-2'])
+    expect(result).toHaveLength(1)
+  })
+
+  test('returns empty array when by_site_type has no site_types', async () => {
+    const query = buildMockQuery([])
+    const supabase = buildMockSupabase()
+    supabase.from.mockReturnValue(query)
+
+    const result = await getGuestsBySegment(
+      supabase as never,
+      propertyId,
+      'by_site_type',
+    )
+    expect(result).toEqual([])
+  })
+
   test('returns empty array for unknown segment type', async () => {
     const query = buildMockQuery([])
     const supabase = buildMockSupabase()

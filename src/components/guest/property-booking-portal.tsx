@@ -24,6 +24,7 @@ import {
   Car,
   ImageOff,
   TriangleAlert,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -67,6 +68,14 @@ const RESERVATION_TYPE_LABELS: Record<BookingType, string> = {
   weekly: 'Weekly Rate',
   monthly: 'Monthly Rate',
   seasonal: 'Seasonal Rate',
+}
+
+function formatGuestPickerLabel(adults: number, children: number, pets: number): string {
+  const parts: string[] = []
+  if (adults > 0) parts.push(`${adults}A`)
+  if (children > 0) parts.push(`${children}C`)
+  if (pets > 0) parts.push(`${pets}P`)
+  return parts.join(', ')
 }
 
 const SITE_TYPE_OPTIONS: { value: SiteType; label: string }[] = [
@@ -865,19 +874,23 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 </div>
 
                 {/* Guest Count */}
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <label className={cn("text-sm font-medium", "text-[#2D5A27] dark:text-emerald-400")}>Guests</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between border-2 border-input bg-background">
-                        <span>
-                          {adults + children} Guest{adults + children !== 1 ? "s" : ""}
-                          {pets > 0 && `, ${pets} Pet${pets !== 1 ? "s" : ""}`}
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex h-10 w-full items-center justify-between rounded-md border-2 border-input bg-background px-3 py-2 text-sm",
+                          "font-normal text-foreground ring-offset-background",
+                          "hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-left">
+                          {formatGuestPickerLabel(adults, children, pets)}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {adults}A {children > 0 && `${children}C`} {pets > 0 && `${pets}P`}
-                        </span>
-                      </Button>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" aria-hidden />
+                      </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64">
                       <div className="space-y-4">
@@ -980,7 +993,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
-          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full px-1 sm:px-2">
+          <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full px-10 sm:px-12 md:px-14 lg:px-16">
             <CarouselContent className="-ml-2 sm:-ml-4">
               {(
                 (siteTypeSummaries?.length
@@ -1081,8 +1094,8 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 )
               })}
             </CarouselContent>
-            <CarouselPrevious className="left-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-2 sm:h-10 sm:w-10 md:left-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
-            <CarouselNext className="right-1 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-2 sm:h-10 sm:w-10 md:right-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselPrevious className="left-0 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-1 sm:h-10 sm:w-10 md:left-2 lg:left-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
+            <CarouselNext className="right-0 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-1 sm:h-10 sm:w-10 md:right-2 lg:right-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
           </Carousel>
         </div>
       </section>

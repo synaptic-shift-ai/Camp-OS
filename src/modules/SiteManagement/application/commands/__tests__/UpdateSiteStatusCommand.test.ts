@@ -186,7 +186,7 @@ describe('UpdateSiteStatusCommand', () => {
         action: 'mark_housekeeping',
       })
 
-      expect(result.status).toBe(SiteStatus.NEEDS_HOUSEKEEPING)
+      expect(result.status).toBe(SiteStatus.HOUSEKEEPING)
     })
 
     it('should emit SiteStatusChangedEvent', async () => {
@@ -196,7 +196,7 @@ describe('UpdateSiteStatusCommand', () => {
       })
 
       // Events are published and cleared by handler
-      expect(result.status).toBe(SiteStatus.NEEDS_HOUSEKEEPING)
+      expect(result.status).toBe(SiteStatus.HOUSEKEEPING)
     })
 
     it('should work from occupied status', async () => {
@@ -212,7 +212,7 @@ describe('UpdateSiteStatusCommand', () => {
         action: 'mark_housekeeping',
       })
 
-      expect(result.status).toBe(SiteStatus.NEEDS_HOUSEKEEPING)
+      expect(result.status).toBe(SiteStatus.HOUSEKEEPING)
     })
   })
 
@@ -282,7 +282,7 @@ describe('UpdateSiteStatusCommand', () => {
         action: 'mark_out_of_service',
       })
 
-      expect(result.status).toBe(SiteStatus.OUT_OF_SERVICE)
+      expect(result.status).toBe(SiteStatus.UNAVAILABLE)
     })
 
     it('should emit SiteStatusChangedEvent', async () => {
@@ -292,7 +292,7 @@ describe('UpdateSiteStatusCommand', () => {
       })
 
       // Events are published and cleared by handler
-      expect(result.status).toBe(SiteStatus.OUT_OF_SERVICE)
+      expect(result.status).toBe(SiteStatus.UNAVAILABLE)
     })
 
     it('should work from any status', async () => {
@@ -307,7 +307,7 @@ describe('UpdateSiteStatusCommand', () => {
         action: 'mark_out_of_service',
       })
 
-      expect(result.status).toBe(SiteStatus.OUT_OF_SERVICE)
+      expect(result.status).toBe(SiteStatus.UNAVAILABLE)
     })
   })
 
@@ -348,7 +348,7 @@ describe('UpdateSiteStatusCommand', () => {
         siteId: 'site-123',
         action: 'mark_housekeeping',
       })
-      expect(result.status).toBe(SiteStatus.NEEDS_HOUSEKEEPING)
+      expect(result.status).toBe(SiteStatus.HOUSEKEEPING)
 
       // Housekeeping complete
       result = await handler.execute({
@@ -364,7 +364,7 @@ describe('UpdateSiteStatusCommand', () => {
         siteId: 'site-123',
         action: 'mark_out_of_service',
       })
-      expect(result.status).toBe(SiteStatus.OUT_OF_SERVICE)
+      expect(result.status).toBe(SiteStatus.UNAVAILABLE)
 
       // Return to service
       result = await handler.execute({

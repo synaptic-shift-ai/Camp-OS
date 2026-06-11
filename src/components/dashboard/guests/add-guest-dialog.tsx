@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { useToast } from '@/hooks/use-toast'
 import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { Loader2 } from 'lucide-react'
@@ -183,14 +184,10 @@ export function AddGuestDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Phone *</Label>
-            <Input
-              id="phone"
-              type="tel"
+            <PhoneInput
               value={form.phone}
-              onChange={handleChange('phone')}
-              placeholder="(555) 123-4567"
-              maxLength={20}
-              required
+              onChange={(value) => setForm(prev => ({ ...prev, phone: value }))}
+              id="phone"
             />
           </div>
           {/* <div className="grid grid-cols-2 gap-4">
@@ -206,13 +203,10 @@ export function AddGuestDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="emergencyContactPhone">Emergency contact phone</Label>
-              <Input
-                id="emergencyContactPhone"
-                type="tel"
+              <PhoneInput
                 value={form.emergencyContactPhone}
-                onChange={handleChange('emergencyContactPhone')}
-                placeholder="(555) 987-6543"
-                maxLength={20}
+                onChange={(value) => setForm(prev => ({ ...prev, emergencyContactPhone: value }))}
+                id="emergencyContactPhone"
               />
             </div>
           </div>

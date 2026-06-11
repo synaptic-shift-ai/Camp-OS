@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import {
   Select,
   SelectContent,
@@ -460,12 +461,10 @@ export function SmsTemplatesList({ templates: initialTemplates, propertyId, comp
           </DialogHeader>
           <div className="space-y-2 py-2">
             <label htmlFor="test-phone" className="text-sm font-medium">Phone number</label>
-            <Input
-              id="test-phone"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
+            <PhoneInput
               value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value)}
+              onChange={(value) => setTestPhone(value)}
+              id="test-phone"
             />
           </div>
           <DialogFooter>

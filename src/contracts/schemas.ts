@@ -49,7 +49,7 @@ export const CreateGuestSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   email: z.string().email(),
-  phone: z.string().min(10).max(50),
+  phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Please enter a valid phone number').max(16),
   address: z.string().max(500).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
@@ -112,7 +112,7 @@ export const GuestFormSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Please enter a valid phone number').max(16),
   address: z.string().optional(),
   address_line_2: z.string().optional(),
   city: z.string().optional(),
@@ -247,7 +247,7 @@ export type SpousePartnerInput = z.infer<typeof SpousePartnerSchema>
  */
 export const EvacuationContactSchema = z.object({
   name: z.string().min(1, 'Contact name is required').max(200),
-  phone: z.string().min(10, 'Phone number required').max(50),
+  phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Please enter a valid phone number').max(16),
   relationship: z.string().max(100).optional(),
 })
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
-import { useForm, FormProvider } from "react-hook-form"
+import { useForm, FormProvider, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format, differenceInDays } from "date-fns"
@@ -11,6 +11,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -23,7 +24,7 @@ import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { useCheckout } from "@/lib/booking/checkout-context"
-import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
@@ -159,13 +160,11 @@ export default function GuestInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
     checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
-  const [detectedTimezone] = useState(() => getDetectedTimezone())
-
   const guestFormSchema = z.object({
     first_name: z.string().min(2, "First name is required"),
     last_name: z.string().min(2, "Last name is required"),
     email: z.string().email("Valid email is required"),
-    phone: z.string().min(10, "Valid phone number is required"),
+    phone: z.string().min(1, "Phone number is required"),
     address: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
@@ -392,7 +391,7 @@ export default function GuestInfoPage() {
           first_name: data.first_name,
           last_name: data.last_name,
           email: data.email,
-          phone: data.phone.replace(/\D/g, ""), // Remove formatting
+          phone: data.phone,
           address: data.address || undefined,
           city: data.city || undefined,
           state: data.state || undefined,
@@ -838,11 +837,16 @@ export default function GuestInfoPage() {
                         <Label htmlFor="phone">
                           Phone Number <span className="text-red-500">*</span>
                         </Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          {...form.register("phone")}
-                          className={form.formState.errors.phone ? "border-red-500" : ""}
+                        <Controller
+                          name="phone"
+                          control={form.control}
+                          render={({ field }) => (
+                            <PhoneInput
+                              {...field}
+                              id="phone"
+                              error={!!form.formState.errors.phone}
+                            />
+                          )}
                         />
                         {form.formState.errors.phone && (
                           <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>
@@ -883,9 +887,6 @@ export default function GuestInfoPage() {
                         {form.formState.errors.zip_code && (
                           <p className="text-sm text-red-500">{form.formState.errors.zip_code.message}</p>
                         )}
-                        {detectedTimezone && (
-                          <p className="text-xs text-muted-foreground">🕐 Detected timezone: {detectedTimezone}</p>
-                        )}
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -925,7 +926,13 @@ export default function GuestInfoPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="emergency_contact_phone">Contact Phone</Label>
-                        <Input id="emergency_contact_phone" type="tel" {...form.register("emergency_contact_phone")} />
+                        <Controller
+                          name="emergency_contact_phone"
+                          control={form.control}
+                          render={({ field }) => (
+                            <PhoneInput {...field} value={field.value ?? ""} id="emergency_contact_phone" />
+                          )}
+                        />
                       </div>
                     </div>
                   </div>

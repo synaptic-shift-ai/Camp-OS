@@ -18,7 +18,7 @@
  * - Atomic transaction (all-or-nothing)
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle2, AlertCircle, Loader2, FileText, TriangleAlert } from 'lucide-react'
 import {
@@ -40,7 +40,7 @@ import {
   type ParseError,
   type ParseResult,
 } from '@/lib/csv/parse-sites-csv'
-import { validateSites, getValidationSummary } from '@/lib/csv/validate-sites-csv'
+import { validateSites, getValidationSummary, type ValidationResult } from '@/lib/csv/validate-sites-csv'
 import { useToast } from '@/hooks/use-toast'
 
 interface BulkUploadDialogProps {
@@ -69,6 +69,7 @@ export function BulkUploadDialog({
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [allErrors, setAllErrors] = useState<ParseError[]>([])
   const [importedCount, setImportedCount] = useState(0)
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
 
   // Derived state
   const hasErrors = allErrors.length > 0
@@ -84,6 +85,7 @@ export function BulkUploadDialog({
         setIsProcessing(false)
         setParseResult(null)
         setAllErrors([])
+        setValidationResult(null)
         setImportedCount(0)
       }
       onOpenChange(newOpen)
@@ -91,10 +93,20 @@ export function BulkUploadDialog({
     [onOpenChange]
   )
 
+  // Summary data memoized from parse/validation state
+  const summaryData = useMemo(() => {
+    if (!parseResult) return null
+    return getValidationSummary(
+      parseResult.rowCount,
+      { valid: !hasErrors, errors: allErrors, duplicates: validationResult?.duplicates ?? [] }
+    )
+  }, [parseResult, hasErrors, allErrors, validationResult])
+
   // Handle file selection
   const handleFileSelect = useCallback(async (file: File) => {
     setSelectedFile(file)
     setIsProcessing(true)
+    setValidationResult(null)
     setAllErrors([])
 
     try {
@@ -106,9 +118,10 @@ export function BulkUploadDialog({
       const errors = [...result.errors]
 
       // Validate parsed sites if parsing succeeded
-      if (result.success && result.data.length > 0) {
-        const validationResult = validateSites(result.data)
-        errors.push(...validationResult.errors)
+      if (result.data.length > 0) {
+        const validationRes = validateSites(result.data)
+        errors.push(...validationRes.errors)
+        setValidationResult(validationRes)
       }
 
       setAllErrors(errors)
@@ -194,13 +207,9 @@ export function BulkUploadDialog({
 
   // Summary cards for the preview step
   const getSummary = useCallback(() => {
-    if (!parseResult) return null
+    if (!summaryData) return null
 
-    const summary = getValidationSummary(
-      parseResult.rowCount,
-      parseResult.validRowCount,
-      { valid: !hasErrors, errors: allErrors, duplicates: [] }
-    )
+    const summary = summaryData
 
     return (
       <div className="grid grid-cols-3 gap-3">
@@ -242,7 +251,7 @@ export function BulkUploadDialog({
         </div>
       </div>
     )
-  }, [parseResult, hasErrors, allErrors])
+  }, [summaryData])
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -346,8 +355,8 @@ export function BulkUploadDialog({
               </Button>
               {!hasErrors && (
                 <Button onClick={handleImport} disabled={!isValid}>
-                  Import {parseResult.validRowCount} Site
-                  {parseResult.validRowCount !== 1 ? 's' : ''}
+                  Import {summaryData?.validRows ?? 0} Site
+                  {(summaryData?.validRows ?? 0) !== 1 ? 's' : ''}
                 </Button>
               )}
             </DialogFooter>

@@ -341,7 +341,6 @@ export function validateSites(
  */
 export function getValidationSummary(
   totalRows: number,
-  validRowCount: number,
   result: ValidationResult
 ): {
   totalRows: number
@@ -350,10 +349,12 @@ export function getValidationSummary(
   duplicateCount: number
   errorCount: number
 } {
+  const errorRowSet = new Set(result.errors.map(e => e.row))
+  const uniqueErrorRows = errorRowSet.size
   return {
     totalRows,
-    validRows: validRowCount - result.duplicates.length,
-    invalidRows: totalRows - validRowCount,
+    validRows: totalRows - uniqueErrorRows,
+    invalidRows: uniqueErrorRows,
     duplicateCount: result.duplicates.reduce((sum, dup) => sum + dup.rows.length, 0),
     errorCount: result.errors.length,
   }

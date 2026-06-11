@@ -46,11 +46,12 @@ export const ReservationTypeSchema = z.enum([
 
 export const SiteStatusSchema = z.enum([
   'available',
-  'occupied',
   'reserved',
-  'needs_housekeeping',
-  'out_of_service',
   'booked',
+  'occupied',
+  'housekeeping',
+  'maintenance',
+  'unavailable',
 ])
 
 // ============================================================================

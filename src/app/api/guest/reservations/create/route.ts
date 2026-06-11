@@ -134,7 +134,7 @@ const createGuestReservationSchema = z.object({
     first_name: z.string().min(1, 'First name is required').max(100),
     last_name: z.string().min(1, 'Last name is required').max(100),
     email: z.string().email('Invalid email address'),
-    phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+    phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Please enter a valid phone number').max(16),
     address: z.string().max(255).optional(),
     city: z.string().max(100).optional(),
     state: z.string().max(50).optional(),

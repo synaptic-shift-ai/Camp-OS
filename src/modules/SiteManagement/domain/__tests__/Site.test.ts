@@ -252,7 +252,7 @@ describe('Site Aggregate', () => {
       it('should mark site as needing housekeeping', () => {
         site.markAsNeedsHousekeeping()
 
-        expect(site.status).toBe(SiteStatus.NEEDS_HOUSEKEEPING)
+        expect(site.status).toBe(SiteStatus.HOUSEKEEPING)
       })
 
       it('should emit event', () => {
@@ -285,7 +285,7 @@ describe('Site Aggregate', () => {
       it('should mark site as out of service', () => {
         site.markAsOutOfService()
 
-        expect(site.status).toBe(SiteStatus.OUT_OF_SERVICE)
+        expect(site.status).toBe(SiteStatus.UNAVAILABLE)
       })
     })
   })

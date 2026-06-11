@@ -24,7 +24,7 @@ import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { useCheckout } from "@/lib/booking/checkout-context"
-import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
@@ -160,8 +160,6 @@ export default function GuestInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const displayPropertyName =
     checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
-  const [detectedTimezone] = useState(() => getDetectedTimezone())
-
   const guestFormSchema = z.object({
     first_name: z.string().min(2, "First name is required"),
     last_name: z.string().min(2, "Last name is required"),
@@ -888,9 +886,6 @@ export default function GuestInfoPage() {
                         <Input id="zip_code" {...form.register("zip_code")} className={form.formState.errors.zip_code ? "border-red-500" : ""} />
                         {form.formState.errors.zip_code && (
                           <p className="text-sm text-red-500">{form.formState.errors.zip_code.message}</p>
-                        )}
-                        {detectedTimezone && (
-                          <p className="text-xs text-muted-foreground">🕐 Detected timezone: {detectedTimezone}</p>
                         )}
                       </div>
                     </div>

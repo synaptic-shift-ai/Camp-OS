@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useCheckout } from "@/lib/booking/checkout-context"
-import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
+import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import type { SiteType } from "@/lib/booking/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -107,8 +107,6 @@ export function CheckoutClient() {
   const { checkoutData, setCheckoutData } = useCheckout()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [_error, setError] = useState<string | null>(null)
-  const [detectedTimezone] = useState(() => getDetectedTimezone())
-
   const guestFormSchema = z.object({
     first_name: z.string().min(1, "First name is required"),
     last_name: z.string().min(1, "Last name is required"),
@@ -526,9 +524,6 @@ export function CheckoutClient() {
                       <Label htmlFor="zip_code">ZIP/Postal Code</Label>
                       <Input id="zip_code" {...register("zip_code")} placeholder="94102" className={cn(errors.zip_code && "border-destructive")} />
                       {errors.zip_code && <p className="text-sm text-destructive">{errors.zip_code.message}</p>}
-                      {detectedTimezone && (
-                        <p className="text-xs text-muted-foreground">🕐 Detected timezone: {detectedTimezone}</p>
-                      )}
                     </div>
                   </div>
 

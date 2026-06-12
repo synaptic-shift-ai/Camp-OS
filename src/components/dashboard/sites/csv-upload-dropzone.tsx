@@ -11,7 +11,7 @@ import { useState, useCallback, type ChangeEvent, type DragEvent } from 'react'
 import { Upload, FileSpreadsheet, X, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { MAX_FILE_SIZE_MB } from '@/lib/csv/parse-sites-csv'
+import { MAX_FILE_SIZE_MB, type FileIssue } from '@/lib/csv/parse-sites-csv'
 import { downloadCsvTemplate } from '@/lib/csv/site-csv-template'
 
 interface CsvUploadDropzoneProps {
@@ -20,6 +20,7 @@ interface CsvUploadDropzoneProps {
   disabled?: boolean
   selectedFile?: File | null
   className?: string
+  fileIssue?: FileIssue | undefined
 }
 
 export function CsvUploadDropzone({
@@ -28,6 +29,7 @@ export function CsvUploadDropzone({
   disabled = false,
   selectedFile = null,
   className,
+  fileIssue,
 }: CsvUploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -157,7 +159,7 @@ export function CsvUploadDropzone({
               : 'border-muted-foreground/25 hover:border-primary/50',
             disabled && 'cursor-not-allowed opacity-50',
             !disabled && 'cursor-pointer',
-            error && 'border-destructive'
+            (error || !!fileIssue) && 'border-destructive bg-destructive/5'
           )}
         >
           <input
@@ -235,6 +237,19 @@ export function CsvUploadDropzone({
         <div className="rounded-lg border border-destructive bg-destructive/5 p-3">
           <p className="text-sm text-destructive">{error}</p>
         </div>
+      )}
+
+      {/* Structural File Issue Message */}
+      {fileIssue && !error && (
+        <p className="text-sm text-destructive mt-2">
+          {fileIssue.type === 'file_type_error'
+            ? 'This file is not a CSV. Please convert your file to CSV format or use our template.'
+            : fileIssue.type === 'empty_file'
+              ? 'The file is empty or contains only headers. Please upload a file with site data.'
+              : fileIssue.type === 'encoding_error'
+                ? 'The file could not be read. It may use an unsupported encoding. Please save it as UTF-8 CSV.'
+                : fileIssue.message}
+        </p>
       )}
     </div>
   )

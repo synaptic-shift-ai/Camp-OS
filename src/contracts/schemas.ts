@@ -75,6 +75,7 @@ export const CreateReservationSchema = z.object({
 export const CreatePaymentIntentRequestSchema = z.object({
   reservation_id: z.string().uuid(),
   property_id: z.string().uuid(),
+  pay_in_full: z.boolean().optional(),
 })
 
 export const CreatePaymentIntentResponseSchema = z.object({

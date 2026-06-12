@@ -6,7 +6,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 import { COUNTRIES, getCountryByCode } from '@/lib/countries'
 import type { CountryData } from '@/lib/countries'
-import { normalizePhone, formatPhone, toE164, parseE164 } from '@/lib/phone-utils'
+import { normalizePhone, formatPhone, toE164, parseE164, detectPhoneCountry } from '@/lib/phone-utils'
 import { cn } from '@/lib/utils'
 
 interface PhoneInputProps {
@@ -58,12 +58,21 @@ export function PhoneInput({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value.replace(/\D/g, '')
-      setDigits(raw)
+      const detected = detectPhoneCountry(raw)
+      const nextCountry = detected
+        ? getCountryByCode(detected.countryCode) ?? country
+        : country
+      const nationalDigits = detected?.nationalDigits ?? raw
+
+      if (detected) {
+        setCountry(nextCountry)
+      }
+      setDigits(nationalDigits)
       if (onChange) {
-        onChange(raw ? toE164(raw, country.dialCode) : '')
+        onChange(nationalDigits ? toE164(nationalDigits, nextCountry.dialCode) : '')
       }
     },
-    [onChange, country.dialCode],
+    [onChange, country],
   )
 
   const handleSelectCountry = useCallback(

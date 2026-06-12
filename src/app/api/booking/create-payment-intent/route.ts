@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { reservation_id, property_id } = parsed.data
+    const { reservation_id, property_id, pay_in_full: payInFull } = parsed.data
 
     const supabase = createServiceRoleClient()
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       .eq('id', property_id)
       .single()
 
-    if (property?.deposit_config) {
+    if (!payInFull && property?.deposit_config) {
       const depositConfig = resolveDepositConfig(property.deposit_config as any, null).config
       if (
         depositConfig.require_deposit &&
@@ -113,6 +113,8 @@ export async function POST(request: NextRequest) {
           console.log('[Create Payment Intent] Deposit configured — charging deposit:', depositAmountCents, 'of', totalAmountCents)
         }
       }
+    } else if (payInFull) {
+      console.log('[Create Payment Intent] Guest selected pay in full — charging total:', totalAmountCents)
     }
 
     console.log('[Create Payment Intent] Amount in cents:', amountInCents)

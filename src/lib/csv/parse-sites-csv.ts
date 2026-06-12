@@ -109,12 +109,21 @@ export interface ParseError {
 /**
  * Result of CSV parsing operation
  */
+export type FileIssueType = 'file_type_error' | 'empty_file' | 'missing_headers' | 'unrecognized_headers' | 'encoding_error' | 'wrong_file_purpose'
+
+export interface FileIssue {
+  type: FileIssueType
+  message: string
+  details?: string
+}
+
 export interface ParseResult {
   success: boolean
   data: ParsedSite[]
   errors: ParseError[]
   rowCount: number
   validRowCount: number
+  fileIssues?: FileIssue[]
 }
 
 // ============================================================================
@@ -148,6 +157,33 @@ function parseInteger(value: string | undefined): number | null {
   if (!value || value.trim() === '') return null
   const num = parseInt(value, 10)
   return isNaN(num) ? null : num
+}
+
+export async function detectBinaryFile(file: File): Promise<boolean> {
+  const slice = file.slice(0, 512)
+  const buffer = await slice.arrayBuffer()
+  const view = new DataView(buffer)
+
+  if (view.byteLength >= 4) {
+    const b0 = view.getUint8(0)
+    const b1 = view.getUint8(1)
+    const b2 = view.getUint8(2)
+    const b3 = view.getUint8(3)
+
+    // ZIP-based: xlsx, docx
+    if (b0 === 0x50 && b1 === 0x4b && b2 === 0x03 && b3 === 0x04) return true
+    // OLE2: xls, doc
+    if (b0 === 0xd0 && b1 === 0xcf && b2 === 0x11 && b3 === 0xe0) return true
+    // PDF
+    if (b0 === 0x25 && b1 === 0x50 && b2 === 0x44 && b3 === 0x46) return true
+  }
+
+  // Fallback: any null byte indicates binary
+  for (let i = 0; i < view.byteLength; i++) {
+    if (view.getUint8(i) === 0x00) return true
+  }
+
+  return false
 }
 
 function mapHeaderToKey(header: string): string | null {
@@ -507,22 +543,65 @@ export async function parseSitesCsv(file: File): Promise<ParseResult> {
     }
   }
 
+  const binaryDetected = await detectBinaryFile(file)
+  if (binaryDetected) {
+    return {
+      success: false,
+      data: [],
+      errors: [],
+      rowCount: 0,
+      validRowCount: 0,
+      fileIssues: [{ type: 'file_type_error', message: 'This file is not a CSV. Please convert your file to CSV format or use our template.' }],
+    }
+  }
+
+  if (file.size === 0) {
+    return {
+      success: false,
+      data: [],
+      errors: [],
+      rowCount: 0,
+      validRowCount: 0,
+      fileIssues: [{ type: 'empty_file', message: 'The file is empty. Please upload a file with site data.' }],
+    }
+  }
+
+  const fileIssues: FileIssue[] = []
+  let encodingErrorDetected = false
+
   const parseResult = await new Promise<Papa.ParseResult<CsvRow>>((resolve) => {
     Papa.parse<CsvRow>(file, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header: string) => mapHeaderToKey(header) || header,
       complete: resolve,
+      error: () => {
+        encodingErrorDetected = true
+      },
     })
   })
 
-  if (parseResult.errors.length > 0) {
+  // Convert PapaParse errors to ParseError format and merge into row errors
+  for (const err of parseResult.errors) {
+    errors.push({ row: err.row || 0, message: err.message })
+  }
+
+  if (encodingErrorDetected) {
+    fileIssues.push({ type: 'encoding_error', message: 'The file could not be read. It may use an unsupported encoding. Please save it as UTF-8 CSV.' })
+  }
+
+  if (parseResult.data.length === 0) {
+    const hasHeaders = parseResult.meta.fields && parseResult.meta.fields.length > 0
+    const msg = hasHeaders
+      ? 'The file contains headers but no data rows. Please upload a file with site data.'
+      : 'The file is empty or could not be read. Please upload a file with site data.'
     return {
       success: false,
       data: [],
-      errors: parseResult.errors.map((err) => ({ row: err.row || 0, message: err.message })),
+      errors,
       rowCount: 0,
       validRowCount: 0,
+      fileIssues: [{ type: 'empty_file', message: msg }],
     }
   }
 
@@ -542,21 +621,57 @@ export async function parseSitesCsv(file: File): Promise<ParseResult> {
     }
   }
 
+  // Header structure validation
+  const parsedFields = parseResult.meta.fields || []
+  const expectedKeys = CSV_COLUMNS.map(c => c.key)
+  const missingRequired = CSV_COLUMNS.filter(c => c.required && !parsedFields.includes(c.key))
+  if (missingRequired.length > 0) {
+    fileIssues.push({
+      type: 'missing_headers',
+      message: 'Missing required columns in the CSV header.',
+      details: missingRequired.map(c => c.header).join(', '),
+    })
+  }
+  const unrecognized = parsedFields.filter(f => !expectedKeys.includes(f))
+  if (unrecognized.length > 0) {
+    fileIssues.push({
+      type: 'unrecognized_headers',
+      message: 'The CSV contains columns that are not recognized.',
+      details: unrecognized.join(', '),
+    })
+  }
+
   const sites: ParsedSite[] = []
+  let missingSiteNumberCount = 0
   rows.forEach((row, index) => {
     const rowNumber = index + 1
     const { site, errors: rowErrors } = transformRow(row, rowNumber)
     if (site) sites.push(site)
     errors.push(...rowErrors)
+    // Count rows with missing site_number for wrong file purpose heuristic
+    const siteNumberKey = mapHeaderToKey('Site Number')
+    if (siteNumberKey && (!row[siteNumberKey] || row[siteNumberKey].trim() === '')) {
+      missingSiteNumberCount++
+    }
   })
 
-  return {
+  // Wrong file purpose heuristic: if >=50% of rows have missing site_number
+  if (rows.length > 0 && missingSiteNumberCount / rows.length >= 0.5) {
+    fileIssues.push({
+      type: 'wrong_file_purpose',
+      message: 'This file does not appear to contain site data. Most rows are missing a Site Number.',
+    })
+  }
+
+  const result: ParseResult = {
     success: errors.length === 0,
     data: sites,
     errors,
     rowCount: rows.length,
     validRowCount: sites.length,
   }
+  if (fileIssues.length > 0) result.fileIssues = fileIssues
+  return result
 }
 
 // ============================================================================

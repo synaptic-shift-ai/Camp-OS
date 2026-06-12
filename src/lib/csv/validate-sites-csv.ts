@@ -5,8 +5,10 @@
  * Checks for duplicates, business logic, and data integrity.
  */
 
-import type { ParsedSite, ParseError } from './parse-sites-csv'
+import type { ParsedSite, ParseError, FileIssue } from './parse-sites-csv'
+export type { FileIssue, FileIssueType } from './parse-sites-csv'
 import { siteTypes, siteStatuses } from '@/components/dashboard/setup-wizard/site-form-schema'
+import { CSV_COLUMNS } from './site-csv-template'
 
 // ============================================================================
 // Types
@@ -298,8 +300,9 @@ function validateBusinessLogic(site: ParsedSite, rowNumber: number): ParseError[
  */
 export function validateSites(
   sites: ParsedSite[],
-  includeWarnings: boolean = false
+  options?: { includeWarnings?: boolean; fileIssues?: FileIssue[] | undefined }
 ): ValidationResult {
+  const includeWarnings = options?.includeWarnings ?? false
   const errors: ParseError[] = []
 
   // Validate each site
@@ -328,6 +331,18 @@ export function validateSites(
       })
     })
   })
+
+  // Header mismatch severity escalation
+  if (options?.fileIssues) {
+    const missingHeadersCount = options.fileIssues.filter(i => i.type === 'missing_headers').length
+    const totalRequiredHeaders = CSV_COLUMNS.filter(c => c.required).length
+    if (missingHeadersCount / totalRequiredHeaders >= 0.6 && !options.fileIssues.some(i => i.type === 'wrong_file_purpose')) {
+      options.fileIssues.push({
+        type: 'wrong_file_purpose',
+        message: "This doesn't appear to be a site import file. Multiple required columns are missing.",
+      })
+    }
+  }
 
   return {
     valid: errors.length === 0 && duplicates.length === 0,

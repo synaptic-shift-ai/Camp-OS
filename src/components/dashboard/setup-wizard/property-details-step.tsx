@@ -71,6 +71,7 @@ const PropertyDetailsStepComponent = (
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     setValue,
     watch,
@@ -279,6 +280,7 @@ const PropertyDetailsStepComponent = (
             <div>
               <Label htmlFor="phone">Phone</Label>
               <Controller
+                control={control}
                 name="phone"
                 render={({ field }) => (
                   <PhoneInput

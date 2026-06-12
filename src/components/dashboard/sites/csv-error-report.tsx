@@ -7,9 +7,10 @@
  * Allows downloading errors as CSV for offline review.
  */
 
-import { AlertCircle, Download } from 'lucide-react'
-import type { ParseError } from '@/lib/csv/parse-sites-csv'
+import { AlertCircle, Download, FileText } from 'lucide-react'
+import type { ParseError, FileIssue } from '@/lib/csv/parse-sites-csv'
 import { downloadErrorReport } from '@/lib/csv/parse-sites-csv'
+import { downloadCsvTemplate } from '@/lib/csv/site-csv-template'
 import {
   Table,
   TableBody,
@@ -26,16 +27,17 @@ import { Badge } from '@/components/ui/badge'
 interface CsvErrorReportProps {
   errors: ParseError[]
   maxRows?: number
+  fileIssues?: FileIssue[] | undefined
 }
 
-export function CsvErrorReport({ errors, maxRows = 20 }: CsvErrorReportProps) {
+export function CsvErrorReport({ errors, maxRows = 20, fileIssues }: CsvErrorReportProps) {
   const displayErrors = errors.slice(0, maxRows)
 
   const handleDownloadErrors = () => {
     downloadErrorReport(errors)
   }
 
-  if (errors.length === 0) {
+  if (errors.length === 0 && (!fileIssues || fileIssues.length === 0)) {
     return null
   }
 
@@ -49,6 +51,44 @@ export function CsvErrorReport({ errors, maxRows = 20 }: CsvErrorReportProps) {
 
   return (
     <div className="space-y-4">
+      {/* File Issues Section */}
+      {fileIssues && fileIssues.length > 0 && (
+        <Alert variant="destructive">
+          <FileText className="h-4 w-4" />
+          <AlertTitle>File Structure Issues</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc list-inside space-y-1">
+              {fileIssues.map((issue, index) => (
+                <li key={index}>
+                  {issue.message}
+                  {issue.details && (
+                    <span className="text-sm text-muted-foreground ml-1">{issue.details}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {fileIssues.some(
+              (issue) =>
+                issue.type === 'missing_headers' ||
+                issue.type === 'unrecognized_headers' ||
+                issue.type === 'file_type_error' ||
+                issue.type === 'wrong_file_purpose'
+            ) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => downloadCsvTemplate()}
+                className="mt-3 gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download CSV Template
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Error Summary Alert */}
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />

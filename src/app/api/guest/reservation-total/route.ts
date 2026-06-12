@@ -4,10 +4,9 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role"
 /**
  * GET /api/guest/reservation-total?reservation_id=xxx
  *
- * Returns the server-side total_amount for a reservation so the
- * confirmation page can display "Total Paid" accurately instead of
- * relying on client-side priceBreakdown.total (which may drift from
- * the persisted value due to rounding or promo adjustments).
+ * Returns server-side total_amount and paid_amount for a reservation so the
+ * confirmation page can display payment amounts accurately instead of
+ * relying on client-side priceBreakdown (which may drift or miss deposits).
  */
 export async function GET(request: NextRequest) {
   const reservationId = request.nextUrl.searchParams.get("reservation_id")
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("reservations")
-    .select("id, total_amount")
+    .select("id, total_amount, paid_amount, payment_status")
     .eq("id", reservationId)
     .single()
 
@@ -36,5 +35,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     total_amount_cents: data.total_amount,
+    paid_amount_cents: data.paid_amount ?? 0,
+    payment_status: data.payment_status,
   })
 }

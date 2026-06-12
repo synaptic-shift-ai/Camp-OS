@@ -436,6 +436,7 @@ export interface PriceBreakdown {
   deposit_amount?: number
   deposit_percentage?: number
   deposit_due_date?: string // ISO date string
+  exempt_if_paid_in_full?: boolean
 
   // Totals
   total_before_tax?: number // Subtotal + fees (before tax)
@@ -524,6 +525,7 @@ export interface CheckoutData {
   priceBreakdown?: PriceBreakdown
 
   // Payment
+  paymentOption?: 'deposit' | 'full'
   stripePaymentIntentId?: string
   paymentProcessor?: 'stripe' | 'campost_payments' | 'none'
 

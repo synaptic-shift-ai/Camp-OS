@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -40,7 +41,7 @@ const PAYMENT_METHOD_DISPLAY: Record<PaymentMethod, { title: string; description
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
-function PaymentFormInner({ slug }: { slug: string }) {
+function PaymentFormInner({ slug, amountDueTodayCents }: { slug: string; amountDueTodayCents: number }) {
   const stripe = useStripe()
   const elements = useElements()
   const router = useRouter()
@@ -184,15 +185,6 @@ function PaymentFormInner({ slug }: { slug: string }) {
   const taxesCents =
     priceBreakdown.taxes ??
     Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
-  const totalCents =
-    priceBreakdown.total ??
-    priceBreakdown.subtotal -
-    discountCents +
-    serviceFeeCents +
-    userFeesCents +
-    taxesCents +
-    petFeeCents
-
   console.log('[Payment] PaymentFormInner rendering form with PaymentElement (waiting for onReady)')
 
   return (
@@ -279,7 +271,7 @@ function PaymentFormInner({ slug }: { slug: string }) {
             </span>
           ) : (
             <>
-              Complete Booking - ${(totalCents / 100).toFixed(2)}
+              Complete Booking - ${(amountDueTodayCents / 100).toFixed(2)}
               <ChevronRight className="w-4 h-4 ml-2" />
             </>
           )}
@@ -313,6 +305,8 @@ export default function PaymentPage() {
   const [paypalEmail, setPaypalEmail] = useState("")
   const [paypalFirstName, setPaypalFirstName] = useState("")
   const [paypalLastName, setPaypalLastName] = useState("")
+  const [paymentOption, setPaymentOption] = useState<'deposit' | 'full'>('deposit')
+  const hasInitializedPaymentOption = useRef(false)
   const resolvedPaymentProcessor = checkoutData.paymentProcessor ?? 'stripe'
   const displayPropertyName =
     checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
@@ -359,9 +353,32 @@ export default function PaymentPage() {
   )
 
   useEffect(() => {
+    if (!isHydrated || hasInitializedPaymentOption.current) return
+    hasInitializedPaymentOption.current = true
+    setPaymentOption(
+      checkoutData.paymentOption ?? (checkoutData.priceBreakdown?.deposit_required ? 'deposit' : 'full'),
+    )
+  }, [isHydrated, checkoutData.paymentOption, checkoutData.priceBreakdown?.deposit_required])
+
+  useEffect(() => {
+    if (!hasInitializedPaymentOption.current) return
+    setClientSecret(null)
+    setIsLoading(true)
+  }, [paymentOption])
+
+  const handlePaymentOptionChange = (value: 'deposit' | 'full') => {
+    setPaymentOption(value)
+    setCheckoutData({ paymentOption: value })
+  }
+
+  useEffect(() => {
     // Don't validate until hydration is complete
     if (!isHydrated) {
       console.log('[Payment] Waiting for hydration...')
+      return
+    }
+
+    if (!hasInitializedPaymentOption.current) {
       return
     }
 
@@ -419,6 +436,7 @@ export default function PaymentPage() {
           body: JSON.stringify({
             reservation_id: checkoutData.reservationId,
             property_id: checkoutData.propertyId,
+            pay_in_full: paymentOption === 'full',
           }),
         })
 
@@ -459,7 +477,7 @@ export default function PaymentPage() {
     }
 
     createPaymentIntent()
-  }, [isHydrated, resolvedPaymentProcessor, clientSecret, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, checkoutData.guestInfo, checkoutData.reservationId, checkoutData.propertyId, router, slug])
+  }, [isHydrated, resolvedPaymentProcessor, clientSecret, paymentOption, checkoutData.site, checkoutData.checkInDate, checkoutData.checkOutDate, checkoutData.guestInfo, checkoutData.reservationId, checkoutData.propertyId, router, slug, setCheckoutData, toast])
 
   if (isLoading || (resolvedPaymentProcessor === 'stripe' && !clientSecret)) {
     return (
@@ -514,6 +532,27 @@ export default function PaymentPage() {
     nonPetUserFeeItems.reduce((sum, fee) => sum + fee.amount, 0) +
     taxesCents +
     totalPetFeeCents
+
+  const depositAmountCents = priceBreakdown.deposit_amount ?? 0
+  const depositRequired = priceBreakdown.deposit_required ?? false
+  const exemptIfPaidInFull = priceBreakdown.exempt_if_paid_in_full ?? true
+  const showPaymentOption =
+    depositRequired &&
+    depositAmountCents > 0 &&
+    depositAmountCents < totalCents &&
+    exemptIfPaidInFull
+  const amountDueTodayCents =
+    showPaymentOption
+      ? paymentOption === 'deposit'
+        ? depositAmountCents
+        : totalCents
+      : depositRequired && depositAmountCents > 0 && depositAmountCents < totalCents
+        ? depositAmountCents
+        : totalCents
+  const remainingBalanceCents = totalCents - depositAmountCents
+  const amountDueLaterCents = showPaymentOption && paymentOption === 'deposit'
+    ? remainingBalanceCents
+    : 0
 
   const bookingSummaryMain = (
     <>
@@ -594,10 +633,78 @@ export default function PaymentPage() {
             <span className="font-medium text-foreground">${((taxesCents ?? 0) / 100).toFixed(2)}</span>
           </div>
         )}
+        {showPaymentOption && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-sm font-medium text-foreground">Payment Option</p>
+            <RadioGroup
+              value={paymentOption}
+              onValueChange={(value) => handlePaymentOptionChange(value as 'deposit' | 'full')}
+              className="grid grid-cols-1 gap-2"
+            >
+              <label
+                htmlFor="payment-deposit"
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                  paymentOption === "deposit"
+                    ? "border-[#2D5A27] bg-green-50 dark:border-emerald-600 dark:bg-emerald-950/30"
+                    : "border-border hover:bg-muted/40",
+                )}
+              >
+                <RadioGroupItem value="deposit" id="payment-deposit" className="mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">Deposit</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pay ${(depositAmountCents / 100).toFixed(2)} now, ${(remainingBalanceCents / 100).toFixed(2)} due will be paid upon arrival
+                  </p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-[#2D5A27] dark:text-emerald-400">
+                  ${(depositAmountCents / 100).toFixed(2)}
+                </span>
+              </label>
+              <label
+                htmlFor="payment-full"
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                  paymentOption === "full"
+                    ? "border-[#2D5A27] bg-green-50 dark:border-emerald-600 dark:bg-emerald-950/30"
+                    : "border-border hover:bg-muted/40",
+                )}
+              >
+                <RadioGroupItem value="full" id="payment-full" className="mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">Pay in Full</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pay the full reservation total today
+                  </p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-[#2D5A27] dark:text-emerald-400">
+                  ${(totalCents / 100).toFixed(2)}
+                </span>
+              </label>
+            </RadioGroup>
+            {priceBreakdown.deposit_due_date && paymentOption === "deposit" && (
+              <p className="text-xs text-muted-foreground">
+                Remaining balance due by {format(new Date(priceBreakdown.deposit_due_date), "MMM dd, yyyy")}
+              </p>
+            )}
+          </div>
+        )}
         <div className="flex justify-between border-t border-border pt-2 text-lg font-bold">
           <span className="text-foreground">Total Due Today</span>
-          <span className="text-[#2D5A27] dark:text-emerald-400">${(totalCents / 100).toFixed(2)}</span>
+          <span className="text-[#2D5A27] dark:text-emerald-400">${(amountDueTodayCents / 100).toFixed(2)}</span>
         </div>
+        {showPaymentOption && paymentOption === "deposit" && amountDueLaterCents > 0 && (
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Remaining Balance</span>
+            <span>${(amountDueLaterCents / 100).toFixed(2)}</span>
+          </div>
+        )}
+        {depositRequired && !showPaymentOption && depositAmountCents > 0 && depositAmountCents < totalCents && (
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Remaining Balance</span>
+            <span>${((totalCents - depositAmountCents) / 100).toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-foreground/90 dark:border-emerald-900 dark:bg-emerald-950/30">
@@ -737,8 +844,12 @@ export default function PaymentPage() {
                   </div>
                 </div> */}
                 {resolvedPaymentProcessor === 'stripe' && stripeElementsOptions ? (
-                  <Elements key={resolvedTheme ?? "light"} stripe={stripePromise} options={stripeElementsOptions}>
-                    <PaymentFormInner slug={slug} />
+                  <Elements
+                    key={`${resolvedTheme ?? "light"}-${paymentOption}-${clientSecret}`}
+                    stripe={stripePromise}
+                    options={stripeElementsOptions}
+                  >
+                    <PaymentFormInner slug={slug} amountDueTodayCents={amountDueTodayCents} />
                   </Elements>
                 ) : null}
                 {resolvedPaymentProcessor !== 'stripe' ? (

@@ -645,6 +645,7 @@ export async function POST(request: NextRequest) {
           priceBreakdown.deposit_amount = depositAmountCents
           priceBreakdown.amount_due_now = depositAmountCents
           priceBreakdown.amount_due_later = priceBreakdown.total - depositAmountCents
+          priceBreakdown.exempt_if_paid_in_full = depositConfig.exempt_if_paid_in_full
           if (depositConfig.deposit_percentage !== undefined) {
             priceBreakdown.deposit_percentage = depositConfig.deposit_percentage
           }
@@ -1135,6 +1136,7 @@ export async function POST(request: NextRequest) {
       priceBreakdown.deposit_amount = depositAmountCents
       priceBreakdown.amount_due_now = depositAmountCents
       priceBreakdown.amount_due_later = priceBreakdown.total - depositAmountCents
+      priceBreakdown.exempt_if_paid_in_full = depositConfig.exempt_if_paid_in_full
       if (depositConfig.deposit_percentage !== undefined) {
         priceBreakdown.deposit_percentage = depositConfig.deposit_percentage
       }

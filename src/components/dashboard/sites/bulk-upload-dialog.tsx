@@ -138,7 +138,7 @@ export function BulkUploadDialog({
 
       // Validate parsed sites if parsing succeeded
       if (result.data.length > 0) {
-        const validationRes = validateSites(result.data)
+        const validationRes = validateSites(result.data, { fileIssues: result.fileIssues })
         errors.push(...validationRes.errors)
         setValidationResult(validationRes)
       }
@@ -222,6 +222,7 @@ export function BulkUploadDialog({
     setSelectedFile(null)
     setParseResult(null)
     setAllErrors([])
+    setDropzoneFileIssue(undefined)
   }, [])
 
   // Summary cards for the preview step

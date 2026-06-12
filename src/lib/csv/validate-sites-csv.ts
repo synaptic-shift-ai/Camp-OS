@@ -300,7 +300,7 @@ function validateBusinessLogic(site: ParsedSite, rowNumber: number): ParseError[
  */
 export function validateSites(
   sites: ParsedSite[],
-  options?: { includeWarnings?: boolean; fileIssues?: FileIssue[] }
+  options?: { includeWarnings?: boolean; fileIssues?: FileIssue[] | undefined }
 ): ValidationResult {
   const includeWarnings = options?.includeWarnings ?? false
   const errors: ParseError[] = []

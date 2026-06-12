@@ -278,6 +278,7 @@ export function PropertySettings({
     handleSubmit,
     trigger,
     reset,
+    control,
     formState: { errors, isDirty },
   } = useForm<PropertyDetailsFormData>({
     resolver: zodResolver(propertyDetailsSchema),
@@ -461,6 +462,7 @@ export function PropertySettings({
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Controller
+                control={control}
                 name="phone"
                 render={({ field }) => (
                   <PhoneInput

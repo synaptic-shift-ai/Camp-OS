@@ -39,6 +39,7 @@ import {
   parsedSiteToApiRequest,
   type ParseError,
   type ParseResult,
+  type FileIssue,
 } from '@/lib/csv/parse-sites-csv'
 import { validateSites, getValidationSummary, type ValidationResult } from '@/lib/csv/validate-sites-csv'
 import { useToast } from '@/hooks/use-toast'
@@ -70,10 +71,14 @@ export function BulkUploadDialog({
   const [allErrors, setAllErrors] = useState<ParseError[]>([])
   const [importedCount, setImportedCount] = useState(0)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [dropzoneFileIssue, setDropzoneFileIssue] = useState<FileIssue | undefined>(undefined)
 
   // Derived state
   const hasErrors = allErrors.length > 0
   const isValid = parseResult && !hasErrors
+
+  // Reset dropzoneFileIssue when dialog closes
+  // (reset done in handleOpenChange below)
 
   // Reset state when dialog closes
   const handleOpenChange = useCallback(
@@ -87,6 +92,7 @@ export function BulkUploadDialog({
         setAllErrors([])
         setValidationResult(null)
         setImportedCount(0)
+        setDropzoneFileIssue(undefined)
       }
       onOpenChange(newOpen)
     },
@@ -108,11 +114,24 @@ export function BulkUploadDialog({
     setIsProcessing(true)
     setValidationResult(null)
     setAllErrors([])
+    setDropzoneFileIssue(undefined)
 
     try {
       // Parse CSV
       const result = await parseSitesCsv(file)
       setParseResult(result)
+
+      // Handle structural file issues
+      const fileIssues = result.fileIssues
+      if (fileIssues && fileIssues.length > 0) {
+        const uploadBlockingTypes = ['file_type_error', 'empty_file', 'encoding_error']
+        const hasUploadBlocking = fileIssues.some(f => uploadBlockingTypes.includes(f.type))
+
+        if (hasUploadBlocking) {
+          setDropzoneFileIssue(fileIssues[0])
+          return
+        }
+      }
 
       // Collect parsing errors
       const errors = [...result.errors]
@@ -126,8 +145,8 @@ export function BulkUploadDialog({
 
       setAllErrors(errors)
 
-      // Move to preview step if we have data (even with errors)
-      if (result.data.length > 0) {
+      // Move to preview step if we have data or non-blocking file issues
+      if (result.data.length > 0 || (fileIssues && fileIssues.length > 0)) {
         setStep('preview')
       }
     } catch (error) {
@@ -280,6 +299,7 @@ export function BulkUploadDialog({
                 onClear={() => setSelectedFile(null)}
                 selectedFile={selectedFile}
                 disabled={isProcessing}
+                fileIssue={dropzoneFileIssue}
               />
 
               {isProcessing && (
@@ -323,7 +343,7 @@ export function BulkUploadDialog({
             <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-5">
               {getSummary()}
 
-              {hasErrors && <CsvErrorReport errors={allErrors} />}
+              {(hasErrors || (parseResult.fileIssues && parseResult.fileIssues.length > 0)) && <CsvErrorReport errors={allErrors} fileIssues={parseResult.fileIssues} />}
 
               {!hasErrors && (
                 <>

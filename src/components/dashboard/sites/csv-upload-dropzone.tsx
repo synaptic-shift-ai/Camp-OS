@@ -20,7 +20,7 @@ interface CsvUploadDropzoneProps {
   disabled?: boolean
   selectedFile?: File | null
   className?: string
-  fileIssue?: FileIssue
+  fileIssue?: FileIssue | undefined
 }
 
 export function CsvUploadDropzone({

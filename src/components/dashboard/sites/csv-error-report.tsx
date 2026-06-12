@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge'
 interface CsvErrorReportProps {
   errors: ParseError[]
   maxRows?: number
-  fileIssues?: FileIssue[]
+  fileIssues?: FileIssue[] | undefined
 }
 
 export function CsvErrorReport({ errors, maxRows = 20, fileIssues }: CsvErrorReportProps) {

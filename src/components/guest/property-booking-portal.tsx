@@ -244,10 +244,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
   // Get available reservation types from property config (default to nightly, weekly, monthly)
   const availableReservationTypes: BookingType[] = property.enabled_reservation_types || ['nightly', 'weekly', 'monthly']
 
+  const hasSites = (siteTypeSummaries?.length ?? 0) > 0
+
   const availableSiteTypeValues: SiteType[] = (() => {
     const summaries = (siteTypeSummaries ?? []) as SiteTypeSummary[]
     if (summaries.length === 0) {
-      return SITE_TYPE_OPTIONS.map((opt) => opt.value)
+      return []
     }
     const present = new Set<SiteType>(summaries.map((s) => s.type))
     return SITE_TYPE_OPTIONS.map((opt) => opt.value).filter((v) => present.has(v))
@@ -777,15 +779,17 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             >
               Book Your Stay
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white text-white hover:bg-white hover:text-[#2D5A27] dark:hover:text-emerald-950 text-lg px-8 py-3 bg-transparent"
-              type="button"
-              onClick={() => scrollToSection("sites")}
-            >
-              View Sites
-            </Button>
+            {hasSites && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-[#2D5A27] dark:hover:text-emerald-950 text-lg px-8 py-3 bg-transparent"
+                type="button"
+                onClick={() => scrollToSection("sites")}
+              >
+                View Sites
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -960,7 +964,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                       "hover:shadow-lg border border-[#23451f] dark:border-emerald-900"
                     )}
                     onClick={searchAvailability}
-                    disabled={isSearching}
+                    disabled={isSearching || !hasSites}
                   >
                     {isSearching ? "Searching..." : "Check Availability"}
                   </Button>
@@ -993,18 +997,20 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             </p>
           </div>
 
+          {!hasSites ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="mb-4 rounded-full bg-muted p-6">
+                <Tent className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h3 className="mb-2 text-xl font-semibold">No sites available yet</h3>
+              <p className="max-w-md text-muted-foreground">
+                This property hasn&apos;t added any campsites yet. Please check back later or contact the property directly.
+              </p>
+            </div>
+          ) : (
           <Carousel opts={{ align: "start", loop: false }} className="relative w-full max-w-full px-10 sm:px-12 md:px-14 lg:px-16">
             <CarouselContent className="-ml-2 sm:-ml-4">
-              {(
-                (siteTypeSummaries?.length
-                  ? siteTypeSummaries
-                  : [
-                    { type: "tent" as SiteType, name: "Tent Sites", description: "Perfect for traditional camping with your own tent", price: 35, capacity: "2-4", amenities: ["Fire Pit", "Picnic Table", "Water Access"] },
-                    { type: "rv" as SiteType, name: "RV Sites", description: "Full hookup sites for RVs and motorhomes", price: 55, capacity: "4-6", amenities: ["Electric", "Water", "Sewer", "Fire Pit"] },
-                    { type: "cabin" as SiteType, name: "Cabins", description: "Cozy cabins with modern amenities", price: 125, capacity: "4-6", amenities: ["Electricity", "Heating/AC", "Kitchenette", "Bath"] },
-                  ]
-                ) as SiteTypeSummary[]
-              ).map((siteType) => {
+              {(siteTypeSummaries ?? []).map((siteType) => {
                 const IconComponent = getSiteTypeIcon(siteType.type)
                 return (
                   <CarouselItem
@@ -1097,6 +1103,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
             <CarouselPrevious className="left-0 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:left-1 sm:h-10 sm:w-10 md:left-2 lg:left-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
             <CarouselNext className="right-0 top-1/2 z-20 h-9 w-9 -translate-y-1/2 border-border bg-background/95 shadow-md backdrop-blur-sm dark:bg-card/95 sm:right-1 sm:h-10 sm:w-10 md:right-2 lg:right-3 [&_svg]:size-5 sm:[&_svg]:size-6 disabled:opacity-40" />
           </Carousel>
+          )}
         </div>
       </section>
 

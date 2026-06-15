@@ -120,3 +120,30 @@ cron.schedule(
     timezone: 'UTC',
   },
 )
+
+/** PM work orders: production/Vercel uses `0 6 * * *` (daily 06:00 UTC). Every 5 min here for local testing. */
+async function runGeneratePmWorkOrders(label: string) {
+  try {
+    const res = await fetch(`${baseUrl}/api/cron/generate-pm-work-orders`, {
+      method: 'POST',
+      headers: cronHeaders(),
+    })
+
+    const body = await res.json()
+    console.log(`[Cron] generate-pm-work-orders (${label}):`, res.status, body)
+  } catch (error) {
+    console.error(`[Cron] Failed to call generate-pm-work-orders (${label}):`, error)
+  }
+}
+
+void runGeneratePmWorkOrders('startup')
+
+cron.schedule(
+  '*/5 * * * *',
+  async () => {
+    await runGeneratePmWorkOrders('scheduled')
+  },
+  {
+    timezone: 'UTC',
+  },
+)

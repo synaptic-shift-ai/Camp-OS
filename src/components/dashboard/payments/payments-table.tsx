@@ -99,6 +99,25 @@ function getRecognitionBadge(recognitionStatus: RecognitionStatus | null) {
   )
 }
 
+const TYPE_FILTER_EMPTY_LABELS: Record<string, string> = {
+  payment: "No payments found for this filter.",
+  refund: "No refunds found for this property yet.",
+  charge: "No charges found for this filter.",
+}
+
+function getEmptyStateCopy(typeFilter?: string): { title: string; description: string } {
+  if (typeFilter && TYPE_FILTER_EMPTY_LABELS[typeFilter]) {
+    return {
+      title: typeFilter === "refund" ? "No refunds yet" : "No transactions found",
+      description: TYPE_FILTER_EMPTY_LABELS[typeFilter],
+    }
+  }
+  return {
+    title: "No payments yet",
+    description: "Payments will appear here after guests complete a booking or make a payment.",
+  }
+}
+
 type PaymentsTableProps = {
   propertyId: string
   payments: DashboardPayment[]
@@ -127,22 +146,25 @@ export function PaymentsTable({
   }
 
   if (!payments.length) {
+    const emptyCopy = getEmptyStateCopy(typeFilter)
     return (
       <div className="rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center min-h-[calc(100vh-14rem)] flex items-center justify-center">
         <div>
           <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <CreditCard className="h-10 w-10" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground">No payments yet</h3>
+          <h3 className="text-lg font-semibold text-foreground">{emptyCopy.title}</h3>
           <p className="mx-auto mt-3 max-w-xl text-base text-muted-foreground">
-            Payments will appear here after guests complete a booking or make a payment.
+            {emptyCopy.description}
           </p>
-          <div className="mt-6 flex items-center justify-center">
-            <Button size="lg" onClick={() => router.push(`/dashboard/${propertyId}`)}>
-              <CalendarPlus2 className="mr-2 h-4 w-4" />
-              Create reservation
-            </Button>
-          </div>
+          {!typeFilter && (
+            <div className="mt-6 flex items-center justify-center">
+              <Button size="lg" onClick={() => router.push(`/dashboard/${propertyId}`)}>
+                <CalendarPlus2 className="mr-2 h-4 w-4" />
+                Create reservation
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     )

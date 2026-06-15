@@ -211,7 +211,7 @@ export function DiscountsSection({ propertyId, initialConfig }: Props) {
                   <SelectTrigger id="discount_type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {DISCOUNT_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
+                      <SelectItem key={o.value} value={o.value} textValue={o.label}>
                         <div><div>{o.label}</div><div className="text-xs text-muted-foreground">{o.description}</div></div>
                       </SelectItem>
                     ))}
@@ -237,7 +237,7 @@ export function DiscountsSection({ propertyId, initialConfig }: Props) {
                   <SelectTrigger id="trigger_type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {TRIGGER_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
+                      <SelectItem key={o.value} value={o.value} textValue={o.label}>
                         <div><div>{o.label}</div><div className="text-xs text-muted-foreground">{o.description}</div></div>
                       </SelectItem>
                     ))}

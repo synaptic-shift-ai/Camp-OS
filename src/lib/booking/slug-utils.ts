@@ -18,10 +18,11 @@
  * // Returns: "pine-valley-campground-550e8400"
  */
 export function generateBookingSlug(propertyName: string, propertyId: string): string {
-  // 1. Sanitize property name
+  // 1. Sanitize property name (strip apostrophes first so "Trip's" → "trips", not "trip-s")
   const sanitized = propertyName
     .toLowerCase()
     .trim()
+    .replace(/'/g, '')
     .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric with hyphens
     .replace(/^-|-$/g, '')         // Remove leading/trailing hyphens
     .substring(0, 50)              // Max 50 chars for readability

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/cleanup-expired-reservations",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/generate-pm-work-orders",
+      "schedule": "0 6 * * *"
     }
   ]
 }

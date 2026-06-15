@@ -444,6 +444,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     const params = new URLSearchParams({
       slug: slug,
       propertyId: property.id,
+      propertyName: property.name,
       checkIn: checkInStr,
       checkOut: checkOutStr,
       adults: adults.toString(),

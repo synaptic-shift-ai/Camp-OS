@@ -809,7 +809,7 @@ export async function getReservation(
 
 /**
  * Fetch payments for a property with optional filters.
- * Primary: financial_transactions. Fallback: legacy payments table.
+ * Primary: financial_transactions. Fallback: legacy payments table (payments only, no type filter).
  */
 export async function getPayments(
   propertyId: string,
@@ -819,6 +819,10 @@ export async function getPayments(
 ): Promise<{ data: DashboardPayment[]; total: number }> {
   const supabase = await createClient()
   const offset = (page - 1) * limit
+
+  // Legacy payments table only stores payment rows (no refund/charge type column).
+  const canUseLegacyPaymentsFallback =
+    !filters.type || filters.type === 'payment'
 
   // Try unified ledger first
   let query = supabase
@@ -866,8 +870,10 @@ export async function getPayments(
 
   const { data, error: txnsError, count } = await query
 
-  // If no results from ledger, fall back to legacy payments table
-  if (!txnsError && (!data || data.length === 0)) {
+  const ledgerTotal = count ?? 0
+
+  // Fall back only when the ledger has no matching rows and filter allows legacy payments.
+  if (!txnsError && ledgerTotal === 0 && canUseLegacyPaymentsFallback) {
     let fallbackQuery = supabase
       .from('payments')
       .select(
@@ -922,7 +928,7 @@ export async function getPayments(
           stripePaymentId: payment.stripe_payment_id,
           processedAt: payment.processed_at,
           createdAt: payment.created_at!,
-          transactionType: null,
+          transactionType: 'payment',
           recognitionStatus: null,
         }
       })

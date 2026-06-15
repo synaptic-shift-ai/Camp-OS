@@ -39,6 +39,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _cron_config: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -1297,6 +1312,47 @@ export type Database = {
           },
         ]
       }
+      guest_message_preferences: {
+        Row: {
+          created_at: string
+          email_opt_in: boolean
+          email_unsubscribed_at: string | null
+          guest_id: string
+          id: string
+          sms_opt_in: boolean
+          sms_opted_out_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_opt_in?: boolean
+          email_unsubscribed_at?: string | null
+          guest_id: string
+          id?: string
+          sms_opt_in?: boolean
+          sms_opted_out_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_opt_in?: boolean
+          email_unsubscribed_at?: string | null
+          guest_id?: string
+          id?: string
+          sms_opt_in?: boolean
+          sms_opted_out_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_message_preferences_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: true
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_vehicles: {
         Row: {
           color: string | null
@@ -1951,6 +2007,147 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: true
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_campaigns: {
+        Row: {
+          audience_filter: Json
+          body: string
+          channel: string
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          property_id: string | null
+          scheduled_at: string | null
+          segment_type: string | null
+          sent_at: string | null
+          status: string
+          subject: string | null
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          audience_filter?: Json
+          body: string
+          channel: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          property_id?: string | null
+          scheduled_at?: string | null
+          segment_type?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audience_filter?: Json
+          body?: string
+          channel?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          property_id?: string | null
+          scheduled_at?: string | null
+          segment_type?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_campaigns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_campaigns_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          delivered_at: string | null
+          email: string | null
+          error_message: string | null
+          failed_at: string | null
+          guest_id: string
+          id: string
+          personalized_body: string | null
+          personalized_subject: string | null
+          phone: string | null
+          provider_message_id: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          delivered_at?: string | null
+          email?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          guest_id: string
+          id?: string
+          personalized_body?: string | null
+          personalized_subject?: string | null
+          phone?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          email?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          guest_id?: string
+          id?: string
+          personalized_body?: string | null
+          personalized_subject?: string | null
+          phone?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "message_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_recipients_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
             referencedColumns: ["id"]
           },
         ]
@@ -3407,6 +3604,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _cron_call_app: { Args: { route: string }; Returns: undefined }
       cleanup_old_api_audit_logs: {
         Args: { days_to_keep?: number }
         Returns: number
@@ -3438,6 +3636,11 @@ export type Database = {
         Args: { p_property_id: string }
         Returns: Json
       }
+      setup_cron_jobs: {
+        Args: { p_app_url: string; p_cron_secret?: string }
+        Returns: undefined
+      }
+      teardown_cron_jobs: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

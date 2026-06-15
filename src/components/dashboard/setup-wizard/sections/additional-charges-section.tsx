@@ -220,7 +220,7 @@ export function AdditionalChargesSection({ propertyId, initialConfig }: Props) {
                   <SelectTrigger id="fee_type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {FEE_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
+                      <SelectItem key={o.value} value={o.value} textValue={o.label}>
                         <div><div>{o.label}</div><div className="text-xs text-muted-foreground">{o.description}</div></div>
                       </SelectItem>
                     ))}
@@ -253,7 +253,7 @@ export function AdditionalChargesSection({ propertyId, initialConfig }: Props) {
                   <SelectTrigger id="trigger_type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {TRIGGER_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
+                      <SelectItem key={o.value} value={o.value} textValue={o.label}>
                         <div><div>{o.label}</div><div className="text-xs text-muted-foreground">{o.description}</div></div>
                       </SelectItem>
                     ))}

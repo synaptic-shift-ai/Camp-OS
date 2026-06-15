@@ -696,6 +696,9 @@ export default function GuestInfoPage() {
             pets: String(checkoutData.numPets ?? 0),
             restoreGuestDraft: "1",
           })
+          if (checkoutData.propertyName?.trim()) {
+            params.set("propertyName", checkoutData.propertyName.trim())
+          }
           router.push(`/availability-results?${params.toString()}`)
         }}
       >

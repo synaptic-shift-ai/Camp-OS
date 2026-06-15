@@ -26,7 +26,7 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { AvailableSitesAccordion } from "@/components/dashboard/reservations/available-sites-accordion"
-import { PricingSummary } from "@/components/dashboard/reservations/pricing-summary"
+import { PricingSummary, type PricingSummaryPaymentOption } from "@/components/dashboard/reservations/pricing-summary"
 import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse-partner-section"
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
@@ -209,6 +209,8 @@ export default function NewReservationPage() {
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([])
   const [summaryTotalCents, setSummaryTotalCents] = useState<number | null>(null)
+  const [paymentOption, setPaymentOption] = useState<PricingSummaryPaymentOption>('deposit')
+  const [amountDueTodayCents, setAmountDueTodayCents] = useState<number | null>(null)
   const [bookingRulesConfig, setBookingRulesConfig] = useState<BookingRulesConfig | null>(null)
   const [propertyName, setPropertyName] = useState<string | null>(null)
   const [openPeriodFrom, setOpenPeriodFrom] = useState<string | null>(null)
@@ -342,15 +344,16 @@ export default function NewReservationPage() {
   const paidAmount = watch("paidAmount")
   const guestEmail = watch("guestEmail")
   const totalCents = summaryTotalCents ?? 0
-  const totalDollars = totalCents / 100
+  const dueTodayCents = amountDueTodayCents ?? totalCents
+  const dueTodayDollars = dueTodayCents / 100
   const guestCreditAppliedPreviewCents = useMemo(
     () =>
       useGuestCredit && selectedExistingGuestId != null && linkedGuestCreditCents > 0
-        ? Math.min(linkedGuestCreditCents, Math.max(0, totalCents))
+        ? Math.min(linkedGuestCreditCents, Math.max(0, dueTodayCents))
         : 0,
-    [useGuestCredit, selectedExistingGuestId, linkedGuestCreditCents, totalCents],
+    [useGuestCredit, selectedExistingGuestId, linkedGuestCreditCents, dueTodayCents],
   )
-  const remainingAfterCreditCents = Math.max(0, totalCents - guestCreditAppliedPreviewCents)
+  const remainingAfterCreditCents = Math.max(0, dueTodayCents - guestCreditAppliedPreviewCents)
   const remainingAfterCreditDollars = remainingAfterCreditCents / 100
   const validPetsCount = (pets ?? []).filter((pet) => {
     if (!pet) return false
@@ -1642,12 +1645,14 @@ export default function NewReservationPage() {
                                   selectedExistingGuestId != null &&
                                   linkedGuestCreditCents > 0
                                   ? remainingAfterCreditDollars
-                                  : totalDollars,
+                                  : dueTodayDollars,
                               ),
                             )
                           }
                         >
-                          Set to Total
+                          {paymentOption === 'deposit' && amountDueTodayCents != null && amountDueTodayCents < totalCents
+                            ? 'Set to Deposit'
+                            : 'Set to Total'}
                         </Button>
                       )}
                     </div>
@@ -1748,6 +1753,9 @@ export default function NewReservationPage() {
                   paidAmount={paidAmount}
                   onTotalChange={setSummaryTotalCents}
                   guestCreditAppliedCents={guestCreditAppliedPreviewCents}
+                  paymentOption={paymentOption}
+                  onPaymentOptionChange={setPaymentOption}
+                  onAmountDueTodayChange={setAmountDueTodayCents}
                 />
               </div>
 
@@ -1806,6 +1814,9 @@ export default function NewReservationPage() {
             paidAmount={paidAmount}
             onTotalChange={setSummaryTotalCents}
             guestCreditAppliedCents={guestCreditAppliedPreviewCents}
+            paymentOption={paymentOption}
+            onPaymentOptionChange={setPaymentOption}
+            onAmountDueTodayChange={setAmountDueTodayCents}
           />
         </div>
       </div>

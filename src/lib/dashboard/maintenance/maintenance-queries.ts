@@ -10,6 +10,7 @@ import {
     localEndOfDayIsoFromDate,
     localMidnightIsoFromDate,
 } from './preventive-schedule-dates'
+import { shouldGeneratePreventiveWorkOrder } from './pm-schedule-due'
 
 type MaintenanceTaskRow = Database['public']['Tables']['maintenance_tasks']['Row']
 type SiteRow = Database['public']['Tables']['sites']['Row']
@@ -1238,6 +1239,122 @@ export class MaintenanceQueries {
             })
             return null
         }
+    }
+
+    /**
+     * Cron entry point: generate PM work orders for all schedules that are due
+     * (schedule_date / computed next due on or before `asOf`) and have no open WO.
+     */
+    async processDuePreventiveSchedules(asOf: Date = new Date()): Promise<{
+        scanned: number
+        generated: number
+        skipped: number
+        errors: Array<{ scheduleId: string; propertyId: string; message: string }>
+    }> {
+        const result = {
+            scanned: 0,
+            generated: 0,
+            skipped: 0,
+            errors: [] as Array<{ scheduleId: string; propertyId: string; message: string }>,
+        }
+
+        const { data: scheduleRows, error: listError } = await this.supabase
+            .from('maintenance_schedule')
+            .select('id, property_id, frequency, days, schedule_date')
+
+        if (listError) {
+            throw new Error(`Failed to list maintenance schedules: ${listError.message}`)
+        }
+
+        const schedules = scheduleRows ?? []
+        if (schedules.length === 0) {
+            return result
+        }
+
+        const scheduleIds = schedules.map((row) => row.id as string)
+
+        const lastCompletedMap: Record<string, string | null> = {}
+        const openWorkOrderStartMap: Record<string, string | null> = {}
+        const hasOpenWorkOrderSet = new Set<string>()
+
+        const { data: completedRows } = await this.supabase
+            .from('maintenance_tasks')
+            .select('schedule_id, completed_at')
+            .eq('status', 'completed')
+            .not('schedule_id', 'is', null)
+            .in('schedule_id', scheduleIds)
+            .order('completed_at', { ascending: false })
+
+        if (completedRows) {
+            const seen = new Set<string>()
+            for (const row of completedRows) {
+                const sid = row.schedule_id as string
+                if (!seen.has(sid)) {
+                    seen.add(sid)
+                    lastCompletedMap[sid] = row.completed_at as string
+                }
+            }
+        }
+
+        const { data: openRows } = await this.supabase
+            .from('maintenance_tasks')
+            .select('schedule_id, scheduled_start, started_at, created_at')
+            .not('schedule_id', 'is', null)
+            .in('schedule_id', scheduleIds)
+            .in('status', ['open', 'in_progress', 'in_progress_vendor', 'on_hold'])
+
+        if (openRows) {
+            for (const row of openRows) {
+                const sid = row.schedule_id as string
+                hasOpenWorkOrderSet.add(sid)
+                if (openWorkOrderStartMap[sid]) continue
+                openWorkOrderStartMap[sid] =
+                    (row.scheduled_start as string | null | undefined) ??
+                    (row.started_at as string | null | undefined) ??
+                    (row.created_at as string | null | undefined) ??
+                    null
+            }
+        }
+
+        for (const schedule of schedules) {
+            result.scanned += 1
+            const scheduleId = schedule.id as string
+            const propertyId = schedule.property_id as string
+
+            const shouldGenerate = shouldGeneratePreventiveWorkOrder({
+                frequency: String(schedule.frequency ?? ''),
+                days: (schedule.days as string | null) ?? null,
+                scheduleDate: (schedule.schedule_date as string | null) ?? null,
+                lastCompletedAt: lastCompletedMap[scheduleId] ?? null,
+                openWorkOrderScheduledStart: openWorkOrderStartMap[scheduleId] ?? null,
+                hasOpenWorkOrder: hasOpenWorkOrderSet.has(scheduleId),
+                asOf,
+            })
+
+            if (!shouldGenerate) {
+                result.skipped += 1
+                continue
+            }
+
+            try {
+                await this.generateWorkOrderForSchedule(scheduleId, propertyId)
+                result.generated += 1
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Unknown error'
+                if (message.includes('already exists')) {
+                    result.skipped += 1
+                    continue
+                }
+                result.errors.push({ scheduleId, propertyId, message })
+                console.warn('[MaintenanceQueries] PM cron failed for schedule', {
+                    scheduleId,
+                    propertyId,
+                    message,
+                })
+            }
+        }
+
+        return result
     }
 
     async deleteMaintenanceTask(input: { id: string; propertyId: string }): Promise<void> {

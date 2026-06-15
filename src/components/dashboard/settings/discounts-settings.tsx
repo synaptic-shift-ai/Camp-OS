@@ -417,7 +417,7 @@ export function DiscountsSettings({
                       </SelectTrigger>
                       <SelectContent>
                         {DISCOUNT_TYPE_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
+                          <SelectItem key={opt.value} value={opt.value} textValue={opt.label}>
                             <div>
                               <div>{opt.label}</div>
                               <div className="text-xs text-muted-foreground">{opt.description}</div>
@@ -472,7 +472,7 @@ export function DiscountsSettings({
                       </SelectTrigger>
                       <SelectContent>
                         {TRIGGER_TYPE_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
+                          <SelectItem key={opt.value} value={opt.value} textValue={opt.label}>
                             <div>
                               <div>{opt.label}</div>
                               <div className="text-xs text-muted-foreground">{opt.description}</div>

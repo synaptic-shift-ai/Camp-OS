@@ -9,12 +9,17 @@
  * Supports both user-defined fees/discounts and legacy fields for backward compatibility.
  */
 
+import { useEffect, useId, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { DollarSign, Info } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
+
+export type PricingSummaryPaymentOption = 'deposit' | 'full'
 
 interface AvailableSite {
   id: string
@@ -45,6 +50,9 @@ interface PricingSummaryProps {
   onTotalChange?: (totalCents: number) => void
   /** Guest credit applied toward this reservation (cents); when positive, summary shows guest credit use */
   guestCreditAppliedCents?: number
+  paymentOption?: PricingSummaryPaymentOption
+  onPaymentOptionChange?: (option: PricingSummaryPaymentOption) => void
+  onAmountDueTodayChange?: (amountCents: number) => void
 }
 
 interface CalculatedFee {
@@ -61,34 +69,8 @@ interface CalculatedDiscount {
   trigger_type: string
 }
 
-export function PricingSummary({
-  selectedSite,
-  numNights,
-  stayType,
-  numAdults,
-  numChildren,
-  numPets,
-  pricingConfig,
-  rateDiscountsConfig,
-  depositConfig,
-  checkInDate,
-  checkOutDate: _checkOutDate,
-  selectedDiscountIds = [],
-  selectedFeeIds = [],
-  paidAmount,
-  onTotalChange,
-  guestCreditAppliedCents = 0,
-}: PricingSummaryProps) {
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount)
-  }
-
-  // If no site selected or no config, show placeholder
-  if (!selectedSite || !pricingConfig || !rateDiscountsConfig) {
+export function PricingSummary(props: PricingSummaryProps) {
+  if (!props.selectedSite || !props.pricingConfig || !props.rateDiscountsConfig) {
     return (
       <div className="lg:sticky lg:top-6">
         <Card>
@@ -109,6 +91,66 @@ export function PricingSummary({
         </Card>
       </div>
     )
+  }
+
+  return (
+    <PricingSummaryContent
+      {...props}
+      selectedSite={props.selectedSite}
+      pricingConfig={props.pricingConfig}
+      rateDiscountsConfig={props.rateDiscountsConfig}
+    />
+  )
+}
+
+type PricingSummaryContentProps = Omit<
+  PricingSummaryProps,
+  'selectedSite' | 'pricingConfig' | 'rateDiscountsConfig'
+> & {
+  selectedSite: AvailableSite
+  pricingConfig: PricingConfig
+  rateDiscountsConfig: RateDiscountsConfig
+}
+
+function PricingSummaryContent({
+  selectedSite,
+  numNights,
+  stayType,
+  numAdults,
+  numChildren,
+  numPets,
+  pricingConfig,
+  rateDiscountsConfig,
+  depositConfig,
+  checkInDate,
+  checkOutDate: _checkOutDate,
+  selectedDiscountIds = [],
+  selectedFeeIds = [],
+  paidAmount,
+  onTotalChange,
+  guestCreditAppliedCents = 0,
+  paymentOption: paymentOptionProp,
+  onPaymentOptionChange,
+  onAmountDueTodayChange,
+}: PricingSummaryContentProps) {
+  const paymentOptionId = useId()
+  const [internalPaymentOption, setInternalPaymentOption] =
+    useState<PricingSummaryPaymentOption>('deposit')
+  const paymentOption = paymentOptionProp ?? internalPaymentOption
+
+  const handlePaymentOptionChange = (value: PricingSummaryPaymentOption) => {
+    if (paymentOptionProp === undefined) {
+      setInternalPaymentOption(value)
+    }
+    onPaymentOptionChange?.(value)
+  }
+
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(amount)
   }
 
   // Effective stay type (match page: weekly requires 7+ nights, monthly 28+)
@@ -199,13 +241,11 @@ export function PricingSummary({
   const hasUserDefinedFees = userDefinedFees.length > 0
 
   if (hasUserDefinedFees) {
-    // Use new user-defined fees
     for (const fee of userDefinedFees) {
       if (!fee.enabled) continue
 
-      // Check trigger conditions
       let shouldApply = false
-      const triggerType = fee.trigger_type || 'always' // Default to always for backward compatibility
+      const triggerType = fee.trigger_type || 'always'
 
       switch (triggerType) {
         case 'always':
@@ -224,7 +264,6 @@ export function PricingSummary({
           shouldApply = (numPets || 0) > 0
           break
         case 'date_range':
-          // Date range check - for now, just skip if no checkInDate
           if (checkInDate) {
             const check = new Date(checkInDate)
             const start = fee.trigger_conditions?.start_date ? new Date(fee.trigger_conditions.start_date) : null
@@ -245,8 +284,6 @@ export function PricingSummary({
           feeAmount = subtotal * (fee.value_percentage ?? 0) / 100
           break
         case 'percentage_of_total':
-          // For percentage_of_total, we'll calculate after other fees are summed
-          // For now, estimate based on subtotal
           feeAmount = subtotal * (fee.value_percentage ?? 0) / 100
           break
         case 'per_night':
@@ -270,8 +307,6 @@ export function PricingSummary({
       }
     }
   } else {
-    // Fall back to legacy fees
-    // Extra guest fees
     const extraGuestThreshold = pricingConfig.extra_guest_threshold ?? 2
     const extraGuestFeeCents = pricingConfig.extra_guest_fee_cents ?? 0
     if (pricingConfig.extra_guest_fee_enabled && totalGuests > extraGuestThreshold && extraGuestFeeCents > 0) {
@@ -285,7 +320,6 @@ export function PricingSummary({
       })
     }
 
-    // Pet fees
     if ((numPets || 0) > 0 && pricingConfig.pet_fee_cents) {
       calculatedFees.push({
         id: 'legacy-pet',
@@ -295,7 +329,6 @@ export function PricingSummary({
       })
     }
 
-    // Cleaning fee
     if (pricingConfig.default_cleaning_fee_cents) {
       calculatedFees.push({
         id: 'legacy-cleaning',
@@ -305,7 +338,6 @@ export function PricingSummary({
       })
     }
 
-    // Service fee
     if (pricingConfig.service_fee_type === 'percentage' && pricingConfig.service_fee_percentage) {
       const serviceFee = subtotal * (pricingConfig.service_fee_percentage / 100)
       calculatedFees.push({
@@ -338,7 +370,6 @@ export function PricingSummary({
   const userDefinedDiscounts = rateDiscountsConfig.user_defined_discounts || []
   const hasUserDefinedDiscounts = userDefinedDiscounts.length > 0
 
-  // Helper function to check if date is in range
   const isDateInRange = (checkDate: string | undefined, startDate: string | undefined, endDate: string | undefined): boolean => {
     if (!checkDate) return false
     const check = new Date(checkDate)
@@ -348,18 +379,14 @@ export function PricingSummary({
   }
 
   if (hasUserDefinedDiscounts) {
-    // Use new user-defined discounts
     for (const discount of userDefinedDiscounts) {
       if (!discount.enabled) continue
 
-      // Check trigger conditions
       let shouldApply = false
 
-      // Manual discounts are only applied if explicitly selected
       if (discount.trigger_type === 'manual') {
         shouldApply = selectedDiscountIds.includes(discount.id)
       } else {
-        // Auto-triggered discounts
         switch (discount.trigger_type) {
           case 'min_nights':
             shouldApply = numNights >= (discount.trigger_conditions?.min_nights ?? 0)
@@ -388,12 +415,10 @@ export function PricingSummary({
           discountAmount = subtotal * (discount.value_percentage ?? 0) / 100
           break
         case 'percentage_of_total':
-          // Estimate based on subtotal for now
           discountAmount = subtotal * (discount.value_percentage ?? 0) / 100
           break
       }
 
-      // Apply max discount cap if set
       if (discount.max_discount_cents && discountAmount > discount.max_discount_cents / 100) {
         discountAmount = discount.max_discount_cents / 100
       }
@@ -408,7 +433,6 @@ export function PricingSummary({
       }
     }
   } else {
-    // Fall back to legacy discounts
     const monthlyEnabled = rateDiscountsConfig.monthly_discount_enabled ?? false
     const monthlyMinNights = rateDiscountsConfig.monthly_minimum_nights ?? 28
     const monthlyPercentage = rateDiscountsConfig.monthly_discount_percentage ?? 0
@@ -437,25 +461,20 @@ export function PricingSummary({
   // Final Calculations
   // =====================================================
 
-  // Sum up discounts
   const totalDiscountAmount = calculatedDiscounts.reduce((sum, d) => sum + d.amount, 0)
   const discountedSubtotal = subtotal - totalDiscountAmount
 
-  // Sum up fees (both taxable and non-taxable)
   const totalFees = calculatedFees.reduce((sum, f) => sum + f.amount, 0)
   const taxableFees = calculatedFees
     .filter(f => f.is_taxable)
     .reduce((sum, f) => sum + f.amount, 0)
 
-  // Subtotal before tax
   const subtotalBeforeTax = discountedSubtotal + totalFees
 
-  // Tax calculation (on discounted subtotal + taxable fees)
   const taxableAmount = discountedSubtotal + taxableFees
   const taxAmount = taxableAmount * pricingConfig.tax_rate
   const taxLabel = `${pricingConfig.tax_name} (${(pricingConfig.tax_rate * 100).toFixed(2)}%)`
 
-  // Total
   const total = subtotalBeforeTax + taxAmount
   onTotalChange?.(Math.round(total * 100))
   const paidAmountValue = Number.parseFloat(paidAmount ?? "")
@@ -467,21 +486,63 @@ export function PricingSummary({
   const totalPaidTowardReservation = guestCreditDollars + safePaidAmount
   const changeAmount = totalPaidTowardReservation > total ? totalPaidTowardReservation - total : 0
 
+  const totalCents = Math.round(total * 100)
+
   // Deposit calculation (if applicable)
-  let depositAmount = 0
+  let depositAmountCents = 0
   let depositLabel = ''
-  if (depositConfig && depositConfig.require_deposit && depositConfig.applies_to_booking_types?.includes(stayType)) {
+  const depositApplies =
+    depositConfig?.require_deposit &&
+    depositConfig.applies_to_booking_types?.includes(effectiveStayType)
+
+  if (depositApplies && depositConfig) {
     if (depositConfig.deposit_type === 'percentage' && depositConfig.deposit_percentage) {
-      depositAmount = total * (depositConfig.deposit_percentage / 100)
+      depositAmountCents = Math.round(
+        (totalCents * depositConfig.deposit_percentage) / 100,
+      )
       depositLabel = `Deposit (${depositConfig.deposit_percentage}%)`
     } else if (depositConfig.deposit_type === 'flat_amount' && depositConfig.deposit_amount_cents) {
-      depositAmount = depositConfig.deposit_amount_cents / 100
+      depositAmountCents = depositConfig.deposit_amount_cents
       depositLabel = 'Deposit'
     } else if (depositConfig.deposit_type === 'first_night') {
-      depositAmount = (basePricePerNight + (basePricePerNight * pricingConfig.tax_rate))
+      depositAmountCents = Math.round(
+        (basePricePerNight + basePricePerNight * pricingConfig.tax_rate) * 100,
+      )
       depositLabel = 'Deposit (First Night)'
     }
   }
+
+  const depositAmount = depositAmountCents / 100
+  const exemptIfPaidInFull = depositConfig?.exempt_if_paid_in_full ?? true
+  const showPaymentOption =
+    Boolean(depositApplies) &&
+    depositAmountCents > 0 &&
+    depositAmountCents < totalCents &&
+    exemptIfPaidInFull
+
+  const amountDueTodayCents = showPaymentOption
+    ? paymentOption === 'deposit'
+      ? depositAmountCents
+      : totalCents
+    : depositApplies && depositAmountCents > 0 && depositAmountCents < totalCents
+      ? depositAmountCents
+      : totalCents
+
+  const amountDueLaterCents =
+    showPaymentOption && paymentOption === 'deposit'
+      ? totalCents - depositAmountCents
+      : 0
+
+  useEffect(() => {
+    if (!showPaymentOption && paymentOptionProp === undefined && internalPaymentOption !== 'full') {
+      setInternalPaymentOption('full')
+      onPaymentOptionChange?.('full')
+    }
+  }, [showPaymentOption, paymentOptionProp, internalPaymentOption, onPaymentOptionChange])
+
+  useEffect(() => {
+    onAmountDueTodayChange?.(amountDueTodayCents)
+  }, [amountDueTodayCents, onAmountDueTodayChange])
 
   return (
     <div className="lg:sticky lg:top-6">
@@ -510,7 +571,6 @@ export function PricingSummary({
               <span className="font-medium">{formatMoney(subtotal)}</span>
             </div>
 
-            {/* Discounts */}
             {calculatedDiscounts.map((discount) => (
               <div key={discount.id} className="flex items-center justify-between text-sm text-green-600">
                 <div className="flex items-center gap-2">
@@ -525,7 +585,6 @@ export function PricingSummary({
               </div>
             ))}
 
-            {/* User-Defined Fees */}
             {calculatedFees.map((fee) => (
               <div key={fee.id} className="flex items-center justify-between text-sm">
                 <span>{fee.title}</span>
@@ -590,29 +649,93 @@ export function PricingSummary({
             </>
           )}
 
-          {/* Deposit info */}
-          {depositAmount > 0 && (
+          {showPaymentOption && (
             <>
               <Separator />
-              <div className="bg-primary/5 rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{depositLabel}</span>
-                  <span className="font-bold">{formatMoney(depositAmount)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Due at Booking</span>
-                  <span>{formatMoney(depositAmount)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Remaining Balance</span>
-                  <span>{formatMoney(total - depositAmount)}</span>
-                </div>
-                {depositConfig?.full_payment_required_days_before && (
-                  <p className="text-xs text-muted-foreground mt-2">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Payment Option</p>
+                <RadioGroup
+                  value={paymentOption}
+                  onValueChange={(value) =>
+                    handlePaymentOptionChange(value as PricingSummaryPaymentOption)
+                  }
+                  className="grid grid-cols-1 gap-2"
+                >
+                  <label
+                    htmlFor={`${paymentOptionId}-deposit`}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                      paymentOption === 'deposit'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/40',
+                    )}
+                  >
+                    <RadioGroupItem
+                      value="deposit"
+                      id={`${paymentOptionId}-deposit`}
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">Deposit</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pay {formatMoney(depositAmount)} now,{' '}
+                        {formatMoney(total - depositAmount)} due later
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-primary">
+                      {formatMoney(depositAmount)}
+                    </span>
+                  </label>
+                  <label
+                    htmlFor={`${paymentOptionId}-full`}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                      paymentOption === 'full'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/40',
+                    )}
+                  >
+                    <RadioGroupItem
+                      value="full"
+                      id={`${paymentOptionId}-full`}
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">Pay in Full</p>
+                      <p className="text-xs text-muted-foreground">
+                        Collect the full reservation total now
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-primary">
+                      {formatMoney(total)}
+                    </span>
+                  </label>
+                </RadioGroup>
+                {depositConfig?.full_payment_required_days_before && paymentOption === 'deposit' && (
+                  <p className="text-xs text-muted-foreground">
                     Full payment due {depositConfig.full_payment_required_days_before} days before check-in
                   </p>
                 )}
               </div>
+            </>
+          )}
+
+          {(showPaymentOption || (depositApplies && depositAmountCents > 0 && !showPaymentOption)) && (
+            <>
+              <Separator />
+              <div className="flex items-center justify-between text-base font-bold">
+                <span>{showPaymentOption ? 'Amount Due Now' : 'Due at Booking'}</span>
+                <span className="text-primary">{formatMoney(amountDueTodayCents / 100)}</span>
+              </div>
+              {amountDueLaterCents > 0 && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Remaining Balance</span>
+                  <span>{formatMoney(amountDueLaterCents / 100)}</span>
+                </div>
+              )}
+              {!showPaymentOption && depositApplies && depositLabel && (
+                <p className="text-xs text-muted-foreground">{depositLabel}</p>
+              )}
             </>
           )}
 

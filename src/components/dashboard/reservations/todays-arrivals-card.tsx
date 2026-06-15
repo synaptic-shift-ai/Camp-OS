@@ -78,7 +78,7 @@ function FilterPill({
       className={cn(
         'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
         active
-          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+          ? 'bg-primary text-primary-foreground'
           : 'border border-border bg-background text-foreground hover:bg-muted/50',
       )}
     >
@@ -87,7 +87,7 @@ function FilterPill({
         className={cn(
           'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold',
           active
-            ? 'bg-slate-700 text-white dark:bg-slate-300 dark:text-slate-900'
+            ? 'bg-primary-foreground/20 text-primary-foreground'
             : 'bg-muted text-muted-foreground',
         )}
       >

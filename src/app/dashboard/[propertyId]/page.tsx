@@ -250,39 +250,41 @@ async function TodaysArrivalsAndDepartures({
                   return (
                     <div
                       key={reservation.id}
-                      className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-start sm:justify-between"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium capitalize">{reservation.guestName}</p>
                           {hasBalance && (
-                            <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
+                            <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-400">
                               Balance Due
                             </Badge>
                           )}
                         </div>
                         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                           <span className="flex min-w-0 items-center gap-1">
-                            <Home className="h-3 w-3" />
+                            <Home className="h-3 w-3 shrink-0" />
                             <span className="break-words">
                               {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
                             </span>
                           </span>
                         </p>
-                        {hasBalance && (
-                          <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
-                        )}
                       </div>
-                      <div className="ml-0 w-full flex-shrink-0 text-left sm:ml-3 sm:w-auto sm:text-right">
-                        <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
-                        <div className="mt-2 w-full sm:mt-1 sm:w-auto">
-                          {canManageCheckInOut ? (
-                            <DepartureCheckOutButton
-                              reservationId={reservation.id}
-                              checkOutTime={checkOutTime}
-                            />
-                          ) : null}
+                      <div className="flex w-full shrink-0 flex-col items-start gap-2 sm:w-auto sm:items-end sm:text-right">
+                        <div className="space-y-0.5">
+                          <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                          {hasBalance && (
+                            <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                              {formatMoney(outstandingBalance)} due
+                            </p>
+                          )}
                         </div>
+                        {canManageCheckInOut ? (
+                          <DepartureCheckOutButton
+                            reservationId={reservation.id}
+                            checkOutTime={checkOutTime}
+                          />
+                        ) : null}
                       </div>
                     </div>
                   )
@@ -330,25 +332,23 @@ async function RecentReservations({
                 return (
                   <div
                     key={reservation.id}
-                    className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-1 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium capitalize">{reservation.guestName}</p>
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <Badge variant="outline" className={statusColors[reservation.status]}>
-                            {reservation.status}
+                        <Badge variant="outline" className={statusColors[reservation.status]}>
+                          {reservation.status}
+                        </Badge>
+                        {hasBalance && (
+                          <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-400">
+                            Balance Due
                           </Badge>
-                          {hasBalance && (
-                            <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700">
-                              Balance Due
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
                       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Home className="h-3 w-3" />
+                          <Home className="h-3 w-3 shrink-0" />
                           {reservation.siteName}
                         </span>
                         <span>•</span>
@@ -356,16 +356,18 @@ async function RecentReservations({
                         <span>•</span>
                         <span>{reservation.numNights} {reservation.numNights === 1 ? "night" : "nights"}</span>
                         <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
+                          <User className="h-3 w-3 shrink-0" />
                           {reservation.numAdults + reservation.numChildren} guests
                         </span>
                       </p>
-                      {hasBalance && (
-                        <p className="text-xs text-orange-600 mt-1">{formatMoney(outstandingBalance)} balance due</p>
-                      )}
                     </div>
-                    <div className="ml-0 flex-shrink-0 text-left sm:ml-3 sm:text-right">
+                    <div className="flex shrink-0 flex-col items-start gap-0.5 sm:items-end sm:text-right">
                       <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                      {hasBalance && (
+                        <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                          {formatMoney(outstandingBalance)} due
+                        </p>
+                      )}
                     </div>
                   </div>
                 )

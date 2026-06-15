@@ -75,6 +75,7 @@ function AvailabilityResultsContent() {
   const [cancellationPolicy, setCancellationPolicy] = useState<string | null>(null)
 
   const slug = searchParams.get("slug") || ""
+  const propertyNameFromUrl = searchParams.get("propertyName")?.trim() || ""
   const propertyId = searchParams.get("propertyId")
   const checkInStr = searchParams.get("checkIn")
   const checkOutStr = searchParams.get("checkOut")
@@ -325,7 +326,10 @@ function AvailabilityResultsContent() {
     router.push(guestInfoPath)
   }
 
-  const displayPropertyName = propertyName || (slug ? capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')) : "")
+  const displayPropertyName =
+    propertyName ||
+    propertyNameFromUrl ||
+    (slug ? capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' ')) : "")
 
   if (!checkIn || !checkOut || !propertyId) {
     return (

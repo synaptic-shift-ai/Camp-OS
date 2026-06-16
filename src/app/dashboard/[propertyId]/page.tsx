@@ -175,7 +175,7 @@ async function CurrentlyCheckedIn({
               return (
                 <Link
                   key={type}
-                  href={`/dashboard/${propertyId}/reservations?siteType=${type}`}
+                  href={`/dashboard/${propertyId}/reservations?siteType=${type}&status=checked_in`}
                   className="flex min-h-16 w-full cursor-pointer flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-1.5 text-center transition-colors hover:bg-muted md:min-h-20 md:px-3 md:py-2"
                 >
                   <p className="text-sm leading-tight text-muted-foreground md:text-base">

@@ -481,6 +481,8 @@ export default async function PropertyBookingPage({
     name: property.name?.trim() || "",
     city: property.city || "",
     state: property.state || "",
+    address: property.address || "",
+    zip_code: property.zip_code || "",
     description: property.booking_page_description || property.description,
     tagline: property.booking_page_tagline,
     hero_image_url: property.hero_image_url,

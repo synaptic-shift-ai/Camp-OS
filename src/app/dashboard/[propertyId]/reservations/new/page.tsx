@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
+import { normalizePhone } from "@/lib/phone-utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -314,9 +315,9 @@ export default function NewReservationPage() {
   const [existingGuestDialogOpen, setExistingGuestDialogOpen] = useState(false)
   const [existingGuests, setExistingGuests] = useState<ExistingGuestMatch[]>([])
   const [selectedExistingGuestId, setSelectedExistingGuestId] = useState<string | null>(null)
-  const [isCheckingGuestEmail, setIsCheckingGuestEmail] = useState(false)
-  const [lastCheckedGuestEmail, setLastCheckedGuestEmail] = useState<string | null>(null)
-  const [dismissedExistingGuestEmail, setDismissedExistingGuestEmail] = useState<string | null>(null)
+  const [isCheckingGuestPhone, setIsCheckingGuestPhone] = useState(false)
+  const [lastCheckedGuestPhone, setLastCheckedGuestPhone] = useState<string | null>(null)
+  const [dismissedExistingGuestPhone, setDismissedExistingGuestPhone] = useState<string | null>(null)
 
   const linkedGuestCreditCents = useMemo(
     () =>
@@ -343,6 +344,7 @@ export default function NewReservationPage() {
   const paymentMethod = watch("paymentMethod")
   const paidAmount = watch("paidAmount")
   const guestEmail = watch("guestEmail")
+  const guestPhone = watch("guestPhone")
   const totalCents = summaryTotalCents ?? 0
   const dueTodayCents = amountDueTodayCents ?? totalCents
   const dueTodayDollars = dueTodayCents / 100
@@ -369,29 +371,29 @@ export default function NewReservationPage() {
   }, [stayType, checkInDate, checkOutDate, trigger])
 
   useEffect(() => {
-    const normalized = typeof guestEmail === 'string' ? guestEmail.trim().toLowerCase() : ''
-    if (!normalized) {
+    const normalizedPhone = normalizePhone(guestPhone)
+    if (!normalizedPhone) {
       setExistingGuests([])
       setSelectedExistingGuestId(null)
       setExistingGuestDialogOpen(false)
-      setLastCheckedGuestEmail(null)
-      setDismissedExistingGuestEmail(null)
+      setLastCheckedGuestPhone(null)
+      setDismissedExistingGuestPhone(null)
       return
     }
-    if (dismissedExistingGuestEmail && normalized !== dismissedExistingGuestEmail) {
-      setDismissedExistingGuestEmail(null)
+    if (dismissedExistingGuestPhone && normalizedPhone !== dismissedExistingGuestPhone) {
+      setDismissedExistingGuestPhone(null)
     }
-  }, [guestEmail, dismissedExistingGuestEmail])
+  }, [guestPhone, dismissedExistingGuestPhone])
 
-  const checkForExistingGuestByEmail = async (rawEmail: string) => {
-    const email = rawEmail.trim().toLowerCase()
-    if (!email) return
+  const checkForExistingGuestByPhone = async (rawPhone: string) => {
+    const normalizedPhone = normalizePhone(rawPhone)
+    if (!normalizedPhone) return
     if (!propertyId) return
-    if (dismissedExistingGuestEmail && email === dismissedExistingGuestEmail) return
-    if (lastCheckedGuestEmail && email === lastCheckedGuestEmail) return
+    if (dismissedExistingGuestPhone && normalizedPhone === dismissedExistingGuestPhone) return
+    if (lastCheckedGuestPhone && normalizedPhone === lastCheckedGuestPhone) return
 
-    setIsCheckingGuestEmail(true)
-    setLastCheckedGuestEmail(email)
+    setIsCheckingGuestPhone(true)
+    setLastCheckedGuestPhone(normalizedPhone)
     try {
       const supabase = createClient()
       const { data, error } = await supabase
@@ -400,13 +402,13 @@ export default function NewReservationPage() {
           'id, first_name, last_name, email, phone, address, city, state, zip_code, country, guest_credit_cents',
         )
         .eq('property_id', propertyId)
-        .ilike('email', email)
+        .eq('phone', normalizedPhone)
         .limit(20)
 
       if (error || !data || data.length === 0) return
 
       const matches: ExistingGuestMatch[] = data
-        .filter((row) => (row.email ?? '').trim().toLowerCase() === email)
+        .filter((row) => normalizePhone(row.phone) === normalizedPhone)
         .map((row) => {
           const first = (row.first_name ?? '').trim()
           const last = (row.last_name ?? '').trim()
@@ -442,7 +444,7 @@ export default function NewReservationPage() {
       setSelectedExistingGuestId(matches[0]?.id ?? null)
       setExistingGuestDialogOpen(true)
     } finally {
-      setIsCheckingGuestEmail(false)
+      setIsCheckingGuestPhone(false)
     }
   }
 
@@ -940,9 +942,9 @@ export default function NewReservationPage() {
                   <AlertDialogTitle>Has this guest stayed with us before?</AlertDialogTitle>
                   <AlertDialogDescription>
                     {existingGuests.length === 0
-                      ? 'We found an existing guest with this email.'
+                      ? 'We found an existing guest with this phone number.'
                       : existingGuests.length > 1
-                        ? `We found ${existingGuests.length} guest profiles with this email. Please select the correct one below.`
+                        ? `We found ${existingGuests.length} guest profiles with this phone number. Please select the correct one below.`
                         : 'Select the guest profile that matches this reservation.'}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -1006,11 +1008,11 @@ export default function NewReservationPage() {
                 <AlertDialogFooter className="shrink-0">
                   <AlertDialogCancel
                     onClick={() => {
-                      const currentEmail = typeof guestEmail === 'string' ? guestEmail.trim().toLowerCase() : null
+                      const currentPhone = normalizePhone(guestPhone)
                       setExistingGuests([])
                       setSelectedExistingGuestId(null)
                       setExistingGuestDialogOpen(false)
-                      setDismissedExistingGuestEmail(currentEmail)
+                      setDismissedExistingGuestPhone(currentPhone)
                     }}
                   >
                     No — register as new guest
@@ -1438,42 +1440,42 @@ export default function NewReservationPage() {
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                       <div>
                         <Label htmlFor="guestEmail">Email *</Label>
-                        {(() => {
-                          const guestEmailField = register("guestEmail")
-                          return (
                         <Input
                           id="guestEmail"
                           type="email"
-                          {...guestEmailField}
-                          onBlur={(e) => {
-                            guestEmailField.onBlur(e)
-                            void checkForExistingGuestByEmail(e.target.value)
-                          }}
+                          {...register("guestEmail")}
                         />
-                          )
-                        })()}
                         {errors.guestEmail && (
                           <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestEmail.message}</p>
-                        )}
-                        {isCheckingGuestEmail && (
-                          <p className="mt-1 text-xs text-muted-foreground">Checking guest list…</p>
                         )}
                       </div>
                       <div>
                         <Label htmlFor="guestPhone">Phone *</Label>
-                        <Controller
-                          name="guestPhone"
-                          control={methods.control}
-                          render={({ field }) => (
-                            <PhoneInput
-                              {...field}
-                              id="guestPhone"
-                              error={!!errors.guestPhone}
-                            />
-                          )}
-                        />
+                        <div
+                          onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) {
+                              void checkForExistingGuestByPhone(methods.getValues('guestPhone'))
+                            }
+                          }}
+                        >
+                          <Controller
+                            name="guestPhone"
+                            control={methods.control}
+                            render={({ field: { value, onChange } }) => (
+                              <PhoneInput
+                                id="guestPhone"
+                                value={value}
+                                onChange={onChange}
+                                error={!!errors.guestPhone}
+                              />
+                            )}
+                          />
+                        </div>
                         {errors.guestPhone && (
                           <p className="mt-1 text-sm text-destructive dark:text-red-300">{errors.guestPhone.message}</p>
+                        )}
+                        {isCheckingGuestPhone && (
+                          <p className="mt-1 text-xs text-muted-foreground">Checking guest list…</p>
                         )}
                       </div>
                     </div>

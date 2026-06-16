@@ -111,6 +111,8 @@ interface PropertyBookingPortalProps {
     name: string
     city: string
     state: string
+    address: string
+    zip_code: string
     description: string | null
     tagline: string | null
     hero_image_url: string | null
@@ -1396,11 +1398,12 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                 </div>
                 <span className="text-xl font-bold">{property.name}</span>
               </div>
-              {(property.city || property.state) && (
-                <p className="mb-4 text-emerald-100/90">
-                  {property.city}{property.city && property.state ? ', ' : ''}{property.state}
-                </p>
-              )}
+              {(() => {
+                const fullAddress = [property.address, property.city, property.state, property.zip_code].filter(Boolean).join(", ");
+                return fullAddress && (
+                  <p className="mb-4 text-emerald-100/90">{fullAddress}</p>
+                );
+              })()}
             </div>
 
             <div>
@@ -1449,11 +1452,14 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
                     <Mail className="h-4 w-4 mr-2" /> {property.email}
                   </p>
                 )}
-                {(property.city || property.state) && (
-                  <p className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-2" /> {property.city}{property.city && property.state ? ', ' : ''}{property.state}
-                  </p>
-                )}
+                {(() => {
+                  const fullAddress = [property.address, property.city, property.state, property.zip_code].filter(Boolean).join(", ");
+                  return fullAddress && (
+                    <p className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2" /> {fullAddress}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
           </div>

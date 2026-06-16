@@ -184,6 +184,7 @@ export interface ReservationFilters {
   | 'paidAmount'
   | 'balanceOwed'
   | 'refundedAmount'
+  | 'createdAt'
   | 'status'
   sortOrder?: 'asc' | 'desc'
   searchField?: 'confirmation' | 'guest' | 'site'
@@ -679,6 +680,11 @@ export async function getReservations(
     else if (sortBy === 'balanceOwed')
       comparison = a.totalAmount - a.paidAmount - (b.totalAmount - b.paidAmount)
     else if (sortBy === 'refundedAmount') comparison = a.refundAmount - b.refundAmount
+    else if (sortBy === 'createdAt') {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : -Infinity
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : -Infinity
+      comparison = aTime - bTime
+    }
     else comparison = a.status.localeCompare(b.status)
 
     return sortOrder === 'asc' ? comparison : -comparison

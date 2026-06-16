@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink, Home, User } from "lucide-react"
+import { Calendar, DollarSign, Tent, Users, Globe, ExternalLink, Home, User, AlertTriangle } from "lucide-react"
 import { getDashboardStats, getReservations, getTodaysArrivals } from "@/lib/dashboard/queries"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
@@ -110,11 +110,11 @@ async function CurrentlyCheckedIn({
   allowedSiteTypes?: string[] | null
   canManageCheckInOut: boolean
 }) {
-  const todayStr = new Date().toISOString().split("T")[0]!
-  const filters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
+  const filters: { status: "checked_in"; allowedSiteTypes?: string[] } = {
+    status: "checked_in",
+  }
   if (allowedSiteTypes?.length) filters.allowedSiteTypes = allowedSiteTypes
-  const { data: allCheckedIn } = await getReservations(propertyId, filters, 1, 50)
-  const currentlyCheckedIn = allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr)
+  const { data: currentlyCheckedIn } = await getReservations(propertyId, filters, 1, 50)
 
   let countsBySiteType: Record<string, number> = {}
   const siteTypesToShow =
@@ -173,7 +173,7 @@ async function CurrentlyCheckedIn({
               return (
                 <Link
                   key={type}
-                  href={`/dashboard/${propertyId}/reservations?siteType=${type}`}
+                  href={`/dashboard/${propertyId}/reservations?siteType=${type}&status=checked_in`}
                   className="flex min-h-16 w-full cursor-pointer flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-1.5 text-center transition-colors hover:bg-muted md:min-h-20 md:px-3 md:py-2"
                 >
                   <p className="text-sm leading-tight text-muted-foreground md:text-base">
@@ -211,16 +211,22 @@ async function TodaysArrivalsAndDepartures({
   canManageCheckInOut: boolean
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
-  const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
+  const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = {
+    status: "checked_in",
+  }
   if (allowedSiteTypes?.length) resFilters.allowedSiteTypes = allowedSiteTypes
-  const [arrivals, { data: allCheckedIn }] = await Promise.all([
+  const [arrivals, { data: presentGuests }] = await Promise.all([
     getTodaysArrivals(propertyId, allowedSiteTypes?.length ? { allowedSiteTypes } : undefined),
     getReservations(propertyId, resFilters, 1, 50),
   ])
-  const currentlyCheckedInIds = new Set(
-    allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr).map((r) => r.id)
+  // Only checked_in guests can be checked out — filter departures to avoid showing
+  // "Check Out" button for confirmed guests who were never checked in
+  const departuresToday = presentGuests.filter(
+    (r) => r.status === "checked_in" && r.checkOut.split("T")[0]! === todayStr
   )
-  const departures = allCheckedIn.filter((r) => !currentlyCheckedInIds.has(r.id))
+  const departuresOverdue = presentGuests.filter(
+    (r) => r.status === "checked_in" && r.checkOut.split("T")[0]! < todayStr
+  ).sort((a, b) => new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime())
 
   return (
     <div className="space-y-4">
@@ -236,7 +242,7 @@ async function TodaysArrivalsAndDepartures({
             <CardDescription>Guests checking out today</CardDescription>
           </CardHeader>
           <CardContent>
-            {departures.length === 0 ? (
+            {departuresToday.length === 0 && departuresOverdue.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Calendar className="mb-3 h-12 w-12 text-muted-foreground/30" />
                 <p className="text-sm text-muted-foreground">No departures scheduled for today</p>
@@ -244,7 +250,7 @@ async function TodaysArrivalsAndDepartures({
               </div>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {departures.map((reservation) => {
+                {departuresToday.map((reservation) => {
                   const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                   const hasBalance = outstandingBalance > 0
                   return (
@@ -289,6 +295,62 @@ async function TodaysArrivalsAndDepartures({
                     </div>
                   )
                 })}
+                {departuresOverdue.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1.5 pt-3">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                      <span className="text-xs font-semibold text-red-600 dark:text-red-400">Overdue</span>
+                    </div>
+                    {departuresOverdue.map((reservation) => {
+                      const outstandingBalance = reservation.totalAmount - reservation.paidAmount
+                      const hasBalance = outstandingBalance > 0
+                      return (
+                        <div
+                          key={reservation.id}
+                          className="flex flex-col gap-3 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium capitalize">{reservation.guestName}</p>
+                              <span className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                                Overdue
+                              </span>
+                              {hasBalance && (
+                                <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-400">
+                                  Balance Due
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                              <span className="flex min-w-0 items-center gap-1">
+                                <Home className="h-3 w-3 shrink-0" />
+                                <span className="break-words">
+                                  {reservation.siteName} • {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
+                                </span>
+                              </span>
+                            </p>
+                          </div>
+                          <div className="flex w-full shrink-0 flex-col items-start gap-2 sm:w-auto sm:items-end sm:text-right">
+                            <div className="space-y-0.5">
+                              <p className="font-medium">{formatMoney(reservation.totalAmount)}</p>
+                              {hasBalance && (
+                                <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                                  {formatMoney(outstandingBalance)} due
+                                </p>
+                              )}
+                            </div>
+                            {canManageCheckInOut ? (
+                              <DepartureCheckOutButton
+                                reservationId={reservation.id}
+                                checkOutTime={checkOutTime}
+                              />
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
               </div>
             )}
           </CardContent>

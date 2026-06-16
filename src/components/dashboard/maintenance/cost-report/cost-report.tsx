@@ -19,7 +19,7 @@ import {
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { BudgetManagement } from './budget-management'
-import { exportToCsv, buildExportFilename } from '@/lib/csv/export'
+import { exportMultiSectionCsv, buildExportFilename } from '@/lib/csv/export'
 import {
   BarChart,
   Bar,
@@ -96,6 +96,16 @@ function formatMonth(month: string): string {
   return format(date, 'MMM yyyy')
 }
 
+function formatCategoryLabel(category: string): string {
+  return (category ?? 'other').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase())
+}
+
+const PERIOD_LABELS: Record<string, string> = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -113,6 +123,7 @@ export function CostReport({
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
   const [fromPickerOpen, setFromPickerOpen] = useState(false)
   const [toPickerOpen, setToPickerOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
   // ---- data fetching -------------------------------------------------------
   const fetchReport = useCallback(async () => {
@@ -198,39 +209,156 @@ export function CostReport({
   const hasBudgetData = (reportData?.budgetComparison ?? []).length > 0
 
   // ---- CSV export ----------------------------------------------------------
-  const handleExportCsv = useCallback(() => {
-    if (!reportData) return
+  const handleExportCsv = useCallback(async () => {
+    if (!reportData || isExporting) return
 
-    const rows: Array<Record<string, unknown>> = []
+    setIsExporting(true)
 
-    // Stat rows
-    rows.push({ Section: 'Summary', Metric: 'Total Work Orders', Value: reportData.totalWorkOrders })
-    rows.push({ Section: 'Summary', Metric: 'Active Work Orders', Value: reportData.activeWorkOrders })
-    rows.push({ Section: 'Summary', Metric: 'Completed Work Orders', Value: reportData.completedWorkOrders })
-    rows.push({ Section: 'Summary', Metric: 'Total Actual Cost', Value: reportData.totalActualCost })
-    rows.push({ Section: 'Summary', Metric: 'Total Estimated Cost', Value: reportData.totalEstimatedCost })
+    try {
+      const [budgetsRes, limitsRes] = await Promise.all([
+        fetch(`/api/v1/properties/${propertyId}/maintenance/budgets`),
+        fetch(`/api/v1/properties/${propertyId}/maintenance/spend-limits`),
+      ])
 
-    // Vendor breakdown
-    for (const v of reportData.vendorBreakdown) {
-      rows.push({ Section: 'Vendor Breakdown', Metric: v.vendorName, Value: v.totalCost })
+      const budgetsPayload = await budgetsRes.json()
+      const limitsPayload = await limitsRes.json()
+
+      let budgetAllocationRows: Array<{
+        category: string
+        period: string
+        budget: number
+        spent: number
+        remaining: number
+      }> = []
+
+      if (budgetsPayload?.success) {
+        const budgetData = (budgetsPayload.data?.budgets ?? []) as Array<{
+          id: string
+          category: string
+          period: string
+          amount: number
+        }>
+
+        const budgetsWithSpend = await Promise.all(
+          budgetData.map(async (budget) => {
+            try {
+              const spendRes = await fetch(
+                `/api/v1/properties/${propertyId}/maintenance/budgets/${budget.id}/spend-check`,
+              )
+              if (!spendRes.ok) return { ...budget, spent: 0 }
+              const spendPayload = await spendRes.json()
+              return { ...budget, spent: (spendPayload?.data?.spent as number) ?? 0 }
+            } catch {
+              return { ...budget, spent: 0 }
+            }
+          }),
+        )
+
+        budgetAllocationRows = budgetsWithSpend.map((budget) => ({
+          category: formatCategoryLabel(budget.category),
+          period: PERIOD_LABELS[budget.period] ?? budget.period,
+          budget: budget.amount,
+          spent: budget.spent,
+          remaining: budget.amount - budget.spent,
+        }))
+      }
+
+      const spendLimitRows =
+        limitsPayload?.success
+          ? ((limitsPayload.data?.spendLimits ?? []) as Array<{
+              category: string
+              threshold_amount: number
+              alert_enabled: boolean
+            }>).map((limit) => ({
+              category: formatCategoryLabel(limit.category),
+              threshold: limit.threshold_amount,
+              alertEnabled: limit.alert_enabled ? 'Yes' : 'No',
+            }))
+          : []
+
+      exportMultiSectionCsv(buildExportFilename(`maintenance-report-${propertyId}`), [
+        {
+          title: 'Summary',
+          rows: [
+            { metric: 'Total Work Orders', value: reportData.totalWorkOrders },
+            { metric: 'Active Work Orders', value: reportData.activeWorkOrders },
+            { metric: 'Completed Work Orders', value: reportData.completedWorkOrders },
+            { metric: 'Total Actual Cost', value: reportData.totalActualCost },
+            { metric: 'Total Estimated Cost', value: reportData.totalEstimatedCost },
+          ],
+          columns: [
+            { key: 'metric', header: 'Metric' },
+            { key: 'value', header: 'Value' },
+          ],
+        },
+        {
+          title: 'Vendor Breakdown',
+          rows: reportData.vendorBreakdown.map((v) => ({
+            vendor: v.vendorName,
+            totalCost: v.totalCost,
+          })),
+          columns: [
+            { key: 'vendor', header: 'Vendor' },
+            { key: 'totalCost', header: 'Total Cost' },
+          ],
+        },
+        {
+          title: 'Monthly Trend',
+          rows: reportData.monthlyTrend.map((m) => ({
+            month: formatMonth(m.month),
+            totalCost: m.totalCost,
+          })),
+          columns: [
+            { key: 'month', header: 'Month' },
+            { key: 'totalCost', header: 'Total Cost' },
+          ],
+        },
+        {
+          title: 'Budget vs Actual',
+          rows: reportData.budgetComparison.map((row) => ({
+            category: formatCategoryLabel(row.category),
+            period: PERIOD_LABELS[row.period] ?? row.period,
+            budget: row.budgetAmount,
+            actual: row.actualSpend,
+            remaining: row.remaining,
+          })),
+          columns: [
+            { key: 'category', header: 'Category' },
+            { key: 'period', header: 'Period' },
+            { key: 'budget', header: 'Budget' },
+            { key: 'actual', header: 'Actual' },
+            { key: 'remaining', header: 'Remaining' },
+          ],
+        },
+        {
+          title: 'Budget Allocations',
+          rows: budgetAllocationRows,
+          columns: [
+            { key: 'category', header: 'Category' },
+            { key: 'period', header: 'Period' },
+            { key: 'budget', header: 'Budget' },
+            { key: 'spent', header: 'Spent' },
+            { key: 'remaining', header: 'Remaining' },
+          ],
+        },
+        {
+          title: 'Spend Limits',
+          rows: spendLimitRows,
+          columns: [
+            { key: 'category', header: 'Category' },
+            { key: 'threshold', header: 'Threshold' },
+            { key: 'alertEnabled', header: 'Alert Enabled' },
+          ],
+        },
+      ])
+      toast.success('CSV exported')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Export failed'
+      toast.error('Unable to export report', { description: message })
+    } finally {
+      setIsExporting(false)
     }
-
-    // Monthly trend
-    for (const m of reportData.monthlyTrend) {
-      rows.push({ Section: 'Monthly Trend', Metric: formatMonth(m.month), Value: m.totalCost })
-    }
-
-    exportToCsv(
-      buildExportFilename(`maintenance-report-${propertyId}`),
-      rows,
-      [
-        { key: 'Section', header: 'Section' },
-        { key: 'Metric', header: 'Metric' },
-        { key: 'Value', header: 'Value' },
-      ],
-    )
-    toast.success('CSV exported')
-  }, [reportData, propertyId])
+  }, [reportData, propertyId, isExporting])
 
   // ---- render helpers ------------------------------------------------------
   const renderStatCards = () => (
@@ -391,11 +519,11 @@ export function CostReport({
           variant="outline"
           size="sm"
           className="gap-2"
-          onClick={handleExportCsv}
-          disabled={isLoading || !reportData}
+          onClick={() => void handleExportCsv()}
+          disabled={isLoading || isExporting || !reportData}
         >
           <Download className="h-3.5 w-3.5" />
-          Export CSV
+          {isExporting ? 'Exporting…' : 'Export CSV'}
         </Button>
       </div>
 

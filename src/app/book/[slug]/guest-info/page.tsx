@@ -1023,7 +1023,7 @@ export default function GuestInfoPage() {
                   </div>
 
                   <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row">
-                    <Button type="button" variant="outline" onClick={() => router.push("/book")} className="sm:w-auto">
+                    <Button type="button" variant="outline" onClick={() => router.push("/")} className="sm:w-auto">
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Back to Booking
                     </Button>

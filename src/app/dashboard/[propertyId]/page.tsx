@@ -110,10 +110,8 @@ async function CurrentlyCheckedIn({
   allowedSiteTypes?: string[] | null
   canManageCheckInOut: boolean
 }) {
-  const todayStr = new Date().toISOString().split("T")[0]!
-  const filters: { status: ("confirmed" | "checked_in")[]; allowedSiteTypes?: string[]; endDate?: string } = {
-    status: ["confirmed", "checked_in"],
-    endDate: todayStr,
+  const filters: { status: "checked_in"; allowedSiteTypes?: string[] } = {
+    status: "checked_in",
   }
   if (allowedSiteTypes?.length) filters.allowedSiteTypes = allowedSiteTypes
   const { data: currentlyCheckedIn } = await getReservations(propertyId, filters, 1, 50)
@@ -213,9 +211,8 @@ async function TodaysArrivalsAndDepartures({
   canManageCheckInOut: boolean
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
-  const resFilters: { status: ("confirmed" | "checked_in")[]; allowedSiteTypes?: string[]; endDate?: string } = {
-    status: ["confirmed", "checked_in"],
-    endDate: todayStr,
+  const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = {
+    status: "checked_in",
   }
   if (allowedSiteTypes?.length) resFilters.allowedSiteTypes = allowedSiteTypes
   const [arrivals, { data: presentGuests }] = await Promise.all([

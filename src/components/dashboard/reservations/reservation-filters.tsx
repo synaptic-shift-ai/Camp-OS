@@ -49,6 +49,7 @@ const sortByOptions = [
   { value: 'balanceOwed', label: 'Balance Owed' },
   { value: 'refundedAmount', label: 'Refunded Amount' },
   { value: 'status', label: 'Status' },
+  { value: 'createdAt', label: 'Created Date' },
 ] as const
 
 const statusOptions = [

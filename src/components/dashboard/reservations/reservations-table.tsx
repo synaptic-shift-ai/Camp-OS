@@ -67,6 +67,7 @@ type ReservationsTableProps = {
   | 'balanceOwed'
   | 'refundedAmount'
   | 'status'
+  | 'createdAt'
   sortOrder: 'asc' | 'desc'
   searchField: 'confirmation' | 'guest' | 'site'
   rateDiscountsConfig?: RateDiscountsConfig | null | undefined

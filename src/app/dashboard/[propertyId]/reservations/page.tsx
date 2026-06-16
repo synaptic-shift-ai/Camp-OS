@@ -307,7 +307,8 @@ export default async function ReservationsPage({ params, searchParams }: PagePro
       sortByParam === 'paidAmount' ||
       sortByParam === 'balanceOwed' ||
       sortByParam === 'refundedAmount' ||
-      sortByParam === 'status'
+      sortByParam === 'status' ||
+      sortByParam === 'createdAt'
       ? sortByParam
       : 'checkIn'
   const sortOrder: NonNullable<ReservationFilters["sortOrder"]> =

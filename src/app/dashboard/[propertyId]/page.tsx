@@ -111,10 +111,12 @@ async function CurrentlyCheckedIn({
   canManageCheckInOut: boolean
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
-  const filters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
+  const filters: { status: ("confirmed" | "checked_in")[]; allowedSiteTypes?: string[]; endDate?: string } = {
+    status: ["confirmed", "checked_in"],
+    endDate: todayStr,
+  }
   if (allowedSiteTypes?.length) filters.allowedSiteTypes = allowedSiteTypes
-  const { data: allCheckedIn } = await getReservations(propertyId, filters, 1, 50)
-  const currentlyCheckedIn = allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr)
+  const { data: currentlyCheckedIn } = await getReservations(propertyId, filters, 1, 50)
 
   let countsBySiteType: Record<string, number> = {}
   const siteTypesToShow =
@@ -211,16 +213,20 @@ async function TodaysArrivalsAndDepartures({
   canManageCheckInOut: boolean
 }) {
   const todayStr = new Date().toISOString().split("T")[0]!
-  const resFilters: { status: "checked_in"; allowedSiteTypes?: string[] } = { status: "checked_in" }
+  const resFilters: { status: ("confirmed" | "checked_in")[]; allowedSiteTypes?: string[]; endDate?: string } = {
+    status: ["confirmed", "checked_in"],
+    endDate: todayStr,
+  }
   if (allowedSiteTypes?.length) resFilters.allowedSiteTypes = allowedSiteTypes
-  const [arrivals, { data: allCheckedIn }] = await Promise.all([
+  const [arrivals, { data: presentGuests }] = await Promise.all([
     getTodaysArrivals(propertyId, allowedSiteTypes?.length ? { allowedSiteTypes } : undefined),
     getReservations(propertyId, resFilters, 1, 50),
   ])
-  const currentlyCheckedInIds = new Set(
-    allCheckedIn.filter((r) => r.checkOut.split("T")[0]! > todayStr).map((r) => r.id)
+  // Only checked_in guests can be checked out — filter departures to avoid showing
+  // "Check Out" button for confirmed guests who were never checked in
+  const departures = presentGuests.filter(
+    (r) => r.status === "checked_in" && r.checkOut.split("T")[0]! === todayStr
   )
-  const departures = allCheckedIn.filter((r) => !currentlyCheckedInIds.has(r.id))
 
   return (
     <div className="space-y-4">

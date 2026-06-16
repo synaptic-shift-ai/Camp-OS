@@ -1,12 +1,18 @@
 "use client"
 
-import { ExportMenu } from "@/components/ui/export-menu"
+import { ExportMenu, type ExportFormatId } from "@/components/ui/export-menu"
 
 type GuestCommunicationPageHeaderProps = {
   propertyName: string
+  onExport: (format: ExportFormatId) => void
+  isExporting?: boolean
 }
 
-export function GuestCommunicationPageHeader({ propertyName }: GuestCommunicationPageHeaderProps) {
+export function GuestCommunicationPageHeader({ 
+  propertyName,
+  onExport,
+  isExporting = false,
+}: GuestCommunicationPageHeaderProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -16,7 +22,8 @@ export function GuestCommunicationPageHeader({ propertyName }: GuestCommunicatio
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         <ExportMenu
-          onExport={() => {}}
+          onExport={onExport}
+          disabled={isExporting}
           aria-label="Export guest communication data"
         />
       </div>

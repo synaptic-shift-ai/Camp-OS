@@ -1,6 +1,12 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
+import { useToast } from "@/hooks/use-toast"
+import {
+  exportGuestDeliveryLogs,
+  exportMessageBroadcastCampaigns,
+  exportOptOutRecords,
+} from "./export-guest-communication"
 import { useSearchParams } from "next/navigation"
 import { GuestCommunicationPageHeader } from "./guest-communication-page-header"
 import {
@@ -36,6 +42,62 @@ function GuestCommunicationPageContentInner({
     return "campaigns"
   })
 
+  const { toast } = useToast()
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExport = useCallback(
+    async (format: string) => {
+      if (format !== "csv") return
+
+      const exportConfig = {
+        campaigns: {
+          run: () => exportMessageBroadcastCampaigns(propertyId),
+          emptyMessage: "No campaigns found for this property.",
+          successLabel: "Message broadcast CSV downloaded",
+        },
+        guest_delivery: {
+          run: () => exportGuestDeliveryLogs(propertyId),
+          emptyMessage: "No delivery activity found for this property.",
+          successLabel: "Guest delivery CSV downloaded",
+        },
+        opt_outs: {
+          run: () => exportOptOutRecords(propertyId),
+          emptyMessage: "No opt-out records found for this property.",
+          successLabel: "Opt-outs CSV downloaded",
+        },
+      } as const
+
+      const config = exportConfig[viewMode]
+
+      try {
+        setIsExporting(true)
+        const count = await config.run()
+
+        if (count === 0) {
+          toast({
+            title: "Nothing to export",
+            description: config.emptyMessage,
+          })
+          return
+        }
+
+        toast({
+          title: "Export ready",
+          description: `${config.successLabel} (${count} rows).`,
+        })
+      } catch (err) {
+        toast({
+          title: "Export failed",
+          description: err instanceof Error ? err.message : "Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsExporting(false)
+      }
+    },
+    [propertyId, viewMode, toast],
+  )
+
   useEffect(() => {
     const tab = searchParams.get("tab")
     if (tab === "guest_delivery") {
@@ -49,7 +111,11 @@ function GuestCommunicationPageContentInner({
 
   return (
     <div className="space-y-4 sm:space-y-6" data-property-id={propertyId}>
-      <GuestCommunicationPageHeader propertyName={propertyName} />
+      <GuestCommunicationPageHeader 
+        propertyName={propertyName}
+        onExport={(format) => void handleExport(format)}
+        isExporting={isExporting}
+      />
 
       <div className="flex w-full justify-end">
         <GuestCommunicationViewSwitcher mode={viewMode} onModeChange={setViewMode} />

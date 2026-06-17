@@ -142,6 +142,7 @@ export function TermsAndConditionsDialog({ onAccept, termsText, open, onOpenChan
           <Button
             type="button"
             variant="default"
+            className="bg-[#2D5A27] hover:bg-[#1e3d1a] dark:bg-emerald-800 dark:hover:bg-emerald-900 text-white"
             onClick={() => {
               onAccept?.()
               setIsOpen(false)

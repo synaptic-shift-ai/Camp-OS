@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
-import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
+// import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import { DEFAULT_PAYMENT_METHODS, type PaymentMethod } from "@/lib/config/types"
 
@@ -708,7 +708,7 @@ export default function PaymentPage() {
         )}
       </div>
 
-      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-foreground/90 dark:border-emerald-900 dark:bg-emerald-950/30">
+      {/* <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-foreground/90 dark:border-emerald-900 dark:bg-emerald-950/30">
         <p className="mb-1 font-semibold text-foreground">What&apos;s included:</p>
         <ul className="space-y-1 text-xs">
           <li className="flex items-center space-x-2">
@@ -724,7 +724,7 @@ export default function PaymentPage() {
             <span>24/7 customer support</span>
           </li>
         </ul>
-      </div>
+      </div> */}
     </>
   )
 
@@ -920,12 +920,12 @@ export default function PaymentPage() {
                         </span>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-0">
+                    {/* <AccordionContent className="px-0">
                       <div className="space-y-4 border-t border-border px-4 py-4">
                         {bookingSummaryMain}
                         <BookingSummaryFooter />
                       </div>
-                    </AccordionContent>
+                    </AccordionContent> */}
                   </AccordionItem>
                 </Accordion>
               </div>
@@ -939,7 +939,7 @@ export default function PaymentPage() {
                   </CardHeader>
                   <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
                 </Card>
-                <BookingSummaryFooter />
+                {/* <BookingSummaryFooter /> */}
               </div>
             </div>
           </div>

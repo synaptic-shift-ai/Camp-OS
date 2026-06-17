@@ -23,7 +23,7 @@ import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
-import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
+// import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
@@ -727,10 +727,10 @@ export default function GuestInfoPage() {
               <Lock className="h-5 w-5" />
               <span className="font-medium">SSL Encrypted</span>
             </div>
-            <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
+            {/* <div className="flex items-center space-x-2 text-green-700 dark:text-emerald-400">
               <Check className="h-5 w-5" />
               <span className="font-medium">No Payment Required Yet</span>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -1058,12 +1058,12 @@ export default function GuestInfoPage() {
                         </span>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-0">
+                    {/* <AccordionContent className="px-0">
                       <div className="space-y-4 border-t border-border px-4 py-4">
                         {bookingSummaryMain}
                         <BookingSummaryFooter />
                       </div>
-                    </AccordionContent>
+                    </AccordionContent> */}
                   </AccordionItem>
                 </Accordion>
               </div>
@@ -1076,7 +1076,7 @@ export default function GuestInfoPage() {
                   </CardHeader>
                   <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
                 </Card>
-                <BookingSummaryFooter />
+                {/* <BookingSummaryFooter /> */}
               </div>
             </div>
           </div>

@@ -88,6 +88,8 @@ function AvailabilityResultsContent() {
     rawSiteType === "all" || rawSiteType === "" ? null : (rawSiteType as SiteType | null)
   const [rateDiscountsConfig, setRateDiscountsConfig] = useState<RateDiscountsConfig | null>(null)
   const [pricingConfig, setPricingConfig] = useState<GuestPricingConfig | null>(null)
+  const [bookingRulesConfig, setBookingRulesConfig] = useState<any>(null)
+  const [cancellationPolicyConfig, setCancellationPolicyConfig] = useState<any>(null)
 
   // Parse dates inside useMemo to avoid recreating on every render
   const checkIn = useMemo(() => checkInStr ? new Date(checkInStr) : null, [checkInStr])
@@ -142,6 +144,8 @@ function AvailabilityResultsContent() {
           if (result.data.pricing_config) {
             setPricingConfig(result.data.pricing_config)
           }
+          setBookingRulesConfig(result.data.booking_rules_config)
+          setCancellationPolicyConfig(result.data.cancellation_policy_config)
         } else {
           toast({
             title: "Search Error",
@@ -312,8 +316,8 @@ function AvailabilityResultsContent() {
       numPets: pets,
       priceBreakdown,
       cancellationPolicy: cancellationPolicy ?? null,
-      bookingRulesConfig: result.data.booking_rules_config,
-      cancellationPolicyConfig: result.data.cancellation_policy_config,
+      bookingRulesConfig,
+      cancellationPolicyConfig,
     })
 
     toast({

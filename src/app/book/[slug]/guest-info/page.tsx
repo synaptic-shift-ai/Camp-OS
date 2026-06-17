@@ -23,6 +23,7 @@ import { SpousePartnerSection } from "@/components/dashboard/reservations/spouse
 import { ChildrenList } from "@/components/dashboard/reservations/children-list"
 import { PetsInfoList } from "@/components/dashboard/reservations/pets-info-list"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
+import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
@@ -707,23 +708,6 @@ export default function GuestInfoPage() {
     </>
   )
 
-  const bookingSummaryFooter = (
-    <div className="mt-4 space-y-3">
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
-        <span>Free cancellation within 24 hours</span>
-      </div>
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
-        <span>Instant booking confirmation</span>
-      </div>
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
-        <span>Secure payment processing</span>
-      </div>
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background text-foreground dark:from-muted/20">
       <BookingPortalHeader
@@ -1077,7 +1061,7 @@ export default function GuestInfoPage() {
                     <AccordionContent className="px-0">
                       <div className="space-y-4 border-t border-border px-4 py-4">
                         {bookingSummaryMain}
-                        {bookingSummaryFooter}
+                        <BookingSummaryFooter />
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -1092,7 +1076,7 @@ export default function GuestInfoPage() {
                   </CardHeader>
                   <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
                 </Card>
-                {bookingSummaryFooter}
+                <BookingSummaryFooter />
               </div>
             </div>
           </div>

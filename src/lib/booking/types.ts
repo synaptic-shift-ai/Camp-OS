@@ -1,3 +1,5 @@
+import type { BookingRulesConfig } from '@/lib/config/types'
+
 /**
  * Booking System Type Definitions
  *
@@ -504,6 +506,15 @@ export interface CheckoutData {
   cancellationPolicy?: string | null
   /** Guest-visible payment methods enabled for this property */
   enabledPaymentMethods?: Array<'card' | 'amazon_pay' | 'cashapp'>
+  /** Resolved booking rules from property config */
+  bookingRulesConfig?: BookingRulesConfig
+  /** Structured cancellation tiers from property config */
+  cancellationPolicyConfig?: {
+    refund_tiers: Array<{
+      refund_percentage: number
+      days_before_reservation: number
+    }>
+  } | null
 
   // Site selection
   site?: AvailableSite

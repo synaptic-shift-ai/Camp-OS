@@ -312,6 +312,8 @@ function AvailabilityResultsContent() {
       numPets: pets,
       priceBreakdown,
       cancellationPolicy: cancellationPolicy ?? null,
+      bookingRulesConfig: result.data.booking_rules_config,
+      cancellationPolicyConfig: result.data.cancellation_policy_config,
     })
 
     toast({

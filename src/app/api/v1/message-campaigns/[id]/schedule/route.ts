@@ -38,7 +38,11 @@ export async function POST(
     })
     if (isDenied(access)) return access
 
-    // Fetch campaign and verify ownership
+    const companyId = access.companyId
+    if (!companyId) {
+      return error(ErrorCodes.VAL_002, request, { message: 'Could not determine tenant for property' })
+    }
+
     const serviceClient = createServiceRoleClient() as any
     const { data: campaign, error: fetchError } = await serviceClient
       .from('message_campaigns')
@@ -76,6 +80,22 @@ export async function POST(
 
     if (updateError) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: updateError.message })
+    }
+
+    const scheduledAt = updated.scheduled_at
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId,
+        propertyId: campaign.property_id ?? null,
+        action: 'schedule',
+        resource: 'campaign',
+        userId: user.id,
+        details: `Scheduled campaign '${campaign.name}' for ${scheduledAt ?? 'unknown time'}`,
+      })
+    } catch (logError) {
+      console.error('[Campaigns] Failed to log activity:', logError)
     }
 
     return success({ campaign: updated }, request)

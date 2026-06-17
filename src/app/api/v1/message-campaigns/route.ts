@@ -161,6 +161,21 @@ export async function POST(request: NextRequest) {
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: insertError.message })
     }
 
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId,
+        propertyId: campaign.property_id ?? null,
+        action: 'create',
+        resource: 'campaign',
+        userId: user.id,
+        details: `Created campaign '${campaign.name}' (${campaign.channel})`,
+      })
+    } catch (logError) {
+      console.error('[Campaigns] Failed to log activity:', logError)
+    }
+
     return success({ campaign }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

@@ -213,6 +213,8 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [sendNowTarget, setSendNowTarget] = useState<{ id: string; name: string } | null>(null)
   const [confirmingSend, setConfirmingSend] = useState(false)
   const { toast } = useToast()
@@ -284,6 +286,22 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
     },
     [propertyId, toast, fetchCampaigns],
   )
+
+  const handleDeleteCampaign = async () => {
+    if (!deleteTarget || !propertyId) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/v1/message-campaigns/${deleteTarget.id}?propertyId=${propertyId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete campaign')
+      toast({ title: 'Campaign deleted', description: `"${deleteTarget.name}" has been deleted.` })
+      setDeleteTarget(null)
+      fetchCampaigns()
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete campaign.', variant: 'destructive' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleConfirmSendNow = useCallback(async () => {
     if (!sendNowTarget) return
@@ -455,9 +473,7 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                       onEdit={(id) =>
                         router.push(`/dashboard/${propertyId}/guest-communication/campaigns/${id}/edit`)
                       }
-                      onDelete={() =>
-                        toast({ title: "Coming soon", description: "Campaign deletion is not yet available." })
-                      }
+                      onDelete={() => setDeleteTarget(campaign)}
                       onCancel={(id, name) => setCancelTarget({ id, name })}
                     />
                   </TableCell>
@@ -549,6 +565,24 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
             >
               {cancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
               Cancel campaign
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <Button variant="destructive" onClick={() => void handleDeleteCampaign()} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -43,6 +43,7 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
     register,
     handleSubmit,
     watch,
+    reset,
     setValue,
     formState: { errors, isDirty },
   } = useForm<RateDiscountsConfigInput>({
@@ -99,6 +100,7 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
         variant: "success",
       })
 
+      reset(data)
       // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {

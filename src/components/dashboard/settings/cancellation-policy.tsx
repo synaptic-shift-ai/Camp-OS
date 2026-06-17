@@ -64,14 +64,17 @@ export function CancellationPolicySettings({
     const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false)
     const [cancellationRules, setCancellationRules] = useState<CancellationRule[]>(initialCancellationRules ?? [])
     const [editingRule, setEditingRule] = useState<CancellationRule | null>(null)
+    const [savedCancellationRules, setSavedCancellationRules] = useState<CancellationRule[]>(initialCancellationRules ?? [])
 
     useEffect(() => {
       setCancellationRules(initialCancellationRules ?? [])
+      setSavedCancellationRules(initialCancellationRules ?? [])
     }, [initialCancellationRules])
 
     const {
     register,
     handleSubmit,
+    reset,
     trigger,
     formState: { errors, isDirty },
     } = useForm<CancellationPolicyFormData>({
@@ -116,6 +119,9 @@ export function CancellationPolicySettings({
               description: 'Terms & Policy saved.',
               variant: "success",
             })
+            reset(data)
+            setCancellationRules(body.cancellation_policy_config.refund_tiers)
+            setSavedCancellationRules(body.cancellation_policy_config.refund_tiers)
             router.refresh()
         } catch (err) {
             toast({
@@ -130,8 +136,8 @@ export function CancellationPolicySettings({
     }
 
     const rulesDirty = useMemo(() => {
-      return JSON.stringify(cancellationRules) !== JSON.stringify(initialCancellationRules ?? [])
-    }, [cancellationRules, initialCancellationRules])
+      return JSON.stringify(cancellationRules) !== JSON.stringify(savedCancellationRules)
+    }, [cancellationRules, savedCancellationRules])
 
     const hasUnsavedChanges = isDirty || rulesDirty
     const { UnsavedChangesDialog } = useUnsavedChangesGuard(hasUnsavedChanges, {

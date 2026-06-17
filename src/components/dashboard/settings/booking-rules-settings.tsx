@@ -100,6 +100,7 @@ export function BookingRulesSettings({
     handleSubmit,
     watch,
     setValue,
+    reset,
     trigger,
     formState: { errors, isDirty },
   } = useForm<BookingRulesSettingsFormInput>({
@@ -191,6 +192,7 @@ export function BookingRulesSettings({
         variant: "success",
       })
 
+      reset(data)
       router.refresh()
     } catch (error) {
       console.error('Error saving booking rules:', error)

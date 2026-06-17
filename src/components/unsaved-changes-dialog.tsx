@@ -11,6 +11,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 import { buttonVariants } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
 
 interface UnsavedChangesDialogProps {
   open: boolean
@@ -57,5 +58,23 @@ export function UnsavedChangesDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+export function UnsavedChangesSavingOverlay({ visible }: { visible: boolean }) {
+  if (!visible) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Saving changes"
+    >
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-12 w-12 animate-spin stroke-[1] text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Saving changes…</p>
+      </div>
+    </div>
   )
 }

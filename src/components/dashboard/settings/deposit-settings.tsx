@@ -61,6 +61,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
     handleSubmit,
     watch,
     setValue,
+    reset,
     trigger,
     formState: { errors, isDirty },
   } = useForm<DepositConfigFormInput>({
@@ -143,6 +144,7 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
         variant: "success",
       })
 
+      reset(data)
       // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {

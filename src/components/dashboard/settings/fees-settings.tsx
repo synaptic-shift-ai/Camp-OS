@@ -152,18 +152,22 @@ export function FeesSettings({
     initialConfig?.tax_rate ? initialConfig.tax_rate * 100 : 0
   )
   const [taxName, setTaxName] = useState(initialConfig?.tax_name || 'Tax')
+  const [savedTaxRatePercentage, setSavedTaxRatePercentage] = useState(
+    initialConfig?.tax_rate ? initialConfig.tax_rate * 100 : 0
+  )
+  const [savedTaxName, setSavedTaxName] = useState(initialConfig?.tax_name || 'Tax')
 
   // User-defined fees state
   const [fees, setFees] = useState<UserDefinedFee[]>(initialConfig?.user_defined_fees || [])
+  const [savedFees, setSavedFees] = useState<UserDefinedFee[]>(initialConfig?.user_defined_fees || [])
 
   const isDirty = useMemo(() => {
-    const initialFees = initialConfig?.user_defined_fees || []
     return (
-      taxRatePercentage !== (initialConfig?.tax_rate ? initialConfig.tax_rate * 100 : 0) ||
-      taxName !== (initialConfig?.tax_name || 'Tax') ||
-      JSON.stringify(fees) !== JSON.stringify(initialFees)
+      taxRatePercentage !== savedTaxRatePercentage ||
+      taxName !== savedTaxName ||
+      JSON.stringify(fees) !== JSON.stringify(savedFees)
     )
-  }, [taxRatePercentage, taxName, fees, initialConfig])
+  }, [taxRatePercentage, taxName, fees, savedTaxRatePercentage, savedTaxName, savedFees])
 
   // Form for adding/editing fees
   const feeForm = useForm<FeeFormInput>({
@@ -301,6 +305,9 @@ export function FeesSettings({
         }
       }
 
+      setSavedTaxRatePercentage(taxRatePercentage)
+      setSavedTaxName(taxName)
+      setSavedFees(fees)
       toast({
         title: 'Additional charges saved',
         description: 'Additional charges saved successfully.',

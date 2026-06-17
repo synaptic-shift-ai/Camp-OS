@@ -145,11 +145,13 @@ export function DiscountsSettings({
   const [discounts, setDiscounts] = useState<UserDefinedDiscount[]>(
     initialConfig?.user_defined_discounts || []
   )
+  const [savedDiscounts, setSavedDiscounts] = useState<UserDefinedDiscount[]>(
+    initialConfig?.user_defined_discounts || []
+  )
 
   const isDirty = useMemo(() => {
-    const initialDiscounts = initialConfig?.user_defined_discounts || []
-    return JSON.stringify(discounts) !== JSON.stringify(initialDiscounts)
-  }, [discounts, initialConfig])
+    return JSON.stringify(discounts) !== JSON.stringify(savedDiscounts)
+  }, [discounts, savedDiscounts])
 
   // Form for adding/editing discounts
   const discountForm = useForm<DiscountFormInput>({
@@ -286,6 +288,7 @@ export function DiscountsSettings({
         }
       }
 
+      setSavedDiscounts(discounts)
       toast({
         title: 'Discounts saved',
         description: 'Discounts saved successfully.',

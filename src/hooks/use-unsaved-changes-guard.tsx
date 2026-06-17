@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog"
+import { UnsavedChangesDialog, UnsavedChangesSavingOverlay } from "@/components/unsaved-changes-dialog"
 
 interface UseUnsavedChangesGuardOptions {
   onSave?: () => Promise<void> | void
@@ -24,9 +24,20 @@ export function useUnsavedChangesGuard(
 
   const [showDialog, setShowDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const isSavingRef = useRef(false)
   const pendingNavigationRef = useRef<(() => void) | null>(null)
   const isIntentionalNavigationRef = useRef(false)
   const pushedHistoryEntryRef = useRef(false)
+
+  const shouldBlockNavigation = useCallback(() => {
+    return !isIntentionalNavigationRef.current && !isSavingRef.current
+  }, [])
+
+  const showNavigationDialog = useCallback(() => {
+    if (shouldBlockNavigation()) {
+      setShowDialog(true)
+    }
+  }, [shouldBlockNavigation])
 
   // ── beforeunload ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -58,27 +69,29 @@ export function useUnsavedChangesGuard(
     if (!isDirty) return
 
     const handlePopState = () => {
-      if (isIntentionalNavigationRef.current) return
+      if (!shouldBlockNavigation()) return
 
       // Push another entry to prevent actual back navigation
       window.history.pushState(null, "", window.location.href)
 
       // Show dialog with no pending nav — discard will go back
       pendingNavigationRef.current = null
-      setShowDialog(true)
+      showNavigationDialog()
     }
 
     window.addEventListener("popstate", handlePopState)
     return () => {
       window.removeEventListener("popstate", handlePopState)
     }
-  }, [isDirty])
+  }, [isDirty, showNavigationDialog, shouldBlockNavigation])
 
   // ── Document click capture — intercept in-app link clicks ────────────
   useEffect(() => {
     if (!isDirty) return
 
     const handleClick = (e: MouseEvent) => {
+      if (!shouldBlockNavigation()) return
+
       const target = (e.target as HTMLElement).closest("a")
       if (!target) return
 
@@ -91,12 +104,12 @@ export function useUnsavedChangesGuard(
       pendingNavigationRef.current = () => {
         window.location.href = href
       }
-      setShowDialog(true)
+      showNavigationDialog()
     }
 
     document.addEventListener("click", handleClick, true)
     return () => document.removeEventListener("click", handleClick, true)
-  }, [isDirty])
+  }, [isDirty, shouldBlockNavigation, showNavigationDialog])
 
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleDiscard = useCallback(() => {
@@ -121,6 +134,7 @@ export function useUnsavedChangesGuard(
 
   const handleSaveAndLeave = useCallback(async () => {
     isIntentionalNavigationRef.current = true
+    isSavingRef.current = true
     setIsSaving(true)
     setShowDialog(false)
 
@@ -141,7 +155,7 @@ export function useUnsavedChangesGuard(
     } catch {
       // Caller handles error toast — allow beforeunload again on failed save
       isIntentionalNavigationRef.current = false
-    } finally {
+      isSavingRef.current = false
       setIsSaving(false)
     }
   }, [onSave])
@@ -160,14 +174,17 @@ export function useUnsavedChangesGuard(
   // ── Dialog component ─────────────────────────────────────────────────
   const DialogComponent = useMemo(() => {
     const Comp: React.FC = () => (
-      <UnsavedChangesDialog
-        open={showDialog}
-        onOpenChange={setShowDialog}
-        message={message}
-        onDiscard={handleDiscard}
-        {...(onSave ? { onSaveAndLeave: handleSaveAndLeave } : {})}
-        isSaving={isSaving}
-      />
+      <>
+        <UnsavedChangesDialog
+          open={showDialog}
+          onOpenChange={setShowDialog}
+          message={message}
+          onDiscard={handleDiscard}
+          {...(onSave ? { onSaveAndLeave: handleSaveAndLeave } : {})}
+          isSaving={isSaving}
+        />
+        <UnsavedChangesSavingOverlay visible={isSaving} />
+      </>
     )
     Comp.displayName = "UnsavedChangesDialogGuard"
     return Comp
@@ -178,9 +195,12 @@ export function useUnsavedChangesGuard(
       navigate()
       return
     }
+    if (!shouldBlockNavigation()) {
+      return
+    }
     pendingNavigationRef.current = navigate
-    setShowDialog(true)
-  }, [isDirty])
+    showNavigationDialog()
+  }, [isDirty, shouldBlockNavigation, showNavigationDialog])
 
   return {
     UnsavedChangesDialog: DialogComponent,

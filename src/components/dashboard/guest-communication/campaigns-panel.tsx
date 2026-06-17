@@ -7,13 +7,9 @@ import {
   MessageSquare,
   Megaphone,
   Plus,
-  Eye,
   Users,
-  Send,
-  Pencil,
-  Trash2,
-  Ban,
   Loader2,
+  MoreHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -39,6 +35,13 @@ import { PageSizeSelector } from "@/components/ui/page-size-selector"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { CampaignResultsDialog } from "./campaign-results-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type Campaign = {
   id: string
@@ -49,6 +52,103 @@ type Campaign = {
   sent_at: string | null
   recipient_count: number
   created_at: string
+}
+
+type CampaignActionsMenuProps = {
+  campaign: Campaign
+  sendingId: string | null
+  onViewResults: (id: string, name: string) => void
+  onSendNow: (id: string, name: string) => void
+  onEdit: (id: string) => void
+  onDelete: () => void
+  onCancel: (id: string, name: string) => void
+}
+
+function CampaignActionsMenu({
+  campaign,
+  sendingId,
+  onViewResults,
+  onSendNow,
+  onEdit,
+  onDelete,
+  onCancel,
+}: CampaignActionsMenuProps) {
+  const isSending = sendingId === campaign.id
+  const hasMenuItems =
+    campaign.status === "sent" ||
+    campaign.status === "failed" ||
+    campaign.status === "draft" ||
+    campaign.status === "scheduled"
+
+  if (!isSending && !hasMenuItems) {
+    return (
+      <div
+        className="flex shrink-0 items-center justify-end pl-1"
+        onClick={(event) => event.stopPropagation()}
+      />
+    )
+  }
+
+  return (
+    <div
+      className="flex shrink-0 items-center justify-end pl-1"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {isSending ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="xs" aria-label="Campaign actions" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            {(campaign.status === "sent" || campaign.status === "failed") && (
+              <DropdownMenuItem onClick={() => onViewResults(campaign.id, campaign.name)}>
+                View Results
+              </DropdownMenuItem>
+            )}
+
+            {(campaign.status === "draft" || campaign.status === "scheduled") && (
+              <>
+                <DropdownMenuItem onClick={() => onSendNow(campaign.id, campaign.name)}>
+                  Send Now
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(campaign.id)}>
+                  Edit Campaign
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {campaign.status === "draft" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  Delete Campaign
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {campaign.status === "scheduled" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onCancel(campaign.id, campaign.name)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  Cancel Schedule
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  )
 }
 
 function ChannelBadge({ channel }: { channel: string }) {
@@ -337,70 +437,29 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
                       {(campaign.recipient_count ?? 0).toLocaleString()}
                     </span>
                   </TableCell>
-                  <TableCell
-                    className="py-0.5"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-end gap-2">
-                      {sendingId === campaign.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
-                      ) : (
-                        <>
-                          {(campaign.status === "sent" || campaign.status === "failed") && (
-                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="View Results" 
-                              onClick={() => {
-                                setResultsCampaignId(campaign.id)
-                                setResultsCampaignName(campaign.name)
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {(campaign.status === "draft" || campaign.status === "scheduled") && (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-8 w-8 p-0"
-                              aria-label="Send Now"
-                              onClick={() => {
-                                if (campaign.status === "scheduled") {
-                                  setSendNowTarget({ id: campaign.id, name: campaign.name })
-                                  return
-                                }
-                                void handleSendCampaign(campaign.id, campaign.name)
-                              }}
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {(campaign.status === "draft" || campaign.status === "scheduled") && (
-                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0" aria-label="Edit"
-                              onClick={() => router.push(`/dashboard/${propertyId}/guest-communication/campaigns/${campaign.id}/edit`)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {campaign.status === "draft" && (
-                            <Button variant="ghost" size="xs" className="h-8 w-8 p-0 text-red-500 hover:text-red-600" aria-label="Delete"
-                              onClick={() => toast({ title: "Coming soon", description: "Campaign deletion is not yet available." })}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {campaign.status === "scheduled" && (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-8 w-8 p-0"
-                              aria-label="Cancel"
-                              onClick={() => setCancelTarget({ id: campaign.id, name: campaign.name })}
-                            >
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </div>
+                  <TableCell className="w-12 min-w-[2.75rem] shrink-0 pl-3 pr-2 py-0.5 align-middle">
+                    <CampaignActionsMenu
+                      campaign={campaign}
+                      sendingId={sendingId}
+                      onViewResults={(id, name) => {
+                        setResultsCampaignId(id)
+                        setResultsCampaignName(name)
+                      }}
+                      onSendNow={(id, name) => {
+                        if (campaign.status === "scheduled") {
+                          setSendNowTarget({ id, name })
+                          return
+                        }
+                        void handleSendCampaign(id, name)
+                      }}
+                      onEdit={(id) =>
+                        router.push(`/dashboard/${propertyId}/guest-communication/campaigns/${id}/edit`)
+                      }
+                      onDelete={() =>
+                        toast({ title: "Coming soon", description: "Campaign deletion is not yet available." })
+                      }
+                      onCancel={(id, name) => setCancelTarget({ id, name })}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

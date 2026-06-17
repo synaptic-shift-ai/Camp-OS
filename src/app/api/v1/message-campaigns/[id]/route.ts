@@ -93,6 +93,21 @@ export async function PATCH(
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: updateError.message })
     }
 
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId,
+        propertyId: campaign.property_id ?? null,
+        action: 'update',
+        resource: 'campaign',
+        userId: user.id,
+        details: `Updated campaign '${campaign.name}'`,
+      })
+    } catch (logError) {
+      console.error('[Campaigns] Failed to log activity:', logError)
+    }
+
     return success({ campaign }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

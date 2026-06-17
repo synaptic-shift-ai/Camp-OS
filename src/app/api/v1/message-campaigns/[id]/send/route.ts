@@ -92,6 +92,21 @@ export async function POST(
       eligibleGuests,
     )
 
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId,
+        propertyId: campaign.property_id ?? null,
+        action: 'send',
+        resource: 'campaign',
+        userId: user.id,
+        details: `Sent campaign '${campaign.name}' to ${summary.total} guests (${summary.sent} sent, ${summary.failed} failed)`,
+      })
+    } catch (logError) {
+      console.error('[Campaigns] Failed to log activity:', logError)
+    }
+
     return success({ summary, campaignId }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

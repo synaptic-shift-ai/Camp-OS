@@ -74,6 +74,21 @@ export async function POST(
       return error(ErrorCodes.INTERNAL_ERROR, request, { message: updateError.message })
     }
 
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId,
+        propertyId: updated.property_id ?? null,
+        action: 'cancel',
+        resource: 'campaign',
+        userId: user.id,
+        details: `Cancelled scheduled campaign '${updated.name}'`,
+      })
+    } catch (logError) {
+      console.error('[Campaigns] Failed to log activity:', logError)
+    }
+
     return success({ campaign: updated }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

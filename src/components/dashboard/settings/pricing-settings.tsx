@@ -52,6 +52,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
     handleSubmit,
     watch,
     setValue,
+    reset,
     trigger,
     formState: { errors, isDirty },
   } = useForm<PricingConfigFormInput>({
@@ -136,6 +137,7 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
         variant: "success",
       })
 
+      reset(data)
       // Refresh the page data to show updated values
       router.refresh()
     } catch (error) {

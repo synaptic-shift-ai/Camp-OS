@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getGuestsBySegment, filterEligibleGuests } from './segmentation'
 import { executeCampaignSend } from './send'
 import type { CampaignSendSummary, MessageCampaign, SegmentType } from './messaging-types'
+import { recordActivityLog } from '@/shared/activity-log/record-activity-log'
 
 const DEFAULT_BATCH_LIMIT = 20
 
@@ -154,6 +155,19 @@ export async function processDueScheduledCampaigns(
         claimed as unknown as MessageCampaign,
         eligibleGuests,
       )
+
+      try {
+        await recordActivityLog(serviceClient, {
+          companyId,
+          propertyId,
+          action: 'send',
+          resource: 'campaign',
+          userId: null,
+          details: `Sent scheduled campaign '${claimed.name}' to ${summary.total} guests (${summary.sent} sent, ${summary.failed} failed)`,
+        })
+      } catch (logError) {
+        console.error('[scheduled-campaigns] Failed to log activity:', logError)
+      }
 
       result.processed++
       result.campaigns.push({

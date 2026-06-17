@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
+// import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import { DEFAULT_PAYMENT_METHODS, type PaymentMethod } from "@/lib/config/types"
 
@@ -707,7 +708,7 @@ export default function PaymentPage() {
         )}
       </div>
 
-      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-foreground/90 dark:border-emerald-900 dark:bg-emerald-950/30">
+      {/* <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-foreground/90 dark:border-emerald-900 dark:bg-emerald-950/30">
         <p className="mb-1 font-semibold text-foreground">What&apos;s included:</p>
         <ul className="space-y-1 text-xs">
           <li className="flex items-center space-x-2">
@@ -722,30 +723,9 @@ export default function PaymentPage() {
             <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
             <span>24/7 customer support</span>
           </li>
-          <li className="flex items-center space-x-2">
-            <Check className="h-3 w-3 text-green-600 dark:text-emerald-500" />
-            <span>Free cancellation (7+ days)</span>
-          </li>
         </ul>
-      </div>
+      </div> */}
     </>
-  )
-
-  const bookingSummaryFooter = (
-    <div className="mt-4 space-y-3">
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
-        <span>Instant booking confirmation</span>
-      </div>
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
-        <span>Email receipt & details</span>
-      </div>
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <Check className="h-4 w-4 text-green-600 dark:text-emerald-500" />
-        <span>Secure payment guarantee</span>
-      </div>
-    </div>
   )
 
   return (
@@ -940,12 +920,12 @@ export default function PaymentPage() {
                         </span>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-0">
+                    {/* <AccordionContent className="px-0">
                       <div className="space-y-4 border-t border-border px-4 py-4">
                         {bookingSummaryMain}
-                        {bookingSummaryFooter}
+                        <BookingSummaryFooter />
                       </div>
-                    </AccordionContent>
+                    </AccordionContent> */}
                   </AccordionItem>
                 </Accordion>
               </div>
@@ -959,7 +939,7 @@ export default function PaymentPage() {
                   </CardHeader>
                   <CardContent className="space-y-4 p-6">{bookingSummaryMain}</CardContent>
                 </Card>
-                {bookingSummaryFooter}
+                {/* <BookingSummaryFooter /> */}
               </div>
             </div>
           </div>

@@ -292,7 +292,10 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
     setIsDeleting(true)
     try {
       const res = await fetch(`/api/v1/message-campaigns/${deleteTarget.id}?propertyId=${propertyId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete campaign')
+      if (!res.ok) {
+        const json = await res.json()
+        throw new Error(json.error?.message || 'Failed to delete campaign')
+      }
       toast({ title: 'Campaign deleted', description: `"${deleteTarget.name}" has been deleted.` })
       setDeleteTarget(null)
       fetchCampaigns()
@@ -570,7 +573,7 @@ export function CampaignsPanel({ propertyId }: { propertyId: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !isDeleting) setDeleteTarget(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Campaign</AlertDialogTitle>

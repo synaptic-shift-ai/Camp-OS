@@ -1,7 +1,8 @@
 /**
- * Message Campaign API v1 — Update
+ * Message Campaign API v1 — Update & Delete
  *
  * PATCH /api/v1/message-campaigns/[id] — Update a draft or scheduled campaign
+ * DELETE /api/v1/message-campaigns/[id] — Delete a draft campaign
  */
 
 import { type NextRequest } from 'next/server'
@@ -113,6 +114,85 @@ export async function PATCH(
     }
 
     return success({ campaign }, request)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return error(ErrorCodes.INTERNAL_ERROR, request, { message })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id: campaignId } = await params
+    const { supabase, user, error: authError } = await createSupabaseClientForApiRoute(request)
+    if (authError || !user) return error(ErrorCodes.AUTH_001, request)
+
+    const sp = request.nextUrl.searchParams
+    const propertyId = sp.get('propertyId')
+    if (!propertyId) {
+      return error(ErrorCodes.VAL_002, request, { message: 'propertyId query parameter is required' })
+    }
+
+    const access = await requirePropertyAccess(supabase as never, user.id, {
+      propertyId,
+      minimumRole: 'staff',
+      permission: 'guest_comms.edit_templates' as any,
+    })
+    if (isDenied(access)) return access
+
+    const companyId = access.companyId
+    if (!companyId) {
+      return error(ErrorCodes.VAL_002, request, { message: 'Could not determine tenant for property' })
+    }
+
+    const db = createServiceRoleClient() as any
+
+    const { data: existing, error: fetchError } = await db
+      .from('message_campaigns')
+      .select('id, status, name, company_id, property_id')
+      .eq('id', campaignId)
+      .eq('property_id', propertyId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (fetchError || !existing) {
+      return error(ErrorCodes.RESOURCE_NOT_FOUND, request, { message: 'Campaign not found' })
+    }
+
+    if (existing.status !== 'draft') {
+      return error(ErrorCodes.VAL_001, request, {
+        message: `Only draft campaigns can be deleted (current status: ${existing.status})`,
+      })
+    }
+
+    const campaignName = existing.name
+    const { error: deleteError } = await db
+      .from('message_campaigns')
+      .delete()
+      .eq('id', campaignId)
+
+    if (deleteError) {
+      return error(ErrorCodes.INTERNAL_ERROR, request, { message: deleteError.message })
+    }
+
+    try {
+      const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
+      const serviceRole = createServiceRoleClient()
+      await recordActivityLog(serviceRole, {
+        companyId,
+        propertyId: existing.property_id ?? null,
+        action: 'delete',
+        resource: 'message_campaign',
+        userId: user.id,
+        details: `Deleted message campaign '${campaignName}'`,
+      })
+    } catch (logError) {
+      console.error('[Campaigns] Failed to log activity:', logError)
+    }
+
+    return success({ deleted: true }, request)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })

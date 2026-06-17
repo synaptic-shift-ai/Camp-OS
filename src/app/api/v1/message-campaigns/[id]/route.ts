@@ -52,7 +52,7 @@ export async function PATCH(
 
     const { data: existing, error: fetchError } = await db
       .from('message_campaigns')
-      .select('id, status')
+      .select('id, status, name')
       .eq('id', campaignId)
       .eq('property_id', propertyId)
       .eq('company_id', companyId)
@@ -96,13 +96,17 @@ export async function PATCH(
     try {
       const { recordActivityLog } = await import('@/shared/activity-log/record-activity-log')
       const serviceRole = createServiceRoleClient()
+      const nameChanged = data.name !== undefined && data.name !== existing.name
+      const details = nameChanged
+        ? `Updated campaign name '${existing.name}' to '${data.name}'`
+        : `Updated campaign '${campaign.name}'`
       await recordActivityLog(serviceRole, {
         companyId,
         propertyId: campaign.property_id ?? null,
         action: 'update',
         resource: 'campaign',
         userId: user.id,
-        details: `Updated campaign '${campaign.name}'`,
+        details,
       })
     } catch (logError) {
       console.error('[Campaigns] Failed to log activity:', logError)

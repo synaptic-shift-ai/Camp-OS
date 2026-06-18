@@ -177,7 +177,12 @@ export default function ConfirmationPage() {
   // Redirect to booking portal on browser back button
   useEffect(() => {
     window.history.pushState(null, '', window.location.href)
-    const handlePopState = () => router.replace(`/book/${slug}`)
+    const handlePopState = () => {
+      // Synchronously re-push to prevent the browser from completing the back navigation
+      window.history.pushState(null, '', window.location.href)
+      // Then navigate to the booking portal
+      router.replace(`/book/${slug}`)
+    }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [router, slug])

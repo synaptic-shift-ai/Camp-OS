@@ -878,8 +878,21 @@ export async function getPayments(
 
   const ledgerTotal = count ?? 0
 
-  // Fall back only when the ledger has no matching rows and filter allows legacy payments.
+  // Fall back only when the ledger has no matching rows and the property truly has
+  // no ledger data at all (not just no rows matching the current type filter).
   if (!txnsError && ledgerTotal === 0 && canUseLegacyPaymentsFallback) {
+    // Check if the property has ANY rows in the ledger (without type filter)
+    const { count: unfilteredCount } = await supabase
+      .from('financial_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('property_id', propertyId)
+      .in('type', ['payment', 'refund', 'charge'])
+      .not('is_voided', 'is', true)
+
+    if (unfilteredCount !== null && unfilteredCount > 0) {
+      // Property has ledger data but none matching this type filter — return empty
+      return { data: [], total: 0 }
+    }
     let fallbackQuery = supabase
       .from('payments')
       .select(

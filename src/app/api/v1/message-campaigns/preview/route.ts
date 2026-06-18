@@ -18,18 +18,56 @@ import { getGuestsBySegment, filterEligibleGuests } from '@/lib/messaging/segmen
 import { buildCampaignGuestContext, personalizeCampaignMessage } from '@/lib/messaging/campaign-context'
 import type { SegmentType } from '@/lib/messaging/messaging-types'
 
+const LOG_PREFIX = '[Campaign Preview]'
+
+function logPreviewFailure(
+  reason: string,
+  context: Record<string, unknown>,
+): void {
+  console.warn(LOG_PREFIX, { reason, ...context })
+}
+
+function summarizePreviewBody(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== 'object') {
+    return { bodyType: typeof body }
+  }
+
+  const payload = body as Record<string, unknown>
+  const subject = payload.subject
+  const bodyText = payload.body
+
+  return {
+    name: payload.name,
+    hasName: typeof payload.name === 'string' && payload.name.trim().length > 0,
+    channel: payload.channel,
+    segment_type: payload.segment_type,
+    hasSubject: typeof subject === 'string' && subject.trim().length > 0,
+    subjectLength: typeof subject === 'string' ? subject.length : 0,
+    bodyLength: typeof bodyText === 'string' ? bodyText.length : 0,
+    hasAudienceFilter: payload.audience_filter != null,
+    template_id: payload.template_id ?? null,
+  }
+}
+
 // ============================================================================
 // POST — Preview campaign recipients
 // ============================================================================
 
 export async function POST(request: NextRequest) {
+  const propertyId = request.nextUrl.searchParams.get('propertyId')
+
   try {
     const { supabase, user, error: authError } = await createSupabaseClientForApiRoute(request)
-    if (authError || !user) return error(ErrorCodes.AUTH_001, request)
+    if (authError || !user) {
+      logPreviewFailure('authentication_failed', {
+        propertyId,
+        authError: authError?.message ?? 'no_user',
+      })
+      return error(ErrorCodes.AUTH_001, request)
+    }
 
-    const sp = request.nextUrl.searchParams
-    const propertyId = sp.get('propertyId')
     if (!propertyId) {
+      logPreviewFailure('missing_property_id', { userId: user.id })
       return error(ErrorCodes.VAL_002, request, { message: 'propertyId query parameter is required' })
     }
 
@@ -38,16 +76,43 @@ export async function POST(request: NextRequest) {
       minimumRole: 'staff',
       permission: 'guest_comms.edit_templates' as any,
     })
-    if (isDenied(access)) return access
+    if (isDenied(access)) {
+      logPreviewFailure('access_denied', {
+        propertyId,
+        userId: user.id,
+        status: access.status,
+      })
+      return access
+    }
 
     const companyId = access.companyId
     if (!companyId) {
+      logPreviewFailure('missing_company_id', { propertyId, userId: user.id })
       return error(ErrorCodes.VAL_002, request, { message: 'Could not determine tenant for property' })
     }
 
-    const body = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      logPreviewFailure('invalid_json_body', {
+        propertyId,
+        userId: user.id,
+        error: parseError instanceof Error ? parseError.message : 'unknown_parse_error',
+      })
+      return error(ErrorCodes.VAL_001, request, {
+        message: 'Request body must be valid JSON',
+      })
+    }
+
     const parsed = PreviewCampaignSchema.safeParse(body)
     if (!parsed.success) {
+      logPreviewFailure('validation_failed', {
+        propertyId,
+        userId: user.id,
+        payload: summarizePreviewBody(body),
+        zodErrors: parsed.error.flatten(),
+      })
       return error(ErrorCodes.VAL_001, request, {
         message: 'Validation failed',
         details: parsed.error.flatten(),
@@ -56,6 +121,10 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data
     const serviceClient = createServiceRoleClient() as any
+    const previewSubject =
+      data.channel === 'sms'
+        ? null
+        : data.subject?.trim() || '(No subject)'
 
     // Fetch guests for the chosen segment
     const segmentType = (data.segment_type ?? 'all_guests') as SegmentType
@@ -86,7 +155,7 @@ export async function POST(request: NextRequest) {
         const personalized = await personalizeCampaignMessage(serviceClient, {
           propertyId,
           channel: data.channel,
-          subject: data.subject ?? null,
+          subject: previewSubject,
           body: data.body,
           context,
         })
@@ -101,6 +170,12 @@ export async function POST(request: NextRequest) {
 
     // Compute warnings
     const warnings: string[] = []
+    if (
+      (data.channel === 'email' || data.channel === 'both') &&
+      !data.subject?.trim()
+    ) {
+      warnings.push('Subject is empty — add one before sending')
+    }
     const missingEmail = guests.filter(
       (g) => !g.email || g.email.trim() === '',
     ).length
@@ -130,6 +205,12 @@ export async function POST(request: NextRequest) {
     )
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error(LOG_PREFIX, {
+      reason: 'unexpected_error',
+      propertyId,
+      message,
+      stack: err instanceof Error ? err.stack : undefined,
+    })
     return error(ErrorCodes.INTERNAL_ERROR, request, { message })
   }
 }

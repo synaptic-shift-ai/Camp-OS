@@ -656,7 +656,7 @@ function AvailabilityResultsContent() {
                 </CardContent>
               </Card>
 
-              {/* Need Help */}
+              {/* Need Help
               <Card className="bg-muted/50 dark:bg-muted/20">
                 <CardContent className="p-6 text-center">
                   <h3 className="mb-2 font-semibold text-foreground">Need Help?</h3>
@@ -665,7 +665,7 @@ function AvailabilityResultsContent() {
                     Contact Support
                   </Button>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </div>
         </div>

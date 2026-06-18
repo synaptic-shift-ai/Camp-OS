@@ -13,6 +13,7 @@ import { getPropertyForUser } from "@/lib/dashboard/property-access"
 import { LiveClock } from "@/components/dashboard/live-clock"
 import { resolveDashboardAccess } from "@/lib/rbac/dashboard-guards"
 import { redirect } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
@@ -101,6 +102,15 @@ const siteTypeLabels: Record<string, string> = {
 }
 const siteTypeOrder = ["rv", "tent", "cabin", "glamping", "yurt", "other"]
 
+const siteTypeGridCols: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-4",
+  5: "grid-cols-3 sm:grid-cols-5",
+  6: "grid-cols-3 sm:grid-cols-6",
+}
+
 async function CurrentlyCheckedIn({
   propertyId,
   allowedSiteTypes,
@@ -152,7 +162,12 @@ async function CurrentlyCheckedIn({
       </CardHeader>
       <CardContent>
         {currentlyCheckedIn.length > 0 ? (
-          <div className="mb-2 grid grid-cols-3 gap-2 md:mb-4 md:grid-cols-4">
+          <div
+            className={cn(
+              "mb-2 grid gap-2 md:mb-4",
+              siteTypeGridCols[siteTypesToShow.length] ?? "grid-cols-3",
+            )}
+          >
             {siteTypesToShow.map((type) => {
               const count = countsBySiteType[type] ?? 0
               if (!canManageCheckInOut) {
@@ -231,12 +246,14 @@ async function TodaysArrivalsAndDepartures({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
-        <TodaysArrivalsCard
-          arrivals={arrivals}
-          checkInTime={checkInTime}
-          canManageCheckInOut={canManageCheckInOut}
-        />
-        <Card>
+        <div className="min-w-0">
+          <TodaysArrivalsCard
+            arrivals={arrivals}
+            checkInTime={checkInTime}
+            canManageCheckInOut={canManageCheckInOut}
+          />
+        </div>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="text-xl font-semibold sm:text-2xl">Departures</CardTitle>
             <CardDescription>Guests checking out today</CardDescription>
@@ -249,7 +266,7 @@ async function TodaysArrivalsAndDepartures({
                 <p className="mt-1 text-xs text-muted-foreground">Looks like everyone is staying another night.</p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto scrollbar-rounded">
                 {departuresToday.map((reservation) => {
                   const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                   const hasBalance = outstandingBalance > 0

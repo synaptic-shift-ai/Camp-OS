@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { RichEditor, type RichEditorHandle } from "@/components/ui/rich-editor"
+import { RichEditor, type RichEditorHandle, stripSettings } from "@/components/ui/rich-editor"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -207,7 +207,7 @@ function buildCampaignPayload(
     segment_type: form.segment_type,
     audience_filter: buildAudienceFilter(form),
     subject: form.channel === "sms" ? undefined : form.subject,
-    body: form.channel === "sms" ? form.body : form.body,
+    body: form.body,
     template_id: resolveTemplateId(form.channel, selectedEmailTemplateId, selectedSmsTemplateId),
     ...(statusOverride ? { status: statusOverride } : {}),
   }
@@ -458,7 +458,9 @@ export function CampaignEditorPage({
   const [bodyTab, setBodyTab] = useState<"email" | "sms">("email")
   const subjectRef = useRef<HTMLTextAreaElement>(null)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
-  const smsBodyRef = useRef<HTMLTextAreaElement>(null)
+  const smsBodyElRef = useRef<HTMLTextAreaElement>(null)
+  const emailBodyRef = useRef("")
+  const smsBodyRef = useRef("")
   const richEditorRef = useRef<RichEditorHandle>(null)
   const bodyInteractionRef = useRef(false)
 
@@ -756,6 +758,26 @@ export function CampaignEditorPage({
     })
   }, [beginIntentionalNavigation, resetDirty, router, propertyId])
 
+  const handleChannelChange = useCallback((newChannel: CampaignForm["channel"]) => {
+    setForm((prev) => {
+      // Save outgoing body to its ref
+      if (prev.channel === "email") emailBodyRef.current = prev.body
+      else if (prev.channel === "sms") smsBodyRef.current = prev.body
+
+      // Restore incoming body from its ref
+      let newBody = newChannel === "email" ? emailBodyRef.current : smsBodyRef.current
+
+      // Safety-net: strip any email-settings metadata from SMS body
+      if (newChannel === "sms" && newBody.includes("<!--email-settings:"))
+        newBody = stripSettings(newBody)
+
+      return { ...prev, channel: newChannel, body: newBody }
+    })
+    // Clear body error since content changes entirely on switch
+    setErrors((prev) => ({ ...prev, body: "" }))
+    markUserEdited()
+  }, [])
+
   const updateForm = useCallback(<K extends keyof CampaignForm>(key: K, value: CampaignForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }))
@@ -846,7 +868,7 @@ export function CampaignEditorPage({
         })
       } else if (activeField === "smsBody") {
         // SMS body field (either standalone sms channel or "both" sms tab)
-        const ref = form.channel === "both" ? smsBodyRef.current : bodyRef.current
+        const ref = form.channel === "both" ? smsBodyElRef.current : bodyRef.current
         const currentValue = form.smsBody
         if (!ref) {
           updateForm("smsBody", currentValue + insertion)
@@ -1036,6 +1058,30 @@ export function CampaignEditorPage({
     }
   }
 
+function getPreviewErrorMessage(json: {
+  error?: {
+    message?: string
+    details?: {
+      fieldErrors?: Record<string, string[]>
+      formErrors?: string[]
+    }
+  }
+}): string {
+  const details = json.error?.details
+  if (details && typeof details === "object") {
+    const fieldMessages = Object.entries(details.fieldErrors ?? {}).flatMap(
+      ([field, messages]) => messages.map((message) => `${field}: ${message}`),
+    )
+    if (fieldMessages.length > 0) {
+      return fieldMessages.join(" ")
+    }
+    if (details.formErrors?.length) {
+      return details.formErrors.join(" ")
+    }
+  }
+  return json.error?.message ?? "Could not generate preview."
+}
+
   // ── Preview ──
   async function handlePreview() {
     setPreviewLoading(true)
@@ -1059,7 +1105,7 @@ export function CampaignEditorPage({
         setPreview({
           recipient_count: 0,
           sample_messages: [],
-          warnings: [json.error?.message ?? "Could not generate preview."],
+          warnings: [getPreviewErrorMessage(json)],
         })
       }
     } catch {
@@ -1207,7 +1253,7 @@ export function CampaignEditorPage({
                 </Label>
                 <Select
                   value={form.channel}
-                  onValueChange={(v) => updateForm("channel", v as CampaignForm["channel"])}
+                  onValueChange={(v) => handleChannelChange(v as CampaignForm["channel"])}
                 >
                   <SelectTrigger id="campaign-channel">
                     <SelectValue />
@@ -1675,7 +1721,7 @@ export function CampaignEditorPage({
                 </Label>
                 <Textarea
                   id="campaign-sms-body"
-                  ref={smsBodyRef}
+                  ref={smsBodyElRef}
                   value={form.smsBody}
                   rows={12}
                   onChange={(e) => updateForm("smsBody", e.target.value)}

@@ -303,7 +303,7 @@ function applyLegacyShellAlign(html: string, align: EmailAlign): string {
 
 
 /** Strip settings comment from HTML */
-function stripSettings(html: string): string {
+export function stripSettings(html: string): string {
   return html.replace(/<!--email-settings:.*?-->\s*/, "")
 }
 

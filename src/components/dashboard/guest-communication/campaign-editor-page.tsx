@@ -1058,6 +1058,30 @@ export function CampaignEditorPage({
     }
   }
 
+function getPreviewErrorMessage(json: {
+  error?: {
+    message?: string
+    details?: {
+      fieldErrors?: Record<string, string[]>
+      formErrors?: string[]
+    }
+  }
+}): string {
+  const details = json.error?.details
+  if (details && typeof details === "object") {
+    const fieldMessages = Object.entries(details.fieldErrors ?? {}).flatMap(
+      ([field, messages]) => messages.map((message) => `${field}: ${message}`),
+    )
+    if (fieldMessages.length > 0) {
+      return fieldMessages.join(" ")
+    }
+    if (details.formErrors?.length) {
+      return details.formErrors.join(" ")
+    }
+  }
+  return json.error?.message ?? "Could not generate preview."
+}
+
   // ── Preview ──
   async function handlePreview() {
     setPreviewLoading(true)
@@ -1081,7 +1105,7 @@ export function CampaignEditorPage({
         setPreview({
           recipient_count: 0,
           sample_messages: [],
-          warnings: [json.error?.message ?? "Could not generate preview."],
+          warnings: [getPreviewErrorMessage(json)],
         })
       }
     } catch {

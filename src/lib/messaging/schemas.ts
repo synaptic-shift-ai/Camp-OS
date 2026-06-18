@@ -11,43 +11,46 @@ import { z } from 'zod'
 // ============================================================================
 
 const channelSchema = z.enum(['email', 'sms', 'both'])
+
+const audienceFilterSchema = z
+  .object({
+    location: z.string().optional(),
+    season: z.string().optional(),
+    guest_ids: z.array(z.string().uuid()).optional(),
+    date_from: z.string().optional(),
+    date_to: z.string().optional(),
+    site_ids: z.array(z.string().uuid()).optional(),
+    site_types: z.array(z.string()).optional(),
+  })
+  .optional()
+
+const campaignFieldsSchema = z.object({
+  name: z.string().min(1, 'Campaign name is required'),
+  channel: channelSchema,
+  segment_type: z.string().optional(),
+  audience_filter: audienceFilterSchema,
+  template_id: z.string().uuid().nullable().optional(),
+  subject: z.string().optional(),
+  body: z.string().min(1, 'Message body is required'),
+})
+
+type CampaignFieldsInput = z.infer<typeof campaignFieldsSchema>
+
+function requiresEmailSubject(data: CampaignFieldsInput): boolean {
+  if (data.channel === 'email' || data.channel === 'both') {
+    return !!data.subject && data.subject.trim().length > 0
+  }
+  return true
+}
+
 // ============================================================================
 // Campaign Schemas
 // ============================================================================
 
-export const CreateCampaignSchema = z
-  .object({
-    name: z.string().min(1, 'Campaign name is required'),
-    channel: channelSchema,
-    segment_type: z.string().optional(),
-    audience_filter: z
-      .object({
-        location: z.string().optional(),
-        season: z.string().optional(),
-        guest_ids: z.array(z.string().uuid()).optional(),
-        date_from: z.string().optional(),
-        date_to: z.string().optional(),
-        site_ids: z.array(z.string().uuid()).optional(),
-        site_types: z.array(z.string()).optional(),
-      })
-      .optional(),
-    template_id: z.string().uuid().nullable().optional(),
-    subject: z.string().optional(),
-    body: z.string().min(1, 'Message body is required'),
-  })
-  .refine(
-    (data) => {
-      // Subject is required when channel includes email
-      if (data.channel === 'email' || data.channel === 'both') {
-        return !!data.subject && data.subject.trim().length > 0
-      }
-      return true
-    },
-    {
-      message: 'Subject is required for email campaigns',
-      path: ['subject'],
-    },
-  )
+export const CreateCampaignSchema = campaignFieldsSchema.refine(requiresEmailSubject, {
+  message: 'Subject is required for email campaigns',
+  path: ['subject'],
+})
 
 export type CreateCampaignInput = z.infer<typeof CreateCampaignSchema>
 
@@ -87,7 +90,10 @@ export const UpdateCampaignSchema = z
 
 export type UpdateCampaignInput = z.infer<typeof UpdateCampaignSchema>
 
-export const PreviewCampaignSchema = CreateCampaignSchema
+export const PreviewCampaignSchema = campaignFieldsSchema
+  .omit({ name: true })
+  .extend({ name: z.string().optional() })
+
 export type PreviewCampaignInput = z.infer<typeof PreviewCampaignSchema>
 
 export const ScheduleCampaignSchema = z

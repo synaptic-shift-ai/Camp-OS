@@ -8,6 +8,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   CreateCampaignSchema,
+  PreviewCampaignSchema,
   ScheduleCampaignSchema,
   SendOneMessageSchema,
 } from './schemas'
@@ -90,6 +91,43 @@ describe('CreateCampaignSchema', () => {
       subject: 'Multi-channel message',
     })
     expect(result.success).toBe(true)
+  })
+})
+
+// ============================================================================
+// PreviewCampaignSchema
+// ============================================================================
+
+describe('PreviewCampaignSchema', () => {
+  test('accepts preview without campaign name', () => {
+    const { name, ...withoutName } = validCampaignBase
+    const result = PreviewCampaignSchema.safeParse(withoutName)
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts preview with empty campaign name', () => {
+    const result = PreviewCampaignSchema.safeParse({
+      ...validCampaignBase,
+      name: '',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts email preview without subject while composing', () => {
+    const result = PreviewCampaignSchema.safeParse({
+      channel: 'email',
+      body: 'Hello campers',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  test('still requires message body', () => {
+    const result = PreviewCampaignSchema.safeParse({
+      channel: 'email',
+      subject: 'Hello',
+      body: '',
+    })
+    expect(result.success).toBe(false)
   })
 })
 

@@ -174,6 +174,14 @@ export default function ConfirmationPage() {
     }
   }, [])
 
+  // Redirect to landing page on browser back button
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href)
+    const handlePopState = () => router.replace('/')
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [router])
+
   if (!checkoutData.confirmationNumber || !checkoutData.site || !checkoutData.guestInfo) {
     return null
   }

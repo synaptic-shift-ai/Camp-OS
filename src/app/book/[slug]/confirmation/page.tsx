@@ -175,16 +175,25 @@ export default function ConfirmationPage() {
   }, [])
 
   // Redirect to booking portal on browser back button
+  // Redirect to booking portal on browser back button
   useEffect(() => {
+    // Push a buffer history entry
     window.history.pushState(null, '', window.location.href)
-    const handlePopState = () => {
-      // Synchronously re-push to prevent the browser from completing the back navigation
+
+    const handlePopState = (event: PopStateEvent) => {
+      // Prevent Next.js's internal popstate handler from processing this event.
+      // Registered in capture phase so this fires BEFORE Next.js's bubble-phase
+      // handler, and stopImmediatePropagation prevents it from firing at all.
+      event.stopImmediatePropagation()
+      // Re-push a buffer entry to maintain the interceptor for subsequent backs
       window.history.pushState(null, '', window.location.href)
-      // Then navigate to the booking portal
+      // Navigate to the booking portal
       router.replace(`/book/${slug}`)
     }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+
+    // capture: true fires before Next.js's bubble-phase popstate handler
+    window.addEventListener('popstate', handlePopState, true)
+    return () => window.removeEventListener('popstate', handlePopState, true)
   }, [router, slug])
 
   if (!checkoutData.confirmationNumber || !checkoutData.site || !checkoutData.guestInfo) {

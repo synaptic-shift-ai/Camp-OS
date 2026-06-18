@@ -245,7 +245,7 @@ async function TodaysArrivalsAndDepartures({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 max-w-6xl mx-auto">
         <TodaysArrivalsCard
           arrivals={arrivals}
           checkInTime={checkInTime}
@@ -264,7 +264,7 @@ async function TodaysArrivalsAndDepartures({
                 <p className="mt-1 text-xs text-muted-foreground">Looks like everyone is staying another night.</p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto scrollbar-rounded">
                 {departuresToday.map((reservation) => {
                   const outstandingBalance = reservation.totalAmount - reservation.paidAmount
                   const hasBalance = outstandingBalance > 0

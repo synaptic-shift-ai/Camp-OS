@@ -385,7 +385,7 @@ export function TodaysArrivalsCard({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto scrollbar-rounded">
             {visibleLate.length > 0 ? (
               <div className="space-y-2">
                 {activeFilter === 'all' && (

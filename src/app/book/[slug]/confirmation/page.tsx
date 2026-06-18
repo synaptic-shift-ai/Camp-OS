@@ -174,13 +174,13 @@ export default function ConfirmationPage() {
     }
   }, [])
 
-  // Redirect to landing page on browser back button
+  // Redirect to booking portal on browser back button
   useEffect(() => {
     window.history.pushState(null, '', window.location.href)
-    const handlePopState = () => router.replace('/')
+    const handlePopState = () => router.replace(`/book/${slug}`)
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [router])
+  }, [router, slug])
 
   if (!checkoutData.confirmationNumber || !checkoutData.site || !checkoutData.guestInfo) {
     return null

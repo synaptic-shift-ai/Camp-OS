@@ -245,13 +245,15 @@ async function TodaysArrivalsAndDepartures({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 max-w-6xl mx-auto">
-        <TodaysArrivalsCard
-          arrivals={arrivals}
-          checkInTime={checkInTime}
-          canManageCheckInOut={canManageCheckInOut}
-        />
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="min-w-0">
+          <TodaysArrivalsCard
+            arrivals={arrivals}
+            checkInTime={checkInTime}
+            canManageCheckInOut={canManageCheckInOut}
+          />
+        </div>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="text-xl font-semibold sm:text-2xl">Departures</CardTitle>
             <CardDescription>Guests checking out today</CardDescription>

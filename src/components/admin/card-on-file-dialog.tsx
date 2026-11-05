@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
 import { CreditCard, Loader2 } from "lucide-react"
 import {
   Sheet,
@@ -66,14 +65,14 @@ export type CardOnFileDialogProps = {
 }
 
 export function CardOnFileDialog({
-  reservationId,
-  confirmationNumber,
+  reservationId: _reservationId,
+  confirmationNumber: _confirmationNumber,
   guestName,
   propertyId,
-  totalAmountCents,
-  paidAmountCents,
+  totalAmountCents: _totalAmountCents,
+  paidAmountCents: _paidAmountCents,
   guestId,
-  onManualPaymentSuccess,
+  onManualPaymentSuccess: _onManualPaymentSuccess,
   paymentCard,
   incidentalsCard,
   trigger,

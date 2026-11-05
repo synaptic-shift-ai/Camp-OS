@@ -59,7 +59,7 @@ export async function POST(
       )
     }
 
-    const q = new StaffManagementQueries(supabase as any)
+    const _q = new StaffManagementQueries(supabase as any)
 
     // Look up the property_staff row — must exist and be pending
     const { data: staffRow, error: staffError } = await supabase

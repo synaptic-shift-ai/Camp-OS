@@ -143,7 +143,7 @@ export async function POST(
       })
     }
 
-    const site = siteCheck
+    const _site = siteCheck
 
     // Execute the command
     console.log('[Manual Reservation v1] Executing command handler with:', {
@@ -181,7 +181,7 @@ export async function POST(
     // Calculate nights for email
     const checkIn = new Date(data.checkInDate)
     const checkOut = new Date(data.checkOutDate)
-    const numNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
+    const _numNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
 
     // Email is handled by automation pipeline only (no direct fallback)
 

@@ -335,7 +335,7 @@ export async function calculateReservationPriceEnhanced(
       baseRateUsed = siteForRates.base_price
     }
     // Weekend surcharge only for remainder nights (charged at base_price)
-    const fullWeeks = totalNights >= 7 ? Math.floor(totalNights / 7) : 0
+    const _fullWeeks = totalNights >= 7 ? Math.floor(totalNights / 7) : 0
     const remainderCount = totalNights >= 28 ? totalNights % 28 : totalNights >= 7 ? totalNights % 7 : totalNights
     const remainderStartNightIndex = totalNights - remainderCount
     let nightIdx = 0

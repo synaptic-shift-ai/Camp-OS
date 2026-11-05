@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { ImageOff } from "lucide-react"
 
 export type PropertyAmenityDetails = {

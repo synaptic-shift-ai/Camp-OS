@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { Zap, CheckCircle2, PauseCircle, type LucideIcon } from 'lucide-react'
+import { Zap, CheckCircle2, PauseCircle } from 'lucide-react'
 
 type Props = {
   totalAutomations: number

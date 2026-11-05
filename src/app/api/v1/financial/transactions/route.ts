@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // RBAC: verify user has view access (GET uses properties from RBAC)
     // First get the user's accessible properties
-    const { data: staffRows, error: staffError } = await supabase
+    const { data: staffRows, error: _staffError } = await supabase
       .from('property_staff')
       .select('property_id')
       .eq('user_id', user.id)

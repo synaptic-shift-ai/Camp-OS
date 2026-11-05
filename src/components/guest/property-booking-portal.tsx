@@ -478,7 +478,7 @@ export function PropertyBookingPortal({ property, slug, siteTypeSummaries, recen
     }
   }
 
-  const amenityIcons: Record<string, any> = {
+  const _amenityIcons: Record<string, any> = {
     wifi: Wifi,
     showers: Droplets,
     fire_pits: Flame,

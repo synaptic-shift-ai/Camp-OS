@@ -10,7 +10,7 @@
  * @module components/dashboard/settings/discounts-settings
  */
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -22,7 +22,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'

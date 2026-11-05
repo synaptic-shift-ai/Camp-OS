@@ -129,7 +129,7 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
   )
   const [currentSection, setCurrentSection] = useState<string>("location")
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set())
-  const [workingPropertyId, setWorkingPropertyId] = useState<string | null>(initialPropertyId ?? null)
+  const [_workingPropertyId, setWorkingPropertyId] = useState<string | null>(initialPropertyId ?? null)
   const [isCompleting, setIsCompleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [footerError, setFooterError] = useState<string | null>(null)

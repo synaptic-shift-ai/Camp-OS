@@ -16,7 +16,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Loader2 } from 'lucide-react'
 import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { CalendarIcon } from 'lucide-react'
@@ -122,7 +121,7 @@ export function AddHolidayDialog({
   const isSubmitting = form.formState.isSubmitting
   const cleanFormRef = useRef<string>("")
   const dateRange = form.watch('dateRange') as DateRange
-  const enabled = form.watch('enabled')
+  const _enabled = form.watch('enabled')
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false)
   const openPeriodFromDate = openPeriodFrom ? parseLocalYmd(openPeriodFrom) : null
   const openPeriodUntilDate = openPeriodUntil ? parseLocalYmd(openPeriodUntil) : null
@@ -160,7 +159,7 @@ export function AddHolidayDialog({
 
   const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
-  const handleOpenChange = (next: boolean) => {
+  const _handleOpenChange = (next: boolean) => {
     if (!next) form.reset(defaultValues)
     onOpenChange(next)
   }

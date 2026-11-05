@@ -172,10 +172,10 @@ export function ReservationsTimeline({
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const clampedCurrentPage = Math.min(Math.max(currentPage, 1), totalPages)
-    const startIndex = (clampedCurrentPage - 1) * pageSize + 1
-    const endIndex = Math.min(total, clampedCurrentPage * pageSize)
+    const _startIndex = (clampedCurrentPage - 1) * pageSize + 1
+    const _endIndex = Math.min(total, clampedCurrentPage * pageSize)
 
-    const buildPageHref = (page: number) => {
+    const buildPageHref = (_page: number) => {
         const params = new URLSearchParams()
 
         if (siteType) params.set("siteType", siteType)
@@ -187,13 +187,13 @@ export function ReservationsTimeline({
         return `/dashboard/${propertyId}/reservations?${params.toString()}`
     }
 
-    const goToPage = (page: number) => {
+    const _goToPage = (page: number) => {
         startTransition(() => {
             router.push(buildPageHref(page))
         })
     }
 
-    const handlePageSizeChange = (nextPageSize: number) => {
+    const _handlePageSizeChange = (_nextPageSize: number) => {
         startTransition(() => {
             const params = new URLSearchParams()
             if (siteType) params.set("siteType", siteType)

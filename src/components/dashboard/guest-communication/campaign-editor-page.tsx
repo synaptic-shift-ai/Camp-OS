@@ -422,7 +422,7 @@ function SmsBodyPreview({ text }: { text: string }) {
 
 export function CampaignEditorPage({
   propertyId,
-  companyId,
+  companyId: _companyId,
   campaign,
 }: CampaignEditorPageProps) {
   const router = useRouter()

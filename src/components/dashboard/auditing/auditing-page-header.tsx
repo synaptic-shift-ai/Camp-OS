@@ -2,7 +2,7 @@ interface auditingPageHeaderProps {
     propertyId: string | null
 }
 
-export default function AuditingPageHeader({ propertyId }: auditingPageHeaderProps) {
+export default function AuditingPageHeader({ propertyId: _propertyId }: auditingPageHeaderProps) {
     return (
         <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

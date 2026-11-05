@@ -9,14 +9,14 @@ import {
 import { type DayButton, DayPicker, getDefaultClassNames } from 'react-day-picker'
 
 import { cn } from '@/lib/utils'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
   captionLayout = 'label',
-  buttonVariant = 'ghost',
+  buttonVariant: _buttonVariant = 'ghost',
   formatters,
   components,
   ...props

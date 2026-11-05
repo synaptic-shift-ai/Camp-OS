@@ -61,7 +61,7 @@ export async function POST(
     if (isDenied(access)) return access
 
     // Fetch property for tenant context
-    const { data: property } = await supabase
+    const { data: _property } = await supabase
       .from('properties')
       .select('id, company_id')
       .eq('id', reservation.property_id)

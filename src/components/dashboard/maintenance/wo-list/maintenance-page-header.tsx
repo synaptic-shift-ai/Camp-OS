@@ -17,7 +17,7 @@ type MaintenancePageHeaderProps = {
 export function MaintenancePageHeader({
   propertyName,
   openTasksCount = 0,
-  onRefreshClick,
+  onRefreshClick: _onRefreshClick,
   onExportClick,
   onPrimaryActionClick,
   primaryActionLabel = "Add Task",

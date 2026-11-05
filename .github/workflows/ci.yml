@@ -122,6 +122,25 @@ jobs:
 
       - name: Build application
         run: npm run build
+        # Next.js evaluates route modules during "Collecting page data", and several
+        # SDK clients (Stripe, Supabase) are constructed at module scope. Without
+        # values present the build aborts, so CI supplies real secrets when they are
+        # configured and otherwise falls back to inert placeholders. These are
+        # build-time only and never reach a deployed runtime.
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' }}
+          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key' }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY || 'sk_test_placeholder' }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder' }}
+          NEXT_PUBLIC_STRIPE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_STRIPE_CLIENT_ID || 'ca_placeholder' }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY || 're_placeholder' }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL || 'noreply@example.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || 'placeholder-cron-secret' }}
 
       - name: Verify build artifacts
         run: |

@@ -112,4 +112,24 @@ describe('permissions', () => {
       expect(roleCanPerform('staff', 'manager', 'reservations.cancel')).toBe(false)
     })
   })
+
+  describe('labour cost is a manager-and-above function', () => {
+    // Business rule: no staff member may enter a labour rate. Entering labour
+    // cost (and seeing the rates behind it) requires manager or higher.
+    it('manager, admin and owner can enter labour cost', () => {
+      expect(hasPermission('manager', 'maintenance.enter_labor_cost')).toBe(true)
+      expect(hasPermission('admin', 'maintenance.enter_labor_cost')).toBe(true)
+      expect(hasPermission('owner', 'maintenance.enter_labor_cost')).toBe(true)
+    })
+
+    it('staff cannot enter labour cost or view labour rates', () => {
+      expect(hasPermission('staff', 'maintenance.enter_labor_cost')).toBe(false)
+      expect(hasPermission('staff', 'maintenance.view_labor_rates')).toBe(false)
+    })
+
+    it('entering labour cost requires at least manager', () => {
+      expect(roleCanPerform('staff', 'manager', 'maintenance.enter_labor_cost')).toBe(false)
+      expect(roleCanPerform('manager', 'manager', 'maintenance.enter_labor_cost')).toBe(true)
+    })
+  })
 })

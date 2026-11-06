@@ -6,6 +6,8 @@
  */
 
 import { describe, test, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { randomUUID } from 'crypto'
 import { Reservation, ReservationStatus, PaymentStatus } from '../Reservation'
 import { DateRange } from '../value-objects/DateRange'
@@ -225,10 +227,24 @@ describe('Reservation', () => {
       reservation.cancel('Guest cancelled', refund)
 
       expect(reservation.status).toBe(ReservationStatus.CANCELLED)
-      expect(reservation.paymentStatus).toBe(PaymentStatus.REFUNDED)
+      // Refunding less than was paid is a partial refund. The distinct status
+      // arrived with migration 20260304120000; before it, any refund collapsed
+      // to 'refunded'.
+      expect(reservation.paymentStatus).toBe(PaymentStatus.PARTIALLY_REFUNDED)
       expect(reservation.cancelledAt).toBeInstanceOf(Date)
       expect(reservation.domainEvents).toHaveLength(1)
       expect(reservation.domainEvents[0]!.constructor.name).toBe('ReservationCancelled')
+    })
+
+    test('should report a full refund as refunded, not partially refunded', () => {
+      const reservation = createTestReservation(propertyId, siteId, guestId)
+      reservation.receivePayment(MoneyAmount.fromDollars(100), 'credit_card')
+      reservation.clearDomainEvents()
+
+      reservation.cancel('Guest cancelled', MoneyAmount.fromDollars(100))
+
+      expect(reservation.status).toBe(ReservationStatus.CANCELLED)
+      expect(reservation.paymentStatus).toBe(PaymentStatus.REFUNDED)
     })
 
     test('should cancel confirmed reservation', () => {
@@ -724,56 +740,24 @@ describe('Reservation', () => {
   // ============================================================================
 
   describe('toPersistence schema validation', () => {
-    // These are the ACTUAL column names from src/contracts/db.ts reservations table
-    const VALID_DB_COLUMNS = [
-      'id',
-      'property_id',
-      'site_id',
-      'guest_id',
-      'confirmation_number',
-      'check_in_date',
-      'check_out_date',
-      'num_adults',
-      'num_children',
-      'num_pets',
-      'num_vehicles',
-      'total_amount',        // NOT total_amount_cents
-      'paid_amount',         // NOT paid_amount_cents
-      'status',
-      'payment_status',
-      'special_requests',
-      'notes',
-      'source',
-      'checked_in_at',
-      'checked_in_by',
-      'balance_paid_at_checkin', // NOT balance_paid_at_check_in_cents
-      'check_in_notes',
-      'incidentals_payment_method_id',
-      'checked_out_at',
-      'checked_out_by',
-      'check_out_notes',
-      'cancelled_at',
-      'created_at',
-      'updated_at',
-      // Additional columns that exist in DB but may not be used by this entity:
-      'booking_period',
-      'booking_type',
-      'damage_inspection_data',
-      'equipment_length',
-      'equipment_type',
-      'is_extension_of',
-      'original_check_in',
-      'original_check_out',
-      'parent_reservation_id',
-      'renewal_deadline',
-      'renewal_notes',
-      'renewal_offered_at',
-      'renewal_status',
-      'reserved_until',
-      'times_extended',
-      'times_modified',
-      'vehicle_info',
-    ]
+    // Derived from the generated Supabase types rather than hand-maintained.
+    // A hardcoded list silently went stale here once already: migration
+    // 20250112000000 added refund_amount_cents and balance_paid_at_check_in_cents,
+    // and this guard kept asserting the pre-migration schema. Reading db.ts keeps
+    // the check honest after every `npm run gen:db`.
+    const VALID_DB_COLUMNS = (() => {
+      const dbTypes = readFileSync(resolve(process.cwd(), 'src/contracts/db.ts'), 'utf8')
+      const table = dbTypes.indexOf('reservations: {')
+      if (table === -1) throw new Error('Could not locate reservations table in src/contracts/db.ts')
+      const segment = dbTypes.slice(table)
+      const row = segment.slice(segment.indexOf('Row: {'), segment.indexOf('Insert: {'))
+      const columns = [...row.matchAll(/^\s{10}(\w+)\??:/gm)].map((m) => m[1])
+      // Fail loudly rather than pass vacuously if the generated format changes.
+      if (columns.length < 20) {
+        throw new Error(`Parsed only ${columns.length} reservations columns from db.ts`)
+      }
+      return columns
+    })()
 
     test('toPersistence outputs only valid database column names', () => {
       const reservation = createTestReservation(propertyId, siteId, guestId)
@@ -790,16 +774,23 @@ describe('Reservation', () => {
       })
     })
 
-    test('toPersistence does NOT output _cents suffix columns', () => {
+    test('toPersistence uses the money column names the schema actually has', () => {
       const reservation = createTestReservation(propertyId, siteId, guestId)
       const persisted = reservation.toPersistence()
       const persistedKeys = Object.keys(persisted)
 
-      // These column names are WRONG and should NOT appear
+      // total_amount and paid_amount store cents but carry no suffix, so the
+      // suffixed spellings are still wrong.
       expect(persistedKeys).not.toContain('total_amount_cents')
       expect(persistedKeys).not.toContain('paid_amount_cents')
-      expect(persistedKeys).not.toContain('balance_paid_at_check_in_cents')
-      expect(persistedKeys).not.toContain('refund_amount_cents')
+      expect(VALID_DB_COLUMNS).toContain('total_amount')
+      expect(VALID_DB_COLUMNS).toContain('paid_amount')
+
+      // refund_amount_cents and balance_paid_at_check_in_cents, by contrast,
+      // were added as real columns by migration 20250112000000, so emitting
+      // the suffixed name is correct for those two.
+      expect(VALID_DB_COLUMNS).toContain('refund_amount_cents')
+      expect(VALID_DB_COLUMNS).toContain('balance_paid_at_check_in_cents')
     })
 
     test('toPersistence does NOT output columns that do not exist', () => {
@@ -807,7 +798,8 @@ describe('Reservation', () => {
       const persisted = reservation.toPersistence()
       const persistedKeys = Object.keys(persisted)
 
-      // These columns do NOT exist in the database
+      // cancellation_reason and has_damages do exist in the schema, but this
+      // entity does not own them; refund_amount (unsuffixed) does not exist.
       expect(persistedKeys).not.toContain('cancellation_reason')
       expect(persistedKeys).not.toContain('has_damages')
       expect(persistedKeys).not.toContain('refund_amount')
@@ -1103,12 +1095,15 @@ describe('Reservation', () => {
       expect(reservation.domainEvents[0]!.constructor.name).toBe('NoShowMarked')
     })
 
-    test('should reject marking pending reservation as no-show', () => {
+    test('should allow marking pending reservation as no-show', () => {
+      // Widened to include pending in dfde4d6 ("cancellation policy refund
+      // calculations and no-show handling") - a guest who never paid and never
+      // arrived is still a no-show.
       const reservation = createTestReservation(propertyId, siteId, guestId)
 
-      expect(() =>
-        reservation.markNoShow(randomUUID())
-      ).toThrow('Can only mark confirmed reservations as no-show')
+      reservation.markNoShow(randomUUID())
+
+      expect(reservation.status).toBe(ReservationStatus.NO_SHOW)
     })
 
     test('should reject marking checked-in reservation as no-show', () => {
@@ -1119,7 +1114,7 @@ describe('Reservation', () => {
 
       expect(() =>
         reservation.markNoShow(randomUUID())
-      ).toThrow('Can only mark confirmed reservations as no-show')
+      ).toThrow('Can only mark confirmed or pending reservations as no-show')
     })
 
     test('should publish NoShowMarked event with correct details', () => {

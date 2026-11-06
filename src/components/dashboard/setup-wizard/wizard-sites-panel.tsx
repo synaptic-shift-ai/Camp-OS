@@ -918,7 +918,7 @@ export function useSitesPanelState(args: {
 export function SitesSidebarTree() {
   const {
     sites,
-    propertyId,
+    propertyId: _propertyId,
     selectedSiteId,
     isNewSite,
     hasUnsavedDraftForCurrentProperty,
@@ -1163,12 +1163,12 @@ export function SitesPanelContent() {
     isNewSite,
     selectedSiteId,
     handleSaveSite,
-    propertyDefaultsNightlyRate,
+    propertyDefaultsNightlyRate: _propertyDefaultsNightlyRate,
     siteTypeOptions,
     amenityOptions,
     amenitiesLoading,
     siteImageUrls,
-    setSiteImageUrls,
+    setSiteImageUrls: _setSiteImageUrls,
     siteImagesUpload,
     removeSiteImage,
     sites,

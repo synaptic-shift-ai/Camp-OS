@@ -168,9 +168,14 @@ describe('renderWithContext', () => {
       { propertyName },
     )
 
+    // The footer is built as indented multi-line markup, so assert the content
+    // and its placement rather than an exact concatenation - the previous
+    // version required `</a></div></body>` with no whitespace between them.
     expect(result.html).toContain(
-      `${propertyName} &middot; ${propertyAddress} &middot; <a href="{{unsubscribe_url}}" target="_blank" style="color:#888888;">Unsubscribe</a></div></body>`,
+      `${propertyName} &middot; ${propertyAddress} &middot; <a href="{{unsubscribe_url}}" target="_blank" style="color:#888888;">Unsubscribe</a>`,
     )
+    // Must land inside the document body, not after it.
+    expect(result.html.indexOf('Unsubscribe')).toBeLessThan(result.html.indexOf('</body>'))
   })
 })
 

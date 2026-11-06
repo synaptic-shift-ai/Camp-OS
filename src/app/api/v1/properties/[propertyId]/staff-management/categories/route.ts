@@ -240,7 +240,7 @@ export async function PATCH(
       return error(ErrorCodes.AUTH_001, request)
     }
 
-    const q = new StaffManagementQueries(supabase as any)
+    const _q = new StaffManagementQueries(supabase as any)
     const access = await resolveDashboardAccess(supabase as never, propertyId, user.id)
 
     if (!access) {

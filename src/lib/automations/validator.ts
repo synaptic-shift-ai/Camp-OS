@@ -124,7 +124,7 @@ export function validateAutomations(
     groups.set(key, list)
   }
 
-  for (const [key, group] of groups) {
+  for (const [_key, group] of groups) {
     if (group.length < 2) continue
 
     const phase = group[0]!.phase

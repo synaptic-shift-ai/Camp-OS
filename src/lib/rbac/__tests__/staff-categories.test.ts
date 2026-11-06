@@ -81,10 +81,14 @@ describe('staff-categories', () => {
       expect(perms.has('reservations.check_in')).toBe(false)
     })
 
-    it('maintenance grants create_wo and enter_labor_cost', () => {
+    it('maintenance grants work-order actions but not cost entry', () => {
       const perms = getPermissionsForCategory('maintenance')
       expect(perms.has('maintenance.create_wo')).toBe(true)
-      expect(perms.has('maintenance.enter_labor_cost')).toBe(true)
+      expect(perms.has('maintenance.update_assigned')).toBe(true)
+      expect(perms.has('maintenance.request_onhold')).toBe(true)
+      // Labour cost entry and rate visibility are granted to owner, admin and
+      // manager (see permissions.ts), not to the maintenance staff category.
+      expect(perms.has('maintenance.enter_labor_cost')).toBe(false)
       expect(perms.has('maintenance.view_labor_rates')).toBe(false)
     })
 

@@ -59,7 +59,7 @@ interface PropertyDetailsStepProps {
 // ─── PropertyDetailsStep ──────────────────────────────────────────────────────
 
 const PropertyDetailsStepComponent = (
-  { property, onComplete, onSkip, onSaveStateChange, onPropertyDetailsSaved }: PropertyDetailsStepProps,
+  { property, onComplete, onSkip: _onSkip, onSaveStateChange, onPropertyDetailsSaved }: PropertyDetailsStepProps,
   ref: React.Ref<PropertyDetailsStepHandle>
 ) => {
   const [saving, setSaving] = useState(false)

@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { describe, test, expect, vi } from 'vitest'
 import { personalizeCampaignMessage } from './campaign-context'
 
 vi.mock('@/lib/communications/branding-applier', () => ({

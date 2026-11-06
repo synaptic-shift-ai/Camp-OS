@@ -731,8 +731,12 @@ describe('Property', () => {
       expect(property.onboardingStatus).toBe(OnboardingStatus.COMPLETED)
       expect(property.stripeConnectInfo.accountId).toBe('acct_123')
       expect(property.stripeConnectInfo.isConnected()).toBe(true)
-      expect(property.settings.checkInTime).toBe('15:00')
-      expect(property.settings.checkOutTime).toBe('11:00')
+      // `settings` here is PropertySettings.default() (checkInTime 14:00). The
+      // '15:00'/'11:00' passed positionally above are the property's own
+      // checkInTime/checkOutTime fields, which are separate from settings.
+      // Compare against the object handed in so this cannot drift again.
+      expect(property.settings.checkInTime).toBe(settings.checkInTime)
+      expect(property.settings.checkOutTime).toBe(settings.checkOutTime)
       expect(property.createdAt).toBe(createdAt)
       expect(property.updatedAt).toBe(updatedAt)
     })

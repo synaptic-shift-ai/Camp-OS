@@ -45,7 +45,7 @@ interface StripeConnectStepProps {
   onSkip: () => void
 }
 
-export function StripeConnectStep({ property: _property, onComplete, onSkip }: StripeConnectStepProps) {
+export function StripeConnectStep({ property: _property, onComplete: _onComplete, onSkip: _onSkip }: StripeConnectStepProps) {
   const [properties, setProperties] = useState<PropertyWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()

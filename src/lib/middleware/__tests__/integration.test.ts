@@ -21,6 +21,18 @@ import type { NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 /**
+ * vi.mock is hoisted to the top of the module, so calling it inside a test body
+ * does not scope the mock to that test - every call collapses into a single
+ * module level mock. These tests each need their own Supabase behaviour, so the
+ * mock is declared once here and reads a hoisted handle each test assigns.
+ */
+const supabaseMock = vi.hoisted(() => ({ client: null as unknown }))
+
+vi.mock('@supabase/ssr', () => ({
+  createServerClient: () => supabaseMock.client,
+}))
+
+/**
  * Mock Supabase client for testing
  * Provides controlled responses for different test scenarios
  */
@@ -122,9 +134,7 @@ describe('updateSession middleware integration', () => {
       const request = createMockRequest('/login')
 
       // Mock Supabase to return no user
-      vi.mock('@supabase/ssr', () => ({
-        createServerClient: () => createMockSupabase({ user: null }),
-      }))
+      supabaseMock.client = createMockSupabase({ user: null })
 
       const response = await updateSession(request)
 
@@ -141,9 +151,7 @@ describe('updateSession middleware integration', () => {
     it('should redirect unauthenticated users to login for protected routes', async () => {
       const request = createMockRequest('/dashboard')
 
-      vi.mock('@supabase/ssr', () => ({
-        createServerClient: () => createMockSupabase({ user: null }),
-      }))
+      supabaseMock.client = createMockSupabase({ user: null })
 
       const response = await updateSession(request)
 
@@ -158,17 +166,14 @@ describe('updateSession middleware integration', () => {
     it('should redirect users with unverified email to verification page', async () => {
       const request = createMockRequest('/dashboard')
 
-      vi.mock('@supabase/ssr', () => ({
-        createServerClient: () =>
-          createMockSupabase({
-            user: {
-              id: 'user-123',
-              email: 'test@example.com',
-              email_confirmed_at: null, // Email not confirmed
-              user_metadata: {},
-            },
-          }),
-      }))
+      supabaseMock.client = createMockSupabase({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          email_confirmed_at: null, // Email not confirmed
+          user_metadata: {},
+        },
+      })
 
       const response = await updateSession(request)
 
@@ -183,21 +188,18 @@ describe('updateSession middleware integration', () => {
     it('should redirect users without active subscription to plan selection', async () => {
       const request = createMockRequest('/dashboard')
 
-      vi.mock('@supabase/ssr', () => ({
-        createServerClient: () =>
-          createMockSupabase({
-            user: {
-              id: 'user-123',
-              email: 'test@example.com',
-              email_confirmed_at: new Date().toISOString(),
-              user_metadata: {},
-            },
-            company: {
-              id: 'company-123',
-              subscription_status: 'canceled', // No active subscription
-            },
-          }),
-      }))
+      supabaseMock.client = createMockSupabase({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          email_confirmed_at: new Date().toISOString(),
+          user_metadata: {},
+        },
+        company: {
+          id: 'company-123',
+          subscription_status: 'canceled', // No active subscription
+        },
+      })
 
       const response = await updateSession(request)
 
@@ -212,22 +214,19 @@ describe('updateSession middleware integration', () => {
     it('should allow dashboard access with ?wizard=true even if onboarding incomplete', async () => {
       const request = createMockRequest('/dashboard/sites', { wizard: 'true' })
 
-      vi.mock('@supabase/ssr', () => ({
-        createServerClient: () =>
-          createMockSupabase({
-            user: {
-              id: 'user-123',
-              email: 'test@example.com',
-              email_confirmed_at: new Date().toISOString(),
-              user_metadata: {},
-            },
-            company: {
-              id: 'company-123',
-              subscription_status: 'active',
-            },
-            incompleteProperties: [{ id: 'property-123' }], // Onboarding incomplete
-          }),
-      }))
+      supabaseMock.client = createMockSupabase({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          email_confirmed_at: new Date().toISOString(),
+          user_metadata: {},
+        },
+        company: {
+          id: 'company-123',
+          subscription_status: 'active',
+        },
+        incompleteProperties: [{ id: 'property-123' }], // Onboarding incomplete
+      })
 
       const response = await updateSession(request)
 
@@ -245,22 +244,19 @@ describe('updateSession middleware integration', () => {
     it('should allow onboarding route access even if onboarding incomplete', async () => {
       const request = createMockRequest('/onboarding')
 
-      vi.mock('@supabase/ssr', () => ({
-        createServerClient: () =>
-          createMockSupabase({
-            user: {
-              id: 'user-123',
-              email: 'test@example.com',
-              email_confirmed_at: new Date().toISOString(),
-              user_metadata: {},
-            },
-            company: {
-              id: 'company-123',
-              subscription_status: 'active',
-            },
-            incompleteProperties: [{ id: 'property-123' }],
-          }),
-      }))
+      supabaseMock.client = createMockSupabase({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          email_confirmed_at: new Date().toISOString(),
+          user_metadata: {},
+        },
+        company: {
+          id: 'company-123',
+          subscription_status: 'active',
+        },
+        incompleteProperties: [{ id: 'property-123' }],
+      })
 
       const response = await updateSession(request)
 

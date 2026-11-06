@@ -113,7 +113,7 @@ type StripeConfirmRefs = {
 }
 
 function StripePaymentElementSection({
-  clientSecret,
+  clientSecret: _clientSecret,
   onStripeReady,
 }: {
   clientSecret: string

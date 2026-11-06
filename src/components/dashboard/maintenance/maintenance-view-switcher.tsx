@@ -29,7 +29,7 @@ export function MaintenanceViewSwitcher({
   showCostReport = true,
   showSchedules = true,
   showVendorsList = true,
-  showGuides = true,
+  showGuides: _showGuides = true,
 }: MaintenanceViewSwitcherProps) {
   return (
     <div className="flex items-center sm:justify-end w-full">

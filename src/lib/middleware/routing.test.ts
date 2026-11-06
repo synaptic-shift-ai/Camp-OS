@@ -182,7 +182,9 @@ describe('createAuthMiddleware', () => {
 
 describe('createEmailVerificationMiddleware', () => {
   it('should allow routes that do not require email verification', async () => {
-    const request = createMockMiddlewareRequest('/onboarding', {
+    // /onboarding is in requiresEmailVerification()'s gated list, so it is not
+    // a valid example here - use a route that genuinely is not gated.
+    const request = createMockMiddlewareRequest('/resources', {
       auth: {
         userId: 'user-123',
         email: 'test@example.com',

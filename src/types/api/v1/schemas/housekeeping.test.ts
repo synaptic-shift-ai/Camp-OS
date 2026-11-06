@@ -115,7 +115,7 @@ describe('CreateChecklistRequestSchema', () => {
   it('accepts minimal checklist with one item', () => {
     const result = CreateChecklistRequestSchema.safeParse({
       name: 'Standard Turnover Cleaning',
-      items: [{ label: 'Strip beds' }],
+      items: [{ id: crypto.randomUUID(), label: 'Strip beds' }],
     })
     expect(result.success).toBe(true)
     if (result.success) {
@@ -124,11 +124,21 @@ describe('CreateChecklistRequestSchema', () => {
     }
   })
 
+  it('rejects a checklist item without an id', () => {
+    // Items carry a client-generated uuid (the add/edit dialogs use
+    // crypto.randomUUID()); the API relies on it to match rows on update.
+    const result = CreateChecklistRequestSchema.safeParse({
+      name: 'Standard Turnover Cleaning',
+      items: [{ label: 'Strip beds' }],
+    })
+    expect(result.success).toBe(false)
+  })
+
   it('accepts description and item notes', () => {
     const result = CreateChecklistRequestSchema.safeParse({
       name: 'Deep clean',
       description: 'Between stays',
-      items: [{ label: 'Bathroom', notes: 'Check grout' }],
+      items: [{ id: crypto.randomUUID(), label: 'Bathroom', notes: 'Check grout' }],
     })
     expect(result.success).toBe(true)
   })
@@ -139,7 +149,7 @@ describe('UpdateChecklistRequestSchema', () => {
     const body = {
       name: 'Turnover',
       description: 'Between stays',
-      items: [{ label: 'Strip beds', notes: null as string | null }],
+      items: [{ id: crypto.randomUUID(), label: 'Strip beds', notes: null as string | null }],
     }
     expect(CreateChecklistRequestSchema.safeParse(body).success).toBe(true)
     expect(UpdateChecklistRequestSchema.safeParse(body).success).toBe(true)

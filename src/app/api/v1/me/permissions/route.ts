@@ -4,6 +4,7 @@ import { error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
 import { resolveUserPropertyAccessOrThrow, AccessDeniedError } from '@/lib/rbac'
 import { getPermissionsForRole } from '@/lib/rbac/permissions'
+import type { PermissionKey } from '@/lib/rbac/permissions'
 import { resolveStaffPermissions } from '@/lib/rbac/staff-categories'
 import { fetchNormalizedStaffCategories, computeCategoryDeniedPermissions, resolvePermissionsFromCategoryAccess } from '@/lib/rbac/role-category-module-access'
 
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     const categoryDerivedPerms = normalizedCategories
       ? resolvePermissionsFromCategoryAccess(normalizedCategories.role, normalizedCategories.categories)
-      : new Set<import('@/lib/rbac/permissions').PermissionKey>()
+      : new Set<PermissionKey>()
     allPerms = new Set([...allPerms, ...categoryDerivedPerms])
 
     // Subtract explicitly denied permissions from category access control overrides

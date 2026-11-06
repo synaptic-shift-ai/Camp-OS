@@ -35,6 +35,7 @@ function createMockSupabaseClient() {
   const queryBuilder: any = {
     select: vi.fn(),
     eq: vi.fn(),
+    is: vi.fn(),
     single: vi.fn(),
     order: vi.fn(),
     update: vi.fn(),
@@ -45,6 +46,7 @@ function createMockSupabaseClient() {
   // Make all methods return queryBuilder for chaining
   queryBuilder.select.mockReturnValue(queryBuilder)
   queryBuilder.eq.mockReturnValue(queryBuilder)
+  queryBuilder.is.mockReturnValue(queryBuilder)
   queryBuilder.order.mockReturnValue(queryBuilder)
   queryBuilder.update.mockReturnValue(queryBuilder)
   queryBuilder.insert.mockReturnValue(queryBuilder)
@@ -74,6 +76,7 @@ describe('SupabaseGuestRepository', () => {
     // Re-setup the chainable behavior after clearAllMocks
     mockSupabase.queryBuilder.select.mockReturnValue(mockSupabase.queryBuilder)
     mockSupabase.queryBuilder.eq.mockReturnValue(mockSupabase.queryBuilder)
+    mockSupabase.queryBuilder.is.mockReturnValue(mockSupabase.queryBuilder)
     mockSupabase.queryBuilder.order.mockReturnValue(mockSupabase.queryBuilder)
     mockSupabase.queryBuilder.update.mockReturnValue(mockSupabase.queryBuilder)
     mockSupabase.queryBuilder.insert.mockReturnValue(mockSupabase.queryBuilder)

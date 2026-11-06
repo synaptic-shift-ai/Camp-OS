@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto"
 import nodemailer from "nodemailer"
+import type { Transporter } from "nodemailer"
 
 const SMTP_SEND_MAX_ATTEMPTS = 4
 const SMTP_RETRY_BASE_DELAY_MS = 500
@@ -28,9 +29,9 @@ function getSmtpConfig() {
     }
 }
 
-let transporter: nodemailer.Transporter | null = null
+let transporter: Transporter | null = null
 
-function getTransporter(): nodemailer.Transporter {
+function getTransporter(): Transporter {
     if (!transporter) {
         transporter = nodemailer.createTransport(getSmtpConfig())
     }

@@ -26,6 +26,13 @@ import {
   type MetricsCollector,
 } from './metrics'
 
+// Timing assertions here verify that elapsed time is measured, not that
+// setTimeout is precise. Timer granularity can report a 10ms sleep as 9ms,
+// which made these fail intermittently, so sleep long enough that the lower
+// bound sits clear of scheduler jitter.
+const SLEEP_MS = 50
+const MIN_MEASURED_MS = 40
+
 describe('Metrics', () => {
   let collector: any
 
@@ -229,21 +236,21 @@ describe('Metrics', () => {
       const timer = startTimer()
 
       // Wait a short time
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, SLEEP_MS))
 
       const duration = timer.end()
 
       // Should be at least 10ms
-      expect(duration).toBeGreaterThanOrEqual(10)
+      expect(duration).toBeGreaterThanOrEqual(MIN_MEASURED_MS)
       // Should be less than 100ms (generous upper bound)
       expect(duration).toBeLessThan(100)
     })
 
     it('should return independent timers', async () => {
       const timer1 = startTimer()
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, SLEEP_MS))
       const timer2 = startTimer()
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, SLEEP_MS))
 
       const duration1 = timer1.end()
       const duration2 = timer2.end()
@@ -256,7 +263,7 @@ describe('Metrics', () => {
   describe('withMetrics', () => {
     it('should measure function execution time on success', async () => {
       const fn = async (x: number) => {
-        await new Promise((resolve) => setTimeout(resolve, 10))
+        await new Promise((resolve) => setTimeout(resolve, SLEEP_MS))
         return x * 2
       }
 
@@ -275,7 +282,7 @@ describe('Metrics', () => {
           status: 'success',
         },
       })
-      expect(metrics[0]?.value).toBeGreaterThanOrEqual(10)
+      expect(metrics[0]?.value).toBeGreaterThanOrEqual(MIN_MEASURED_MS)
     })
 
     it('should record failure status on error', async () => {

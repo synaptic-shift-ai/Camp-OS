@@ -12,10 +12,12 @@ type FromBuilder = {
   eq: (...args: unknown[]) => FromBuilder
   in: (...args: unknown[]) => FromBuilder
   lt: (...args: unknown[]) => FromBuilder
-  gt: (...args: unknown[]) => Promise<{ count: number | null; error: unknown }>
+  gt: (...args: unknown[]) => Promise<{ count: number | null; error: unknown }> | FromBuilder
   is: (...args: unknown[]) => FromBuilder
   maybeSingle: () => SupabaseResult<unknown>
   order: (...args: unknown[]) => FromBuilder
+  limit?: (...args: unknown[]) => SupabaseResult<unknown>
+  then?: (resolve: (value: { count: number | null; error: unknown }) => unknown) => unknown
 }
 
 function createFromBuilder(handlers: {
@@ -40,6 +42,16 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: () => mockCreateClient()
 
 vi.mock('@/lib/rbac', () => ({
   requirePropertyAccess: vi.fn(async () => ({ role: 'admin', companyId: validUUID() })),
+  // booking-conflicts/route.ts authorises via requirePropertyMembership and then
+  // checks role/category permissions; without these the module mock throws and
+  // the handler reports INTERNAL_ERROR.
+  requirePropertyMembership: vi.fn(async () => ({
+    role: 'admin',
+    companyId: validUUID(),
+    categories: [],
+  })),
+  hasPermission: vi.fn(() => true),
+  staffHasPermission: vi.fn(() => true),
   isDenied: vi.fn(() => false),
 }))
 
@@ -190,9 +202,15 @@ describe('Maintenance API v1 (integration)', () => {
             eq: () => builder,
             in: () => builder,
             lt: () => builder,
-            gt: async () => ({ count: 1, error: null }),
+            gt: () => builder,
             is: () => builder,
             order: () => builder,
+            // The first-conflict query terminates on .limit(1) and expects rows.
+            limit: async () => ({ data: [reservationRow], error: null }),
+            // Awaiting the builder resolves the head/count query, which stops
+            // at .gt(). Returning a promise from gt() instead would break the
+            // first-conflict query, which continues on to .order().limit().
+            then: (resolve) => resolve({ count: 1, error: null }),
             maybeSingle: async () => ({
               data: headCountMode ? null : reservationRow,
               error: null,
@@ -224,7 +242,7 @@ describe('Maintenance API v1 (integration)', () => {
         reservationConflicts: 1,
         firstReservationConflict: {
           confirmationNumber: 'A102',
-          checkInDate: '2026-05-08',
+          checkInDate: '2026-05-07',
           checkOutDate: '2026-05-10',
         },
       },

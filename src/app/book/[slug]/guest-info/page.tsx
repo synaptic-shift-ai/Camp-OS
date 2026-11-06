@@ -32,6 +32,7 @@ import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import {
   type GuestCancellationPolicyApiData,
 } from "@/lib/guest/guest-cancellation-policy"
+import type { Resolver } from 'react-hook-form'
 
 const US_STATES = [
   "Alabama",
@@ -274,7 +275,12 @@ export default function GuestInfoPage() {
   }, [isHydrated, checkoutData.propertyId, setCheckoutData])
 
   const form = useForm<GuestFormData>({
-    resolver: zodResolver(guestFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(guestFormSchema) as unknown as Resolver<GuestFormData>,
     defaultValues: {
       first_name: checkoutData.guestInfo?.first_name || "",
       last_name: checkoutData.guestInfo?.last_name || "",

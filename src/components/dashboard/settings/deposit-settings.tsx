@@ -31,6 +31,7 @@ import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { Loader2, Info } from 'lucide-react'
 import { depositConfigFormSchema, type DepositConfigFormInput } from '@/lib/config/schemas'
 import type { DepositConfig, BookingType } from '@/lib/config/types'
+import type { Resolver } from 'react-hook-form'
 
 interface DepositSettingsProps {
   initialConfig?: DepositConfig
@@ -65,7 +66,12 @@ export function DepositSettings({ initialConfig, propertyId, onSave, canEdit = t
     trigger,
     formState: { errors, isDirty },
   } = useForm<DepositConfigFormInput>({
-    resolver: zodResolver(depositConfigFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(depositConfigFormSchema) as unknown as Resolver<DepositConfigFormInput>,
     defaultValues: initialConfig
       ? {
           require_deposit: initialConfig.require_deposit,

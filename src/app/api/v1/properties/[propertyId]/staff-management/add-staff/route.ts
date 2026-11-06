@@ -68,7 +68,7 @@ export async function POST(
     const parsed = BodySchema.safeParse(await request.json())
     if (!parsed.success) {
       return error(ErrorCodes.VALIDATION_ERROR, request, {
-        errors: parsed.error.errors,
+        errors: parsed.error.issues,
       })
     }
 

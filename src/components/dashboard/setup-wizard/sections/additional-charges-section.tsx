@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, Pencil, Trash2, GripVertical } from "lucide-react"
 import type { PricingConfig, UserDefinedFee, UserDefinedFeeType, FeeTriggerType } from "@/lib/config/types"
 import { useWizardFormStore } from "../wizard-form-store"
+import type { Resolver } from 'react-hook-form'
 
 const nanToUndefined = (val: unknown) => (typeof val === "number" && isNaN(val) ? undefined : val)
 
@@ -50,12 +51,12 @@ const feeFormSchema = z.object({
   end_date: z.string().optional(),
 }).superRefine((data, ctx) => {
   const isPercentage = data.fee_type === "percentage_of_subtotal" || data.fee_type === "percentage_of_total"
-  if (isPercentage && data.value_percentage == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Percentage is required", path: ["value_percentage"] })
-  if (!isPercentage && data.fee_type !== undefined && data.value_dollars == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount is required", path: ["value_dollars"] })
-  if (data.trigger_type === "min_nights" && data.min_nights == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Minimum nights is required", path: ["min_nights"] })
-  if (data.trigger_type === "min_guests" && data.min_guests == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Minimum guests is required", path: ["min_guests"] })
-  if (data.trigger_type === "date_range" && !data.start_date) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Start date is required", path: ["start_date"] })
-  if (data.trigger_type === "date_range" && !data.end_date) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "End date is required", path: ["end_date"] })
+  if (isPercentage && data.value_percentage == null) ctx.addIssue({ code: 'custom', message: "Percentage is required", path: ["value_percentage"] })
+  if (!isPercentage && data.fee_type !== undefined && data.value_dollars == null) ctx.addIssue({ code: 'custom', message: "Amount is required", path: ["value_dollars"] })
+  if (data.trigger_type === "min_nights" && data.min_nights == null) ctx.addIssue({ code: 'custom', message: "Minimum nights is required", path: ["min_nights"] })
+  if (data.trigger_type === "min_guests" && data.min_guests == null) ctx.addIssue({ code: 'custom', message: "Minimum guests is required", path: ["min_guests"] })
+  if (data.trigger_type === "date_range" && !data.start_date) ctx.addIssue({ code: 'custom', message: "Start date is required", path: ["start_date"] })
+  if (data.trigger_type === "date_range" && !data.end_date) ctx.addIssue({ code: 'custom', message: "End date is required", path: ["end_date"] })
 })
 
 type FeeFormInput = z.infer<typeof feeFormSchema>
@@ -76,7 +77,12 @@ export function AdditionalChargesSection({ propertyId, initialConfig }: Props) {
   const [editingFee, setEditingFee] = useState<UserDefinedFee | null>(null)
 
   const form = useForm<FeeFormInput>({
-    resolver: zodResolver(feeFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(feeFormSchema) as unknown as Resolver<FeeFormInput>,
     defaultValues: { title: "", description: "", fee_type: "flat_amount", is_taxable: true, trigger_type: "always" },
   })
 

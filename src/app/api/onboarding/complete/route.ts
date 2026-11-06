@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid data", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 })
     }
 
     console.error("Complete onboarding API error:", error)

@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
 import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
 import { v4 as uuidv4 } from 'uuid'
+import type { Resolver } from 'react-hook-form'
 
 function numOrUndefined(val: unknown): number | undefined {
   if (val === '' || val === undefined) return undefined
@@ -84,7 +85,12 @@ export function CancellationRuleDialog({
   submitLabel = 'Add rule',
 }: CancellationRuleDialogProps) {
   const form = useForm<CancellationRuleFormData>({
-    resolver: zodResolver(cancellationRuleSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(cancellationRuleSchema) as unknown as Resolver<CancellationRuleFormData>,
     defaultValues: {
       refundPercentage: initialValues?.refund_percentage ?? defaultValues.refundPercentage,
       daysBeforeReservation: initialValues?.days_before_reservation ?? defaultValues.daysBeforeReservation,

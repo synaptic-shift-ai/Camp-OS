@@ -55,6 +55,7 @@ import { createClient } from "@/lib/supabase/client"
 import { BlackoutDatesPicker } from "@/components/guest/booking-date-range-picker"
 import { Badge } from "@/components/ui/badge"
 import { useWizardFormStore } from "./wizard-form-store"
+import type { Resolver } from 'react-hook-form'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -248,7 +249,12 @@ export function useSitesPanelState(args: {
   })
 
   const form = useForm<SiteFormData>({
-    resolver: zodResolver(siteFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(siteFormSchema) as unknown as Resolver<SiteFormData>,
     mode: "onChange",
     defaultValues: DEFAULT_SITE_FORM_VALUES,
   })

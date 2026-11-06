@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import type { PricingConfig, UserDefinedFee, UserDefinedFeeType, FeeTriggerType } from '@/lib/config/types'
+import type { Resolver } from 'react-hook-form'
 
 interface FeesSettingsProps {
   initialConfig?: PricingConfig
@@ -80,7 +81,7 @@ const feeFormSchema = z.object({
   const isPercentage = data.fee_type === 'percentage_of_subtotal' || data.fee_type === 'percentage_of_total'
   if (isPercentage && (data.value_percentage === undefined || data.value_percentage === null)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Percentage is required',
       path: ['value_percentage'],
     })
@@ -88,7 +89,7 @@ const feeFormSchema = z.object({
   const requiresDollars = ['flat_amount', 'per_night', 'per_guest', 'per_guest_per_night']
   if (requiresDollars.includes(data.fee_type) && (data.value_dollars === undefined || data.value_dollars === null)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Amount is required',
       path: ['value_dollars'],
     })
@@ -96,14 +97,14 @@ const feeFormSchema = z.object({
   // Require trigger conditions based on trigger_type
   if (data.trigger_type === 'min_nights' && (data.min_nights === undefined || data.min_nights === null)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Minimum nights is required',
       path: ['min_nights'],
     })
   }
   if (data.trigger_type === 'min_guests' && (data.min_guests === undefined || data.min_guests === null)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Minimum guests is required',
       path: ['min_guests'],
     })
@@ -111,14 +112,14 @@ const feeFormSchema = z.object({
   if (data.trigger_type === 'date_range') {
     if (!data.start_date) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: 'Start date is required',
         path: ['start_date'],
       })
     }
     if (!data.end_date) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: 'End date is required',
         path: ['end_date'],
       })
@@ -170,7 +171,12 @@ export function FeesSettings({
 
   // Form for adding/editing fees
   const feeForm = useForm<FeeFormInput>({
-    resolver: zodResolver(feeFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(feeFormSchema) as unknown as Resolver<FeeFormInput>,
     defaultValues: {
       title: '',
       description: '',

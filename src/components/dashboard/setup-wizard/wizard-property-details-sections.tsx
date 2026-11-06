@@ -22,7 +22,11 @@ interface WizardPropertyDetailsSectionsProps {
   selectedProperty: Property
   register: UseFormRegister<any>
   errors: FieldErrors<any>
-  control: Control<any>
+  // react-hook-form's Control takes <TFieldValues, TContext, TTransformedValues>
+  // and is invariant in them, so a concrete control no longer satisfies
+  // Control<any> alone. This prop was already untyped; widening it keeps that
+  // as-is rather than tightening a shared prop across every wizard section.
+  control: Control<any, any, any>
   setValue: UseFormSetValue<any>
   timezone: string
   usTimezones: Array<{ value: string; label: string }>

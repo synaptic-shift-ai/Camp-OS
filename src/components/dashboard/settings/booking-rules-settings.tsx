@@ -36,6 +36,7 @@ import {
 } from '@/lib/config/schemas'
 import type { BookingRulesConfig, DayOfWeek, HolidayRule } from '@/lib/config/types'
 import { AddHolidayDialog } from '@/components/dashboard/settings/booking-rules-dialog/add-holiday-dialog'
+import type { Resolver } from 'react-hook-form'
 
 interface BookingRulesSettingsProps {
   initialConfig?: BookingRulesConfig
@@ -104,7 +105,12 @@ export function BookingRulesSettings({
     trigger,
     formState: { errors, isDirty },
   } = useForm<BookingRulesSettingsFormInput>({
-    resolver: zodResolver(bookingRulesSettingsFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(bookingRulesSettingsFormSchema) as unknown as Resolver<BookingRulesSettingsFormInput>,
     defaultValues: initialConfig
       ? (() => {
           const { blackout_dates: _drop, ...rest } = initialConfig

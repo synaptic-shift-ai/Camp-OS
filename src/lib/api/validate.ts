@@ -52,7 +52,7 @@ export function validateApiResponse<T>(
     // Log validation failure with full context
     console.error("[API Validation Failed]", {
       endpoint,
-      errors: result.error.errors,
+      errors: result.error.issues,
       receivedData: data,
       timestamp: new Date().toISOString()
     })

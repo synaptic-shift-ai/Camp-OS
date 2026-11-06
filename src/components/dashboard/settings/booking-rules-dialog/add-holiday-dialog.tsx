@@ -22,6 +22,7 @@ import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
+import type { Resolver } from 'react-hook-form'
 
 function numOrUndefined(val: unknown): number | undefined {
   if (val === '' || val === undefined || val === null) return undefined
@@ -65,7 +66,10 @@ export type HolidayRule = {
   start_date: string // YYYY-MM-DD
   end_date: string // YYYY-MM-DD
   min_stay_nights: number
-  max_stay_nights?: number
+  // `| undefined` is explicit so this matches holidayRuleSchema's inferred
+  // type: zod 4 infers .optional() as `?: T | undefined`, which is distinct
+  // from `?: T` under exactOptionalPropertyTypes.
+  max_stay_nights?: number | undefined
   enabled: boolean
 }
 
@@ -114,7 +118,12 @@ export function AddHolidayDialog({
   submitLabel = 'Add holiday',
 }: AddHolidayDialogProps) {
   const form = useForm<AddHolidayFormData>({
-    resolver: zodResolver(addHolidaySchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(addHolidaySchema) as unknown as Resolver<AddHolidayFormData>,
     defaultValues,
   })
 

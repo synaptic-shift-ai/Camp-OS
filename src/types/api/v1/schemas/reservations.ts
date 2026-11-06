@@ -393,14 +393,14 @@ export const CreateManualReservationRequestSchema = z.object({
 }).superRefine((data, ctx) => {
   if (!data.guestId && !data.guest) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Guest information is required when guestId is not provided',
       path: ['guest'],
     })
   }
   if (data.useGuestCredit && !data.guestId) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'guestId is required when applying guest credit',
       path: ['useGuestCredit'],
     })

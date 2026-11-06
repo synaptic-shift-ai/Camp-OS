@@ -23,7 +23,7 @@ const UpdateAccessBodySchema = z
     if (data.allCategories) return
     if (data.roleCategoryIds.length === 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: 'Select at least one category, or set allCategories to true',
         path: ['roleCategoryIds'],
       })
@@ -47,10 +47,10 @@ export async function PATCH(
     const parsed = PatchBodySchema.safeParse(await request.json())
     if (!parsed.success) {
       const msg =
-        parsed.error.errors.map((e) => e.message).join('; ') ||
+        parsed.error.issues.map((e) => e.message).join('; ') ||
         ErrorCodes.VALIDATION_ERROR.message
       return error(ErrorCodes.VALIDATION_ERROR.code, msg, ErrorCodes.VALIDATION_ERROR.status, request, {
-        errors: parsed.error.errors,
+        errors: parsed.error.issues,
       })
     }
 

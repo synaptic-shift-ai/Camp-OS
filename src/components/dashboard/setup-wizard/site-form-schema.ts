@@ -15,7 +15,7 @@ export const siteFormSchema = z.object({
   // Basic Info
   site_number: z.string().min(1, "Site number is required").max(50),
   site_name: z.string().max(255).optional().or(z.literal("")),
-  site_type: z.enum(siteTypes, { required_error: "Site type is required" }),
+  site_type: z.enum(siteTypes, { error: "Site type is required" }),
   max_occupancy: z.coerce.number().min(1, "At least 1 person").max(50, "Maximum 50 people"),
   max_vehicles: z.preprocess(
     (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 1 : Number(v)),
@@ -49,7 +49,7 @@ export const siteFormSchema = z.object({
   }),
 
   // Amenities (dynamic boolean flags; keys come from property amenities)
-  amenities: z.record(z.boolean()),
+  amenities: z.record(z.string(), z.boolean()),
 
   // Pet-related fields
   allow_pets: z.boolean().default(false),

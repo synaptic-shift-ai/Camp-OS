@@ -230,7 +230,7 @@ export function formatValidationError(error: z.ZodError): {
   fields: Array<{ field: string; message: string }>
   summary: string
 } {
-  const fields = error.errors.map((err) => ({
+  const fields = error.issues.map((err) => ({
     field: err.path.join('.'),
     message: err.message,
   }))

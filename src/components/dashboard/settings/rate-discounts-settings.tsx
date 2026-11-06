@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Loader2, Info, Percent } from 'lucide-react'
 import { rateDiscountsConfigSchema, type RateDiscountsConfigInput } from '@/lib/config/schemas'
 import type { RateDiscountsConfig } from '@/lib/config/types'
+import type { Resolver } from 'react-hook-form'
 
 interface RateDiscountsSettingsProps {
   initialConfig?: RateDiscountsConfig
@@ -47,7 +48,12 @@ export function RateDiscountsSettings({ initialConfig, propertyId, onSave }: Rat
     setValue,
     formState: { errors, isDirty },
   } = useForm<RateDiscountsConfigInput>({
-    resolver: zodResolver(rateDiscountsConfigSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(rateDiscountsConfigSchema) as unknown as Resolver<RateDiscountsConfigInput>,
     defaultValues: initialConfig ?? {
       weekly_discount_enabled: false,
       weekly_discount_percentage: 10,

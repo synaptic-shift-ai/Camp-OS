@@ -68,7 +68,7 @@ export async function POST(
     const parsed = CreateBudgetRequestSchema.safeParse(body)
 
     if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(', ')
+      const message = parsed.error.issues.map((e) => e.message).join(', ')
       return error(ErrorCodes.VALIDATION_ERROR, request, { message })
     }
 

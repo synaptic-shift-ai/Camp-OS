@@ -60,7 +60,7 @@ describe('Properties API Contract', () => {
         subdomain: null,
         amenities: { wifi: true, showers: true },
         settings: {},
-        owner_id: 'abc12345-6789-def0-1234-56789abcdef0',
+        owner_id: 'abc12345-6789-4ef0-8234-56789abcdef0',
         stripe_account_id: 'acct_test123',
         stripe_connected_at: '2025-11-01T10:00:00Z',
         booking_page_slug: 'pine-valley-abc123',
@@ -404,7 +404,7 @@ describe('Properties API Contract', () => {
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(result.error).toBeDefined()
-        expect(result.error.errors.length).toBeGreaterThan(0)
+        expect(result.error.issues.length).toBeGreaterThan(0)
       }
     })
   })

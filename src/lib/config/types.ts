@@ -465,7 +465,10 @@ export type HolidayRule = {
   start_date: string
   end_date: string
   min_stay_nights: number
-  max_stay_nights?: number
+  // `| undefined` is explicit so this matches holidayRuleSchema's inferred
+  // type: zod 4 infers .optional() as `?: T | undefined`, which is distinct
+  // from `?: T` under exactOptionalPropertyTypes.
+  max_stay_nights?: number | undefined
   enabled: boolean
 }
 

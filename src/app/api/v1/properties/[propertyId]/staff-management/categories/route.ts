@@ -30,7 +30,7 @@ const BodySchema = z.object({
 
 const AccessSchema = z.object({
   selectedModuleKey: z.string().trim().min(1),
-  moduleAccessControl: z.record(z.record(z.boolean())),
+  moduleAccessControl: z.record(z.string(), z.record(z.string(), z.boolean())),
 })
 
 const PatchBodySchema = z.object({
@@ -163,10 +163,10 @@ export async function POST(
       console.error('[StaffManagementCategories] Validation error', {
         propertyId,
         userId: user.id,
-        errors: parsed.error.errors,
+        errors: parsed.error.issues,
       })
       return error(ErrorCodes.VALIDATION_ERROR, request, {
-        errors: parsed.error.errors,
+        errors: parsed.error.issues,
       })
     }
 
@@ -272,7 +272,7 @@ export async function PATCH(
     const parsed = PatchBodySchema.safeParse(await request.json())
     if (!parsed.success) {
       return error(ErrorCodes.VALIDATION_ERROR, request, {
-        errors: parsed.error.errors,
+        errors: parsed.error.issues,
       })
     }
 

@@ -27,6 +27,7 @@ import { useCheckout } from "@/lib/booking/checkout-context"
 import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import type { SiteType } from "@/lib/booking/types"
 import { useToast } from "@/hooks/use-toast"
+import type { Resolver } from 'react-hook-form'
 
 const siteTypeIcons: Record<SiteType, React.ReactNode> = {
   rv: <Home className="h-4 w-4" />,
@@ -141,7 +142,12 @@ export function CheckoutClient() {
     setValue,
     control,
   } = useForm<GuestFormData>({
-    resolver: zodResolver(guestFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(guestFormSchema) as unknown as Resolver<GuestFormData>,
     defaultValues: {
       country: "United States",
       email_preferences: false,

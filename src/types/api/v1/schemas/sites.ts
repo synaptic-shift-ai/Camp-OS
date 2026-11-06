@@ -102,7 +102,7 @@ export const SiteSchema = z.object({
   amenities: z.array(z.string()).nullable(),
   hookups: z.array(z.string()).nullable(),
   images: z.array(z.string()).nullable(),
-  locationMap: z.record(z.any()).nullable(),
+  locationMap: z.record(z.string(), z.any()).nullable(),
   createdAt: DateStringSchema,
   updatedAt: DateStringSchema,
 })
@@ -133,7 +133,7 @@ export const CreateSiteRequestSchema = z.object({
   adaAccessible: z.boolean().optional(),
   accessibilityFeatures: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
-  locationMap: z.record(z.any()).optional(),
+  locationMap: z.record(z.string(), z.any()).optional(),
   // Reservation type override: { source: "property_default" } | { source: "site_type_default" } | types[] | null
   enabledReservationTypesOverride: z
     .union([
@@ -179,7 +179,7 @@ export const UpdateSiteRequestSchema = z.object({
   adaAccessible: z.boolean().optional(),
   accessibilityFeatures: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
-  locationMap: z.record(z.any()).optional(),
+  locationMap: z.record(z.string(), z.any()).optional(),
   // Reservation type override: { source: "property_default" } | { source: "site_type_default" } | types[] | null
   enabledReservationTypesOverride: z
     .union([

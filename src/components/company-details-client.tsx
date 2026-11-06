@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { Resolver } from 'react-hook-form'
 
 const propertySchema = z.object({
   name: z.string().min(2, "Property name must be at least 2 characters"),
@@ -151,7 +152,12 @@ function CompanyDetailsForm({
     setValue,
     watch,
   } = useForm<CompanyDetailsFormData>({
-    resolver: zodResolver(companyDetailsSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(companyDetailsSchema) as unknown as Resolver<CompanyDetailsFormData>,
     defaultValues,
   })
 

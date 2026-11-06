@@ -13,6 +13,7 @@ import { Info } from "lucide-react"
 import { depositConfigFormSchema, type DepositConfigFormInput } from "@/lib/config/schemas"
 import type { DepositConfig, BookingType } from "@/lib/config/types"
 import { useWizardFormStore } from "../wizard-form-store"
+import type { Resolver } from 'react-hook-form'
 
 const BOOKING_TYPES: { value: BookingType; label: string; description: string }[] = [
   { value: "nightly", label: "Nightly", description: "Standard short-term stays" },
@@ -33,7 +34,12 @@ export function DepositsSection({ propertyId, initialConfig }: Props) {
   const cfg = draftConfig ?? initialConfig
 
   const { register, watch, setValue, getValues } = useForm<DepositConfigFormInput>({
-    resolver: zodResolver(depositConfigFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(depositConfigFormSchema) as unknown as Resolver<DepositConfigFormInput>,
     defaultValues: cfg
       ? {
           require_deposit: cfg.require_deposit,

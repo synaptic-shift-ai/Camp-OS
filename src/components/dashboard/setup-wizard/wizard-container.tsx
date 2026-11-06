@@ -26,6 +26,8 @@ import { getApiFailureMessage } from "@/lib/api/get-api-failure-message"
 import { createClient } from "@/lib/supabase/client"
 import { TIMEZONE_OPTIONS } from '@/lib/constants/timezones'
 import { getDetectedTimezone, ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
+import type { Resolver } from 'react-hook-form'
+import type { Control } from 'react-hook-form'
 
 type PropertySection =
   | "location"
@@ -229,7 +231,12 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
     setError,
     clearErrors,
   } = useForm<PropertyDetailsFormData>({
-    resolver: zodResolver(propertyDetailsSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(propertyDetailsSchema) as unknown as Resolver<PropertyDetailsFormData>,
     defaultValues: {
       address: "",
       city: "",
@@ -1284,7 +1291,12 @@ export function WizardContainer({ initialPropertyId, initialStep }: WizardContai
                     selectedProperty={selectedProperty}
                     register={register}
                     errors={errors}
-                    control={control}
+                    // Control is invariant in its generics, and under
+                    // exactOptionalPropertyTypes a concrete control is not
+                    // assignable to the shared Control<any, any, any> prop that
+                    // every wizard section takes. Asserted here rather than
+                    // threading generics through all the section components.
+                    control={control as unknown as Control<any, any, any>}
                     setValue={setValue}
                     timezone={timezone}
                     usTimezones={TIMEZONE_OPTIONS}

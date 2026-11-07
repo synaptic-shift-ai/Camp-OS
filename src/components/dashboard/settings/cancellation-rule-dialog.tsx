@@ -111,7 +111,7 @@ export function CancellationRuleDialog({
 
   const { guardedOnOpenChange, unsavedChangesDialog } = useDialogCloseGuard({ isDirty, open, onOpenChange })
 
-  const handleOpenChange = (next: boolean) => {
+  const _handleOpenChange = (next: boolean) => {
     if (!next) form.reset(defaultValues)
     onOpenChange(next)
   }

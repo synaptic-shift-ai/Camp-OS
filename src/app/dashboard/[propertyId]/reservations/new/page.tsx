@@ -343,7 +343,7 @@ export default function NewReservationPage() {
   const pets = watch("pets")
   const paymentMethod = watch("paymentMethod")
   const paidAmount = watch("paidAmount")
-  const guestEmail = watch("guestEmail")
+  const _guestEmail = watch("guestEmail")
   const guestPhone = watch("guestPhone")
   const totalCents = summaryTotalCents ?? 0
   const dueTodayCents = amountDueTodayCents ?? totalCents

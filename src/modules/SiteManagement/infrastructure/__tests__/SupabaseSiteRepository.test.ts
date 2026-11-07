@@ -65,6 +65,7 @@ function createMockSupabaseClient() {
   const queryBuilder: any = {
     select: vi.fn(),
     eq: vi.fn(),
+    is: vi.fn(),
     single: vi.fn(),
     order: vi.fn(),
     range: vi.fn(),
@@ -76,6 +77,7 @@ function createMockSupabaseClient() {
   // Make all methods return queryBuilder for chaining
   queryBuilder.select.mockReturnValue(queryBuilder)
   queryBuilder.eq.mockReturnValue(queryBuilder)
+  queryBuilder.is.mockReturnValue(queryBuilder)
   queryBuilder.order.mockReturnValue(queryBuilder)
   queryBuilder.range.mockReturnValue(queryBuilder)
   queryBuilder.update.mockReturnValue(queryBuilder)
@@ -411,7 +413,7 @@ describe('SupabaseSiteRepository', () => {
 
       // Mock eq() for the select chain to return an object with single()
       const mockEqForSelect = vi.fn().mockReturnValueOnce({
-        single: mockSingleForSelect,
+        is: vi.fn().mockReturnValueOnce({ single: mockSingleForSelect }),
       })
 
       // Mock select() to return an object with eq()
@@ -469,7 +471,7 @@ describe('SupabaseSiteRepository', () => {
       })
 
       const mockEqForSelect = vi.fn().mockReturnValueOnce({
-        single: mockSingleForSelect,
+        is: vi.fn().mockReturnValueOnce({ single: mockSingleForSelect }),
       })
 
       mockSupabase.queryBuilder.select.mockReturnValueOnce({
@@ -495,21 +497,27 @@ describe('SupabaseSiteRepository', () => {
 
   describe('delete', () => {
     it('should delete site', async () => {
-      // Mock the final .eq() in the chain to return success
-      mockSupabase.queryBuilder.eq.mockResolvedValue({
+      // Soft delete: from().update({ deleted_at }).eq('id').is('deleted_at', null)
+      mockSupabase.queryBuilder.is.mockResolvedValue({
         data: null,
         error: null,
       })
 
       await repository.delete('site-123')
 
-      expect(mockSupabase.queryBuilder.delete).toHaveBeenCalled()
+      expect(mockSupabase.queryBuilder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deleted_at: expect.any(String),
+          updated_at: expect.any(String),
+        })
+      )
       expect(mockSupabase.queryBuilder.eq).toHaveBeenCalledWith('id', 'site-123')
+      expect(mockSupabase.queryBuilder.is).toHaveBeenCalledWith('deleted_at', null)
     })
 
     it('should throw error on delete failure', async () => {
-      // Mock the final .eq() to return error
-      mockSupabase.queryBuilder.eq.mockResolvedValue({
+      // Soft delete chain terminates on .is('deleted_at', null)
+      mockSupabase.queryBuilder.is.mockResolvedValue({
         data: null,
         error: { message: 'Delete failed' },
       })

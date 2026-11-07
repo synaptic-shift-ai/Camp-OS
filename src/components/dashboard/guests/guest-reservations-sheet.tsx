@@ -21,10 +21,8 @@ import {
   CalendarDays,
   AlertCircle,
   BadgeCheck,
-  Calendar,
   Phone,
   MapPin,
-  Tent,
   CreditCard,
   UserRound,
   Heart,
@@ -526,8 +524,8 @@ export function GuestReservationsSheet({
     latestReservation?.status === 'cancelled'
       ? 'text-red-600 border-red-200 bg-red-50 dark:text-red-300 dark:border-red-900/60 dark:bg-red-950/40'
       : 'text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-900/60 dark:bg-emerald-950/40'
-  const tripNights = latestReservation?.nights ?? 0
-  const siteLabel =
+  const _tripNights = latestReservation?.nights ?? 0
+  const _siteLabel =
     reservationPreview?.siteName?.trim() ||
     reservationPreview?.siteNumber?.trim() ||
     (latestReservation ? 'Site assigned' : 'No site')

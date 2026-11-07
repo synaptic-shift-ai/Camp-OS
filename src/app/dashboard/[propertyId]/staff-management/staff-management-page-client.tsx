@@ -92,7 +92,7 @@ export default function StaffManagementStaffPageClient({
         }
         toast({ title: 'Setup email resent', description: `A new setup email has been sent.` })
         router.refresh()
-      } catch (err) {
+      } catch (_err) {
         toast({ title: 'Failed to resend setup email', variant: 'destructive' })
       }
     },

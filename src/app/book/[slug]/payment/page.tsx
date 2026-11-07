@@ -25,6 +25,9 @@ import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import { DEFAULT_PAYMENT_METHODS, type PaymentMethod } from "@/lib/config/types"
 
+// Retained for the available-payment-methods block below, which is currently
+// commented out. Delete both together if that block is dropped for good.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PAYMENT_METHOD_DISPLAY: Record<PaymentMethod, { title: string; description: string }> = {
   card: {
     title: "Card",
@@ -177,13 +180,13 @@ function PaymentFormInner({ slug, amountDueTodayCents }: { slug: string; amountD
     total: 0,
   }
   const priceBreakdown = { ...fallback, ...raw }
-  const basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
-  const nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
+  const _basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
+  const _nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
   const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
-  const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
-  const userFeesCents = priceBreakdown.user_fees?.reduce((sum, fee) => sum + fee.amount, 0) ?? 0
-  const petFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
-  const taxesCents =
+  const _serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
+  const _userFeesCents = priceBreakdown.user_fees?.reduce((sum, fee) => sum + fee.amount, 0) ?? 0
+  const _petFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
+  const _taxesCents =
     priceBreakdown.taxes ??
     Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
   console.log('[Payment] PaymentFormInner rendering form with PaymentElement (waiting for onReady)')
@@ -312,7 +315,7 @@ export default function PaymentPage() {
   const displayPropertyName =
     checkoutData.propertyName || capitalizeWordsPreserveSpacing(slug.replace(/-[a-f0-9]{8}$/i, '').replace(/-/g, ' '))
 
-  const enabledPaymentMethods =
+  const _enabledPaymentMethods =
     (Array.isArray(checkoutData.enabledPaymentMethods) && checkoutData.enabledPaymentMethods.length > 0
       ? checkoutData.enabledPaymentMethods
       : DEFAULT_PAYMENT_METHODS)

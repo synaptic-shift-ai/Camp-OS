@@ -19,7 +19,7 @@ type HousekeepingPageHeaderProps = {
 export function HousekeepingPageHeader({
   propertyName,
   pendingTasksCount = 0,
-  onRefreshClick,
+  onRefreshClick: _onRefreshClick,
   onExportClick,
   viewMode,
   onAddTaskClick,

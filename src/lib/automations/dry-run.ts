@@ -8,7 +8,7 @@
  * Uses current DB state for context enrichment (documented as known limitation).
  */
 
-import type { TriggerType, ActionType, EventContext } from './types'
+import type { TriggerType, ActionType } from './types'
 import type { ConditionsEvaluationDetail } from './condition-evaluator'
 import { evaluateConditionsDetailed } from './condition-evaluator'
 import { buildEventContext } from './event-context'
@@ -18,7 +18,6 @@ import type {
   AutomationConditionGroupRow,
   AutomationConditionRow,
   AutomationActionRow,
-  AutomationBranchRow,
 } from './types'
 
 // ============================================================================
@@ -275,7 +274,7 @@ export async function dryRunAutomation(
         conditionsDetail,
         ...(actionsWouldExecute ? { actionsWouldExecute } : {}),
       })
-    } catch (err) {
+    } catch (_err) {
       results.push({
         entityId: row.id as string,
         entityLabel: (row[queryConfig.labelColumn] as string) ?? '—',

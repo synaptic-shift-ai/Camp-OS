@@ -1330,9 +1330,10 @@ export async function getGuests(
 ): Promise<{ data: DashboardGuest[]; total: number }> {
   const supabase = await createClient()
 
-  // If restricting by allowed site types, resolve the matching site IDs first
-  // (similar to getReservations()) and then filter reservations by `site_id`.
-  let siteIdsFilter: string[] | null = null
+  // When restricting by allowed site types, resolve the matching sites up front
+  // purely so we can short-circuit when none of them match. The restriction
+  // itself is applied further down against the joined `sites` relation, so no
+  // site-id list is needed here.
   if (Array.isArray(filters.allowedSiteTypes) && filters.allowedSiteTypes.length > 0) {
     const allowedLower = new Set(filters.allowedSiteTypes.map((t) => t.toLowerCase().trim()).filter(Boolean))
 
@@ -1353,8 +1354,6 @@ export async function getGuests(
       if (ids.length === 0) {
         return { data: [], total: 0 }
       }
-
-      siteIdsFilter = ids
     }
   }
 

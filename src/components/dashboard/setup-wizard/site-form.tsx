@@ -161,7 +161,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     handleSubmit,
     formState: { errors, isDirty },
     setValue,
-    getValues,
+    getValues: _getValues,
     watch,
     trigger,
     reset,
@@ -212,7 +212,7 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
   const allowPets = watch("allow_pets")
   const adaAccessible = watch("ada_accessible")
   const accessibilityFeatures = watch("accessibility_features")
-  const usePropertyReservationTypes = watch("use_property_reservation_types")
+  const _usePropertyReservationTypes = watch("use_property_reservation_types")
   const pricingSource = watch("pricing_source")
   const enabledReservationTypesOverride = watch("enabled_reservation_types_override")
   const defaultReservationType = watch("default_reservation_type")

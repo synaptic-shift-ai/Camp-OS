@@ -37,15 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Loader2, Info, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import type { PropertyReservationTypesConfig, SeasonalPeriod, BookingType } from '@/lib/config/types'
 import { DEFAULT_RESERVATION_TYPES_CONFIG } from '@/lib/config/types'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -165,7 +157,7 @@ export function SiteTypeRateSettings({
   const [isSaving, setIsSaving] = useState(false)
 
   // Configuration state
-  const [config, setConfig] = useState<PropertyReservationTypesConfig>(
+  const [_config, setConfig] = useState<PropertyReservationTypesConfig>(
     initialConfig || DEFAULT_RESERVATION_TYPES_CONFIG
   )
   const [enabledTypes, setEnabledTypes] = useState<BookingType[]>(
@@ -173,7 +165,7 @@ export function SiteTypeRateSettings({
   )
 
   // Seasonal periods state
-  const [seasonalPeriods, setSeasonalPeriods] = useState<SeasonalPeriod[]>(
+  const [_seasonalPeriods, setSeasonalPeriods] = useState<SeasonalPeriod[]>(
     initialSeasonalPeriods || []
   )
   const [isSeasonDialogOpen, setIsSeasonDialogOpen] = useState(false)
@@ -189,8 +181,8 @@ export function SiteTypeRateSettings({
 
   // Track if form is dirty
   const [isDirty, setIsDirty] = useState(false)
-  const [focusedRateField, setFocusedRateField] = useState<'nightly' | 'weekly' | 'monthly' | null>(null)
-  const [rateInputValue, setRateInputValue] = useState<string>('')
+  const [_focusedRateField, _setFocusedRateField] = useState<'nightly' | 'weekly' | 'monthly' | null>(null)
+  const [_rateInputValue, _setRateInputValue] = useState<string>('')
 
   const [siteTypeRates, setSiteTypeRates] = useState<
     Record<string, { nightly: SiteTypeRateConfig; weekly: SiteTypeRateConfig; monthly: SiteTypeRateConfig }>
@@ -279,7 +271,7 @@ export function SiteTypeRateSettings({
     return !allowedSiteTypes.some((t) => t.trim().toLowerCase() === normalized)
   })
 
-  const toggleReservationType = (type: ConfigurableReservationType) => {
+  const _toggleReservationType = (type: ConfigurableReservationType) => {
     const isEnabled = enabledTypes.includes(type)
     if (isEnabled) {
       setEnabledTypes(enabledTypes.filter((t) => t !== type))
@@ -298,7 +290,7 @@ export function SiteTypeRateSettings({
     setIsDirty(true)
   }
 
-  const updateTypeConfig = (
+  const _updateTypeConfig = (
     type: 'nightly' | 'weekly' | 'monthly',
     field: 'min_nights' | 'max_nights' | 'rate_cents',
     value: number | null
@@ -520,7 +512,7 @@ export function SiteTypeRateSettings({
     }
   }
 
-  const handleDeleteSeasonalPeriod = async (periodId: string) => {
+  const _handleDeleteSeasonalPeriod = async (periodId: string) => {
     if (!confirm('Are you sure you want to delete this seasonal period?')) return
 
     try {
@@ -545,11 +537,11 @@ export function SiteTypeRateSettings({
     }
   }
 
-  const formatMonthDay = (month: number, day: number) => {
+  const _formatMonthDay = (month: number, day: number) => {
     return `${MONTHS.find((m) => m.value === month)?.label.slice(0, 3)} ${day}`
   }
 
-  const formatCentsToDollars = (cents: number) => {
+  const _formatCentsToDollars = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`
   }
 

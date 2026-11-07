@@ -30,7 +30,7 @@ export interface SitesSetupStepHandle {
 type ViewMode = "list" | "create" | "edit"
 
 const SitesSetupStepComponent = (
-  { property, onComplete, onSkip: _onSkip, onSiteConfirmed }: SitesSetupStepProps,
+  { property, onComplete: _onComplete, onSkip: _onSkip, onSiteConfirmed }: SitesSetupStepProps,
   ref: React.Ref<SitesSetupStepHandle>
 ) => {
   const [mode, setMode] = useState<ViewMode>("list")

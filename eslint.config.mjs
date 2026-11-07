@@ -70,13 +70,18 @@ export default [
     },
   },
 
-  // Legacy code - allow local types imports (scheduled for deletion)
+  // Modules that keep their domain types alongside the code rather than in
+  // src/contracts. Note the restriction only matches relative specifiers, so
+  // these same types are already imported freely elsewhere as
+  // '@/lib/<module>/types'; the exemption makes that consistent instead of
+  // leaving it to which import style a file happens to use.
   {
     files: [
       'src/lib/booking/**',
       'src/lib/config/**',
       'src/lib/middleware/**',
       'src/lib/api/**',
+      'src/lib/automations/**',
     ],
     rules: {
       'no-restricted-imports': 'off',
@@ -109,18 +114,27 @@ export default [
     files: ['src/app/**/*.ts', 'src/app/**/*.tsx', 'src/components/**/*.ts', 'src/components/**/*.tsx'],
     ignores: ['src/app/api/**', 'src/app/**/actions/**', '**/*.test.ts', '**/*.test.tsx'],
     rules: {
-      'no-restricted-imports': [
+      // The typescript-eslint variant is used here so `allowTypeImports` is
+      // available. The goal is to keep SDK *code* out of the client bundle;
+      // a type-only import is erased at compile time and ships nothing, so
+      // annotating against SupabaseClient/User/Stripe stays allowed while any
+      // value import is still an error. The base rule is disabled to avoid
+      // both rules reporting the same import.
+      'no-restricted-imports': 'off',
+      '@typescript-eslint/no-restricted-imports': [
         'error',
         {
           patterns: [
             {
               group: ['@supabase/*'],
+              allowTypeImports: true,
               message:
                 '⛔ Do not import Supabase directly in UI components. Use server actions (app/*/actions/*.ts) or API routes (app/api/*) instead.',
             },
             {
               group: ['stripe', '@stripe/stripe-js'],
               importNames: ['Stripe'],
+              allowTypeImports: true,
               message:
                 '⛔ Do not import Stripe SDK in UI components. Only @stripe/react-stripe-js is allowed for UI. Use server actions or API routes for Stripe API calls.',
             },
@@ -142,6 +156,7 @@ export default [
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
       'no-restricted-imports': 'off',
+      '@typescript-eslint/no-restricted-imports': 'off',
     },
   },
 ]

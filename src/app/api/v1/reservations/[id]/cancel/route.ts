@@ -6,7 +6,7 @@
  * POST /api/v1/reservations/[id]/cancel - Cancel reservation with refund
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { success, error } from '@/lib/api/response'
 import { ErrorCodes } from '@/lib/api/errors'
@@ -393,12 +393,12 @@ export async function POST(
 
     if (!rowError && reservationRow?.guest && reservationRow?.property && reservationRow?.site) {
       const guest = reservationRow.guest as { first_name: string; last_name: string; email: string }
-      const propertyRow = reservationRow.property as { name: string }
+      const _propertyRow = reservationRow.property as { name: string }
       const siteRow = reservationRow.site as { site_name: string; site_number: string }
-      const guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
-      const siteName = siteRow?.site_name ?? (siteRow?.site_number != null ? `Site ${siteRow.site_number}` : 'Site')
+      const _guestName = `${guest.first_name ?? ''} ${guest.last_name ?? ''}`.trim() || 'Guest'
+      const _siteName = siteRow?.site_name ?? (siteRow?.site_number != null ? `Site ${siteRow.site_number}` : 'Site')
 
-      const refundStatus: 'processing' | 'completed' | 'none' =
+      const _refundStatus: 'processing' | 'completed' | 'none' =
         refundAmountCents === 0 
           ? 'none' 
           : refundAmountCents >= paidCents

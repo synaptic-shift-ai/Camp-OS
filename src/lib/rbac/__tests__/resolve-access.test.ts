@@ -210,7 +210,7 @@ describe('resolveUserPropertyAccess', () => {
     // The chain itself must resolve to { data: [...] }.
     const catChain = createMockChain()
     // Make the chain (thenable) resolve directly to the data
-    const catPromise = Promise.resolve({
+    const _catPromise = Promise.resolve({
       data: [{ name: 'housekeeping' }, { name: 'maintenance' }],
       error: null,
     })

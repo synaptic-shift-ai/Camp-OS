@@ -49,7 +49,7 @@ function StatusDisplay({ status }: { status: HousekeepingTaskRow["status"] }) {
   return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Pending</span>
 }
 
-function PriorityDisplay({ priority }: { priority: HousekeepingTaskRow["priority"] }) {
+function _PriorityDisplay({ priority }: { priority: HousekeepingTaskRow["priority"] }) {
   if (priority === "High") {
     return (
       <Badge

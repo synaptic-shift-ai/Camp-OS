@@ -273,9 +273,10 @@ describe('PaymentPlan', () => {
       const secondDue = plan.calculateDueDate(2)
       expect(secondDue.toISOString().substring(0, 10)).toBe('2025-03-03')
 
-      // Third installment: Apr 1 (60 days from start)
+      // Third installment: 60 days from Feb 1. February has 28 days in 2025,
+      // so this lands on Apr 2, not Apr 1.
       const thirdDue = plan.calculateDueDate(3)
-      expect(thirdDue.toISOString().substring(0, 10)).toBe('2025-04-01')
+      expect(thirdDue.toISOString().substring(0, 10)).toBe('2025-04-02')
     })
   })
 

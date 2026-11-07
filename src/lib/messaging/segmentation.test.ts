@@ -140,7 +140,7 @@ describe('getGuestsBySegment', () => {
     const supabase = buildMockSupabase()
     supabase.from.mockReturnValue(query)
 
-    const result = await getGuestsBySegment(
+    const _result = await getGuestsBySegment(
       supabase as never,
       propertyId,
       'all_guests',
@@ -157,7 +157,7 @@ describe('getGuestsBySegment', () => {
     const supabase = buildMockSupabase()
     supabase.from.mockReturnValue(query)
 
-    const result = await getGuestsBySegment(
+    const _result = await getGuestsBySegment(
       supabase as never,
       propertyId,
       'specific_guest',
@@ -186,7 +186,7 @@ describe('getGuestsBySegment', () => {
     const supabase = buildMockSupabase()
     supabase.from.mockReturnValue(query)
 
-    const result = await getGuestsBySegment(
+    const _result = await getGuestsBySegment(
       supabase as never,
       propertyId,
       'bookings_this_month',

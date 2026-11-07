@@ -63,7 +63,7 @@ export const ErrorCodes = {
   },
   AUTH_006: {
     code: 'AUTH_006',
-    message: 'You do not have permission to edit property settings.',
+    message: 'You do not have permission to edit property settings',
     status: 403,
   },
 

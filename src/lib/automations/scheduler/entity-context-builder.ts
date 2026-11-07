@@ -31,7 +31,7 @@ interface BuildContextParams {
  * Always includes: event.type, event.timestamp, propertyId, companyId
  */
 export async function buildEntityContext(params: BuildContextParams): Promise<EventContext> {
-  const { target, config, propertyId, companyId, supabase } = params
+  const { target, config: _config, propertyId, companyId, supabase } = params
 
   const context: EventContext = {
     event: {

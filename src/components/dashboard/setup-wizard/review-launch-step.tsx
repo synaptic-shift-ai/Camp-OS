@@ -89,7 +89,7 @@ function getSiteTypeCounts(sites: Site[]): Array<{ type: string; count: number }
     .sort((a, b) => a.type.localeCompare(b.type))
 }
 
-export function ReviewLaunchStep({ property: _property, onComplete, onBack, onReadyChange, onFixNow }: ReviewLaunchStepProps) {
+export function ReviewLaunchStep({ property: _property, onComplete: _onComplete, onBack: _onBack, onReadyChange, onFixNow }: ReviewLaunchStepProps) {
   const [completionData, setCompletionData] = useState<CompletionData | null>(null)
   const [loading, setLoading] = useState(true)
 

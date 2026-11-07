@@ -1,4 +1,6 @@
 import type { ActionType, EventContext } from './types'
+import type { BrandingConfig } from '@/lib/communications/branding-applier'
+import type { CommunicationLogRow } from '@/lib/communications/delivery-logger'
 
 export interface ActionHandler {
   execute(actionConfig: Record<string, unknown>, context: EventContext): Promise<void>
@@ -231,7 +233,7 @@ export function createActionRegistry(): ActionHandlerMap {
         }
 
         // ── Fetch branding (non-blocking) ────────────────────────────────────
-        let branding: import('@/lib/communications/branding-applier').BrandingConfig | null = null
+        let branding: BrandingConfig | null = null
         if (propertyId) {
           try {
             const { getPropertyBranding } = await import('@/lib/communications/branding-applier')
@@ -319,7 +321,7 @@ export function createActionRegistry(): ActionHandlerMap {
         }
 
         // ── Log delivery (non-blocking) ──────────────────────────────────────
-        let deliveryLog: import('@/lib/communications/delivery-logger').CommunicationLogRow | null = null
+        let deliveryLog: CommunicationLogRow | null = null
         try {
           const { logDelivery } = await import('@/lib/communications/delivery-logger')
           deliveryLog = await logDelivery({

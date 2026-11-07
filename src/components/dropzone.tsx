@@ -495,7 +495,7 @@ type DropzoneUploadedContentProps = {
 
 const DropzoneUploadedContent = ({
   className,
-  layout = 'grid',
+  layout: _layout = 'grid',
   propertyId,
   bucketName = 'property-images',
   storagePath,

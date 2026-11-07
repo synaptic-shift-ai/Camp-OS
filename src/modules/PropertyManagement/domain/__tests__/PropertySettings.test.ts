@@ -170,6 +170,9 @@ describe('PropertySettings', () => {
         openPeriodFrom: null,
         openPeriodUntil: null,
         housekeepingRequireApproval: null,
+        // Added with the refund policy settings work (CC05-01-13); create()
+        // leaves it null when the caller omits it.
+        defaultRefundHandling: null,
       })
     })
   })

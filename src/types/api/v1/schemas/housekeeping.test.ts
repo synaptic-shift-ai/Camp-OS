@@ -67,7 +67,7 @@ describe('ListHousekeepingTasksQuerySchema', () => {
   })
 
   it('drops blank search and accepts assigneeId unassigned with siteId, status, and priority', () => {
-    const siteId = 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee'
+    const siteId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
     const result = ListHousekeepingTasksQuerySchema.safeParse({
       search: '   ',
       siteId,

@@ -55,6 +55,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
+import type { Resolver } from 'react-hook-form'
 
 type ExistingGuestMatch = {
   id: string
@@ -276,7 +277,12 @@ export default function NewReservationPage() {
   }
 
   const methods = useForm<ManualBookingFormData>({
-    resolver: zodResolver(manualBookingSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(manualBookingSchema) as unknown as Resolver<ManualBookingFormData>,
     defaultValues: {
       checkInDate: '',
       checkOutDate: '',

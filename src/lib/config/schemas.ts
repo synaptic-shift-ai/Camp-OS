@@ -401,7 +401,7 @@ export const userDefinedDiscountSchema = userDefinedDiscountBaseSchema
 
 const depositConfigBaseSchema = z.object({
   require_deposit: z.boolean({
-    required_error: 'Deposit requirement must be specified',
+    error: 'Deposit requirement must be specified',
   }),
 
   deposit_type: depositTypeSchema.default('percentage'),
@@ -603,9 +603,21 @@ const bookingRulesConfigBaseSchema = z.object({
     .default(1),
 })
 
+/** Fields this refinement reads. */
+type StayBounds = {
+  min_stay_nights: number
+  max_stay_nights: number | null | undefined
+}
+
+// zod 4 types refine's callback as (arg: output<T>), so the previous narrow
+// parameter annotation no longer fits a generic schema. Constraining T to
+// z.ZodType<StayBounds> does not work either: that form pins the schema's
+// *input* to unknown, which an object schema does not satisfy. Narrowing inside
+// the callback keeps the helper generic and confines the assertion to one spot.
 const bookingRulesStayRefine = <T extends z.ZodTypeAny>(schema: T) =>
   schema.refine(
-    (data: { min_stay_nights: number; max_stay_nights: number | null | undefined }) => {
+    (value) => {
+      const data = value as StayBounds
       if (data.max_stay_nights !== null && data.max_stay_nights !== undefined) {
         return data.max_stay_nights >= data.min_stay_nights
       }

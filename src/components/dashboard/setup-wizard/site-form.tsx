@@ -20,6 +20,7 @@ import { Dropzone, DropzoneEmptyState, DropzoneContent } from "@/components/drop
 import { useSupabaseUpload } from "@/hooks/use-supabase-upload"
 import { createClient } from "@/lib/supabase/client"
 import { useWizardFormStore } from "./wizard-form-store"
+import type { Resolver } from 'react-hook-form'
 
 export interface PropertyDefaults {
   enabled_reservation_types?: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
@@ -166,7 +167,12 @@ export function SiteForm({ propertyId, site, propertyDefaults, siteTypeConfig, o
     trigger,
     reset,
   } = useForm<SiteFormData>({
-    resolver: zodResolver(siteFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(siteFormSchema) as unknown as Resolver<SiteFormData>,
     mode: 'onChange',
     shouldUnregister: false,
     defaultValues: defaultFormValues || {

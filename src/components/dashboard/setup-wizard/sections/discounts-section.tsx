@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, Pencil, Trash2, GripVertical } from "lucide-react"
 import type { RateDiscountsConfig, UserDefinedDiscount, UserDefinedDiscountType, DiscountTriggerType } from "@/lib/config/types"
 import { useWizardFormStore } from "../wizard-form-store"
+import type { Resolver } from 'react-hook-form'
 
 const nanToUndefined = (val: unknown) => (typeof val === "number" && isNaN(val) ? undefined : val)
 
@@ -45,12 +46,12 @@ const discountFormSchema = z.object({
   max_discount_dollars: z.preprocess(nanToUndefined, z.number().min(0).optional()),
 }).superRefine((data, ctx) => {
   const isPct = data.discount_type === "percentage_of_subtotal" || data.discount_type === "percentage_of_total"
-  if (isPct && data.value_percentage == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Percentage is required", path: ["value_percentage"] })
-  if (!isPct && data.value_dollars == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount is required", path: ["value_dollars"] })
-  if (data.trigger_type === "min_nights" && data.min_nights == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Minimum nights is required", path: ["min_nights"] })
-  if (data.trigger_type === "min_guests" && data.min_guests == null) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Minimum guests is required", path: ["min_guests"] })
-  if (data.trigger_type === "date_range" && !data.start_date) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Start date is required", path: ["start_date"] })
-  if (data.trigger_type === "date_range" && !data.end_date) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "End date is required", path: ["end_date"] })
+  if (isPct && data.value_percentage == null) ctx.addIssue({ code: 'custom', message: "Percentage is required", path: ["value_percentage"] })
+  if (!isPct && data.value_dollars == null) ctx.addIssue({ code: 'custom', message: "Amount is required", path: ["value_dollars"] })
+  if (data.trigger_type === "min_nights" && data.min_nights == null) ctx.addIssue({ code: 'custom', message: "Minimum nights is required", path: ["min_nights"] })
+  if (data.trigger_type === "min_guests" && data.min_guests == null) ctx.addIssue({ code: 'custom', message: "Minimum guests is required", path: ["min_guests"] })
+  if (data.trigger_type === "date_range" && !data.start_date) ctx.addIssue({ code: 'custom', message: "Start date is required", path: ["start_date"] })
+  if (data.trigger_type === "date_range" && !data.end_date) ctx.addIssue({ code: 'custom', message: "End date is required", path: ["end_date"] })
 })
 
 type DiscountFormInput = z.infer<typeof discountFormSchema>
@@ -71,7 +72,12 @@ export function DiscountsSection({ propertyId, initialConfig }: Props) {
   const [editingDiscount, setEditingDiscount] = useState<UserDefinedDiscount | null>(null)
 
   const form = useForm<DiscountFormInput>({
-    resolver: zodResolver(discountFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(discountFormSchema) as unknown as Resolver<DiscountFormInput>,
     defaultValues: { title: "", description: "", discount_type: "percentage_of_subtotal", trigger_type: "manual" },
   })
 

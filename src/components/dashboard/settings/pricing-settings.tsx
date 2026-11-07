@@ -30,6 +30,7 @@ import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { Loader2, Info } from 'lucide-react'
 import { pricingConfigFormSchema, type PricingConfigFormInput } from '@/lib/config/schemas'
 import type { PricingConfig } from '@/lib/config/types'
+import type { Resolver } from 'react-hook-form'
 
 interface PricingSettingsProps {
   initialConfig?: PricingConfig
@@ -56,7 +57,12 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
     trigger,
     formState: { errors, isDirty },
   } = useForm<PricingConfigFormInput>({
-    resolver: zodResolver(pricingConfigFormSchema),
+    // resolvers v5+ types zodResolver as Resolver<input, ctx, output>, and these
+    // schemas' input differs from their output (z.preprocess, .default). The form
+    // body below is written against the output shape, which is what the resolver
+    // hands back at runtime, so this assertion restores the typing this code was
+    // written against without altering any runtime behaviour.
+    resolver: zodResolver(pricingConfigFormSchema) as unknown as Resolver<PricingConfigFormInput>,
     defaultValues: initialConfig
       ? {
           tax_rate_percentage: initialConfig.tax_rate * 100,

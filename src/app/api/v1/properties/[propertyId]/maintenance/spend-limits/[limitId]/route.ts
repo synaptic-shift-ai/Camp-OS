@@ -34,7 +34,7 @@ export async function PATCH(
     const parsed = UpdateSpendLimitRequestSchema.safeParse(body)
 
     if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(', ')
+      const message = parsed.error.issues.map((e) => e.message).join(', ')
       return error(ErrorCodes.VALIDATION_ERROR, request, { message })
     }
 

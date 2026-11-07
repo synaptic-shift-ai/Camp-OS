@@ -47,7 +47,7 @@ export const CreateMaintenanceTaskRequestSchema = z.object({
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return
     if (endMs < startMs) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: 'dueDate must be the same as or after scheduledStart',
             path: ['dueDate'],
         })
@@ -91,7 +91,7 @@ export const UpdateMaintenanceTaskRequestSchema = z.object({
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return
     if (endMs < startMs) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: 'dueDate must be the same as or after scheduledStart',
             path: ['dueDate'],
         })

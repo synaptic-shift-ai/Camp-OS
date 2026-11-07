@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     if (!filtersResult.success) {
       return NextResponse.json(
         error(ErrorCodes.VALIDATION_ERROR, 'Invalid query parameters', {
-          errors: filtersResult.error.errors,
+          errors: filtersResult.error.issues,
         }),
         { status: 400 }
       )

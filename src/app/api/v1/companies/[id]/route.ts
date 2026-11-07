@@ -177,7 +177,7 @@ export async function PATCH(
     if (!validated.success) {
       return NextResponse.json(
         error(ErrorCodes.VALIDATION_ERROR, 'Invalid request body', {
-          errors: validated.error.errors,
+          errors: validated.error.issues,
         }),
         { status: 400 }
       )

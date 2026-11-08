@@ -19,7 +19,8 @@ import { DollarSign, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
 
-import { shouldApplyFee, type FeeApplicationContext } from '@/lib/config/fee-rules'
+import { shouldApplyFee, computeFeeAmount, type FeeApplicationContext } from '@/lib/config/fee-rules'
+import { computeDiscountAmount } from '@/lib/config/discount-rules'
 export type PricingSummaryPaymentOption = 'deposit' | 'full'
 
 interface AvailableSite {
@@ -257,27 +258,18 @@ function PricingSummaryContent({
     for (const fee of userDefinedFees) {
       if (!shouldApplyFee(fee, feeContext)) continue
 
-      let feeAmount = 0
-      switch (fee.fee_type) {
-        case 'flat_amount':
-          feeAmount = (fee.value_cents ?? 0) / 100
-          break
-        case 'percentage_of_subtotal':
-          feeAmount = subtotal * (fee.value_percentage ?? 0) / 100
-          break
-        case 'percentage_of_total':
-          feeAmount = subtotal * (fee.value_percentage ?? 0) / 100
-          break
-        case 'per_night':
-          feeAmount = ((fee.value_cents ?? 0) / 100) * numNights
-          break
-        case 'per_guest':
-          feeAmount = ((fee.value_cents ?? 0) / 100) * totalGuests
-          break
-        case 'per_guest_per_night':
-          feeAmount = ((fee.value_cents ?? 0) / 100) * totalGuests * numNights
-          break
-      }
+      // Shared with the server engines (lib/config/fee-rules). This component
+      // works in dollars, so convert at the boundary.
+      const feesSoFarCents = Math.round(
+        calculatedFees.reduce((sum, f) => sum + f.amount, 0) * 100,
+      )
+      const feeAmount =
+        computeFeeAmount(fee, {
+          subtotalCents: Math.round(subtotal * 100),
+          totalNights: numNights,
+          totalGuests,
+          percentageBaseCents: Math.round(subtotal * 100) + feesSoFarCents,
+        }) / 100
 
       if (feeAmount > 0) {
         calculatedFees.push({
@@ -388,22 +380,18 @@ function PricingSummaryContent({
 
       if (!shouldApply) continue
 
-      let discountAmount = 0
-      switch (discount.discount_type) {
-        case 'flat_amount':
-          discountAmount = (discount.value_cents ?? 0) / 100
-          break
-        case 'percentage_of_subtotal':
-          discountAmount = subtotal * (discount.value_percentage ?? 0) / 100
-          break
-        case 'percentage_of_total':
-          discountAmount = subtotal * (discount.value_percentage ?? 0) / 100
-          break
-      }
-
-      if (discount.max_discount_cents && discountAmount > discount.max_discount_cents / 100) {
-        discountAmount = discount.max_discount_cents / 100
-      }
+      // Shared with the server engines (lib/config/discount-rules), which also
+      // applies the cap. percentage_of_total is charged against the
+      // fee-inclusive base rather than the bare subtotal (S-0.7).
+      const feesTotalCents = Math.round(
+        calculatedFees.reduce((sum, f) => sum + f.amount, 0) * 100,
+      )
+      const subtotalCentsForDiscount = Math.round(subtotal * 100)
+      const discountAmount =
+        computeDiscountAmount(discount, {
+          subtotalCents: subtotalCentsForDiscount,
+          totalBaseCents: subtotalCentsForDiscount + feesTotalCents,
+        }) / 100
 
       if (discountAmount > 0) {
         calculatedDiscounts.push({

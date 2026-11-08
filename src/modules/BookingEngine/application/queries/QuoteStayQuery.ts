@@ -31,6 +31,7 @@ import type {
 import { shouldApplyFee, computeFeeAmount } from '@/lib/config/fee-rules'
 import type { FeeApplicationContext } from '@/lib/config/fee-rules'
 import { computeTax } from '@/lib/config/tax-rules'
+import { computeDiscountAmount } from '@/lib/config/discount-rules'
 import { resolveRatePeriods } from '@/lib/config/rate-periods'
 import type { EffectiveRatePeriods } from '@/lib/config/rate-periods'
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
@@ -229,8 +230,8 @@ function resolveEffectiveRates(
 /**
  * Discounts that apply automatically to a guest booking.
  *
- * `manual` discounts are excluded: a guest cannot select one. `percentage_of_total`
- * is charged against a fee-inclusive base, unlike `percentage_of_subtotal`.
+ * `manual` discounts are excluded: a guest cannot select one. Amounts come from
+ * lib/config/discount-rules, shared with the staff pricing paths.
  */
 function resolveAutoDiscounts(
   property: QuoteProperty | null,
@@ -271,23 +272,10 @@ function resolveAutoDiscounts(
     }
     if (!shouldApply) continue
 
-    let amount = 0
-    if (
-      discount.discount_type === 'percentage_of_subtotal' ||
-      discount.discount_type === 'percentage_of_total'
-    ) {
-      const pct = (discount.value_percentage ?? 0) / 100
-      const base =
-        discount.discount_type === 'percentage_of_total'
-          ? args.feeInclusiveBaseCents
-          : args.subtotalCents
-      amount = Math.round(base * pct)
-      if ((discount.max_discount_cents ?? 0) > 0) {
-        amount = Math.min(amount, discount.max_discount_cents as number)
-      }
-    } else if (discount.discount_type === 'flat_amount') {
-      amount = discount.value_cents ?? 0
-    }
+    const amount = computeDiscountAmount(discount, {
+      subtotalCents: args.subtotalCents,
+      totalBaseCents: args.feeInclusiveBaseCents,
+    })
 
     if (amount > 0) {
       applied.push({

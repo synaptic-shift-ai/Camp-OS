@@ -35,9 +35,10 @@ import {
 import { getPricingSourceType } from '@/lib/site-pricing-source'
 import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
-import { shouldApplyFee, type FeeApplicationContext } from '@/lib/config/fee-rules'
+import { shouldApplyFee, computeFeeAmount, type FeeApplicationContext } from '@/lib/config/fee-rules'
 import { computeTax, stayPlusTaxableFeesFromTotal } from '@/lib/config/tax-rules'
 import { resolveRatePeriods, selectRatePeriod } from '@/lib/config/rate-periods'
+import { computeDiscountAmount } from '@/lib/config/discount-rules'
 import type { SiteTypeRateBundle } from '@/lib/config/types'
 // =====================================================
 // Helper Functions
@@ -457,28 +458,15 @@ export async function calculateReservationPriceEnhanced(
       for (const fee of userDefinedFees) {
         if (!shouldApplyFee(fee, feeContext)) continue
 
-        let feeAmount = 0
-
-        switch (fee.fee_type) {
-          case 'flat_amount':
-            feeAmount = fee.value_cents ?? 0
-            break
-          case 'percentage_of_subtotal':
-            feeAmount = Math.round(breakdown.subtotal * (fee.value_percentage ?? 0) / 100)
-            break
-          case 'percentage_of_total':
-            feeAmount = Math.round(breakdown.total * (fee.value_percentage ?? 0) / 100)
-            break
-          case 'per_night':
-            feeAmount = (fee.value_cents ?? 0) * totalNights
-            break
-          case 'per_guest':
-            feeAmount = (fee.value_cents ?? 0) * totalGuests
-            break
-          case 'per_guest_per_night':
-            feeAmount = (fee.value_cents ?? 0) * totalGuests * totalNights
-            break
-        }
+        // Shared with the guest quote and the staff summary
+        // (lib/config/fee-rules). breakdown.total already carries the fees
+        // applied before this one, which is what percentage_of_total means.
+        const feeAmount = computeFeeAmount(fee, {
+          subtotalCents: breakdown.subtotal,
+          totalNights,
+          totalGuests,
+          percentageBaseCents: breakdown.total,
+        })
 
         if (feeAmount > 0) {
           breakdown.user_fees.push({
@@ -596,30 +584,21 @@ export async function calculateReservationPriceEnhanced(
 
       if (!shouldApply) continue
 
-      // For extension: percentage discounts apply only to the additional nights' subtotal
+      // For extension: percentage discounts apply only to the additional nights'
+      // subtotal, and that scoped amount is also the "total" they apply to.
       const discountBaseCents =
         extensionMode && options.extension_additional_subtotal_cents != null
           ? options.extension_additional_subtotal_cents
           : breakdown.subtotal
+      const discountTotalBaseCents =
+        extensionMode && options.extension_additional_subtotal_cents != null
+          ? options.extension_additional_subtotal_cents
+          : breakdown.subtotal + allFeesTotal
 
-      let discountAmount = 0
-
-      switch (discount.discount_type) {
-        case 'flat_amount':
-          discountAmount = discount.value_cents ?? 0
-          break
-        case 'percentage_of_subtotal':
-          discountAmount = Math.round(discountBaseCents * (discount.value_percentage ?? 0) / 100)
-          break
-        case 'percentage_of_total':
-          discountAmount = Math.round(discountBaseCents * (discount.value_percentage ?? 0) / 100)
-          break
-      }
-
-      // Apply max discount cap if set
-      if (discount.max_discount_cents && discountAmount > discount.max_discount_cents) {
-        discountAmount = discount.max_discount_cents
-      }
+      const discountAmount = computeDiscountAmount(discount, {
+        subtotalCents: discountBaseCents,
+        totalBaseCents: discountTotalBaseCents,
+      })
 
       if (discountAmount > 0) {
         breakdown.user_discounts.push({

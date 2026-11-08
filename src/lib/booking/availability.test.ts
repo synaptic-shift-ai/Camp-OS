@@ -1,13 +1,17 @@
 /**
  * Tests for Availability Query Functions
  *
- * ⚠️ SKIPPED: Legacy integration tests requiring real Supabase connection
- * These tests are in lib/booking/ which is scheduled for deletion.
+ * Requires a live Supabase connection: this seeds and tears down real rows
+ * rather than mocking the client, so it is excluded from the default suite.
+ * lib/booking/ is legacy and scheduled for deletion (CLAUDE.md R-1), so this
+ * should be retired with it rather than extended.
  * Contract tests now exist in tests/integration/v1-reservations-api.test.ts
  *
- * To run these tests locally with real DB:
- * 1. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
- * 2. Remove .skip from describe blocks
+ * To run it, against a NON-PRODUCTION project:
+ *
+ *   NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run test:db
+ *
+ * There are no .skip blocks to remove; the gate is vitest.config.db.ts.
  *
  * Following TDD best practices:
  * - Dynamic date generation (no hardcoded dates)

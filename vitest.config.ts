@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { DB_INTEGRATION_TESTS } from './vitest.db-tests'
 
 export default defineConfig({
   plugins: [react()],
@@ -9,17 +10,15 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     css: true,
-    // Exclude E2E tests (run with Playwright) and legacy integration tests (require real DB)
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      'tests/e2e/**',                            // E2E tests run via npm run test:e2e
-      'src/lib/booking/actions.test.ts',         // Legacy - requires real Supabase
-      'src/lib/booking/availability.test.ts',    // Legacy - requires real Supabase
-      'src/lib/booking/availability-check.test.ts', // Legacy - requires real Supabase
-      'src/lib/booking/guest.test.ts',           // Legacy - requires real Supabase
-      'src/lib/booking/pricing.test.ts',         // Legacy - requires real Supabase
-      'src/lib/booking/reservation.test.ts',     // Legacy - requires real Supabase
+      // Run with Playwright: npm run test:e2e
+      'tests/e2e/**',
+      // Need a live Supabase connection, so they cannot run in CI. Not dead:
+      // run them with npm run test:db against a non-production project. The
+      // list lives in vitest.db-tests.ts, shared with vitest.config.db.ts.
+      ...DB_INTEGRATION_TESTS,
     ],
     coverage: {
       provider: 'v8',

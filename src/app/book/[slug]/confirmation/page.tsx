@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { downloadConfirmationPdf } from "@/lib/booking/confirmation-pdf"
 import { useToast } from "@/hooks/use-toast"
-import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
@@ -210,7 +209,7 @@ export default function ConfirmationPage() {
   const taxRate =
     rawPriceBreakdown?.tax_rate ??
     rawPriceBreakdown?.taxRate ??
-    DEFAULT_TAX_RATE
+    0
 
   // Normalize price breakdown so it matches what we show in the booking summary.
   const priceBreakdown =
@@ -231,7 +230,7 @@ export default function ConfirmationPage() {
         basePrice: checkoutData.site.base_price_per_night,
         nights: numberOfNights,
         subtotal: checkoutData.site.base_price_per_night * numberOfNights,
-        serviceFee: Math.round(checkoutData.site.base_price_per_night * numberOfNights * 0.1),
+        serviceFee: 0,
         pet_fee: 0,
         taxRate,
         taxes: 0,
@@ -284,7 +283,7 @@ export default function ConfirmationPage() {
     setIsDownloadingPdf(true)
     try {
       const basePriceCents = priceBreakdown.basePrice
-      const taxRate = priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
+      const taxRate = priceBreakdown.taxRate ?? 0
       const taxLabel =
         priceBreakdown.tax_name ??
         `Taxes (${(taxRate * 100).toFixed(1)}%)`

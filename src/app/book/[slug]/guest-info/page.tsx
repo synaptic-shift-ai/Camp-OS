@@ -27,7 +27,6 @@ import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { ZIP_CODE_MIN_LENGTH, ZIP_CODE_MIN_LENGTH_MESSAGE } from '@/lib/postal-code'
 import { useToast } from "@/hooks/use-toast"
-import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 import {
   type GuestCancellationPolicyApiData,
@@ -554,7 +553,6 @@ export default function GuestInfoPage() {
     number_of_nights: numberOfNights,
     nights: numberOfNights,
     subtotal: defaultSubtotal,
-    serviceFee: Math.round(defaultSubtotal * 0.1),
   }
 
   const priceBreakdown = {
@@ -579,7 +577,7 @@ export default function GuestInfoPage() {
     .reduce((sum, fee) => sum + fee.amount, 0)
   const totalPetFeeCents = legacyPetFeeCents + userPetFeeCents
   const taxesCents = priceBreakdown.taxes ?? 0
-  const taxRate = priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE
+  const taxRate = priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? 0
   const legacyDiscountCents = priceBreakdown.discount_applied?.amount_saved ?? 0
   const totalCents =
     priceBreakdown.total ??

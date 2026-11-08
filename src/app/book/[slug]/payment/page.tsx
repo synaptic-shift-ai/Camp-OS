@@ -18,7 +18,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
-import { DEFAULT_TAX_RATE } from "@/lib/booking/types"
 import { CheckoutTimer } from "@/components/checkout-timer"
 import { BookingPortalHeader } from "@/components/guest/booking-portal-header"
 // import { BookingSummaryFooter } from "@/components/booking/BookingSummaryFooter"
@@ -167,14 +166,14 @@ function PaymentFormInner({ slug, amountDueTodayCents }: { slug: string; amountD
 
   const numberOfNights = differenceInDays(checkoutData.checkOutDate, checkoutData.checkInDate)
   const raw = checkoutData.priceBreakdown
-  const taxRate = raw?.tax_rate ?? raw?.taxRate ?? DEFAULT_TAX_RATE
+  const taxRate = raw?.tax_rate ?? raw?.taxRate ?? 0
   const fallback = {
     basePrice: checkoutData.site?.base_price_per_night ?? 0,
     base_price_per_night: checkoutData.site?.base_price_per_night ?? 0,
     nights: numberOfNights,
     number_of_nights: numberOfNights,
     subtotal: (checkoutData.site?.base_price_per_night ?? 0) * numberOfNights,
-    serviceFee: Math.round((checkoutData.site?.base_price_per_night ?? 0) * numberOfNights * 0.1),
+    serviceFee: 0,
     taxRate,
     taxes: 0,
     total: 0,
@@ -500,14 +499,14 @@ export default function PaymentPage() {
 
   const numberOfNights = differenceInDays(checkoutData.checkOutDate, checkoutData.checkInDate)
   const raw = checkoutData.priceBreakdown
-  const taxRate = raw?.tax_rate ?? raw?.taxRate ?? DEFAULT_TAX_RATE
+  const taxRate = raw?.tax_rate ?? raw?.taxRate ?? 0
   const fallback = {
     basePrice: checkoutData.site?.base_price_per_night ?? 0,
     base_price_per_night: checkoutData.site?.base_price_per_night ?? 0,
     nights: numberOfNights,
     number_of_nights: numberOfNights,
     subtotal: (checkoutData.site?.base_price_per_night ?? 0) * numberOfNights,
-    serviceFee: Math.round((checkoutData.site?.base_price_per_night ?? 0) * numberOfNights * 0.1),
+    serviceFee: 0,
     taxRate,
     taxes: 0,
     total: 0,
@@ -632,7 +631,7 @@ export default function PaymentPage() {
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
               {priceBreakdown.tax_name || "Taxes"} (
-              {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? DEFAULT_TAX_RATE) * 100).toFixed(1)}%)
+              {((priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? 0) * 100).toFixed(1)}%)
             </span>
             <span className="font-medium text-foreground">${((taxesCents ?? 0) / 100).toFixed(2)}</span>
           </div>

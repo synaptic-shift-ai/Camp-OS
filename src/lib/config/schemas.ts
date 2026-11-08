@@ -483,6 +483,10 @@ export const pricingConfigSchema = z.object({
     .max(100, 'Tax name is too long')
     .default('Tax'),
 
+  // Whether discounts reduce the amount tax is charged on. Which fees are
+  // taxed is separate and per-fee (UserDefinedFee.is_taxable).
+  discounts_reduce_taxable_amount: z.boolean().default(true),
+
   // User-defined fees array (new system)
   user_defined_fees: z
     .array(userDefinedFeeSchema)

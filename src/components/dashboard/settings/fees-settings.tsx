@@ -159,6 +159,12 @@ export function FeesSettings({
     initialConfig?.tax_rate ? initialConfig.tax_rate * 100 : 0
   )
   const [savedTaxName, setSavedTaxName] = useState(initialConfig?.tax_name || 'Tax')
+  const [discountsReduceTaxableAmount, setDiscountsReduceTaxableAmount] = useState(
+    initialConfig?.discounts_reduce_taxable_amount ?? true
+  )
+  const [savedDiscountsReduceTaxableAmount, setSavedDiscountsReduceTaxableAmount] = useState(
+    initialConfig?.discounts_reduce_taxable_amount ?? true
+  )
 
   // User-defined fees state
   const [fees, setFees] = useState<UserDefinedFee[]>(initialConfig?.user_defined_fees || [])
@@ -168,9 +174,10 @@ export function FeesSettings({
     return (
       taxRatePercentage !== savedTaxRatePercentage ||
       taxName !== savedTaxName ||
+      discountsReduceTaxableAmount !== savedDiscountsReduceTaxableAmount ||
       JSON.stringify(fees) !== JSON.stringify(savedFees)
     )
-  }, [taxRatePercentage, taxName, fees, savedTaxRatePercentage, savedTaxName, savedFees])
+  }, [taxRatePercentage, taxName, discountsReduceTaxableAmount, fees, savedTaxRatePercentage, savedTaxName, savedDiscountsReduceTaxableAmount, savedFees])
 
   // Form for adding/editing fees
   const feeForm = useForm<FeeFormInput>({
@@ -301,6 +308,7 @@ export function FeesSettings({
       const pricingConfig: PricingConfig = {
         tax_rate: taxRatePercentage / 100,
         tax_name: taxName,
+        discounts_reduce_taxable_amount: discountsReduceTaxableAmount,
         user_defined_fees: fees,
         // Legacy fields - keep undefined to not override
       }
@@ -321,6 +329,7 @@ export function FeesSettings({
 
       setSavedTaxRatePercentage(taxRatePercentage)
       setSavedTaxName(taxName)
+      setSavedDiscountsReduceTaxableAmount(discountsReduceTaxableAmount)
       setSavedFees(fees)
       toast({
         title: 'Additional charges saved',
@@ -433,6 +442,22 @@ export function FeesSettings({
                 Displayed on invoices and receipts
               </p>
             </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-4 border-t pt-4">
+            <div className="space-y-0.5">
+              <Label>Discounts reduce taxable amount</Label>
+              <p className="text-sm text-muted-foreground">
+                When on, tax is calculated after discounts are applied. Turn it off
+                if your jurisdiction taxes the pre-discount amount. Which charges
+                are taxable is set per charge below.
+              </p>
+            </div>
+            <Switch
+              checked={discountsReduceTaxableAmount}
+              disabled={readOnly}
+              onCheckedChange={setDiscountsReduceTaxableAmount}
+            />
           </div>
         </CardContent>
       </Card>

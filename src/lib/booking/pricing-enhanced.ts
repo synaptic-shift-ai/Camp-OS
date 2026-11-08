@@ -36,6 +36,7 @@ import { getPricingSourceType } from '@/lib/site-pricing-source'
 import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
 import { shouldApplyFee, type FeeApplicationContext } from '@/lib/config/fee-rules'
+import { computeTax, stayPlusTaxableFeesFromTotal } from '@/lib/config/tax-rules'
 // =====================================================
 // Helper Functions
 // =====================================================
@@ -411,13 +412,19 @@ export async function calculateReservationPriceEnhanced(
     selectedFeeIds: [],
   }
 
+  // Running totals the tax base is derived from (see the tax section below).
+  // The legacy fee branch leaves these at zero: every legacy fee is taxable,
+  // matching migrate_legacy_fees_to_user_defined, which emits is_taxable true.
+  let allFeesTotal = 0
+  let taxableFeesTotal = 0
+  let userDiscountTotal = 0
+
     // Check if we have user-defined fees (new system)
     const userDefinedFees = pricingConfig.user_defined_fees || []
 
     if (userDefinedFees.length > 0) {
       // Use new user-defined fees system (match Pricing Summary: only apply when trigger conditions are met)
       breakdown.user_fees = []
-      let _taxableFeesTotal = 0
 
       for (const fee of userDefinedFees) {
         if (!shouldApplyFee(fee, feeContext)) continue
@@ -453,9 +460,10 @@ export async function calculateReservationPriceEnhanced(
             is_taxable: fee.is_taxable,
           })
           breakdown.total += feeAmount
+          allFeesTotal += feeAmount
 
           if (fee.is_taxable) {
-            _taxableFeesTotal += feeAmount
+            taxableFeesTotal += feeAmount
           }
         }
       }
@@ -593,6 +601,7 @@ export async function calculateReservationPriceEnhanced(
           trigger_type: discount.trigger_type,
         })
         breakdown.total -= discountAmount
+        userDiscountTotal += discountAmount
       }
     }
   }
@@ -602,8 +611,28 @@ export async function calculateReservationPriceEnhanced(
 
   // ===== ADD TAXES =====
 
-  if (pricingConfig.tax_rate > 0) {
-    const taxes = Math.round(breakdown.total_before_tax * pricingConfig.tax_rate)
+  // total_before_tax is stay + every fee - discounts. Adding the discounts back
+  // and removing the fees the property marked non-taxable leaves stay +
+  // taxable fees, which is what computeTax expects as its subtotal.
+  const stayPlusTaxableFeesCents = stayPlusTaxableFeesFromTotal({
+    totalBeforeTaxCents: breakdown.total_before_tax,
+    allFeesCents: allFeesTotal,
+    taxableFeesCents: taxableFeesTotal,
+    discountCents: userDiscountTotal,
+  })
+
+  const taxes = computeTax(
+    {
+      subtotalCents: stayPlusTaxableFeesCents,
+      discountCents: userDiscountTotal,
+    },
+    {
+      taxRate: pricingConfig.tax_rate,
+      discountsReduceTaxableAmount: pricingConfig.discounts_reduce_taxable_amount ?? true,
+    },
+  )
+
+  if (taxes > 0) {
     breakdown.taxes = taxes
     breakdown.tax_rate = pricingConfig.tax_rate
     if (pricingConfig.tax_name) {

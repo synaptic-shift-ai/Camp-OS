@@ -106,6 +106,9 @@ export function PricingSettings({ initialConfig, propertyId, onSave, canEdit = t
       const pricingConfig: PricingConfig = {
         tax_rate: data.tax_rate_percentage / 100,
         tax_name: data.tax_name,
+        // Owned by the Taxes card in fees-settings; preserved here, not edited.
+        discounts_reduce_taxable_amount:
+          initialConfig?.discounts_reduce_taxable_amount ?? true,
         user_defined_fees: initialConfig?.user_defined_fees ?? [],
         service_fee_type: data.service_fee_type ?? 'none',
         service_fee_percentage: data.service_fee_percentage ?? 0,

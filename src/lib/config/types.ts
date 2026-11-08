@@ -401,6 +401,17 @@ export interface PricingConfig {
   tax_name: string
 
   /**
+   * Whether discounts reduce the amount tax is charged on.
+   *
+   * True taxes the post-discount amount; false taxes the pre-discount amount,
+   * which some jurisdictions require. Which fees are taxed is a separate,
+   * per-fee decision (`UserDefinedFee.is_taxable`).
+   *
+   * @default true
+   */
+  discounts_reduce_taxable_amount: boolean
+
+  /**
    * User-defined fees array
    * Replaces legacy service_fee, cleaning_fee, pet_fee, extra_guest_fee
    */
@@ -1220,6 +1231,7 @@ export const DEFAULT_DEPOSIT_CONFIG: DepositConfig = {
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
   tax_rate: 0.0,
   tax_name: 'Tax',
+  discounts_reduce_taxable_amount: true,
   user_defined_fees: [],
   // Legacy defaults (for backward compatibility)
   service_fee_type: 'none',

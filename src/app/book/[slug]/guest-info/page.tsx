@@ -568,7 +568,6 @@ export default function GuestInfoPage() {
     priceBreakdown.base_price_per_night ??
     (nightsForDisplay > 0 ? Math.round(priceBreakdown.subtotal / nightsForDisplay) : 0)
 
-  const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
   const legacyPetFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
   const userFeeItems = priceBreakdown.user_fees ?? []
   const nonPetUserFeeItems = userFeeItems.filter((fee) => fee.id !== "legacy-pet")
@@ -579,12 +578,9 @@ export default function GuestInfoPage() {
   const taxesCents = priceBreakdown.taxes ?? 0
   const taxRate = priceBreakdown.tax_rate ?? priceBreakdown.taxRate ?? 0
   const legacyDiscountCents = priceBreakdown.discount_applied?.amount_saved ?? 0
-  const totalCents =
-    priceBreakdown.total ??
-    ((priceBreakdown.total_before_tax ??
-      priceBreakdown.subtotal +
-      serviceFeeCents) +
-      taxesCents)
+  // The server breakdown is authoritative (S-0.5). When it is absent the stay
+  // was not priced, so show zero rather than estimate a figure here.
+  const totalCents = priceBreakdown.total ?? 0
 
   const bookingSummaryMain = (
     <>

@@ -252,17 +252,8 @@ export default function ConfirmationPage() {
     rawPriceBreakdown?.base_price_label ??
     `$${formatCurrency(priceBreakdown.basePrice || 0)} × ${priceBreakdown.nights} night${priceBreakdown.nights !== 1 ? "s" : ""}`
 
-  // Only recompute taxes/total when we didn't get a full breakdown from the API.
-  if (!rawPriceBreakdown) {
-    const taxableAmount = priceBreakdown.subtotal - discountCents
-    priceBreakdown.taxes = Math.round(taxableAmount * taxRate)
-    priceBreakdown.total =
-      priceBreakdown.subtotal -
-      discountCents +
-      (priceBreakdown.serviceFee || 0) +
-      (priceBreakdown.taxes || 0) +
-      totalPetFeeCents
-  }
+  // The server breakdown is authoritative (S-0.5). When it is absent the stay
+  // was not priced, so show zero rather than estimate a figure here.
 
   const reservationTotalCents = serverReservationTotalCents ?? priceBreakdown.total
   const depositAmountCents = rawPriceBreakdown?.deposit_amount ?? 0

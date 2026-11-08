@@ -181,13 +181,8 @@ function PaymentFormInner({ slug, amountDueTodayCents }: { slug: string; amountD
   const priceBreakdown = { ...fallback, ...raw }
   const _basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
   const _nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
-  const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
-  const _serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
   const _userFeesCents = priceBreakdown.user_fees?.reduce((sum, fee) => sum + fee.amount, 0) ?? 0
   const _petFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
-  const _taxesCents =
-    priceBreakdown.taxes ??
-    Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
   console.log('[Payment] PaymentFormInner rendering form with PaymentElement (waiting for onReady)')
 
   return (
@@ -515,7 +510,6 @@ export default function PaymentPage() {
   const basePriceCents = priceBreakdown.basePrice ?? priceBreakdown.base_price_per_night ?? 0
   const nightsForDisplay = priceBreakdown.nights ?? priceBreakdown.number_of_nights ?? numberOfNights
   const discountCents = priceBreakdown.user_discounts?.reduce((sum, d) => sum + d.amount, 0) ?? 0
-  const serviceFeeCents = priceBreakdown.serviceFee ?? priceBreakdown.service_fee ?? 0
   const userFeeItems = priceBreakdown.user_fees ?? []
   const nonPetUserFeeItems = userFeeItems.filter((fee) => fee.id !== "legacy-pet")
   const userPetFeeCents = userFeeItems
@@ -524,17 +518,10 @@ export default function PaymentPage() {
   const legacyPetFeeCents = priceBreakdown.pet_fee ?? priceBreakdown.petFee ?? 0
   const totalPetFeeCents = legacyPetFeeCents + userPetFeeCents
   const petCount = checkoutData.numPets || 0
-  const taxesCents =
-    priceBreakdown.taxes ??
-    Math.round((priceBreakdown.subtotal - discountCents) * taxRate)
-  const totalCents =
-    priceBreakdown.total ??
-    priceBreakdown.subtotal -
-    discountCents +
-    serviceFeeCents +
-    nonPetUserFeeItems.reduce((sum, fee) => sum + fee.amount, 0) +
-    taxesCents +
-    totalPetFeeCents
+  const taxesCents = priceBreakdown.taxes ?? 0
+  // The server breakdown is authoritative (S-0.5). When it is absent the stay
+  // was not priced, so show zero rather than estimate a figure here.
+  const totalCents = priceBreakdown.total ?? 0
 
   const depositAmountCents = priceBreakdown.deposit_amount ?? 0
   const depositRequired = priceBreakdown.deposit_required ?? false

@@ -15,7 +15,6 @@
  */
 
 import { calculatePriceBreakdown, getBaseSubtotalAndLabel } from '@/lib/booking/pricing'
-import { DEFAULT_TAX_RATE } from '@/lib/booking/types'
 import type { PriceBreakdown, SiteType } from '@/lib/booking/types'
 import {
   resolveRateDiscountsConfig,
@@ -23,7 +22,15 @@ import {
   resolveReservationTypeRate,
   parseEnabledReservationTypesFromDB,
 } from '@/lib/config/resolution'
-import type { RateDiscountsConfig, SiteTypeConfig, SiteTypeRateBundle } from '@/lib/config/types'
+import type {
+  RateDiscountsConfig,
+  SiteTypeConfig,
+  SiteTypeRateBundle,
+  UserDefinedFee,
+} from '@/lib/config/types'
+import { shouldApplyFee, computeFeeAmount } from '@/lib/config/fee-rules'
+import type { FeeApplicationContext } from '@/lib/config/fee-rules'
+import { computeTax } from '@/lib/config/tax-rules'
 import { resolveRatePeriods } from '@/lib/config/rate-periods'
 import type { EffectiveRatePeriods } from '@/lib/config/rate-periods'
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
@@ -87,29 +94,27 @@ type AppliedDiscount = {
  * Pet fee, preferring a configured `has_pets` flat-amount fee over the legacy
  * scalar. Previously duplicated in the create route and availability results.
  */
-export function resolveGuestPetFeeCents(pricingConfig: unknown): number {
-  const cfg = pricingConfig as {
-    pet_fee_cents?: number
-    user_defined_fees?: Array<{
-      enabled?: boolean
-      trigger_type?: string
-      fee_type?: string
-      value_cents?: number | null
-    }>
-  } | null
-
-  const configuredPetFee = cfg?.user_defined_fees?.find(
-    (fee) =>
-      fee.enabled === true &&
-      fee.trigger_type === 'has_pets' &&
-      fee.fee_type === 'flat_amount' &&
-      typeof fee.value_cents === 'number' &&
-      fee.value_cents >= 0,
+function findConfiguredPetFee(pricingConfig: unknown): UserDefinedFee | null {
+  const fees = (pricingConfig as { user_defined_fees?: UserDefinedFee[] } | null)
+    ?.user_defined_fees
+  return (
+    fees?.find(
+      (fee) =>
+        fee.enabled === true &&
+        fee.trigger_type === 'has_pets' &&
+        fee.fee_type === 'flat_amount' &&
+        typeof fee.value_cents === 'number' &&
+        fee.value_cents >= 0,
+    ) ?? null
   )
+}
+
+export function resolveGuestPetFeeCents(pricingConfig: unknown): number {
+  const configuredPetFee = findConfiguredPetFee(pricingConfig)
   if (configuredPetFee?.value_cents != null) return configuredPetFee.value_cents
-  if (typeof cfg?.pet_fee_cents === 'number' && cfg.pet_fee_cents >= 0) {
-    return cfg.pet_fee_cents
-  }
+
+  const legacy = (pricingConfig as { pet_fee_cents?: number } | null)?.pet_fee_cents
+  if (typeof legacy === 'number' && legacy >= 0) return legacy
   return 0
 }
 
@@ -334,42 +339,93 @@ export function quoteStay(input: QuoteStayInput): QuoteStayResult {
   breakdown.rate_type = rateType
   breakdown.total = subtotalCents + (breakdown.pet_fee ?? 0)
 
-  // NOTE (S-0.6): these two are reported for display but excluded from the
-  // total below, so the portal quotes more than the server charges. They become
-  // the property's configured fees in S-0.6; preserved verbatim here because
-  // this step is an extraction, not a behaviour change.
-  const cleaningFeeCents = site.site_type === 'cabin' ? 5000 : 0
-  const serviceFeeCents = Math.round(subtotalCents * 0.1)
-  breakdown.cleaningFee = cleaningFeeCents
-  breakdown.serviceFee = serviceFeeCents
-
-  const feeInclusiveBaseCents = subtotalCents + cleaningFeeCents + serviceFeeCents
-
   const pricingConfig =
-    (property?.pricing_config as { tax_rate?: number; tax_name?: string } | null) ?? {}
-  // NOTE (S-0.6): the hardcoded fallback goes away once tax is required config.
+    (property?.pricing_config as {
+      tax_rate?: number
+      tax_name?: string
+      discounts_reduce_taxable_amount?: boolean
+      user_defined_fees?: UserDefinedFee[]
+    } | null) ?? {}
+
+  // No configured rate means no tax. There is no default rate to fall back on:
+  // guessing one charges a guest money the property never set (S-0.6).
   const taxRate =
     typeof pricingConfig.tax_rate === 'number' && pricingConfig.tax_rate >= 0
       ? pricingConfig.tax_rate
-      : DEFAULT_TAX_RATE
+      : 0
   breakdown.tax_rate = taxRate
   if (pricingConfig.tax_name) breakdown.tax_name = pricingConfig.tax_name
+
+  // The property's configured fees, replacing the hardcoded cabin cleaning fee
+  // and 10% service fee. Eligibility and amount both come from lib/config/fee-rules,
+  // shared with the staff pricing paths.
+  const totalGuests = input.numAdults + input.numChildren
+  const feeContext: FeeApplicationContext = {
+    totalNights: numberOfNights,
+    totalGuests,
+    numPets: input.numPets,
+    checkInDate: input.checkInDate,
+    siteType: site.site_type,
+    // A guest cannot select a manual fee, so none are auto-applied.
+    selectedFeeIds: [],
+  }
+
+  const appliedFees: NonNullable<PriceBreakdown['user_fees']> = []
+  let feesTotalCents = 0
+  let taxableFeesCents = 0
+
+  // The pet fee has its own breakdown field so the portal can show it beside
+  // the pet count, and calculatePriceBreakdown has already applied it. Skipping
+  // it here keeps it from being charged twice.
+  const petFeeId = findConfiguredPetFee(property?.pricing_config ?? null)?.id ?? null
+
+  for (const fee of pricingConfig.user_defined_fees ?? []) {
+    if (fee.id === petFeeId) continue
+    if (!shouldApplyFee(fee, feeContext)) continue
+    const amount = computeFeeAmount(fee, {
+      subtotalCents,
+      totalNights: numberOfNights,
+      totalGuests,
+      // "percentage of total" means the subtotal plus fees applied before it,
+      // so fees are processed in configured order.
+      percentageBaseCents: subtotalCents + feesTotalCents,
+    })
+    if (amount <= 0) continue
+
+    appliedFees.push({ id: fee.id, title: fee.title, amount, is_taxable: fee.is_taxable })
+    feesTotalCents += amount
+    if (fee.is_taxable) taxableFeesCents += amount
+  }
+  if (appliedFees.length > 0) {
+    breakdown.user_fees = appliedFees
+  }
 
   const discounts = resolveAutoDiscounts(property, {
     checkInDate: input.checkInDate,
     numberOfNights,
-    totalGuests: input.numAdults + input.numChildren,
+    totalGuests,
     subtotalCents,
-    feeInclusiveBaseCents,
+    feeInclusiveBaseCents: subtotalCents + feesTotalCents,
   })
   if (discounts.applied.length > 0) {
     breakdown.user_discounts = discounts.applied
   }
 
-  const taxes = Math.round((subtotalCents - discounts.totalCents) * taxRate)
+  const taxes = computeTax(
+    {
+      subtotalCents,
+      taxableFeesCents,
+      discountCents: discounts.totalCents,
+    },
+    {
+      taxRate,
+      discountsReduceTaxableAmount: pricingConfig.discounts_reduce_taxable_amount ?? true,
+    },
+  )
   breakdown.taxes = taxes
-  breakdown.total_before_tax = subtotalCents - discounts.totalCents
-  breakdown.total = subtotalCents - discounts.totalCents + taxes + (breakdown.pet_fee ?? 0)
+  breakdown.total_before_tax = subtotalCents + feesTotalCents - discounts.totalCents
+  breakdown.total =
+    subtotalCents + feesTotalCents - discounts.totalCents + taxes + (breakdown.pet_fee ?? 0)
 
   const lineItems: QuoteLineItem[] = [
     {
@@ -387,6 +443,15 @@ export function quoteStay(input: QuoteStayInput): QuoteStayResult {
       quantity: 1,
       unitPrice: breakdown.pet_fee as number,
       amount: breakdown.pet_fee as number,
+    })
+  }
+  for (const fee of appliedFees) {
+    lineItems.push({
+      description: fee.title,
+      category: 'fee',
+      quantity: 1,
+      unitPrice: fee.amount,
+      amount: fee.amount,
     })
   }
   for (const discount of discounts.applied) {

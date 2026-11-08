@@ -300,6 +300,11 @@ export default function ConfirmationPage() {
         basePriceLineLabel,
         subtotalCents: priceBreakdown.subtotal,
         serviceFeeCents: priceBreakdown.serviceFee ?? 0,
+        // Configured fees, so the receipt's rows sum to its total (S-0.6).
+        feeLines: nonPetUserFeeItems.map((fee) => ({
+          label: fee.title,
+          amountCents: fee.amount,
+        })),
         ...(petFee > 0 && { petFeeCents: petFee }),
         ...(discountCents > 0 && { discountCents }),
         ...(taxes > 0 && { taxesCents: taxes, taxLabel }),

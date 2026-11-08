@@ -10,7 +10,7 @@
  */
 
 import { describe, test, expect } from 'vitest'
-import { feeAppliesToSiteType, feeTriggerMatches, shouldApplyFee } from './fee-rules'
+import { feeAppliesToSiteType, feeTriggerMatches, shouldApplyFee, computeFeeAmount } from './fee-rules'
 import type { UserDefinedFee } from './types'
 import type { FeeApplicationContext } from './fee-rules'
 
@@ -203,5 +203,93 @@ describe('shouldApplyFee', () => {
         { ...baseContext, totalNights: MIN_NIGHTS_THRESHOLD - 1 },
       ),
     ).toBe(false)
+  })
+})
+
+// ============================================================================
+// Fee amounts
+//
+// S-0.6: the guest booking path hardcoded a $50 cabin cleaning fee and a 10%
+// service fee instead of applying the property's configured fees. The amount
+// switch lives here so the guest quote does not become a third copy of it.
+// ============================================================================
+
+describe('computeFeeAmount', () => {
+  const SUBTOTAL = 300_00
+  const NIGHTS = 3
+  const GUESTS = 4
+  const FLAT_CENTS = 25_00
+  const PCT = 10
+
+  // value_cents must be absent, not undefined, under exactOptionalPropertyTypes.
+  const { value_cents: _unusedCents, ...feeWithoutCents } = baseFee
+
+  const amountContext = {
+    subtotalCents: SUBTOTAL,
+    totalNights: NIGHTS,
+    totalGuests: GUESTS,
+    percentageBaseCents: SUBTOTAL,
+  }
+
+  test('flat_amount charges the configured cents once', () => {
+    expect(
+      computeFeeAmount({ ...baseFee, fee_type: 'flat_amount', value_cents: FLAT_CENTS }, amountContext),
+    ).toBe(FLAT_CENTS)
+  })
+
+  test('per_night multiplies the configured cents by nights', () => {
+    expect(
+      computeFeeAmount({ ...baseFee, fee_type: 'per_night', value_cents: FLAT_CENTS }, amountContext),
+    ).toBe(FLAT_CENTS * NIGHTS)
+  })
+
+  test('per_guest multiplies the configured cents by guests', () => {
+    expect(
+      computeFeeAmount({ ...baseFee, fee_type: 'per_guest', value_cents: FLAT_CENTS }, amountContext),
+    ).toBe(FLAT_CENTS * GUESTS)
+  })
+
+  test('per_guest_per_night multiplies by both', () => {
+    expect(
+      computeFeeAmount(
+        { ...baseFee, fee_type: 'per_guest_per_night', value_cents: FLAT_CENTS },
+        amountContext,
+      ),
+    ).toBe(FLAT_CENTS * GUESTS * NIGHTS)
+  })
+
+  test('percentage_of_subtotal charges a percentage of the stay subtotal', () => {
+    expect(
+      computeFeeAmount(
+        { ...feeWithoutCents, fee_type: 'percentage_of_subtotal', value_percentage: PCT },
+        amountContext,
+      ),
+    ).toBe(Math.round(SUBTOTAL * PCT / 100))
+  })
+
+  test('percentage_of_total charges against the base the caller supplies, not the subtotal', () => {
+    const FEE_INCLUSIVE_BASE = SUBTOTAL + 50_00
+    expect(
+      computeFeeAmount(
+        { ...feeWithoutCents, fee_type: 'percentage_of_total', value_percentage: PCT },
+        { ...amountContext, percentageBaseCents: FEE_INCLUSIVE_BASE },
+      ),
+    ).toBe(Math.round(FEE_INCLUSIVE_BASE * PCT / 100))
+  })
+
+  test('treats a missing value as zero rather than NaN', () => {
+    expect(
+      computeFeeAmount({ ...feeWithoutCents, fee_type: 'flat_amount' }, amountContext),
+    ).toBe(0)
+  })
+
+  test('rounds a fractional percentage to whole cents', () => {
+    // 30000 * 2.5% = 750 exactly; use a rate that does not divide evenly.
+    const odd = computeFeeAmount(
+      { ...feeWithoutCents, fee_type: 'percentage_of_subtotal', value_percentage: 3.33 },
+      amountContext,
+    )
+    expect(odd).toBe(Math.round(SUBTOTAL * 3.33 / 100))
+    expect(Number.isInteger(odd)).toBe(true)
   })
 })

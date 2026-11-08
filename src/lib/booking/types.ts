@@ -580,11 +580,6 @@ export type BookingResult<T> =
 // Constants
 // ============================================================================
 
-/**
- * Default tax rate for bookings (8.5%)
- */
-export const DEFAULT_TAX_RATE = 0.085
-
 // ============================================================================
 // Booking Lifecycle Types (Extensions, Renewals, Modifications)
 // ============================================================================

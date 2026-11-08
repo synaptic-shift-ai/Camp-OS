@@ -21,6 +21,12 @@ export type ConfirmationPdfInput = {
   subtotalCents: number
   cleaningFeeCents?: number
   serviceFeeCents: number
+
+  /**
+   * The property's configured fees, each as its own line. Needed so the
+   * itemised rows sum to the total once fees are charged (S-0.6).
+   */
+  feeLines?: Array<{ label: string; amountCents: number }>
   petFeeCents?: number
   discountCents?: number
   taxesCents?: number
@@ -198,6 +204,13 @@ export function generateConfirmationPdf(input: ConfirmationPdfInput): { doc: jsP
   if ((input.cleaningFeeCents ?? 0) > 0) {
     doc.text("Cleaning fee", COL2_X, yRight)
     doc.text(`$${toDollars(input.cleaningFeeCents!)}`, PAGE_W - MARGIN, yRight, { align: "right" })
+    yRight += lineH
+  }
+
+  for (const fee of input.feeLines ?? []) {
+    if (fee.amountCents <= 0) continue
+    doc.text(fee.label, COL2_X, yRight)
+    doc.text(`$${toDollars(fee.amountCents)}`, PAGE_W - MARGIN, yRight, { align: "right" })
     yRight += lineH
   }
 

@@ -20,9 +20,6 @@ const PET_FEE_CENTS = 15_00
 const TAX_RATE = 0.07
 const CHECK_IN = '2026-06-15'
 
-/** Current fallback when a property has no tax rate configured. Removed in S-0.6. */
-const LEGACY_DEFAULT_TAX_RATE = 0.085
-
 const site = (over: Partial<QuoteStayInput['site']> = {}): QuoteStayInput['site'] => ({
   site_type: 'rv',
   base_price: NIGHTLY_CENTS,
@@ -203,22 +200,171 @@ describe('quoteStay', () => {
     expect(breakdown.rate_type).toBe('weekly')
   })
 
-  // --- Pins of current behaviour that S-0.6 deliberately changes ---
+  // --- S-0.6: hardcoded fees and the tax fallback are gone ---
 
-  test('PINS CURRENT BUG: the cleaning and service fees are reported but excluded from the total', () => {
+  test('charges no fee for a cabin unless the property configured one', () => {
     const { breakdown } = quoteStay(input({ site: site({ site_type: 'cabin' }) }))
-    // Both are populated for display...
-    expect(breakdown.cleaningFee).toBeGreaterThan(0)
-    expect(breakdown.serviceFee).toBeGreaterThan(0)
-    // ...but neither reaches the total. S-0.6 charges configured fees instead.
+    expect(breakdown.user_fees ?? []).toEqual([])
     expect(breakdown.total).toBe(
       (breakdown.subtotal ?? 0) + Math.round((breakdown.subtotal ?? 0) * TAX_RATE),
     )
   })
 
-  test('PINS CURRENT BUG: an unset tax rate falls back to a hardcoded rate', () => {
+  test('charges no tax when the property has no rate configured, rather than assuming one', () => {
     const { breakdown } = quoteStay(input({ property: property({ pricing_config: {} }) }))
-    expect(breakdown.tax_rate).toBe(LEGACY_DEFAULT_TAX_RATE)
+    expect(breakdown.tax_rate).toBe(0)
+    expect(breakdown.taxes).toBe(0)
+    expect(breakdown.total).toBe(breakdown.subtotal)
+  })
+})
+
+describe('quoteStay configured fees (S-0.6)', () => {
+  const CLEANING_CENTS = 50_00
+  const RESORT_FEE_CENTS = 10_00
+
+  const feeProperty = (fees: unknown[]) =>
+    property({ pricing_config: { tax_rate: TAX_RATE, user_defined_fees: fees } })
+
+  const cleaningFee = (over: Record<string, unknown> = {}) => ({
+    id: 'fee-cleaning',
+    title: 'Cleaning Fee',
+    fee_type: 'flat_amount',
+    value_cents: CLEANING_CENTS,
+    is_taxable: true,
+    trigger_type: 'always',
+    display_order: 0,
+    enabled: true,
+    created_at: '2026-01-01T00:00:00Z',
+    ...over,
+  })
+
+  test('applies an always-on configured fee and includes it in the total', () => {
+    const { breakdown } = quoteStay(input({ property: feeProperty([cleaningFee()]) }))
+    const subtotal = NIGHTLY_CENTS * 3
+    const expectedTax = Math.round((subtotal + CLEANING_CENTS) * TAX_RATE)
+    expect(breakdown.user_fees).toEqual([
+      { id: 'fee-cleaning', title: 'Cleaning Fee', amount: CLEANING_CENTS, is_taxable: true },
+    ])
+    expect(breakdown.total).toBe(subtotal + CLEANING_CENTS + expectedTax)
+  })
+
+  test('honours site-type scoping, so a cabin fee does not apply to an RV site', () => {
+    const scoped = cleaningFee({ applies_to_site_types: ['cabin'] })
+    const rvQuote = quoteStay(input({ property: feeProperty([scoped]) }))
+    expect(rvQuote.breakdown.user_fees ?? []).toEqual([])
+
+    const cabinQuote = quoteStay(
+      input({ site: site({ site_type: 'cabin' }), property: feeProperty([scoped]) }),
+    )
+    expect(cabinQuote.breakdown.user_fees).toHaveLength(1)
+  })
+
+  test('excludes a non-taxable fee from the taxable base but still charges it', () => {
+    const nonTaxable = cleaningFee({ is_taxable: false })
+    const { breakdown } = quoteStay(input({ property: feeProperty([nonTaxable]) }))
+    const subtotal = NIGHTLY_CENTS * 3
+    expect(breakdown.taxes).toBe(Math.round(subtotal * TAX_RATE))
+    expect(breakdown.total).toBe(subtotal + CLEANING_CENTS + Math.round(subtotal * TAX_RATE))
+  })
+
+  test('does not apply a manual fee, which a guest cannot select', () => {
+    const { breakdown } = quoteStay(
+      input({ property: feeProperty([cleaningFee({ trigger_type: 'manual' })]) }),
+    )
+    expect(breakdown.user_fees ?? []).toEqual([])
+  })
+
+  test('does not apply a disabled fee', () => {
+    const { breakdown } = quoteStay(
+      input({ property: feeProperty([cleaningFee({ enabled: false })]) }),
+    )
+    expect(breakdown.user_fees ?? []).toEqual([])
+  })
+
+  test('applies a per-night fee once per night', () => {
+    const perNight = cleaningFee({
+      id: 'fee-resort',
+      title: 'Resort Fee',
+      fee_type: 'per_night',
+      value_cents: RESORT_FEE_CENTS,
+    })
+    const { breakdown } = quoteStay(input({ property: feeProperty([perNight]) }))
+    expect(breakdown.user_fees?.[0]?.amount).toBe(RESORT_FEE_CENTS * 3)
+  })
+
+  test('taxes the post-discount subtotal plus taxable fees', () => {
+    const FLAT_DISCOUNT = 20_00
+    const { breakdown } = quoteStay(
+      input({
+        property: property({
+          pricing_config: { tax_rate: TAX_RATE, user_defined_fees: [cleaningFee()] },
+          rate_discounts_config: {
+            user_defined_discounts: [
+              {
+                id: 'd-fee',
+                title: 'Promo',
+                enabled: true,
+                trigger_type: 'min_nights',
+                trigger_conditions: { min_nights: 1 },
+                discount_type: 'flat_amount',
+                value_cents: FLAT_DISCOUNT,
+              },
+            ],
+          },
+        }),
+      }),
+    )
+    const subtotal = NIGHTLY_CENTS * 3
+    expect(breakdown.taxes).toBe(
+      Math.round((subtotal + CLEANING_CENTS - FLAT_DISCOUNT) * TAX_RATE),
+    )
+  })
+
+  test('taxes the pre-discount amount when the property turns that setting off', () => {
+    const FLAT_DISCOUNT = 20_00
+    const { breakdown } = quoteStay(
+      input({
+        property: property({
+          pricing_config: {
+            tax_rate: TAX_RATE,
+            discounts_reduce_taxable_amount: false,
+            user_defined_fees: [],
+          },
+          rate_discounts_config: {
+            user_defined_discounts: [
+              {
+                id: 'd-nored',
+                title: 'Promo',
+                enabled: true,
+                trigger_type: 'min_nights',
+                trigger_conditions: { min_nights: 1 },
+                discount_type: 'flat_amount',
+                value_cents: FLAT_DISCOUNT,
+              },
+            ],
+          },
+        }),
+      }),
+    )
+    expect(breakdown.taxes).toBe(Math.round(NIGHTLY_CENTS * 3 * TAX_RATE))
+  })
+
+  test('emits a fee line item per configured fee', () => {
+    const { lineItems } = quoteStay(input({ property: feeProperty([cleaningFee()]) }))
+    expect(lineItems.filter((l) => l.category === 'fee').map((l) => l.description)).toEqual([
+      'Cleaning Fee',
+    ])
+  })
+
+  test('line items still reconcile to the total with fees applied', () => {
+    const result = quoteStay(
+      input({ numPets: 1, property: feeProperty([cleaningFee()]) }),
+    )
+    const signed = result.lineItems.reduce(
+      (sum, l) => (l.category === 'discount' ? sum - l.amount : sum + l.amount),
+      0,
+    )
+    expect(signed).toBe(result.breakdown.total)
   })
 })
 
@@ -399,5 +545,84 @@ describe('quoteStay rate-period thresholds (S-0.4)', () => {
     )
     expect(breakdown.rate_type).toBe('monthly')
     expect(breakdown.subtotal).toBe(MONTHLY_CENTS)
+  })
+})
+
+describe('quoteStay pet fee is charged once', () => {
+  const PET_CENTS = 15_00
+
+  test('a configured has_pets fee appears as pet_fee and not also as a user fee', () => {
+    const { breakdown } = quoteStay(
+      input({
+        numPets: 1,
+        property: property({
+          pricing_config: {
+            tax_rate: TAX_RATE,
+            user_defined_fees: [
+              {
+                id: 'fee-pet',
+                title: 'Pet Fee',
+                fee_type: 'flat_amount',
+                value_cents: PET_CENTS,
+                is_taxable: true,
+                trigger_type: 'has_pets',
+                display_order: 0,
+                enabled: true,
+                created_at: '2026-01-01T00:00:00Z',
+              },
+            ],
+          },
+        }),
+      }),
+    )
+    expect(breakdown.pet_fee).toBe(PET_CENTS)
+    expect(breakdown.user_fees ?? []).toEqual([])
+    expect(breakdown.total).toBe(
+      NIGHTLY_CENTS * 3 + Math.round(NIGHTLY_CENTS * 3 * TAX_RATE) + PET_CENTS,
+    )
+  })
+
+  test('a pet fee and a separate always-on fee are both charged, once each', () => {
+    const CLEAN_CENTS = 50_00
+    const { breakdown } = quoteStay(
+      input({
+        numPets: 1,
+        property: property({
+          pricing_config: {
+            tax_rate: TAX_RATE,
+            user_defined_fees: [
+              {
+                id: 'fee-pet',
+                title: 'Pet Fee',
+                fee_type: 'flat_amount',
+                value_cents: PET_CENTS,
+                is_taxable: true,
+                trigger_type: 'has_pets',
+                display_order: 0,
+                enabled: true,
+                created_at: '2026-01-01T00:00:00Z',
+              },
+              {
+                id: 'fee-clean',
+                title: 'Cleaning Fee',
+                fee_type: 'flat_amount',
+                value_cents: CLEAN_CENTS,
+                is_taxable: true,
+                trigger_type: 'always',
+                display_order: 1,
+                enabled: true,
+                created_at: '2026-01-01T00:00:00Z',
+              },
+            ],
+          },
+        }),
+      }),
+    )
+    expect(breakdown.pet_fee).toBe(PET_CENTS)
+    expect(breakdown.user_fees?.map((f) => f.id)).toEqual(['fee-clean'])
+    const subtotal = NIGHTLY_CENTS * 3
+    expect(breakdown.total).toBe(
+      subtotal + CLEAN_CENTS + Math.round((subtotal + CLEAN_CENTS) * TAX_RATE) + PET_CENTS,
+    )
   })
 })

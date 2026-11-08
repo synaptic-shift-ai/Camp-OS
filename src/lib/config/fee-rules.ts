@@ -101,3 +101,53 @@ export function shouldApplyFee(fee: UserDefinedFee, context: FeeApplicationConte
   if (!feeAppliesToSiteType(fee, context.siteType)) return false
   return feeTriggerMatches(fee, context)
 }
+
+/** What a fee amount may be computed from, all in integer cents or counts. */
+export type FeeAmountContext = {
+  /** Stay subtotal before fees and discounts. */
+  subtotalCents: number
+
+  /** Nights in the stay. */
+  totalNights: number
+
+  /** Adults plus children. */
+  totalGuests: number
+
+  /**
+   * Base for `percentage_of_total`. The caller decides what "total" means —
+   * typically the subtotal plus fees already applied — so the policy stays at
+   * the call site rather than being assumed here.
+   */
+  percentageBaseCents: number
+}
+
+/**
+ * The amount a fee charges, in cents.
+ *
+ * Eligibility is a separate question; see {@link shouldApplyFee}. A missing
+ * configured value yields zero rather than NaN.
+ */
+export function computeFeeAmount(
+  fee: Pick<UserDefinedFee, 'fee_type' | 'value_cents' | 'value_percentage'>,
+  context: FeeAmountContext,
+): number {
+  const cents = fee.value_cents ?? 0
+  const percentage = (fee.value_percentage ?? 0) / 100
+
+  switch (fee.fee_type) {
+    case 'flat_amount':
+      return cents
+    case 'per_night':
+      return cents * context.totalNights
+    case 'per_guest':
+      return cents * context.totalGuests
+    case 'per_guest_per_night':
+      return cents * context.totalGuests * context.totalNights
+    case 'percentage_of_subtotal':
+      return Math.round(context.subtotalCents * percentage)
+    case 'percentage_of_total':
+      return Math.round(context.percentageBaseCents * percentage)
+    default:
+      return 0
+  }
+}

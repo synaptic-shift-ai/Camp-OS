@@ -1353,6 +1353,109 @@ export type Database = {
           },
         ]
       }
+      guest_tax_exemption_taxes: {
+        Row: {
+          created_at: string
+          exemption_id: string
+          id: string
+          property_id: string
+          property_tax_id: string
+        }
+        Insert: {
+          created_at?: string
+          exemption_id: string
+          id?: string
+          property_id: string
+          property_tax_id: string
+        }
+        Update: {
+          created_at?: string
+          exemption_id?: string
+          id?: string
+          property_id?: string
+          property_tax_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_tax_exemption_taxes_exemption_fk"
+            columns: ["property_id", "exemption_id"]
+            isOneToOne: false
+            referencedRelation: "guest_tax_exemptions"
+            referencedColumns: ["property_id", "id"]
+          },
+          {
+            foreignKeyName: "guest_tax_exemption_taxes_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_tax_exemption_taxes_tax_fk"
+            columns: ["property_id", "property_tax_id"]
+            isOneToOne: false
+            referencedRelation: "property_taxes"
+            referencedColumns: ["property_id", "id"]
+          },
+        ]
+      }
+      guest_tax_exemptions: {
+        Row: {
+          certificate_number: string
+          created_at: string
+          deleted_at: string | null
+          exempts_all: boolean
+          expires_on: string | null
+          guest_id: string
+          id: string
+          issuer: string | null
+          notes: string | null
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_number: string
+          created_at?: string
+          deleted_at?: string | null
+          exempts_all?: boolean
+          expires_on?: string | null
+          guest_id: string
+          id?: string
+          issuer?: string | null
+          notes?: string | null
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_number?: string
+          created_at?: string
+          deleted_at?: string | null
+          exempts_all?: boolean
+          expires_on?: string | null
+          guest_id?: string
+          id?: string
+          issuer?: string | null
+          notes?: string | null
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_tax_exemptions_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_tax_exemptions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_vehicles: {
         Row: {
           color: string | null
@@ -2742,6 +2845,80 @@ export type Database = {
           },
         ]
       }
+      property_taxes: {
+        Row: {
+          amount_cents: number | null
+          authority: string | null
+          basis: string
+          created_at: string
+          deleted_at: string | null
+          discounts_reduce_taxable_amount: boolean
+          effective_from: string | null
+          effective_to: string | null
+          enabled: boolean
+          exemptible: boolean
+          id: string
+          max_nights: number | null
+          min_nights: number | null
+          name: string
+          priority: number
+          property_id: string
+          rate_bp: number | null
+          rate_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          authority?: string | null
+          basis?: string
+          created_at?: string
+          deleted_at?: string | null
+          discounts_reduce_taxable_amount?: boolean
+          effective_from?: string | null
+          effective_to?: string | null
+          enabled?: boolean
+          exemptible?: boolean
+          id?: string
+          max_nights?: number | null
+          min_nights?: number | null
+          name: string
+          priority?: number
+          property_id: string
+          rate_bp?: number | null
+          rate_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          authority?: string | null
+          basis?: string
+          created_at?: string
+          deleted_at?: string | null
+          discounts_reduce_taxable_amount?: boolean
+          effective_from?: string | null
+          effective_to?: string | null
+          enabled?: boolean
+          exemptible?: boolean
+          id?: string
+          max_nights?: number | null
+          min_nights?: number | null
+          name?: string
+          priority?: number
+          property_id?: string
+          rate_bp?: number | null
+          rate_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_taxes_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_vendor: {
         Row: {
           created_at: string
@@ -3592,6 +3769,93 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "task_images_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_applicability: {
+        Row: {
+          created_at: string
+          id: string
+          property_id: string
+          property_tax_id: string
+          tax_category_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          property_id: string
+          property_tax_id: string
+          tax_category_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          property_id?: string
+          property_tax_id?: string
+          tax_category_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_applicability_category_fk"
+            columns: ["property_id", "tax_category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["property_id", "id"]
+          },
+          {
+            foreignKeyName: "tax_applicability_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_applicability_tax_fk"
+            columns: ["property_id", "property_tax_id"]
+            isOneToOne: false
+            referencedRelation: "property_taxes"
+            referencedColumns: ["property_id", "id"]
+          },
+        ]
+      }
+      tax_categories: {
+        Row: {
+          code: string
+          created_at: string
+          deleted_at: string | null
+          display_order: number
+          id: string
+          label: string
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          deleted_at?: string | null
+          display_order?: number
+          id?: string
+          label: string
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          deleted_at?: string | null
+          display_order?: number
+          id?: string
+          label?: string
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_categories_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

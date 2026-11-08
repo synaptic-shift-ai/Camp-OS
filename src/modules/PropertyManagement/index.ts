@@ -3,6 +3,16 @@
 // Domain
 export { Property } from './domain/Property'
 export type { IPropertyRepository } from './domain/IPropertyRepository'
+export { PropertyTax } from './domain/PropertyTax'
+export type {
+  CreatePropertyTaxProps,
+  PropertyTaxRow,
+  UpdatePropertyTaxProps,
+} from './domain/PropertyTax'
+export type {
+  IPropertyTaxRepository,
+  TaxCategoryRecord,
+} from './domain/IPropertyTaxRepository'
 export { OnboardingStatus } from './domain/OnboardingStatus'
 export { PropertySettings } from './domain/PropertySettings'
 export { PropertyStatus, canAcceptBookings, getPropertyStatusLabel } from './domain/PropertyStatus'
@@ -23,3 +33,4 @@ export { toPropertyDTO } from './application/DTOs/PropertyDTO'
 
 // Infrastructure
 export { SupabasePropertyRepository } from './infrastructure/SupabasePropertyRepository'
+export { SupabasePropertyTaxRepository } from './infrastructure/SupabasePropertyTaxRepository'

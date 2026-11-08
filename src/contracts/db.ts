@@ -3905,6 +3905,33 @@ export type Database = {
         Returns: undefined
       }
       teardown_cron_jobs: { Args: never; Returns: undefined }
+      upsert_property_tax: {
+        // D-4: Postgres signatures carry no nullability, so the generator types
+        // every argument as non-null. These seven are genuinely nullable in
+        // public.upsert_property_tax — a percentage tax passes rate_bp and a
+        // null amount_cents, an ungated tax passes null night bounds — so the
+        // generated types are overridden here rather than cast at each call.
+        Args: {
+          p_amount_cents: number | null
+          p_authority: string | null
+          p_basis: string
+          p_category_codes: string[]
+          p_discounts_reduce_taxable_amount: boolean
+          p_effective_from: string | null
+          p_effective_to: string | null
+          p_enabled: boolean
+          p_exemptible: boolean
+          p_id: string
+          p_max_nights: number | null
+          p_min_nights: number | null
+          p_name: string
+          p_priority: number
+          p_property_id: string
+          p_rate_bp: number | null
+          p_rate_type: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

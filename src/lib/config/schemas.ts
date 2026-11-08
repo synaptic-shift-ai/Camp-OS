@@ -769,6 +769,59 @@ export const siteSeasonalTemplateApplicationSchema = z.object({
 })
 
 // =====================================================
+// Site Type Configuration Schemas
+// =====================================================
+
+/**
+ * A single per-site-type rate period.
+ *
+ * `max_nights` null means the period has no upper bound (the monthly case).
+ * The refine keeps a bounded period reachable: max below min would define a
+ * window no stay length can satisfy.
+ */
+const siteTypeRateConfigSchema = z
+  .object({
+    rate_cents: z
+      .number()
+      .int('Rate must be a whole number of cents')
+      .min(0, 'Rate cannot be negative')
+      .nullable(),
+    min_nights: z
+      .number()
+      .int('Minimum nights must be a whole number')
+      .min(1, 'Minimum nights must be at least 1'),
+    max_nights: z
+      .number()
+      .int('Maximum nights must be a whole number')
+      .min(1, 'Maximum nights must be at least 1')
+      .nullable(),
+  })
+  .refine((data) => data.max_nights === null || data.max_nights >= data.min_nights, {
+    message: 'Maximum nights must be greater than or equal to minimum nights',
+    path: ['max_nights'],
+  })
+
+export const siteTypeRateBundleSchema = z.object({
+  nightly: siteTypeRateConfigSchema.optional(),
+  weekly: siteTypeRateConfigSchema.optional(),
+  monthly: siteTypeRateConfigSchema.optional(),
+  seasonal: siteTypeRateConfigSchema.optional(),
+})
+
+/**
+ * Validates `properties.site_type_config`.
+ *
+ * Replaces the `z.unknown()` this column was previously validated with, which
+ * let unvalidated rate periods reach the database. Site-type keys stay open
+ * because `sites.site_type` is a free-text column constrained at the database
+ * level, not an enum in this layer.
+ */
+export const siteTypeConfigSchema = z.object({
+  allowed_site_types: z.array(z.string()).optional(),
+  site_type_rates: z.record(z.string(), siteTypeRateBundleSchema).optional(),
+})
+
+// =====================================================
 // Site Configuration Override Schemas
 // =====================================================
 
@@ -856,8 +909,8 @@ export const updatePropertyConfigSchema = z.object({
   rate_discounts_config: rateDiscountsConfigSchema.optional(),
   reservation_type_config: z.unknown().optional(),
   enabled_reservation_types: z.array(z.string()).optional(),
-  // Site type configuration (allowed types, per-site-type rules, etc.)
-  site_type_config: z.unknown().optional(),
+  // Site type configuration (allowed types, per-site-type rate periods)
+  site_type_config: siteTypeConfigSchema.optional(),
   // Payment processor ids (property column is text[]; arbitrary strings allowed)
   payment_processor: z
     .union([z.string(), z.array(z.string())])

@@ -1,5 +1,6 @@
 "use client"
 
+import type { SiteTypeConfig } from '@/lib/config/types'
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -33,18 +34,9 @@ export interface PropertyDefaults {
   weekend_price?: number | null
 }
 
-export type SiteTypeConfig = {
-  allowed_site_types?: string[]
-  site_type_rates?: Record<
-    string,
-    {
-      nightly?: { rate_cents: number | null;[k: string]: unknown }
-      weekly?: { rate_cents: number | null;[k: string]: unknown }
-      monthly?: { rate_cents: number | null;[k: string]: unknown }
-      seasonal?: { rate_cents: number | null;[k: string]: unknown }
-    }
-  >
-}
+// Canonical definition lives in @/lib/config/types (S-0.1). Re-exported here so
+// existing importers of this module keep working.
+export type { SiteTypeConfig } from '@/lib/config/types'
 
 const SITE_IMAGES_BUCKET = "site-property-images"
 const MAX_SITE_IMAGES = 1

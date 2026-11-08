@@ -4,6 +4,7 @@ import { extractPropertyIdFromSlug } from "@/lib/booking/slug-utils"
 import { PropertyBookingPortal } from "@/components/guest/property-booking-portal"
 import { ReservationExpiredHandler } from "@/components/guest/reservation-expired-handler"
 import type { SiteType } from "@/lib/booking/types"
+import type { SiteTypeRateBundle } from "@/lib/config/types"
 import { getActivePromoDisplay, parseReservationTypesConfigFromDB, resolveBookingRulesConfig, resolveRateDiscountsConfig } from "@/lib/config/resolution"
 import { getPricingSourceType } from "@/lib/site-pricing-source"
 import type { BookingRulesConfig, RateDiscountsConfig, UserDefinedDiscount } from "@/lib/config/types"
@@ -243,12 +244,6 @@ export default async function PropertyBookingPage({
   const reservationTypeConfig = parseReservationTypesConfigFromDB(
     property.reservation_type_config ?? null
   )
-
-  type SiteTypeRateBundle = {
-    nightly?: { rate_cents: number | null }
-    weekly?: { rate_cents: number | null }
-    monthly?: { rate_cents: number | null }
-  }
 
   const siteTypeRatesMap = 
     (property as { site_type_config?: { site_type_rates?: Record<string, SiteTypeRateBundle> } } | null)?.site_type_config?.site_type_rates ?? {}

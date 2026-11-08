@@ -11,6 +11,8 @@ import {
   userDefinedDiscountSchema,
   pricingConfigSchema,
   rateDiscountsConfigSchema,
+  siteTypeConfigSchema,
+  siteTypeRateBundleSchema,
 } from './schemas'
 
 describe('userDefinedFeeSchema', () => {
@@ -404,5 +406,160 @@ describe('rateDiscountsConfigSchema', () => {
     }
     const result = rateDiscountsConfigSchema.safeParse(config)
     expect(result.success).toBe(false)
+  })
+})
+
+// ============================================================================
+// Site Type Configuration
+//
+// S-0.1: `site_type_config` was previously `z.unknown()` in
+// updatePropertyConfigSchema, so per-site-type rate periods reached the
+// database unvalidated. These tests pin the real shape the setup wizard
+// writes (see site-types-rates-section.tsx), including the min_nights /
+// max_nights thresholds that pricing must resolve from configuration.
+// ============================================================================
+
+// Canonical thresholds from DEFAULT_RESERVATION_TYPES_CONFIG (types.ts)
+const NIGHTLY_MIN_NIGHTS = 1
+const NIGHTLY_MAX_NIGHTS = 6
+const WEEKLY_MIN_NIGHTS = 7
+const WEEKLY_MAX_NIGHTS = 27
+const MONTHLY_MIN_NIGHTS = 28
+const MONTHLY_MAX_NIGHTS = null // unlimited
+
+const NIGHTLY_RATE_CENTS = 4500
+const WEEKLY_RATE_CENTS = 27000
+const UNLIMITED_MAX_NIGHTS = null
+
+describe('siteTypeRateBundleSchema', () => {
+  const validBundle = {
+    nightly: {
+      rate_cents: NIGHTLY_RATE_CENTS,
+      min_nights: NIGHTLY_MIN_NIGHTS,
+      max_nights: NIGHTLY_MAX_NIGHTS,
+    },
+    weekly: {
+      rate_cents: WEEKLY_RATE_CENTS,
+      min_nights: WEEKLY_MIN_NIGHTS,
+      max_nights: WEEKLY_MAX_NIGHTS,
+    },
+    monthly: {
+      rate_cents: null,
+      min_nights: MONTHLY_MIN_NIGHTS,
+      max_nights: MONTHLY_MAX_NIGHTS,
+    },
+  }
+
+  test('accepts a bundle carrying rate_cents plus min_nights and max_nights per period', () => {
+    const result = siteTypeRateBundleSchema.safeParse(validBundle)
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts null rate_cents, meaning inherit the site base price', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      nightly: { rate_cents: null, min_nights: NIGHTLY_MIN_NIGHTS, max_nights: NIGHTLY_MAX_NIGHTS },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts null max_nights, meaning the period has no upper bound', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      monthly: { rate_cents: null, min_nights: MONTHLY_MIN_NIGHTS, max_nights: UNLIMITED_MAX_NIGHTS },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts an empty bundle, meaning no per-site-type override for any period', () => {
+    const result = siteTypeRateBundleSchema.safeParse({})
+    expect(result.success).toBe(true)
+  })
+
+  test('rejects a negative rate_cents', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      nightly: { rate_cents: -1, min_nights: NIGHTLY_MIN_NIGHTS, max_nights: NIGHTLY_MAX_NIGHTS },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('rejects a non-integer rate_cents, since money is stored in whole cents', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      nightly: { rate_cents: 4500.5, min_nights: NIGHTLY_MIN_NIGHTS, max_nights: NIGHTLY_MAX_NIGHTS },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('rejects min_nights below 1, since a stay cannot span zero nights', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      nightly: { rate_cents: null, min_nights: 0, max_nights: NIGHTLY_MAX_NIGHTS },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('rejects max_nights below min_nights, which would make the period unreachable', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      weekly: { rate_cents: null, min_nights: WEEKLY_MIN_NIGHTS, max_nights: WEEKLY_MIN_NIGHTS - 1 },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('accepts max_nights equal to min_nights, a single-length period', () => {
+    const result = siteTypeRateBundleSchema.safeParse({
+      weekly: { rate_cents: null, min_nights: WEEKLY_MIN_NIGHTS, max_nights: WEEKLY_MIN_NIGHTS },
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('siteTypeConfigSchema', () => {
+  const CABIN = 'cabin'
+  const RV = 'rv'
+
+  const validConfig = {
+    allowed_site_types: [CABIN, RV],
+    site_type_rates: {
+      [CABIN]: {
+        nightly: {
+          rate_cents: NIGHTLY_RATE_CENTS,
+          min_nights: NIGHTLY_MIN_NIGHTS,
+          max_nights: NIGHTLY_MAX_NIGHTS,
+        },
+      },
+    },
+  }
+
+  test('accepts the shape the setup wizard writes', () => {
+    const result = siteTypeConfigSchema.safeParse(validConfig)
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts an empty object, since both members are optional', () => {
+    const result = siteTypeConfigSchema.safeParse({})
+    expect(result.success).toBe(true)
+  })
+
+  test('accepts an empty allowed_site_types array, which means all types are bookable', () => {
+    const result = siteTypeConfigSchema.safeParse({ allowed_site_types: [] })
+    expect(result.success).toBe(true)
+  })
+
+  test('rejects allowed_site_types containing a non-string', () => {
+    const result = siteTypeConfigSchema.safeParse({ allowed_site_types: [CABIN, 42] })
+    expect(result.success).toBe(false)
+  })
+
+  test('rejects a rate bundle whose thresholds are invalid, so bad config cannot reach the database', () => {
+    const result = siteTypeConfigSchema.safeParse({
+      site_type_rates: {
+        [CABIN]: {
+          weekly: { rate_cents: null, min_nights: WEEKLY_MIN_NIGHTS, max_nights: WEEKLY_MIN_NIGHTS - 1 },
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('parses to the same value it was given for a round-trippable config', () => {
+    const result = siteTypeConfigSchema.safeParse(validConfig)
+    expect(result.success && result.data).toEqual(validConfig)
   })
 })

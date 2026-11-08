@@ -7,21 +7,43 @@ import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Plus } from "lucide-react"
-import type { PropertyReservationTypesConfig, BookingType } from "@/lib/config/types"
+import type { PropertyReservationTypesConfig, BookingType, SiteTypeRateConfig } from "@/lib/config/types"
 import { DEFAULT_RESERVATION_TYPES_CONFIG } from "@/lib/config/types"
 import { useWizardFormStore } from "../wizard-form-store"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 
 const ALL_SITE_TYPES = ["RV", "Tent", "Cabin", "Glamping", "Yurt", "Other"]
 
-type SiteTypeRateConfig = { rate_cents: number | null; min_nights: number; max_nights: number | null }
-type SiteTypeRates = Record<string, { nightly: SiteTypeRateConfig; weekly: SiteTypeRateConfig; monthly: SiteTypeRateConfig }>
+type RatePeriod = "nightly" | "weekly" | "monthly"
+type SiteTypeRates = Record<string, Record<RatePeriod, SiteTypeRateConfig>>
 
-const DEFAULT_RATES = (): { nightly: SiteTypeRateConfig; weekly: SiteTypeRateConfig; monthly: SiteTypeRateConfig } => ({
-  nightly: { rate_cents: null, min_nights: 1, max_nights: 6 },
-  weekly: { rate_cents: null, min_nights: 7, max_nights: 27 },
-  monthly: { rate_cents: null, min_nights: 28, max_nights: null },
+/** Thresholds come from the canonical property defaults, never from literals here. */
+const periodDefault = (period: RatePeriod): SiteTypeRateConfig => {
+  const { min_nights, max_nights } = DEFAULT_RESERVATION_TYPES_CONFIG[period]
+  return { rate_cents: null, min_nights, max_nights }
+}
+
+const DEFAULT_RATES = (): Record<RatePeriod, SiteTypeRateConfig> => ({
+  nightly: periodDefault("nightly"),
+  weekly: periodDefault("weekly"),
+  monthly: periodDefault("monthly"),
 })
+
+/**
+ * Merge a stored period over its default. `max_nights` is checked for presence
+ * rather than coalesced, so a deliberate null (an unbounded period) survives
+ * instead of being replaced by the default bound.
+ */
+const resolvePeriod = (raw: unknown, period: RatePeriod): SiteTypeRateConfig => {
+  const fallback = periodDefault(period)
+  if (!raw || typeof raw !== "object") return fallback
+  const stored = raw as Partial<SiteTypeRateConfig>
+  return {
+    rate_cents: stored.rate_cents ?? null,
+    min_nights: stored.min_nights ?? fallback.min_nights,
+    max_nights: "max_nights" in stored ? (stored.max_nights ?? null) : fallback.max_nights,
+  }
+}
 
 interface Props {
   propertyId: string
@@ -64,11 +86,11 @@ export function SiteTypesRatesSection({
 
   const buildRates = (types: string[]): SiteTypeRates =>
     types.reduce<SiteTypeRates>((acc, st) => {
-      const cfg = (rawRates as Record<string, unknown>)[st] as Record<string, unknown> | undefined ?? {}
+      const cfg = ((rawRates as Record<string, unknown>)[st] ?? {}) as Record<string, unknown>
       acc[st] = {
-        nightly: { rate_cents: (cfg.nightly as any)?.rate_cents ?? null, min_nights: (cfg.nightly as any)?.min_nights ?? 1, max_nights: (cfg.nightly as any)?.max_nights ?? 6 },
-        weekly: { rate_cents: (cfg.weekly as any)?.rate_cents ?? null, min_nights: (cfg.weekly as any)?.min_nights ?? 7, max_nights: (cfg.weekly as any)?.max_nights ?? 27 },
-        monthly: { rate_cents: (cfg.monthly as any)?.rate_cents ?? null, min_nights: (cfg.monthly as any)?.min_nights ?? 28, max_nights: (cfg.monthly as any)?.max_nights ?? null },
+        nightly: resolvePeriod(cfg.nightly, "nightly"),
+        weekly: resolvePeriod(cfg.weekly, "weekly"),
+        monthly: resolvePeriod(cfg.monthly, "monthly"),
       }
       return acc
     }, {})

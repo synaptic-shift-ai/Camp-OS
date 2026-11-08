@@ -786,6 +786,70 @@ export interface SiteSeasonalRate {
 }
 
 /**
+ * Site Type Rate Configuration
+ *
+ * Per-site-type override of a single rate period. Mirrors
+ * `ReservationTypeConfig` but scoped to one site type rather than the whole
+ * property, so an RV site can bill weekly from night 7 while a cabin bills
+ * weekly from night 5.
+ *
+ * Resolution order for a rate period is: per-site-type override (here) →
+ * property `PropertyReservationTypesConfig` → `DEFAULT_RESERVATION_TYPES_CONFIG`.
+ *
+ * @example
+ * { rate_cents: 27000, min_nights: 7, max_nights: 27 }
+ */
+export interface SiteTypeRateConfig {
+  /** Per-night rate in cents for this period (null = inherit the site base price) */
+  rate_cents: number | null
+
+  /** Minimum nights for this period to apply */
+  min_nights: number
+
+  /** Maximum nights for this period (null = no upper bound) */
+  max_nights: number | null
+}
+
+/**
+ * Site Type Rate Bundle
+ *
+ * The set of rate periods configured for one site type. Every period is
+ * optional — an absent period means "no override, fall back to the property
+ * configuration".
+ */
+export interface SiteTypeRateBundle {
+  nightly?: SiteTypeRateConfig
+  weekly?: SiteTypeRateConfig
+  monthly?: SiteTypeRateConfig
+  seasonal?: SiteTypeRateConfig
+}
+
+/**
+ * Site Type Configuration
+ *
+ * Stored in `properties.site_type_config`. Governs which site types guests may
+ * book online and the per-site-type rate periods.
+ *
+ * `allowed_site_types` is the online-booking filter: when non-empty, only those
+ * types are offered in the guest portal; when empty or absent, every type is.
+ *
+ * @example
+ * {
+ *   allowed_site_types: ['rv', 'cabin'],
+ *   site_type_rates: {
+ *     cabin: { nightly: { rate_cents: 12000, min_nights: 1, max_nights: 6 } }
+ *   }
+ * }
+ */
+export interface SiteTypeConfig {
+  /** Site types bookable online. Empty or absent means all types. */
+  allowed_site_types?: string[]
+
+  /** Rate periods keyed by site type (e.g. "rv", "cabin"). */
+  site_type_rates?: Record<string, SiteTypeRateBundle>
+}
+
+/**
  * Reservation Type Detection Result
  *
  * Result of auto-detecting the best reservation type for a booking.

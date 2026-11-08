@@ -24,7 +24,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { quoteStay } from '@/modules/BookingEngine/application/queries/QuoteStayQuery'
+import {
+  quoteStay,
+  toQuoteStayInput,
+} from '@/modules/BookingEngine/application/queries/QuoteStayQuery'
 import {
   parseBookingRulesFromDB,
   resolveDepositConfig,
@@ -417,34 +420,18 @@ export async function POST(request: NextRequest) {
 
         // Single pricing authority, shared with POST /api/guest/quote so a quoted
         // total and a charged total cannot diverge (S-0.5).
-        const { breakdown: priceBreakdown, rates: quoteRates } = quoteStay({
-          site: {
-            site_type: site.site_type ?? null,
-            base_price: site.base_price ?? null,
-            weekly_rate_cents: site.weekly_rate_cents ?? null,
-            monthly_rate_cents: site.monthly_rate_cents ?? null,
-            pricing_override: (site as { pricing_override?: unknown }).pricing_override,
-            enabled_reservation_types_override: (site as { enabled_reservation_types_override?: unknown })
-              .enabled_reservation_types_override,
-          },
-          property: property
-            ? {
-                pricing_config: property.pricing_config,
-                rate_discounts_config: property.rate_discounts_config,
-                reservation_type_config: (property as { reservation_type_config?: unknown })
-                  .reservation_type_config,
-                site_type_config: (property as { site_type_config?: unknown }).site_type_config,
-                enabled_reservation_types: (property as { enabled_reservation_types?: unknown })
-                  .enabled_reservation_types,
-              }
-            : null,
-          checkInDate: validatedInput.check_in_date,
-          checkOutDate: validatedInput.check_out_date,
-          numberOfNights,
-          numAdults: validatedInput.num_adults,
-          numChildren: validatedInput.num_children ?? 0,
-          numPets: validatedInput.num_pets ?? 0,
-        })
+        const { breakdown: priceBreakdown, rates: quoteRates } = quoteStay(
+          toQuoteStayInput({
+            site,
+            property: property ?? null,
+            checkInDate: validatedInput.check_in_date,
+            checkOutDate: validatedInput.check_out_date,
+            numberOfNights,
+            numAdults: validatedInput.num_adults,
+            numChildren: validatedInput.num_children ?? 0,
+            numPets: validatedInput.num_pets ?? 0,
+          }),
+        )
 
         // Compute deposit amounts from property deposit config
         const depositConfig = resolveDepositConfig(
@@ -596,34 +583,18 @@ export async function POST(request: NextRequest) {
 
     // Single pricing authority, shared with POST /api/guest/quote so a quoted
     // total and a charged total cannot diverge (S-0.5).
-    const { breakdown: priceBreakdown, rates: quoteRates } = quoteStay({
-      site: {
-        site_type: site.site_type ?? null,
-        base_price: site.base_price ?? null,
-        weekly_rate_cents: site.weekly_rate_cents ?? null,
-        monthly_rate_cents: site.monthly_rate_cents ?? null,
-        pricing_override: (site as { pricing_override?: unknown }).pricing_override,
-        enabled_reservation_types_override: (site as { enabled_reservation_types_override?: unknown })
-          .enabled_reservation_types_override,
-      },
-      property: property
-        ? {
-            pricing_config: property.pricing_config,
-            rate_discounts_config: property.rate_discounts_config,
-            reservation_type_config: (property as { reservation_type_config?: unknown })
-              .reservation_type_config,
-            site_type_config: (property as { site_type_config?: unknown }).site_type_config,
-            enabled_reservation_types: (property as { enabled_reservation_types?: unknown })
-              .enabled_reservation_types,
-          }
-        : null,
-      checkInDate: validatedInput.check_in_date,
-      checkOutDate: validatedInput.check_out_date,
-      numberOfNights,
-      numAdults: validatedInput.num_adults,
-      numChildren: validatedInput.num_children ?? 0,
-      numPets: validatedInput.num_pets ?? 0,
-    })
+    const { breakdown: priceBreakdown, rates: quoteRates } = quoteStay(
+      toQuoteStayInput({
+        site,
+        property: property ?? null,
+        checkInDate: validatedInput.check_in_date,
+        checkOutDate: validatedInput.check_out_date,
+        numberOfNights,
+        numAdults: validatedInput.num_adults,
+        numChildren: validatedInput.num_children ?? 0,
+        numPets: validatedInput.num_pets ?? 0,
+      }),
+    )
 
     // ========================================================================
     // Step 7: Create or update guest record

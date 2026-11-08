@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { quoteStay } from '@/modules/BookingEngine/application/queries/QuoteStayQuery'
+import {
+  quoteStay,
+  toQuoteStayInput,
+} from '@/modules/BookingEngine/application/queries/QuoteStayQuery'
 
 /**
  * POST /api/guest/quote
@@ -79,31 +82,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { breakdown, lineItems } = quoteStay({
-      site: {
-        site_type: site.site_type ?? null,
-        base_price: site.base_price ?? null,
-        weekly_rate_cents: site.weekly_rate_cents ?? null,
-        monthly_rate_cents: site.monthly_rate_cents ?? null,
-        pricing_override: site.pricing_override,
-        enabled_reservation_types_override: site.enabled_reservation_types_override,
-      },
-      property: property
-        ? {
-            pricing_config: property.pricing_config,
-            rate_discounts_config: property.rate_discounts_config,
-            reservation_type_config: property.reservation_type_config,
-            site_type_config: property.site_type_config,
-            enabled_reservation_types: property.enabled_reservation_types,
-          }
-        : null,
-      checkInDate: input.check_in_date,
-      checkOutDate: input.check_out_date,
-      numberOfNights,
-      numAdults: input.num_adults,
-      numChildren: input.num_children,
-      numPets: input.num_pets,
-    })
+    const { breakdown, lineItems } = quoteStay(
+      toQuoteStayInput({
+        site,
+        property: property ?? null,
+        checkInDate: input.check_in_date,
+        checkOutDate: input.check_out_date,
+        numberOfNights,
+        numAdults: input.num_adults,
+        numChildren: input.num_children,
+        numPets: input.num_pets,
+      }),
+    )
 
     return NextResponse.json({
       success: true,

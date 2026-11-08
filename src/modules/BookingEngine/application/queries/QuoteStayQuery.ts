@@ -291,6 +291,56 @@ function resolveAutoDiscounts(
   return { applied, totalCents }
 }
 
+/** A database row, loosely typed: callers pass what their select returned. */
+type Row = Record<string, unknown>
+
+/**
+ * Build a {@link QuoteStayInput} from a site row and a property row.
+ *
+ * Every caller that prices a stay must use this, so the quote endpoint and
+ * reservation creation read the same configuration out of the same columns.
+ * The mapping was previously written three times; adding a configuration field
+ * to one copy and not the others would have made a quoted total diverge from a
+ * charged one silently.
+ */
+export function toQuoteStayInput(args: {
+  site: Row
+  property: Row | null
+  checkInDate: string
+  checkOutDate: string
+  numberOfNights: number
+  numAdults: number
+  numChildren: number
+  numPets: number
+}): QuoteStayInput {
+  const { site, property } = args
+  return {
+    site: {
+      site_type: (site.site_type as string | null) ?? null,
+      base_price: (site.base_price as number | null) ?? null,
+      weekly_rate_cents: (site.weekly_rate_cents as number | null) ?? null,
+      monthly_rate_cents: (site.monthly_rate_cents as number | null) ?? null,
+      pricing_override: site.pricing_override ?? null,
+      enabled_reservation_types_override: site.enabled_reservation_types_override ?? null,
+    },
+    property: property
+      ? {
+          pricing_config: property.pricing_config ?? null,
+          rate_discounts_config: property.rate_discounts_config ?? null,
+          reservation_type_config: property.reservation_type_config ?? null,
+          site_type_config: property.site_type_config ?? null,
+          enabled_reservation_types: property.enabled_reservation_types ?? null,
+        }
+      : null,
+    checkInDate: args.checkInDate,
+    checkOutDate: args.checkOutDate,
+    numberOfNights: args.numberOfNights,
+    numAdults: args.numAdults,
+    numChildren: args.numChildren,
+    numPets: args.numPets,
+  }
+}
+
 /** Quote a guest stay. Pure; the caller supplies the site and property rows. */
 export function quoteStay(input: QuoteStayInput): QuoteStayResult {
   const { site, property, numberOfNights } = input

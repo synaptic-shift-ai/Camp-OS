@@ -14,6 +14,7 @@ import type { Database } from '@/contracts/db'
 import { SitesGrid } from './sites-grid'
 import type { PropertyPricingConfig } from '@/app/dashboard/[propertyId]/sites/page'
 
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 type Site = Database['public']['Tables']['sites']['Row']
 
 interface SitesAccordionProps {
@@ -25,16 +26,8 @@ interface SitesAccordionProps {
   canUpdateSiteStatus: boolean
 }
 
-const siteTypeLabels: Record<string, string> = {
-  rv: 'RV Sites',
-  tent: 'Tent Sites',
-  cabin: 'Cabins',
-  glamping: 'Glamping',
-  yurt: 'Yurts',
-  other: 'Other Sites',
-}
 
-const siteTypeOrder = ['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other']
+const siteTypeOrder = SITE_TYPES
 
 export function SitesAccordion({
   sites,
@@ -92,7 +85,7 @@ export function SitesAccordion({
         const totalCount = totalSitesByType[type] || 0
         const isEmpty = filteredCount === 0
         const isExpanded = expanded[type]
-        const label = siteTypeLabels[type] || type
+        const label = siteTypeLabel(type, 'plural')
 
         return (
           <div

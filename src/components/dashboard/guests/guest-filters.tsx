@@ -21,20 +21,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 type GuestFiltersProps = {
   propertyId: string
   siteTypes: { siteType: string }[]
   allowedSiteTypes: string[] | null
 }
 
-const siteTypeLabels: Record<string, string> = {
-  rv: 'RV Sites',
-  tent: 'Tent Sites',
-  cabin: 'Cabins',
-  glamping: 'Glamping',
-  yurt: 'Yurts',
-  other: 'Other Sites',
-}
 
 const sortOptions = [
   { value: 'guest', label: 'Primary Guest' },
@@ -79,7 +72,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
   const baseOptions =
     siteTypes.length > 0
       ? siteTypes
-      : (['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other'] as const).map((siteType) => ({
+      : SITE_TYPES.map((siteType) => ({
         siteType,
       }))
 
@@ -231,7 +224,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                           <SelectItem value="all">All site types</SelectItem>
                           {options.map(({ siteType }) => (
                             <SelectItem key={siteType} value={siteType}>
-                              {siteTypeLabels[siteType] ?? siteType}
+                              {siteTypeLabel(siteType, 'plural')}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -355,7 +348,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
                     <SelectItem value="all">All site types</SelectItem>
                     {options.map(({ siteType }) => (
                       <SelectItem key={siteType} value={siteType}>
-                        {siteTypeLabels[siteType] ?? siteType}
+                        {siteTypeLabel(siteType, 'plural')}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -442,7 +435,7 @@ export function GuestFilters({ propertyId, siteTypes, allowedSiteTypes }: GuestF
               <SelectItem value="all">All site types</SelectItem>
               {options.map(({ siteType }) => (
                 <SelectItem key={siteType} value={siteType}>
-                  {siteTypeLabels[siteType] ?? siteType}
+                  {siteTypeLabel(siteType, 'plural')}
                 </SelectItem>
               ))}
             </SelectContent>

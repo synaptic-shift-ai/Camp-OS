@@ -54,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 interface ReservationTypeSettingsProps {
   propertyId: string
   initialConfig?: PropertyReservationTypesConfig
@@ -71,14 +72,7 @@ interface ReservationTypeSettingsProps {
 }
 
 /** Order for accordion; values must match DB site_type (case-insensitive). */
-const SITE_TYPE_DISPLAY_ORDER: string[] = [
-  'RV',
-  'Tent',
-  'Cabin',
-  'Glamping',
-  'Yurt',
-  'Other',
-]
+const SITE_TYPE_DISPLAY_ORDER: readonly string[] = SITE_TYPES
 
 // All possible site types that can be configured for a property.
 // Values should correspond to the DB `site_type` values (case-insensitive).
@@ -628,7 +622,7 @@ export function SiteTypeRateSettings({
                                 setIsDirty(true)
                               }}
                             >
-                              {siteTypeName} Site
+                              {siteTypeLabel(siteTypeName)} Site
                             </DropdownMenuItem>
                           ))
                         )}
@@ -650,12 +644,12 @@ export function SiteTypeRateSettings({
                       key={siteType}
                       className="inline-flex max-w-full items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"
                     >
-                      <span className="min-w-0 truncate">{siteType} Site</span>
+                      <span className="min-w-0 truncate">{siteTypeLabel(siteType)} Site</span>
                       {canEdit && (
                       <button
                         type="button"
                         className="shrink-0 touch-manipulation text-xs text-muted-foreground hover:text-destructive"
-                        aria-label={`Remove ${siteType} site type`}
+                        aria-label={`Remove ${siteTypeLabel(siteType)} site type`}
                         onClick={() => {
                           setAllowedSiteTypes((prev) =>
                             prev.filter((t) => t !== siteType)

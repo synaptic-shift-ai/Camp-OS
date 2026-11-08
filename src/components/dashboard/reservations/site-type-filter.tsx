@@ -9,14 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const siteTypeLabels: Record<string, string> = {
-  rv: 'RV Sites',
-  tent: 'Tent Sites',
-  cabin: 'Cabins',
-  glamping: 'Glamping',
-  yurt: 'Yurts',
-  other: 'Other Sites',
-}
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 
 type SiteTypeFilterProps = {
   propertyId: string
@@ -33,7 +26,7 @@ export function SiteTypeFilter({ propertyId, allowedSiteTypes, siteTypesFromDb }
   const baseOptions =
     siteTypesFromDb.length > 0
       ? siteTypesFromDb
-      : (['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other'] as const).map((t) => ({
+      : SITE_TYPES.map((t) => ({
           siteType: t,
         }))
 
@@ -70,7 +63,7 @@ export function SiteTypeFilter({ propertyId, allowedSiteTypes, siteTypesFromDb }
         <SelectItem value="all">All site types</SelectItem>
         {options.map(({ siteType }) => (
           <SelectItem key={siteType} value={siteType}>
-            {siteTypeLabels[siteType] ?? siteType}
+            {siteTypeLabel(siteType, 'plural')}
           </SelectItem>
         ))}
       </SelectContent>

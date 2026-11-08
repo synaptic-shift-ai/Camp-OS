@@ -12,8 +12,9 @@ import { DEFAULT_RESERVATION_TYPES_CONFIG } from "@/lib/config/types"
 import { useWizardFormStore } from "../wizard-form-store"
 import { parseEnabledReservationTypesFromDB, parseReservationTypesConfigFromDB } from "@/lib/config/resolution"
 
-const ALL_SITE_TYPES = ["RV", "Tent", "Cabin", "Glamping", "Yurt", "Other"]
 
+
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 type RatePeriod = "nightly" | "weekly" | "monthly"
 type SiteTypeRates = Record<string, Record<RatePeriod, SiteTypeRateConfig>>
 
@@ -99,7 +100,7 @@ export function SiteTypesRatesSection({
   const [focusedField, setFocusedField] = useState<string | null>(null)
   const [rateInput, setRateInput] = useState("")
 
-  const available = ALL_SITE_TYPES.filter((st) => !allowedSiteTypes.some((a) => a.toLowerCase() === st.toLowerCase()))
+  const available = SITE_TYPES.filter((st) => !allowedSiteTypes.some((a) => a.toLowerCase() === st.toLowerCase()))
 
   const pushDraft = (types: string[], rates: SiteTypeRates) => {
     const draft = getDraft(propertyId) ?? {}
@@ -137,8 +138,8 @@ export function SiteTypesRatesSection({
   const orderedSiteTypes = allowedSiteTypes
     .map((st) => ({ siteType: st }))
     .sort((a, b) => {
-      const ia = ALL_SITE_TYPES.findIndex((t) => t.toLowerCase() === a.siteType.toLowerCase())
-      const ib = ALL_SITE_TYPES.findIndex((t) => t.toLowerCase() === b.siteType.toLowerCase())
+      const ia = SITE_TYPES.findIndex((t) => t.toLowerCase() === a.siteType.toLowerCase())
+      const ib = SITE_TYPES.findIndex((t) => t.toLowerCase() === b.siteType.toLowerCase())
       return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
     })
 
@@ -163,7 +164,7 @@ export function SiteTypesRatesSection({
               {available.length === 0 ? (
                 <DropdownMenuItem disabled>All site types added</DropdownMenuItem>
               ) : available.map((st) => (
-                <DropdownMenuItem key={st} onClick={() => addSiteType(st)}>{st} Site</DropdownMenuItem>
+                <DropdownMenuItem key={st} onClick={() => addSiteType(st)}>{siteTypeLabel(st)} Site</DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>

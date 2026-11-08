@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useWizardFormStore } from "./wizard-form-store"
 import type { Resolver } from 'react-hook-form'
 
+import { SITE_TYPE_OPTIONS } from '@/lib/constants'
 export interface PropertyDefaults {
   enabled_reservation_types?: ('nightly' | 'weekly' | 'monthly' | 'seasonal')[]
   default_reservation_type?: 'nightly' | 'weekly' | 'monthly' | 'seasonal'
@@ -42,14 +43,7 @@ const SITE_IMAGES_BUCKET = "site-property-images"
 const MAX_SITE_IMAGES = 1
 const MAX_SITE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
-const ALL_SITE_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'tent', label: 'Tent' },
-  { value: 'rv', label: 'RV' },
-  { value: 'cabin', label: 'Cabin' },
-  { value: 'glamping', label: 'Glamping' },
-  { value: 'yurt', label: 'Yurt' },
-  { value: 'other', label: 'Other' },
-]
+const ALL_SITE_TYPE_OPTIONS: { value: string; label: string }[] = [...SITE_TYPE_OPTIONS]
 
 interface SiteFormProps {
   propertyId: string

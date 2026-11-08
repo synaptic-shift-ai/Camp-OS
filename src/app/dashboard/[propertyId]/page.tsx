@@ -15,6 +15,7 @@ import { resolveDashboardAccess } from "@/lib/rbac/dashboard-guards"
 import { redirect } from "next/navigation"
 import { cn } from "@/lib/utils"
 
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 const statusColors: Record<ReservationStatus, string> = {
   pending: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   confirmed: "bg-blue-500/10 text-blue-500 border-blue-500/20",
@@ -92,15 +93,7 @@ async function DashboardStats({
   )
 }
 
-const siteTypeLabels: Record<string, string> = {
-  rv: "RV",
-  tent: "Tent",
-  cabin: "Cabin",
-  glamping: "Glamping",
-  yurt: "Yurt",
-  other: "Other",
-}
-const siteTypeOrder = ["rv", "tent", "cabin", "glamping", "yurt", "other"]
+const siteTypeOrder = SITE_TYPES
 
 const siteTypeGridCols: Record<number, string> = {
   1: "grid-cols-1",
@@ -177,8 +170,8 @@ async function CurrentlyCheckedIn({
                     className="flex min-h-16 w-full flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-1.5 text-center md:min-h-20 md:px-3 md:py-2"
                   >
                     <p className="text-sm leading-tight text-muted-foreground md:text-base">
-                      <span className="md:hidden">{siteTypeLabels[type]}</span>
-                      <span className="hidden md:inline">{siteTypeLabels[type]} Site</span>
+                      <span className="md:hidden">{siteTypeLabel(type)}</span>
+                      <span className="hidden md:inline">{siteTypeLabel(type)} Site</span>
                     </p>
                     <p className="text-xl font-bold leading-none md:text-2xl">{count}</p>
                   </div>
@@ -192,8 +185,8 @@ async function CurrentlyCheckedIn({
                   className="flex min-h-16 w-full cursor-pointer flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-1.5 text-center transition-colors hover:bg-muted md:min-h-20 md:px-3 md:py-2"
                 >
                   <p className="text-sm leading-tight text-muted-foreground md:text-base">
-                    <span className="md:hidden">{siteTypeLabels[type]}</span>
-                    <span className="hidden md:inline">{siteTypeLabels[type]} Site</span>
+                    <span className="md:hidden">{siteTypeLabel(type)}</span>
+                    <span className="hidden md:inline">{siteTypeLabel(type)} Site</span>
                   </p>
                   <p className="text-xl font-bold leading-none md:text-2xl">{count}</p>
                 </Link>

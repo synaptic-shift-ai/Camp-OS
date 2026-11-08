@@ -22,6 +22,7 @@ import {
   Caravan,
 } from 'lucide-react'
 
+import { SITE_TYPES, siteTypeLabel } from '@/lib/constants'
 type BookingType = 'nightly' | 'weekly' | 'monthly' | 'seasonal' | 'long_term'
 
 interface AvailableSite {
@@ -89,16 +90,8 @@ const siteTypeIcons: Record<string, typeof Tent> = {
   other: Home,
 }
 
-const siteTypeLabels: Record<string, string> = {
-  rv: 'RV Sites',
-  tent: 'Tent Sites',
-  cabin: 'Cabins',
-  glamping: 'Glamping',
-  yurt: 'Yurts',
-  other: 'Other Sites',
-}
 
-const siteTypeOrder = ['rv', 'tent', 'cabin', 'glamping', 'yurt', 'other']
+const siteTypeOrder = SITE_TYPES
 
 export function AvailableSitesAccordion({
   sites,
@@ -168,7 +161,7 @@ export function AvailableSitesAccordion({
         const typeSites = sitesByType[type] || []
         const isEmpty = typeSites.length === 0
         const isExpanded = expanded[type]
-        const label = siteTypeLabels[type] || type
+        const label = siteTypeLabel(type, 'plural')
         const selectedSiteInType = typeSites.find((s) => s.id === selectedSiteId)
 
         return (

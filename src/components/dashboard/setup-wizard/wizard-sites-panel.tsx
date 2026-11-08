@@ -57,6 +57,7 @@ import { Badge } from "@/components/ui/badge"
 import { useWizardFormStore } from "./wizard-form-store"
 import type { Resolver } from 'react-hook-form'
 
+import { SITE_TYPE_OPTIONS } from '@/lib/constants'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SiteSection = "basic_info" | "pricing" | "images" | "hookups" | "pets_accessibility" | "blackout_dates"
@@ -74,12 +75,7 @@ const SITE_IMAGES_BUCKET = "site-property-images"
 const MAX_SITE_IMAGES = 1
 const MAX_SITE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const DEFAULT_SITE_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "tent", label: "Tent" },
-  { value: "rv", label: "RV" },
-  { value: "cabin", label: "Cabin" },
-  { value: "glamping", label: "Glamping" },
-  { value: "yurt", label: "Yurt" },
-  { value: "other", label: "Other" },
+  ...SITE_TYPE_OPTIONS,
 ]
 const VALID_SITE_TYPE_VALUES = new Set(DEFAULT_SITE_TYPE_OPTIONS.map((opt) => opt.value))
 

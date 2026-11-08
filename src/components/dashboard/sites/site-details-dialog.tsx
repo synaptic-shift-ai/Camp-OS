@@ -21,6 +21,7 @@ import { Edit } from 'lucide-react'
 import { EditSiteDialog } from './edit-site-dialog'
 import type { Database } from '@/contracts/db'
 
+import { siteTypeLabel } from '@/lib/constants'
 type Site = Database['public']['Tables']['sites']['Row']
 type SiteStatus = 'available' | 'reserved' | 'booked' | 'occupied' | 'housekeeping' | 'maintenance' | 'unavailable'
 
@@ -41,14 +42,6 @@ const statusColors: Record<SiteStatus, string> = {
   unavailable: "bg-red-500/10 text-red-500 border-red-500/20",
 }
 
-const siteTypeLabels: Record<string, string> = {
-  rv: 'RV Site',
-  tent: 'Tent Site',
-  cabin: 'Cabin',
-  glamping: 'Glamping',
-  yurt: 'Yurt',
-  other: 'Other',
-}
 
 export function SiteDetailsDialog({ open, onOpenChange, site, canEditSite }: SiteDetailsDialogProps) {
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -158,7 +151,7 @@ export function SiteDetailsDialog({ open, onOpenChange, site, canEditSite }: Sit
               <div>
                 <DialogTitle className="text-2xl">Site {site.site_number}</DialogTitle>
                 <DialogDescription>
-                  {siteTypeLabels[siteType]} • {site.site_name || 'Unnamed Site'}
+                  {siteTypeLabel(siteType, 'singular')} • {site.site_name || 'Unnamed Site'}
                 </DialogDescription>
               </div>
               {canEditSite && (
@@ -193,7 +186,7 @@ export function SiteDetailsDialog({ open, onOpenChange, site, canEditSite }: Sit
                 </div>
                 <div>
                   <span className="text-muted-foreground">Type</span>
-                  <p className="font-medium capitalize">{siteTypeLabels[siteType]}</p>
+                  <p className="font-medium capitalize">{siteTypeLabel(siteType, 'singular')}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Max Occupancy</span>

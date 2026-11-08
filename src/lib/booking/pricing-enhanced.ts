@@ -35,6 +35,7 @@ import {
 import { getPricingSourceType } from '@/lib/site-pricing-source'
 import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
+import { shouldApplyFee, type FeeApplicationContext } from '@/lib/config/fee-rules'
 // =====================================================
 // Helper Functions
 // =====================================================
@@ -399,6 +400,17 @@ export async function calculateReservationPriceEnhanced(
   const totalGuests = (options.num_adults || 1) + (options.num_children || 0)
   const numPets = options.num_pets || 0
 
+  // Fee eligibility is shared with the staff pricing summary (lib/config/fee-rules).
+  // selectedFeeIds is empty here: `manual` fees are never auto-applied server-side.
+  const feeContext: FeeApplicationContext = {
+    totalNights,
+    totalGuests,
+    numPets,
+    checkInDate,
+    siteType: (typedSite as { site_type?: string | null }).site_type ?? null,
+    selectedFeeIds: [],
+  }
+
     // Check if we have user-defined fees (new system)
     const userDefinedFees = pricingConfig.user_defined_fees || []
 
@@ -408,41 +420,7 @@ export async function calculateReservationPriceEnhanced(
       let _taxableFeesTotal = 0
 
       for (const fee of userDefinedFees) {
-        if (!fee.enabled) continue
-
-        const triggerType = fee.trigger_type || 'always'
-        let shouldApplyFee = false
-        switch (triggerType) {
-          case 'always':
-            shouldApplyFee = true
-            break
-          case 'manual':
-            shouldApplyFee = false
-            break
-          case 'min_nights':
-            shouldApplyFee = totalNights >= (fee.trigger_conditions?.min_nights ?? 0)
-            break
-          case 'min_guests':
-            shouldApplyFee = totalGuests >= (fee.trigger_conditions?.min_guests ?? 0)
-            break
-          case 'has_pets':
-            shouldApplyFee = numPets > 0
-            break
-          case 'date_range':
-            if (fee.trigger_conditions?.start_date != null || fee.trigger_conditions?.end_date != null) {
-              const check = new Date(checkInDate)
-              const start = fee.trigger_conditions?.start_date ? new Date(fee.trigger_conditions.start_date) : null
-              const end = fee.trigger_conditions?.end_date ? new Date(fee.trigger_conditions.end_date) : null
-              shouldApplyFee = (!start || check >= start) && (!end || check <= end)
-            } else {
-              shouldApplyFee = true
-            }
-            break
-          default:
-            shouldApplyFee = true
-        }
-
-        if (!shouldApplyFee) continue
+        if (!shouldApplyFee(fee, feeContext)) continue
 
         let feeAmount = 0
 

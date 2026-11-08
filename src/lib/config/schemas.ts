@@ -127,6 +127,10 @@ const userDefinedFeeBaseSchema = z.object({
 
   is_taxable: z.boolean().default(true),
 
+  // Site types this fee applies to; absent or empty means every type.
+  // Independent of trigger_type so scope and timing compose freely.
+  applies_to_site_types: z.array(z.string()).optional(),
+
   trigger_type: feeTriggerTypeSchema.default('always'),
 
   trigger_conditions: feeTriggerConditionsSchema,

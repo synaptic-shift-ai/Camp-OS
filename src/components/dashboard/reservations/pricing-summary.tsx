@@ -19,12 +19,15 @@ import { DollarSign, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PricingConfig, RateDiscountsConfig, DepositConfig, BookingType } from '@/lib/config/types'
 
+import { shouldApplyFee, type FeeApplicationContext } from '@/lib/config/fee-rules'
 export type PricingSummaryPaymentOption = 'deposit' | 'full'
 
 interface AvailableSite {
   id: string
   name: string
   site_number: string
+  /** Needed so site-type-scoped fees can be evaluated (lib/config/fee-rules). */
+  site_type?: string
   base_price_per_night: number
   weekly_rate_cents?: number
   monthly_rate_cents?: number
@@ -240,40 +243,19 @@ function PricingSummaryContent({
   const userDefinedFees = pricingConfig.user_defined_fees || []
   const hasUserDefinedFees = userDefinedFees.length > 0
 
+  // Fee eligibility is shared with the server engine (lib/config/fee-rules).
+  const feeContext: FeeApplicationContext = {
+    totalNights: numNights,
+    totalGuests,
+    numPets: numPets || 0,
+    checkInDate: checkInDate ?? null,
+    siteType: selectedSite.site_type ?? null,
+    selectedFeeIds,
+  }
+
   if (hasUserDefinedFees) {
     for (const fee of userDefinedFees) {
-      if (!fee.enabled) continue
-
-      let shouldApply = false
-      const triggerType = fee.trigger_type || 'always'
-
-      switch (triggerType) {
-        case 'always':
-          shouldApply = true
-          break
-        case 'manual':
-          shouldApply = selectedFeeIds.includes(fee.id)
-          break
-        case 'min_nights':
-          shouldApply = numNights >= (fee.trigger_conditions?.min_nights ?? 0)
-          break
-        case 'min_guests':
-          shouldApply = totalGuests >= (fee.trigger_conditions?.min_guests ?? 0)
-          break
-        case 'has_pets':
-          shouldApply = (numPets || 0) > 0
-          break
-        case 'date_range':
-          if (checkInDate) {
-            const check = new Date(checkInDate)
-            const start = fee.trigger_conditions?.start_date ? new Date(fee.trigger_conditions.start_date) : null
-            const end = fee.trigger_conditions?.end_date ? new Date(fee.trigger_conditions.end_date) : null
-            shouldApply = (!start || check >= start) && (!end || check <= end)
-          }
-          break
-      }
-
-      if (!shouldApply) continue
+      if (!shouldApplyFee(fee, feeContext)) continue
 
       let feeAmount = 0
       switch (fee.fee_type) {

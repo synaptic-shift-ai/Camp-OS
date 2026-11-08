@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
@@ -31,6 +32,7 @@ import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import type { PricingConfig, UserDefinedFee, UserDefinedFeeType, FeeTriggerType } from '@/lib/config/types'
 import type { Resolver } from 'react-hook-form'
 
+import { SITE_TYPE_OPTIONS, siteTypeLabel } from '@/lib/constants'
 interface FeesSettingsProps {
   initialConfig?: PricingConfig
   propertyId: string
@@ -71,6 +73,7 @@ const feeFormSchema = z.object({
   value_dollars: z.preprocess(nanToUndefined, z.number().min(0, 'Value must be positive').optional()),
   value_percentage: z.preprocess(nanToUndefined, z.number().min(0).max(100, 'Percentage must be 0-100').optional()),
   is_taxable: z.boolean(),
+  applies_to_site_types: z.array(z.string()),
   trigger_type: z.enum(['always', 'manual', 'min_nights', 'min_guests', 'has_pets', 'date_range']),
   min_nights: z.preprocess(nanToUndefined, z.number().int().min(1, 'Minimum nights must be at least 1').optional()),
   min_guests: z.preprocess(nanToUndefined, z.number().int().min(1, 'Minimum guests must be at least 1').optional()),
@@ -184,6 +187,7 @@ export function FeesSettings({
       value_dollars: undefined,
       value_percentage: undefined,
       is_taxable: true,
+      applies_to_site_types: [],
       trigger_type: 'always',
       min_nights: undefined,
       min_guests: undefined,
@@ -204,6 +208,7 @@ export function FeesSettings({
       value_dollars: undefined,
       value_percentage: undefined,
       is_taxable: true,
+      applies_to_site_types: [],
       trigger_type: 'always',
       min_nights: undefined,
       min_guests: undefined,
@@ -222,6 +227,7 @@ export function FeesSettings({
       value_dollars: fee.value_cents ? fee.value_cents / 100 : undefined,
       value_percentage: fee.value_percentage,
       is_taxable: fee.is_taxable,
+      applies_to_site_types: fee.applies_to_site_types ?? [],
       trigger_type: fee.trigger_type,
       min_nights: fee.trigger_conditions?.min_nights,
       min_guests: fee.trigger_conditions?.min_guests,
@@ -259,6 +265,9 @@ export function FeesSettings({
         ? (data.value_percentage !== undefined ? { value_percentage: data.value_percentage } : {})
         : (data.value_dollars ? { value_cents: Math.round(data.value_dollars * 100) } : {})),
       is_taxable: data.is_taxable,
+      ...(data.applies_to_site_types.length > 0
+        ? { applies_to_site_types: data.applies_to_site_types }
+        : {}),
       trigger_type: data.trigger_type,
       ...(triggerConditions ? { trigger_conditions: triggerConditions } : {}),
       display_order: editingFee?.display_order ?? fees.length,
@@ -545,6 +554,40 @@ export function FeesSettings({
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Applies To</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Limit this charge to certain site types. Leave all unchecked to
+                      apply it to every site type.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {SITE_TYPE_OPTIONS.map((option) => {
+                        const selected = feeForm.watch('applies_to_site_types') ?? []
+                        const isChecked = selected.includes(option.value)
+                        return (
+                          <label
+                            key={option.value}
+                            className="flex items-center gap-2 text-sm font-normal"
+                          >
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                feeForm.setValue(
+                                  'applies_to_site_types',
+                                  checked === true
+                                    ? [...selected, option.value]
+                                    : selected.filter((t) => t !== option.value),
+                                  { shouldDirty: true },
+                                )
+                              }}
+                            />
+                            {option.label}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="trigger_type">When to Apply</Label>
                     <Select
                       value={watchTriggerType}
@@ -680,6 +723,8 @@ export function FeesSettings({
                       <div className="mt-0.5 text-sm text-muted-foreground break-words">
                         {getFeeTypeLabel(fee.fee_type)} · {formatFeeValue(fee)}
                         {fee.is_taxable && ' · Taxable'}
+                        {fee.applies_to_site_types && fee.applies_to_site_types.length > 0 &&
+                          ` · ${fee.applies_to_site_types.map((t) => siteTypeLabel(t)).join(', ')} only`}
                       </div>
                       {fee.description && (
                         <div className="mt-1 text-xs text-muted-foreground break-words">{fee.description}</div>

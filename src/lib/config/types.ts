@@ -117,6 +117,17 @@ export interface UserDefinedFee {
   is_taxable: boolean
 
   /**
+   * Site types this fee applies to. Absent or empty means every site type.
+   *
+   * Independent of `trigger_type`, so "always, but only cabins" and "stays of
+   * 7+ nights, but only RV sites" are both expressible. Matching is
+   * case-insensitive.
+   *
+   * @example ['cabin']
+   */
+  applies_to_site_types?: string[]
+
+  /**
    * When the fee is applied
    * @default 'always'
    */

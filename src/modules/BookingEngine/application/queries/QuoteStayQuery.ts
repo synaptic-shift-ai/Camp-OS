@@ -30,7 +30,8 @@ import type {
 } from '@/lib/config/types'
 import { shouldApplyFee, computeFeeAmount } from '@/lib/config/fee-rules'
 import type { FeeApplicationContext } from '@/lib/config/fee-rules'
-import { computeTax } from '@/lib/config/tax-rules'
+import type { TaxDefinition } from '@/lib/config/tax-rules'
+import { applyStayTaxes } from '@/modules/BookingEngine/domain/services/StayTaxLines'
 import { computeDiscountAmount } from '@/lib/config/discount-rules'
 import { resolveRatePeriods } from '@/lib/config/rate-periods'
 import type { EffectiveRatePeriods } from '@/lib/config/rate-periods'
@@ -62,6 +63,16 @@ export type QuoteStayInput = {
   numAdults: number
   numChildren: number
   numPets: number
+
+  /**
+   * The property's configured taxes, from `property_taxes` (S-3). Required, not
+   * optional: a caller that forgot to load them would quote a stay with no tax
+   * and the property would owe it anyway.
+   *
+   * An empty list means no tax, unless the property still carries only the
+   * legacy single rate — see {@link resolveQuoteTaxes}.
+   */
+  taxes: readonly TaxDefinition[]
 }
 
 /** A single charge, credit or tax line. `amount` is always a positive magnitude. */
@@ -312,6 +323,8 @@ export function toQuoteStayInput(args: {
   numAdults: number
   numChildren: number
   numPets: number
+  /** From `SupabasePropertyTaxRepository.findByPropertyId`, mapped with `toTaxDefinition()`. */
+  taxes: readonly TaxDefinition[]
 }): QuoteStayInput {
   const { site, property } = args
   return {
@@ -338,6 +351,7 @@ export function toQuoteStayInput(args: {
     numAdults: args.numAdults,
     numChildren: args.numChildren,
     numPets: args.numPets,
+    taxes: args.taxes,
   }
 }
 
@@ -385,14 +399,6 @@ export function quoteStay(input: QuoteStayInput): QuoteStayResult {
       user_defined_fees?: UserDefinedFee[]
     } | null) ?? {}
 
-  // No configured rate means no tax. There is no default rate to fall back on:
-  // guessing one charges a guest money the property never set (S-0.6).
-  const taxRate =
-    typeof pricingConfig.tax_rate === 'number' && pricingConfig.tax_rate >= 0
-      ? pricingConfig.tax_rate
-      : 0
-  breakdown.tax_rate = taxRate
-  if (pricingConfig.tax_name) breakdown.tax_name = pricingConfig.tax_name
 
   // The property's configured fees, replacing the hardcoded cabin cleaning fee
   // and 10% service fee. Eligibility and amount both come from lib/config/fee-rules,
@@ -449,18 +455,19 @@ export function quoteStay(input: QuoteStayInput): QuoteStayResult {
     breakdown.user_discounts = discounts.applied
   }
 
-  const taxes = computeTax(
-    {
-      subtotalCents,
-      taxableFeesCents,
-      discountCents: discounts.totalCents,
-    },
-    {
-      taxRate,
-      discountsReduceTaxableAmount: pricingConfig.discounts_reduce_taxable_amount ?? true,
-    },
-  )
-  breakdown.taxes = taxes
+  // Each tax is selected and charged on its own: its own gate, its own
+  // effective window, its own view of whether discounts reduce its base, and
+  // its own rounding — because each is remitted to its own authority (S-3).
+  // Shared with the extension and renewal path so the two cannot diverge.
+  const { taxes, taxLines } = applyStayTaxes({
+    breakdown,
+    configuredTaxes: input.taxes,
+    pricingConfig,
+    stayPlusTaxableFeesCents: subtotalCents + taxableFeesCents,
+    discountCents: discounts.totalCents,
+    numberOfNights,
+    checkInDate: input.checkInDate,
+  })
   breakdown.total_before_tax = subtotalCents + feesTotalCents - discounts.totalCents
   breakdown.total =
     subtotalCents + feesTotalCents - discounts.totalCents + taxes + (breakdown.pet_fee ?? 0)
@@ -501,13 +508,15 @@ export function quoteStay(input: QuoteStayInput): QuoteStayResult {
       amount: discount.amount,
     })
   }
-  if (taxes > 0) {
+  // One line per tax, so the folio and the receipt can total by authority.
+  // A waived line is kept at zero: the guest should see the tax was considered.
+  for (const line of taxLines) {
     lineItems.push({
-      description: breakdown.tax_name ?? 'Tax',
+      description: line.authority ? `${line.name} (${line.authority})` : line.name,
       category: 'tax',
       quantity: 1,
-      unitPrice: taxes,
-      amount: taxes,
+      unitPrice: line.amountCents,
+      amount: line.amountCents,
     })
   }
 

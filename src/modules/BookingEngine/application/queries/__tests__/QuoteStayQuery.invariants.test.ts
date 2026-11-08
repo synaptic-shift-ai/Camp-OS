@@ -149,6 +149,9 @@ function buildCase(
     numAdults: 2,
     numChildren: 1,
     numPets: withPet ? 1 : 0,
+    // The matrix varies pricing_config, its tax rate included, so these cases
+    // exercise the legacy bridge rather than property_taxes rows.
+    taxes: [],
   }
 
   return {
@@ -310,6 +313,7 @@ describe('an unconfigured property is charged nothing it did not configure', () 
     numAdults: 2,
     numChildren: 0,
     numPets: 0,
+    taxes: [],
   }
 
   test('charges the stay subtotal and nothing else', () => {

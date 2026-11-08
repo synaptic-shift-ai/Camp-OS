@@ -438,10 +438,33 @@ export interface PriceBreakdown {
   serviceFee?: number
 
   // Taxes
+  /**
+   * One line per tax charged, each remittable to its own authority (S-3).
+   * `taxes` is their sum. Prefer rendering these: a property can owe a state,
+   * county and city tax at once, which a single rate and name cannot express.
+   */
+  tax_lines?: Array<{
+    tax_id: string
+    name: string
+    authority: string | null
+    rate_bp: number | null
+    amount_cents: number
+    /** True when the tax applied but a guest certificate waived it. */
+    exempt: boolean
+  }>
+  /**
+   * @deprecated With more than one tax there is no single rate. Read
+   * `tax_lines`; this is populated only when exactly one tax applies.
+   */
   tax_rate?: number
   taxRate?: number
+  /** Sum of `tax_lines`. */
   taxes?: number
-  tax_name?: string // Display name (e.g., "Sales Tax", "Occupancy Tax")
+  /**
+   * @deprecated Read `tax_lines[].name`. Set to a generic label when several
+   * taxes apply.
+   */
+  tax_name?: string
 
   // Deposit
   deposit_required?: boolean

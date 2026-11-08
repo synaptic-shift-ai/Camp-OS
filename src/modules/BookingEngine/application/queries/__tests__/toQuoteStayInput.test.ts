@@ -41,6 +41,7 @@ const stay = {
   numAdults: 2,
   numChildren: 1,
   numPets: 1,
+  taxes: [],
 }
 
 describe('toQuoteStayInput', () => {
@@ -89,7 +90,36 @@ describe('toQuoteStayInput', () => {
       numAdults: result.numAdults,
       numChildren: result.numChildren,
       numPets: result.numPets,
+      taxes: result.taxes,
     }).toEqual(stay)
+  })
+
+  test('carries the configured taxes through, so the quote cannot be priced without them', () => {
+    const lodgingTax = {
+      id: 'tax-state',
+      name: 'State Lodging Tax',
+      authority: 'State Department of Taxation',
+      rateType: 'percentage' as const,
+      rateBp: 575,
+      amountCents: null,
+      minNights: null,
+      maxNights: 29,
+      basis: 'pre_tax' as const,
+      priority: 0,
+      discountsReduceTaxableAmount: true,
+      exemptible: true,
+      effectiveFrom: null,
+      effectiveTo: null,
+      enabled: true,
+      appliesToCategories: ['lodging'],
+    }
+    const result = toQuoteStayInput({
+      site: siteRow,
+      property: propertyRow,
+      ...stay,
+      taxes: [lodgingTax],
+    })
+    expect(result.taxes).toEqual([lodgingTax])
   })
 
   test('tolerates a missing property, which the quote treats as unconfigured', () => {

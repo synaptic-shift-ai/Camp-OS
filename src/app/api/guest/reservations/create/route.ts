@@ -28,6 +28,8 @@ import {
   quoteStay,
   toQuoteStayInput,
 } from '@/modules/BookingEngine/application/queries/QuoteStayQuery'
+import { SupabasePropertyTaxRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyTaxRepository'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import {
   parseBookingRulesFromDB,
   resolveDepositConfig,
@@ -296,6 +298,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // The property's configured taxes (S-3), loaded once for both pricing call
+    // sites below. quoteStay stays pure: it prices only what it is handed.
+    //
+    // Read with the service-role client deliberately. `supabase` here is the
+    // guest's own client, and property_taxes is readable only by staff of the
+    // property — a guest would get zero rows and be quoted a stay with no tax
+    // the property still owes. The repository carries the property filter
+    // itself (BP-4), so bypassing RLS does not widen what is read.
+    const configuredTaxes = (
+      await new SupabasePropertyTaxRepository(createServiceRoleClient()).findByPropertyId(
+        validatedInput.property_id,
+      )
+    ).map((tax) => tax.toTaxDefinition())
+
     // Check capacity
     const totalGuests = validatedInput.num_adults + (validatedInput.num_children || 0)
     if (site.max_occupancy && totalGuests > site.max_occupancy) {
@@ -430,6 +446,7 @@ export async function POST(request: NextRequest) {
             numAdults: validatedInput.num_adults,
             numChildren: validatedInput.num_children ?? 0,
             numPets: validatedInput.num_pets ?? 0,
+            taxes: configuredTaxes,
           }),
         )
 
@@ -593,6 +610,7 @@ export async function POST(request: NextRequest) {
         numAdults: validatedInput.num_adults,
         numChildren: validatedInput.num_children ?? 0,
         numPets: validatedInput.num_pets ?? 0,
+        taxes: configuredTaxes,
       }),
     )
 

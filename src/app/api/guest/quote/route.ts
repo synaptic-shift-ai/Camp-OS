@@ -5,6 +5,7 @@ import {
   quoteStay,
   toQuoteStayInput,
 } from '@/modules/BookingEngine/application/queries/QuoteStayQuery'
+import { SupabasePropertyTaxRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyTaxRepository'
 
 /**
  * POST /api/guest/quote
@@ -55,8 +56,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceRoleClient()
+    const taxRepository = new SupabasePropertyTaxRepository(supabase)
 
-    const [{ data: property }, { data: site }] = await Promise.all([
+    const [{ data: property }, { data: site }, taxes] = await Promise.all([
       supabase
         .from('properties')
         .select(
@@ -73,6 +75,9 @@ export async function POST(request: NextRequest) {
         .eq('property_id', input.property_id) // BP-4: tenant isolation
         .is('deleted_at', null)
         .single(),
+      // The property's configured taxes (S-3). Loaded here so the quote stays
+      // a pure function of what it is handed.
+      taxRepository.findByPropertyId(input.property_id),
     ])
 
     if (!site) {
@@ -92,6 +97,7 @@ export async function POST(request: NextRequest) {
         numAdults: input.num_adults,
         numChildren: input.num_children,
         numPets: input.num_pets,
+        taxes: taxes.map((tax) => tax.toTaxDefinition()),
       }),
     )
 

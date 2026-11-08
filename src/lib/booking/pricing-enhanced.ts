@@ -36,7 +36,9 @@ import { getPricingSourceType } from '@/lib/site-pricing-source'
 import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
 import { shouldApplyFee, computeFeeAmount, type FeeApplicationContext } from '@/lib/config/fee-rules'
-import { computeTax, stayPlusTaxableFeesFromTotal } from '@/lib/config/tax-rules'
+import { stayPlusTaxableFeesFromTotal } from '@/lib/config/tax-rules'
+import { applyStayTaxes } from '@/modules/BookingEngine/domain/services/StayTaxLines'
+import { SupabasePropertyTaxRepository } from '@/modules/PropertyManagement/infrastructure/SupabasePropertyTaxRepository'
 import { resolveRatePeriods, selectRatePeriod } from '@/lib/config/rate-periods'
 import { computeDiscountAmount } from '@/lib/config/discount-rules'
 import type { SiteTypeRateBundle } from '@/lib/config/types'
@@ -620,7 +622,7 @@ export async function calculateReservationPriceEnhanced(
 
   // total_before_tax is stay + every fee - discounts. Adding the discounts back
   // and removing the fees the property marked non-taxable leaves stay +
-  // taxable fees, which is what computeTax expects as its subtotal.
+  // taxable fees, which is the charge each tax is then applied to.
   const stayPlusTaxableFeesCents = stayPlusTaxableFeesFromTotal({
     totalBeforeTaxCents: breakdown.total_before_tax,
     allFeesCents: allFeesTotal,
@@ -628,25 +630,23 @@ export async function calculateReservationPriceEnhanced(
     discountCents: userDiscountTotal,
   })
 
-  const taxes = computeTax(
-    {
-      subtotalCents: stayPlusTaxableFeesCents,
-      discountCents: userDiscountTotal,
-    },
-    {
-      taxRate: pricingConfig.tax_rate,
-      discountsReduceTaxableAmount: pricingConfig.discounts_reduce_taxable_amount ?? true,
-    },
-  )
+  // Shared with the guest quote (S-3), so one tax list governs a booking and
+  // its later extension. Without this a property that added a county tax would
+  // collect it on the booking and not on the extension.
+  const configuredTaxes = (
+    await new SupabasePropertyTaxRepository(supabase).findByPropertyId(site.property.id)
+  ).map((tax) => tax.toTaxDefinition())
 
-  if (taxes > 0) {
-    breakdown.taxes = taxes
-    breakdown.tax_rate = pricingConfig.tax_rate
-    if (pricingConfig.tax_name) {
-      breakdown.tax_name = pricingConfig.tax_name
-    }
-    breakdown.total += taxes
-  }
+  const { taxes } = applyStayTaxes({
+    breakdown,
+    configuredTaxes,
+    pricingConfig,
+    stayPlusTaxableFeesCents,
+    discountCents: userDiscountTotal,
+    numberOfNights: totalNights,
+    checkInDate,
+  })
+  breakdown.total += taxes
 
   // ===== CALCULATE DEPOSIT =====
 

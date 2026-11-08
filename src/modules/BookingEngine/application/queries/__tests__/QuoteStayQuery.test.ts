@@ -13,6 +13,7 @@
 
 import { describe, test, expect } from 'vitest'
 import { quoteStay, type QuoteStayInput } from '../QuoteStayQuery'
+import type { TaxDefinition } from '@/lib/config/tax-rules'
 
 const NIGHTLY_CENTS = 45_00
 const WEEKLY_CENTS = 270_00
@@ -48,6 +49,10 @@ const input = (over: Partial<QuoteStayInput> = {}): QuoteStayInput => ({
   numAdults: 2,
   numChildren: 0,
   numPets: 0,
+  // No property_taxes rows: these cases exercise the legacy pricing_config
+  // rate, which quoteStay still bridges until the migration is applied
+  // everywhere. The multi-tax cases pass their own list.
+  taxes: [],
   ...over,
 })
 
@@ -624,5 +629,268 @@ describe('quoteStay pet fee is charged once', () => {
     expect(breakdown.total).toBe(
       subtotal + CLEAN_CENTS + Math.round((subtotal + CLEAN_CENTS) * TAX_RATE) + PET_CENTS,
     )
+  })
+})
+
+// ============================================================================
+// S-3.4 — tax as a list of lines
+//
+// A property can owe a state, county and city tax at once, each remitted
+// separately, and Ohio exempts a stay of 30 nights or more from its lodging
+// tax. These cases pin what the quote does with property_taxes rows, and that
+// the legacy single rate still works until the migration is everywhere.
+// ============================================================================
+
+const STATE_RATE_BP = 575 // 5.75%
+const COUNTY_RATE_BP = 300 // 3.00%
+const OHIO_MAX_NIGHTS = 29 // Ohio exempts stays of 30 nights or more.
+
+function tax(over: Partial<TaxDefinition> = {}): TaxDefinition {
+  return {
+    id: 'tax-state',
+    name: 'State Lodging Tax',
+    authority: 'State Department of Taxation',
+    rateType: 'percentage',
+    rateBp: STATE_RATE_BP,
+    amountCents: null,
+    minNights: null,
+    maxNights: null,
+    basis: 'pre_tax',
+    priority: 0,
+    discountsReduceTaxableAmount: true,
+    exemptible: true,
+    effectiveFrom: null,
+    effectiveTo: null,
+    enabled: true,
+    appliesToCategories: ['lodging'],
+    ...over,
+  }
+}
+
+/** A property that carries no legacy rate, so only property_taxes rows apply. */
+const noLegacyRate = () => property({ pricing_config: {} })
+
+describe('quoteStay tax lines', () => {
+  const subtotal = NIGHTLY_CENTS * 3
+
+  test('charges each configured tax as its own line, and totals them', () => {
+    const county = tax({
+      id: 'tax-county',
+      name: 'County Lodging Tax',
+      authority: 'Ashtabula County',
+      rateBp: COUNTY_RATE_BP,
+      priority: 1,
+    })
+    const { breakdown } = quoteStay(
+      input({ property: noLegacyRate(), taxes: [tax(), county] }),
+    )
+
+    const stateAmount = Math.round((subtotal * STATE_RATE_BP) / 10_000)
+    const countyAmount = Math.round((subtotal * COUNTY_RATE_BP) / 10_000)
+    expect({
+      lines: breakdown.tax_lines,
+      taxes: breakdown.taxes,
+      total: breakdown.total,
+    }).toEqual({
+      lines: [
+        {
+          tax_id: 'tax-state',
+          name: 'State Lodging Tax',
+          authority: 'State Department of Taxation',
+          rate_bp: STATE_RATE_BP,
+          amount_cents: stateAmount,
+          exempt: false,
+        },
+        {
+          tax_id: 'tax-county',
+          name: 'County Lodging Tax',
+          authority: 'Ashtabula County',
+          rate_bp: COUNTY_RATE_BP,
+          amount_cents: countyAmount,
+          exempt: false,
+        },
+      ],
+      taxes: stateAmount + countyAmount,
+      total: subtotal + stateAmount + countyAmount,
+    })
+  })
+
+  test('emits one tax line item per authority, labelled with it', () => {
+    const county = tax({
+      id: 'tax-county',
+      name: 'County Lodging Tax',
+      authority: 'Ashtabula County',
+      rateBp: COUNTY_RATE_BP,
+      priority: 1,
+    })
+    const { lineItems } = quoteStay(input({ property: noLegacyRate(), taxes: [tax(), county] }))
+
+    expect(lineItems.filter((l) => l.category === 'tax').map((l) => l.description)).toEqual([
+      'State Lodging Tax (State Department of Taxation)',
+      'County Lodging Tax (Ashtabula County)',
+    ])
+  })
+
+  test('reports no single rate when several taxes apply, rather than passing one off as the whole', () => {
+    const county = tax({ id: 'tax-county', rateBp: COUNTY_RATE_BP, priority: 1 })
+    const { breakdown } = quoteStay(input({ property: noLegacyRate(), taxes: [tax(), county] }))
+    expect({ name: breakdown.tax_name, rate: breakdown.tax_rate }).toEqual({
+      name: 'Taxes',
+      rate: undefined,
+    })
+  })
+
+  test('still reports the rate and name when exactly one tax applies', () => {
+    const { breakdown } = quoteStay(input({ property: noLegacyRate(), taxes: [tax()] }))
+    expect({ name: breakdown.tax_name, rate: breakdown.tax_rate }).toEqual({
+      name: 'State Lodging Tax',
+      rate: STATE_RATE_BP / 10_000,
+    })
+  })
+
+  test('drops the tax entirely for a stay past the configured duration gate', () => {
+    // The Ohio shape: a 35-night stay owes no lodging tax at all.
+    const { breakdown, lineItems } = quoteStay(
+      input({
+        property: noLegacyRate(),
+        taxes: [tax({ maxNights: OHIO_MAX_NIGHTS })],
+        numberOfNights: OHIO_MAX_NIGHTS + 6,
+        checkOutDate: '2026-07-20',
+      }),
+    )
+    expect({
+      lines: breakdown.tax_lines,
+      taxes: breakdown.taxes,
+      taxItems: lineItems.filter((l) => l.category === 'tax'),
+    }).toEqual({ lines: [], taxes: 0, taxItems: [] })
+  })
+
+  test('charges that same tax on a stay inside the gate', () => {
+    const { breakdown } = quoteStay(
+      input({ property: noLegacyRate(), taxes: [tax({ maxNights: OHIO_MAX_NIGHTS })] }),
+    )
+    expect(breakdown.taxes).toBe(Math.round((subtotal * STATE_RATE_BP) / 10_000))
+  })
+
+  test('taxes at the rate effective on the check-in date, not the rate in force elsewhere', () => {
+    const expired = tax({ id: 'tax-old', effectiveTo: '2026-05-31' })
+    const current = tax({ id: 'tax-new', rateBp: COUNTY_RATE_BP, effectiveFrom: '2026-06-01' })
+    const { breakdown } = quoteStay(
+      input({ property: noLegacyRate(), taxes: [expired, current] }),
+    )
+    expect(breakdown.tax_lines?.map((l) => l.tax_id)).toEqual(['tax-new'])
+  })
+
+  test('ignores a disabled tax', () => {
+    const { breakdown } = quoteStay(
+      input({ property: noLegacyRate(), taxes: [tax({ enabled: false })] }),
+    )
+    expect({ lines: breakdown.tax_lines, taxes: breakdown.taxes }).toEqual({
+      lines: [],
+      taxes: 0,
+    })
+  })
+
+  test('charges a per_night tax once per night, independent of the stay value', () => {
+    const BED_TAX_CENTS = 2_00
+    const { breakdown } = quoteStay(
+      input({
+        property: noLegacyRate(),
+        taxes: [tax({ rateType: 'per_night', rateBp: null, amountCents: BED_TAX_CENTS })],
+      }),
+    )
+    expect(breakdown.taxes).toBe(BED_TAX_CENTS * 3)
+  })
+
+  test('taxes the stay plus only the fees the property marked taxable', () => {
+    const TAXABLE_FEE_CENTS = 20_00
+    const EXEMPT_FEE_CENTS = 30_00
+    const { breakdown } = quoteStay(
+      input({
+        property: property({
+          pricing_config: {
+            user_defined_fees: [
+              {
+                id: 'fee-taxable',
+                title: 'Resort fee',
+                fee_type: 'flat_amount',
+                value_cents: TAXABLE_FEE_CENTS,
+                trigger_type: 'always',
+                is_taxable: true,
+                enabled: true,
+              },
+              {
+                id: 'fee-exempt',
+                title: 'Permit',
+                fee_type: 'flat_amount',
+                value_cents: EXEMPT_FEE_CENTS,
+                trigger_type: 'always',
+                is_taxable: false,
+                enabled: true,
+              },
+            ],
+          },
+        }),
+        taxes: [tax()],
+      }),
+    )
+    expect(breakdown.taxes).toBe(
+      Math.round(((subtotal + TAXABLE_FEE_CENTS) * STATE_RATE_BP) / 10_000),
+    )
+  })
+
+  test('honours each tax own view of whether a discount reduces its base', () => {
+    const DISCOUNT_CENTS = 15_00
+    const reduces = tax({ id: 'tax-reduces', discountsReduceTaxableAmount: true })
+    const doesNot = tax({ id: 'tax-does-not', discountsReduceTaxableAmount: false, priority: 1 })
+    const { breakdown } = quoteStay(
+      input({
+        property: property({
+          pricing_config: {},
+          rate_discounts_config: {
+            user_defined_discounts: [
+              {
+                id: 'disc-1',
+                title: 'Promo',
+                discount_type: 'flat_amount',
+                value_cents: DISCOUNT_CENTS,
+                trigger_type: 'min_nights',
+                trigger_conditions: { min_nights: 1 },
+                enabled: true,
+              },
+            ],
+          },
+        }),
+        taxes: [reduces, doesNot],
+      }),
+    )
+    expect(breakdown.tax_lines?.map((l) => l.amount_cents)).toEqual([
+      Math.round(((subtotal - DISCOUNT_CENTS) * STATE_RATE_BP) / 10_000),
+      Math.round((subtotal * STATE_RATE_BP) / 10_000),
+    ])
+  })
+
+  test('falls back to the legacy single rate when no taxes are configured yet', () => {
+    // The deployment bridge: code can reach production before the migration,
+    // and a property with a rate in pricing_config must keep collecting it.
+    const { breakdown } = quoteStay(input({ taxes: [] }))
+    expect({
+      lines: breakdown.tax_lines?.map((l) => [l.name, l.rate_bp]),
+      taxes: breakdown.taxes,
+    }).toEqual({
+      lines: [['Sales Tax', Math.round(TAX_RATE * 10_000)]],
+      taxes: Math.round(subtotal * TAX_RATE),
+    })
+  })
+
+  test('prefers configured taxes over the legacy rate when both are present', () => {
+    const { breakdown } = quoteStay(input({ taxes: [tax()] }))
+    expect({
+      lines: breakdown.tax_lines?.map((l) => l.tax_id),
+      taxes: breakdown.taxes,
+    }).toEqual({
+      lines: ['tax-state'],
+      taxes: Math.round((subtotal * STATE_RATE_BP) / 10_000),
+    })
   })
 })

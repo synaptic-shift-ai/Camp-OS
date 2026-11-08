@@ -27,3 +27,13 @@ export type {
 } from './IPricingCalculator'
 
 export { PricingCalculator } from './PricingCalculator'
+
+// Stay tax lines — shared by every server path that prices a stay
+export {
+  STAY_TAX_CATEGORY,
+  applyStayTaxes,
+  applyTaxLinesToBreakdown,
+  resolveStayTaxes,
+  stayTaxableCharge,
+} from './StayTaxLines'
+export type { LegacyTaxConfig } from './StayTaxLines'

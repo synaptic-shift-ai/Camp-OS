@@ -20,6 +20,9 @@ import type {
 import { calculateBaseSubtotalCents } from './pricing'
 import { calculateReservationPriceEnhanced } from './pricing-enhanced'
 
+import { resolveRatePeriods } from '@/lib/config/rate-periods'
+import { parseReservationTypesConfigFromDB } from '@/lib/config/resolution'
+import type { SiteTypeRateBundle } from '@/lib/config/types'
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -190,14 +193,36 @@ export async function processExtension(
     } else {
       const site = currentRes.site as {
         base_price: number
+        site_type?: string | null
         weekly_rate_cents?: number | null
         monthly_rate_cents?: number | null
       }
+      // This degraded path writes total_amount and raises an installment, so it
+      // must use the property's configured rate periods rather than assume a
+      // week is 7 nights and a month 28 (S-0.4).
+      const { data: propertyConfig } = await supabase
+        .from('properties')
+        .select('reservation_type_config, site_type_config')
+        .eq('id', currentRes.property_id)
+        .single()
+      const siteTypeRates =
+        (propertyConfig?.site_type_config as
+          | { site_type_rates?: Record<string, SiteTypeRateBundle> }
+          | null)?.site_type_rates ?? {}
+      const siteTypeKey =
+        Object.keys(siteTypeRates).find(
+          (key) => key.toLowerCase() === (site.site_type ?? '').toLowerCase(),
+        ) ?? (site.site_type ?? '')
+      const periods = resolveRatePeriods(
+        parseReservationTypesConfigFromDB(propertyConfig?.reservation_type_config ?? null),
+        siteTypeKey ? (siteTypeRates[siteTypeKey] ?? null) : null,
+      )
       const newTotalCents = calculateBaseSubtotalCents(
         newNights,
         site.base_price,
         site.weekly_rate_cents,
-        site.monthly_rate_cents
+        site.monthly_rate_cents,
+        periods
       )
       priceChange = newTotalCents - currentRes.total_amount
     }

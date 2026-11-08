@@ -12,6 +12,8 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateDateRange } from './api'
 import type { Site, PriceBreakdown, BookingResult, SiteType } from './types'
 
+import { selectRatePeriod } from '@/lib/config/rate-periods'
+import type { EffectiveRatePeriods, RatePeriodName } from '@/lib/config/rate-periods'
 /**
  * Simple synchronous price calculation for guest bookings
  * Used when we already have the site data and just need to calculate totals
@@ -51,22 +53,47 @@ export function calculatePriceBreakdown(params: {
  * Base subtotal in cents for N nights using weekly/monthly rules (matches PricingSummary).
  * Use for extension pricing and any place that needs "total for N nights" without fees/discounts.
  */
+/**
+ * Split a stay into whole rate-period blocks plus remainder nights.
+ *
+ * `minNights` for the chosen period is the block size, so a property that bills
+ * a month as 30 nights charges one month plus four nights for a 34-night stay.
+ */
+function splitIntoBlocks(
+  nights: number,
+  blockNights: number,
+): { fullBlocks: number; remainder: number } {
+  return { fullBlocks: Math.floor(nights / blockNights), remainder: nights % blockNights }
+}
+
+function chooseRatePeriod(
+  nights: number,
+  weeklyRateCents: number | null | undefined,
+  monthlyRateCents: number | null | undefined,
+  periods: EffectiveRatePeriods,
+): RatePeriodName {
+  return selectRatePeriod(nights, periods, {
+    weekly: weeklyRateCents != null && weeklyRateCents > 0,
+    monthly: monthlyRateCents != null && monthlyRateCents > 0,
+  })
+}
+
 export function calculateBaseSubtotalCents(
   nights: number,
   basePriceCents: number,
   weeklyRateCents: number | null | undefined,
-  monthlyRateCents: number | null | undefined
+  monthlyRateCents: number | null | undefined,
+  periods: EffectiveRatePeriods
 ): number {
-  if (nights >= 28 && monthlyRateCents != null && monthlyRateCents > 0) {
-    const fullMonths = Math.floor(nights / 28)
-    const remainder = nights % 28
-    return fullMonths * monthlyRateCents + remainder * basePriceCents
+  const period = chooseRatePeriod(nights, weeklyRateCents, monthlyRateCents, periods)
+
+  if (period === 'monthly') {
+    const { fullBlocks, remainder } = splitIntoBlocks(nights, periods.monthly.minNights)
+    return fullBlocks * (monthlyRateCents as number) + remainder * basePriceCents
   }
-  if (nights >= 7 && weeklyRateCents != null && weeklyRateCents > 0) {
-    const weeklyCents = weeklyRateCents
-    const fullWeeks = Math.floor(nights / 7)
-    const remainder = nights % 7
-    return fullWeeks * weeklyCents + remainder * basePriceCents
+  if (period === 'weekly') {
+    const { fullBlocks, remainder } = splitIntoBlocks(nights, periods.weekly.minNights)
+    return fullBlocks * (weeklyRateCents as number) + remainder * basePriceCents
   }
   return nights * basePriceCents
 }
@@ -81,29 +108,24 @@ export function getBaseSubtotalAndLabel(
   nights: number,
   basePriceCents: number,
   weeklyRateCents: number | null | undefined,
-  monthlyRateCents: number | null | undefined
-): { subtotalCents: number; basePriceLabel: string; rateType: 'nightly' | 'weekly' | 'monthly' } {
-  if (nights >= 28 && monthlyRateCents != null && monthlyRateCents > 0) {
-    const fullMonths = Math.floor(nights / 28)
-    const remainder = nights % 28
-    const subtotalCents = fullMonths * monthlyRateCents + remainder * basePriceCents
+  monthlyRateCents: number | null | undefined,
+  periods: EffectiveRatePeriods
+): { subtotalCents: number; basePriceLabel: string; rateType: RatePeriodName } {
+  const period = chooseRatePeriod(nights, weeklyRateCents, monthlyRateCents, periods)
+
+  if (period !== 'nightly') {
+    const blockRateCents = (period === 'monthly' ? monthlyRateCents : weeklyRateCents) as number
+    const noun = period === 'monthly' ? 'month' : 'week'
+    const { fullBlocks, remainder } = splitIntoBlocks(nights, periods[period].minNights)
+    const subtotalCents = fullBlocks * blockRateCents + remainder * basePriceCents
+    const blockLabel = `${fullBlocks} ${noun}${fullBlocks !== 1 ? 's' : ''}`
     const basePriceLabel =
       remainder === 0
-        ? `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyRateCents)}/month)`
-        : `${fullMonths} month${fullMonths !== 1 ? 's' : ''} (${formatMoney(monthlyRateCents)}) + ${remainder} night${remainder !== 1 ? 's' : ''} (${formatMoney(basePriceCents)}/night)`
-    return { subtotalCents, basePriceLabel, rateType: 'monthly' }
+        ? `${blockLabel} (${formatMoney(blockRateCents)}/${noun})`
+        : `${blockLabel} (${formatMoney(blockRateCents)}) + ${remainder} night${remainder !== 1 ? 's' : ''} (${formatMoney(basePriceCents)}/night)`
+    return { subtotalCents, basePriceLabel, rateType: period }
   }
-  if (nights >= 7 && weeklyRateCents != null && weeklyRateCents > 0) {
-    const weeklyCents = weeklyRateCents
-    const fullWeeks = Math.floor(nights / 7)
-    const remainder = nights % 7
-    const subtotalCents = fullWeeks * weeklyCents + remainder * basePriceCents
-    const basePriceLabel =
-      remainder === 0
-        ? `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}/week)`
-        : `${fullWeeks} week${fullWeeks !== 1 ? 's' : ''} (${formatMoney(weeklyCents)}) + ${remainder} night${remainder !== 1 ? 's' : ''} (${formatMoney(basePriceCents)}/night)`
-    return { subtotalCents, basePriceLabel, rateType: 'weekly' }
-  }
+
   const subtotalCents = nights * basePriceCents
   const basePriceLabel = `${formatMoney(basePriceCents)}/night × ${nights} night${nights !== 1 ? 's' : ''}`
   return { subtotalCents, basePriceLabel, rateType: 'nightly' }

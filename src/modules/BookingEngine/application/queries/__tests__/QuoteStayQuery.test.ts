@@ -342,3 +342,62 @@ describe('quoteStay rates', () => {
     expect(result.breakdown.subtotal).toBe(PROPERTY_NIGHTLY * 3)
   })
 })
+
+describe('quoteStay rate-period thresholds (S-0.4)', () => {
+  const THIRTY_NIGHT_MONTH = 30
+  const MONTHLY_CENTS = 900_00
+
+  const monthlyProperty = (monthlyMinNights: number) =>
+    property({
+      enabled_reservation_types: ['nightly', 'weekly', 'monthly'],
+      reservation_type_config: {
+        nightly: { enabled: true, min_nights: 1, max_nights: 6, rate_cents: null },
+        weekly: { enabled: true, min_nights: 7, max_nights: monthlyMinNights - 1, rate_cents: null },
+        monthly: { enabled: true, min_nights: monthlyMinNights, max_nights: null, rate_cents: null },
+        seasonal: { enabled: false, min_nights: 1, max_nights: null, rate_cents: null, flat_rate: true },
+      },
+    })
+
+  const monthlySite = site({
+    monthly_rate_cents: MONTHLY_CENTS,
+    enabled_reservation_types_override: ['nightly', 'weekly', 'monthly'],
+  })
+
+  test('bills a 30-night stay monthly when the property defines a month as 30 nights', () => {
+    const { breakdown } = quoteStay(
+      input({
+        numberOfNights: THIRTY_NIGHT_MONTH,
+        checkOutDate: '2026-07-15',
+        site: monthlySite,
+        property: monthlyProperty(THIRTY_NIGHT_MONTH),
+      }),
+    )
+    expect(breakdown.rate_type).toBe('monthly')
+    expect(breakdown.subtotal).toBe(MONTHLY_CENTS)
+  })
+
+  test('bills 29 nights as weeks plus nights under the same configuration', () => {
+    const { breakdown } = quoteStay(
+      input({
+        numberOfNights: THIRTY_NIGHT_MONTH - 1,
+        checkOutDate: '2026-07-14',
+        site: monthlySite,
+        property: monthlyProperty(THIRTY_NIGHT_MONTH),
+      }),
+    )
+    expect(breakdown.rate_type).not.toBe('monthly')
+  })
+
+  test('bills a 28-night stay monthly when the property keeps the 28-night default', () => {
+    const { breakdown } = quoteStay(
+      input({
+        numberOfNights: 28,
+        checkOutDate: '2026-07-13',
+        site: monthlySite,
+        property: monthlyProperty(28),
+      }),
+    )
+    expect(breakdown.rate_type).toBe('monthly')
+    expect(breakdown.subtotal).toBe(MONTHLY_CENTS)
+  })
+})

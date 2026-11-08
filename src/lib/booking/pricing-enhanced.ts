@@ -37,6 +37,8 @@ import type { PropertyReservationTypesConfig } from '@/lib/config/types'
 
 import { shouldApplyFee, type FeeApplicationContext } from '@/lib/config/fee-rules'
 import { computeTax, stayPlusTaxableFeesFromTotal } from '@/lib/config/tax-rules'
+import { resolveRatePeriods, selectRatePeriod } from '@/lib/config/rate-periods'
+import type { SiteTypeRateBundle } from '@/lib/config/types'
 // =====================================================
 // Helper Functions
 // =====================================================
@@ -221,6 +223,22 @@ export async function calculateReservationPriceEnhanced(
     property.reservation_type_config as PropertyReservationTypesConfig | null
   )
 
+  // Configured rate-period thresholds: per-site-type, then property, then
+  // defaults (S-0.4).
+  const siteTypeRatesForPeriods =
+    (property.site_type_config as { site_type_rates?: Record<string, SiteTypeRateBundle> } | null)
+      ?.site_type_rates ?? {}
+  const siteTypeKeyForPeriods =
+    Object.keys(siteTypeRatesForPeriods).find(
+      (key) =>
+        key.toLowerCase() ===
+        ((typedSite as { site_type?: string | null }).site_type ?? '').toLowerCase(),
+    ) ?? ''
+  const ratePeriods = resolveRatePeriods(
+    reservationTypesConfig,
+    siteTypeKeyForPeriods ? (siteTypeRatesForPeriods[siteTypeKeyForPeriods] ?? null) : null,
+  )
+
   // When site does not use manual pricing (property_default or site_type_default),
   // use property's reservation_type_config rates for base, weekly, and monthly pricing
   const usesPropertyDefaults =
@@ -327,18 +345,28 @@ export async function calculateReservationPriceEnhanced(
       totalNights,
       siteForRates.base_price,
       siteForRates.weekly_rate_cents ?? null,
-      siteForRates.monthly_rate_cents ?? null
+      siteForRates.monthly_rate_cents ?? null,
+      ratePeriods
     )
-    if (totalNights >= 28 && siteForRates.monthly_rate_cents) {
-      baseRateUsed = siteForRates.monthly_rate_cents
-    } else if (totalNights >= 7 && siteForRates.weekly_rate_cents) {
-      baseRateUsed = siteForRates.weekly_rate_cents
-    } else {
-      baseRateUsed = siteForRates.base_price
-    }
-    // Weekend surcharge only for remainder nights (charged at base_price)
-    const _fullWeeks = totalNights >= 7 ? Math.floor(totalNights / 7) : 0
-    const remainderCount = totalNights >= 28 ? totalNights % 28 : totalNights >= 7 ? totalNights % 7 : totalNights
+
+    // Which period this stay billed under, from configuration rather than
+    // assuming a week is 7 nights and a month 28 (S-0.4).
+    const billedPeriod = selectRatePeriod(totalNights, ratePeriods, {
+      weekly: (siteForRates.weekly_rate_cents ?? 0) > 0,
+      monthly: (siteForRates.monthly_rate_cents ?? 0) > 0,
+    })
+    baseRateUsed =
+      billedPeriod === 'monthly'
+        ? (siteForRates.monthly_rate_cents as number)
+        : billedPeriod === 'weekly'
+          ? (siteForRates.weekly_rate_cents as number)
+          : siteForRates.base_price
+
+    // Weekend surcharge applies only to remainder nights, charged at base_price.
+    const remainderCount =
+      billedPeriod === 'nightly'
+        ? totalNights
+        : totalNights % ratePeriods[billedPeriod].minNights
     const remainderStartNightIndex = totalNights - remainderCount
     let nightIdx = 0
     const surchargeStart = new Date(checkInDate + 'T00:00:00')

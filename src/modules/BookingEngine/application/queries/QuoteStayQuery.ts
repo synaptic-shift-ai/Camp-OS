@@ -23,12 +23,10 @@ import {
   resolveReservationTypeRate,
   parseEnabledReservationTypesFromDB,
 } from '@/lib/config/resolution'
-import type { RateDiscountsConfig, SiteTypeConfig } from '@/lib/config/types'
+import type { RateDiscountsConfig, SiteTypeConfig, SiteTypeRateBundle } from '@/lib/config/types'
+import { resolveRatePeriods } from '@/lib/config/rate-periods'
+import type { EffectiveRatePeriods } from '@/lib/config/rate-periods'
 import { getManualOverrideTypes, getPricingSourceType } from '@/lib/site-pricing-source'
-
-/** Nights a weekly or monthly block covers. Replaced by configuration in S-0.4. */
-const NIGHTS_PER_WEEK = 7
-const NIGHTS_PER_MONTH = 28
 
 export type QuoteSite = {
   site_type: string | null
@@ -122,7 +120,22 @@ export function resolveGuestPetFeeCents(pricingConfig: unknown): number {
  * site's own rates, `site_type_default` uses the property's per-site-type
  * rates, and `property_default` uses the property reservation-type config.
  */
-function resolveEffectiveRates(site: QuoteSite, property: QuoteProperty | null) {
+/** The property's per-site-type rate bundle for this site, if any. */
+function findSiteTypeBundle(
+  site: QuoteSite,
+  property: QuoteProperty | null,
+): SiteTypeRateBundle | null {
+  const map = (property?.site_type_config as SiteTypeConfig | null)?.site_type_rates ?? {}
+  const siteType = (site.site_type ?? '').toLowerCase()
+  const key = Object.keys(map).find((k) => k.toLowerCase() === siteType) ?? (site.site_type ?? '')
+  return key ? (map[key] ?? null) : null
+}
+
+function resolveEffectiveRates(
+  site: QuoteSite,
+  property: QuoteProperty | null,
+  periods: EffectiveRatePeriods,
+) {
   const reservationTypeConfig = parseReservationTypesConfigFromDB(
     property?.reservation_type_config ?? null,
   )
@@ -140,11 +153,7 @@ function resolveEffectiveRates(site: QuoteSite, property: QuoteProperty | null) 
     | null = null
 
   if (usesSiteTypeDefault) {
-    const map = (property?.site_type_config as SiteTypeConfig | null)?.site_type_rates ?? {}
-    const siteType = (site.site_type ?? '').toLowerCase()
-    const ratesKey =
-      Object.keys(map).find((key) => key.toLowerCase() === siteType) ?? (site.site_type ?? '')
-    const rates = ratesKey ? map[ratesKey] : null
+    const rates = findSiteTypeBundle(site, property)
     if (rates) {
       siteTypeHasWeekly = rates.weekly?.rate_cents != null && rates.weekly.rate_cents > 0
       siteTypeHasMonthly = rates.monthly?.rate_cents != null && rates.monthly.rate_cents > 0
@@ -203,10 +212,12 @@ function resolveEffectiveRates(site: QuoteSite, property: QuoteProperty | null) 
 
   return {
     nightly,
-    // A rate equal to nightly x block length means "no distinct block rate",
-    // which getBaseSubtotalAndLabel signals with null.
-    weeklyForLabel: weeklyEnabled ? weekly : nightly * NIGHTS_PER_WEEK,
-    monthlyForLabel: monthlyEnabled ? monthly : nightly * NIGHTS_PER_MONTH,
+    // A rate equal to nightly x the configured block length means "no distinct
+    // block rate", which getBaseSubtotalAndLabel signals with null. Preserved
+    // as-is: a property whose weekly rate happens to equal 7x nightly is
+    // therefore labelled nightly, which is the long-standing behaviour.
+    weeklyForLabel: weeklyEnabled ? weekly : nightly * periods.weekly.minNights,
+    monthlyForLabel: monthlyEnabled ? monthly : nightly * periods.monthly.minNights,
   }
 }
 
@@ -290,13 +301,25 @@ function resolveAutoDiscounts(
 /** Quote a guest stay. Pure; the caller supplies the site and property rows. */
 export function quoteStay(input: QuoteStayInput): QuoteStayResult {
   const { site, property, numberOfNights } = input
-  const rates = resolveEffectiveRates(site, property)
+
+  // Rate-period thresholds come from configuration: per-site-type, then
+  // property, then defaults (S-0.4).
+  const periods = resolveRatePeriods(
+    parseReservationTypesConfigFromDB(property?.reservation_type_config ?? null),
+    findSiteTypeBundle(site, property),
+  )
+  const rates = resolveEffectiveRates(site, property, periods)
 
   const { subtotalCents, basePriceLabel, rateType } = getBaseSubtotalAndLabel(
     numberOfNights,
     rates.nightly,
-    rates.weeklyForLabel !== rates.nightly * NIGHTS_PER_WEEK ? rates.weeklyForLabel : null,
-    rates.monthlyForLabel !== rates.nightly * NIGHTS_PER_MONTH ? rates.monthlyForLabel : null,
+    rates.weeklyForLabel !== rates.nightly * periods.weekly.minNights
+      ? rates.weeklyForLabel
+      : null,
+    rates.monthlyForLabel !== rates.nightly * periods.monthly.minNights
+      ? rates.monthlyForLabel
+      : null,
+    periods,
   )
 
   const breakdown = calculatePriceBreakdown({

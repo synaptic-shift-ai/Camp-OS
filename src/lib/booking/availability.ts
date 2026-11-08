@@ -32,6 +32,9 @@ import {
 } from './open-period'
 import { stayOverlapsPreventiveMaintenanceSchedule } from './maintenance-schedule-blocks'
 
+import { resolveRatePeriods } from '@/lib/config/rate-periods'
+import { getBaseSubtotalAndLabel } from './pricing'
+import type { SiteTypeRateBundle } from '@/lib/config/types'
 type AvailableSiteRate = {
   nightlyCents: number
   weeklyCents?: number
@@ -91,8 +94,13 @@ function convertAmenities(amenitiesArray: string[] | null): SiteAmenities {
 /**
  * Convert DB Site to UI-friendly AvailableSite
  */
-function convertToAvailableSite(site: Site, rates: AvailableSiteRate): AvailableSite {
+function convertToAvailableSite(
+  site: Site,
+  rates: AvailableSiteRate,
+  stay?: { subtotalCents: number; basePriceLabel: string },
+): AvailableSite {
   return {
+    ...(stay && { subtotal_cents: stay.subtotalCents, base_price_label: stay.basePriceLabel }),
     id: site.id,
     name: site.site_name || `Site ${site.site_number}`,
     site_number: site.site_number,
@@ -587,8 +595,17 @@ export async function searchAvailableSites(
   // Exclude sites whose effective nightly rate is 0
   filteredSites = filteredSites.filter((site) => resolveSiteNightlyRate(site as SiteRow) > 0)
 
+  /** Configured rate periods for a site: per-site-type, then property, then defaults. */
+  function resolveSitePeriods(row: SiteRow) {
+    const st = (row.site_type ?? '').toLowerCase()
+    const key = Object.keys(siteTypeRatesMap).find((k) => k.toLowerCase() === st) ?? (row.site_type ?? '')
+    const bundle = key ? siteTypeRatesMap[key] : null
+    return resolveRatePeriods(reservationTypeConfig, bundle as SiteTypeRateBundle | null)
+  }
+
   const availableSites = filteredSites.map((site) => {
     const row = site as SiteRow
+    const ratePeriods = resolveSitePeriods(row)
     const pricingSource = getPricingSourceType(row.pricing_override, row.enabled_reservation_types_override)
     const override = row.pricing_override?.reservation_type_rates_override ?? null
     let effectiveOverride: Partial<Record<BookingType, number>> | null = override
@@ -653,10 +670,10 @@ export async function searchAvailableSites(
       const monthlyConfigured = r.monthly?.rate_cents != null && r.monthly.rate_cents > 0
       effectiveOverride = { ...(effectiveOverride ?? {}) }
       if (!weeklyConfigured) {
-        effectiveOverride.weekly = nightlyCents * 7
+        effectiveOverride.weekly = nightlyCents * ratePeriods.weekly.minNights
       }
       if (!monthlyConfigured) {
-        effectiveOverride.monthly = nightlyCents * 28
+        effectiveOverride.monthly = nightlyCents * ratePeriods.monthly.minNights
       }
     }
 
@@ -667,7 +684,7 @@ export async function searchAvailableSites(
           effectiveOverride,
           fallbackRates(row)
         )
-      : nightlyCents * 7
+      : nightlyCents * ratePeriods.weekly.minNights
     const monthlyCents = monthlyAllowed
       ? resolveReservationTypeRate(
           'monthly',
@@ -675,13 +692,25 @@ export async function searchAvailableSites(
           effectiveOverride,
           fallbackRates(row)
         )
-      : nightlyCents * 28
+      : nightlyCents * ratePeriods.monthly.minNights
+    const hasDistinctWeekly = weeklyCents !== nightlyCents * ratePeriods.weekly.minNights
+    const hasDistinctMonthly = monthlyCents !== nightlyCents * ratePeriods.monthly.minNights
     const rates: AvailableSiteRate = {
       nightlyCents,
-      ...(weeklyCents !== nightlyCents * 7 && { weeklyCents }),
-      ...(monthlyCents !== nightlyCents * 28 && { monthlyCents }),
+      ...(hasDistinctWeekly && { weeklyCents }),
+      ...(hasDistinctMonthly && { monthlyCents }),
     }
-    return convertToAvailableSite(row as Site, rates)
+
+    // Price the stay here so the client renders a figure instead of computing
+    // one (S-0.5), using this site's configured rate periods (S-0.4).
+    const stay = getBaseSubtotalAndLabel(
+      totalNights,
+      nightlyCents,
+      hasDistinctWeekly ? weeklyCents : null,
+      hasDistinctMonthly ? monthlyCents : null,
+      ratePeriods,
+    )
+    return convertToAvailableSite(row as Site, rates, stay)
   })
 
   return {  

@@ -91,6 +91,16 @@ export interface AvailableSite {
   monthly_rate_cents?: number
   amenities: SiteAmenities // Converted from string[]
   image_url?: string // First image from images[]
+
+  /**
+   * Stay subtotal for the searched dates, computed server-side using the
+   * property's configured rate periods (S-0.4/S-0.5). Present on availability
+   * results so the client renders a price rather than computing one.
+   */
+  subtotal_cents?: number
+
+  /** Human label for that subtotal, e.g. "2 weeks ($540) + 3 nights ($45/night)". */
+  base_price_label?: string
 }
 
 // ============================================================================

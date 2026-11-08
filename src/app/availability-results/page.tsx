@@ -28,7 +28,6 @@ import { format, differenceInDays } from "date-fns"
 import { useCheckout } from "@/lib/booking/checkout-context"
 import { useToast } from "@/hooks/use-toast"
 import type { AvailableSite, PriceBreakdown, SiteType } from "@/lib/booking/types"
-import { getBaseSubtotalAndLabel } from "@/lib/booking/pricing"
 import { cn, capitalizeWordsPreserveSpacing } from "@/lib/utils"
 
 
@@ -421,12 +420,10 @@ function AvailabilityResultsContent() {
             <div className="space-y-4">
               {availableSites.map((site) => {
                 const Icon = getSiteIcon(site.site_type)
-                const { subtotalCents, basePriceLabel } = getBaseSubtotalAndLabel(
-                  nights,
-                  site.base_price_per_night,
-                  site.weekly_rate_cents ?? null,
-                  site.monthly_rate_cents ?? null
-                )
+                // Priced server-side using the property's configured rate
+                // periods; the client only renders it (S-0.4/S-0.5).
+                const subtotalCents = site.subtotal_cents ?? 0
+                const basePriceLabel = site.base_price_label ?? ''
                 const totalPrice = subtotalCents / 100
 
                 return (

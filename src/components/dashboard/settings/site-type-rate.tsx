@@ -74,6 +74,32 @@ interface ReservationTypeSettingsProps {
 /** Order for accordion; values must match DB site_type (case-insensitive). */
 const SITE_TYPE_DISPLAY_ORDER: readonly string[] = SITE_TYPES
 
+/**
+ * Default thresholds for a rate period, taken from the canonical property
+ * defaults rather than restated as literals (S-0.4). These seed a site type the
+ * user has not configured yet; once configured, the stored values win.
+ */
+const periodDefaults = (period: ConfigurableReservationType): SiteTypeRateConfig => ({
+  rate_cents: null,
+  min_nights: DEFAULT_RESERVATION_TYPES_CONFIG[period].min_nights,
+  max_nights: DEFAULT_RESERVATION_TYPES_CONFIG[period].max_nights,
+})
+
+/** Merge stored values over the period defaults, preserving a deliberate null bound. */
+const mergePeriod = (
+  stored: Partial<SiteTypeRateConfig> | undefined,
+  period: ConfigurableReservationType,
+): SiteTypeRateConfig => {
+  const fallback = periodDefaults(period)
+  if (!stored) return fallback
+  return {
+    rate_cents: stored.rate_cents ?? null,
+    min_nights: stored.min_nights ?? fallback.min_nights,
+    max_nights: 'max_nights' in stored ? (stored.max_nights ?? null) : fallback.max_nights,
+  }
+}
+
+
 // All possible site types that can be configured for a property.
 // Values should correspond to the DB `site_type` values (case-insensitive).
 const ALL_SITE_TYPES = SITE_TYPE_DISPLAY_ORDER
@@ -195,21 +221,9 @@ export function SiteTypeRateSettings({
         const cfg = fromConfig[siteType] ?? {}
         
         acc[siteType] = {
-          nightly: {
-            rate_cents: cfg.nightly?.rate_cents ?? null,
-            min_nights: cfg.nightly?.min_nights ?? 1,
-            max_nights: cfg.nightly?.max_nights ?? 6,
-          },
-          weekly: {
-            rate_cents: cfg.weekly?.rate_cents ?? null,
-            min_nights: cfg.weekly?.min_nights ?? 7,
-            max_nights: cfg.weekly?.max_nights ?? 27,
-          },
-          monthly: {
-            rate_cents: cfg.monthly?.rate_cents ?? null,
-            min_nights: cfg.monthly?.min_nights ?? 28,
-            max_nights: cfg.monthly?.max_nights ?? null,
-          },
+          nightly: mergePeriod(cfg.nightly, 'nightly'),
+          weekly: mergePeriod(cfg.weekly, 'weekly'),
+          monthly: mergePeriod(cfg.monthly, 'monthly'),
         }
         return acc
       },
@@ -308,34 +322,16 @@ export function SiteTypeRateSettings({
     setSiteTypeRates((prev) => {
       const current = prev[siteType]
       const currentType = current?.[type]
-      const defaultMin =
-        type === 'nightly' ? 1 : type === 'weekly' ? 7 : 28
-      const defaultMax =
-        type === 'nightly' ? 6 : type === 'weekly' ? 27 : null
       const nextType: SiteTypeRateConfig = {
-        rate_cents: currentType?.rate_cents ?? null,
-        min_nights: currentType?.min_nights ?? defaultMin,
-        max_nights: currentType?.max_nights ?? defaultMax,
+        ...mergePeriod(currentType, type),
         [field]: value,
       }
       return {
         ...prev,
         [siteType]: {
-          nightly: current?.nightly ?? {
-            rate_cents: null,
-            min_nights: 1,
-            max_nights: 6,
-          },
-          weekly: current?.weekly ?? {
-            rate_cents: null,
-            min_nights: 7,
-            max_nights: 27,
-          },
-          monthly: current?.monthly ?? {
-            rate_cents: null,
-            min_nights: 28,
-            max_nights: null,
-          },
+          nightly: current?.nightly ?? periodDefaults('nightly'),
+          weekly: current?.weekly ?? periodDefaults('weekly'),
+          monthly: current?.monthly ?? periodDefaults('monthly'),
           [type]: nextType,
         },
       }
@@ -601,21 +597,9 @@ export function SiteTypeRateSettings({
                                     : {
                                         ...prev,
                                         [siteTypeName]: {
-                                          nightly: {
-                                            rate_cents: null,
-                                            min_nights: 1,
-                                            max_nights: 6,
-                                          },
-                                          weekly: {
-                                            rate_cents: null,
-                                            min_nights: 7,
-                                            max_nights: 27,
-                                          },
-                                          monthly: {
-                                            rate_cents: null,
-                                            min_nights: 28,
-                                            max_nights: null,
-                                          },
+                                          nightly: periodDefaults('nightly'),
+                                          weekly: periodDefaults('weekly'),
+                                          monthly: periodDefaults('monthly'),
                                         },
                                       }
                                 )
@@ -699,21 +683,9 @@ export function SiteTypeRateSettings({
           <div className="space-y-3 sm:space-y-4">
             {orderedSiteTypes.map(({ siteType }) => {
               const rates = siteTypeRates[siteType] ?? {
-                nightly: {
-                  rate_cents: null,
-                  min_nights: 1,
-                  max_nights: 6,
-                },
-                weekly: {
-                  rate_cents: null,
-                  min_nights: 7,
-                  max_nights: 27,
-                },
-                monthly: {
-                  rate_cents: null,
-                  min_nights: 28,
-                  max_nights: null,
-                },
+                nightly: periodDefaults('nightly'),
+                                          weekly: periodDefaults('weekly'),
+                                          monthly: periodDefaults('monthly'),
               }
 
               return (

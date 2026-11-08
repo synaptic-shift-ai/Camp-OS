@@ -29,7 +29,6 @@ import { isAccessDeniedError } from '@/lib/utils/is-access-denied-error'
 import { useActionAvailability } from '@/lib/hooks/use-action-availability'
 import { AvailabilityFeedback } from './availability-feedback'
 import { useDialogCloseGuard } from '@/hooks/use-dialog-close-guard'
-import { calculateBaseSubtotalCents } from '@/lib/booking/pricing'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
 import type { RateDiscountsConfig, UserDefinedDiscount, BookingRulesConfig } from '@/lib/config/types'
@@ -319,24 +318,17 @@ export function ExtendDialog({
     onOpenChange: setOpen,
   })
 
-  // Base-only pricing impact (fallback when full preview not available)
+  // Nights only. Money comes from /extend-preview, which prices with the
+  // property's configured rate periods; estimating it here would mean the
+  // client pricing a stay, which is exactly what S-0.4/S-0.5 removed.
   const pricingImpact = useMemo(() => {
     if (!hasChanges) return null
     const originalNights = calculateNights(currentCheckIn, currentCheckOut)
     const newNights = calculateNights(newCheckIn, newCheckOut)
-    const newTotalCents = calculateBaseSubtotalCents(
-      newNights,
-      pricePerNight,
-      weeklyRateCents,
-      monthlyRateCents
-    )
-    const priceChange = newTotalCents - totalAmount
     return {
       originalNights,
       newNights,
       nightsAdded: newNights - originalNights,
-      priceChange,
-      newTotalCents,
     }
   }, [hasChanges, currentCheckIn, currentCheckOut, newCheckIn, newCheckOut, pricePerNight, totalAmount, weeklyRateCents, monthlyRateCents])
 
@@ -402,11 +394,18 @@ export function ExtendDialog({
   const displayPriceChange = useExtensionPricing
     ? (projectedBreakdown?.total ?? projectedTotalCents) -
     (originalBreakdown?.total ?? originalPeriodTotalCents)
-    : (projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0) - totalAmount
+    : (projectedTotalCents ?? 0) - totalAmount
 
   const displayNewTotalCents = useExtensionPricing
     ? totalAmount + displayPriceChange
-    : projectedTotalCents ?? pricingImpact?.newTotalCents ?? 0
+    : projectedTotalCents ?? 0
+
+  /**
+   * Whether the server has priced this change yet. Money is only shown once it
+   * has: the client no longer estimates, so an unpriced change would otherwise
+   * render a misleading $0.00.
+   */
+  const priceKnown = useExtensionPricing || projectedTotalCents != null
 
   const additionalFeesDelta = useMemo(() => {
     if (!useExtensionPricing || !projectedBreakdown || !originalBreakdown) return []
@@ -864,8 +863,14 @@ export function ExtendDialog({
                           pricingImpact.nightsAdded > 0 ? 'text-green-600' : 'text-red-600'
                         }
                       >
-                        {pricingImpact.nightsAdded > 0 ? '+' : ''}
-                        {formatMoney(displayPriceChange)}
+                        {priceKnown ? (
+                          <>
+                            {pricingImpact.nightsAdded > 0 ? '+' : ''}
+                            {formatMoney(displayPriceChange)}
+                          </>
+                        ) : (
+                          'Calculating\u2026'
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between font-medium">

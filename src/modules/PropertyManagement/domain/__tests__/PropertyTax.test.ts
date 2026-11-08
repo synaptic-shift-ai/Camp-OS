@@ -259,6 +259,18 @@ describe('PropertyTax.update', () => {
     expect(tax.rateBp).toBe(STATE_RATE_BP)
   })
 
+  test('treats a field passed as undefined as no change, not as a blank', () => {
+    // A partial request body types every key as possibly undefined, so a naive
+    // spread would blank whatever the client omitted.
+    const tax = PropertyTax.create(percentageProps())
+    tax.update({ name: undefined, authority: undefined, rateBp: 300 })
+    expect([tax.name, tax.authority, tax.rateBp]).toEqual([
+      'State Lodging Tax',
+      'State Department of Taxation',
+      300,
+    ])
+  })
+
   test('accepts a coherent switch of rate type and amount in one change', () => {
     const tax = PropertyTax.create(percentageProps())
     tax.update({ rateType: 'per_night', rateBp: null, amountCents: BED_TAX_CENTS })

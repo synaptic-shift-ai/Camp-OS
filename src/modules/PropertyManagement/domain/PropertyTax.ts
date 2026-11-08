@@ -76,8 +76,14 @@ export type CreatePropertyTaxProps = PropertyTaxFields & {
   propertyId: string
 }
 
-/** A change to an existing tax. Omitted fields keep their current value. */
-export type UpdatePropertyTaxProps = Partial<PropertyTaxFields>
+/**
+ * A change to an existing tax. Omitted fields keep their current value, and so
+ * does a field passed as `undefined` — a partial request body types every key
+ * that way, and spreading it would otherwise blank the field.
+ */
+export type UpdatePropertyTaxProps = {
+  [K in keyof PropertyTaxFields]?: PropertyTaxFields[K] | undefined
+}
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -314,7 +320,10 @@ export class PropertyTax extends AggregateRoot<string> {
    * type without also moving the amount across is rejected.
    */
   public update(changes: UpdatePropertyTaxProps): void {
-    const merged = validate({ ...this._fields, ...changes })
+    const provided = Object.fromEntries(
+      Object.entries(changes).filter(([, value]) => value !== undefined),
+    ) as Partial<PropertyTaxFields>
+    const merged = validate({ ...this._fields, ...provided })
     this._fields = merged
     this.touch()
   }
